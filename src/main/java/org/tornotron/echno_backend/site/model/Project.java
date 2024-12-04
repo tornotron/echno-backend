@@ -20,7 +20,7 @@ public class Project {
     private String projectName;
     private String projectAddress;
 
-    private LocalDateTime createdAt;
+//    private LocalDateTime createdAt;
 
     @Enumerated(EnumType.STRING)
     private ProjectCreationStatus status;
