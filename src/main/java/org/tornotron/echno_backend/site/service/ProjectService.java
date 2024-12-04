@@ -42,4 +42,8 @@ public class ProjectService {
     public List<Project> getAllProjects() {
         return repository.findAll();
     }
+
+    public Project getAProject(Long id) {
+        return repository.findById(id).orElse(null);
+    }
 }

@@ -32,4 +32,12 @@ public class ProjectController {
         return new ResponseEntity<>(service.getAllProjects(),HttpStatus.OK);
     }
 
+    @GetMapping("{id}")
+    public ResponseEntity<?> readAProject(@PathVariable Long id) {
+        Project project = service.getAProject(id);
+        if(project != null) {
+            return new ResponseEntity<>(project,HttpStatus.OK);
+        }
+        return new ResponseEntity<>("Project with id: "+id+" does not exist",HttpStatus.NOT_FOUND);
+    }
 }
