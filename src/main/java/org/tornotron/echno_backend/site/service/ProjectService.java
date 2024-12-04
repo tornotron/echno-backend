@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.site.model.Project;
 import org.tornotron.echno_backend.site.repository.ProjectRepository;
 
+import java.util.List;
+
 @Service
 public class ProjectService {
     private static final Logger logger = LoggerFactory.getLogger(ProjectService.class);
@@ -35,5 +37,9 @@ public class ProjectService {
             logger.error("Data could not be added to database");
             return false;
         }
+    }
+
+    public List<Project> getAllProjects() {
+        return repository.findAll();
     }
 }
