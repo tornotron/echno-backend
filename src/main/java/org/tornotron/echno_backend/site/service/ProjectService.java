@@ -7,6 +7,7 @@ import org.tornotron.echno_backend.site.model.Project;
 import org.tornotron.echno_backend.site.repository.ProjectRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ProjectService {
@@ -17,19 +18,12 @@ public class ProjectService {
         this.repository = repository;
     }
 
-    private void validateProject(Project project) {
-        if(project.getProjectName() == null || project.getProjectName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Project name cannot be empty");
-        }
-    }
-
-    public boolean addProject(Project project) {
+    public Boolean addProject(Project project) {
         if(project == null) {
             logger.warn("Attempted to add null project");
             return false;
         }
         try {
-            validateProject(project);
             repository.save(project);
             logger.info("Project added successfully: ID={}, NAME={}",project.getId(),project.getProjectName());
             return true;
@@ -45,5 +39,25 @@ public class ProjectService {
 
     public Project getAProject(Long id) {
         return repository.findById(id).orElse(null);
+    }
+
+    public boolean updateAProject(Project updatedProject,Long id) {
+        Optional<Project> projectOptional = repository.findById(id);
+        if(projectOptional.isPresent()) {
+            Project projectObj = projectOptional.get();
+            projectObj.setProjectName(updatedProject.getProjectName());
+            projectObj.setProjectAddress(updatedProject.getProjectAddress());
+            return addProject(projectObj);
+        }
+        return false;
+    }
+
+    public boolean deleteAProject(Long id) {
+        try {
+            repository.deleteById(id);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

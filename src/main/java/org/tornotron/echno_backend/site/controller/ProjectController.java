@@ -20,7 +20,11 @@ public class ProjectController {
 
     @PostMapping
     public ResponseEntity<?> createProject(@RequestBody Project project) {
-        boolean created = service.addProject(project);
+
+        if(project.getProjectName() == null || project.getProjectName().trim().isEmpty()) {
+            return new ResponseEntity<>("'projectName' is a required parameter",HttpStatus.BAD_REQUEST);
+        }
+        Boolean created = service.addProject(project);
         if(created) {
             return new ResponseEntity<>(project, HttpStatus.CREATED);
         }
@@ -39,5 +43,23 @@ public class ProjectController {
             return new ResponseEntity<>(project,HttpStatus.OK);
         }
         return new ResponseEntity<>("Project with id: "+id+" does not exist",HttpStatus.NOT_FOUND);
+    }
+
+    @PutMapping("{id}")
+    public ResponseEntity<String> updateProject(@RequestBody Project updatedProject,@PathVariable Long id) {
+        boolean updated = service.updateAProject(updatedProject,id);
+        if(updated) {
+            return new ResponseEntity<>("Project with id: "+id+" has been updated",HttpStatus.OK);
+        }
+        return new ResponseEntity<>("Project with id: "+id+" not found",HttpStatus.NOT_FOUND);
+    }
+
+    @DeleteMapping("{id}")
+    public ResponseEntity<String> deleteProject(@PathVariable Long id) {
+        boolean deleted = service.deleteAProject(id);
+        if(deleted) {
+            return new ResponseEntity<>("Project with id: "+id+" deleted",HttpStatus.OK);
+        }
+        return new ResponseEntity<>("Project with id: "+id+" not found",HttpStatus.NOT_FOUND);
     }
 }
