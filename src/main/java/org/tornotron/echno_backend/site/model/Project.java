@@ -5,7 +5,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.tornotron.echno_backend.site.enums.ProjectCreationStatus;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity

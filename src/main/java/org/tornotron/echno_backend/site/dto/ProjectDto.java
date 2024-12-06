@@ -2,7 +2,6 @@ package org.tornotron.echno_backend.site.dto;
 
 import lombok.Data;
 import org.tornotron.echno_backend.site.enums.ProjectCreationStatus;
-import org.tornotron.echno_backend.site.model.Team;
 
 import java.util.List;
 
