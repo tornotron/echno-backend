@@ -35,6 +35,7 @@ public class ProjectService {
         dto.setProjectName(project.getProjectName());
         dto.setProjectAddress(project.getProjectAddress());
         dto.setStatus(project.getStatus());
+        dto.setCreatedAt(project.getCreatedAt());
         dto.setTeams(project.getTeams().stream()
                 .map(this::convertTeamToTeamDTO)
                 .collect(Collectors.toList()));
