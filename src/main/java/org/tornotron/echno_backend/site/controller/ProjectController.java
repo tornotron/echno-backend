@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.site.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.site.dto.ProjectDto;
 import org.tornotron.echno_backend.site.model.Project;
 import org.tornotron.echno_backend.site.service.ProjectService;
 
@@ -19,26 +20,26 @@ public class ProjectController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createProject(@RequestBody Project project) {
+    public ResponseEntity<String> createProject(@RequestBody Project project) {
 
         if(project.getProjectName() == null || project.getProjectName().trim().isEmpty()) {
             return new ResponseEntity<>("'projectName' is a required parameter",HttpStatus.BAD_REQUEST);
         }
         Boolean created = service.addProject(project);
         if(created) {
-            return new ResponseEntity<>(project, HttpStatus.CREATED);
+            return new ResponseEntity<>("Project Added Successfully", HttpStatus.CREATED);
         }
         return new ResponseEntity<>("Project could not be created",HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @GetMapping
-    public ResponseEntity<List<Project>> readAllProjects() {
+    public ResponseEntity<List<ProjectDto>> readAllProjects() {
         return new ResponseEntity<>(service.getAllProjects(),HttpStatus.OK);
     }
 
     @GetMapping("{id}")
     public ResponseEntity<?> readAProject(@PathVariable Long id) {
-        Project project = service.getAProject(id);
+        ProjectDto project = service.getAProject(id);
         if(project != null) {
             return new ResponseEntity<>(project,HttpStatus.OK);
         }

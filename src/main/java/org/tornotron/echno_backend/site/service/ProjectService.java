@@ -3,11 +3,15 @@ package org.tornotron.echno_backend.site.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.site.dto.ProjectDto;
+import org.tornotron.echno_backend.site.dto.TeamDto;
 import org.tornotron.echno_backend.site.model.Project;
+import org.tornotron.echno_backend.site.model.Team;
 import org.tornotron.echno_backend.site.repository.ProjectRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ProjectService {
@@ -16,6 +20,25 @@ public class ProjectService {
 
     public ProjectService(ProjectRepository repository) {
         this.repository = repository;
+    }
+
+    private TeamDto convertTeamToTeamDTO(Team team) {
+        TeamDto teamDto = new TeamDto();
+        teamDto.setId(team.getId());
+        teamDto.setTeamName(team.getTeamName());
+        return teamDto;
+    }
+
+    private ProjectDto convertToDto(Project project) {
+        ProjectDto dto = new ProjectDto();
+        dto.setId(project.getId());
+        dto.setProjectName(project.getProjectName());
+        dto.setProjectAddress(project.getProjectAddress());
+        dto.setStatus(project.getStatus());
+        dto.setTeams(project.getTeams().stream()
+                .map(this::convertTeamToTeamDTO)
+                .collect(Collectors.toList()));
+        return dto;
     }
 
     public Boolean addProject(Project project) {
@@ -33,12 +56,17 @@ public class ProjectService {
         }
     }
 
-    public List<Project> getAllProjects() {
-        return repository.findAll();
+    public List<ProjectDto> getAllProjects() {
+        return repository.findAll().stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
     }
 
-    public Project getAProject(Long id) {
-        return repository.findById(id).orElse(null);
+    public ProjectDto getAProject(Long id) {
+        return repository.findById(id)
+                .map(this::convertToDto)
+                .orElse(null);
+
     }
 
     public boolean updateAProject(Project updatedProject,Long id) {
