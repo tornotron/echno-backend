@@ -3,6 +3,8 @@ package org.tornotron.echno_backend.site.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import org.antlr.v4.runtime.misc.NotNull;
 import org.hibernate.annotations.CreationTimestamp;
 import org.tornotron.echno_backend.site.enums.ProjectCreationStatus;
 

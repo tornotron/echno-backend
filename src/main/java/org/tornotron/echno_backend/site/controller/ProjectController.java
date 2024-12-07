@@ -21,10 +21,6 @@ public class ProjectController {
 
     @PostMapping
     public ResponseEntity<String> createProject(@RequestBody Project project) {
-
-        if(project.getProjectName() == null || project.getProjectName().trim().isEmpty()) {
-            return new ResponseEntity<>("'projectName' is a required parameter",HttpStatus.BAD_REQUEST);
-        }
         Boolean created = service.addProject(project);
         if(created) {
             return new ResponseEntity<>("Project Added Successfully", HttpStatus.CREATED);
