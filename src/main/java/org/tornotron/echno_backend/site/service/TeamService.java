@@ -4,7 +4,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.site.dto.TeamDto;
+import org.tornotron.echno_backend.site.dto.TeamMemberDto;
 import org.tornotron.echno_backend.site.model.Team;
+import org.tornotron.echno_backend.site.model.TeamMember;
 import org.tornotron.echno_backend.site.repository.TeamRepository;
 
 import java.util.List;
@@ -21,10 +23,21 @@ public class TeamService {
         this.repository = repository;
     }
 
+    private TeamMemberDto convertTeamMemberToTeamMemberDto(TeamMember teamMember) {
+        TeamMemberDto teamMemberDto = new TeamMemberDto();
+        teamMemberDto.setId(teamMember.getId());
+        teamMemberDto.setMemberName(teamMember.getMemberName());
+        teamMemberDto.setMemberEmail(teamMember.getMemberEmail());
+        return teamMemberDto;
+    }
+
     private TeamDto convertToDTO(Team team) {
         TeamDto dto = new TeamDto();
         dto.setId(team.getId());
         dto.setTeamName(team.getTeamName());
+        dto.setTeamMembers(team.getMembers().stream()
+                .map(this::convertTeamMemberToTeamMemberDto)
+                .collect(Collectors.toList()));
         return dto;
     }
 
