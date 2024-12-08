@@ -1,7 +1,9 @@
 package org.tornotron.echno_backend.site.controller;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.site.dto.ProjectDto;
 import org.tornotron.echno_backend.site.model.Project;
@@ -11,6 +13,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/projects")
+@Validated
 public class ProjectController {
 
     private final ProjectService service;
@@ -20,12 +23,12 @@ public class ProjectController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createProject(@RequestBody Project project) {
+    public ResponseEntity<?> createProject(@Valid @RequestBody Project project) {
         Boolean created = service.addProject(project);
         if(created) {
-            return new ResponseEntity<>("Project Added Successfully", HttpStatus.CREATED);
+            return ResponseEntity.status(HttpStatus.CREATED).body("Project Added Successfully");
         }
-        return new ResponseEntity<>("Project could not be created",HttpStatus.INTERNAL_SERVER_ERROR);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Project could not be created");
     }
 
     @GetMapping
