@@ -1,7 +1,9 @@
 package org.tornotron.echno_backend.site.controller;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.site.dto.TeamDto;
 import org.tornotron.echno_backend.site.model.Team;
@@ -11,6 +13,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/teams")
+@Validated
 public class TeamController {
 
     private final TeamService service;
@@ -20,15 +23,12 @@ public class TeamController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createTeam(@RequestBody Team team) {
-        if(team.getTeamName() == null || team.getTeamName().trim().isEmpty()) {
-            return new ResponseEntity<>("'teamName' is a required parameter",HttpStatus.BAD_REQUEST);
-        }
+    public ResponseEntity<String> createTeam(@Valid @RequestBody Team team) {
         boolean created = service.addTeam(team);
         if(created) {
-            return new ResponseEntity<>("Team Added Successfully", HttpStatus.CREATED);
+            return ResponseEntity.status(HttpStatus.CREATED).body("Team was Successfully Created");
         }
-        return new ResponseEntity<>("Project could not be created",HttpStatus.INTERNAL_SERVER_ERROR);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Team could not be created");
     }
 
     @GetMapping
