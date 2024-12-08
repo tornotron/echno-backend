@@ -1,7 +1,9 @@
 package org.tornotron.echno_backend.site.controller;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.site.dto.TeamMemberDto;
 import org.tornotron.echno_backend.site.model.TeamMember;
@@ -11,6 +13,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/teamMembers")
+@Validated
 public class TeamMemberController {
 
     private final TeamMemberService service;
@@ -20,15 +23,12 @@ public class TeamMemberController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createTeamMember(@RequestBody TeamMember teamMember) {
-        if(teamMember.getMemberName() == null || teamMember.getMemberName().trim().isEmpty()) {
-            return new ResponseEntity<>("'memberName' is a required parameter",HttpStatus.BAD_REQUEST);
-        }
+    public ResponseEntity<String> createTeamMember(@Valid @RequestBody TeamMember teamMember) {
         boolean created = service.addTeamMember(teamMember);
         if(created) {
-            return new ResponseEntity<>("TeamMember added successfully", HttpStatus.CREATED);
+            return ResponseEntity.status(HttpStatus.CREATED).body("TeamMember was Created Successfully");
         }
-        return new ResponseEntity<>("TeamMember could not be created",HttpStatus.INTERNAL_SERVER_ERROR);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("TeamMember could not be created");
     }
 
     @GetMapping
