@@ -4,9 +4,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.site.dto.ProjectDto;
-import org.tornotron.echno_backend.site.dto.TeamDto;
+import org.tornotron.echno_backend.site.dto.TeamMemberDto;
 import org.tornotron.echno_backend.site.model.Project;
-import org.tornotron.echno_backend.site.model.Team;
+import org.tornotron.echno_backend.site.model.TeamMember;
 import org.tornotron.echno_backend.site.repository.ProjectRepository;
 
 import java.util.List;
@@ -22,11 +22,12 @@ public class ProjectService {
         this.repository = repository;
     }
 
-    private TeamDto convertTeamToTeamDTO(Team team) {
-        TeamDto teamDto = new TeamDto();
-        teamDto.setId(team.getId());
-        teamDto.setTeamName(team.getTeamName());
-        return teamDto;
+    private TeamMemberDto convertTeamMemberToTeamMemberDTO(TeamMember teamMember) {
+        TeamMemberDto teamMemberDto = new TeamMemberDto();
+        teamMemberDto.setId(teamMember.getId());
+        teamMemberDto.setMemberName(teamMember.getMemberName());
+        teamMemberDto.setMemberEmail(teamMember.getMemberEmail());
+        return teamMemberDto;
     }
 
     private ProjectDto convertToDto(Project project) {
@@ -36,8 +37,8 @@ public class ProjectService {
         dto.setProjectAddress(project.getProjectAddress());
         dto.setStatus(project.getStatus());
         dto.setCreatedAt(project.getCreatedAt());
-        dto.setTeams(project.getTeams().stream()
-                .map(this::convertTeamToTeamDTO)
+        dto.setTeamMembers(project.getTeamMembers().stream()
+                .map(this::convertTeamMemberToTeamMemberDTO)
                 .collect(Collectors.toList()));
         return dto;
     }

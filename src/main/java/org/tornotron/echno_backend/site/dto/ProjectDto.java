@@ -13,5 +13,5 @@ public class ProjectDto {
     private String projectAddress;
     private LocalDateTime createdAt;
     private ProjectCreationStatus status;
-    private List<TeamDto> teams;
+    private List<TeamMemberDto> teamMembers;
 }

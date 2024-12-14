@@ -23,7 +23,7 @@ public class ProjectController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createProject(@Valid @RequestBody Project project) {
+    public ResponseEntity<String> createProject(@Valid @RequestBody Project project) {
         Boolean created = service.addProject(project);
         if(created) {
             return ResponseEntity.status(HttpStatus.CREATED).body("Project Added Successfully");

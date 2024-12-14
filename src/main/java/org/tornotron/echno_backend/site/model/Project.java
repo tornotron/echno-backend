@@ -35,5 +35,5 @@ public class Project {
     private ProjectCreationStatus status;
 
     @OneToMany(mappedBy = "project")
-    private List<Team> teams;
+    private List<TeamMember> teamMembers;
 }

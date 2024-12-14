@@ -20,5 +20,5 @@ public class TeamMember {
     private String memberEmail;
 
     @ManyToOne
-    private Team team;
+    private Project project;
 }
