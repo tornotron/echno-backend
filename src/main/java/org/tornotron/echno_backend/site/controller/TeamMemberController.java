@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.site.dto.TeamMemberCreationDTO;
 import org.tornotron.echno_backend.site.dto.TeamMemberDto;
 import org.tornotron.echno_backend.site.model.TeamMember;
 import org.tornotron.echno_backend.site.service.TeamMemberService;
@@ -23,8 +24,8 @@ public class TeamMemberController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createTeamMember(@Valid @RequestBody TeamMember teamMember) {
-        boolean created = service.addTeamMember(teamMember);
+    public ResponseEntity<String> createTeamMember(@Valid @RequestBody TeamMemberCreationDTO teamMemberCreationDTO) {
+        boolean created = service.addTeamMember(teamMemberCreationDTO);
         if(created) {
             return ResponseEntity.status(HttpStatus.CREATED).body("TeamMember was Created Successfully");
         }
@@ -45,14 +46,14 @@ public class TeamMemberController {
         return new ResponseEntity<>("TeamMember with id: "+id+" does not exist",HttpStatus.NOT_FOUND);
     }
 
-    @PutMapping("{id}")
-    public ResponseEntity<String> updateTeamMember(@RequestBody TeamMember updatedTeamMember,@PathVariable Long id) {
-        boolean updated = service.updateATeamMember(updatedTeamMember,id);
-        if(updated) {
-            return new ResponseEntity<>("TeamMember with id: "+id+" has been updated",HttpStatus.OK);
-        }
-        return new ResponseEntity<>("TeamMember with id: "+id+" not found",HttpStatus.NOT_FOUND);
-    }
+//    @PutMapping("{id}")
+//    public ResponseEntity<String> updateTeamMember(@RequestBody TeamMember updatedTeamMember,@PathVariable Long id) {
+//        boolean updated = service.updateATeamMember(updatedTeamMember,id);
+//        if(updated) {
+//            return new ResponseEntity<>("TeamMember with id: "+id+" has been updated",HttpStatus.OK);
+//        }
+//        return new ResponseEntity<>("TeamMember with id: "+id+" not found",HttpStatus.NOT_FOUND);
+//    }
 
     @DeleteMapping("{id}")
     public ResponseEntity<String> deleteTeamMember(@PathVariable Long id) {
