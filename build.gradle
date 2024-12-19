@@ -24,7 +24,8 @@ dependencies {
 group = 'org.tornotron'
 version = '0.0.1-SNAPSHOT'
 description = 'echno_backend'
-java.sourceCompatibility = JavaVersion.VERSION_1_8
+java.sourceCompatibility = JavaVersion.VERSION_23
+java.targetCompatibility = JavaVersion.VERSION_23
 
 publishing {
     publications {
