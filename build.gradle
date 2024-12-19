@@ -1,44 +1,35 @@
 plugins {
-    id 'java-library'
-    id 'maven-publish'
+    id 'java'
     id 'org.springframework.boot' version '3.4.0'
+    id 'io.spring.dependency-management' version '1.1.6'
 }
 
 repositories {
-    mavenLocal()
-    maven {
-        url = uri('https://repo.maven.apache.org/maven2/')
-    }
+    mavenCentral()
 }
 
 dependencies {
-    api libs.org.springframework.boot.spring.boot.starter.data.jpa
-    api libs.org.springframework.boot.spring.boot.starter.web
-    api libs.org.springframework.boot.spring.boot.starter.validation
-    runtimeOnly libs.org.postgresql.postgresql
-    testImplementation libs.org.springframework.boot.spring.boot.starter.test
-    compileOnly libs.org.projectlombok.lombok
-    annotationProcessor libs.org.projectlombok.lombok
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    compileOnly 'org.projectlombok:lombok'
+    runtimeOnly 'org.postgresql:postgresql'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+
 
 group = 'org.tornotron'
 version = '0.0.1-SNAPSHOT'
 description = 'echno_backend'
-java.sourceCompatibility = JavaVersion.VERSION_23
-java.targetCompatibility = JavaVersion.VERSION_23
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            from(components.java)
-        }
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(23)
     }
 }
 
-tasks.withType(JavaCompile) {
-    options.encoding = 'UTF-8'
-}
-
-tasks.withType(Javadoc) {
-    options.encoding = 'UTF-8'
+tasks.named('test') {
+    useJUnitPlatform()
 }
