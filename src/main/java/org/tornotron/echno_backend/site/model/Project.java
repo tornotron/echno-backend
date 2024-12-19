@@ -22,6 +22,7 @@ public class Project {
 
     @NotBlank(message = "projectName is required")
     @Size(min = 3,max = 50,message = "projectName must be between 3 and 50 characters")
+    @Column(unique = true)
     private String projectName;
 
     @NotBlank(message = "projectAddress is required")

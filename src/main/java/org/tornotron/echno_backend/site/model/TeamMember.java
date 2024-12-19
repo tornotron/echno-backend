@@ -16,7 +16,10 @@ public class TeamMember {
 
     @NotNull(message = "memberName is required")
     @Size(min = 3,max = 50,message = "memberName must be between 3 and 50 characters")
+    @Column(unique = true)
     private String memberName;
+
+    @Column(unique = true)
     private String memberEmail;
 
     @ManyToOne
