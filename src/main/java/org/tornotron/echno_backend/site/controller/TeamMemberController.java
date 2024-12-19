@@ -46,14 +46,14 @@ public class TeamMemberController {
         return new ResponseEntity<>("TeamMember with id: "+id+" does not exist",HttpStatus.NOT_FOUND);
     }
 
-//    @PutMapping("{id}")
-//    public ResponseEntity<String> updateTeamMember(@RequestBody TeamMember updatedTeamMember,@PathVariable Long id) {
-//        boolean updated = service.updateATeamMember(updatedTeamMember,id);
-//        if(updated) {
-//            return new ResponseEntity<>("TeamMember with id: "+id+" has been updated",HttpStatus.OK);
-//        }
-//        return new ResponseEntity<>("TeamMember with id: "+id+" not found",HttpStatus.NOT_FOUND);
-//    }
+    @PutMapping("{id}")
+    public ResponseEntity<String> updateTeamMember(@RequestBody TeamMember updatedTeamMember,@PathVariable Long id) {
+        boolean updated = service.updateATeamMember(updatedTeamMember,id);
+        if(updated) {
+            return new ResponseEntity<>("TeamMember with id: "+id+" has been updated",HttpStatus.OK);
+        }
+        return new ResponseEntity<>("TeamMember with id: "+id+" not found",HttpStatus.NOT_FOUND);
+    }
 
     @DeleteMapping("{id}")
     public ResponseEntity<String> deleteTeamMember(@PathVariable Long id) {

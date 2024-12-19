@@ -34,7 +34,6 @@ public class TeamMemberService {
         return dto;
     }
 
-
     public boolean addTeamMember(TeamMemberCreationDTO teamMemberCreationDTO) {
         if(teamMemberCreationDTO == null) {
             logger.warn("Attempted to add null teamMember");
@@ -67,16 +66,17 @@ public class TeamMemberService {
                 .orElse(null);
     }
 
-//    public boolean updateATeamMember(TeamMember updatedTeamMember,Long id) {
-//        Optional<TeamMember> optionalTeamMember = repository.findById(id);
-//        if(optionalTeamMember.isPresent()) {
-//            TeamMember teamMemberObj = optionalTeamMember.get();
-//            teamMemberObj.setMemberName(updatedTeamMember.getMemberName());
-//            teamMemberObj.setMemberEmail(updatedTeamMember.getMemberEmail());
-//            return addTeamMember(teamMemberObj);
-//        }
-//        return false;
-//    }
+    public boolean updateATeamMember(TeamMember updatedTeamMember,Long id) {
+        Optional<TeamMember> optionalTeamMember = repository.findById(id);
+        if(optionalTeamMember.isPresent()) {
+            TeamMember teamMemberObj = optionalTeamMember.get();
+            teamMemberObj.setMemberName(updatedTeamMember.getMemberName());
+            teamMemberObj.setMemberEmail(updatedTeamMember.getMemberEmail());
+            repository.save(teamMemberObj);
+            return true;
+        }
+        return false;
+    }
 
     public boolean deleteATeamMember(Long id) {
         try {
