@@ -1,4 +1,4 @@
-package org.tornotron.echno_backend.site.dto;
+package org.tornotron.echno_backend.teamMember.dto;
 
 import lombok.Data;
 

@@ -1,4 +1,4 @@
-package org.tornotron.echno_backend.site.enums;
+package org.tornotron.echno_backend.project.enums;
 
 public enum ProjectCreationStatus {
     CREATED,

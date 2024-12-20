@@ -1,4 +1,4 @@
-package org.tornotron.echno_backend.site;
+package org.tornotron.echno_backend.common.validation;
 
 import lombok.Data;
 import org.springframework.http.HttpStatus;
@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @ControllerAdvice
-public class SiteExceptionHandler {
+public class GlobalValidationHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Object> handleValidationExceptions(MethodArgumentNotValidException exception) {

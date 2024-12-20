@@ -1,14 +1,12 @@
-package org.tornotron.echno_backend.site.service;
+package org.tornotron.echno_backend.teamMember;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.tornotron.echno_backend.site.dto.TeamMemberCreationDTO;
-import org.tornotron.echno_backend.site.dto.TeamMemberDto;
-import org.tornotron.echno_backend.site.model.Project;
-import org.tornotron.echno_backend.site.model.TeamMember;
-import org.tornotron.echno_backend.site.repository.ProjectRepository;
-import org.tornotron.echno_backend.site.repository.TeamMemberRepository;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.teamMember.dto.TeamMemberCreationDTO;
+import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 
 import java.util.List;
 import java.util.Optional;

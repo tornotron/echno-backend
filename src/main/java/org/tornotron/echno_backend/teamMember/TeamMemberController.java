@@ -1,14 +1,12 @@
-package org.tornotron.echno_backend.site.controller;
+package org.tornotron.echno_backend.teamMember;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.tornotron.echno_backend.site.dto.TeamMemberCreationDTO;
-import org.tornotron.echno_backend.site.dto.TeamMemberDto;
-import org.tornotron.echno_backend.site.model.TeamMember;
-import org.tornotron.echno_backend.site.service.TeamMemberService;
+import org.tornotron.echno_backend.teamMember.dto.TeamMemberCreationDTO;
+import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 
 import java.util.List;
 

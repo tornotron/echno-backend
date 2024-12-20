@@ -1,7 +1,8 @@
-package org.tornotron.echno_backend.site.dto;
+package org.tornotron.echno_backend.project.dto;
 
 import lombok.Data;
-import org.tornotron.echno_backend.site.enums.ProjectCreationStatus;
+import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
+import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 
 import java.time.LocalDateTime;
 import java.util.List;

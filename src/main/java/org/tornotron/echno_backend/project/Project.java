@@ -1,4 +1,4 @@
-package org.tornotron.echno_backend.site.model;
+package org.tornotron.echno_backend.project;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -6,7 +6,8 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-import org.tornotron.echno_backend.site.enums.ProjectCreationStatus;
+import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
+import org.tornotron.echno_backend.teamMember.TeamMember;
 
 import java.time.LocalDateTime;
 import java.util.List;

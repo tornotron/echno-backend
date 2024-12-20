@@ -1,13 +1,11 @@
-package org.tornotron.echno_backend.site.controller;
+package org.tornotron.echno_backend.project;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.tornotron.echno_backend.site.dto.ProjectDto;
-import org.tornotron.echno_backend.site.model.Project;
-import org.tornotron.echno_backend.site.service.ProjectService;
+import org.tornotron.echno_backend.project.dto.ProjectDto;
 
 import java.util.List;
 
