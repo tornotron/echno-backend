@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: echno_backend
+  datasource:
+    url:  jdbc:postgresql://localhost:5432/echno_database
+    username: root
+    password: password
+  jpa:
+    database: postgresql
+    show-sql: true
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+server:
+  port: 8080
