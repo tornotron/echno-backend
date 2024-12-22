@@ -15,7 +15,7 @@ public class ProjectInviteCode {
     private Long id;
 
     @Column(nullable = false,unique = true)
-    private String code;
+    private int code;
 
     @ManyToOne
     private Project project;
