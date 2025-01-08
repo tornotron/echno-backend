@@ -5,6 +5,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 
 import java.util.List;
@@ -26,7 +28,7 @@ public class ProjectController {
         if(created) {
             return ResponseEntity.status(HttpStatus.CREATED).body("Project Added Successfully");
         }
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Project could not be created");
+        throw new DatabaseOperationException("Project could not be created");
     }
 
     @GetMapping
@@ -40,7 +42,7 @@ public class ProjectController {
         if(project != null) {
             return new ResponseEntity<>(project,HttpStatus.OK);
         }
-        return new ResponseEntity<>("Project with id: "+id+" does not exist",HttpStatus.NOT_FOUND);
+        throw new ResourceNotFoundException("Project not found with id: "+id);
     }
 
     @PutMapping("{id}")
@@ -49,7 +51,7 @@ public class ProjectController {
         if(updated) {
             return new ResponseEntity<>("Project with id: "+id+" has been updated",HttpStatus.OK);
         }
-        return new ResponseEntity<>("Project with id: "+id+" not found",HttpStatus.NOT_FOUND);
+        throw new ResourceNotFoundException("Project not found with id: "+id);
     }
 
     @DeleteMapping("{id}")
@@ -58,6 +60,6 @@ public class ProjectController {
         if(deleted) {
             return new ResponseEntity<>("Project with id: "+id+" deleted",HttpStatus.OK);
         }
-        return new ResponseEntity<>("Project with id: "+id+" not found",HttpStatus.NOT_FOUND);
+        throw new DatabaseOperationException("Project could not be deleted");
     }
 }

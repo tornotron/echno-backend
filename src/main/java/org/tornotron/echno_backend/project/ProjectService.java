@@ -1,8 +1,10 @@
 package org.tornotron.echno_backend.project;
 
+import org.hibernate.service.NullServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 import org.tornotron.echno_backend.teamMember.TeamMember;
@@ -42,18 +44,8 @@ public class ProjectService {
     }
 
     public Boolean addProject(Project project) {
-        if(project == null) {
-            logger.warn("Attempted to add null project");
-            return false;
-        }
-        try {
-            repository.save(project);
-            logger.info("Project added successfully: ID={}, NAME={}",project.getId(),project.getProjectName());
-            return true;
-        } catch (Exception e) {
-            logger.error("Data could not be added to database");
-            return false;
-        }
+            Project savedProject = repository.save(project);
+            return savedProject.getId() != null;
     }
 
     public List<ProjectDto> getAllProjects() {
@@ -81,11 +73,10 @@ public class ProjectService {
     }
 
     public boolean deleteAProject(Long id) {
-        try {
-            repository.deleteById(id);
-            return true;
-        } catch (Exception e) {
-            return false;
+        if(!repository.existsById(id)) {
+            throw new ResourceNotFoundException("Project not found with id: "+id);
         }
+        repository.deleteById(id);
+        return true;
     }
 }
