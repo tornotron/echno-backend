@@ -24,7 +24,7 @@ public class TeamMemberService {
         this.projectRepository = projectRepository;
     }
 
-    public TeamMemberDto convertToDTO(TeamMember teamMember) {
+    private TeamMemberDto convertToDTO(TeamMember teamMember) {
         TeamMemberDto dto = new TeamMemberDto();
         dto.setId(teamMember.getId());
         dto.setMemberName(teamMember.getMemberName());
