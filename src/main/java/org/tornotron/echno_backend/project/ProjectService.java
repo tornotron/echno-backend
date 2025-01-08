@@ -1,8 +1,5 @@
 package org.tornotron.echno_backend.project;
 
-import org.hibernate.service.NullServiceException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
@@ -15,7 +12,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class ProjectService {
-    private static final Logger logger = LoggerFactory.getLogger(ProjectService.class);
     private final ProjectRepository repository;
 
     public ProjectService(ProjectRepository repository) {

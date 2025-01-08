@@ -5,7 +5,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.task.dto.TaskCreationDto;
 import org.tornotron.echno_backend.task.dto.TaskDto;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
