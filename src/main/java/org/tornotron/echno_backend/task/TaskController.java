@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.task.dto.TaskCreationDto;
@@ -15,7 +14,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/tasks")
-@Validated
 public class TaskController {
 
     private final TaskService service;
@@ -27,19 +25,10 @@ public class TaskController {
     @PostMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE} )
     public ResponseEntity<String> createTask(
                                              @RequestPart("photo") MultipartFile photo,
-                                                @RequestPart("task") String taskDtoString
-    ) throws JsonProcessingException {
-//        Boolean created = service.addTask(taskDto,photo);
-
-//        if (created) {
-//            return ResponseEntity.status(HttpStatus.CREATED).body("Task was Created Successfully");
-//        }
-//        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Task could not be created");
-        ObjectMapper objectMapper = new ObjectMapper();
-        TaskCreationDto taskDto = objectMapper.readValue(taskDtoString, TaskCreationDto.class);
-        System.out.println("Success");
-        System.out.println(taskDto.getTaskName());
-        return ResponseEntity.status(HttpStatus.CREATED).body("Done");
+                                             @RequestPart("task") String taskDtoString
+    ) {
+        service.addTask(taskDtoString,photo);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Task created successfully");
     }
 
     @GetMapping
