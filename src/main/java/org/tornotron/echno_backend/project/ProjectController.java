@@ -56,10 +56,7 @@ public class ProjectController {
 
     @DeleteMapping("{id}")
     public ResponseEntity<String> deleteProject(@PathVariable Long id) {
-        boolean deleted = service.deleteAProject(id);
-        if(deleted) {
-            return new ResponseEntity<>("Project with id: "+id+" deleted",HttpStatus.OK);
-        }
-        throw new DatabaseOperationException("Project could not be deleted");
+        service.deleteAProject(id);
+        return new ResponseEntity<>("Project with id: "+id+" deleted",HttpStatus.OK);
     }
 }

@@ -68,11 +68,10 @@ public class ProjectService {
         return false;
     }
 
-    public boolean deleteAProject(Long id) {
+    public void deleteAProject(Long id) {
         if(!repository.existsById(id)) {
             throw new ResourceNotFoundException("Project not found with id: "+id);
         }
         repository.deleteById(id);
-        return true;
     }
 }
