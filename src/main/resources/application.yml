@@ -1,5 +1,9 @@
 
 spring:
+  jackson:
+    date-format: yyyy-MM-dd
+    serialization:
+      write-dates-as-timestamps: false
   application:
     name: echno_backend
   datasource:
