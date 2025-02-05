@@ -56,10 +56,7 @@ public class TaskController {
 
     @DeleteMapping("{id}")
     public ResponseEntity<String> deleteTask(@PathVariable Long id) {
-        boolean deleted = service.deleteATask(id);
-        if (deleted) {
-            return new ResponseEntity<>("Task with id: " + id + " deleted", HttpStatus.OK);
-        }
-        return new ResponseEntity<>("Task with id: " + id + " not found", HttpStatus.NOT_FOUND);
+        service.deleteATask(id);
+        return new ResponseEntity<>("Task with id: " + id + " deleted", HttpStatus.OK);
     }
 }

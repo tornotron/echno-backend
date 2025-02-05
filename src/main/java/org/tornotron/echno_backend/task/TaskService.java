@@ -10,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidPhotoException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.task.dto.TaskCreationDto;
 import org.tornotron.echno_backend.task.dto.TaskDto;
 
@@ -117,13 +118,11 @@ public class TaskService {
         return false;
     }
 
-    public Boolean deleteATask(Long id) {
-        try {
-            taskRepository.deleteById(id);
-            return true;
-        } catch (Exception e) {
-            return false;
+    public void deleteATask(Long id) {
+        if(!taskRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Task not found with id: "+id);
         }
+        taskRepository.deleteById(id);
     }
 
 
