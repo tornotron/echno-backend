@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.teamMember;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberCreationDTO;
@@ -76,12 +77,10 @@ public class TeamMemberService {
         return false;
     }
 
-    public boolean deleteATeamMember(Long id) {
-        try {
-            repository.deleteById(id);
-            return true;
-        } catch (Exception e) {
-            return false;
+    public void deleteATeamMember(Long id) {
+        if(!repository.existsById(id)) {
+            throw new ResourceNotFoundException("TeamMember not found with id: "+id);
         }
+        repository.deleteById(id);
     }
 }
