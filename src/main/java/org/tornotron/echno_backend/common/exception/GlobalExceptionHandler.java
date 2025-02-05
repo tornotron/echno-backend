@@ -39,7 +39,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException exception) {
+    public ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException exception,WebRequest request) {
         Map<String,String> errors = new HashMap<>();
         exception.getBindingResult().getAllErrors().forEach((error)->{
             String fieldName = ((FieldError) error).getField();
@@ -48,7 +48,12 @@ public class GlobalExceptionHandler {
         });
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponseValidation("Validation Failed",errors));
+                .body(new ErrorResponseValidation(HttpStatus.BAD_REQUEST.value(),
+                        "Validation Failed",
+                        errors,
+                        request.getDescription(false),
+                        LocalDateTime.now()
+                ));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -122,6 +127,18 @@ public class GlobalExceptionHandler {
                 LocalDateTime.now()
         );
 
+    }
+
+    @ExceptionHandler(InvalidAttendanceSequenceException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleInvalidAttendanceSequenceException(InvalidAttendanceSequenceException ex,WebRequest request) {
+        logger.error("Invalid Attendance marking sequence: ",ex);
+        return new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
     }
 }
 
