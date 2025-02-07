@@ -20,7 +20,6 @@ public class ProjectCreationDto {
     @Size(min = 3,max = 50,message = "projectAddress must be between 3 and 50 characters")
     private String projectAddress;
 
-    @CreationTimestamp
     private LocalDateTime createdAt;
 
     @Enumerated(EnumType.STRING)

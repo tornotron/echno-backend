@@ -9,6 +9,7 @@ import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 import org.tornotron.echno_backend.teamMember.TeamMember;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -46,7 +47,7 @@ public class ProjectService {
             Project project = new Project();
             project.setProjectName(projectDto.getProjectName());
             project.setProjectAddress(projectDto.getProjectAddress());
-            project.setCreatedAt(projectDto.getCreatedAt());
+            project.setCreatedAt(LocalDateTime.now());
             project.setStatus(ProjectCreationStatus.valueOf(projectDto.getStatus()));
             Project savedProject = repository.save(project);
             if(savedProject.getId() == null) {
