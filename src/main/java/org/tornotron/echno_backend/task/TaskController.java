@@ -1,8 +1,10 @@
 package org.tornotron.echno_backend.task;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.task.dto.TaskDto;
@@ -11,6 +13,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/tasks")
+@Validated
 public class TaskController {
 
     private final TaskService service;
@@ -36,14 +39,11 @@ public class TaskController {
     @GetMapping("{id}")
     public ResponseEntity<?> readATask(@PathVariable Long id) {
         TaskDto task = service.getATask(id);
-        if (task != null) {
-            return new ResponseEntity<>(task, HttpStatus.OK);
-        }
-        return new ResponseEntity<>("Task with id: " + id + " does not exist", HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(task, HttpStatus.OK);
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<String> updateTask(@RequestBody Task updatedTask, @PathVariable Long id) {
+    public ResponseEntity<String> updateTask(@Valid @RequestBody Task updatedTask, @PathVariable Long id) {
         boolean updated = service.updateATask(updatedTask, id);
         if (updated) {
             return new ResponseEntity<>("Task with id: " + id + " has been updated", HttpStatus.OK);

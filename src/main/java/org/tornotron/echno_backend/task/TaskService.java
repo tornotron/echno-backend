@@ -97,9 +97,14 @@ public class TaskService {
     }
 
     public TaskDto getATask(Long id) {
-        return taskRepository.findById(id)
+        TaskDto taskDto = taskRepository.findById(id)
                 .map(this::convertToDto)
                 .orElse(null);
+        if(taskDto == null) {
+            throw new ResourceNotFoundException("Task not found with id: "+id);
+        } else {
+            return taskDto;
+        }
     }
 
     public Boolean updateATask(Task updatedTask,Long id) {
