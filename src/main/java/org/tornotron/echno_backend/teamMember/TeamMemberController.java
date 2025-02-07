@@ -55,11 +55,8 @@ public class TeamMemberController {
 
     @DeleteMapping("{id}")
     public ResponseEntity<String> deleteTeamMember(@PathVariable Long id) {
-        boolean deleted = service.deleteATeamMember(id);
-        if(deleted) {
-            return new ResponseEntity<>("TeamMember with id: "+id+" deleted",HttpStatus.OK);
-        }
-        return new ResponseEntity<>("TeamMember with id: "+id+" not found",HttpStatus.NOT_FOUND);
+        service.deleteATeamMember(id);
+        return new ResponseEntity<>("TeamMember with id: "+id+" deleted",HttpStatus.OK);
     }
 
 }

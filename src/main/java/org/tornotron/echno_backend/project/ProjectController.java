@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 
 import java.util.List;
@@ -21,12 +22,9 @@ public class ProjectController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createProject(@Valid @RequestBody Project project) {
-        Boolean created = service.addProject(project);
-        if(created) {
-            return ResponseEntity.status(HttpStatus.CREATED).body("Project Added Successfully");
-        }
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Project could not be created");
+    public ResponseEntity<String> createProject(@Valid @RequestBody ProjectCreationDto projectDto) {
+        service.addProject(projectDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Project Added Successfully");
     }
 
     @GetMapping
@@ -37,27 +35,18 @@ public class ProjectController {
     @GetMapping("{id}")
     public ResponseEntity<?> readAProject(@PathVariable Long id) {
         ProjectDto project = service.getAProject(id);
-        if(project != null) {
-            return new ResponseEntity<>(project,HttpStatus.OK);
-        }
-        return new ResponseEntity<>("Project with id: "+id+" does not exist",HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(project,HttpStatus.OK);
     }
 
     @PutMapping("{id}")
     public ResponseEntity<String> updateProject(@RequestBody Project updatedProject,@PathVariable Long id) {
-        boolean updated = service.updateAProject(updatedProject,id);
-        if(updated) {
-            return new ResponseEntity<>("Project with id: "+id+" has been updated",HttpStatus.OK);
-        }
-        return new ResponseEntity<>("Project with id: "+id+" not found",HttpStatus.NOT_FOUND);
+        service.updateAProject(updatedProject,id);
+        return new ResponseEntity<>("Project with id: "+id+" has been updated",HttpStatus.OK);
     }
 
     @DeleteMapping("{id}")
     public ResponseEntity<String> deleteProject(@PathVariable Long id) {
-        boolean deleted = service.deleteAProject(id);
-        if(deleted) {
-            return new ResponseEntity<>("Project with id: "+id+" deleted",HttpStatus.OK);
-        }
-        return new ResponseEntity<>("Project with id: "+id+" not found",HttpStatus.NOT_FOUND);
+        service.deleteAProject(id);
+        return new ResponseEntity<>("Project with id: "+id+" deleted",HttpStatus.OK);
     }
 }

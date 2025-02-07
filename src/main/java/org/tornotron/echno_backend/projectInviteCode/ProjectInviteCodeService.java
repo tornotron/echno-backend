@@ -2,6 +2,9 @@ package org.tornotron.echno_backend.projectInviteCode;
 
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
+import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 
@@ -29,7 +32,7 @@ public class ProjectInviteCodeService {
     public Boolean generateInviteCode(String projectName, int maxUses, int validityDays) {
         Project project = projectRepository.findProjectByProjectName(projectName);
         if(project == null) {
-            return null;
+            throw new ResourceNotFoundException(projectName+" project not found");
         }
         int inviteCode = generateSecureFiveDigitNumber();
         ProjectInviteCode projectInviteCode = new ProjectInviteCode();
@@ -52,16 +55,13 @@ public class ProjectInviteCodeService {
         if(inviteCodeOptional.isPresent()) {
             ProjectInviteCode projectInviteCode = inviteCodeOptional.get();
             if(projectInviteCode.getExpiryDate().isBefore(LocalDateTime.now())) {
-//                throw new
-                return false;
-            }
-            if(!projectInviteCode.isActive()) {
-//                throw new
-                return false;
+                throw new InvalidInviteCodeException("Invite code has expired");
             }
             if(projectInviteCode.getCurrentUses() >= projectInviteCode.getMaxUses()) {
-//                throw new
-                return false;
+                throw new InvalidInviteCodeException("Invite code has reached maximum usage limit");
+            }
+            if(!projectInviteCode.isActive()) {
+                throw new InvalidInviteCodeException("Invite code is not active");
             }
             projectInviteCode.setCurrentUses(projectInviteCode.getCurrentUses() + 1);
 
@@ -72,10 +72,10 @@ public class ProjectInviteCodeService {
                 inviteCodeRepository.save(projectInviteCode);
                 return true;
             } catch (Exception e) {
-                return false;
+                throw new DatabaseOperationException("Failed to update Invite code usage");
             }
         } else {
-            return null;
+            return false;
         }
 
     }
