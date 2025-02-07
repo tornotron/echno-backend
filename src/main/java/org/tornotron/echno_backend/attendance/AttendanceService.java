@@ -3,7 +3,6 @@ package org.tornotron.echno_backend.attendance;
 import jakarta.validation.ValidationException;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.attendance.dto.AttendanceRecordDto;
-import org.tornotron.echno_backend.attendance.enums.RecordType;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.validator.AttendanceSequenceValidator;
 import org.tornotron.echno_backend.employee.Employee;
