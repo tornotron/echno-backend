@@ -1,8 +1,11 @@
 package org.tornotron.echno_backend.project;
 
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
+import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 import org.tornotron.echno_backend.teamMember.TeamMember;
 
@@ -39,9 +42,16 @@ public class ProjectService {
         return dto;
     }
 
-    public Boolean addProject(Project project) {
+    public void addProject(ProjectCreationDto projectDto) {
+            Project project = new Project();
+            project.setProjectName(projectDto.getProjectName());
+            project.setProjectAddress(projectDto.getProjectAddress());
+            project.setCreatedAt(projectDto.getCreatedAt());
+            project.setStatus(ProjectCreationStatus.valueOf(projectDto.getStatus()));
             Project savedProject = repository.save(project);
-            return savedProject.getId() != null;
+            if(savedProject.getId() == null) {
+                throw new DatabaseOperationException("Project could not be created");
+            }
     }
 
     public List<ProjectDto> getAllProjects() {
@@ -51,21 +61,29 @@ public class ProjectService {
     }
 
     public ProjectDto getAProject(Long id) {
-        return repository.findById(id)
+        ProjectDto projectDto =repository.findById(id)
                 .map(this::convertToDto)
                 .orElse(null);
+        if(projectDto==null) {
+            throw new ResourceNotFoundException("Project not found with id: "+id);
+        } else {
+            return projectDto;
+        }
 
     }
 
-    public boolean updateAProject(Project updatedProject,Long id) {
+    public void updateAProject(Project updatedProject,Long id) {
         Optional<Project> projectOptional = repository.findById(id);
         if(projectOptional.isPresent()) {
             Project projectObj = projectOptional.get();
             projectObj.setProjectName(updatedProject.getProjectName());
             projectObj.setProjectAddress(updatedProject.getProjectAddress());
-            return addProject(projectObj);
+            Project savedProject = repository.save(projectObj);
+            if(savedProject.getId() == null) {
+                throw new DatabaseOperationException("Project could not be updated");
+            }
         }
-        return false;
+        throw new ResourceNotFoundException("Project not found with id: "+id);
     }
 
     public void deleteAProject(Long id) {
