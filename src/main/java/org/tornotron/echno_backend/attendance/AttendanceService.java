@@ -24,7 +24,7 @@ public class AttendanceService {
         this.sequenceValidator = sequenceValidator;
     }
 
-    public Boolean recordAttendance(AttendanceRecordDto attendanceRecordDto) {
+    public void recordAttendance(AttendanceRecordDto attendanceRecordDto) {
         Optional<Employee> employee = employeeRepository.findEmployeeByEmployeeName(attendanceRecordDto.getEmployeeName());
         if(employee.isEmpty()) {
             throw new ResourceNotFoundException("Employee does not exist");
@@ -46,7 +46,6 @@ public class AttendanceService {
 
 
         attendanceRepository.save(attendanceRecord);
-        return true;
     }
 
     private void validateAttendance(Optional<Attendance> attendanceLastRecord,AttendanceRecordDto attendanceRecordDto) {

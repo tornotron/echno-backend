@@ -20,10 +20,7 @@ public class AttendanceController {
 
     @PostMapping
     public ResponseEntity<String> createAttendance(@Valid @RequestBody AttendanceRecordDto attendanceRecordDto) {
-        boolean created = service.recordAttendance(attendanceRecordDto);
-        if(created) {
-            return ResponseEntity.status(HttpStatus.CREATED).body("Attendance was marked successfully");
-        }
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Attendance could not be marked");
+        service.recordAttendance(attendanceRecordDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Attendance was marked successfully");
     }
 }
