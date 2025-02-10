@@ -29,7 +29,7 @@ public class ProjectInviteCodeService {
         return 10000 + secureRandom.nextInt(90000);
     }
 
-    public Boolean generateInviteCode(String projectName, int maxUses, int validityDays) {
+    public void generateInviteCode(String projectName, int maxUses, int validityDays) {
         Project project = projectRepository.findProjectByProjectName(projectName);
         if(project == null) {
             throw new ResourceNotFoundException(projectName+" project not found");
@@ -42,15 +42,13 @@ public class ProjectInviteCodeService {
         projectInviteCode.setActive(true);
         projectInviteCode.setMaxUses(maxUses);
         projectInviteCode.setCurrentUses(0);
-        try {
-            inviteCodeRepository.save(projectInviteCode);
-            return true;
-        } catch (Exception e) {
-            return false;
+        ProjectInviteCode savedProjectInviteCode = inviteCodeRepository.save(projectInviteCode);
+        if(savedProjectInviteCode.getId() == null) {
+            throw new DatabaseOperationException("Invite code could not be created");
         }
     }
 
-    public Boolean validateAndUseInviteCode(int code) {
+    public void validateAndUseInviteCode(int code) {
         Optional<ProjectInviteCode> inviteCodeOptional = inviteCodeRepository.findByCode(code);
         if(inviteCodeOptional.isPresent()) {
             ProjectInviteCode projectInviteCode = inviteCodeOptional.get();
@@ -68,14 +66,14 @@ public class ProjectInviteCodeService {
             if(projectInviteCode.getCurrentUses() >= projectInviteCode.getMaxUses()) {
                 projectInviteCode.setActive(false);
             }
-            try {
-                inviteCodeRepository.save(projectInviteCode);
-                return true;
-            } catch (Exception e) {
-                throw new DatabaseOperationException("Failed to update Invite code usage");
+            ProjectInviteCode currentInviteCode = inviteCodeRepository.findById(projectInviteCode.getId()).orElse(null);
+            ProjectInviteCode validatedInviteCode = inviteCodeRepository.save(projectInviteCode);
+            if(currentInviteCode == null) {
+                throw new DatabaseOperationException("Invite code does not exist");
             }
-        } else {
-            return false;
+            if(validatedInviteCode.getMaxUses() >= currentInviteCode.getMaxUses()) {
+                throw new DatabaseOperationException("Invite code could not be used or validated");
+            }
         }
 
     }
