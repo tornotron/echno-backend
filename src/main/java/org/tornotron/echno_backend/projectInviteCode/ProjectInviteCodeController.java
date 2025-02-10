@@ -5,8 +5,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
-import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeGenerationDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeValidationDto;
 
