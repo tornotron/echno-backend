@@ -5,13 +5,14 @@ import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
+import org.tornotron.echno_backend.project.dto.ProjectPatchDto;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 import org.tornotron.echno_backend.teamMember.TeamMember;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -73,18 +74,30 @@ public class ProjectService {
 
     }
 
-    public void updateAProject(Project updatedProject,Long id) {
-        Optional<Project> projectOptional = repository.findById(id);
-        if(projectOptional.isPresent()) {
-            Project projectObj = projectOptional.get();
-            projectObj.setProjectName(updatedProject.getProjectName());
-            projectObj.setProjectAddress(updatedProject.getProjectAddress());
-            Project savedProject = repository.save(projectObj);
-            if(savedProject.getId() == null) {
-                throw new DatabaseOperationException("Project could not be updated");
+    public void partialUpdateAProject(Map<String,Object> updates,Long id) {
+        Project project = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: "+id));
+        System.out.println(updates);
+
+        updates.forEach((key,value) -> {
+            switch (key) {
+                case "projectName":
+                    project.setProjectName((String) value);
+                    break;
+                case "projectAddress":
+                    project.setProjectAddress((String) value);
+                    break;
+                case "status":
+                    project.setStatus(ProjectCreationStatus.valueOf((String) value));
+                    break;
             }
-        }
-        throw new ResourceNotFoundException("Project not found with id: "+id);
+        });
+        repository.save(project);
+    }
+
+    public void batchUpdateProjects(List<ProjectPatchDto> updates) {
+        updates.forEach(update ->
+                partialUpdateAProject(update.getUpdates(), update.getId()));
     }
 
     public void deleteAProject(Long id) {

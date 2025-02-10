@@ -5,7 +5,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -22,6 +21,8 @@ public class ProjectCreationDto {
 
     private LocalDateTime createdAt;
 
+    @NotBlank(message = "status is required")
+    @Size(min = 3,max = 50,message = "status must be between 3 and 50 characters")
     @Enumerated(EnumType.STRING)
     private String status;
 }
