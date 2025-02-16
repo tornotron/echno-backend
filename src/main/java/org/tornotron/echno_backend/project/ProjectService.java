@@ -77,7 +77,6 @@ public class ProjectService {
     public void partialUpdateAProject(Map<String,Object> updates,Long id) {
         Project project = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: "+id));
-        System.out.println(updates);
 
         updates.forEach((key,value) -> {
             switch (key) {
