@@ -3,13 +3,16 @@ package org.tornotron.echno_backend.teamMember;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberCreationDTO;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
+import org.tornotron.echno_backend.teamMember.dto.TeamMemberPatchDto;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -33,24 +36,17 @@ public class TeamMemberService {
         return dto;
     }
 
-    public boolean addTeamMember(TeamMemberCreationDTO teamMemberCreationDTO) {
-        if(teamMemberCreationDTO == null) {
-            logger.warn("Attempted to add null teamMember");
-            return false;
-        }
+    public void addTeamMember(TeamMemberCreationDTO teamMemberCreationDTO) {
         Project project = projectRepository.findProjectByProjectName(teamMemberCreationDTO.getProjectName());
         TeamMember teamMember = new TeamMember();
         teamMember.setMemberName(teamMemberCreationDTO.getMemberName());
         teamMember.setMemberEmail(teamMemberCreationDTO.getMemberEmail());
         teamMember.setProject(project);
-        try {
-            repository.save(teamMember);
-            logger.info("TeamMember added successfully: ID={}, NAME={}",teamMember.getId(),teamMember.getMemberName());
-            return true;
-        } catch (Exception e) {
-            logger.error("Data could not be added to database");
-            return false;
+        TeamMember savedTeamMember = repository.save(teamMember);
+        if(savedTeamMember.getId() == null) {
+            throw new DatabaseOperationException("TeamMember could not be created");
         }
+
     }
 
     public List<TeamMemberDto> getAllTeamMember() {
@@ -60,22 +56,38 @@ public class TeamMemberService {
     }
 
     public TeamMemberDto getATeamMember(Long id) {
-        return repository.findById(id)
+        TeamMemberDto teamMemberDto = repository.findById(id)
                 .map(this::convertToDTO)
                 .orElse(null);
+        if(teamMemberDto == null) {
+            throw new ResourceNotFoundException("TeamMember not found with id: "+id);
+        }else {
+            return teamMemberDto;
+        }
     }
 
-    public boolean updateATeamMember(TeamMember updatedTeamMember,Long id) {
-        Optional<TeamMember> optionalTeamMember = repository.findById(id);
-        if(optionalTeamMember.isPresent()) {
-            TeamMember teamMemberObj = optionalTeamMember.get();
-            teamMemberObj.setMemberName(updatedTeamMember.getMemberName());
-            teamMemberObj.setMemberEmail(updatedTeamMember.getMemberEmail());
-            repository.save(teamMemberObj);
-            return true;
-        }
-        return false;
+    public void partialUpdateATeamMember(Map<String,Object> updates, Long id) {
+        TeamMember teamMember = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("TeamMember not found with id: "+id));
+
+        updates.forEach((key,value) -> {
+            switch (key) {
+                case "memberName":
+                    teamMember.setMemberName((String) value);
+                    break;
+                case "memberEmail":
+                    teamMember.setMemberEmail((String) value);
+                    break;
+            }
+        });
+        repository.save(teamMember);
     }
+
+    public void batchUpdateTeamMembers(List<TeamMemberPatchDto> updates) {
+        updates.forEach(update ->
+                partialUpdateATeamMember(update.getUpdates(),update.getId()));
+    }
+
 
     public void deleteATeamMember(Long id) {
         if(!repository.existsById(id)) {
