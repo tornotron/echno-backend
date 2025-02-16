@@ -4,6 +4,7 @@ import jakarta.validation.constraints.*;
 import lombok.Data;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 public class EmployeeCreationDto {
@@ -29,5 +30,5 @@ public class EmployeeCreationDto {
     private String emailAddress;
 
     @NotNull(message = "must not be blank")
-    private LocalDate dateOfBirth;
+    private LocalDateTime dateOfBirth;
 }

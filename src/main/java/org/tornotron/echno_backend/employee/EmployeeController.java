@@ -8,8 +8,11 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
+import org.tornotron.echno_backend.employee.dto.EmployeeDto;
+import org.tornotron.echno_backend.employee.dto.EmployeePatchDto;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/employee")
@@ -24,34 +27,31 @@ public class EmployeeController {
 
     @PostMapping
     public ResponseEntity<String> createEmployee(@Valid @RequestBody EmployeeCreationDto employeeCreationDto) {
-        boolean created = employeeService.addEmployee(employeeCreationDto);
-        if(created) {
-            return ResponseEntity.status(HttpStatus.CREATED).body("Employee created successfully");
-        }
-        throw new DatabaseOperationException("Employee could not be created");
+        employeeService.addEmployee(employeeCreationDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Employee created successfully");
     }
 
     @GetMapping
-    public ResponseEntity<List<EmployeeCreationDto>> readAllEmployees() {
+    public ResponseEntity<List<EmployeeDto>> readAllEmployees() {
         return new ResponseEntity<>(employeeService.displayAllEmployees(),HttpStatus.OK);
     }
 
     @GetMapping("{id}")
-    public ResponseEntity<EmployeeCreationDto> readAnEmployee(@PathVariable Long id) {
-        EmployeeCreationDto employee = employeeService.displayAnEmployee(id);
-        if(employee!=null) {
-            ResponseEntity.status(HttpStatus.OK).body(employee);
-        }
-        throw new ResourceNotFoundException("Employee not found with id: "+id);
+    public ResponseEntity<EmployeeDto> readAnEmployee(@PathVariable Long id) {
+        EmployeeDto employee = employeeService.displayAnEmployee(id);
+       return ResponseEntity.status(HttpStatus.OK).body(employee);
     }
 
-    @PutMapping("{id}")
-    public ResponseEntity<String> updateEmployee(@RequestBody EmployeeCreationDto updatedEmployee,@PathVariable Long id) {
-        boolean updated = employeeService.updateAnEmployee(updatedEmployee,id);
-        if(updated) {
-            return new ResponseEntity<>("Employee with id: "+id+" has been updated",HttpStatus.OK);
-        }
-        return new ResponseEntity<>("Employee with id: "+id+" not found",HttpStatus.NOT_FOUND);
+    @PatchMapping("{id}")
+    public ResponseEntity<String> partialUpdateAnEmployee(@RequestBody Map<String,Object> updates,@PathVariable Long id) {
+        employeeService.partialUpdateAnEmployee(updates,id);
+        return new ResponseEntity<>("Employee with id: "+id+" has been updated",HttpStatus.OK);
+    }
+
+    @PatchMapping("/batch")
+    public ResponseEntity<String> batchUpdateEmployees(@Valid @RequestBody List<EmployeePatchDto> updates) {
+        employeeService.batchUpdateEmployees(updates);
+        return new ResponseEntity<>("Batch update successful",HttpStatus.OK);
     }
 
     @DeleteMapping("{id}")
