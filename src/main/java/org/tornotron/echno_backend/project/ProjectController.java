@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.project;
 
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -30,8 +31,10 @@ public class ProjectController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProjectDto>> readAllProjects() {
-        return new ResponseEntity<>(service.getAllProjects(),HttpStatus.OK);
+    public ResponseEntity<List<ProjectDto>> readAllProjects(@RequestParam(defaultValue = "0") int pageNo,
+                                                                 @RequestParam(defaultValue = "10") int pageSize) {
+          Page<ProjectDto> projects = service.getAllProjects(pageNo,pageSize);
+        return new ResponseEntity<>(projects.getContent(),HttpStatus.OK);
     }
 
     @GetMapping("{id}")
