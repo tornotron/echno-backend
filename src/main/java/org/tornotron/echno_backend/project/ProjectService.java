@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.project;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -60,7 +61,7 @@ public class ProjectService {
     }
 
     public Page<ProjectDto> getAllProjects(int pageNo, int pageSize) {
-        Pageable pageable = PageRequest.of(pageNo, pageSize);
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return repository.findAll(pageable)
                 .map(this::convertToDto);
     }
