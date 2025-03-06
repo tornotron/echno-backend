@@ -62,7 +62,7 @@ public class GlobalExceptionHandler {
         logger.error("Data integrity violation: ", ex);
         return new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
-                "Database operation failed",
+                "Database operation failed, Data already exists",
                 request.getDescription(false),
                 LocalDateTime.now()
         );

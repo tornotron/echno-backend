@@ -7,8 +7,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberCreationDTO;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
+import org.tornotron.echno_backend.teamMember.dto.TeamMemberPatchDto;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/teamMembers")
@@ -23,11 +25,8 @@ public class TeamMemberController {
 
     @PostMapping
     public ResponseEntity<String> createTeamMember(@Valid @RequestBody TeamMemberCreationDTO teamMemberCreationDTO) {
-        boolean created = service.addTeamMember(teamMemberCreationDTO);
-        if(created) {
-            return ResponseEntity.status(HttpStatus.CREATED).body("TeamMember was Created Successfully");
-        }
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("TeamMember could not be created");
+        service.addTeamMember(teamMemberCreationDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body("TeamMember was Created Successfully");
     }
 
     @GetMapping
@@ -38,19 +37,19 @@ public class TeamMemberController {
     @GetMapping("{id}")
     public ResponseEntity<?> readATeamMember(@PathVariable Long id) {
         TeamMemberDto teamMember = service.getATeamMember(id);
-        if(teamMember != null) {
-            return new ResponseEntity<>(teamMember,HttpStatus.OK);
-        }
-        return new ResponseEntity<>("TeamMember with id: "+id+" does not exist",HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(teamMember,HttpStatus.OK);
     }
 
-    @PutMapping("{id}")
-    public ResponseEntity<String> updateTeamMember(@RequestBody TeamMember updatedTeamMember,@PathVariable Long id) {
-        boolean updated = service.updateATeamMember(updatedTeamMember,id);
-        if(updated) {
-            return new ResponseEntity<>("TeamMember with id: "+id+" has been updated",HttpStatus.OK);
-        }
-        return new ResponseEntity<>("TeamMember with id: "+id+" not found",HttpStatus.NOT_FOUND);
+    @PatchMapping("{id}")
+    public ResponseEntity<String> partialUpdateATeamMember(@RequestBody Map<String,Object> updates, @PathVariable Long id) {
+        service.partialUpdateATeamMember(updates,id);
+        return new ResponseEntity<>("TeamMember with id: "+id+" has been updated",HttpStatus.OK);
+    }
+
+    @PatchMapping("/batch")
+    public ResponseEntity<String> batchUpdateTeamMembers(@Valid @RequestBody List<TeamMemberPatchDto> updates) {
+        service.batchUpdateTeamMembers(updates);
+        return new ResponseEntity<>("Batch update successful",HttpStatus.OK);
     }
 
     @DeleteMapping("{id}")
