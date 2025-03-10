@@ -11,6 +11,12 @@ management:
       export:
         enabled: true
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/echnoRealm
+          jwk-set-uri: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs
   jackson:
     date-format: yyyy-MM-dd
     serialization:
@@ -33,7 +39,7 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
 server:
-  port: 8080
+  port: 8081
   forward-headers-strategy: native
 logging:
   file:
