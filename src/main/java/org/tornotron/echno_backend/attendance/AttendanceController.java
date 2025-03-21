@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.attendance.dto.AttendanceCreationDto;
 
 @RestController
-@RequestMapping("/attendance")
+@RequestMapping("/api/attendance")
 @Validated
 public class AttendanceController {
 

@@ -9,7 +9,7 @@ import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeGenerationDto
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeValidationDto;
 
 @RestController
-@RequestMapping("/invites")
+@RequestMapping("/api/invites")
 @Validated
 public class ProjectInviteCodeController {
 

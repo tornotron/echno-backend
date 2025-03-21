@@ -12,7 +12,7 @@ import org.tornotron.echno_backend.task.dto.TaskDto;
 import java.util.List;
 
 @RestController
-@RequestMapping("/tasks")
+@RequestMapping("/api/tasks")
 @Validated
 public class TaskController {
 

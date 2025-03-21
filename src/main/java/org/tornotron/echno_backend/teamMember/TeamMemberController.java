@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/teamMembers")
+@RequestMapping("/api/teamMembers")
 @Validated
 public class TeamMemberController {
 
