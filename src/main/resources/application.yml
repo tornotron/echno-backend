@@ -25,10 +25,12 @@ server:
   port: 8080
   forward-headers-strategy: native
 logging:
+  file:
+    name: /var/log/echno_backend.log
   level:
     org:
       springframework: warn
-    root: warn
+    root: info
     web: debug
     com: debug
 
