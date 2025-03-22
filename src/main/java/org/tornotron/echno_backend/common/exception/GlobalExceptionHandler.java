@@ -86,7 +86,7 @@ public class GlobalExceptionHandler {
         logger.error("Unknown error occurred: ", ex);
         return new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "An unexpected error occurred",
+                "An unexpected error occurred: " + ex.getMessage(),
                 request.getDescription(false),
                 LocalDateTime.now()
         );
