@@ -1,6 +1,9 @@
 name: echno_staging_deployment
 
-on: [pull_request,push]
+on:
+  pull_request:
+    branches:
+      - staging
 
 jobs:
   build:
