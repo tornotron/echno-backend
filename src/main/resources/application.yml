@@ -1,4 +1,7 @@
 management:
+  endpoint:
+    health:
+      show-details: always
   endpoints:
     web:
       exposure:
@@ -41,5 +44,10 @@ logging:
     root: info
     web: debug
     com: debug
+    com.echno: debug
+    com.echno.backend: debug
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
+  config: classpath:logback-spring.xml
 
 
