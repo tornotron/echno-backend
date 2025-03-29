@@ -22,7 +22,7 @@ services:
     ports:
       - '3100:3100'
     volumes:
-      - ./loki-config.yaml:/etc/loki/local-config.yml
+      - ./loki-config.yml:/etc/loki/local-config.yml
     networks:
       - monitoring
     restart: unless-stopped

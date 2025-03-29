@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.project;
 
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,7 @@ import java.util.Map;
 public class ProjectController {
 
     private final ProjectService service;
+    private static final Logger logger = LoggerFactory.getLogger(ProjectController.class);
 
     public ProjectController(ProjectService service) {
         this.service = service;
@@ -27,6 +30,7 @@ public class ProjectController {
     @PostMapping
     public ResponseEntity<String> createProject(@Valid @RequestBody ProjectCreationDto projectDto) {
         service.addProject(projectDto);
+        logger.info("Project Added Successfully");
         return ResponseEntity.status(HttpStatus.CREATED).body("Project Added Successfully");
     }
 
@@ -34,6 +38,7 @@ public class ProjectController {
     public ResponseEntity<List<ProjectDto>> readAllProjects(@RequestParam(defaultValue = "0") int pageNo,
                                                                  @RequestParam(defaultValue = "10") int pageSize) {
           Page<ProjectDto> projects = service.getAllProjects(pageNo,pageSize);
+          logger.info("All Projects Retrieved Successfully");
         return new ResponseEntity<>(projects.getContent(),HttpStatus.OK);
     }
 
