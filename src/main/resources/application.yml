@@ -1,4 +1,15 @@
-
+management:
+  endpoint:
+    health:
+      show-details: always
+  endpoints:
+    web:
+      exposure:
+        include: prometheus,health,info
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 spring:
   jackson:
     date-format: yyyy-MM-dd
@@ -7,9 +18,9 @@ spring:
   application:
     name: echno_backend
   datasource:
-    url:  ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: jdbc:postgresql://localhost:5432/echno_database
+    username: root
+    password: password
   jpa:
     database: postgresql
     show-sql: true
@@ -33,5 +44,10 @@ logging:
     root: info
     web: debug
     com: debug
+    com.echno: debug
+    com.echno.backend: debug
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
+  config: classpath:logback-spring.xml
 
 
