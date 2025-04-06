@@ -1,22 +1,110 @@
-name: echno_staging_deployment
+name: Build, Push, and Deploy to Staging
 
+# Trigger deployment only when code is pushed (e.g., merged) into the staging branch
 on:
-  pull_request:
+  push:
     branches:
-      - staging
+      - staging # Correctly triggers on push to staging branch
+
+env:
+  # Define variables used across jobs
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }} # Correctly using a secret
+  IMAGE_NAME: echno-backend # Fixed - just the image name without username or tag
+  CONTAINER_NAME: echno-springboot-app-container # This looks good
 
 jobs:
-  build:
+  # ------------ Job 1: Build and Push Docker Image ------------
+  build_and_push:
+    name: Build App and Push Docker Image
+    runs-on: ubuntu-latest # Correct for GitHub runner environment
 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Latest version, good
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21" # Correct if your project uses Java 21
+          distribution: "temurin" # Good choice
+          cache: "gradle" # Correct for a Gradle project
+
+      - name: Build with Gradle
+        # Skipping tests is common in CI, but consider if you want integration tests
+        run: ./gradlew build -DskipTests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3 # Latest version, good
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }} # Make sure this secret is added to your repo
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          # These tag formats are good - gives you both a commit-specific tag and a stable latest tag
+          tags: |
+            type=sha,prefix=staging-,suffix=,format=short
+            type=raw,value=staging-latest,enable=${{ github.ref == 'refs/heads/staging' }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: . # Assumes Dockerfile is in root directory - confirm this is correct
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ------------ Job 2: Deploy to Server ------------
+  deploy:
+    name: Deploy to Staging Server
+    needs: build_and_push # Correct dependency
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-      - name: Deploy to Server
-        uses: easingthemes/ssh-deploy@main
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          ARGS: "-rlgoDzvc -i --delete"
-          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
-          REMOTE_USER: ${{ secrets.REMOTE_USER }}
-          TARGET: ${{ secrets.REMOTE_TARGET }}
+          host: ${{ secrets.REMOTE_HOST }} # Make sure this secret is added
+          username: ${{ secrets.REMOTE_USER }} # Make sure this secret is added
+          key: ${{ secrets.SSH_PRIVATE_KEY }} # Make sure this secret is added
+          script: |
+            # Define variables on the server
+            export IMAGE_TO_PULL="${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:staging-latest"
+            export CONTAINER_NAME_ON_SERVER="${{ env.CONTAINER_NAME }}"
+
+            echo "--- Logging into Docker Hub (if image is private) ---"
+            # If your Docker Hub repo is private, uncomment this:
+            # echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ env.DOCKERHUB_USERNAME }}" --password-stdin
+
+            echo "--- Pulling latest image: ${IMAGE_TO_PULL} ---"
+            docker pull ${IMAGE_TO_PULL}
+
+            echo "--- Stopping existing container (if running): ${CONTAINER_NAME_ON_SERVER} ---"
+            docker stop ${CONTAINER_NAME_ON_SERVER} || true
+
+            echo "--- Removing existing container (if it exists): ${CONTAINER_NAME_ON_SERVER} ---"
+            docker rm ${CONTAINER_NAME_ON_SERVER} || true
+
+            echo "--- Starting new container: ${CONTAINER_NAME_ON_SERVER} ---"
+            # Check if these port mappings match your application requirements
+            docker run -d \
+              --name ${CONTAINER_NAME_ON_SERVER} \
+              -p 8080:8080 \
+              --restart unless-stopped \
+              ${IMAGE_TO_PULL}
+              # Add environment variables or volume mounts if needed
+              # -e SPRING_PROFILES_ACTIVE=staging
+              # -v /path/on/server:/path/in/container
+
+            echo "--- Cleaning up old/unused Docker images (optional) ---"
+            docker image prune -af
+
+            echo "--- Deployment to staging complete ---"
