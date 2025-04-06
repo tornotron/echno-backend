@@ -1,16 +1,14 @@
 name: Build, Push, and Deploy to Staging
 
-# Trigger deployment only when code is pushed (e.g., merged) into the staging branch
 on:
   push:
     branches:
-      - staging # Correctly triggers on push to staging branch
+      - staging
 
 env:
-  # Define variables used across jobs
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }} # Correctly using a secret
-  IMAGE_NAME: echno-backend # Fixed - just the image name without username or tag
-  CONTAINER_NAME: echno-springboot-app-container # This looks good
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  IMAGE_NAME: echno-backend
+  CONTAINER_NAME: echno-springboot-app-container
 
 jobs:
   # ------------ Job 1: Build and Push Docker Image ------------
@@ -30,24 +28,22 @@ jobs:
           cache: "gradle" # Correct for a Gradle project
 
       - name: Build with Gradle
-        # Skipping tests is common in CI, but consider if you want integration tests
         run: ./gradlew build -DskipTests
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3 # Latest version, good
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }} # Make sure this secret is added to your repo
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
-          # These tag formats are good - gives you both a commit-specific tag and a stable latest tag
           tags: |
             type=sha,prefix=staging-,suffix=,format=short
             type=raw,value=staging-latest,enable=${{ github.ref == 'refs/heads/staging' }}
@@ -55,7 +51,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: . # Assumes Dockerfile is in root directory - confirm this is correct
+          context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -65,16 +61,16 @@ jobs:
   # ------------ Job 2: Deploy to Server ------------
   deploy:
     name: Deploy to Staging Server
-    needs: build_and_push # Correct dependency
+    needs: build_and_push
     runs-on: ubuntu-latest
 
     steps:
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.REMOTE_HOST }} # Make sure this secret is added
-          username: ${{ secrets.REMOTE_USER }} # Make sure this secret is added
-          key: ${{ secrets.SSH_PRIVATE_KEY }} # Make sure this secret is added
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             # Define variables on the server
             export IMAGE_TO_PULL="${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:staging-latest"
