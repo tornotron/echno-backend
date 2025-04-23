@@ -50,31 +50,29 @@ public class ProjectInviteCodeService {
 
     public void validateAndUseInviteCode(int code) {
         Optional<ProjectInviteCode> inviteCodeOptional = inviteCodeRepository.findByCode(code);
-        if(inviteCodeOptional.isPresent()) {
+        if (inviteCodeOptional.isPresent()) {
             ProjectInviteCode projectInviteCode = inviteCodeOptional.get();
-            if(projectInviteCode.getExpiryDate().isBefore(LocalDateTime.now())) {
+
+            if (projectInviteCode.getExpiryDate().isBefore(LocalDateTime.now())) {
                 throw new InvalidInviteCodeException("Invite code has expired");
             }
-            if(projectInviteCode.getCurrentUses() >= projectInviteCode.getMaxUses()) {
+            if (projectInviteCode.getCurrentUses() >= projectInviteCode.getMaxUses()) {
                 throw new InvalidInviteCodeException("Invite code has reached maximum usage limit");
             }
-            if(!projectInviteCode.isActive()) {
+            if (!projectInviteCode.isActive()) {
                 throw new InvalidInviteCodeException("Invite code is not active");
             }
+
             projectInviteCode.setCurrentUses(projectInviteCode.getCurrentUses() + 1);
 
-            if(projectInviteCode.getCurrentUses() >= projectInviteCode.getMaxUses()) {
+            if (projectInviteCode.getCurrentUses() >= projectInviteCode.getMaxUses()) {
                 projectInviteCode.setActive(false);
             }
-            ProjectInviteCode currentInviteCode = inviteCodeRepository.findById(projectInviteCode.getId()).orElse(null);
-            ProjectInviteCode validatedInviteCode = inviteCodeRepository.save(projectInviteCode);
-            if(currentInviteCode == null) {
-                throw new DatabaseOperationException("Invite code does not exist");
-            }
-            if(validatedInviteCode.getMaxUses() >= currentInviteCode.getMaxUses()) {
-                throw new DatabaseOperationException("Invite code could not be used or validated");
-            }
-        }
 
+            inviteCodeRepository.save(projectInviteCode);
+
+        } else {
+            throw new InvalidInviteCodeException("Invite code not found");
+        }
     }
 }
