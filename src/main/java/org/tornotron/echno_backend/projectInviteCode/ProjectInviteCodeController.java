@@ -20,14 +20,14 @@ public class ProjectInviteCodeController {
     }
 
     @PostMapping("/createCode")
-    public ResponseEntity<String> createInviteCode(@Valid @ModelAttribute InviteCodeGenerationDto inviteCodeGenerationDto) {
+    public ResponseEntity<String> createInviteCode(@Valid @RequestBody InviteCodeGenerationDto inviteCodeGenerationDto) {
         projectInviteCodeService.generateInviteCode(inviteCodeGenerationDto.getProjectName(), inviteCodeGenerationDto.getMaxUses(), inviteCodeGenerationDto.getValidityDays());
         return ResponseEntity.status(HttpStatus.CREATED).body("InviteCode Created Successfully");
     }
 
     @PostMapping("/validate")
-    public ResponseEntity<String> validateInviteCode(@Valid @ModelAttribute InviteCodeValidationDto inviteCodeValidationDto) {
-        projectInviteCodeService.validateAndUseInviteCode(inviteCodeValidationDto.getCode());
+    public ResponseEntity<String> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto) {
+        projectInviteCodeService.validateAndUseInviteCode(Integer.parseInt(inviteCodeValidationDto.getCode()));
         return ResponseEntity.status(HttpStatus.OK).body("Code Validated");
     }
     
