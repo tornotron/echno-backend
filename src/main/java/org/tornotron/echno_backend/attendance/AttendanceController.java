@@ -6,9 +6,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.attendance.dto.AttendanceCreationDto;
+import org.tornotron.echno_backend.common.response.ApiResponse;
 
 @RestController
-@RequestMapping("/api/attendance")
+@RequestMapping("/api/v1/attendance")
 @Validated
 public class AttendanceController {
 
@@ -19,8 +20,8 @@ public class AttendanceController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createAttendance(@Valid @RequestBody AttendanceCreationDto attendanceCreationDto) {
+    public ResponseEntity<ApiResponse> createAttendance(@Valid @RequestBody AttendanceCreationDto attendanceCreationDto) {
         service.recordAttendance(attendanceCreationDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body("Attendance was marked successfully");
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Attendance Recorded Successfully"));
     }
 }
