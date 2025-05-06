@@ -7,12 +7,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.task.dto.TaskDto;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/tasks")
+@RequestMapping("/api/v1/tasks")
 @Validated
 public class TaskController {
 
@@ -23,12 +24,12 @@ public class TaskController {
     }
 
     @PostMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE} )
-    public ResponseEntity<String> createTask(
+    public ResponseEntity<ApiResponse> createTask(
                                              @RequestPart("photo") MultipartFile photo,
                                              @RequestPart("task") String taskDtoString
     ) {
         service.addTask(taskDtoString,photo);
-        return ResponseEntity.status(HttpStatus.CREATED).body("Task created successfully");
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Task Created Successfully"));
     }
 
     @GetMapping
@@ -43,17 +44,17 @@ public class TaskController {
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<String> updateTask(@Valid @RequestBody Task updatedTask, @PathVariable Long id) {
+    public ResponseEntity<ApiResponse> updateTask(@Valid @RequestBody Task updatedTask, @PathVariable Long id) {
         boolean updated = service.updateATask(updatedTask, id);
         if (updated) {
-            return new ResponseEntity<>("Task with id: " + id + " has been updated", HttpStatus.OK);
+            return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Task with id: " + id + " has been updated"));
         }
-        return new ResponseEntity<>("Task with id: " + id + " not found", HttpStatus.NOT_FOUND);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiResponse("Task with id: " + id + " not found"));
     }
 
     @DeleteMapping("{id}")
-    public ResponseEntity<String> deleteTask(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse> deleteTask(@PathVariable Long id) {
         service.deleteATask(id);
-        return new ResponseEntity<>("Task with id: " + id + " deleted", HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Task with id: " + id + " has been deleted"));
     }
 }

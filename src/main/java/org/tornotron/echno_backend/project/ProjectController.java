@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.project.dto.ProjectPatchDto;
@@ -16,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/projects")
+@RequestMapping("/api/v1/projects")
 @Validated
 public class ProjectController {
 
@@ -28,10 +29,10 @@ public class ProjectController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createProject(@Valid @RequestBody ProjectCreationDto projectDto) {
+    public ResponseEntity<ApiResponse> createProject(@Valid @RequestBody ProjectCreationDto projectDto) {
         service.addProject(projectDto);
         logger.info("Project Added Successfully");
-        return ResponseEntity.status(HttpStatus.CREATED).body("Project Added Successfully");
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Project Created Successfully"));
     }
 
     @GetMapping
@@ -49,20 +50,20 @@ public class ProjectController {
     }
 
     @PatchMapping("{id}")
-    public ResponseEntity<String> partialUpdateAProject(@RequestBody Map<String,Object> updates,@PathVariable Long id) {
+    public ResponseEntity<ApiResponse> partialUpdateAProject(@RequestBody Map<String,Object> updates,@PathVariable Long id) {
         service.partialUpdateAProject(updates,id);
-        return new ResponseEntity<>("Project with id: "+id+" has been updated",HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Project with id: "+id+" updated"));
     }
 
     @PatchMapping("/batch")
-    public ResponseEntity<String> batchUpdateProjects(@Valid @RequestBody List<ProjectPatchDto> updates) {
+    public ResponseEntity<ApiResponse> batchUpdateProjects(@Valid @RequestBody List<ProjectPatchDto> updates) {
         service.batchUpdateProjects(updates);
-        return new ResponseEntity<>("Batch update successful",HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
     }
 
     @DeleteMapping("{id}")
-    public ResponseEntity<String> deleteProject(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse> deleteProject(@PathVariable Long id) {
         service.deleteAProject(id);
-        return new ResponseEntity<>("Project with id: "+id+" deleted",HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Project with id: "+id+" has been deleted"));
     }
 }
