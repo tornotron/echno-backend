@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberCreationDTO;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberPatchDto;
@@ -13,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/teamMembers")
+@RequestMapping("/api/v1/teamMembers")
 @Validated
 public class TeamMemberController {
 
@@ -24,9 +25,9 @@ public class TeamMemberController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createTeamMember(@Valid @RequestBody TeamMemberCreationDTO teamMemberCreationDTO) {
+    public ResponseEntity<ApiResponse> createTeamMember(@Valid @RequestBody TeamMemberCreationDTO teamMemberCreationDTO) {
         service.addTeamMember(teamMemberCreationDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body("TeamMember was Created Successfully");
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("TeamMember Created Successfully"));
     }
 
     @GetMapping
@@ -41,21 +42,21 @@ public class TeamMemberController {
     }
 
     @PatchMapping("{id}")
-    public ResponseEntity<String> partialUpdateATeamMember(@RequestBody Map<String,Object> updates, @PathVariable Long id) {
+    public ResponseEntity<ApiResponse> partialUpdateATeamMember(@RequestBody Map<String,Object> updates, @PathVariable Long id) {
         service.partialUpdateATeamMember(updates,id);
-        return new ResponseEntity<>("TeamMember with id: "+id+" has been updated",HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("TeamMember with id: "+id+" has been updated"));
     }
 
     @PatchMapping("/batch")
-    public ResponseEntity<String> batchUpdateTeamMembers(@Valid @RequestBody List<TeamMemberPatchDto> updates) {
+    public ResponseEntity<ApiResponse> batchUpdateTeamMembers(@Valid @RequestBody List<TeamMemberPatchDto> updates) {
         service.batchUpdateTeamMembers(updates);
-        return new ResponseEntity<>("Batch update successful",HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
     }
 
     @DeleteMapping("{id}")
-    public ResponseEntity<String> deleteTeamMember(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse> deleteTeamMember(@PathVariable Long id) {
         service.deleteATeamMember(id);
-        return new ResponseEntity<>("TeamMember with id: "+id+" deleted",HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("TeamMember with id: "+id+" has been deleted"));
     }
 
 }

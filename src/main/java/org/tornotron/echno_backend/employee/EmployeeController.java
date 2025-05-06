@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeePatchDto;
@@ -13,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/employee")
+@RequestMapping("/api/v1/employee")
 @Validated
 public class EmployeeController {
 
@@ -24,9 +25,9 @@ public class EmployeeController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createEmployee(@Valid @RequestBody EmployeeCreationDto employeeCreationDto) {
+    public ResponseEntity<ApiResponse> createEmployee(@Valid @RequestBody EmployeeCreationDto employeeCreationDto) {
         employeeService.addEmployee(employeeCreationDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body("Employee created successfully");
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Employee Created Successfully"));
     }
 
     @GetMapping
@@ -41,20 +42,20 @@ public class EmployeeController {
     }
 
     @PatchMapping("{id}")
-    public ResponseEntity<String> partialUpdateAnEmployee(@RequestBody Map<String,Object> updates,@PathVariable Long id) {
+    public ResponseEntity<ApiResponse> partialUpdateAnEmployee(@RequestBody Map<String,Object> updates,@PathVariable Long id) {
         employeeService.partialUpdateAnEmployee(updates,id);
-        return new ResponseEntity<>("Employee with id: "+id+" has been updated",HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Employee with id: "+id+" updated"));
     }
 
     @PatchMapping("/batch")
-    public ResponseEntity<String> batchUpdateEmployees(@Valid @RequestBody List<EmployeePatchDto> updates) {
+    public ResponseEntity<ApiResponse> batchUpdateEmployees(@Valid @RequestBody List<EmployeePatchDto> updates) {
         employeeService.batchUpdateEmployees(updates);
-        return new ResponseEntity<>("Batch update successful",HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
     }
 
     @DeleteMapping("{id}")
-    public ResponseEntity<String> deleteEmployee(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse> deleteEmployee(@PathVariable Long id) {
         employeeService.deleteAnEmployee(id);
-        return new ResponseEntity<>("Employee with id: "+id+" deleted",HttpStatus.OK);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Employee with id: "+id+" has been deleted"));
     }
 }
