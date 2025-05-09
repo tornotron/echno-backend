@@ -74,4 +74,6 @@ jobs:
           script: |
             docker compose stop ${{ env.SERVICE_NAME }}
             
-            docker compose up ${{ env.SERVICE_NAME }} -d
+            docker compose pull ${{ env.SERVICE_NAME }}
+            
+            docker compose up --force-recreate ${{ env.SERVICE_NAME }} -d
