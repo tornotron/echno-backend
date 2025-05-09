@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/projects")
+@RequestMapping("/api/v1/project")
 @Validated
 public class ProjectController {
 
