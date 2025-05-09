@@ -8,7 +8,7 @@ on:
 env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   IMAGE_NAME: echno-backend
-  CONTAINER_NAME: echno-springboot-app-container
+  SERVICE_NAME: app
 
 jobs:
   # ------------ Job 1: Build and Push Docker Image ------------
@@ -72,6 +72,6 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            docker stop ${{ env.CONTAINER_NAME }}
+            docker compose stop ${{ env.SERVICE_NAME }}
             
-            docker compose up -d
+            docker compose up ${{ env.SERVICE_NAME }} -d
