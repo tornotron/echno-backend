@@ -72,4 +72,6 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            docker compose down ${{ env.CONTAINER_NAME }}
+            
             docker compose up -d
