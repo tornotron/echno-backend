@@ -72,35 +72,4 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Define variables on the server
-            export IMAGE_TO_PULL="${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:staging-latest"
-            export CONTAINER_NAME_ON_SERVER="${{ env.CONTAINER_NAME }}"
-
-            echo "--- Logging into Docker Hub (if image is private) ---"
-            # If your Docker Hub repo is private, uncomment this:
-            # echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ env.DOCKERHUB_USERNAME }}" --password-stdin
-
-            echo "--- Pulling latest image: ${IMAGE_TO_PULL} ---"
-            docker pull ${IMAGE_TO_PULL}
-
-            echo "--- Stopping existing container (if running): ${CONTAINER_NAME_ON_SERVER} ---"
-            docker stop ${CONTAINER_NAME_ON_SERVER} || true
-
-            echo "--- Removing existing container (if it exists): ${CONTAINER_NAME_ON_SERVER} ---"
-            docker rm ${CONTAINER_NAME_ON_SERVER} || true
-
-            echo "--- Starting new container: ${CONTAINER_NAME_ON_SERVER} ---"
-            # Check if these port mappings match your application requirements
-            docker run -d \
-              --name ${CONTAINER_NAME_ON_SERVER} \
-              -p 8080:8080 \
-              --restart unless-stopped \
-              ${IMAGE_TO_PULL}
-              # Add environment variables or volume mounts if needed
-              # -e SPRING_PROFILES_ACTIVE=staging
-              # -v /path/on/server:/path/in/container
-
-            echo "--- Cleaning up old/unused Docker images (optional) ---"
-            docker image prune -af
-
-            echo "--- Deployment to staging complete ---"
+            docker compose up -d
