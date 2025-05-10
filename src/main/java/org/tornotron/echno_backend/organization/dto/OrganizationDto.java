@@ -1,7 +1,6 @@
 package org.tornotron.echno_backend.organization.dto;
 
 import lombok.Data;
-import org.tornotron.echno_backend.project.dto.ProjectDto;
 
 import java.time.LocalDateTime;
 import java.util.List;

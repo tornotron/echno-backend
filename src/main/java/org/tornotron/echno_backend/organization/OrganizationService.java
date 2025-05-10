@@ -12,7 +12,6 @@ import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
 import org.tornotron.echno_backend.organization.dto.ProjectDtoForOrg;
 import org.tornotron.echno_backend.project.Project;
-import org.tornotron.echno_backend.project.dto.ProjectDto;
 
 import java.time.LocalDateTime;
 import java.util.List;
