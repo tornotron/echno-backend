@@ -25,4 +25,8 @@ public class ProjectCreationDto {
     @Size(min = 3,max = 50,message = "status must be between 3 and 50 characters")
     @Enumerated(EnumType.STRING)
     private String status;
+
+    @NotBlank(message = "organizationName is required")
+    @Size(min = 3,max = 50,message = "organizationName must be between 3 and 50 characters")
+    private String organizationName;
 }

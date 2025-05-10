@@ -7,6 +7,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.project.dto.ProjectPatchDto;
@@ -22,9 +24,11 @@ import java.util.stream.Collectors;
 @Service
 public class ProjectService {
     private final ProjectRepository repository;
+    private final OrganizationRepository organizationRepository;
 
-    public ProjectService(ProjectRepository repository) {
+    public ProjectService(ProjectRepository repository, OrganizationRepository organizationRepository) {
         this.repository = repository;
+        this.organizationRepository = organizationRepository;
     }
 
     private TeamMemberDto convertTeamMemberToTeamMemberDTO(TeamMember teamMember) {
@@ -49,11 +53,14 @@ public class ProjectService {
     }
 
     public void addProject(ProjectCreationDto projectDto) {
+            Organization organization = organizationRepository.findOrganizationByOrganizationName(projectDto.getOrganizationName());
+            System.out.println(organization);
             Project project = new Project();
             project.setProjectName(projectDto.getProjectName());
             project.setProjectAddress(projectDto.getProjectAddress());
             project.setCreatedAt(LocalDateTime.now());
             project.setStatus(ProjectCreationStatus.valueOf(projectDto.getStatus()));
+            project.setOrganization(organization);
             Project savedProject = repository.save(project);
             if(savedProject.getId() == null) {
                 throw new DatabaseOperationException("Project could not be created");
