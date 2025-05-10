@@ -23,7 +23,7 @@ spring:
     password: password
   jpa:
     database: postgresql
-    show-sql: true
+    show-sql: false
     hibernate:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -39,15 +39,10 @@ logging:
   file:
     name: /var/log/echno_backend.log
   level:
-    org:
-      springframework: warn
-    root: info
-    web: debug
-    com: debug
-    com.echno: debug
-    com.echno.backend: debug
-    org.hibernate.SQL: debug
-    org.hibernate.type.descriptor.sql.BasicBinder: trace
+    root: WARN
+    org.springframework: WARN
+    org.hibernate: WARN
+    org.tornotron: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level - %msg%n"
   config: classpath:logback-spring.xml
-
-
