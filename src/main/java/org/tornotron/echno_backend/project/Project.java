@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.project;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.teamMember.TeamMember;
 
@@ -38,4 +39,7 @@ public class Project {
     @OneToMany(mappedBy = "project")
     @Column(nullable = true)
     private List<TeamMember> teamMembers;
+
+    @ManyToOne
+    private Organization organization;
 }
