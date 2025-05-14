@@ -27,7 +27,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak:8080/realms/echno-realm
+          issuer-uri: https://echno.xyz/keycloak/realms/echno-realm
           jwk-set-uri: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs
       client:
         registration:
@@ -39,9 +39,7 @@ spring:
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
         provider:
           keycloak:
-            issuer-uri: http://keycloak:8080/realms/echno-realm        # For internal Docker communication
-            # For external access via Nginx, use:
-            # issuer-uri: https://echno.xyz/keycloak/realms/echno-realm
+            issuer-uri: https://echno.xyz/keycloak/realms/echno-realm
             user-name-attribute: preferred_username
 
   jackson:
@@ -58,7 +56,7 @@ spring:
     database: postgresql
     show-sql: false
     hibernate:
-      ddl-auto: create-drop                                    # Consider changing to 'update' for production
+      ddl-auto: create-drop
     database-platform: org.hibernate.dialect.PostgreSQLDialect
   servlet:
     multipart:
@@ -67,10 +65,10 @@ spring:
       max-request-size: 10MB
 
 server:
-  port: 8080                                                  # Changed to match Docker Compose port
-  forward-headers-strategy: FRAMEWORK                         # Changed to work better with OAuth
+  port: 8080
+  forward-headers-strategy: FRAMEWORK
   servlet:
-    context-path: /                                           # Explicit context path
+    context-path: /
 
 logging:
   file:
@@ -78,7 +76,7 @@ logging:
   level:
     root: WARN
     org.springframework: WARN
-    org.springframework.security: INFO                        # Added for OAuth debugging
+    org.springframework.security: INFO
     org.hibernate: WARN
     org.tornotron: WARN
   pattern:
