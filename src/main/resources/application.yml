@@ -1,6 +1,6 @@
 keycloak:
-  client-id: echno-app
-  client-secret: your-client-secret
+  client-id: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID}
+  client-secret: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET}
   realm: echno-realm
 
 jwt:
@@ -49,9 +49,9 @@ spring:
   application:
     name: echno_backend
   datasource:
-    url: jdbc:postgresql://postgres_db:5432/echno_database
-    username: root
-    password: password
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
   jpa:
     database: postgresql
     show-sql: false
