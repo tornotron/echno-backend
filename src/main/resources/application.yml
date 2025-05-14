@@ -1,10 +1,14 @@
 keycloak:
-  client-id: spring-boot-api
+  client-id: echno-app
+  client-secret: your-client-secret
+  realm: echno-realm
+
 jwt:
   auth:
     converter:
-      resource-id: spring-boot-api
+      resource-id: echno-app
       principle-attribute: preferred_username
+
 management:
   endpoint:
     health:
@@ -17,13 +21,29 @@ management:
     metrics:
       export:
         enabled: true
+
 spring:
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080/realms/echnoRealm
+          issuer-uri: http://keycloak:8080/realms/echno-realm
           jwk-set-uri: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: echno-app
+            client-secret: your-client-secret
+            authorization-grant-type: authorization_code
+            scope: openid,profile,email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          keycloak:
+            issuer-uri: http://keycloak:8080/realms/echno-realm        # For internal Docker communication
+            # For external access via Nginx, use:
+            # issuer-uri: https://echno.xyz/keycloak/realms/echno-realm
+            user-name-attribute: preferred_username
+
   jackson:
     date-format: yyyy-MM-dd
     serialization:
@@ -31,29 +51,34 @@ spring:
   application:
     name: echno_backend
   datasource:
-    url: jdbc:postgresql://localhost:5432/echno_database
+    url: jdbc:postgresql://postgres_db:5432/echno_database
     username: root
     password: password
   jpa:
     database: postgresql
     show-sql: false
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: create-drop                                    # Consider changing to 'update' for production
     database-platform: org.hibernate.dialect.PostgreSQLDialect
   servlet:
     multipart:
       enabled: true
       max-file-size: 10MB
       max-request-size: 10MB
+
 server:
-  port: 8081
-  forward-headers-strategy: native
+  port: 8080                                                  # Changed to match Docker Compose port
+  forward-headers-strategy: FRAMEWORK                         # Changed to work better with OAuth
+  servlet:
+    context-path: /                                           # Explicit context path
+
 logging:
   file:
     name: /var/log/echno_backend.log
   level:
     root: WARN
     org.springframework: WARN
+    org.springframework.security: INFO                        # Added for OAuth debugging
     org.hibernate: WARN
     org.tornotron: WARN
   pattern:
