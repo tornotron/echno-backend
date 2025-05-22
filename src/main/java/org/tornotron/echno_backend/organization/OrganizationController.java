@@ -46,7 +46,7 @@ public class OrganizationController {
 
     @PatchMapping("{id}")
     public ResponseEntity<ApiResponse> partialUpdateAnOrganization(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
-        service.partialUpdateAProject(updates, id);
+        service.partialUpdateAnOrganization(updates, id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organization with id: " + id + " updated"));
     }
 
@@ -58,7 +58,7 @@ public class OrganizationController {
 
     @DeleteMapping("{id}")
     public ResponseEntity<ApiResponse> deleteOrganization(@PathVariable Long id) {
-        service.deleteAProject(id);
+        service.deleteAnOrganization(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organization with id: " + id + " deleted"));
     }
 }
