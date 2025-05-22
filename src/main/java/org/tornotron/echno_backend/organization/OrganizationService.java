@@ -10,8 +10,10 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
-import org.tornotron.echno_backend.organization.dto.ProjectDtoForOrg;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.dto.ProjectDto;
+import org.tornotron.echno_backend.teamMember.TeamMember;
+import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,12 +29,27 @@ public class OrganizationService {
         this.repository = repository;
     }
 
-    private ProjectDtoForOrg convertProjectToProjectDtoForOrg(Project project) {
-        ProjectDtoForOrg projectDtoForOrg = new ProjectDtoForOrg();
-        projectDtoForOrg.setProjectName(project.getProjectName());
-        projectDtoForOrg.setProjectAddress(project.getProjectAddress());
-        return projectDtoForOrg;
+    private TeamMemberDto convertTeamMemberToTeamMemberDTO(TeamMember teamMember) {
+        TeamMemberDto teamMemberDto = new TeamMemberDto();
+        teamMemberDto.setId(teamMember.getId());
+        teamMemberDto.setMemberName(teamMember.getMemberName());
+        teamMemberDto.setMemberEmail(teamMember.getMemberEmail());
+        return teamMemberDto;
     }
+
+    private ProjectDto convertProjectToProjectDto(Project project) {
+        ProjectDto projectDto = new ProjectDto();
+        projectDto.setId(project.getId());
+        projectDto.setProjectName(project.getProjectName());
+        projectDto.setProjectAddress(project.getProjectAddress());
+        projectDto.setStatus(project.getStatus());
+        projectDto.setCreatedAt(project.getCreatedAt());
+        projectDto.setTeamMembers(project.getTeamMembers().stream()
+                .map(this::convertTeamMemberToTeamMemberDTO)
+                .collect(Collectors.toList()));
+        return projectDto;
+    }
+
 
     private OrganizationDto convertToDto(Organization organization) {
         OrganizationDto dto = new OrganizationDto();
@@ -41,7 +58,7 @@ public class OrganizationService {
         dto.setOrganizationAddress(organization.getOrganizationAddress());
         dto.setCreatedAt(organization.getCreatedAt());
         dto.setProjects(organization.getProjects().stream()
-                .map(this::convertProjectToProjectDtoForOrg)
+                .map(this::convertProjectToProjectDto)
                 .collect(Collectors.toList()));
         return dto;
     }
@@ -74,7 +91,7 @@ public class OrganizationService {
         }
     }
 
-    public void partialUpdateAProject(Map<String, Object> updates, Long id) {
+    public void partialUpdateAnOrganization(Map<String, Object> updates, Long id) {
        Organization organization = repository.findById(id)
                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+id));
        updates.forEach((key, value) -> {
@@ -91,10 +108,10 @@ public class OrganizationService {
     }
 
     public void batchUpdateOrganization(List<OrganizationPatchDto> updates) {
-        updates.forEach(update -> partialUpdateAProject(update.getUpdates(),update.getId()));
+        updates.forEach(update -> partialUpdateAnOrganization(update.getUpdates(),update.getId()));
     }
 
-    public void deleteAProject(Long id) {
+    public void deleteAnOrganization(Long id) {
         if(!repository.existsById(id)) {
             throw new ResourceNotFoundException("Organization not found with id: "+id);
         } else {
