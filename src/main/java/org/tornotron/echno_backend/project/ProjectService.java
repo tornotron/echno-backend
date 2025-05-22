@@ -54,7 +54,6 @@ public class ProjectService {
 
     public void addProject(ProjectCreationDto projectDto) {
             Organization organization = organizationRepository.findOrganizationByOrganizationName(projectDto.getOrganizationName());
-            System.out.println(organization);
             Project project = new Project();
             project.setProjectName(projectDto.getProjectName());
             project.setProjectAddress(projectDto.getProjectAddress());
