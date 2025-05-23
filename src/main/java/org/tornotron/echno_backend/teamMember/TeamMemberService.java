@@ -32,6 +32,9 @@ public class TeamMemberService {
         dto.setId(teamMember.getId());
         dto.setMemberName(teamMember.getMemberName());
         dto.setMemberEmail(teamMember.getMemberEmail());
+        dto.setMemberPhone(teamMember.getMemberPhone());
+        dto.setMemberRole(teamMember.getMemberRole());
+        dto.setMemberImage(teamMember.getMemberImage());
         return dto;
     }
 
@@ -40,6 +43,9 @@ public class TeamMemberService {
         TeamMember teamMember = new TeamMember();
         teamMember.setMemberName(teamMemberCreationDTO.getMemberName());
         teamMember.setMemberEmail(teamMemberCreationDTO.getMemberEmail());
+        teamMember.setMemberPhone(teamMemberCreationDTO.getMemberPhone());
+        teamMember.setMemberRole(teamMemberCreationDTO.getMemberRole());
+        teamMember.setMemberImage(teamMemberCreationDTO.getMemberImage());
         teamMember.setProject(project);
         TeamMember savedTeamMember = repository.save(teamMember);
         if(savedTeamMember.getId() == null) {
