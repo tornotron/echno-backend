@@ -20,7 +20,18 @@ public class TeamMemberCreationDTO {
     )
     private String memberEmail;
 
+    @NotBlank(message = "memberPhone is required")
+    @Size(min = 10,max = 15,message = "memberPhone must be between 10 and 15 characters")
+    private String memberPhone;
+
+    @NotBlank(message = "memberRole is required")
+    private String memberRole;
+
+    private String memberImage;
+
     @NotBlank(message = "projectName is required")
     @Size(min = 3,max = 50,message = "projectName must be between 3 and 50 characters")
     private String projectName;
+
+
 }

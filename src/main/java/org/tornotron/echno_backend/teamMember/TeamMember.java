@@ -22,6 +22,15 @@ public class TeamMember {
     @Column(unique = true,name = "member_email")
     private String memberEmail;
 
+    @Column(name = "member_phone",unique = true)
+    private String memberPhone;
+
+    @Column(name = "member_role")
+    private String memberRole;
+
+    @Column(name = "member_image")
+    private String memberImage;
+
     @ManyToOne
     private Project project;
 
