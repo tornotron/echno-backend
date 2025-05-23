@@ -7,4 +7,7 @@ public class TeamMemberDto {
     private Long id;
     private String memberName;
     private String memberEmail;
+    private String memberPhone;
+    private String memberRole;
+    private String memberImage;
 }

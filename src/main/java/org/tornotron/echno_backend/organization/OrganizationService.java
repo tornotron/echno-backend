@@ -34,6 +34,9 @@ public class OrganizationService {
         teamMemberDto.setId(teamMember.getId());
         teamMemberDto.setMemberName(teamMember.getMemberName());
         teamMemberDto.setMemberEmail(teamMember.getMemberEmail());
+        teamMemberDto.setMemberPhone(teamMember.getMemberPhone());
+        teamMemberDto.setMemberRole(teamMember.getMemberRole());
+        teamMemberDto.setMemberImage(teamMember.getMemberImage());
         return teamMemberDto;
     }
 
