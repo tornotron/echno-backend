@@ -5,6 +5,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class OrganizationService {
 
     private final OrganizationRepository repository;
@@ -77,12 +79,14 @@ public class OrganizationService {
         }
     }
 
+    @Transactional(readOnly = true)
     public Page<OrganizationDto> getAllOrganization(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return repository.findAll(pageable)
                 .map(this::convertToDto);
     }
 
+    @Transactional(readOnly = true)
     public OrganizationDto getAnOrganization(Long id) {
         OrganizationDto organizationDto = repository.findById(id)
                 .map(this::convertToDto)

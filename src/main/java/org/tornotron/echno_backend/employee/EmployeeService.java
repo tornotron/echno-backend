@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.employee;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
@@ -13,6 +14,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
@@ -49,12 +51,14 @@ public class EmployeeService {
     }
 
 
+    @Transactional(readOnly = true)
     public List<EmployeeDto> displayAllEmployees() {
         return employeeRepository.findAll().stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public EmployeeDto displayAnEmployee(Long id) {
         EmployeeDto employeeDto = employeeRepository.findById(id)
                 .map(this::convertToDto)
