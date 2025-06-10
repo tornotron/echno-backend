@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.teamMember;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.project.Project;
@@ -16,6 +17,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class TeamMemberService {
 
     private final TeamMemberRepository repository;
@@ -54,12 +56,14 @@ public class TeamMemberService {
 
     }
 
+    @Transactional(readOnly = true)
     public List<TeamMemberDto> getAllTeamMember() {
         return repository.findAll().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public TeamMemberDto getATeamMember(Long id) {
         TeamMemberDto teamMemberDto = repository.findById(id)
                 .map(this::convertToDTO)

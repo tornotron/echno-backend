@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.common.service.TenantService;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
@@ -21,8 +22,26 @@ public class OrganizationController {
 
     private final OrganizationService service;
 
-    public OrganizationController(OrganizationService service) {
+    private final TenantService tenantService;
+
+    public OrganizationController(OrganizationService service, TenantService tenantService) {
         this.service = service;
+        this.tenantService = tenantService;
+    }
+
+    @PostMapping("/onboard")
+    public ResponseEntity<ApiResponse> onboardTenant(@RequestParam String tenantId,
+                                                                      @RequestParam String dbUrl,
+                                                                      @RequestParam String username,
+                                                                      @RequestParam String password) {
+        tenantService.onboardNewTenant(tenantId, dbUrl, username, password);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Tenant "+tenantId+" onboarded successfully"));
+    }
+
+    @PostMapping("/migrate")
+    public ResponseEntity<ApiResponse> migrateAllTenants() {
+        tenantService.migrateAllTenants();
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("All tenants migrated successfully"));
     }
 
     @PostMapping
