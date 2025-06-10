@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.attendance;
 
 import jakarta.validation.ValidationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.attendance.dto.AttendanceCreationDto;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.validator.AttendanceSequenceValidator;
@@ -12,6 +13,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 @Service
+@Transactional
 public class AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
