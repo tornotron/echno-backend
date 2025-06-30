@@ -1,7 +1,6 @@
 networks:
   monitoring:
     driver: bridge
-
 services:
   prometheus:
     image: prom/prometheus:latest
@@ -15,7 +14,6 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
-
   loki:
     image: grafana/loki:latest
     container_name: loki
@@ -26,7 +24,6 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
-
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -45,6 +42,23 @@ services:
       - loki
     restart: unless-stopped
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: password
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - monitoring
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
   postgres:
     image: postgres:16
     container_name: postgres_db
@@ -59,17 +73,79 @@ services:
     networks:
       - monitoring
 
+  # Keycloak database
+  keycloak-db:
+    image: postgres:16
+    container_name: keycloak_postgres
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    volumes:
+      - keycloak_postgres_data:/var/lib/postgresql/data
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # Keycloak service
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.0
+    container_name: keycloak
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_PROXY: edge
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: echno.xyz
+      KC_HOSTNAME_PATH: /keycloak
+      KC_HOSTNAME_ADMIN_URL: https://echno.xyz/keycloak/
+      KC_PROXY_ADDRESS_FORWARDING: true
+      # For development only - remove in production:
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
+    ports:
+      - "8180:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    depends_on:
+      - keycloak-db
+    networks:
+      - monitoring
+    command:
+      - start
+      - --proxy=edge
+    restart: unless-stopped
+
   app:
     image: tornotron/echno-backend:staging-latest
     container_name: echno-springboot-app-container
     ports:
       - "8080:8080"
     environment:
+      # Database connection
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres_db:5432/echno_database
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: password
+
+      # Keycloak configuration
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_ID: echno-app
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT_SECRET: sinji0cO4LtMbqf8Y3p5fphg5VPN39TD
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_SCOPE: openid,profile,email
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: https://echno.xyz/keycloak/realms/echno-realm
+
+      # For production use external URL:
+      # SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: https://echno.xyz/keycloak/realms/echno-realm
+
+      # Redirect URI handling
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_REDIRECT_URI: "{baseUrl}/login/oauth2/code/{registrationId}"
     depends_on:
       - postgres
+      - keycloak
     networks:
       - monitoring
     restart: unless-stopped
@@ -77,3 +153,6 @@ services:
 volumes:
   grafana-storage:
   postgres_data:
+  pgadmin_data:
+  keycloak_postgres_data:
+  keycloak_data:
