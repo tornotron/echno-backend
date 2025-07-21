@@ -3,8 +3,10 @@ package org.tornotron.echno_backend.employee;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.tornotron.echno_backend.task.Task;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Data
@@ -25,10 +27,15 @@ public class Employee {
     @Column(name = "phone_number",nullable = false)
     private String phoneNumber;
 
-    @Column(name = "email_address",nullable = false)
+    @Column(name = "email_address",nullable = false,unique = true)
     private String emailAddress;
 
     @Column(name = "date_of_birth",nullable = false)
     private LocalDateTime dateOfBirth;
 
+    @OneToMany(mappedBy = "employee")
+    private List<Task> tasks;
+
+    @ManyToMany(mappedBy = "assignees")
+    private List<Task> assignedTasks;
 }

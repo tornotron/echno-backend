@@ -35,8 +35,9 @@ public class EmployeeService {
         }
     }
 
-    private EmployeeDto convertToDto(Employee employee) {
+    public EmployeeDto convertToEmployeeDto(Employee employee) {
         EmployeeDto dto = new EmployeeDto();
+        dto.setId(employee.getId());
         dto.setEmployeeName(employee.getEmployeeName());
         dto.setGender(employee.getGender());
         dto.setEmailAddress(employee.getEmailAddress());
@@ -54,14 +55,14 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public List<EmployeeDto> displayAllEmployees() {
         return employeeRepository.findAll().stream()
-                .map(this::convertToDto)
+                .map(this::convertToEmployeeDto)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public EmployeeDto displayAnEmployee(Long id) {
         EmployeeDto employeeDto = employeeRepository.findById(id)
-                .map(this::convertToDto)
+                .map(this::convertToEmployeeDto)
                 .orElse(null);
         if(employeeDto==null) {
             throw new ResourceNotFoundException("Employee not found with id: "+id);
