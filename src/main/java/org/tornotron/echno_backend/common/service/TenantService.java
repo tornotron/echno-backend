@@ -42,6 +42,8 @@ public class TenantService {
                     .locations("db/migration")
                     .load();
 
+            flyway.repair();
+
             flyway.migrate();
         }
     }
