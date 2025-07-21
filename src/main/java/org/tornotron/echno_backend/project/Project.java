@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
+import org.tornotron.echno_backend.task.Task;
 import org.tornotron.echno_backend.teamMember.TeamMember;
 
 import java.time.LocalDateTime;
@@ -42,4 +43,7 @@ public class Project {
 
     @ManyToOne
     private Organization organization;
+
+    @OneToMany(mappedBy = "project")
+    private List<Task> tasks;
 }
