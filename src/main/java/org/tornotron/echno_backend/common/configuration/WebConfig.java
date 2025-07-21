@@ -9,9 +9,9 @@ import org.tornotron.echno_backend.common.filter.TenantFilter;
 public class WebConfig {
 
     @Bean
-    public FilterRegistrationBean<TenantFilter> tenantFilter() {
+    public FilterRegistrationBean<TenantFilter> tenantFilterRegistration(TenantFilter tenantFilter) {
         FilterRegistrationBean<TenantFilter> registrationBean = new FilterRegistrationBean<>();
-        registrationBean.setFilter(new TenantFilter());
+        registrationBean.setFilter(tenantFilter);
         registrationBean.addUrlPatterns("/*");
         return registrationBean;
     }
