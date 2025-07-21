@@ -33,7 +33,7 @@ public class Employee {
     @Column(name = "date_of_birth",nullable = false)
     private LocalDateTime dateOfBirth;
 
-    @OneToMany(mappedBy = "employee")
+    @OneToMany(mappedBy = "creator")
     private List<Task> tasks;
 
     @ManyToMany(mappedBy = "assignees")
