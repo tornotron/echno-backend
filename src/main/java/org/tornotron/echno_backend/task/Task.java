@@ -1,10 +1,17 @@
 package org.tornotron.echno_backend.task;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.tornotron.echno_backend.category.Category;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.project.Project;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Set;
 
 @Entity
 @Data
@@ -15,21 +22,48 @@ public class Task {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true)
-    @NotBlank(message = "taskName is required")
-    @Size(min = 3,max = 50,message = "taskName must be between 3 and 50 characters")
-    private String taskName;
+    @Column(name = "title", nullable = false)
+    private String title;
 
-    @Column(name = "categories")
-    @NotBlank(message = "categories is required")
-    @Size(min = 3,max = 50,message = "categories must be between 3 and 50 characters")
-    private String categories;
+    @Column(name = "start_date", nullable = true)
+    private LocalDateTime startDate;
 
-    @Column(nullable = true,name = "photo")
-    @Lob
-    private byte[] photo;
+    @Column(name = "end_date", nullable = true)
+    private LocalDateTime endDate;
 
-    @Column(nullable = true)
-    private Integer progress;
+    @ManyToOne
+    @JoinColumn(name = "employee_id", nullable = false)
+    private Employee employee;
+
+    @ManyToOne
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
+
+    @ManyToMany
+    @JoinTable(name = "task_assignees",
+            joinColumns = @JoinColumn(name = "task_id"),
+            inverseJoinColumns = @JoinColumn(name = "employee_id"))
+    private Set<Employee> assignees;
+
+    @ManyToOne
+    private Category category;
+
+    private Double progress;
+
+    @ElementCollection
+    @CollectionTable(name = "task_tags", joinColumns = @JoinColumn(name = "id"))
+    @Column(name = "tags")
+    private List<String> tags;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Column(name = "status", nullable = false)
+    private String status;
 
 }
