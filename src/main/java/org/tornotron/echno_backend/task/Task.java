@@ -32,8 +32,8 @@ public class Task {
     private LocalDateTime endDate;
 
     @ManyToOne
-    @JoinColumn(name = "employee_id", nullable = false)
-    private Employee employee;
+    @JoinColumn(name = "creator_id", nullable = false)
+    private Employee creator;
 
     @ManyToOne
     @JoinColumn(name = "project_id", nullable = false)

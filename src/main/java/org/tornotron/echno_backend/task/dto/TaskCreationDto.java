@@ -18,8 +18,8 @@ public class TaskCreationDto {
 
     private LocalDateTime endDate;
 
-    @NotNull(message = "employeeId is required(type: Long)")
-    private Long employeeId;
+    @NotNull(message = "creatorId is required(type: Long)")
+    private Long creatorId;
 
     @NotNull(message = "projectId is required(type: Long)")
     private Long projectId;

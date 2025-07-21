@@ -57,7 +57,7 @@ public class TaskService {
         dto.setTitle(task.getTitle());
         dto.setStartDate(task.getStartDate());
         dto.setEndDate(task.getEndDate());
-        dto.setEmployeeId(task.getEmployee().getId());
+        dto.setCreatorId(task.getCreator().getId());
         dto.setProjectId(task.getProject().getId());
         dto.setAssigneeIds(task.getAssignees().stream()
                 .map(Employee::getId)
@@ -79,9 +79,9 @@ public class TaskService {
         task.setProgress(taskCreationDto.getProgress());
         task.setStatus(taskCreationDto.getStatus());
 
-        if (taskCreationDto.getEmployeeId() != null) {
-            task.setEmployee(employeeRepository.findById(taskCreationDto.getEmployeeId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + taskCreationDto.getEmployeeId())));
+        if (taskCreationDto.getCreatorId() != null) {
+            task.setCreator(employeeRepository.findById(taskCreationDto.getCreatorId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + taskCreationDto.getCreatorId())));
         } else {
             throw new InvalidRequestException("Employee ID must be provided");
         }

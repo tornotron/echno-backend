@@ -17,7 +17,7 @@ public class TaskDto {
     private String title;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
-    private Long employeeId;
+    private Long creatorId;
     private Long projectId;
     private Set<Long> assigneeIds;
     private Long categoryId;
