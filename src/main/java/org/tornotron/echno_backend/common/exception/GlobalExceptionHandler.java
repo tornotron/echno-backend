@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.common.exception;
 
+import org.apache.coyote.BadRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -40,12 +41,12 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException exception,WebRequest request) {
-        Map<String,String> errors = new HashMap<>();
-        exception.getBindingResult().getAllErrors().forEach((error)->{
+    public ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException exception, WebRequest request) {
+        Map<String, String> errors = new HashMap<>();
+        exception.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName,errorMessage);
+            errors.put(fieldName, errorMessage);
         });
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -107,8 +108,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidInviteCodeException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleInvalidInviteCodeException(InvalidInviteCodeException ex,WebRequest request) {
-        logger.error("Invalid Invite Code: ",ex);
+    public ErrorResponse handleInvalidInviteCodeException(InvalidInviteCodeException ex, WebRequest request) {
+        logger.error("Invalid Invite Code: ", ex);
         return new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
@@ -120,7 +121,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthorizationDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ErrorResponse handleAuthorizationDeniedException(AuthorizationDeniedException ex, WebRequest request) {
-        logger.error("Access denied: ",ex);
+        logger.error("Access denied: ", ex);
         return new ErrorResponse(
                 HttpStatus.FORBIDDEN.value(),
                 ex.getMessage(),
@@ -131,8 +132,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DatabaseOperationException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ErrorResponse handleDatabaseOperationException(DatabaseOperationException ex,WebRequest request) {
-        logger.error("Database operation failed: ",ex);
+    public ErrorResponse handleDatabaseOperationException(DatabaseOperationException ex, WebRequest request) {
+        logger.error("Database operation failed: ", ex);
         return new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
@@ -144,10 +145,34 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidAttendanceSequenceException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ErrorResponse handleInvalidAttendanceSequenceException(InvalidAttendanceSequenceException ex,WebRequest request) {
-        logger.error("Invalid Attendance marking sequence: ",ex);
+    public ErrorResponse handleInvalidAttendanceSequenceException(InvalidAttendanceSequenceException ex, WebRequest request) {
+        logger.error("Invalid Attendance marking sequence: ", ex);
         return new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(InvalidRequestException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleInvalidRequestException(InvalidRequestException ex, WebRequest request) {
+        logger.error("Invalid request: ", ex);
+        return new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(TenantIdMissingException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleTenantIdMissingException(TenantIdMissingException ex, WebRequest request) {
+        logger.error("Tenant ID is missing: ", ex);
+        return new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
                 request.getDescription(false),
                 LocalDateTime.now()
