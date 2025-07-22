@@ -27,8 +27,8 @@ public class TaskCreationDto {
     @NotNull(message = "assigneeIds is required(type: List<Long>)")
     private List<Long> assigneeIds;
 
-    @NotBlank(message = "category is required")
-    private String category;
+    @NotNull(message = "categoryId is required(type: Long)")
+    private Long categoryId;
 
     @NotNull(message = "progress is required(type: Double)")
     private Double progress;
