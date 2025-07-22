@@ -103,9 +103,9 @@ public class TaskService {
 
         }
 
-        if(taskCreationDto.getCategory() != null) {
-            task.setCategory(categoryRepository.findCategoryByName(taskCreationDto.getCategory())
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found with name: " + taskCreationDto.getCategory())));
+        if(taskCreationDto.getCategoryId() != null) {
+            task.setCategory(categoryRepository.findById(taskCreationDto.getCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + taskCreationDto.getCategoryId())));
         } else {
             throw new InvalidRequestException("Category must be provided");
         }
