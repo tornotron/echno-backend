@@ -33,7 +33,7 @@ public class ProjectService {
         this.organizationRepository = organizationRepository;
     }
 
-    public TeamMemberDto convertTeamMemberToTeamMemberDTO(TeamMember teamMember) {
+    private TeamMemberDto convertTeamMemberToTeamMemberDTO(TeamMember teamMember) {
         TeamMemberDto teamMemberDto = new TeamMemberDto();
         teamMemberDto.setId(teamMember.getId());
         teamMemberDto.setMemberName(teamMember.getMemberName());
@@ -44,7 +44,7 @@ public class ProjectService {
         return teamMemberDto;
     }
 
-    public ProjectDto convertToDto(Project project) {
+    private ProjectDto convertToDto(Project project) {
         ProjectDto dto = new ProjectDto();
         dto.setId(project.getId());
         dto.setProjectName(project.getProjectName());

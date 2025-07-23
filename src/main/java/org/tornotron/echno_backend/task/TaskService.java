@@ -1,31 +1,23 @@
 package org.tornotron.echno_backend.task;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Validation;
-import jakarta.validation.ValidationException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.concurrent.SimpleAsyncTaskScheduler;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-import org.tornotron.echno_backend.category.Category;
 import org.tornotron.echno_backend.category.CategoryRepository;
-import org.tornotron.echno_backend.category.CategoryService;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
-import org.tornotron.echno_backend.employee.EmployeeService;
-import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.project.ProjectRepository;
-import org.tornotron.echno_backend.project.ProjectService;
 import org.tornotron.echno_backend.task.dto.TaskCreationDto;
 import org.tornotron.echno_backend.task.dto.TaskDto;
+import org.tornotron.echno_backend.task.dto.TaskPatchDto;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -128,9 +120,56 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public Page<TaskDto> getAllTasks(int pageNo, int pageSize) {
-        Pageable pageable = Pageable.ofSize(pageSize).withPage(pageNo);
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
         return taskRepository.findAll(pageable)
                 .map(this::convertToDto);
+    }
+
+    @Transactional(readOnly = true)
+    public TaskDto getATask(Long id) {
+        TaskDto taskDto = taskRepository.findById(id)
+                .map(this::convertToDto)
+                .orElse(null);
+        if(taskDto == null) {
+            throw new ResourceNotFoundException("Task not found with id: " + id);
+        } else {
+            return taskDto;
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void partialUpdateATask(Map<String,Object> updates,Long id) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+
+        updates.forEach((key,value) -> {
+            switch (key) {
+                case "title":
+                    task.setTitle((String) value);
+                    break;
+                case "endDate":
+                    task.setEndDate((LocalDateTime) value);
+                    break;
+                case "progress":
+                    task.setProgress((Double) value);
+                    break;
+                case "status":
+                    task.setStatus((String) value);
+                    break;
+            }
+        });
+    }
+
+    public void batchUpdateTasks(List<TaskPatchDto> updates) {
+        updates.forEach(update ->
+                partialUpdateATask(update.getUpdates(), update.getId()));
+    }
+
+    public void deleteATask(Long id) {
+        if(!taskRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Task not found with id: " + id);
+        }
+        taskRepository.deleteById(id);
     }
 
 }
