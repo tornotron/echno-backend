@@ -1,10 +1,16 @@
 package org.tornotron.echno_backend.category;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.category.dto.CategoryCreationDto;
 import org.tornotron.echno_backend.category.dto.CategoryDto;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+
 
 @Service
 @Transactional
@@ -36,6 +42,32 @@ public class CategoryService {
         if(savedCategory.getId() == null) {
             throw new DatabaseOperationException("Category could not be created");
         }
+    }
 
+    public Page<CategoryDto> getAllCategories(int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
+        return categoryRepository.findAll(pageable)
+                .map(this::convertToDto);
+    }
+
+    @Transactional(readOnly = true)
+    public CategoryDto getACategory(Long id) {
+        CategoryDto categoryDto = categoryRepository.findById(id)
+                .map(this::convertToDto)
+                .orElse(null);
+
+        if(categoryDto == null) {
+            throw new ResourceNotFoundException("Category not found with id: " + id);
+        } else {
+            return categoryDto;
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void deleteACategory(Long id) {
+        if(!categoryRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Category not found with id: " + id);
+        }
+        categoryRepository.deleteById(id);
     }
 }

@@ -35,7 +35,7 @@ public class EmployeeService {
         }
     }
 
-    public EmployeeDto convertToEmployeeDto(Employee employee) {
+    private EmployeeDto convertToEmployeeDto(Employee employee) {
         EmployeeDto dto = new EmployeeDto();
         dto.setId(employee.getId());
         dto.setEmployeeName(employee.getEmployeeName());
