@@ -48,3 +48,6 @@ gradle-app.setting
 
 # Cache of project
 .gradletasknamecache
+
+serviceAccountKey.json
+.env
