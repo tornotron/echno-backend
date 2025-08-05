@@ -19,8 +19,12 @@ import org.tornotron.echno_backend.common.response.ErrorResponseValidation;
 
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 
 @RestControllerAdvice
@@ -174,6 +178,47 @@ public class GlobalExceptionHandler {
         return new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleIllegalArgumentException(IllegalArgumentException ex, WebRequest request) {
+        logger.error("Illegal argument: ", ex);
+        String errorMessage = "Invalid input provided: " + ex.getMessage();
+        String invalidValue = null;
+        String enumClassName = null;
+        String availableEnums = null;
+
+        Pattern enumErrorPattern = Pattern.compile("No enum constant (\\S+)\\.(\\S+)");
+        Matcher matcher = enumErrorPattern.matcher(ex.getMessage());
+
+        if (matcher.find()) {
+            enumClassName = matcher.group(1);
+            invalidValue = matcher.group(2);
+
+            try {
+                Class<?> enumClass = Class.forName(enumClassName);
+                if (enumClass.isEnum()) {
+                    availableEnums = Arrays.stream(enumClass.getEnumConstants())
+                            .map(Object::toString)
+                            .collect(Collectors.joining(", "));
+                }
+            } catch (ClassNotFoundException e) {
+                logger.warn("Could not load enum class for listing values: " + enumClassName, e);
+            }
+
+            errorMessage = String.format("Invalid value '%s' provided for enum '%s'. Available values: %s",
+                    invalidValue,
+                    enumClassName.substring(enumClassName.lastIndexOf('.') + 1),
+                    (availableEnums != null ? availableEnums : "N/A"));
+        }
+
+        return new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                errorMessage,
                 request.getDescription(false),
                 LocalDateTime.now()
         );
