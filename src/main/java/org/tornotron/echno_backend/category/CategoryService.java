@@ -35,7 +35,7 @@ public class CategoryService {
     public void addCategory(CategoryCreationDto categoryCreationDto) {
         Category category = new Category();
         category.setName(categoryCreationDto.getName());
-        category.setDescription(category.getDescription());
+        category.setDescription(categoryCreationDto.getDescription());
         category.setIcon(categoryCreationDto.getIcon());
         category.setImage(categoryCreationDto.getImage());
         Category savedCategory = categoryRepository.save(category);
@@ -63,7 +63,6 @@ public class CategoryService {
         }
     }
 
-    @Transactional(readOnly = true)
     public void deleteACategory(Long id) {
         if(!categoryRepository.existsById(id)) {
             throw new ResourceNotFoundException("Category not found with id: " + id);
