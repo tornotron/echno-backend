@@ -11,6 +11,7 @@ import org.tornotron.echno_backend.common.service.TenantService;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
+import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
 
 import java.util.List;
 import java.util.Map;
@@ -45,9 +46,8 @@ public class OrganizationController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse> createOrganization(@Valid @RequestBody OrganizationCreationDto organizationCreationDto) {
-        service.addOrganization(organizationCreationDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Organization Created Successfully"));
+    public ResponseEntity<OrganizationSimpleDto> createOrganization(@Valid @RequestBody OrganizationCreationDto organizationCreationDto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.addOrganization(organizationCreationDto));
     }
 
     @GetMapping
@@ -64,9 +64,8 @@ public class OrganizationController {
     }
 
     @PatchMapping("{id}")
-    public ResponseEntity<ApiResponse> partialUpdateAnOrganization(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
-        service.partialUpdateAnOrganization(updates, id);
-        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organization with id: " + id + " updated"));
+    public ResponseEntity<OrganizationSimpleDto> partialUpdateAnOrganization(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
+        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAnOrganization(updates, id));
     }
 
     @PatchMapping("/batch")
