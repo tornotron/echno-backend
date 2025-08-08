@@ -58,7 +58,8 @@ public class ProjectService {
     }
 
     public void addProject(ProjectCreationDto projectDto) {
-            Organization organization = organizationRepository.findOrganizationByOrganizationName(projectDto.getOrganizationName());
+            Organization organization = organizationRepository.findOrganizationByOrganizationName(projectDto.getOrganizationName())
+                    .orElseThrow(() -> new ResourceNotFoundException("Organization not found with name: " + projectDto.getOrganizationName()));;
             Project project = new Project();
             project.setProjectName(projectDto.getProjectName());
             project.setProjectAddress(projectDto.getProjectAddress());
