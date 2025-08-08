@@ -101,6 +101,7 @@ public class OrganizationService {
         dto.setProjects(organization.getProjects().stream()
                 .map(this::convertProjectToProjectDto)
                 .collect(Collectors.toList()));
+        dto.setIsActive(organization.getIsActive());
         return dto;
     }
 
