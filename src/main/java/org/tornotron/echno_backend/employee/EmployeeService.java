@@ -7,6 +7,8 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeePatchDto;
+import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.organization.OrganizationRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,21 +20,21 @@ import java.util.stream.Collectors;
 public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    private final OrganizationRepository organizationRepository;
 
-    public EmployeeService(EmployeeRepository employeeRepository) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository) {
         this.employeeRepository = employeeRepository;
+        this.organizationRepository = organizationRepository;
     }
 
-    private void EmployeeObjectMapper(EmployeeCreationDto employeeCreationDto, Employee employee) {
+    private EmployeeDto EmployeeObjectMapper(EmployeeCreationDto employeeCreationDto, Employee employee, Organization organization) {
         employee.setEmployeeName(employeeCreationDto.getEmployeeName());
         employee.setGender(employeeCreationDto.getGender());
         employee.setPhoneNumber(employeeCreationDto.getPhoneNumber());
         employee.setEmailAddress(employeeCreationDto.getEmailAddress());
         employee.setDateOfBirth(employeeCreationDto.getDateOfBirth());
-        Employee savedEmployee = employeeRepository.save(employee);
-        if(savedEmployee.getId() == null) {
-            throw new DatabaseOperationException("Employee could not be created");
-        }
+        employee.setOrganization(organization);
+        return convertToEmployeeDto(employeeRepository.save(employee));
     }
 
     private EmployeeDto convertToEmployeeDto(Employee employee) {
@@ -46,9 +48,11 @@ public class EmployeeService {
         return dto;
     }
 
-    public void addEmployee(EmployeeCreationDto employeeCreationDto) {
+    public EmployeeDto addEmployee(EmployeeCreationDto employeeCreationDto) {
         Employee employee = new Employee();
-        EmployeeObjectMapper(employeeCreationDto, employee);
+        Organization organization = organizationRepository.findOrganizationByOrganizationName(employeeCreationDto.getOrganizationName())
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with name: " + employeeCreationDto.getOrganizationName()));
+        return EmployeeObjectMapper(employeeCreationDto, employee, organization);
     }
 
 
