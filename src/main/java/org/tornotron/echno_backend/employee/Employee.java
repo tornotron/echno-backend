@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.employee;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.task.Task;
 
 import java.time.LocalDateTime;
@@ -38,4 +39,7 @@ public class Employee {
 
     @ManyToMany(mappedBy = "assignees")
     private List<Task> assignedTasks;
+
+    @ManyToOne
+    private Organization organization;
 }
