@@ -25,9 +25,8 @@ public class EmployeeController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse> createEmployee(@Valid @RequestBody EmployeeCreationDto employeeCreationDto) {
-        employeeService.addEmployee(employeeCreationDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Employee Created Successfully"));
+    public ResponseEntity<EmployeeDto> createEmployee(@Valid @RequestBody EmployeeCreationDto employeeCreationDto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.addEmployee(employeeCreationDto));
     }
 
     @GetMapping

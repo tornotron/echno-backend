@@ -30,4 +30,7 @@ public class EmployeeCreationDto {
 
     @NotNull(message = "must not be blank")
     private LocalDateTime dateOfBirth;
+
+    @Size(max = 255, message = "organizationName must be at most 255 characters")
+    private String organizationName;
 }
