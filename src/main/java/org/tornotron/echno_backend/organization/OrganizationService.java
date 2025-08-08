@@ -8,9 +8,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
+import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.teamMember.TeamMember;
@@ -55,28 +58,63 @@ public class OrganizationService {
         return projectDto;
     }
 
+    private EmployeeDto convertEmployeeToEmployeeDto(Employee employee) {
+        EmployeeDto employeeDto = new EmployeeDto();
+        employeeDto.setId(employee.getId());
+        employeeDto.setEmployeeName(employee.getEmployeeName());
+        employeeDto.setGender(employee.getGender());
+        employeeDto.setPhoneNumber(employee.getPhoneNumber());
+        employeeDto.setEmailAddress(employee.getEmailAddress());
+        employeeDto.setDateOfBirth(employee.getDateOfBirth());
+        return employeeDto;
+    }
+
+    private OrganizationSimpleDto convertToSimpleDto(Organization organization) {
+        OrganizationSimpleDto dto = new OrganizationSimpleDto();
+        dto.setId(organization.getId());
+        dto.setOrganizationName(organization.getOrganizationName());
+        dto.setOrganizationAddress(organization.getOrganizationAddress());
+        dto.setOrganizationEmail(organization.getOrganizationEmail());
+        dto.setOrganizationPhone(organization.getOrganizationPhone());
+        dto.setOrganizationWebsite(organization.getOrganizationWebsite());
+        dto.setOrganizationLogo(organization.getOrganizationLogo());
+        dto.setCreatedAt(organization.getCreatedAt());
+        dto.setIsActive(organization.getIsActive());
+        dto.setCreatorId(organization.getCreatorId());
+        return dto;
+    }
+
 
     private OrganizationDto convertToDto(Organization organization) {
         OrganizationDto dto = new OrganizationDto();
         dto.setId(organization.getId());
         dto.setOrganizationName(organization.getOrganizationName());
         dto.setOrganizationAddress(organization.getOrganizationAddress());
+        dto.setOrganizationEmail(organization.getOrganizationEmail());
+        dto.setOrganizationPhone(organization.getOrganizationPhone());
+        dto.setOrganizationWebsite(organization.getOrganizationWebsite());
+        dto.setOrganizationLogo(organization.getOrganizationLogo());
         dto.setCreatedAt(organization.getCreatedAt());
+        dto.setEmployees(organization.getEmployees().stream()
+                .map(this::convertEmployeeToEmployeeDto)
+                .collect(Collectors.toList()));
         dto.setProjects(organization.getProjects().stream()
                 .map(this::convertProjectToProjectDto)
                 .collect(Collectors.toList()));
         return dto;
     }
 
-    public void addOrganization(OrganizationCreationDto organizationCreationDto) {
+    public OrganizationSimpleDto addOrganization(OrganizationCreationDto organizationCreationDto) {
         Organization organization = new Organization();
         organization.setOrganizationName(organizationCreationDto.getOrganizationName());
         organization.setOrganizationAddress(organizationCreationDto.getOrganizationAddress());
         organization.setCreatedAt(LocalDateTime.now());
-        Organization savedOrganization = repository.save(organization);
-        if(savedOrganization.getId() == null) {
-            throw new DatabaseOperationException("Organization could not be created");
-        }
+        organization.setOrganizationEmail(organizationCreationDto.getOrganizationEmail());
+        organization.setOrganizationPhone(organizationCreationDto.getOrganizationPhone());
+        organization.setOrganizationWebsite(organizationCreationDto.getOrganizationWebsite());
+        organization.setOrganizationLogo(organizationCreationDto.getOrganizationLogo());
+        organization.setIsActive(true);
+        return convertToSimpleDto(repository.save(organization));
     }
 
     @Transactional(readOnly = true)
@@ -98,20 +136,32 @@ public class OrganizationService {
         }
     }
 
-    public void partialUpdateAnOrganization(Map<String, Object> updates, Long id) {
+    public OrganizationSimpleDto partialUpdateAnOrganization(Map<String, Object> updates, Long id) {
        Organization organization = repository.findById(id)
                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+id));
        updates.forEach((key, value) -> {
            switch (key) {
                case "organizationName":
-                   organization.setOrganizationName((String) value);
+                     organization.setOrganizationName((String) value);
                      break;
-                case "organizationAddress":
+               case "organizationAddress":
                      organization.setOrganizationAddress((String) value);
+                     break;
+               case "organizationEmail":
+                     organization.setOrganizationEmail((String) value);
+                     break;
+               case "organizationPhone":
+                     organization.setOrganizationPhone((String) value);
+                     break;
+               case "organizationWebsite":
+                     organization.setOrganizationWebsite((String) value);
+                     break;
+               case "organizationLogo":
+                     organization.setOrganizationLogo((String) value);
                      break;
            }
        });
-       repository.save(organization);
+      return convertToSimpleDto(repository.save(organization));
     }
 
     public void batchUpdateOrganization(List<OrganizationPatchDto> updates) {
