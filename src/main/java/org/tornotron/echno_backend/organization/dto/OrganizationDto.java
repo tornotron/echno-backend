@@ -19,4 +19,5 @@ public class OrganizationDto {
     private LocalDateTime createdAt;
     private List<ProjectDto> projects;
     private List<EmployeeDto> employees;
+    private Boolean isActive;
 }
