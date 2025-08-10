@@ -1,14 +1,20 @@
 package org.tornotron.echno_backend.employee;
 
+import jakarta.validation.Valid;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
+import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.employee.dto.EmployeePatchDto;
+import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
+import org.tornotron.echno_backend.user.User;
+import org.tornotron.echno_backend.user.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,14 +23,17 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@Validated
 public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
     private final OrganizationRepository organizationRepository;
+    private final UserRepository userRepository;
 
-    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository) {
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
+        this.userRepository = userRepository;
     }
 
     private EmployeeDto EmployeeObjectMapper(EmployeeCreationDto employeeCreationDto, Employee employee, Organization organization) {
@@ -46,6 +55,39 @@ public class EmployeeService {
         dto.setPhoneNumber(employee.getPhoneNumber());
         dto.setDateOfBirth(employee.getDateOfBirth());
         return dto;
+    }
+
+
+    public EmployeeDto joinOrganization(Long userId, Long orgId,@Valid EmployeeJoinOrgDto employeeJoinOrgDto) {
+
+        User user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        Organization org = organizationRepository.findById(orgId).orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + orgId));
+
+        if(employeeRepository.existsByUserAndOrganization(user, org)) {
+            throw new IllegalStateException("User already employed in this organization");
+        }
+
+        Employee employee = new Employee();
+
+        employee.setUser(user);
+        employee.setOrganization(org);
+
+        employee.setDesignation(employeeJoinOrgDto.getDesignation());
+        employee.setDepartment(employeeJoinOrgDto.getDepartment());
+        employee.setJoiningDate(employeeJoinOrgDto.getJoiningDate());
+        employee.setSalary(employeeJoinOrgDto.getSalary());
+        employee.setReportingManager(employeeJoinOrgDto.getReportingManager());
+        employee.setShiftTiming(employeeJoinOrgDto.getShiftTiming());
+        employee.setStatus(EmployeeStatus.valueOf(employeeJoinOrgDto.getStatus()));
+        employee.setEmployeeName(user.getName());
+        employee.setGender(employeeJoinOrgDto.getGender());
+        employee.setPhoneNumber(user.getPhone());
+        employee.setEmailAddress(user.getEmail());
+        employee.setDateOfBirth(user.getDateOfBirth());
+
+        Employee savedEmployee = employeeRepository.save(employee);
+
+        return convertToEmployeeDto(savedEmployee);
     }
 
     public EmployeeDto addEmployee(EmployeeCreationDto employeeCreationDto) {

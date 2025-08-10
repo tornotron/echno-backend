@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
+import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.employee.dto.EmployeePatchDto;
 
 import java.util.List;
@@ -22,6 +23,11 @@ public class EmployeeController {
 
     public EmployeeController(EmployeeService employeeService) {
         this.employeeService = employeeService;
+    }
+
+    @PostMapping("/joinOrganization/{userId}/{orgId}")
+    public ResponseEntity<EmployeeDto> joinOrganization(@PathVariable Long userId, @PathVariable Long orgId, @Valid @RequestBody EmployeeJoinOrgDto employeeJoinOrgDto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.joinOrganization(userId, orgId, employeeJoinOrgDto));
     }
 
     @PostMapping
