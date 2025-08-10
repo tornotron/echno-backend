@@ -15,7 +15,7 @@ import org.tornotron.echno_backend.common.response.ApiResponse;
 import java.util.List;
 
 @RestController
-@RequestMapping("api/v1/categories")
+@RequestMapping("api/v1/workCategories")
 @Validated
 public class CategoryController {
 
