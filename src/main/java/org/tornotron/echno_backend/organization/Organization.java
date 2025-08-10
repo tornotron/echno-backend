@@ -45,11 +45,9 @@ public class Organization {
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "organization")
-    @Column(nullable = true)
     private List<Project> projects;
 
     @OneToMany(mappedBy = "organization")
-    @Column(nullable = true)
     private List<Employee> employees;
 
     @Column(name = "creator_id", nullable = true)
