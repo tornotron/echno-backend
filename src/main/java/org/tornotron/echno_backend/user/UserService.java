@@ -1,11 +1,22 @@
 package org.tornotron.echno_backend.user;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.user.dto.UserCreationDto;
 import org.tornotron.echno_backend.user.dto.UserDto;
+import org.tornotron.echno_backend.user.dto.UserPatchDto;
 import org.tornotron.echno_backend.user.enums.UserRole;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class UserService {
@@ -52,6 +63,63 @@ public class UserService {
         user.setRole(UserRole.valueOf(userCreationDto.getRole()));
         user.setProfilePictureUrl(userCreationDto.getProfilePictureUrl());
         return convertToDto(userRepository.save(user));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UserDto> getAllUsers(int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
+        return userRepository.findAll(pageable)
+                .map(this::convertToDto);
+    }
+
+    public UserDto partialUpdateAnUser(Map<String, Object> updates, Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        updates.forEach((key, value) -> {
+            switch (key) {
+                case "name":
+                    user.setName((String) value);
+                    break;
+                case "bloodGroup":
+                    user.setBloodGroup((String) value);
+                    break;
+                case "email":
+                    user.setEmail((String) value);
+                    break;
+                case "phone":
+                    user.setPhone((String) value);
+                    break;
+                case "dateOfBirth":
+                    user.setDateOfBirth((LocalDateTime) value);
+                    break;
+                case "qualification":
+                    user.setQualification((String) value);
+                    break;
+//                case "skills":
+//                    user.setSkills((List<String>) value);
+//                    break;
+                case "experience":
+                    user.setExperience((Integer) value);
+                    break;
+                case "cvUrl":
+                    user.setCvUrl((String) value);
+                    break;
+                case "emergencyContact":
+                    user.setEmergencyContact((String) value);
+                    break;
+                case "role":
+                    user.setRole(UserRole.valueOf((String) value));
+                    break;
+                case "profilePictureUrl":
+                    user.setProfilePictureUrl((String) value);
+                    break;
+            }
+        });
+        return convertToDto(user);
+    }
+
+    public void batchUpdateUser(List<UserPatchDto> updates) {
+        updates.forEach(update -> partialUpdateAnUser(update.getUpdates(), update.getId()));
     }
 
 }
