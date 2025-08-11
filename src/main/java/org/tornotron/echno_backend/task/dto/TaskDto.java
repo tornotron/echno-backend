@@ -1,11 +1,6 @@
 package org.tornotron.echno_backend.task.dto;
 
 import lombok.Data;
-import org.tornotron.echno_backend.category.Category;
-import org.tornotron.echno_backend.category.dto.CategoryDto;
-import org.tornotron.echno_backend.employee.Employee;
-import org.tornotron.echno_backend.employee.dto.EmployeeDto;
-import org.tornotron.echno_backend.project.dto.ProjectDto;
 
 import java.time.LocalDateTime;
 import java.util.List;
