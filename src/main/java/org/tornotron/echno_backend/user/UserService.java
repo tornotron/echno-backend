@@ -7,8 +7,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
-import org.tornotron.echno_backend.employee.EmployeeRepository;
-import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.user.dto.UserCreationDto;
 import org.tornotron.echno_backend.user.dto.UserDto;
 import org.tornotron.echno_backend.user.dto.UserPatchDto;
@@ -72,6 +70,13 @@ public class UserService {
                 .map(this::convertToDto);
     }
 
+    @Transactional(readOnly = true)
+    public UserDto getAnUser(Long id) {
+        return userRepository.findById(id)
+                .map(this::convertToDto)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+    }
+
     public UserDto partialUpdateAnUser(Map<String, Object> updates, Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
@@ -120,6 +125,14 @@ public class UserService {
 
     public void batchUpdateUser(List<UserPatchDto> updates) {
         updates.forEach(update -> partialUpdateAnUser(update.getUpdates(), update.getId()));
+    }
+
+    public void deleteAnUser(Long id) {
+        if(!userRepository.existsById(id)) {
+            throw new ResourceNotFoundException("User not found with id: " + id);
+        } else {
+            userRepository.deleteById(id);
+        }
     }
 
 }

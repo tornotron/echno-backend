@@ -37,6 +37,11 @@ public class UserController {
         return new ResponseEntity<>(users.getContent(), HttpStatus.OK);
     }
 
+    @GetMapping("{id}")
+    public ResponseEntity<UserDto> readAnUser(@PathVariable Long id) {
+        return ResponseEntity.status(HttpStatus.OK).body(userService.getAnUser(id));
+    }
+
     @PatchMapping("{id}")
     public ResponseEntity<UserDto> partialUpdateAUser(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
         return ResponseEntity.status(HttpStatus.OK).body(userService.partialUpdateAnUser(updates, id));
@@ -46,6 +51,12 @@ public class UserController {
     public ResponseEntity<ApiResponse> batchUpdateUsers(@Valid @RequestBody List<UserPatchDto> updates) {
         userService.batchUpdateUser(updates);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
+    }
+
+    @DeleteMapping("{id}")
+    public ResponseEntity<ApiResponse> deleteAnUser(@PathVariable Long id) {
+        userService.deleteAnUser(id);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("User with ID " + id + " deleted successfully"));
     }
 
 }
