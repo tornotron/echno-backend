@@ -120,7 +120,7 @@ public class UserService {
                     break;
             }
         });
-        return convertToDto(user);
+        return convertToDto(userRepository.save(user));
     }
 
     public void batchUpdateUser(List<UserPatchDto> updates) {
