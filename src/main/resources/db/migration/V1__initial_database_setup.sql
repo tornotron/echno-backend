@@ -16,7 +16,7 @@ CREATE TABLE Users_table (
                              created_at TIMESTAMP NOT NULL,
                              updated_at TIMESTAMP NOT NULL,
                              experience INTEGER,
-                             skills JSONB
+                             skills text[]
 );
 CREATE TABLE Organization (
                               id BIGSERIAL PRIMARY KEY,
