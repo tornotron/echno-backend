@@ -79,7 +79,7 @@ public class EmployeeService {
         employee.setShiftTiming(employeeJoinOrgDto.getShiftTiming());
         employee.setStatus(EmployeeStatus.valueOf(employeeJoinOrgDto.getStatus()));
         employee.setEmployeeName(user.getName());
-        employee.setGender(employeeJoinOrgDto.getGender());
+        employee.setGender(user.getGender());
         employee.setPhoneNumber(user.getPhone());
         employee.setEmailAddress(user.getEmail());
         employee.setDateOfBirth(user.getDateOfBirth());
@@ -124,9 +124,6 @@ public class EmployeeService {
             switch (key) {
                 case "employeeName":
                     employee.setEmployeeName((String) value);
-                    break;
-                case "gender":
-                    employee.setGender((String) value);
                     break;
                 case "phoneNumber":
                     employee.setPhoneNumber((String) value);

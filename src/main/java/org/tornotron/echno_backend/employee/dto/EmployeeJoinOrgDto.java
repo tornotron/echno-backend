@@ -32,8 +32,4 @@ public class EmployeeJoinOrgDto {
     private String status;
 
 
-    @NotBlank(message = "message is required")
-    @Size(min = 3,max = 10,message = "gender must be between 3 and 10 characters")
-    private String gender;
-
 }

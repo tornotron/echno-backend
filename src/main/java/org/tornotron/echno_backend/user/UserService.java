@@ -29,6 +29,7 @@ public class UserService {
         UserDto dto = new UserDto();
         dto.setId(user.getId());
         dto.setName(user.getName());
+        dto.setGender(user.getGender());
         dto.setBloodGroup(user.getBloodGroup());
         dto.setEmail(user.getEmail());
         dto.setPhone(user.getPhone());
@@ -49,6 +50,7 @@ public class UserService {
     public UserDto addUser(UserCreationDto userCreationDto) {
         User user = new User();
         user.setName(userCreationDto.getName());
+        user.setGender(userCreationDto.getGender());
         user.setBloodGroup(userCreationDto.getBloodGroup());
         user.setEmail(userCreationDto.getEmail());
         user.setPhone(userCreationDto.getPhone());
@@ -84,6 +86,9 @@ public class UserService {
             switch (key) {
                 case "name":
                     user.setName((String) value);
+                    break;
+                case "gender":
+                    user.setGender((String) value);
                     break;
                 case "bloodGroup":
                     user.setBloodGroup((String) value);
