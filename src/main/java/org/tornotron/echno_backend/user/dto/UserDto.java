@@ -10,6 +10,7 @@ import java.util.List;
 public class UserDto {
     private Long id;
     private String name;
+    private String gender;
     private String bloodGroup;
     private String email;
     private String phone;

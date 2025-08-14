@@ -24,6 +24,9 @@ public class User {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "gender", nullable = false)
+    private String gender;
+
     @Column(name = "blood_group", nullable = true)
     private String bloodGroup;
 

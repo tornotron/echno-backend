@@ -18,6 +18,9 @@ public class UserCreationDto {
     @Size(max = 10, message = "bloodGroup must be at most 10 characters")
     private String bloodGroup;
 
+    @NotBlank(message = "gender is required")
+    private String gender;
+
     @NotBlank(message = "email is required")
     @Email
     @Size(max = 100, message = "email must be at most 100 characters")
