@@ -113,6 +113,7 @@ public class OrganizationService {
         organization.setOrganizationPhone(organizationCreationDto.getOrganizationPhone());
         organization.setOrganizationWebsite(organizationCreationDto.getOrganizationWebsite());
         organization.setOrganizationLogo(organizationCreationDto.getOrganizationLogo());
+        organization.setCreatorId(organizationCreationDto.getCreatorId());
         organization.setIsActive(true);
         return convertToSimpleDto(repository.save(organization));
     }
@@ -122,6 +123,14 @@ public class OrganizationService {
         Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return repository.findAll(pageable)
                 .map(this::convertToDto);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrganizationDto> getAllOrganizationsByCreatorId(Integer creatorId) {
+        return repository.findOrganizationsByCreatorId(creatorId)
+                .stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

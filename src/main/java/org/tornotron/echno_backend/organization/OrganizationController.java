@@ -57,6 +57,11 @@ public class OrganizationController {
         return new ResponseEntity<>(organizations.getContent(), HttpStatus.OK);
     }
 
+    @GetMapping("/creator/{creatorId}")
+    public ResponseEntity<List<OrganizationDto>> readAllOrganizationsByCreatorId(@PathVariable Integer creatorId) {
+        return ResponseEntity.status(HttpStatus.OK).body(service.getAllOrganizationsByCreatorId(creatorId));
+    }
+
     @GetMapping("{id}")
     public ResponseEntity<?> readAnOrganization(@PathVariable Long id) {
         OrganizationDto organization = service.getAnOrganization(id);
