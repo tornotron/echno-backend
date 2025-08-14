@@ -20,4 +20,5 @@ public class OrganizationDto {
     private List<ProjectDto> projects;
     private List<EmployeeDto> employees;
     private Boolean isActive;
+    private Integer creatorId;
 }

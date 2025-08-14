@@ -101,6 +101,7 @@ public class OrganizationService {
                 .map(this::convertProjectToProjectDto)
                 .collect(Collectors.toList()));
         dto.setIsActive(organization.getIsActive());
+        dto.setCreatorId(organization.getCreatorId());
         return dto;
     }
 
