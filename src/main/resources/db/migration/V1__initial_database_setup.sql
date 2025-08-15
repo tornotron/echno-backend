@@ -16,7 +16,8 @@ CREATE TABLE Users_table (
                              created_at TIMESTAMP NOT NULL,
                              updated_at TIMESTAMP NOT NULL,
                              experience INTEGER,
-                             skills text[]
+                             skills text[],
+                             gender VARCHAR(255) NOT NULL
 );
 CREATE TABLE Organization (
                               id BIGSERIAL PRIMARY KEY,
