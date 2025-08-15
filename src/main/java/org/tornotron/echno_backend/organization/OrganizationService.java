@@ -65,6 +65,17 @@ public class OrganizationService {
         employeeDto.setPhoneNumber(employee.getPhoneNumber());
         employeeDto.setEmailAddress(employee.getEmailAddress());
         employeeDto.setDateOfBirth(employee.getDateOfBirth());
+        employeeDto.setBloodGroup(employee.getUser().getBloodGroup());
+        employeeDto.setQualification(employee.getUser().getQualification());
+        employeeDto.setSkills(employee.getUser().getSkills());
+        employeeDto.setExperience(employee.getUser().getExperience());
+        employeeDto.setCvUrl(employee.getUser().getCvUrl());
+        employeeDto.setEmergencyContact(employee.getUser().getEmergencyContact());
+        employeeDto.setRole(employee.getUser().getRole());
+        employeeDto.setProfilePictureUrl(employee.getUser().getProfilePictureUrl());
+        employeeDto.setCreatedAt(employee.getUser().getCreatedAt());
+        employeeDto.setUpdatedAt(employee.getUser().getUpdatedAt());
+
         return employeeDto;
     }
 
