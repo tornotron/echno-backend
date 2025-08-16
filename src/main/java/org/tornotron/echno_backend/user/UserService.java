@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
+import org.tornotron.echno_backend.DtoConversions.UserDtoConvertor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.user.dto.UserCreationDto;
@@ -28,26 +29,6 @@ public class UserService {
         this.userRepository = userRepository;
     }
 
-    private UserDto convertToDto(User user) {
-        UserDto dto = new UserDto();
-        dto.setId(user.getId());
-        dto.setName(user.getName());
-        dto.setGender(user.getGender());
-        dto.setBloodGroup(user.getBloodGroup());
-        dto.setEmail(user.getEmail());
-        dto.setPhone(user.getPhone());
-        dto.setDateOfBirth(user.getDateOfBirth());
-        dto.setQualification(user.getQualification());
-        dto.setSkills(user.getSkills());
-        dto.setExperience(user.getExperience());
-        dto.setCvUrl(user.getCvUrl());
-        dto.setEmergencyContact(user.getEmergencyContact());
-        dto.setRole(user.getRole());
-        dto.setProfilePictureUrl(user.getProfilePictureUrl());
-        dto.setCreatedAt(user.getCreatedAt());
-        dto.setUpdatedAt(user.getUpdatedAt());
-        return dto;
-    }
 
 
     public UserDto addUser(UserCreationDto userCreationDto) {
@@ -65,7 +46,7 @@ public class UserService {
         user.setEmergencyContact(userCreationDto.getEmergencyContact());
         user.setRole(UserRole.valueOf(userCreationDto.getRole()));
         user.setProfilePictureUrl(userCreationDto.getProfilePictureUrl());
-        return convertToDto(userRepository.save(user));
+        return UserDtoConvertor.convertUserToDto(userRepository.save(user));
     }
 
     @Transactional(readOnly = true)
@@ -81,13 +62,13 @@ public class UserService {
     public Page<UserDto> getAllUsers(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return userRepository.findAll(pageable)
-                .map(this::convertToDto);
+                .map(UserDtoConvertor::convertUserToDto);
     }
 
     @Transactional(readOnly = true)
     public UserDto getAnUser(Long id) {
         return userRepository.findById(id)
-                .map(this::convertToDto)
+                .map(UserDtoConvertor::convertUserToDto)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
     }
 
@@ -137,7 +118,7 @@ public class UserService {
                     break;
             }
         });
-        return convertToDto(userRepository.save(user));
+        return UserDtoConvertor.convertUserToDto(userRepository.save(user));
     }
 
     public void batchUpdateUser(List<UserPatchDto> updates) {
