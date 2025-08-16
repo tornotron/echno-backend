@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.DtoConversions.TaskDtoConvertor;
 import org.tornotron.echno_backend.category.CategoryRepository;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
@@ -19,7 +20,6 @@ import org.tornotron.echno_backend.task.dto.TaskPatchDto;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -42,26 +42,6 @@ public class TaskService {
         this.categoryRepository = categoryRepository;
     }
 
-
-    private TaskDto convertToDto(Task task) {
-        TaskDto dto = new TaskDto();
-        dto.setId(task.getId());
-        dto.setTitle(task.getTitle());
-        dto.setStartDate(task.getStartDate());
-        dto.setEndDate(task.getEndDate());
-        dto.setCreatorId(task.getCreator().getId());
-        dto.setProjectId(task.getProject().getId());
-        dto.setAssigneeIds(task.getAssignees().stream()
-                .map(Employee::getId)
-                .collect(Collectors.toSet()));
-        dto.setCategoryId(task.getCategory().getId());
-        dto.setProgress(task.getProgress());
-        dto.setTags(task.getTags());
-        dto.setCreatedAt(task.getCreatedAt());
-        dto.setUpdatedAt(task.getUpdatedAt());
-        dto.setStatus(task.getStatus());
-        return dto;
-    }
 
     public void addTask(TaskCreationDto taskCreationDto) {
         Task task = new Task();
@@ -122,13 +102,13 @@ public class TaskService {
     public Page<TaskDto> getAllTasks(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
         return taskRepository.findAll(pageable)
-                .map(this::convertToDto);
+                .map(TaskDtoConvertor::convertTaskToDto);
     }
 
     @Transactional(readOnly = true)
     public TaskDto getATask(Long id) {
         TaskDto taskDto = taskRepository.findById(id)
-                .map(this::convertToDto)
+                .map(TaskDtoConvertor::convertTaskToDto)
                 .orElse(null);
         if(taskDto == null) {
             throw new ResourceNotFoundException("Task not found with id: " + id);

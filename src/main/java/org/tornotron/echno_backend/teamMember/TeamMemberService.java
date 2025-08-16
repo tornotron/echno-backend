@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.DtoConversions.TeamMemberDtoConvertor;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.project.Project;
@@ -29,17 +30,6 @@ public class TeamMemberService {
         this.projectRepository = projectRepository;
     }
 
-    private TeamMemberDto convertToDTO(TeamMember teamMember) {
-        TeamMemberDto dto = new TeamMemberDto();
-        dto.setId(teamMember.getId());
-        dto.setMemberName(teamMember.getMemberName());
-        dto.setMemberEmail(teamMember.getMemberEmail());
-        dto.setMemberPhone(teamMember.getMemberPhone());
-        dto.setMemberRole(teamMember.getMemberRole());
-        dto.setMemberImage(teamMember.getMemberImage());
-        return dto;
-    }
-
     public void addTeamMember(TeamMemberCreationDTO teamMemberCreationDTO) {
         Project project = projectRepository.findProjectByProjectName(teamMemberCreationDTO.getProjectName());
         TeamMember teamMember = new TeamMember();
@@ -59,14 +49,14 @@ public class TeamMemberService {
     @Transactional(readOnly = true)
     public List<TeamMemberDto> getAllTeamMember() {
         return repository.findAll().stream()
-                .map(this::convertToDTO)
+                .map(TeamMemberDtoConvertor::convertTeamMemberToDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public TeamMemberDto getATeamMember(Long id) {
         TeamMemberDto teamMemberDto = repository.findById(id)
-                .map(this::convertToDTO)
+                .map(TeamMemberDtoConvertor::convertTeamMemberToDTO)
                 .orElse(null);
         if(teamMemberDto == null) {
             throw new ResourceNotFoundException("TeamMember not found with id: "+id);
