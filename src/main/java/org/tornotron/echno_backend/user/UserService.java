@@ -6,7 +6,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.user.dto.UserCreationDto;
 import org.tornotron.echno_backend.user.dto.UserDto;
 import org.tornotron.echno_backend.user.dto.UserPatchDto;
@@ -15,6 +17,7 @@ import org.tornotron.echno_backend.user.enums.UserRole;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -63,6 +66,15 @@ public class UserService {
         user.setRole(UserRole.valueOf(userCreationDto.getRole()));
         user.setProfilePictureUrl(userCreationDto.getProfilePictureUrl());
         return convertToDto(userRepository.save(user));
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrganizationDto> getOrganizationsForCurrentUser(Long userId) {
+        return userRepository.findOrganizationsByUserId(userId)
+                .stream()
+                .map(OrganizationDtoConvertor::convertOrganizationToDto)
+                .collect(Collectors.toList());
+
     }
 
     @Transactional(readOnly = true)

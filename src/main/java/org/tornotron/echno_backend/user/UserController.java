@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.user.dto.UserCreationDto;
 import org.tornotron.echno_backend.user.dto.UserDto;
 import org.tornotron.echno_backend.user.dto.UserPatchDto;
@@ -35,6 +36,11 @@ public class UserController {
                                                       @RequestParam(defaultValue = "10") int pageSize) {
         Page<UserDto> users = userService.getAllUsers(pageNo,pageSize);
         return new ResponseEntity<>(users.getContent(), HttpStatus.OK);
+    }
+
+    @GetMapping("/{userId}/organizations")
+    public ResponseEntity<List<OrganizationDto>> readAllOrganizationsForCurrentUser(@PathVariable Long userId) {
+        return ResponseEntity.status(HttpStatus.OK).body(userService.getOrganizationsForCurrentUser(userId));
     }
 
     @GetMapping("{id}")
