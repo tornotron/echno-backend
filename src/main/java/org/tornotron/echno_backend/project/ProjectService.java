@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.DtoConversions.ProjectDtoConvertor;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.organization.Organization;
@@ -14,13 +15,10 @@ import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.project.dto.ProjectPatchDto;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
-import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
-import org.tornotron.echno_backend.teamMember.TeamMember;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -31,30 +29,6 @@ public class ProjectService {
     public ProjectService(ProjectRepository repository, OrganizationRepository organizationRepository) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
-    }
-
-    private TeamMemberDto convertTeamMemberToTeamMemberDTO(TeamMember teamMember) {
-        TeamMemberDto teamMemberDto = new TeamMemberDto();
-        teamMemberDto.setId(teamMember.getId());
-        teamMemberDto.setMemberName(teamMember.getMemberName());
-        teamMemberDto.setMemberEmail(teamMember.getMemberEmail());
-        teamMemberDto.setMemberPhone(teamMember.getMemberPhone());
-        teamMemberDto.setMemberRole(teamMember.getMemberRole());
-        teamMemberDto.setMemberImage(teamMember.getMemberImage());
-        return teamMemberDto;
-    }
-
-    private ProjectDto convertToDto(Project project) {
-        ProjectDto dto = new ProjectDto();
-        dto.setId(project.getId());
-        dto.setProjectName(project.getProjectName());
-        dto.setProjectAddress(project.getProjectAddress());
-        dto.setStatus(project.getStatus());
-        dto.setCreatedAt(project.getCreatedAt());
-        dto.setTeamMembers(project.getTeamMembers().stream()
-                .map(this::convertTeamMemberToTeamMemberDTO)
-                .collect(Collectors.toList()));
-        return dto;
     }
 
     public void addProject(ProjectCreationDto projectDto) {
@@ -76,13 +50,13 @@ public class ProjectService {
     public Page<ProjectDto> getAllProjects(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return repository.findAll(pageable)
-                .map(this::convertToDto);
+                .map(ProjectDtoConvertor::convertProjectToDto);
     }
 
     @Transactional(readOnly = true)
     public ProjectDto getAProject(Long id) {
         ProjectDto projectDto =repository.findById(id)
-                .map(this::convertToDto)
+                .map(ProjectDtoConvertor::convertProjectToDto)
                 .orElse(null);
         if(projectDto==null) {
             throw new ResourceNotFoundException("Project not found with id: "+id);
