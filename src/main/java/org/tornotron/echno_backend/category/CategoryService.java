@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.DtoConversions.CategoryDtoConvertor;
 import org.tornotron.echno_backend.category.dto.CategoryCreationDto;
 import org.tornotron.echno_backend.category.dto.CategoryDto;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
@@ -20,16 +21,6 @@ public class CategoryService {
 
     public CategoryService(CategoryRepository categoryRepository) {
         this.categoryRepository = categoryRepository;
-    }
-
-    public CategoryDto convertToDto(Category category) {
-        CategoryDto dto = new CategoryDto();
-        dto.setId(category.getId());
-        dto.setName(category.getName());
-        dto.setDescription(category.getDescription());
-        dto.setIcon(category.getIcon());
-        dto.setImage(category.getImage());
-        return dto;
     }
 
     public void addCategory(CategoryCreationDto categoryCreationDto) {
@@ -47,13 +38,13 @@ public class CategoryService {
     public Page<CategoryDto> getAllCategories(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
         return categoryRepository.findAll(pageable)
-                .map(this::convertToDto);
+                .map(CategoryDtoConvertor::convertCategoryToDto);
     }
 
     @Transactional(readOnly = true)
     public CategoryDto getACategory(Long id) {
         CategoryDto categoryDto = categoryRepository.findById(id)
-                .map(this::convertToDto)
+                .map(CategoryDtoConvertor::convertCategoryToDto)
                 .orElse(null);
 
         if(categoryDto == null) {

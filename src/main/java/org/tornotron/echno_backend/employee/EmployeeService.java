@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
+import org.tornotron.echno_backend.DtoConversions.EmployeeDtoConvertor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -42,28 +43,7 @@ public class EmployeeService {
         employee.setEmailAddress(employeeCreationDto.getEmailAddress());
         employee.setDateOfBirth(employeeCreationDto.getDateOfBirth());
         employee.setOrganization(organization);
-        return convertToEmployeeDto(employeeRepository.save(employee));
-    }
-
-    private EmployeeDto convertToEmployeeDto(Employee employee) {
-        EmployeeDto dto = new EmployeeDto();
-        dto.setId(employee.getId());
-        dto.setEmployeeName(employee.getEmployeeName());
-        dto.setGender(employee.getGender());
-        dto.setEmailAddress(employee.getEmailAddress());
-        dto.setPhoneNumber(employee.getPhoneNumber());
-        dto.setDateOfBirth(employee.getDateOfBirth());
-        dto.setBloodGroup(employee.getUser().getBloodGroup());
-        dto.setQualification(employee.getUser().getQualification());
-        dto.setSkills(employee.getUser().getSkills());
-        dto.setExperience(employee.getUser().getExperience());
-        dto.setCvUrl(employee.getUser().getCvUrl());
-        dto.setEmergencyContact(employee.getUser().getEmergencyContact());
-        dto.setRole(employee.getUser().getRole());
-        dto.setProfilePictureUrl(employee.getUser().getProfilePictureUrl());
-        dto.setCreatedAt(employee.getUser().getCreatedAt());
-        dto.setUpdatedAt(employee.getUser().getUpdatedAt());
-        return dto;
+        return EmployeeDtoConvertor.convertEmployeeToDto(employeeRepository.save(employee));
     }
 
 
@@ -96,7 +76,7 @@ public class EmployeeService {
 
         Employee savedEmployee = employeeRepository.save(employee);
 
-        return convertToEmployeeDto(savedEmployee);
+        return EmployeeDtoConvertor.convertEmployeeToDto(savedEmployee);
     }
 
     public EmployeeDto addEmployee(EmployeeCreationDto employeeCreationDto) {
@@ -110,14 +90,14 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public List<EmployeeDto> displayAllEmployees() {
         return employeeRepository.findAll().stream()
-                .map(this::convertToEmployeeDto)
+                .map(EmployeeDtoConvertor::convertEmployeeToDto)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public EmployeeDto displayAnEmployee(Long id) {
         EmployeeDto employeeDto = employeeRepository.findById(id)
-                .map(this::convertToEmployeeDto)
+                .map(EmployeeDtoConvertor::convertEmployeeToDto)
                 .orElse(null);
         if(employeeDto==null) {
             throw new ResourceNotFoundException("Employee not found with id: "+id);
