@@ -10,6 +10,7 @@ public class EmployeeDtoConvertor {
     public static EmployeeDto convertEmployeeToDto(Employee employee) {
         EmployeeDto dto = new EmployeeDto();
         dto.setId(employee.getId());
+        dto.setSalary(employee.getSalary());
         dto.setEmployeeName(employee.getEmployeeName());
         dto.setGender(employee.getGender());
         dto.setEmailAddress(employee.getEmailAddress());
