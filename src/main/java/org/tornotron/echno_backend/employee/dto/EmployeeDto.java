@@ -15,6 +15,7 @@ public class EmployeeDto {
     private String emailAddress;
     private LocalDateTime dateOfBirth;
     private String bloodGroup;
+    private Double salary;
     private String qualification;
     private List<String> skills;
     private Integer experience;
