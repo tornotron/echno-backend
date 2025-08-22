@@ -8,6 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.category.Category;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.task.enums.TaskStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -63,7 +64,8 @@ public class Task {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private String status;
+    private TaskStatus status;
 
 }

@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.task.dto;
 
 import lombok.Data;
+import org.tornotron.echno_backend.task.enums.TaskStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,5 +21,5 @@ public class TaskDto {
     private List<String> tags;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private String status;
+    private TaskStatus status;
 }

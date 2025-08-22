@@ -1,0 +1,40 @@
+@page { size: A4; margin: 15mm; }
+body { font-family: Arial, sans-serif; font-size: 12px; color: #2b2b2b; }
+.header { text-align:center; margin-bottom:18px; font-size:20px; font-weight:600 }
+
+/* summary cards table */
+.cards-table { width: 100%; border-spacing: 12px; border-collapse: separate; margin-bottom:18px; }
+.card { padding:14px; border-radius:6px; border:1px solid #eeeeee; }
+.card .title { font-size:13px; letter-spacing:1px; }
+.card .num { font-size:22px; font-weight:700; margin-top:6px }
+.small { font-size:11px; color:#555; }
+
+.card.completed { background:#e7f6ea; border-left:6px solid #2fa84f }
+.card.inprogress { background:#fff7e6; border-left:6px solid #d6a12b }
+.card.notstarted { background:#f0f4f8; border-left:6px solid #7b8a95 }
+
+/* activity summary table */
+.activity-table { width: 100%; border-spacing: 12px; border-collapse: separate; margin-bottom:18px; }
+.activity-table .box { padding:10px; border:1px solid #e6e9ec; border-radius:6px; text-align:center }
+.activity-table .box strong { font-size:18px; display:block; margin-top:4px }
+
+/* tasks */
+.task-block { border:1px solid #e6e9ec; border-radius:6px; margin-bottom:16px }
+.section-title { background:#fafafa; padding:8px; font-weight:600; border-bottom:1px solid #e6e9ec; font-size:13px }
+
+.task-table { width: 100%; border-collapse: collapse; }
+.task-left { width: 66%; padding:12px; border-right:1px solid #eee; vertical-align: top; }
+.task-right { width: 34%; padding:12px; vertical-align: top; }
+
+.task-name { font-weight:600; margin-bottom:6px; font-size:14px }
+.muted { color:#6b7280; font-size:11px; margin-bottom:3px }
+.remark { margin-top:8px; font-size:12px }
+
+.valbox { margin-bottom:6px }
+.valbox .label { font-size:11px; color:#666 }
+.valbox .value { font-size:13px; font-weight:600 }
+
+.category-span {
+    float: right;
+    font-weight: 400;
+}
