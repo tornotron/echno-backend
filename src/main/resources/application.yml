@@ -18,6 +18,8 @@ management:
         enabled: true
 
 spring:
+  thymeleaf:
+    cache: false
   flyway:
     enabled: true
     locations: classpath:db/migration

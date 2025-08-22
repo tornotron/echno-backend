@@ -9,6 +9,8 @@ repositories {
 }
 
 dependencies {
+    implementation 'com.openhtmltopdf:openhtmltopdf-slf4j:1.0.10'
+    implementation 'com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.10'
     implementation 'com.github.librepdf:openpdf:3.0.0'
     implementation 'org.flywaydb:flyway-core:11.9.0'
     implementation 'org.flywaydb:flyway-database-postgresql:11.9.0'
@@ -17,6 +19,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
     testImplementation 'org.springframework.security:spring-security-test'
     implementation 'io.micrometer:micrometer-registry-prometheus'
     implementation 'com.jayway.jsonpath:json-path'
