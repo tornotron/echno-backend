@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.task.dto.TaskCreationDto;
 import org.tornotron.echno_backend.task.dto.TaskDto;
 import org.tornotron.echno_backend.task.dto.TaskPatchDto;
+import org.tornotron.echno_backend.task.enums.TaskStatus;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -49,7 +50,7 @@ public class TaskService {
         task.setStartDate(taskCreationDto.getStartDate());
         task.setEndDate(taskCreationDto.getEndDate());
         task.setProgress(taskCreationDto.getProgress());
-        task.setStatus(taskCreationDto.getStatus());
+        task.setStatus(TaskStatus.valueOf(taskCreationDto.getStatus()));
 
         if (taskCreationDto.getCreatorId() != null) {
             task.setCreator(employeeRepository.findById(taskCreationDto.getCreatorId())
@@ -106,6 +107,13 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
+    public List<TaskDto> getAllTasks() {
+        return taskRepository.findAll().stream()
+                .map(TaskDtoConvertor::convertTaskToDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public TaskDto getATask(Long id) {
         TaskDto taskDto = taskRepository.findById(id)
                 .map(TaskDtoConvertor::convertTaskToDto)
@@ -134,7 +142,7 @@ public class TaskService {
                     task.setProgress((Double) value);
                     break;
                 case "status":
-                    task.setStatus((String) value);
+                    task.setStatus(TaskStatus.valueOf((String) value));
                     break;
             }
         });

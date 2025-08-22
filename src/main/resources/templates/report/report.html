@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>My Site Progress Report</title>
+    <link rel="stylesheet" type="text/css" href="../static/css/report.css" />
+</head>
+<body>
+<div class="header">My Site Progress Report</div>
+
+<!-- summary cards -->
+<table class="cards-table">
+    <tr>
+        <td>
+            <div class="card completed">
+                <div class="title">COMPLETED</div>
+                <div class="num" th:text="${counts['COMPLETED'] ?: 0}">0</div>
+                <div class="small">Delayed: <span th:text="${delayedCounts['COMPLETED'] ?: 0}">0</span></div>
+            </div>
+        </td>
+        <td>
+            <div class="card inprogress">
+                <div class="title">IN PROGRESS</div>
+                <div class="num" th:text="${counts['IN_PROGRESS'] ?: 0}">0</div>
+                <div class="small">Delayed: <span th:text="${delayedCounts['IN_PROGRESS'] ?: 0}">0</span></div>
+            </div>
+        </td>
+        <td>
+            <div class="card notstarted">
+                <div class="title">NOT STARTED</div>
+                <div class="num" th:text="${counts['NOT_STARTED'] ?: 0}">0</div>
+                <div class="small">Delayed: <span th:text="${delayedCounts['NOT_STARTED'] ?: 0}">0</span></div>
+            </div>
+        </td>
+    </tr>
+</table>
+
+<!-- activity summary -->
+<table class="activity-table">
+    <tr>
+        <td><div class="box">Task Updates<strong th:text="${#lists.size(tasks)}">0</strong></div></td>
+        <td><div class="box">Issues Created<strong th:text="${issuesCount ?: 0}">0</strong></div></td>
+        <td><div class="box">Attendance Logged<strong th:text="${attendanceCount ?: 0}">0</strong></div></td>
+    </tr>
+</table>
+
+<!-- tasks -->
+<div class="section-title">Task Summary</div>
+<div th:each="task : ${tasks}">
+    <div class="task-block">
+        <div class="section-title">
+            Task Created: <span th:text="${dateConverter.convertDateToString(task.getUpdatedAt())}"></span>
+            <span class="category-span">Category: <span th:text="${category.getACategory(task.getCategoryId()).getName()}"></span></span>
+        </div>
+
+        <table class="task-table">
+            <tr>
+                <td class="task-left">
+                    <div class="task-name">#<span th:text="${task.getId()}"></span>: <span th:text="${task.getTitle()}"></span></div>
+<!--                    <div class="muted">Total Planned Quantity: <span th:text="${task.totalPlanned} + ' %'"></span></div>-->
+<!--                    <div class="muted">Start: <span th:text="${task.getCreatedAt()}">DD/MM/YYYY</span> &#160; End: <span th:text="${task.endDate}">DD/MM/YYYY</span></div>-->
+<!--                    <div class="muted">Latest Update By: <span th:text="${task.latestUpdateBy}"></span> on <span th:text="${task.latestUpdateDate}"></span></div>-->
+<!--                    <div class="remark"><strong>Remark:</strong> <span th:text="${task.remarks}">&#45;&#45;</span></div>-->
+                </td>
+                <td class="task-right">
+                    <div class="valbox"><div class="label">Progress Till Date</div><div class="value" th:text="${task.getProgress()} + '%'">0%</div></div>
+<!--                    <div class="valbox"><div class="label">Today's Update</div><div class="value" th:text="${task.progressPercent} + '%'">0%</div></div>-->
+<!--                    <div class="valbox"><div class="label">Quantity Left</div><div class="value" th:text="${task.quantityLeft}">0</div></div>-->
+<!--                    <div class="valbox"><div class="label">Skilled</div><div class="value" th:text="${task.skilled}">0</div></div>-->
+<!--                    <div class="valbox"><div class="label">Unskilled</div><div class="value" th:text="${task.unskilled ?: '&#45;&#45;'}">&#45;&#45;</div></div>-->
+<!--                    <div class="valbox"><div class="label">Total</div><div class="value" th:text="${(task.skilled ?: 0) + (task.unskilled ?: 0)}">0</div></div>-->
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>
