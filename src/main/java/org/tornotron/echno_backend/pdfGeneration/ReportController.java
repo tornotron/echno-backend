@@ -12,6 +12,8 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.tornotron.echno_backend.category.CategoryService;
 import org.tornotron.echno_backend.common.conversions.DateConversion;
+import org.tornotron.echno_backend.organization.OrganizationService;
+import org.tornotron.echno_backend.project.ProjectService;
 import org.tornotron.echno_backend.task.TaskService;
 
 import java.io.ByteArrayOutputStream;
@@ -21,13 +23,23 @@ import java.io.IOException;
 @RequestMapping("/api/v1/generate-report")
 public class ReportController {
 
+    private final OrganizationService organizationService;
     private final TaskService taskService;
     private final ReportService reportService;
     private final SpringTemplateEngine pdfTemplateEngine;
     private final CategoryService categoryService;
     private final DateConversion dateConversion;
+    private final ProjectService projectService;
 
-    public ReportController(TaskService taskService, ReportService reportService, CategoryService categoryService, DateConversion dateConversion, @Qualifier("pdfTemplateEngine") SpringTemplateEngine pdfTemplateEngine) {
+    public ReportController(TaskService taskService,
+                            ReportService reportService,
+                            CategoryService categoryService,
+                            DateConversion dateConversion,
+                            @Qualifier("pdfTemplateEngine") SpringTemplateEngine pdfTemplateEngine,
+                            ProjectService projectService,
+                            OrganizationService organizationService) {
+        this.organizationService = organizationService;
+        this.projectService = projectService;
         this.dateConversion = dateConversion;
         this.reportService = reportService;
         this.categoryService = categoryService;
@@ -42,6 +54,8 @@ public class ReportController {
         ctx.setVariable("delayedCounts", reportService.statusCount());
         ctx.setVariable("category", categoryService);
         ctx.setVariable("dateConverter", dateConversion);
+        ctx.setVariable("project",projectService);
+        ctx.setVariable("organization",organizationService);
         return ctx;
     }
 

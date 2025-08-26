@@ -1,6 +1,7 @@
 @page { size: A4; margin: 15mm; }
 body { font-family: Arial, sans-serif; font-size: 12px; color: #2b2b2b; }
 .header { text-align:center; margin-bottom:18px; font-size:20px; font-weight:600 }
+.heading { text-align: left; margin-bottom: 10px; margin-left: 10px; font-size: 15px; font-weight: 500}
 
 /* summary cards table */
 .cards-table { width: 100%; border-spacing: 12px; border-collapse: separate; margin-bottom:18px; }
