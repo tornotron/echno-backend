@@ -22,6 +22,8 @@ body { font-family: Arial, sans-serif; font-size: 12px; color: #2b2b2b; }
 /* tasks */
 .task-block { border:1px solid #e6e9ec; border-radius:6px; margin-bottom:16px }
 .section-title { background:#fafafa; padding:8px; font-weight:600; border-bottom:1px solid #e6e9ec; font-size:13px }
+.section-heading { background:#fafafa; padding:8px; font-weight:bold; border-bottom:1px solid #e6e9ec; font-size:13px ; }
+
 
 .task-table { width: 100%; border-collapse: collapse; }
 .task-left { width: 66%; padding:12px; border-right:1px solid #eee; vertical-align: top; }
@@ -38,4 +40,25 @@ body { font-family: Arial, sans-serif; font-size: 12px; color: #2b2b2b; }
 .category-span {
     float: right;
     font-weight: 400;
+}
+
+.progress-bar-container {
+    background: #e0e0e0;
+    border-radius: 6px;
+    height: 16px;
+    margin-top: 4px;
+}
+
+.progress-bar {
+    background: #d6a12b;
+    border-radius: 6px;
+    height: 16px;
+    color: #fff;
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+}
+
+.progress-bar.completed {
+    background: #2fa84f;
 }
