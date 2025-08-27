@@ -50,23 +50,32 @@
 <!-- tasks -->
 <div th:each="task : ${tasks}">
     <div class="task-block">
-        <div class="section-title">
+        <div class="section-heading">
             Task Created: <span th:text="${dateConverter.convertDateToString(task.getUpdatedAt())}"></span>
             <span class="category-span">Category: <span th:text="${category.getACategory(task.getCategoryId()).getName()}"></span></span>
         </div>
+<!--        <div class="section-title">-->
+<!--            Task Created: <span th:text="${dateConverter.convertDateToString(task.getUpdatedAt())}"></span>-->
+<!--            <span class="category-span">Category: <span th:text="${category.getACategory(task.getCategoryId()).getName()}"></span></span>-->
+<!--        </div>-->
 
         <table class="task-table">
             <tr>
                 <td class="task-left">
-                    <div class="task-name">#<span th:text="${task.getId()}"></span>: <span th:text="${task.getTitle()}"></span></div>
+                    <div class="task-name"><span th:text="${task.getId()}"></span>: <span th:text="${task.getTitle()}"></span></div>
 <!--                    <div class="muted">Total Planned Quantity: <span th:text="${task.totalPlanned} + ' %'"></span></div>-->
 <!--                    <div class="muted">Start: <span th:text="${task.getCreatedAt()}">DD/MM/YYYY</span> &#160; End: <span th:text="${task.endDate}">DD/MM/YYYY</span></div>-->
 <!--                    <div class="muted">Latest Update By: <span th:text="${task.latestUpdateBy}"></span> on <span th:text="${task.latestUpdateDate}"></span></div>-->
 <!--                    <div class="remark"><strong>Remark:</strong> <span th:text="${task.remarks}">&#45;&#45;</span></div>-->
                 </td>
                 <td class="task-right">
-                    <div class="valbox"><div class="label">Progress Till Date</div><div class="value" th:text="${task.getProgress()} + '%'">0%</div></div>
-<!--                    <div class="valbox"><div class="label">Today's Update</div><div class="value" th:text="${task.progressPercent} + '%'">0%</div></div>-->
+                    <div class="valbox">
+                        <div class="label">Progress Till Date</div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" th:classappend="${task.getProgress() == 100 ? 'completed' : ''}" th:style="'width: ' + ${task.getProgress()} + '%;'" th:text="${task.getProgress()} + '%'"></div>
+                        </div>
+                    </div>
+                    <!--                    <div class="valbox"><div class="label">Today's Update</div><div class="value" th:text="${task.progressPercent} + '%'">0%</div></div>-->
 <!--                    <div class="valbox"><div class="label">Quantity Left</div><div class="value" th:text="${task.quantityLeft}">0</div></div>-->
 <!--                    <div class="valbox"><div class="label">Skilled</div><div class="value" th:text="${task.skilled}">0</div></div>-->
 <!--                    <div class="valbox"><div class="label">Unskilled</div><div class="value" th:text="${task.unskilled ?: '&#45;&#45;'}">&#45;&#45;</div></div>-->
