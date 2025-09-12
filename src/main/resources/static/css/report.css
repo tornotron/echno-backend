@@ -1,5 +1,5 @@
 @page { size: A4; margin: 15mm; }
-body { font-family: Arial, sans-serif; font-size: 12px; color: #2b2b2b; }
+body { font-family: Inter, sans-serif; font-size: 12px; color: #2b2b2b; }
 .header { text-align:center; margin-bottom:18px; font-size:20px; font-weight:600 }
 .heading { text-align: left; margin-bottom: 10px; margin-left: 10px; font-size: 15px; font-weight: 500}
 
@@ -21,6 +21,9 @@ body { font-family: Arial, sans-serif; font-size: 12px; color: #2b2b2b; }
 
 /* tasks */
 .task-block { border:1px solid #e6e9ec; border-radius:6px; margin-bottom:16px }
+.task-block.completed { border-left: 6px solid #2fa84f; }
+.task-block.inprogress { border-left: 6px solid #d6a12b; }
+.task-block.notstarted { border-left: 6px solid #7b8a95; }
 .section-title { background:#fafafa; padding:8px; font-weight:600; border-bottom:1px solid #e6e9ec; font-size:13px }
 .section-heading { background:#fafafa; padding:8px; font-weight:bold; border-bottom:1px solid #e6e9ec; font-size:13px ; }
 
@@ -62,3 +65,100 @@ body { font-family: Arial, sans-serif; font-size: 12px; color: #2b2b2b; }
 .progress-bar.completed {
     background: #2fa84f;
 }
+
+.status-dot {
+    height: 10px;
+    width: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.status-on-site {
+    border-left-width: 4px;
+    border-left-color: #34D399; /* Tailwind green-400 */
+}
+
+/* Status: Delayed (Red) */
+.status-delayed {
+    border-left-width: 4px;
+    border-left-color: #F87171; /* Tailwind red-400 */
+}
+
+/* Status: Pending (Yellow) */
+.status-pending {
+    border-left-width: 4px;
+    border-left-color: #FBBF24; /* Tailwind yellow-400 */
+}
+
+/* Status: Ordered (Blue) */
+.status-ordered {
+    border-left-width: 4px;
+    border-left-color: #60A5FA; /* Tailwind blue-400 */
+}
+
+.container { width: 100%; margin-left: auto; margin-right: auto; padding-left: 1rem; padding-right: 1rem; }
+.p-4 { padding: 1rem; }
+.md\:p-8 { padding: 2rem; }
+.p-6 { padding: 1.5rem; }
+.px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.pt-4 { padding-top: 1rem; }
+
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-4 { margin-top: 1rem; }
+
+.text-2xl { font-size: 1.5rem; line-height: 2rem; }
+.text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+.text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+.text-xs { font-size: 0.75rem; line-height: 1rem; }
+
+.font-semibold { font-weight: 600; }
+.font-medium { font-weight: 500; }
+.italic { font-style: italic; }
+
+/* Table-based layout styles */
+.card-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 1.5rem; /* Replaces gap-6 */
+}
+.details-table {
+    width: 100%;
+}
+.details-table td {
+    vertical-align: top;
+}
+
+.bg-white { background-color: #ffffff; }
+.rounded-xl { border-radius: 0.75rem; }
+.rounded-full { border-radius: 9999px; }
+.shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+.overflow-hidden { overflow: hidden; }
+
+.border-t { border-top-width: 1px; }
+.border-gray-200 { border-color: #E5E7EB; }
+
+/* Color utilities */
+.text-gray-500 { color: #6B7280; }
+.text-gray-800 { color: #1F2937; }
+.text-gray-900 { color: #111827; }
+
+.bg-green-100 { background-color: #D1FAE5; }
+.text-green-600 { color: #059669; }
+.bg-green-500 { background-color: #10B981; }
+
+.bg-red-100 { background-color: #FEE2E2; }
+.text-red-600 { color: #DC2626; }
+.bg-red-500 { background-color: #EF4444; }
+
+.bg-yellow-100 { background-color: #FEF3C7; }
+.text-yellow-600 { color: #D97706; }
+.bg-yellow-500 { background-color: #F59E0B; }
+
+.bg-blue-100 { background-color: #DBEAFE; }
+.text-blue-600 { color: #2563EB; }
+.bg-blue-500 { background-color: #3B82F6; }
