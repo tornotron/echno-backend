@@ -12,6 +12,7 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.tornotron.echno_backend.category.CategoryService;
 import org.tornotron.echno_backend.common.conversions.DateConversion;
+import org.tornotron.echno_backend.intend.IntendService;
 import org.tornotron.echno_backend.organization.OrganizationService;
 import org.tornotron.echno_backend.project.ProjectService;
 import org.tornotron.echno_backend.task.TaskService;
@@ -30,6 +31,7 @@ public class ReportController {
     private final CategoryService categoryService;
     private final DateConversion dateConversion;
     private final ProjectService projectService;
+    private final IntendService intendService;
 
     public ReportController(TaskService taskService,
                             ReportService reportService,
@@ -37,7 +39,8 @@ public class ReportController {
                             DateConversion dateConversion,
                             @Qualifier("pdfTemplateEngine") SpringTemplateEngine pdfTemplateEngine,
                             ProjectService projectService,
-                            OrganizationService organizationService) {
+                            OrganizationService organizationService,
+                            IntendService intendService) {
         this.organizationService = organizationService;
         this.projectService = projectService;
         this.dateConversion = dateConversion;
@@ -45,6 +48,7 @@ public class ReportController {
         this.categoryService = categoryService;
         this.taskService = taskService;
         this.pdfTemplateEngine = pdfTemplateEngine;
+        this.intendService = intendService;
     }
 
     private Context populateContext() {
@@ -56,6 +60,7 @@ public class ReportController {
         ctx.setVariable("dateConverter", dateConversion);
         ctx.setVariable("project",projectService);
         ctx.setVariable("organization",organizationService);
+        ctx.setVariable("intends", intendService.getAllIntends());
         return ctx;
     }
 
