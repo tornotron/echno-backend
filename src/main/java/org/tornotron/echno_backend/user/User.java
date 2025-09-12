@@ -5,6 +5,12 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
+import org.tornotron.echno_backend.intend.Intend;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
+import org.tornotron.echno_backend.materialConsumption.MaterialConsumption;
+import org.tornotron.echno_backend.payable.Payable;
+import org.tornotron.echno_backend.siteTransfer.SiteTransfer;
 import org.tornotron.echno_backend.user.enums.UserRole;
 
 import java.time.LocalDateTime;
@@ -71,5 +77,23 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Employee> employees = new ArrayList<>();
+
+    @OneToMany(mappedBy = "createdBy")
+    private List<Intend> intends = new ArrayList<>();
+
+    @OneToMany(mappedBy = "receivedBy")
+    private List<GoodsReceivedNote> goodsReceivedNotes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "createdBy")
+    private List<InventoryTransaction> inventoryTransactions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "createdBy")
+    private List<MaterialConsumption> materialConsumptions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "createdBy")
+    private List<Payable> payables = new ArrayList<>();
+
+    @OneToMany(mappedBy = "sendingPerson")
+    private List<SiteTransfer> siteTransfers = new ArrayList<>();
 
 }

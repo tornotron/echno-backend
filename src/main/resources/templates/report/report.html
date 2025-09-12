@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 <head>
+    <script src="https://cdn.tailwindcss.com"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>My Site Progress Report</title>
@@ -49,7 +50,7 @@
 
 <!-- tasks -->
 <div th:each="task : ${tasks}">
-    <div class="task-block">
+    <div class="task-block" th:classappend="${task.getProgress() == 100 ? 'completed' : (task.getProgress() > 0 ? 'inprogress' : 'notstarted')}">
         <div class="section-heading">
             Task Created: <span th:text="${dateConverter.convertDateToString(task.getUpdatedAt())}"></span>
             <span class="category-span">Category: <span th:text="${category.getACategory(task.getCategoryId()).getName()}"></span></span>
@@ -84,6 +85,55 @@
             </tr>
         </table>
     </div>
+</div>
+
+<!--Site resource and material log-->
+
+<div class="container mx-auto p-4 md:p-8">
+    <main>
+        <section id="active-requests">
+            <h2 class="text-2xl font-semibold mb-4">Active Resource Requests</h2>
+                <div th:each="intend : ${intends}" class="bg-white rounded-xl shadow-md overflow-hidden mb-6"
+                     th:classappend="${#strings.toLowerCase(intend.status) == 'on-site' ? 'status-on-site' :
+                                       (#strings.toLowerCase(intend.status) == 'delayed' ? 'status-delaayed' :
+                                       (#strings.toLowerCase(intend.status) == 'pending' ? 'status-pending' :
+                                       (#strings.toLowerCase(intend.status) == 'ordered' ? 'status-ordered' : '')))}">
+                    <div class="intend-header">
+                        <table style="width: 100%;">
+                            <tr>
+                                <td style="vertical-align: top;">
+                                    <p class="text-sm text-gray-500">Intend Number</p>
+                                    <h3 class="text-lg font-semibold text-gray-900" th:text="${intend.intendNumber}">INT-0000</h3>
+                                </td>
+                                <td style="text-align: right; vertical-align: top;">
+                                    <span class="text-sm font-semibold px-3 py-1 rounded-full"
+                                          th:classappend="${#strings.toLowerCase(intend.status) == 'on-site' ? 'text-green-600 bg-green-100' :
+                                                           (#strings.toLowerCase(intend.status) == 'delayed' ? 'text-red-600 bg-red-100' :
+                                                           (#strings.toLowerCase(intend.status) == 'pending' ? 'text-yellow-600 bg-yellow-100' :
+                                                           (#strings.toLowerCase(intend.status) == 'ordered' ? 'text-blue-600 bg-blue-100' : '')))}">
+                                        <span class="status-dot"
+                                              th:classappend="${#strings.toLowerCase(intend.status) == 'on-site' ? 'bg-green-500' :
+                                                               (#strings.toLowerCase(intend.status) == 'delayed' ? 'bg-red-500' :
+                                                               (#strings.toLowerCase(intend.status) == 'pending' ? 'bg-yellow-500' :
+                                                               (#strings.toLowerCase(intend.status) == 'ordered' ? 'bg-blue-500' : '')))}"></span>
+                                        <span th:text="${intend.status}">Status</span>
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                            <table class="details-table mt-4 text-sm">
+                                <tr>
+                                    <td>
+                                        <p class="font-medium text-gray-500">Created By</p>
+                                        <p class="text-gray-800" th:text="${intend.createdBy.name}"></p>
+                                    </td>
+                                </tr>
+                            </table>
+                    </div>
+                </div>
+
+        </section>
+    </main>
 </div>
 
 </body>
