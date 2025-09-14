@@ -22,13 +22,13 @@ public class ProjectInviteCodeController {
 
     @PostMapping("/createCode")
     public ResponseEntity<ApiResponse> createInviteCode(@Valid @RequestBody InviteCodeGenerationDto inviteCodeGenerationDto) {
-        projectInviteCodeService.generateInviteCode(inviteCodeGenerationDto.getProjectName(), inviteCodeGenerationDto.getMaxUses(), inviteCodeGenerationDto.getValidityDays());
+        projectInviteCodeService.generateInviteCode(inviteCodeGenerationDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Invite Code Created Successfully"));
     }
 
     @PostMapping("/validate")
     public ResponseEntity<ApiResponse> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto) {
-        projectInviteCodeService.validateAndUseInviteCode(Integer.parseInt(inviteCodeValidationDto.getCode()));
+        projectInviteCodeService.validateAndUseInviteCode(inviteCodeValidationDto);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Invite Code Validated Successfully"));
     }
     

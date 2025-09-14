@@ -2,9 +2,12 @@ package org.tornotron.echno_backend.projectInviteCode;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.tornotron.echno_backend.project.Project;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Entity
 @Data
@@ -31,5 +34,9 @@ public class ProjectInviteCode {
 
     @Column(nullable = false)
     private int currentUses;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> employeeDetails;
 
 }
