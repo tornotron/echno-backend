@@ -21,77 +21,75 @@ import java.util.stream.Collectors;
 @Transactional
 public class TeamMemberService {
 
-    private final TeamMemberRepository repository;
-    private final ProjectRepository projectRepository;
-    private static final Logger logger = LoggerFactory.getLogger(TeamMemberService.class);
+  private final TeamMemberRepository repository;
+  private final ProjectRepository projectRepository;
+  private static final Logger logger = LoggerFactory.getLogger(TeamMemberService.class);
 
-    public TeamMemberService(TeamMemberRepository repository,ProjectRepository projectRepository) {
-        this.repository = repository;
-        this.projectRepository = projectRepository;
+  public TeamMemberService(TeamMemberRepository repository, ProjectRepository projectRepository) {
+    this.repository = repository;
+    this.projectRepository = projectRepository;
+  }
+
+  public void addTeamMember(TeamMemberCreationDTO teamMemberCreationDTO) {
+    Project project = projectRepository.findProjectByProjectName(teamMemberCreationDTO.getProjectName());
+    TeamMember teamMember = new TeamMember();
+    teamMember.setMemberName(teamMemberCreationDTO.getMemberName());
+    teamMember.setMemberEmail(teamMemberCreationDTO.getMemberEmail());
+    teamMember.setMemberPhone(teamMemberCreationDTO.getMemberPhone());
+    teamMember.setMemberRole(teamMemberCreationDTO.getMemberRole());
+    teamMember.setMemberImage(teamMemberCreationDTO.getMemberImage());
+    teamMember.setProject(project);
+    TeamMember savedTeamMember = repository.save(teamMember);
+    if (savedTeamMember.getId() == null) {
+      throw new DatabaseOperationException("TeamMember could not be created");
     }
 
-    public void addTeamMember(TeamMemberCreationDTO teamMemberCreationDTO) {
-        Project project = projectRepository.findProjectByProjectName(teamMemberCreationDTO.getProjectName());
-        TeamMember teamMember = new TeamMember();
-        teamMember.setMemberName(teamMemberCreationDTO.getMemberName());
-        teamMember.setMemberEmail(teamMemberCreationDTO.getMemberEmail());
-        teamMember.setMemberPhone(teamMemberCreationDTO.getMemberPhone());
-        teamMember.setMemberRole(teamMemberCreationDTO.getMemberRole());
-        teamMember.setMemberImage(teamMemberCreationDTO.getMemberImage());
-        teamMember.setProject(project);
-        TeamMember savedTeamMember = repository.save(teamMember);
-        if(savedTeamMember.getId() == null) {
-            throw new DatabaseOperationException("TeamMember could not be created");
-        }
+  }
 
+  @Transactional(readOnly = true)
+  public List<TeamMemberDto> getAllTeamMember() {
+    return repository.findAll().stream()
+        .map(TeamMemberDtoConvertor::convertTeamMemberToDTO)
+        .collect(Collectors.toList());
+  }
+
+  @Transactional(readOnly = true)
+  public TeamMemberDto getATeamMember(Long id) {
+    TeamMemberDto teamMemberDto = repository.findById(id)
+        .map(TeamMemberDtoConvertor::convertTeamMemberToDTO)
+        .orElse(null);
+    if (teamMemberDto == null) {
+      throw new ResourceNotFoundException("TeamMember not found with id: " + id);
+    } else {
+      return teamMemberDto;
     }
+  }
 
-    @Transactional(readOnly = true)
-    public List<TeamMemberDto> getAllTeamMember() {
-        return repository.findAll().stream()
-                .map(TeamMemberDtoConvertor::convertTeamMemberToDTO)
-                .collect(Collectors.toList());
+  public void partialUpdateATeamMember(Map<String, Object> updates, Long id) {
+    TeamMember teamMember = repository.findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("TeamMember not found with id: " + id));
+
+    updates.forEach((key, value) -> {
+      switch (key) {
+        case "memberName":
+          teamMember.setMemberName((String) value);
+          break;
+        case "memberEmail":
+          teamMember.setMemberEmail((String) value);
+          break;
+      }
+    });
+    repository.save(teamMember);
+  }
+
+  public void batchUpdateTeamMembers(List<TeamMemberPatchDto> updates) {
+    updates.forEach(update -> partialUpdateATeamMember(update.getUpdates(), update.getId()));
+  }
+
+  public void deleteATeamMember(Long id) {
+    if (!repository.existsById(id)) {
+      throw new ResourceNotFoundException("TeamMember not found with id: " + id);
     }
-
-    @Transactional(readOnly = true)
-    public TeamMemberDto getATeamMember(Long id) {
-        TeamMemberDto teamMemberDto = repository.findById(id)
-                .map(TeamMemberDtoConvertor::convertTeamMemberToDTO)
-                .orElse(null);
-        if(teamMemberDto == null) {
-            throw new ResourceNotFoundException("TeamMember not found with id: "+id);
-        }else {
-            return teamMemberDto;
-        }
-    }
-
-    public void partialUpdateATeamMember(Map<String,Object> updates, Long id) {
-        TeamMember teamMember = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("TeamMember not found with id: "+id));
-
-        updates.forEach((key,value) -> {
-            switch (key) {
-                case "memberName":
-                    teamMember.setMemberName((String) value);
-                    break;
-                case "memberEmail":
-                    teamMember.setMemberEmail((String) value);
-                    break;
-            }
-        });
-        repository.save(teamMember);
-    }
-
-    public void batchUpdateTeamMembers(List<TeamMemberPatchDto> updates) {
-        updates.forEach(update ->
-                partialUpdateATeamMember(update.getUpdates(),update.getId()));
-    }
-
-
-    public void deleteATeamMember(Long id) {
-        if(!repository.existsById(id)) {
-            throw new ResourceNotFoundException("TeamMember not found with id: "+id);
-        }
-        repository.deleteById(id);
-    }
+    repository.deleteById(id);
+  }
 }
