@@ -10,7 +10,7 @@ import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeGenerationDto
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeValidationDto;
 
 @RestController
-@RequestMapping("/api/v1/invites")
+@RequestMapping("/api/v1/invitation")
 @Validated
 public class ProjectInviteCodeController {
 
@@ -20,7 +20,7 @@ public class ProjectInviteCodeController {
         this.projectInviteCodeService = projectInviteCodeService;
     }
 
-    @PostMapping("/createCode")
+    @PostMapping("/generateCode")
     public ResponseEntity<ApiResponse> createInviteCode(@Valid @RequestBody InviteCodeGenerationDto inviteCodeGenerationDto) {
         projectInviteCodeService.generateInviteCode(inviteCodeGenerationDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Invite Code Created Successfully"));
