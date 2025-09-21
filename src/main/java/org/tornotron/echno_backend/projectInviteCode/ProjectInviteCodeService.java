@@ -2,6 +2,8 @@ package org.tornotron.echno_backend.projectInviteCode;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
+import org.tornotron.echno_backend.DtoConversions.ProjectInviteCodeDtoConvertor;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -9,14 +11,15 @@ import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
+import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeGenerationDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeValidationDto;
+import org.tornotron.echno_backend.projectInviteCode.dto.ProjectInviteCodeDto;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 @Transactional
@@ -37,7 +40,7 @@ public class ProjectInviteCodeService {
         return 10000 + secureRandom.nextInt(90000);
     }
 
-    public void generateInviteCode(InviteCodeGenerationDto inviteCodeGenerationDto) {
+    public ProjectInviteCodeDto generateInviteCode(InviteCodeGenerationDto inviteCodeGenerationDto) {
         Organization organization = organizationRepository.findOrganizationByOrganizationName(inviteCodeGenerationDto.getOrganizationName())
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with name: " + inviteCodeGenerationDto.getOrganizationName()));
         int inviteCode = generateSecureFiveDigitNumber();
@@ -61,49 +64,37 @@ public class ProjectInviteCodeService {
         if(savedProjectInviteCode.getId() == null) {
             throw new DatabaseOperationException("Invite code could not be created");
         }
+        return ProjectInviteCodeDtoConvertor.convertToDto(savedProjectInviteCode);
     }
 
-    public void validateAndUseInviteCode(InviteCodeValidationDto inviteCodeValidationDto) {
-        Optional<ProjectInviteCode> inviteCodeOptional = inviteCodeRepository.findByCode(Integer.parseInt(inviteCodeValidationDto.getCode()));
-        if (inviteCodeOptional.isPresent()) {
-            ProjectInviteCode projectInviteCode = inviteCodeOptional.get();
-
-            if (projectInviteCode.getExpiryDate().isBefore(LocalDateTime.now())) {
-                throw new InvalidInviteCodeException("Invite code has expired");
-            }
-            if (projectInviteCode.getCurrentUses() >= projectInviteCode.getMaxUses()) {
-                throw new InvalidInviteCodeException("Invite code has reached maximum usage limit");
-            }
-            if (!projectInviteCode.isActive()) {
-                throw new InvalidInviteCodeException("Invite code is not active");
-            }
-
-            projectInviteCode.setCurrentUses(projectInviteCode.getCurrentUses() + 1);
-
-            if (projectInviteCode.getCurrentUses() >= projectInviteCode.getMaxUses()) {
-                projectInviteCode.setActive(false);
-            }
-
-            inviteCodeRepository.save(projectInviteCode);
-
-            Organization organization = projectInviteCode.getOrganization();
-
-            Map<String,Object> employeeDetails = projectInviteCode.getEmployeeDetails();
-            EmployeeJoinOrgDto employeeJoinOrgDto = new EmployeeJoinOrgDto();
-            employeeJoinOrgDto.setDesignation((String) employeeDetails.get("designation"));
-            employeeJoinOrgDto.setDepartment((String) employeeDetails.get("department"));
-            if (employeeDetails.get("joiningDate") != null) {
-                employeeJoinOrgDto.setJoiningDate(LocalDateTime.parse(employeeDetails.get("joiningDate").toString()));
-            }
-            employeeJoinOrgDto.setSalary((Double) employeeDetails.get("salary"));
-            employeeJoinOrgDto.setReportingManager((String) employeeDetails.get("reportingManager"));
-            employeeJoinOrgDto.setShiftTiming((String) employeeDetails.get("shiftTiming"));
-            employeeJoinOrgDto.setStatus((String) employeeDetails.get("status"));
-
-            employeeService.joinOrganization(inviteCodeValidationDto.getUserId(), organization.getId(), employeeJoinOrgDto);
-
-        } else {
-            throw new InvalidInviteCodeException("Invite code not found");
+    public OrganizationDto validateAndUseInviteCode(InviteCodeValidationDto inviteCodeValidationDto) {
+        ProjectInviteCode inviteCode = inviteCodeRepository.findByCode(Integer.parseInt(inviteCodeValidationDto.getCode()))
+                .orElseThrow(() -> new ResourceNotFoundException("Invite code not found: " + inviteCodeValidationDto.getCode()));
+        if(inviteCode.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new InvalidInviteCodeException("Invite code has expired");
         }
+        if(!inviteCode.isActive()) {
+            throw new InvalidInviteCodeException("Invite code is not active");
+        }
+        if(inviteCode.getCurrentUses() >= inviteCode.getMaxUses()) {
+            throw new InvalidInviteCodeException("Invite code has reached maximum usage limit");
+        }
+        inviteCodeRepository.save(inviteCode);
+        Organization organization = inviteCode.getOrganization();
+        Map<String,Object> employeeDetails = inviteCode.getEmployeeDetails();
+        EmployeeJoinOrgDto employeeJoinOrgDto = new EmployeeJoinOrgDto();
+        employeeJoinOrgDto.setDesignation((String) employeeDetails.get("designation"));
+        employeeJoinOrgDto.setDepartment((String) employeeDetails.get("department"));
+        if (employeeDetails.get("joiningDate") != null) {
+            employeeJoinOrgDto.setJoiningDate(LocalDateTime.parse(employeeDetails.get("joiningDate").toString()));
+        }
+        employeeJoinOrgDto.setSalary((Double) employeeDetails.get("salary"));
+        employeeJoinOrgDto.setReportingManager((String) employeeDetails.get("reportingManager"));
+        employeeJoinOrgDto.setShiftTiming((String) employeeDetails.get("shiftTiming"));
+        employeeJoinOrgDto.setStatus((String) employeeDetails.get("status"));
+
+        employeeService.joinOrganization(inviteCodeValidationDto.getUserId(), organization.getId(), employeeJoinOrgDto);
+        inviteCode.setCurrentUses(inviteCode.getCurrentUses() + 1);
+        return OrganizationDtoConvertor.convertOrganizationToDto(organization);
     }
 }
