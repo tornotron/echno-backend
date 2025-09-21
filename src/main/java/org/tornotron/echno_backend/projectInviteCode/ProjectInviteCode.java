@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 
 import java.time.LocalDateTime;
@@ -21,7 +22,7 @@ public class ProjectInviteCode {
     private int code;
 
     @ManyToOne
-    private Project project;
+    private Organization organization;
 
     @Column(nullable = false)
     private LocalDateTime expiryDate;

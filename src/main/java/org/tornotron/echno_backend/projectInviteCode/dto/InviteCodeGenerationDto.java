@@ -12,9 +12,9 @@ import java.time.LocalDateTime;
 @Data
 public class InviteCodeGenerationDto {
 
-    @NotNull(message = "projectName is required")
-    @Size(min = 3,max = 50,message = "projectName must be between 3 and 50 characters")
-    String projectName;
+    @NotNull(message = "organizationName is required")
+    @Size(min = 3,max = 50,message = "organizationName must be between 3 and 50 characters")
+    String organizationName;
 
     int maxUses = 1;
 
