@@ -14,7 +14,4 @@ public class InviteCodeValidationDto {
 
     @NotNull(message = "userId is a required request parameter")
     Long userId;
-
-    @NotNull(message = "oragnizationId is a required request parameter")
-    Long organizationId;
 }

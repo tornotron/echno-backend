@@ -7,6 +7,8 @@ import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
+import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeGenerationDto;
@@ -24,13 +26,13 @@ public class ProjectInviteCodeService {
 
     private final ProjectInviteCodeRepository inviteCodeRepository;
     private final EmployeeService employeeService;
-    private final ProjectRepository projectRepository;
     private final SecureRandom secureRandom = new SecureRandom();
+    private final OrganizationRepository organizationRepository;
 
-    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, ProjectRepository projectRepository,EmployeeService employeeService) {
+    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository) {
         this.inviteCodeRepository = inviteCodeRepository;
-        this.projectRepository = projectRepository;
         this.employeeService = employeeService;
+        this.organizationRepository = organizationRepository;
     }
 
     public int generateSecureFiveDigitNumber() {
@@ -38,14 +40,12 @@ public class ProjectInviteCodeService {
     }
 
     public void generateInviteCode(InviteCodeGenerationDto inviteCodeGenerationDto) {
-        Project project = projectRepository.findProjectByProjectName(inviteCodeGenerationDto.getProjectName());
-        if(project == null) {
-            throw new ResourceNotFoundException(inviteCodeGenerationDto.getProjectName()+" project not found");
-        }
+        Organization organization = organizationRepository.findOrganizationByOrganizationName(inviteCodeGenerationDto.getOrganizationName())
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with name: " + inviteCodeGenerationDto.getOrganizationName()));
         int inviteCode = generateSecureFiveDigitNumber();
         ProjectInviteCode projectInviteCode = new ProjectInviteCode();
         projectInviteCode.setCode(inviteCode);
-        projectInviteCode.setProject(project);
+        projectInviteCode.setOrganization(organization);
         projectInviteCode.setExpiryDate(LocalDateTime.now().plusDays(inviteCodeGenerationDto.getValidityDays()));
         projectInviteCode.setActive(true);
         projectInviteCode.setMaxUses(inviteCodeGenerationDto.getMaxUses());
@@ -88,6 +88,8 @@ public class ProjectInviteCodeService {
 
             inviteCodeRepository.save(projectInviteCode);
 
+            Organization organization = projectInviteCode.getOrganization();
+
             Map<String,Object> employeeDetails = projectInviteCode.getEmployeeDetails();
             EmployeeJoinOrgDto employeeJoinOrgDto = new EmployeeJoinOrgDto();
             employeeJoinOrgDto.setDesignation((String) employeeDetails.get("designation"));
@@ -100,7 +102,7 @@ public class ProjectInviteCodeService {
             employeeJoinOrgDto.setShiftTiming((String) employeeDetails.get("shiftTiming"));
             employeeJoinOrgDto.setStatus((String) employeeDetails.get("status"));
 
-            employeeService.joinOrganization(inviteCodeValidationDto.getUserId(), inviteCodeValidationDto.getOrganizationId(), employeeJoinOrgDto);
+            employeeService.joinOrganization(inviteCodeValidationDto.getUserId(), organization.getId(), employeeJoinOrgDto);
 
         } else {
             throw new InvalidInviteCodeException("Invite code not found");
