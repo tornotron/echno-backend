@@ -6,8 +6,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeGenerationDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeValidationDto;
+import org.tornotron.echno_backend.projectInviteCode.dto.ProjectInviteCodeDto;
 
 @RestController
 @RequestMapping("/api/v1/invitation")
@@ -21,15 +23,13 @@ public class ProjectInviteCodeController {
     }
 
     @PostMapping("/generateCode")
-    public ResponseEntity<ApiResponse> createInviteCode(@Valid @RequestBody InviteCodeGenerationDto inviteCodeGenerationDto) {
-        projectInviteCodeService.generateInviteCode(inviteCodeGenerationDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Invite Code Created Successfully"));
+    public ResponseEntity<ProjectInviteCodeDto> createInviteCode(@Valid @RequestBody InviteCodeGenerationDto inviteCodeGenerationDto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(projectInviteCodeService.generateInviteCode(inviteCodeGenerationDto));
     }
 
     @PostMapping("/validate")
-    public ResponseEntity<ApiResponse> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto) {
-        projectInviteCodeService.validateAndUseInviteCode(inviteCodeValidationDto);
-        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Invite Code Validated Successfully"));
+    public ResponseEntity<OrganizationDto> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto) {
+        return ResponseEntity.status(HttpStatus.OK).body(projectInviteCodeService.validateAndUseInviteCode(inviteCodeValidationDto));
     }
     
 }
