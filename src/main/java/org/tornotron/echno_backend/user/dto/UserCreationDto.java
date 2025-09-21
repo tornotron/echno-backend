@@ -21,6 +21,8 @@ public class UserCreationDto {
     @NotBlank(message = "gender is required")
     private String gender;
 
+    private String address;
+
     @NotBlank(message = "email is required")
     @Email
     @Size(max = 100, message = "email must be at most 100 characters")

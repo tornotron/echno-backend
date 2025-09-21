@@ -33,6 +33,9 @@ public class User {
     @Column(name = "gender", nullable = false)
     private String gender;
 
+    @Column(name = "address", nullable = true)
+    private String address;
+
     @Column(name = "blood_group", nullable = true)
     private String bloodGroup;
 
