@@ -7,7 +7,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-import java.time.LocalDateTime;
 
 @Data
 public class InviteCodeGenerationDto {
@@ -27,8 +26,6 @@ public class InviteCodeGenerationDto {
     @NotBlank(message = "department is required")
     @Size(min = 3, max = 50, message = "department must be between 3 and 50 characters")
     private String department;
-
-    private LocalDateTime joiningDate;
 
     private Double salary;
 
