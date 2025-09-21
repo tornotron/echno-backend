@@ -44,6 +44,13 @@ public class OrganizationDtoConvertor {
         EmployeeDto employeeDto = new EmployeeDto();
         employeeDto.setId(employee.getId());
         employeeDto.setEmployeeName(employee.getEmployeeName());
+        employeeDto.setDesignation(employee.getDesignation());
+        employeeDto.setDepartment(employee.getDepartment());
+        employeeDto.setJoiningDate(employee.getJoiningDate());
+        employeeDto.setReportingManager(employee.getReportingManager());
+        employeeDto.setShiftTiming(employee.getShiftTiming());
+        employeeDto.setStatus(employee.getStatus());
+        employeeDto.setSalary(employee.getSalary());
         employeeDto.setGender(employee.getGender());
         employeeDto.setPhoneNumber(employee.getPhoneNumber());
         employeeDto.setEmailAddress(employee.getEmailAddress());
