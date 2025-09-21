@@ -12,6 +12,7 @@ public class UserDtoConvertor {
         dto.setId(user.getId());
         dto.setName(user.getName());
         dto.setGender(user.getGender());
+        dto.setAddress(user.getAddress());
         dto.setBloodGroup(user.getBloodGroup());
         dto.setEmail(user.getEmail());
         dto.setPhone(user.getPhone());
