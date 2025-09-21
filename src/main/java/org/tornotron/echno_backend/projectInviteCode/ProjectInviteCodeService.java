@@ -9,8 +9,6 @@ import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
-import org.tornotron.echno_backend.project.Project;
-import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeGenerationDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeValidationDto;
 
@@ -53,7 +51,7 @@ public class ProjectInviteCodeService {
         Map<String, Object> employeeDetails = new HashMap<>();
         employeeDetails.put("designation", inviteCodeGenerationDto.getDesignation());
         employeeDetails.put("department", inviteCodeGenerationDto.getDepartment());
-        employeeDetails.put("joiningDate", inviteCodeGenerationDto.getJoiningDate());
+        employeeDetails.put("joiningDate", LocalDateTime.now().toString());
         employeeDetails.put("salary", inviteCodeGenerationDto.getSalary());
         employeeDetails.put("reportingManager", inviteCodeGenerationDto.getReportingManager());
         employeeDetails.put("shiftTiming", inviteCodeGenerationDto.getShiftTiming());
