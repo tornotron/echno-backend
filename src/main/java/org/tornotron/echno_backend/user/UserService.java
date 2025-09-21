@@ -35,6 +35,7 @@ public class UserService {
         User user = new User();
         user.setName(userCreationDto.getName());
         user.setGender(userCreationDto.getGender());
+        user.setAddress(userCreationDto.getAddress());
         user.setBloodGroup(userCreationDto.getBloodGroup());
         user.setEmail(userCreationDto.getEmail());
         user.setPhone(userCreationDto.getPhone());
