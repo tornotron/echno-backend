@@ -7,9 +7,20 @@ import org.tornotron.echno_backend.common.exception.InvalidAttendanceSequenceExc
 
 import java.util.*;
 
+/**
+ * Validator for ensuring the correct sequence of attendance records.
+ * This class enforces the state machine logic for attendance events like CHECK_IN, CHECK_OUT, etc.
+ */
 @Component
 public class AttendanceSequenceValidator {
 
+    /**
+     * Validates if the new attendance record type can follow the last recorded type.
+     *
+     * @param lastRecord      The last attendance record for the user on the current day.
+     * @param newRecordType   The type of the new attendance record to be validated.
+     * @throws InvalidAttendanceSequenceException if the sequence is invalid.
+     */
     public void validateRecordTypeSequence(Optional<Attendance> lastRecord, RecordType newRecordType) {
 
         if (lastRecord.isEmpty()) {
@@ -38,6 +49,11 @@ public class AttendanceSequenceValidator {
 
     }
 
+    /**
+     * Defines the valid state transitions for attendance record types.
+     *
+     * @return A map where the key is the current state and the value is a set of valid next states.
+     */
     private Map<RecordType, Set<RecordType>> getValidTransitions() {
 
         Map<RecordType, Set<RecordType>> transitions = new HashMap<>();
@@ -63,6 +79,14 @@ public class AttendanceSequenceValidator {
         return transitions;
     }
 
+    /**
+     * Checks if a transition from a current state to a next state is valid.
+     *
+     * @param currentState      The current attendance record type.
+     * @param nextState         The next attendance record type.
+     * @param validTransitions  The map of all valid transitions.
+     * @return {@code true} if the transition is valid, {@code false} otherwise.
+     */
     private boolean isValidTransition(
             RecordType currentState,
             RecordType nextState,

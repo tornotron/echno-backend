@@ -14,56 +14,73 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Represents a task entity in the system.
+ * This class is mapped to the "Task" table in the database.
+ */
 @Entity
 @Data
 @NoArgsConstructor
 public class Task {
 
+    /** The unique identifier for the task. */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** The title of the task. */
     @Column(name = "title", nullable = false)
     private String title;
 
+    /** The scheduled start date and time of the task. */
     @Column(name = "start_date", nullable = true)
     private LocalDateTime startDate;
 
+    /** The scheduled end date and time of the task. */
     @Column(name = "end_date", nullable = true)
     private LocalDateTime endDate;
 
+    /** The employee who created the task. */
     @ManyToOne
     @JoinColumn(name = "creator_id", nullable = false)
     private Employee creator;
 
+    /** The project to which this task belongs. */
     @ManyToOne
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
 
+    /** The set of employees assigned to this task. */
     @ManyToMany
     @JoinTable(name = "task_assignees",
             joinColumns = @JoinColumn(name = "task_id"),
             inverseJoinColumns = @JoinColumn(name = "creator_id"))
     private Set<Employee> assignees;
 
+    /** The category of the task. */
     @ManyToOne
     private Category category;
 
+    /** The progress of the task, typically represented as a percentage (e.g., 0.0 to 100.0). */
     private Double progress;
 
-    @ElementCollection
+    /** A list of tags associated with the task for categorization and searching. */
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "task_tags", joinColumns = @JoinColumn(name = "id"))
     @Column(name = "tags")
     private List<String> tags;
 
+    /** The timestamp when the task was created. Automatically generated. */
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /** The timestamp when the task was last updated. Automatically generated. */
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    /** The current status of the task. */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private TaskStatus status;

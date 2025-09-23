@@ -20,17 +20,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Service class for managing users.
+ * Handles business logic related to user creation, retrieval, updates, and deletion.
+ */
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
 
+    /**
+     * Constructs a UserService with the given UserRepository.
+     *
+     * @param userRepository The repository for user data access.
+     */
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
 
-
+    /**
+     * Creates a new user.
+     *
+     * @param userCreationDto DTO containing the details for the new user.
+     * @return The DTO of the newly created user.
+     */
     public UserDto addUser(UserCreationDto userCreationDto) {
         User user = new User();
         user.setName(userCreationDto.getName());
@@ -50,6 +64,12 @@ public class UserService {
         return UserDtoConvertor.convertUserToDto(userRepository.save(user));
     }
 
+    /**
+     * Retrieves all organizations associated with a specific user.
+     *
+     * @param userId The ID of the user.
+     * @return A list of organization DTOs.
+     */
     @Transactional(readOnly = true)
     public List<OrganizationDto> getOrganizationsForCurrentUser(Long userId) {
         return userRepository.findOrganizationsByUserId(userId)
@@ -59,6 +79,13 @@ public class UserService {
 
     }
 
+    /**
+     * Retrieves a paginated list of all users.
+     *
+     * @param pageNo   The page number to retrieve.
+     * @param pageSize The number of users per page.
+     * @return A {@link Page} of user DTOs.
+     */
     @Transactional(readOnly = true)
     public Page<UserDto> getAllUsers(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
@@ -66,6 +93,13 @@ public class UserService {
                 .map(UserDtoConvertor::convertUserToDto);
     }
 
+    /**
+     * Retrieves a single user by their ID.
+     *
+     * @param id The ID of the user to retrieve.
+     * @return The user DTO.
+     * @throws ResourceNotFoundException if no user with the given ID is found.
+     */
     @Transactional(readOnly = true)
     public UserDto getAnUser(Long id) {
         return userRepository.findById(id)
@@ -73,6 +107,14 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
     }
 
+    /**
+     * Partially updates an existing user.
+     *
+     * @param updates A map of fields to update.
+     * @param id      The ID of the user to update.
+     * @return The DTO of the updated user.
+     * @throws ResourceNotFoundException if no user with the given ID is found.
+     */
     public UserDto partialUpdateAnUser(Map<String, Object> updates, Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
@@ -122,10 +164,21 @@ public class UserService {
         return UserDtoConvertor.convertUserToDto(userRepository.save(user));
     }
 
+    /**
+     * Updates multiple users in a batch.
+     *
+     * @param updates A list of DTOs containing the updates for each user.
+     */
     public void batchUpdateUser(List<UserPatchDto> updates) {
         updates.forEach(update -> partialUpdateAnUser(update.getUpdates(), update.getId()));
     }
 
+    /**
+     * Deletes a user by their ID.
+     *
+     * @param id The ID of the user to delete.
+     * @throws ResourceNotFoundException if no user with the given ID is found.
+     */
     public void deleteAnUser(Long id) {
         if(!userRepository.existsById(id)) {
             throw new ResourceNotFoundException("User not found with id: " + id);
