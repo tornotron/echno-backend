@@ -8,16 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
-import org.tornotron.echno_backend.employee.Employee;
-import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
-import org.tornotron.echno_backend.project.Project;
-import org.tornotron.echno_backend.project.dto.ProjectDto;
-import org.tornotron.echno_backend.teamMember.TeamMember;
-import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 
 import java.time.LocalDateTime;
 import java.util.List;
