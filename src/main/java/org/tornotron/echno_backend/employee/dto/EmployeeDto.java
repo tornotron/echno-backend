@@ -16,6 +16,7 @@ public class EmployeeDto {
     private LocalDateTime joiningDate;
     private String gender;
     private String phoneNumber;
+    private String address;
     private String emailAddress;
     private LocalDateTime dateOfBirth;
     private String bloodGroup;
