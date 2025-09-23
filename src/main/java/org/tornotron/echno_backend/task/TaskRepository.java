@@ -5,7 +5,17 @@ import jakarta.validation.constraints.Size;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 
+/**
+ * Repository interface for {@link Task} entities.
+ * Provides methods to perform database operations on tasks.
+ */
 public interface TaskRepository extends JpaRepository<Task,Long> {
+    /**
+     * Finds a task by its title.
+     *
+     * @param title The title of the task to find. Must not be blank and must be between 3 and 50 characters.
+     * @return The {@link Task} with the given title, or null if not found.
+     */
     Task findTaskByTitle(@NotBlank(message = "title is required") @Size(min = 3,max = 50,message = "title must be between 3 and 50 characters") String title);
 
 //    List<Task> findTaskByEmployee_IdAndProject_Id(@NotNull(message = "employeeId is required") Long employeeId, @NotNull(message = "projectId is required") Long projectId);

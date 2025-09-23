@@ -5,37 +5,48 @@ import lombok.Data;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.tornotron.echno_backend.organization.Organization;
-import org.tornotron.echno_backend.project.Project;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 
+/**
+ * Represents a project invite code entity in the system.
+ * This code allows users to join a specific organization.
+ */
 @Entity
 @Data
 public class ProjectInviteCode {
 
+    /** The unique identifier for the invite code. */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** The unique five-digit code used for the invitation. */
     @Column(nullable = false,unique = true)
     private int code;
 
+    /** The organization to which this invite code belongs. */
     @ManyToOne
     private Organization organization;
 
+    /** The date and time when this invite code expires. */
     @Column(nullable = false)
     private LocalDateTime expiryDate;
 
+    /** A flag indicating whether the invite code is currently active. */
     @Column(nullable = false)
     private boolean isActive;
 
+    /** The maximum number of times this invite code can be used. */
     @Column(nullable = false)
     private int maxUses;
 
+    /** The current number of times this invite code has been used. */
     @Column(nullable = false)
     private int currentUses;
 
+    /** A JSON map containing default details for the employee who joins using this code. */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> employeeDetails;
