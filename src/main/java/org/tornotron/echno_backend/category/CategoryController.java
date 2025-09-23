@@ -14,18 +14,34 @@ import org.tornotron.echno_backend.common.response.ApiResponse;
 
 import java.util.List;
 
+/**
+ * REST controller for managing work categories.
+ * Provides endpoints for creating, reading, and deleting categories.
+ */
 @RestController
 @RequestMapping("api/v1/workCategories")
 @Validated
 public class CategoryController {
 
     private final CategoryService categoryService;
+    /** Logger for this class. */
     private static final Logger logger = LoggerFactory.getLogger(CategoryController.class);
 
+    /**
+     * Constructs a CategoryController with the given CategoryService.
+     *
+     * @param categoryService The service for handling category-related business logic.
+     */
     public CategoryController(CategoryService categoryService) {
         this.categoryService = categoryService;
     }
 
+    /**
+     * Creates a new category.
+     *
+     * @param categoryCreationDto DTO containing the details for the new category.
+     * @return A {@link ResponseEntity} with a success message and HTTP status 201 (Created).
+     */
     @PostMapping
     public ResponseEntity<ApiResponse> createCategory(@Valid @RequestBody CategoryCreationDto categoryCreationDto) {
         categoryService.addCategory(categoryCreationDto);
@@ -34,6 +50,13 @@ public class CategoryController {
                 .body(new ApiResponse("Category Created Successfully"));
     }
 
+    /**
+     * Retrieves a paginated list of all categories.
+     *
+     * @param pageNo   The page number to retrieve (default is 0).
+     * @param pageSize The number of categories per page (default is 10).
+     * @return A {@link ResponseEntity} containing the list of category DTOs and HTTP status 200 (OK).
+     */
     @GetMapping
     public ResponseEntity<List<CategoryDto>> readAllTasks(@RequestParam(defaultValue = "0") int pageNo,
                                                           @RequestParam(defaultValue = "10") int pageSize) {
@@ -43,12 +66,24 @@ public class CategoryController {
 
     }
 
+    /**
+     * Retrieves a single category by its ID.
+     *
+     * @param id The ID of the category to retrieve.
+     * @return A {@link ResponseEntity} containing the category DTO and HTTP status 200 (OK).
+     */
     @GetMapping("{id}")
     public ResponseEntity<?> readACategory(@PathVariable Long id) {
         CategoryDto categoryDto = categoryService.getACategory(id);
         return new ResponseEntity<>(categoryDto, HttpStatus.OK);
     }
 
+    /**
+     * Deletes a category by its ID.
+     *
+     * @param id The ID of the category to delete.
+     * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
+     */
     @DeleteMapping("{id}")
     public ResponseEntity<ApiResponse> deleteACategory(@PathVariable Long id) {
         categoryService.deleteACategory(id);
