@@ -21,6 +21,11 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Service class for managing project invite codes.
+ * Handles the business logic for generating, validating, and using invite codes
+ * for employees to join an organization.
+ */
 @Service
 @Transactional
 public class ProjectInviteCodeService {
@@ -30,16 +35,37 @@ public class ProjectInviteCodeService {
     private final SecureRandom secureRandom = new SecureRandom();
     private final OrganizationRepository organizationRepository;
 
+    /**
+     * Constructs a ProjectInviteCodeService with the necessary repositories and services.
+     *
+     * @param inviteCodeRepository   The repository for invite code data access.
+     * @param employeeService        The service for employee-related operations.
+     * @param organizationRepository The repository for organization data access.
+     */
     public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository) {
         this.inviteCodeRepository = inviteCodeRepository;
         this.employeeService = employeeService;
         this.organizationRepository = organizationRepository;
     }
 
+    /**
+     * Generates a secure, random five-digit number.
+     *
+     * @return A random integer between 10000 and 99999.
+     */
     public int generateSecureFiveDigitNumber() {
         return 10000 + secureRandom.nextInt(90000);
     }
 
+    /**
+     * Generates a new invite code for an organization.
+     * The code is created with specified validity, usage limits, and default employee details.
+     *
+     * @param inviteCodeGenerationDto DTO containing the details for generating the invite code.
+     * @return A DTO of the newly created invite code.
+     * @throws ResourceNotFoundException if the organization is not found.
+     * @throws DatabaseOperationException if the invite code cannot be saved.
+     */
     public ProjectInviteCodeDto generateInviteCode(InviteCodeGenerationDto inviteCodeGenerationDto) {
         Organization organization = organizationRepository.findOrganizationByOrganizationName(inviteCodeGenerationDto.getOrganizationName())
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with name: " + inviteCodeGenerationDto.getOrganizationName()));
@@ -67,6 +93,14 @@ public class ProjectInviteCodeService {
         return ProjectInviteCodeDtoConvertor.convertToDto(savedProjectInviteCode);
     }
 
+    /**
+     * Validates an invite code and, if successful, adds the user to the associated organization as an employee.
+     *
+     * @param inviteCodeValidationDto DTO containing the user ID and the invite code to validate.
+     * @return A DTO of the organization the user has joined.
+     * @throws ResourceNotFoundException if the invite code is not found.
+     * @throws InvalidInviteCodeException if the code is expired, inactive, or has reached its usage limit.
+     */
     public OrganizationDto validateAndUseInviteCode(InviteCodeValidationDto inviteCodeValidationDto) {
         ProjectInviteCode inviteCode = inviteCodeRepository.findByCode(Integer.parseInt(inviteCodeValidationDto.getCode()))
                 .orElseThrow(() -> new ResourceNotFoundException("Invite code not found: " + inviteCodeValidationDto.getCode()));
