@@ -3,6 +3,8 @@ package org.tornotron.echno_backend.project.dto;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -26,7 +28,16 @@ public class ProjectCreationDto {
     @Enumerated(EnumType.STRING)
     private String status;
 
-    @NotBlank(message = "organizationName is required")
-    @Size(min = 3,max = 50,message = "organizationName must be between 3 and 50 characters")
-    private String organizationName;
+    @NotNull(message = "organizationId is required")
+    private Long organizationId;
+
+    @NotNull
+    private Float projectLatitude;
+
+    @NotNull
+    private Float projectLongitude;
+
+    private LocalDateTime startDate;
+
+    private LocalDateTime endDate;
 }
