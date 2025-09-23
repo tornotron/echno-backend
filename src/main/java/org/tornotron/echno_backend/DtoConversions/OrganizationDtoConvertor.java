@@ -8,6 +8,8 @@ import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
+import org.tornotron.echno_backend.task.Task;
+import org.tornotron.echno_backend.task.dto.TaskDto;
 import org.tornotron.echno_backend.teamMember.TeamMember;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 
@@ -27,15 +29,41 @@ public class OrganizationDtoConvertor {
         return teamMemberDto;
     }
 
+    private static TaskDto convertTaskToTaskDto(Task task) {
+        TaskDto taskDto = new TaskDto();
+        taskDto.setId(task.getId());
+        taskDto.setTitle(task.getTitle());
+        taskDto.setStartDate(task.getStartDate());
+        taskDto.setEndDate(task.getEndDate());
+        taskDto.setCreator(EmployeeDtoConvertor.convertEmployeeToDto(task.getCreator()));
+        taskDto.setProjectId(task.getProject().getId());
+        taskDto.setAssignees(task.getAssignees().stream()
+                .map(EmployeeDtoConvertor::convertEmployeeToDto)
+                .collect(Collectors.toSet()));
+        taskDto.setCategory(CategoryDtoConvertor.convertCategoryToDto(task.getCategory()));
+        taskDto.setTags(task.getTags());
+        taskDto.setCreatedAt(task.getCreatedAt());
+        taskDto.setUpdatedAt(task.getUpdatedAt());
+        taskDto.setStatus(task.getStatus());
+        return taskDto;
+    }
+
     private static ProjectDto convertProjectToProjectDto(Project project) {
         ProjectDto projectDto = new ProjectDto();
         projectDto.setId(project.getId());
         projectDto.setProjectName(project.getProjectName());
         projectDto.setProjectAddress(project.getProjectAddress());
         projectDto.setStatus(project.getStatus());
+        projectDto.setProjectLongitude(project.getProjectLongitude());
+        projectDto.setProjectLatitude(project.getProjectLatitude());
+        projectDto.setStartDate(project.getStartDate());
+        projectDto.setEndDate(project.getEndDate());
         projectDto.setCreatedAt(project.getCreatedAt());
         projectDto.setTeamMembers(project.getTeamMembers().stream()
                 .map(OrganizationDtoConvertor::convertTeamMemberToTeamMemberDTO)
+                .collect(Collectors.toList()));
+        projectDto.setTasks(project.getTasks().stream()
+                .map(OrganizationDtoConvertor::convertTaskToTaskDto)
                 .collect(Collectors.toList()));
         return projectDto;
     }
@@ -52,6 +80,7 @@ public class OrganizationDtoConvertor {
         employeeDto.setStatus(employee.getStatus());
         employeeDto.setSalary(employee.getSalary());
         employeeDto.setGender(employee.getGender());
+        employeeDto.setAddress(employee.getAddress());
         employeeDto.setPhoneNumber(employee.getPhoneNumber());
         employeeDto.setEmailAddress(employee.getEmailAddress());
         employeeDto.setDateOfBirth(employee.getDateOfBirth());
