@@ -12,6 +12,7 @@ public class EmployeeDtoConvertor {
         dto.setId(employee.getId());
         dto.setSalary(employee.getSalary());
         dto.setEmployeeName(employee.getEmployeeName());
+        dto.setAddress(employee.getAddress());
         dto.setDesignation(employee.getDesignation());
         dto.setDepartment(employee.getDepartment());
         dto.setJoiningDate(employee.getJoiningDate());

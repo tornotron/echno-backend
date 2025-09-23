@@ -39,6 +39,9 @@ public class EmployeeCreationDto {
     @Size(min = 3,max = 10,message = "gender must be between 3 and 10 characters")
     private String gender;
 
+    @Size(max = 255, message = "address must be at most 255 characters")
+    private String address;
+
     @NotBlank(message = "phoneNumber is required")
     @Size(min = 10,max = 10,message = "phoneNumber must be of 10 characters")
     private String phoneNumber;
