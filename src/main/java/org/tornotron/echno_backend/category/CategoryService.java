@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.CategoryDtoConvertor;
 import org.tornotron.echno_backend.category.dto.CategoryCreationDto;
 import org.tornotron.echno_backend.category.dto.CategoryDto;
+import org.tornotron.echno_backend.category.dto.CategorySimpleDto;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 
@@ -18,7 +19,6 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
  * Handles business logic related to category creation, retrieval, and deletion.
  */
 @Service
-@Transactional
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
@@ -38,16 +38,14 @@ public class CategoryService {
      * @param categoryCreationDto DTO containing the details for the new category.
      * @throws DatabaseOperationException if the category cannot be saved.
      */
-    public void addCategory(CategoryCreationDto categoryCreationDto) {
+    @Transactional
+    public CategorySimpleDto addCategory(CategoryCreationDto categoryCreationDto) {
         Category category = new Category();
         category.setName(categoryCreationDto.getName());
         category.setDescription(categoryCreationDto.getDescription());
         category.setIcon(categoryCreationDto.getIcon());
         category.setImage(categoryCreationDto.getImage());
-        Category savedCategory = categoryRepository.save(category);
-        if(savedCategory.getId() == null) {
-            throw new DatabaseOperationException("Category could not be created");
-        }
+        return CategoryDtoConvertor.convertCategoryToSimpleDto(categoryRepository.save(category));
     }
 
     /**
@@ -57,6 +55,7 @@ public class CategoryService {
      * @param pageSize The number of categories per page.
      * @return A {@link Page} of category DTOs.
      */
+    @Transactional(readOnly = true)
     public Page<CategoryDto> getAllCategories(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
         return categoryRepository.findAll(pageable)
@@ -89,6 +88,7 @@ public class CategoryService {
      * @param id The ID of the category to delete.
      * @throws ResourceNotFoundException if no category with the given ID is found.
      */
+    @Transactional
     public void deleteACategory(Long id) {
         if(!categoryRepository.existsById(id)) {
             throw new ResourceNotFoundException("Category not found with id: " + id);
