@@ -81,6 +81,18 @@ public class EmployeeController {
        return ResponseEntity.status(HttpStatus.OK).body(employee);
     }
 
+    
+    /**
+     * Retrieves all employees belonging to a specific organization.
+     *
+     * @param id The ID of the organization.
+     * @return A {@link ResponseEntity} containing a list of employee DTOs for the specified organization and HTTP status 200 (OK).
+     */
+    @GetMapping("/organization/{id}")
+    public ResponseEntity<List<EmployeeDto>> readEmployeesByOrganizationId(@PathVariable Long id) {
+        return ResponseEntity.status(HttpStatus.OK).body(employeeService.displayEmployeesByOrganization(id));
+    }
+
     /**
      * Partially updates an existing employee.
      *
