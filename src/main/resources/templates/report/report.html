@@ -53,7 +53,7 @@
     <div class="task-block" th:classappend="${task.getProgress() == 100 ? 'completed' : (task.getProgress() > 0 ? 'inprogress' : 'notstarted')}">
         <div class="section-heading">
             Task Created: <span th:text="${dateConverter.convertDateToString(task.getUpdatedAt())}"></span>
-            <span class="category-span">Category: <span th:text="${category.getACategory(task.getCategoryId()).getName()}"></span></span>
+            <span class="category-span">Category: <span th:text="${category.getACategory(task.getCategory().getId()).getName()}"></span></span>
         </div>
 <!--        <div class="section-title">-->
 <!--            Task Created: <span th:text="${dateConverter.convertDateToString(task.getUpdatedAt())}"></span>-->

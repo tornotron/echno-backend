@@ -7,6 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.category.Category;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.issue.Issue;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.task.enums.TaskStatus;
 
@@ -85,4 +86,6 @@ public class Task {
     @Column(name = "status", nullable = false)
     private TaskStatus status;
 
+    @OneToMany(mappedBy = "task")
+    private List<Issue> issues;
 }
