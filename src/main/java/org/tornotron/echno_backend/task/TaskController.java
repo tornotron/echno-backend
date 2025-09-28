@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.task.dto.TaskCreationDto;
 import org.tornotron.echno_backend.task.dto.TaskDto;
 import org.tornotron.echno_backend.task.dto.TaskPatchDto;
+import org.tornotron.echno_backend.task.dto.TaskSimpleDto;
 
 import java.util.List;
 import java.util.Map;
@@ -45,10 +46,8 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 201 (Created).
      */
     @PostMapping
-    public ResponseEntity<ApiResponse> createTask(@Valid @RequestBody TaskCreationDto taskCreationDto) {
-        service.addTask(taskCreationDto);
-        logger.info("Task Added Successfully");
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Task Created Successfully"));
+    public ResponseEntity<TaskSimpleDto> createTask(@Valid @RequestBody TaskCreationDto taskCreationDto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.addTask(taskCreationDto));
     }
 
     /**
@@ -86,9 +85,8 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("{id}")
-    public ResponseEntity<ApiResponse> partialUpdateATask(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
-        service.partialUpdateATask(updates, id);
-        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Task with id: " + id + " updated"));
+    public ResponseEntity<TaskSimpleDto> partialUpdateATask(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
+        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateATask(updates, id));
     }
 
     /**
