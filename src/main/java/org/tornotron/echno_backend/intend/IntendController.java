@@ -24,7 +24,7 @@ public class IntendController {
 
     @PostMapping
     public ResponseEntity<IntendDto> createIntend(@Valid @RequestBody IntendCreationDto intendCreationDto) {
-        return new ResponseEntity<>(intendService.createIntend(intendCreationDto), HttpStatus.CREATED);
+        return new ResponseEntity<>(intendService.addIntend(intendCreationDto), HttpStatus.CREATED);
     }
 
     @GetMapping("/all")
