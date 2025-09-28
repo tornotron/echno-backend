@@ -1,15 +1,13 @@
 package org.tornotron.echno_backend.issue.dto;
 
 import lombok.Data;
-import org.tornotron.echno_backend.IssueComment.dto.IssueCommentDto;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
-public class IssueDto {
+public class IssueSimpleDto {
     private Long id;
     private String title;
     private String description;
@@ -18,5 +16,5 @@ public class IssueDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String creator;
-    private List<IssueCommentDto> issueComments;
+
 }
