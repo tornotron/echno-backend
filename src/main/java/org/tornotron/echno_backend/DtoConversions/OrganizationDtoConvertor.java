@@ -37,6 +37,7 @@ public class OrganizationDtoConvertor {
         taskDto.setEndDate(task.getEndDate());
         taskDto.setCreator(EmployeeDtoConvertor.convertEmployeeToDto(task.getCreator()));
         taskDto.setProjectId(task.getProject().getId());
+        taskDto.setProgress(task.getProgress());
         taskDto.setAssignees(task.getAssignees().stream()
                 .map(EmployeeDtoConvertor::convertEmployeeToDto)
                 .collect(Collectors.toSet()));
@@ -45,6 +46,9 @@ public class OrganizationDtoConvertor {
         taskDto.setCreatedAt(task.getCreatedAt());
         taskDto.setUpdatedAt(task.getUpdatedAt());
         taskDto.setStatus(task.getStatus());
+        taskDto.setIssues(task.getIssues().stream()
+                .map(IssueDtoConvertor::convertIssueToDto)
+                .collect(Collectors.toList()));
         return taskDto;
     }
 

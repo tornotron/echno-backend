@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
  * {@link OrganizationDtoConvertor} to map entities to DTOs.
  */
 @Service
-@Transactional
 public class OrganizationService {
 
     private final OrganizationRepository repository;
@@ -46,6 +45,7 @@ public class OrganizationService {
      * @param organizationCreationDto A DTO containing the details for the new organization.
      * @return An {@link OrganizationSimpleDto} representing the newly created organization.
      */
+    @Transactional
     public OrganizationSimpleDto addOrganization(OrganizationCreationDto organizationCreationDto) {
         Organization organization = new Organization();
         organization.setOrganizationName(organizationCreationDto.getOrganizationName());
@@ -112,6 +112,7 @@ public class OrganizationService {
      * @return An {@link OrganizationSimpleDto} representing the updated organization.
      * @throws ResourceNotFoundException if no organization with the given ID is found.
      */
+    @Transactional
     public OrganizationSimpleDto partialUpdateAnOrganization(Map<String, Object> updates, Long id) {
        Organization organization = repository.findById(id)
                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+id));
@@ -145,6 +146,7 @@ public class OrganizationService {
      * @param updates A list of {@link OrganizationPatchDto} objects, each containing the ID of the
      *                organization to update and a map of the updates to apply.
      */
+    @Transactional
     public void batchUpdateOrganization(List<OrganizationPatchDto> updates) {
         updates.forEach(update -> partialUpdateAnOrganization(update.getUpdates(),update.getId()));
     }
@@ -154,6 +156,7 @@ public class OrganizationService {
      * @param id The ID of the organization to delete.
      * @throws ResourceNotFoundException if no organization with the given ID is found.
      */
+    @Transactional
     public void deleteAnOrganization(Long id) {
         if(!repository.existsById(id)) {
             throw new ResourceNotFoundException("Organization not found with id: "+id);
