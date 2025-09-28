@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.task.dto.TaskCreationDto;
 import org.tornotron.echno_backend.task.dto.TaskDto;
 import org.tornotron.echno_backend.task.dto.TaskPatchDto;
+import org.tornotron.echno_backend.task.dto.TaskSimpleDto;
 import org.tornotron.echno_backend.task.enums.TaskStatus;
 
 import java.time.LocalDateTime;
@@ -29,7 +30,6 @@ import java.util.stream.Collectors;
  * Handles business logic related to task creation, retrieval, updates, and deletion.
  */
 @Service
-@Transactional
 public class TaskService {
 
     private final TaskRepository taskRepository;
@@ -67,7 +67,8 @@ public class TaskService {
      *                                 or if assigned employees do not belong to the project's organization.
      * @throws DatabaseOperationException if there is an error saving the task.
      */
-    public void addTask(TaskCreationDto taskCreationDto) {
+    @Transactional
+    public TaskSimpleDto addTask(TaskCreationDto taskCreationDto) {
         Task task = new Task();
         task.setTitle(taskCreationDto.getTitle());
         task.setStartDate(taskCreationDto.getStartDate());
@@ -130,6 +131,7 @@ public class TaskService {
         } catch (Exception e) {
             throw new DatabaseOperationException("Error while adding task: " + e.getMessage());
         }
+        return TaskDtoConvertor.convertTaskToSimpleDto(task);
     }
 
     /**
@@ -184,8 +186,8 @@ public class TaskService {
      * @param id      The ID of the task to update.
      * @throws ResourceNotFoundException if no task with the given ID is found.
      */
-    @Transactional(readOnly = true)
-    public void partialUpdateATask(Map<String,Object> updates,Long id) {
+    @Transactional
+    public TaskSimpleDto partialUpdateATask(Map<String,Object> updates,Long id) {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
 
@@ -195,16 +197,21 @@ public class TaskService {
                     task.setTitle((String) value);
                     break;
                 case "endDate":
-                    task.setEndDate((LocalDateTime) value);
+                    task.setEndDate(value != null ? LocalDateTime.parse(value.toString()) : null);
                     break;
                 case "progress":
-                    task.setProgress((Double) value);
+                    if (value == null) {
+                        task.setProgress(null);
+                    } else if (value instanceof Number) {
+                        task.setProgress(((Number) value).doubleValue());
+                    }
                     break;
                 case "status":
                     task.setStatus(TaskStatus.valueOf((String) value));
                     break;
             }
         });
+       return TaskDtoConvertor.convertTaskToSimpleDto(taskRepository.save(task));
     }
 
     /**
@@ -212,6 +219,7 @@ public class TaskService {
      *
      * @param updates A list of DTOs containing the updates for each task.
      */
+    @Transactional
     public void batchUpdateTasks(List<TaskPatchDto> updates) {
         updates.forEach(update ->
                 partialUpdateATask(update.getUpdates(), update.getId()));
@@ -223,6 +231,7 @@ public class TaskService {
      * @param id The ID of the task to delete.
      * @throws ResourceNotFoundException if no task with the given ID is found.
      */
+    @Transactional
     public void deleteATask(Long id) {
         if(!taskRepository.existsById(id)) {
             throw new ResourceNotFoundException("Task not found with id: " + id);
