@@ -27,7 +27,6 @@ import java.util.Map;
  * for employees to join an organization.
  */
 @Service
-@Transactional
 public class ProjectInviteCodeService {
 
     private final ProjectInviteCodeRepository inviteCodeRepository;
@@ -66,6 +65,7 @@ public class ProjectInviteCodeService {
      * @throws ResourceNotFoundException if the organization is not found.
      * @throws DatabaseOperationException if the invite code cannot be saved.
      */
+    @Transactional
     public ProjectInviteCodeDto generateInviteCode(InviteCodeGenerationDto inviteCodeGenerationDto) {
         Organization organization = organizationRepository.findOrganizationByOrganizationName(inviteCodeGenerationDto.getOrganizationName())
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with name: " + inviteCodeGenerationDto.getOrganizationName()));
@@ -101,6 +101,7 @@ public class ProjectInviteCodeService {
      * @throws ResourceNotFoundException if the invite code is not found.
      * @throws InvalidInviteCodeException if the code is expired, inactive, or has reached its usage limit.
      */
+    @Transactional
     public OrganizationDto validateAndUseInviteCode(InviteCodeValidationDto inviteCodeValidationDto) {
         ProjectInviteCode inviteCode = inviteCodeRepository.findByCode(Integer.parseInt(inviteCodeValidationDto.getCode()))
                 .orElseThrow(() -> new ResourceNotFoundException("Invite code not found: " + inviteCodeValidationDto.getCode()));
