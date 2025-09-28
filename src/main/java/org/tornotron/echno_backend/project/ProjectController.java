@@ -114,4 +114,16 @@ public class ProjectController {
         service.deleteAProject(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Project with id: "+id+" has been deleted"));
     }
+
+    /**
+     * Retrieves the organization ID for a given project ID.
+     *
+     * @param id The ID of the project.
+     * @return A {@link ResponseEntity} containing the organization ID and HTTP status 200 (OK).
+     */
+    @GetMapping("{id}/organization")
+    public ResponseEntity<Long> getOrganizationIdByProjectId(@PathVariable Long id) {
+        Long organizationId = service.getOrganizationIdByProjectId(id);
+        return new ResponseEntity<>(organizationId, HttpStatus.OK);
+    }
 }
