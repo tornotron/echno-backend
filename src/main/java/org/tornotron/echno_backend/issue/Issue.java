@@ -8,6 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.IssueComment.IssueComment;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
+import org.tornotron.echno_backend.task.Task;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -48,4 +49,7 @@ public class Issue {
     @OneToMany(mappedBy = "issue")
     @Column(nullable = true)
     private List<IssueComment> issueComments;
+
+    @ManyToOne
+    private Task task;
 }
