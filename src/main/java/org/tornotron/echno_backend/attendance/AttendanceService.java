@@ -13,7 +13,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 @Service
-@Transactional
 public class AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
@@ -26,6 +25,7 @@ public class AttendanceService {
         this.sequenceValidator = sequenceValidator;
     }
 
+    @Transactional
     public void recordAttendance(AttendanceCreationDto attendanceCreationDto) {
         Optional<Employee> employee = employeeRepository.findEmployeeByEmployeeName(attendanceCreationDto.getEmployeeName());
         if(employee.isEmpty()) {

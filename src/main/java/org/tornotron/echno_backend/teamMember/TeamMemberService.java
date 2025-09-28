@@ -18,7 +18,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
 public class TeamMemberService {
 
   private final TeamMemberRepository repository;
@@ -30,6 +29,7 @@ public class TeamMemberService {
     this.projectRepository = projectRepository;
   }
 
+  @Transactional
   public void addTeamMember(TeamMemberCreationDTO teamMemberCreationDTO) {
     Project project = projectRepository.findProjectByProjectName(teamMemberCreationDTO.getProjectName());
     TeamMember teamMember = new TeamMember();
@@ -65,6 +65,7 @@ public class TeamMemberService {
     }
   }
 
+  @Transactional
   public void partialUpdateATeamMember(Map<String, Object> updates, Long id) {
     TeamMember teamMember = repository.findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("TeamMember not found with id: " + id));
@@ -82,10 +83,12 @@ public class TeamMemberService {
     repository.save(teamMember);
   }
 
+  @Transactional
   public void batchUpdateTeamMembers(List<TeamMemberPatchDto> updates) {
     updates.forEach(update -> partialUpdateATeamMember(update.getUpdates(), update.getId()));
   }
 
+  @Transactional
   public void deleteATeamMember(Long id) {
     if (!repository.existsById(id)) {
       throw new ResourceNotFoundException("TeamMember not found with id: " + id);
