@@ -8,10 +8,15 @@ import lombok.Data;
 
 @Data
 public class IssueCommentCreationDto {
-    @NotBlank
+
+    @NotBlank(message = "comment is required")
     @Size(max = 500, message = "Comment must not exceed 500 characters")
     private String comment;
 
     @NotNull
     private Long issueId;
+
+    @NotBlank(message = "author is required")
+    @Size(max = 100, message = "Author name must not exceed 100 characters")
+    private String author;
 }

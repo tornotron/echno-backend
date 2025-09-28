@@ -18,6 +18,9 @@ public class IssueComment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "author",nullable = false)
+    private String author;
+
     @ManyToOne
     private Issue issue;
 
