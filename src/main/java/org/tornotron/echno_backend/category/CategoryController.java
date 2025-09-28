@@ -10,6 +10,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.category.dto.CategoryCreationDto;
 import org.tornotron.echno_backend.category.dto.CategoryDto;
+import org.tornotron.echno_backend.category.dto.CategorySimpleDto;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 
 import java.util.List;
@@ -43,11 +44,10 @@ public class CategoryController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 201 (Created).
      */
     @PostMapping
-    public ResponseEntity<ApiResponse> createCategory(@Valid @RequestBody CategoryCreationDto categoryCreationDto) {
-        categoryService.addCategory(categoryCreationDto);
+    public ResponseEntity<CategorySimpleDto> createCategory(@Valid @RequestBody CategoryCreationDto categoryCreationDto) {
         logger.info("Category Added Successfully");
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse("Category Created Successfully"));
+                .body(categoryService.addCategory(categoryCreationDto));
     }
 
     /**
