@@ -1,15 +1,17 @@
 package org.tornotron.echno_backend.IssueComment;
 
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.IssueComment.dto.IssueCommentCreationDto;
+import org.tornotron.echno_backend.IssueComment.dto.IssueCommentDto;
+import org.tornotron.echno_backend.IssueComment.dto.IssueCommentSimpleDto;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/issues/comments")
@@ -23,9 +25,21 @@ public class IssueCommentController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse> createIssueComment(@Valid @RequestBody IssueCommentCreationDto issueCommentCreationDto) {
-        issueCommentService.addIssueComment(issueCommentCreationDto);
+    public ResponseEntity<IssueCommentSimpleDto> createIssueComment(@Valid @RequestBody IssueCommentCreationDto issueCommentCreationDto) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse("Issue Comment Created Successfully"));
+                .body(issueCommentService.addIssueComment(issueCommentCreationDto));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<IssueCommentDto>> readAllIssueComments(@RequestParam(defaultValue = "0") int pageNo,
+                                                                      @RequestParam(defaultValue = "10") int pageSize) {
+        Page<IssueCommentDto> issueComments = issueCommentService.getAllIssueComments(pageNo,pageSize);
+        return ResponseEntity.status(HttpStatus.OK).body(issueComments.getContent());
+    }
+
+    @DeleteMapping("{id}")
+    public ResponseEntity<ApiResponse> deleteAnIssueComment(@PathVariable Long id) {
+        issueCommentService.deleteAnIssueComment(id);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("IssueComment with id: "+id+" deleted successfully with"));
     }
 }
