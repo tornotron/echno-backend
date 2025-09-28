@@ -45,6 +45,7 @@ public class UserService {
      * @param userCreationDto DTO containing the details for the new user.
      * @return The DTO of the newly created user.
      */
+    @Transactional
     public UserDto addUser(UserCreationDto userCreationDto) {
         User user = new User();
         user.setName(userCreationDto.getName());
@@ -115,6 +116,7 @@ public class UserService {
      * @return The DTO of the updated user.
      * @throws ResourceNotFoundException if no user with the given ID is found.
      */
+    @Transactional
     public UserDto partialUpdateAnUser(Map<String, Object> updates, Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
@@ -169,6 +171,7 @@ public class UserService {
      *
      * @param updates A list of DTOs containing the updates for each user.
      */
+    @Transactional
     public void batchUpdateUser(List<UserPatchDto> updates) {
         updates.forEach(update -> partialUpdateAnUser(update.getUpdates(), update.getId()));
     }
@@ -179,6 +182,7 @@ public class UserService {
      * @param id The ID of the user to delete.
      * @throws ResourceNotFoundException if no user with the given ID is found.
      */
+    @Transactional
     public void deleteAnUser(Long id) {
         if(!userRepository.existsById(id)) {
             throw new ResourceNotFoundException("User not found with id: " + id);

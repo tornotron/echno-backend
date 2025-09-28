@@ -27,7 +27,6 @@ import java.util.stream.Collectors;
  * as well as joining organizations.
  */
 @Service
-@Transactional
 @Validated
 public class EmployeeService {
 
@@ -78,6 +77,7 @@ public class EmployeeService {
      * @throws ResourceNotFoundException if the user or organization is not found.
      * @throws IllegalStateException     if the user is already an employee of the organization.
      */
+    @Transactional
     public EmployeeDto joinOrganization(Long userId, Long orgId,@Valid EmployeeJoinOrgDto employeeJoinOrgDto) {
 
         User user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
@@ -118,6 +118,7 @@ public class EmployeeService {
      * @return The DTO of the newly created employee.
      * @throws ResourceNotFoundException if the organization specified in the DTO does not exist.
      */
+    @Transactional
     public EmployeeDto addEmployee(EmployeeCreationDto employeeCreationDto) {
         Employee employee = new Employee();
         Organization organization = organizationRepository.findOrganizationByOrganizationName(employeeCreationDto.getOrganizationName())
@@ -158,12 +159,26 @@ public class EmployeeService {
     }
 
     /**
+     * Retrieves all employees for a given organization.
+     *
+     * @param organizationId The ID of the organization.
+     * @return A list of employee DTOs belonging to the specified organization.
+     */
+    @Transactional(readOnly = true)
+    public List<EmployeeDto> displayEmployeesByOrganization(Long organizationId) {
+        return employeeRepository.findEmployeesByOrganization_Id(organizationId).stream()
+                .map(EmployeeDtoConvertor::convertEmployeeToDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Partially updates an existing employee.
      *
      * @param updates A map of fields to update.
      * @param id      The ID of the employee to update.
      * @throws ResourceNotFoundException if no employee with the given ID is found.
      */
+    @Transactional
     public void partialUpdateAnEmployee(Map<String,Object> updates, Long id) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: "+id));
@@ -192,6 +207,7 @@ public class EmployeeService {
      *
      * @param updates A list of DTOs containing the updates for each employee.
      */
+    @Transactional
     public void batchUpdateEmployees(List<EmployeePatchDto> updates) {
         updates.forEach(update -> {
             partialUpdateAnEmployee(update.getUpdates(), update.getId());
@@ -204,6 +220,7 @@ public class EmployeeService {
      * @param id The ID of the employee to delete.
      * @throws ResourceNotFoundException if no employee with the given ID is found.
      */
+    @Transactional
     public void deleteAnEmployee(Long id) {
         if (!employeeRepository.existsById(id)) {
             throw new ResourceNotFoundException("Employee not found with id: " + id);

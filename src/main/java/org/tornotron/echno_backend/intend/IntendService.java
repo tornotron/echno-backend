@@ -5,6 +5,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.IntendDtoConvertor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.intend.dto.IntendCreationDto;
@@ -27,7 +28,8 @@ public class IntendService {
     }
 
 
-    public IntendDto createIntend(IntendCreationDto intendCreationDto) {
+    @Transactional
+    public IntendDto addIntend(IntendCreationDto intendCreationDto) {
         Intend intend = new Intend();
         User user = userRepository.findUserByName(intendCreationDto.getCreatedBy())
                         .orElseThrow(() -> new ResourceNotFoundException("User not found with name: " + intendCreationDto.getCreatedBy()));
@@ -40,6 +42,7 @@ public class IntendService {
     }
 
 
+    @Transactional(readOnly = true)
     public Page<IntendDto> getAllIntends(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return intendRepository.findAll(pageable)
@@ -47,12 +50,14 @@ public class IntendService {
     }
 
 
+    @Transactional(readOnly = true)
     public List<IntendDto> getAllIntends() {
         return intendRepository.findAll().stream()
                 .map(IntendDtoConvertor::convertIntendToDto)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public IntendDto getAnIntend(Long id) {
         return intendRepository.findById(id)
                 .map(IntendDtoConvertor::convertIntendToDto)
