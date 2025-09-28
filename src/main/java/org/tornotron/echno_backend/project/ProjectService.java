@@ -25,7 +25,6 @@ import java.util.Map;
  * Handles business logic related to project creation, retrieval, updates, and deletion.
  */
 @Service
-@Transactional
 public class ProjectService {
     private final ProjectRepository repository;
     private final OrganizationRepository organizationRepository;
@@ -48,6 +47,7 @@ public class ProjectService {
      * @return A simple DTO of the newly created project.
      * @throws ResourceNotFoundException if the organization specified in the DTO does not exist.
      */
+    @Transactional
     public ProjectSimpleDto addProject(ProjectCreationDto projectDto) {
             Organization organization = organizationRepository.findById(projectDto.getOrganizationId())
                     .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + projectDto.getOrganizationId()));
@@ -105,6 +105,7 @@ public class ProjectService {
      * @param id      The ID of the project to update.
      * @throws ResourceNotFoundException if no project with the given ID is found.
      */
+    @Transactional
     public void partialUpdateAProject(Map<String,Object> updates,Long id) {
         Project project = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: "+id));
@@ -130,6 +131,7 @@ public class ProjectService {
      *
      * @param updates A list of DTOs containing the updates for each project.
      */
+    @Transactional
     public void batchUpdateProjects(List<ProjectPatchDto> updates) {
         updates.forEach(update ->
                 partialUpdateAProject(update.getUpdates(), update.getId()));
@@ -146,5 +148,19 @@ public class ProjectService {
             throw new ResourceNotFoundException("Project not found with id: "+id);
         }
         repository.deleteById(id);
+    }
+
+    /**
+     * Retrieves the organization ID for a given project ID.
+     *
+     * @param projectId The ID of the project.
+     * @return The ID of the organization to which the project belongs.
+     * @throws ResourceNotFoundException if no project with the given ID is found.
+     */
+    @Transactional(readOnly = true)
+    public Long getOrganizationIdByProjectId(Long projectId) {
+        Project project = repository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+        return project.getOrganization().getId();
     }
 }
