@@ -45,6 +45,7 @@
 
     <!-- Specific Logger Configurations -->
     <logger name="org.tornotron.echno_backend" level="DEBUG"/>
+    <logger name="com.giffing.bucket4j.spring.boot.starter" level="DEBUG"/>
 
     <!-- Reduce noise from specific packages -->
     <logger name="org.hibernate.SQL" level="DEBUG"/>
