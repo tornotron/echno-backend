@@ -29,7 +29,7 @@ public class Organization {
     private Long id;
 
     /** The name of the organization. It must be unique. */
-    @Column(name = "organization_name", unique = true,nullable = false)
+    @Column(name = "organization_name", nullable = false)
     private String organizationName;
 
     /** The physical address of the organization. */
