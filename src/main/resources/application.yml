@@ -17,7 +17,29 @@ management:
       export:
         enabled: true
 
+bucket4j:
+  enabled: true
+  filters:
+    - cache-name: rate-limit-buckets
+      url: ^/api/.*
+      http-status-code: TOO_MANY_REQUESTS
+      http-response-body: "{ \"error\": \"Rate limit exceeded. Try again later.\" }"
+      http-response-headers:
+        X-Rate-Limit-Remaining: "#{getAvailableTokens()}"
+      rate-limits:
+        - cache-key: "getRemoteAddr()"
+          bandwidths:
+            - capacity: 20
+              time: 1
+              unit: minutes
+              refill-speed: interval
+
 spring:
+  cache:
+    cache-names:
+      - rate-limit-buckets
+    caffeine:
+      spec: maximumSize=100000,expireAfterAccess=3600s
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
