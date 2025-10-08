@@ -32,6 +32,9 @@ public class User {
     @Column(name = "id", nullable = false)
     private Long id;
 
+    @Column(nullable = false, unique = true)
+    private String keycloakId;
+
     /** The full name of the user. */
     @Column(name = "name", nullable = false)
     private String name;
