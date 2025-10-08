@@ -1,0 +1,164 @@
+package org.tornotron.echno_backend.common.configuration;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.core.Response;
+import lombok.extern.slf4j.Slf4j;
+import org.keycloak.admin.client.CreatedResponseUtil;
+import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.resource.UserResource;
+import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.RealmRepresentation;
+import org.keycloak.representations.idm.RoleRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.user.dto.UserKeycloakDto;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+@Slf4j
+@Service
+public class KeycloakInitializer implements InitializingBean {
+
+    private final Keycloak keycloak;
+
+    private final KeycloakInitializerConfigurationProperties keycloakInitializerConfigurationProperties;
+
+    private final ObjectMapper mapper;
+
+    private static String REALM_ID;
+
+    private static final String INIT_KEYCLOAK_PATH = "initializer/init-keycloak.json";
+
+    private static final String INIT_KEYCLOAK_USERS_PATH = "initializer/init-keycloak-users.json";
+
+    public KeycloakInitializer(Keycloak keycloak,
+                               KeycloakInitializerConfigurationProperties keycloakInitializerConfigurationProperties,
+                               ObjectMapper objectMapper) {
+        this.keycloak = keycloak;
+        this.keycloakInitializerConfigurationProperties = keycloakInitializerConfigurationProperties;
+        this.mapper = objectMapper;
+    }
+
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+
+        REALM_ID = keycloakInitializerConfigurationProperties.getApplicationRealm();
+
+        if (keycloakInitializerConfigurationProperties.isInitializeOnStartup()) {
+            init(false);
+        }
+
+    }
+
+    public void init(boolean overwrite) {
+
+        log.info("Initializer start");
+
+        boolean isAlreadyInitialized;
+        try {
+            keycloak.realm(REALM_ID).toRepresentation();
+            isAlreadyInitialized = true;
+        } catch (NotFoundException e) {
+            isAlreadyInitialized = false;
+        }
+
+        if(isAlreadyInitialized && overwrite) {
+            reset();
+        }
+
+        if (!isAlreadyInitialized || overwrite) {
+
+            initKeycloak();
+
+            log.info("Keycloak initialized successfully");
+        } else {
+
+            log.warn("Keycloak initialization cancelled: realm already exists");
+
+        }
+    }
+
+    private void initKeycloak() {
+
+        initKeycloakRealm();
+        initKeycloakUsers();
+
+    }
+
+
+    private void initKeycloakRealm() {
+        Resource resource = new ClassPathResource(INIT_KEYCLOAK_PATH);
+
+        try {
+            RealmRepresentation realmRepresentationToImport =
+                    mapper.readValue(resource.getFile(), RealmRepresentation.class);
+            
+            realmRepresentationToImport.setRealm(REALM_ID);
+            realmRepresentationToImport.setId(REALM_ID);
+
+            keycloak.realms().create(realmRepresentationToImport);
+        } catch (IOException e) {
+            String errorMessage = String.format("Failed to import keycloak realm representation : %s", e.getMessage());
+            log.error(errorMessage);
+            throw new RuntimeException(errorMessage, e);
+        }
+    }
+
+    private void initKeycloakUsers() {
+        List<UserKeycloakDto> users = null;
+        try {
+            Resource resource = new ClassPathResource(INIT_KEYCLOAK_USERS_PATH);
+            users = mapper.readValue(
+                    resource.getFile(),
+                    mapper.getTypeFactory().constructCollectionType(ArrayList.class, UserKeycloakDto.class)
+            );
+        } catch (IOException e) {
+            String errorMessage = String.format("Failed to read Keycloak users: %s", e.getMessage());
+            log.error(errorMessage);
+            throw new RuntimeException(errorMessage,e);
+        }
+        if (users != null) {
+            users.forEach(this::initKeycloakUser);
+        }
+    }
+
+    private void initKeycloakUser(UserKeycloakDto user) {
+        UserRepresentation userRepresentation = new UserRepresentation();
+        userRepresentation.setEmail(user.getEmailId());
+        userRepresentation.setUsername(user.getUserName());
+        userRepresentation.setEnabled(true);
+        userRepresentation.setEmailVerified(true);
+        CredentialRepresentation userCredentialRepresentation = new CredentialRepresentation();
+        userCredentialRepresentation.setType(CredentialRepresentation.PASSWORD);
+        userCredentialRepresentation.setTemporary(false);
+        userCredentialRepresentation.setValue(user.getPassword());
+        userRepresentation.setCredentials(List.of(userCredentialRepresentation));
+        keycloak.realm(REALM_ID).users().create(userRepresentation);
+
+        if(user.isAdmin()) {
+            userRepresentation = keycloak.realm(REALM_ID).users().search(user.getUserName()).getFirst();
+            UserResource userResource =
+                    keycloak.realm(REALM_ID).users().get(userRepresentation.getId());
+            List<RoleRepresentation> rolesToAdd =
+                    Collections.singletonList(keycloak.realm(REALM_ID).roles().get("admin").toRepresentation());
+            userResource.roles().realmLevel().add(rolesToAdd);
+        }
+    }
+
+    public void reset() {
+        try {
+         keycloak.realm(REALM_ID).remove();
+        } catch (NotFoundException e) {
+            log.error("Failed to reset Keycloak", e);
+        }
+    }
+}
