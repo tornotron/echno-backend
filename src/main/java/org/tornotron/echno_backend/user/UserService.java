@@ -102,10 +102,10 @@ public class UserService {
      * @throws ResourceNotFoundException if no user with the given ID is found.
      */
     @Transactional(readOnly = true)
-    public UserDto getAnUser(Long id) {
-        return userRepository.findById(id)
+    public UserDto getAnUser(String sub) {
+        return userRepository.findUserByKeycloakId(sub)
                 .map(UserDtoConvertor::convertUserToDto)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("No user found for the provided subject identifier"));
     }
 
     /**
