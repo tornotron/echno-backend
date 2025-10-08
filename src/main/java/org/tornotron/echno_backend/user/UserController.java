@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
@@ -53,7 +54,7 @@ public class UserController {
      * @param pageSize The number of users per page (default is 10).
      * @return A {@link ResponseEntity} containing the list of user DTOs and HTTP status 200 (OK).
      */
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<List<UserDto>> readAllUsers(@RequestParam(defaultValue = "0") int pageNo,
                                                       @RequestParam(defaultValue = "10") int pageSize) {
         Page<UserDto> users = userService.getAllUsers(pageNo,pageSize);
@@ -77,9 +78,9 @@ public class UserController {
      * @param id The ID of the user to retrieve.
      * @return A {@link ResponseEntity} containing the user DTO and HTTP status 200 (OK).
      */
-    @GetMapping("{id}")
-    public ResponseEntity<UserDto> readAnUser(@PathVariable Long id) {
-        return ResponseEntity.status(HttpStatus.OK).body(userService.getAnUser(id));
+    @GetMapping
+    public ResponseEntity<UserDto> readAnUser(JwtAuthenticationToken authenticationToken) {
+        return ResponseEntity.status(HttpStatus.OK).body(userService.getAnUser(authenticationToken.getToken().getClaimAsString("sub")));
     }
 
     /**

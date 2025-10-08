@@ -32,4 +32,6 @@ public interface UserRepository extends JpaRepository<User,Long> {
      * @return An {@link Optional} containing the found {@link User}, or {@link Optional#empty()} if no user with the given name exists.
      */
     Optional<User> findUserByName(@NotBlank(message = "name is required") @Size(min = 3,max = 50,message = "name must be between 3 and 50 characters") String name);
+
+    Optional<User> findUserByKeycloakId(String keycloakId);
 }
