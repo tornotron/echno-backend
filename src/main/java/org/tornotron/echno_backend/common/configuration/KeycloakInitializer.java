@@ -135,6 +135,8 @@ public class KeycloakInitializer implements InitializingBean {
         UserRepresentation userRepresentation = new UserRepresentation();
         userRepresentation.setEmail(user.getEmailId());
         userRepresentation.setUsername(user.getUserName());
+        userRepresentation.setFirstName(user.getFirstName());
+        userRepresentation.setLastName(user.getLastName());
         userRepresentation.setEnabled(true);
         userRepresentation.setEmailVerified(true);
         CredentialRepresentation userCredentialRepresentation = new CredentialRepresentation();
@@ -142,15 +144,33 @@ public class KeycloakInitializer implements InitializingBean {
         userCredentialRepresentation.setTemporary(false);
         userCredentialRepresentation.setValue(user.getPassword());
         userRepresentation.setCredentials(List.of(userCredentialRepresentation));
-        keycloak.realm(REALM_ID).users().create(userRepresentation);
 
-        if(user.isAdmin()) {
-            userRepresentation = keycloak.realm(REALM_ID).users().search(user.getUserName()).getFirst();
-            UserResource userResource =
-                    keycloak.realm(REALM_ID).users().get(userRepresentation.getId());
-            List<RoleRepresentation> rolesToAdd =
-                    Collections.singletonList(keycloak.realm(REALM_ID).roles().get("admin").toRepresentation());
-            userResource.roles().realmLevel().add(rolesToAdd);
+        try (Response response = keycloak.realm(REALM_ID).users().create(userRepresentation)) {
+            String userId = null;
+            if (response.getStatus() == 201) { // CREATED
+                userId = CreatedResponseUtil.getCreatedId(response);
+                log.info("User '{}' created with id {}", user.getUserName(), userId);
+            } else if (response.getStatus() == 409) { // CONFLICT
+                log.warn("User '{}' already exists. Fetching to assign roles if needed.", user.getUserName());
+                List<UserRepresentation> users = keycloak.realm(REALM_ID).users().search(user.getUserName());
+                if (!users.isEmpty()) {
+                    userId = users.get(0).getId();
+                } else {
+                    log.error("User '{}' exists but could not be found by username for role assignment.", user.getUserName());
+                    return;
+                }
+            } else {
+                log.error("Failed to create user '{}'. Status: {}. Reason: {}", user.getUserName(), response.getStatus(), response.getStatusInfo().getReasonPhrase());
+                return;
+            }
+
+            if (user.isAdmin() && userId != null) {
+                UserResource userResource = keycloak.realm(REALM_ID).users().get(userId);
+                List<RoleRepresentation> rolesToAdd =
+                        Collections.singletonList(keycloak.realm(REALM_ID).roles().get("admin").toRepresentation());
+                userResource.roles().realmLevel().add(rolesToAdd);
+                log.info("Admin role assigned to user '{}'", user.getUserName());
+            }
         }
     }
 
