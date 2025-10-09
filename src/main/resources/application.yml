@@ -12,10 +12,25 @@ management:
     web:
       exposure:
         include: prometheus,health,info
+  metrics:
+    enabled:
+        spring.batch: false
   prometheus:
     metrics:
       export:
         enabled: true
+
+
+
+keycloak-initializer:
+  initialize-on-startup: true
+  master-realm: ${KEYCLOAK_INITIALIZER_MASTER_REALM}
+  application-realm: ${KEYCLOAK_INITIALIZER_APPLICATION_REALM}
+  client-id: ${KEYCLOAK_INITIALIZER_CLIENT_ID}
+  username: ${KEYCLOAK_INITIALIZER_USERNAME}
+  password: ${KEYCLOAK_INITIALIZER_PASSWORD}
+  url: ${KEYCLOAK_INITIALIZER_URL}
+
 
 bucket4j:
   enabled: true
