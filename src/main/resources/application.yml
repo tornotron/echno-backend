@@ -1,7 +1,7 @@
 jwt:
   auth:
     converter:
-      resource-id: echno-app
+      resource-id: echno-app-backend-client
       principle-attribute: preferred_username
 
 management:
@@ -12,9 +12,10 @@ management:
     web:
       exposure:
         include: prometheus,health,info
+
   metrics:
     enabled:
-        spring.batch: false
+      spring.batch: false
   prometheus:
     metrics:
       export:
@@ -55,31 +56,23 @@ spring:
       - rate-limit-buckets
     caffeine:
       spec: maximumSize=100000,expireAfterAccess=3600s
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: false
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
-    driver-class-name: org.postgresql.Driver
   thymeleaf:
     cache: false
   security:
     oauth2:
-      client:
-        registration:
-          keycloak:
-            client-id: ${KEYCLOAK_CLIENT_ID}
-            client-secret: ${KEYCLOAK_CLIENT_SECRET}
-            authorization-grant-type: authorization_code
-            redirect-uri: ${KEYCLOAK_REDIRECT_URI}
-            scope: openid,profile,email
-        provider:
-            keycloak:
-              issuer-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI}
-              jwk-set-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_JWK_SET_URI}
-#      resourceserver:
-#        jwt:
-#          issuer-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI}
-#          jwk-set-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_JWK_SET_URI}
+      resourceserver:
+        jwt:
+          issuer-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_JWK_SET_URI}
 
   jackson:
     date-format: yyyy-MM-dd
