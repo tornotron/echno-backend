@@ -20,6 +20,7 @@ import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.user.dto.UserCreationDto;
 import org.tornotron.echno_backend.user.dto.UserDto;
 import org.tornotron.echno_backend.user.dto.UserPatchDto;
+import org.tornotron.echno_backend.user.dto.UserRegistrationDto;
 import org.tornotron.echno_backend.user.enums.UserRole;
 
 import java.time.LocalDateTime;
@@ -106,6 +107,51 @@ public class UserService {
         user.setEmergencyContact(userCreationDto.getEmergencyContact());
         user.setRole(UserRole.valueOf(userCreationDto.getRole()));
         user.setProfilePictureUrl(userCreationDto.getProfilePictureUrl());
+        user.setKeycloakId(keycloakId);
+        return UserDtoConvertor.convertUserToDto(userRepository.save(user));
+    }
+
+    /**
+     * Registers a new user.
+     *
+     * @param userRegistrationDto DTO containing the details for the new user.
+     * @return The DTO of the newly created user.
+     */
+    @Transactional
+    public UserDto registerUser(UserRegistrationDto userRegistrationDto) {
+        UsersResource usersResource = keycloak.realm(realm).users();
+
+        String keycloakId;
+
+        UserRepresentation userRepresentation = new UserRepresentation();
+        userRepresentation.setUsername(userRegistrationDto.getName());
+        userRepresentation.setEmail(userRegistrationDto.getEmail());
+        userRepresentation.setEnabled(true);
+        userRepresentation.setEmailVerified(true);
+
+        try(Response response = usersResource.create(userRepresentation)) {
+            if(response.getStatus() != 201) {
+                throw new RuntimeException("Failed to create user, status: "+response.getStatus());
+            }
+            if(response.getStatus() == 409) {
+                throw new RuntimeException("Keycloak User already exists");
+            }
+            String location = response.getLocation().toString();
+            keycloakId = location.substring(location.lastIndexOf('/')+1);
+        }
+
+        CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
+        credentialRepresentation.setType(CredentialRepresentation.PASSWORD);
+        credentialRepresentation.setValue(userRegistrationDto.getPassword());
+        credentialRepresentation.setTemporary(false);
+
+        usersResource.get(keycloakId).resetPassword(credentialRepresentation);
+        // usersResource.get(keycloakId).sendVerifyEmail();
+
+        User user = new User();
+        user.setName(userRegistrationDto.getName());
+        user.setEmail(userRegistrationDto.getEmail());
+        user.setRole(UserRole.client);
         user.setKeycloakId(keycloakId);
         return UserDtoConvertor.convertUserToDto(userRepository.save(user));
     }
