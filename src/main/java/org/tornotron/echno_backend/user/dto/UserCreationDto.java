@@ -11,6 +11,13 @@ import java.util.List;
 @Data
 public class UserCreationDto {
 
+    @NotBlank(message = "userName is required")
+    @Size(min = 3,max = 50, message = "userName must be between 3 and 50 characters")
+    private String userName;
+
+    @NotBlank(message = "password is required")
+    private String password;
+
     @NotBlank(message = "name is required")
     @Size(min = 3, max = 50, message = "name must be between 3 and 50 characters")
     private String name;
