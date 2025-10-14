@@ -40,7 +40,7 @@ public class User {
     private String name;
 
     /** The gender of the user. */
-    @Column(name = "gender", nullable = false)
+    @Column(name = "gender")
     private String gender;
 
     /** The physical address of the user. */
@@ -52,40 +52,40 @@ public class User {
     private String bloodGroup;
 
     /** The email address of the user. Must be unique. */
-    @Column(name = "email", nullable = false, unique = true)
+    @Column(name = "email", unique = true)
     private String email;
 
     /** The phone number of the user. Must be unique. */
-    @Column(name = "phone", nullable = false, unique = true)
+    @Column(name = "phone", unique = true)
     private String phone;
 
     /** The date of birth of the user. */
-    @Column(name = "date_of_birth", nullable = false)
+    @Column(name = "date_of_birth")
     private LocalDateTime dateOfBirth;
 
     /** The educational qualification of the user. */
-    @Column(name = "qualification", nullable = false)
+    @Column(name = "qualification")
     private String qualification;
 
     /** A list of skills possessed by the user. */
-    @Column(name = "skills", nullable = true)
+    @Column(name = "skills")
     private List<String> skills;
 
     /** The user's years of professional experience. */
-    @Column(name = "experience", nullable = true)
+    @Column(name = "experience")
     private Integer experience;
 
     /** The URL to the user's curriculum vitae (CV). */
-    @Column(name = "cv_url", nullable = true)
+    @Column(name = "cv_url")
     private String cvUrl;
 
     /** The contact information for use in an emergency. */
-    @Column(name = "emergency_contact", nullable = true)
+    @Column(name = "emergency_contact")
     private String emergencyContact;
 
     /** The role of the user in the system. */
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false)
+    @Column(name = "role")
     private UserRole role;
 
     /** The URL to the user's profile picture. */
