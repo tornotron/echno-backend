@@ -1,5 +1,11 @@
 package org.tornotron.echno_backend.user;
 
+import jakarta.ws.rs.core.Response;
+import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.resource.UsersResource;
+import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -8,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.DtoConversions.UserDtoConvertor;
+import org.tornotron.echno_backend.common.configuration.KeycloakInitializer;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.user.dto.UserCreationDto;
@@ -28,14 +35,21 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final Keycloak keycloak;
+
+    @Value("${keycloak-initializer.application-realm}")
+    private String realm;
+
+
 
     /**
      * Constructs a UserService with the given UserRepository.
      *
      * @param userRepository The repository for user data access.
      */
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, Keycloak keycloak) {
         this.userRepository = userRepository;
+        this.keycloak = keycloak;
     }
 
 
@@ -47,6 +61,36 @@ public class UserService {
      */
     @Transactional
     public UserDto addUser(UserCreationDto userCreationDto) {
+
+        UsersResource usersResource = keycloak.realm(realm).users();
+
+        String keycloakId;
+
+        UserRepresentation userRepresentation = new UserRepresentation();
+        userRepresentation.setUsername(userCreationDto.getName());
+        userRepresentation.setEmail(userCreationDto.getEmail());
+        userRepresentation.setEnabled(true);
+
+        try(Response response = usersResource.create(userRepresentation)) {
+            if(response.getStatus() != 201) {
+                throw new RuntimeException("Failed to create user, status: "+response.getStatus());
+            }
+            if(response.getStatus() == 409) {
+                throw new RuntimeException("Keycloak User already exists");
+            }
+            String location = response.getLocation().toString();
+            keycloakId = location.substring(location.lastIndexOf('/')+1);
+        }
+
+        CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
+        credentialRepresentation.setType(CredentialRepresentation.PASSWORD);
+        credentialRepresentation.setValue(userCreationDto.getPassword());
+        credentialRepresentation.setTemporary(false);
+
+        usersResource.get(keycloakId).resetPassword(credentialRepresentation);
+
+
+
         User user = new User();
         user.setName(userCreationDto.getName());
         user.setGender(userCreationDto.getGender());
@@ -62,6 +106,7 @@ public class UserService {
         user.setEmergencyContact(userCreationDto.getEmergencyContact());
         user.setRole(UserRole.valueOf(userCreationDto.getRole()));
         user.setProfilePictureUrl(userCreationDto.getProfilePictureUrl());
+        user.setKeycloakId(keycloakId);
         return UserDtoConvertor.convertUserToDto(userRepository.save(user));
     }
 
@@ -97,7 +142,6 @@ public class UserService {
     /**
      * Retrieves a single user by their ID.
      *
-     * @param id The ID of the user to retrieve.
      * @return The user DTO.
      * @throws ResourceNotFoundException if no user with the given ID is found.
      */
