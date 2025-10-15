@@ -51,3 +51,9 @@ gradle-app.setting
 
 serviceAccountKey.json
 .env
+
+
+/src/main/resources/initializer/init-keycloak.json
+/src/main/resources/initializer/init-keycloak-users.json
+/src/main/resources/application-local.yml
+/logs/
