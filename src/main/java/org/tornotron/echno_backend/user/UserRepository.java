@@ -34,4 +34,6 @@ public interface UserRepository extends JpaRepository<User,Long> {
     Optional<User> findUserByName(@NotBlank(message = "name is required") @Size(min = 3,max = 50,message = "name must be between 3 and 50 characters") String name);
 
     Optional<User> findUserByKeycloakId(String keycloakId);
+
+    boolean existsUserByEmail(String email);
 }
