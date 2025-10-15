@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.user;
 
 import jakarta.ws.rs.core.Response;
 import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.admin.client.resource.UsersResource;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -15,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.DtoConversions.UserDtoConvertor;
 import org.tornotron.echno_backend.common.configuration.KeycloakInitializer;
+import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
+import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.user.dto.UserCreationDto;
@@ -129,12 +132,13 @@ public class UserService {
         userRepresentation.setEnabled(true);
         userRepresentation.setEmailVerified(true);
 
+        if (userRepository.existsUserByEmail(userRegistrationDto.getEmail()) || keycloakUserExists(userRegistrationDto.getEmail())) {
+            throw new DuplicateResourceException();
+        }
+
         try(Response response = usersResource.create(userRepresentation)) {
             if(response.getStatus() != 201) {
                 throw new RuntimeException("Failed to create user, status: "+response.getStatus());
-            }
-            if(response.getStatus() == 409) {
-                throw new RuntimeException("Keycloak User already exists");
             }
             String location = response.getLocation().toString();
             keycloakId = location.substring(location.lastIndexOf('/')+1);
@@ -278,6 +282,16 @@ public class UserService {
             throw new ResourceNotFoundException("User not found with id: " + id);
         } else {
             userRepository.deleteById(id);
+        }
+    }
+
+    private boolean keycloakUserExists(String email) {
+        try {
+            UsersResource usersResource = keycloak.realm(realm).users();
+            List<UserRepresentation> users = usersResource.search(email, true);
+            return !users.isEmpty();
+        } catch (Exception ex) {
+            throw new DatabaseOperationException("Keycloak database user check failed");
         }
     }
 
