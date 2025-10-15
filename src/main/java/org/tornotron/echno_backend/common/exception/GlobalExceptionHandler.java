@@ -67,6 +67,18 @@ public class GlobalExceptionHandler {
         logger.error("Data integrity violation: ", ex);
         return new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
+                "Database operation failed, Data Integrity violation",
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(DuplicateResourceException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleDuplicateResourceException(DuplicateResourceException ex, WebRequest request) {
+        logger.error("Duplicate resource: ", ex);
+        return new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
                 "Database operation failed, Data already exists",
                 request.getDescription(false),
                 LocalDateTime.now()
