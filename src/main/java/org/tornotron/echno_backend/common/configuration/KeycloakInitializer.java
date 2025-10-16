@@ -35,9 +35,9 @@ public class KeycloakInitializer implements InitializingBean {
 
     private static String REALM_ID;
 
-    private static final String INIT_KEYCLOAK_PATH = "initializer/init-keycloak.json";
+    private static final String INIT_KEYCLOAK_PATH = "config/init-keycloak.json";
 
-    private static final String INIT_KEYCLOAK_USERS_PATH = "initializer/init-keycloak-users.json";
+    private static final String INIT_KEYCLOAK_USERS_PATH = "config/init-keycloak-users.json";
 
     public KeycloakInitializer(Keycloak keycloak,
                                KeycloakInitializerConfigurationProperties keycloakInitializerConfigurationProperties,
