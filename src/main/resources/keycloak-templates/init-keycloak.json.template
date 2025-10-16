@@ -1,0 +1,30 @@
+{
+  "realm": "echno-realm",
+  "enabled": true,
+  "sslRequired": "external",
+  "displayName": "Echno Realm",
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "clients": [
+    {
+      "clientId": "${KEYCLOAK_CLIENT_ID}",
+      "publicClient": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "redirectUris": ["${KEYCLOAK_REDIRECT_URI}"],
+      "webOrigins": ["${KEYCLOAK_WEB_ORIGIN}"],
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true
+    }
+  ],
+  "roles": {
+    "realm": [
+      {"name": "user", "description": "Regular user role"},
+      {"name": "admin", "description": "Administrator with full access"}
+    ]
+  }
+}
