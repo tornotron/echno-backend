@@ -19,7 +19,6 @@ import org.tornotron.echno_backend.user.dto.UserKeycloakDto;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
