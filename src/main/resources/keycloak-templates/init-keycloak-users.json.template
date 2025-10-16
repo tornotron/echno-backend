@@ -1,0 +1,18 @@
+[
+  {
+    "userName": "${ADMIN_USERNAME}",
+    "emailId": "${ADMIN_EMAIL}",
+    "password": "${ADMIN_PASSWORD}",
+    "firstName": "${ADMIN_FIRST_NAME}",
+    "lastName": "${ADMIN_LAST_NAME}",
+    "isAdmin": true
+  },
+  {
+    "userName": "${SERVICE_USERNAME}",
+    "emailId": "${SERVICE_EMAIL}",
+    "password": "${SERVICE_PASSWORD}",
+    "firstName": "Service",
+    "lastName": "Account",
+    "isAdmin": false
+  }
+]
