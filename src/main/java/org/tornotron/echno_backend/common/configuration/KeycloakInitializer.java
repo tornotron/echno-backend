@@ -12,18 +12,23 @@ import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.user.dto.UserKeycloakDto;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 @Slf4j
 @Service
+@DependsOn("keycloakConfigGenerator")
 public class KeycloakInitializer implements InitializingBean {
 
     private final Keycloak keycloak;
@@ -34,9 +39,8 @@ public class KeycloakInitializer implements InitializingBean {
 
     private static String REALM_ID;
 
-    private static final String INIT_KEYCLOAK_PATH = "config/init-keycloak.json";
-
-    private static final String INIT_KEYCLOAK_USERS_PATH = "config/init-keycloak-users.json";
+    @Value("${keycloak.config.output-path}")
+    private String configOutput;
 
     public KeycloakInitializer(Keycloak keycloak,
                                KeycloakInitializerConfigurationProperties keycloakInitializerConfigurationProperties,
@@ -95,11 +99,15 @@ public class KeycloakInitializer implements InitializingBean {
 
 
     private void initKeycloakRealm() {
-        Resource resource = new ClassPathResource(INIT_KEYCLOAK_PATH);
-
         try {
+            Path configFile = Paths.get(configOutput,"init-keycloak.json");
+
+            if (!Files.exists(configFile)) {
+                throw new FileNotFoundException("Config file not found at: "+configFile);
+            }
+
             RealmRepresentation realmRepresentationToImport =
-                    mapper.readValue(resource.getFile(), RealmRepresentation.class);
+                    mapper.readValue(configFile.toFile(), RealmRepresentation.class);
             
             realmRepresentationToImport.setRealm(REALM_ID);
             realmRepresentationToImport.setId(REALM_ID);
@@ -115,9 +123,15 @@ public class KeycloakInitializer implements InitializingBean {
     private void initKeycloakUsers() {
         List<UserKeycloakDto> users = null;
         try {
-            Resource resource = new ClassPathResource(INIT_KEYCLOAK_USERS_PATH);
+            Path configFile = Paths.get(configOutput,"init-keycloak-users.json");
+
+            if(!Files.exists(configFile)) {
+                throw new FileNotFoundException("Config file not found at: "+configFile);
+            }
+
+
             users = mapper.readValue(
-                    resource.getFile(),
+                    configFile.toFile(),
                     mapper.getTypeFactory().constructCollectionType(ArrayList.class, UserKeycloakDto.class)
             );
         } catch (IOException e) {
