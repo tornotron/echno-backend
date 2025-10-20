@@ -127,7 +127,7 @@ public class UserService {
         String keycloakId;
 
         UserRepresentation userRepresentation = new UserRepresentation();
-        userRepresentation.setUsername(userRegistrationDto.getName());
+        userRepresentation.setUsername(userRegistrationDto.getUserName());
         userRepresentation.setEmail(userRegistrationDto.getEmail());
         userRepresentation.setEnabled(true);
         userRepresentation.setEmailVerified(true);
@@ -154,8 +154,11 @@ public class UserService {
 
         User user = new User();
         user.setName(userRegistrationDto.getName());
+        user.setPhone(userRegistrationDto.getPhone());
+        user.setGender(userRegistrationDto.getGender());
+        user.setDateOfBirth(userRegistrationDto.getDateOfBirth());
         user.setEmail(userRegistrationDto.getEmail());
-        user.setRole(UserRole.client);
+        user.setRole(UserRole.valueOf(userRegistrationDto.getRole()));
         user.setKeycloakId(keycloakId);
         return UserDtoConvertor.convertUserToDto(userRepository.save(user));
     }
