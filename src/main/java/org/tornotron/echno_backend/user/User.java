@@ -59,6 +59,9 @@ public class User {
     @Column(name = "phone", unique = true)
     private String phone;
 
+    @Column(name = "accept_terms")
+    private Boolean acceptTerms;
+
     /** The date of birth of the user. */
     @Column(name = "date_of_birth")
     private LocalDateTime dateOfBirth;

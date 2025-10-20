@@ -6,13 +6,31 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 public class UserRegistrationDto {
 
+    @NotBlank(message = "userName is required")
+    @Size(min = 3, max = 50, message = "userName must be between 3 and 50 characters")
+    @Pattern(regexp = "\\S+",message = "userName cannot contain any space")
+    private String userName;
+
     @NotBlank(message = "name is required")
-    @Size(min = 3, max = 50, message = "name must be between 3 and 50 characters")
-    @Pattern(regexp = "\\S+",message = "name cannot contain any space")
     private String name;
+
+    @NotBlank(message = "phone is required")
+    private String phone;
+
+    @NotBlank(message = "gender is required")
+    private String gender;
+
+    @NotBlank(message = "dateOfBirth is required")
+    private LocalDateTime dateOfBirth;
+
+    private String role;
+
+    private Boolean acceptTerms;
 
     @NotBlank(message = "email is required")
     @Email
