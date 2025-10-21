@@ -21,6 +21,8 @@ management:
       export:
         enabled: true
 
+API:
+  VERSION: ${BACKEND_API_VERSION}
 
 
 keycloak-initializer:

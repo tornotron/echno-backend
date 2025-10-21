@@ -12,7 +12,7 @@ import org.tornotron.echno_backend.user.dto.UserDto;
 import org.tornotron.echno_backend.user.dto.UserRegistrationDto;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 public class AuthController {
 
     private final UserService userService;
