@@ -1,9 +1,6 @@
 package org.tornotron.echno_backend.user.dto;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -25,7 +22,7 @@ public class UserRegistrationDto {
     @NotBlank(message = "gender is required")
     private String gender;
 
-    @NotBlank(message = "dateOfBirth is required")
+    @NotNull(message = "dateOfBirth is required")
     private LocalDateTime dateOfBirth;
 
     private String role;
