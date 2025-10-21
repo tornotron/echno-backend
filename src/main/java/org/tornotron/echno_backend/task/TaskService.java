@@ -190,7 +190,11 @@ public class TaskService {
     public TaskSimpleDto partialUpdateATask(Map<String,Object> updates,Long id) {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+        partialUpdateATask(updates, task);
+       return TaskDtoConvertor.convertTaskToSimpleDto(taskRepository.save(task));
+    }
 
+    private void partialUpdateATask(Map<String, Object> updates, Task task) {
         updates.forEach((key,value) -> {
             switch (key) {
                 case "title":
@@ -211,7 +215,6 @@ public class TaskService {
                     break;
             }
         });
-       return TaskDtoConvertor.convertTaskToSimpleDto(taskRepository.save(task));
     }
 
     /**
@@ -221,8 +224,19 @@ public class TaskService {
      */
     @Transactional
     public void batchUpdateTasks(List<TaskPatchDto> updates) {
-        updates.forEach(update ->
-                partialUpdateATask(update.getUpdates(), update.getId()));
+        List<Long> taskIds = updates.stream().map(TaskPatchDto::getId).collect(Collectors.toList());
+        List<Task> tasks = taskRepository.findAllById(taskIds);
+
+        Map<Long, Task> taskMap = tasks.stream().collect(Collectors.toMap(Task::getId, task -> task));
+
+        updates.forEach(update -> {
+            Task task = taskMap.get(update.getId());
+            if (task != null) {
+                partialUpdateATask(update.getUpdates(), task);
+            }
+        });
+
+        taskRepository.saveAll(tasks);
     }
 
     /**

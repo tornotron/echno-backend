@@ -182,8 +182,12 @@ public class EmployeeService {
     public void partialUpdateAnEmployee(Map<String,Object> updates, Long id) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: "+id));
+        partialUpdateAnEmployee(updates, employee);
+        employeeRepository.save(employee);
+    }
 
-        updates.forEach((key,value) -> {
+    private void partialUpdateAnEmployee(Map<String, Object> updates, Employee employee) {
+        updates.forEach((key, value) -> {
             switch (key) {
                 case "employeeName":
                     employee.setEmployeeName((String) value);
@@ -199,7 +203,6 @@ public class EmployeeService {
                     break;
             }
         });
-        employeeRepository.save(employee);
     }
 
     /**
@@ -209,9 +212,19 @@ public class EmployeeService {
      */
     @Transactional
     public void batchUpdateEmployees(List<EmployeePatchDto> updates) {
+        List<Long> employeeIds = updates.stream().map(EmployeePatchDto::getId).collect(Collectors.toList());
+        List<Employee> employees = employeeRepository.findAllById(employeeIds);
+
+        Map<Long, Employee> employeeMap = employees.stream().collect(Collectors.toMap(Employee::getId, employee -> employee));
+
         updates.forEach(update -> {
-            partialUpdateAnEmployee(update.getUpdates(), update.getId());
+            Employee employee = employeeMap.get(update.getId());
+            if (employee != null) {
+                partialUpdateAnEmployee(update.getUpdates(), employee);
+            }
         });
+
+        employeeRepository.saveAll(employees);
     }
 
     /**
