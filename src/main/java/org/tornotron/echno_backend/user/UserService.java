@@ -217,6 +217,11 @@ public class UserService {
     public UserDto partialUpdateAnUser(Map<String, Object> updates, Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        partialUpdateAnUser(updates, user);
+        return UserDtoConvertor.convertUserToDto(userRepository.save(user));
+    }
+
+    private void partialUpdateAnUser(Map<String, Object> updates, User user) {
         updates.forEach((key, value) -> {
             switch (key) {
                 case "name":
@@ -260,7 +265,6 @@ public class UserService {
                     break;
             }
         });
-        return UserDtoConvertor.convertUserToDto(userRepository.save(user));
     }
 
     /**
@@ -270,7 +274,19 @@ public class UserService {
      */
     @Transactional
     public void batchUpdateUser(List<UserPatchDto> updates) {
-        updates.forEach(update -> partialUpdateAnUser(update.getUpdates(), update.getId()));
+        List<Long> userIds = updates.stream().map(UserPatchDto::getId).collect(Collectors.toList());
+        List<User> users = userRepository.findAllById(userIds);
+
+        Map<Long, User> userMap = users.stream().collect(Collectors.toMap(User::getId, user -> user));
+
+        updates.forEach(update -> {
+            User user = userMap.get(update.getId());
+            if (user != null) {
+                partialUpdateAnUser(update.getUpdates(), user);
+            }
+        });
+
+        userRepository.saveAll(users);
     }
 
     /**
