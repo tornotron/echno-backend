@@ -19,6 +19,7 @@ import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Service class for managing projects.
@@ -109,7 +110,11 @@ public class ProjectService {
     public void partialUpdateAProject(Map<String,Object> updates,Long id) {
         Project project = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: "+id));
+        partialUpdateAProject(updates, project);
+        repository.save(project);
+    }
 
+    private void partialUpdateAProject(Map<String, Object> updates, Project project) {
         updates.forEach((key,value) -> {
             switch (key) {
                 case "projectName":
@@ -123,7 +128,6 @@ public class ProjectService {
                     break;
             }
         });
-        repository.save(project);
     }
 
     /**
@@ -133,8 +137,19 @@ public class ProjectService {
      */
     @Transactional
     public void batchUpdateProjects(List<ProjectPatchDto> updates) {
-        updates.forEach(update ->
-                partialUpdateAProject(update.getUpdates(), update.getId()));
+        List<Long> projectIds = updates.stream().map(ProjectPatchDto::getId).collect(Collectors.toList());
+        List<Project> projects = repository.findAllById(projectIds);
+
+        Map<Long, Project> projectMap = projects.stream().collect(Collectors.toMap(Project::getId, project -> project));
+
+        updates.forEach(update -> {
+            Project project = projectMap.get(update.getId());
+            if (project != null) {
+                partialUpdateAProject(update.getUpdates(), project);
+            }
+        });
+
+        repository.saveAll(projects);
     }
 
     /**

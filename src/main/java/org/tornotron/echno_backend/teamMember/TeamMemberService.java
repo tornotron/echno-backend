@@ -69,7 +69,11 @@ public class TeamMemberService {
   public void partialUpdateATeamMember(Map<String, Object> updates, Long id) {
     TeamMember teamMember = repository.findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("TeamMember not found with id: " + id));
+    partialUpdateATeamMember(updates, teamMember);
+    repository.save(teamMember);
+  }
 
+  private void partialUpdateATeamMember(Map<String, Object> updates, TeamMember teamMember) {
     updates.forEach((key, value) -> {
       switch (key) {
         case "memberName":
@@ -80,12 +84,23 @@ public class TeamMemberService {
           break;
       }
     });
-    repository.save(teamMember);
   }
 
   @Transactional
   public void batchUpdateTeamMembers(List<TeamMemberPatchDto> updates) {
-    updates.forEach(update -> partialUpdateATeamMember(update.getUpdates(), update.getId()));
+    List<Long> teamMemberIds = updates.stream().map(TeamMemberPatchDto::getId).collect(Collectors.toList());
+    List<TeamMember> teamMembers = repository.findAllById(teamMemberIds);
+
+    Map<Long, TeamMember> teamMemberMap = teamMembers.stream().collect(Collectors.toMap(TeamMember::getId, teamMember -> teamMember));
+
+    updates.forEach(update -> {
+        TeamMember teamMember = teamMemberMap.get(update.getId());
+        if (teamMember != null) {
+            partialUpdateATeamMember(update.getUpdates(), teamMember);
+        }
+    });
+
+    repository.saveAll(teamMembers);
   }
 
   @Transactional

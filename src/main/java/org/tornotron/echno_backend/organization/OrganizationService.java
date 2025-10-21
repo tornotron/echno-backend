@@ -116,29 +116,33 @@ public class OrganizationService {
     public OrganizationSimpleDto partialUpdateAnOrganization(Map<String, Object> updates, Long id) {
        Organization organization = repository.findById(id)
                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+id));
-       updates.forEach((key, value) -> {
-           switch (key) {
-               case "organizationName":
-                     organization.setOrganizationName((String) value);
-                     break;
-               case "organizationAddress":
-                     organization.setOrganizationAddress((String) value);
-                     break;
-               case "organizationEmail":
-                     organization.setOrganizationEmail((String) value);
-                     break;
-               case "organizationPhone":
-                     organization.setOrganizationPhone((String) value);
-                     break;
-               case "organizationWebsite":
-                     organization.setOrganizationWebsite((String) value);
-                     break;
-               case "organizationLogo":
-                     organization.setOrganizationLogo((String) value);
-                     break;
-           }
-       });
+       partialUpdateAnOrganization(updates, organization);
       return orgConvertor.convertOrganizationToSimpleDto(repository.save(organization));
+    }
+
+    private void partialUpdateAnOrganization(Map<String, Object> updates, Organization organization) {
+        updates.forEach((key, value) -> {
+            switch (key) {
+                case "organizationName":
+                    organization.setOrganizationName((String) value);
+                    break;
+                case "organizationAddress":
+                    organization.setOrganizationAddress((String) value);
+                    break;
+                case "organizationEmail":
+                    organization.setOrganizationEmail((String) value);
+                    break;
+                case "organizationPhone":
+                    organization.setOrganizationPhone((String) value);
+                    break;
+                case "organizationWebsite":
+                    organization.setOrganizationWebsite((String) value);
+                    break;
+                case "organizationLogo":
+                    organization.setOrganizationLogo((String) value);
+                    break;
+            }
+        });
     }
 
     /**
@@ -148,7 +152,19 @@ public class OrganizationService {
      */
     @Transactional
     public void batchUpdateOrganization(List<OrganizationPatchDto> updates) {
-        updates.forEach(update -> partialUpdateAnOrganization(update.getUpdates(),update.getId()));
+        List<Long> organizationIds = updates.stream().map(OrganizationPatchDto::getId).collect(Collectors.toList());
+        List<Organization> organizations = repository.findAllById(organizationIds);
+
+        Map<Long, Organization> organizationMap = organizations.stream().collect(Collectors.toMap(Organization::getId, organization -> organization));
+
+        updates.forEach(update -> {
+            Organization organization = organizationMap.get(update.getId());
+            if (organization != null) {
+                partialUpdateAnOrganization(update.getUpdates(), organization);
+            }
+        });
+
+        repository.saveAll(organizations);
     }
 
     /**

@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.common.configuration;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -20,12 +21,16 @@ public class SecurityConfig {
 
     private final JwtAuthConverter jwtAuthConverter;
 
+    @Value("${API.VERSION}")
+    private String backend_version;
+
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
         http
                 .csrf(AbstractHttpConfigurer::disable)
                         .authorizeHttpRequests(auth -> auth
-                                .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/"+backend_version+"/auth/register").permitAll()
                                 .anyRequest()
                                 .authenticated()
                         )
