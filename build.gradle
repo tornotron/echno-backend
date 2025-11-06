@@ -17,6 +17,7 @@ dependencies {
         exclude group: 'commons-logging', module: 'commons-logging'
     }
     implementation 'com.github.librepdf:openpdf:3.0.0'
+    implementation 'com.liquibase:liquibase-core'
     implementation 'org.keycloak:keycloak-admin-client:26.0.7'
     implementation 'com.giffing.bucket4j.spring.boot.starter:bucket4j-spring-boot-starter:0.13.0'
     implementation 'javax.cache:cache-api:1.1.1'
