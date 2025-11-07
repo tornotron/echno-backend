@@ -71,7 +71,7 @@ public class User {
     private String qualification;
 
     /** A list of skills possessed by the user. */
-    @Column(name = "skills")
+    @Column(name = "skills", columnDefinition = "text[]")
     private List<String> skills;
 
     /** The user's years of professional experience. */

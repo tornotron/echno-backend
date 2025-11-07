@@ -57,7 +57,7 @@ databaseChangeLog:
                   type: VARCHAR(255)
               - column:
                   name: skills
-                  type: TEXT
+                  type: text[]
               - column:
                   name: experience
                   type: INT
@@ -1206,10 +1206,10 @@ databaseChangeLog:
                   name: source
                   type: VARCHAR(100)
               - column:
-                  name: geo_location_latitude
+                  name: latitude
                   type: DOUBLE
               - column:
-                  name: geo_location_longitude
+                  name: longitude
                   type: DOUBLE
               - column:
                   name: device_info
