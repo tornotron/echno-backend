@@ -5,8 +5,8 @@ scrape_configs:
   - job_name: 'spring-boot-app-echno-backend'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['localhost:8080']
+      - targets: ['app:8080']
 
   - job_name: 'loki'
     static_configs:
-      - targets: ['localhost:3100']
+      - targets: ['loki:3100']
