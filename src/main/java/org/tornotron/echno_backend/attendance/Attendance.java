@@ -12,7 +12,12 @@ import java.time.LocalDateTime;
 @Entity
 @Data
 @NoArgsConstructor
-@Table(name = "Attendance")
+@Table(name = "Attendance", indexes = {
+    @Index(name = "idx_employee_timestamp", columnList = "employeeId, timestamp"),
+    @Index(name = "idx_employee_id", columnList = "employeeId"),
+    @Index(name = "idx_timestamp", columnList = "timestamp"),
+    @Index(name = "idx_record_type", columnList = "recordType")
+})
 public class Attendance {
 
     @Id
@@ -40,4 +45,13 @@ public class Attendance {
 
     @Column(columnDefinition = "jsonb")
     private String deviceInfo;
+
+    @Column
+    private LocalDateTime lastModifiedAt;
+
+    @Column
+    private String modifiedBy;
+
+    @Column(length = 500)
+    private String correctionReason;
 }
