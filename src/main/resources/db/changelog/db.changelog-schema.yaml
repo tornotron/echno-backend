@@ -1273,3 +1273,57 @@ databaseChangeLog:
             referencedTableName: organization
             referencedColumnNames: id
             onDelete: CASCADE
+
+  # ==========================================
+  # CHANGESET 25: Update Attendance Table - Add Audit Fields
+  # ==========================================
+  - changeSet:
+      id: 25-update-attendance-add-audit-fields
+      author: system
+      changes:
+        - addColumn:
+            tableName: attendance
+            columns:
+              - column:
+                  name: last_modified_at
+                  type: TIMESTAMP
+              - column:
+                  name: modified_by
+                  type: VARCHAR(255)
+              - column:
+                  name: correction_reason
+                  type: VARCHAR(500)
+
+  # ==========================================
+  # CHANGESET 26: Add Indexes to Attendance Table
+  # ==========================================
+  - changeSet:
+      id: 26-add-attendance-indexes
+      author: system
+      changes:
+        - createIndex:
+            indexName: idx_employee_timestamp
+            tableName: attendance
+            columns:
+              - column:
+                  name: employee_id
+              - column:
+                  name: timestamp
+        - createIndex:
+            indexName: idx_employee_id
+            tableName: attendance
+            columns:
+              - column:
+                  name: employee_id
+        - createIndex:
+            indexName: idx_timestamp
+            tableName: attendance
+            columns:
+              - column:
+                  name: timestamp
+        - createIndex:
+            indexName: idx_record_type
+            tableName: attendance
+            columns:
+              - column:
+                  name: record_type
