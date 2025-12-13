@@ -136,3 +136,6 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} %-5level - %msg%n"
   config: classpath:logback-spring.xml
+
+loki:
+  url: ${LOKI_URL:http://loki:3100/loki/api/v1/push}
