@@ -70,17 +70,19 @@ public class UserService {
 
         String keycloakId;
 
+        if (userRepository.existsUserByEmail(userCreationDto.getEmail()) || keycloakUserExists(userCreationDto.getEmail())) {
+            throw new DuplicateResourceException();
+        }
+
         UserRepresentation userRepresentation = new UserRepresentation();
-        userRepresentation.setUsername(userCreationDto.getName());
+        userRepresentation.setUsername(userCreationDto.getUserName());
         userRepresentation.setEmail(userCreationDto.getEmail());
         userRepresentation.setEnabled(true);
+        userRepresentation.setEmailVerified(true);
 
         try(Response response = usersResource.create(userRepresentation)) {
             if(response.getStatus() != 201) {
                 throw new RuntimeException("Failed to create user, status: "+response.getStatus());
-            }
-            if(response.getStatus() == 409) {
-                throw new RuntimeException("Keycloak User already exists");
             }
             String location = response.getLocation().toString();
             keycloakId = location.substring(location.lastIndexOf('/')+1);
