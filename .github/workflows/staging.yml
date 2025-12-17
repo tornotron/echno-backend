@@ -72,6 +72,9 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            cd /opt/echno-backend
+            
+            source .env
             
             docker compose stop ${{ env.SERVICE_NAME }}
             
