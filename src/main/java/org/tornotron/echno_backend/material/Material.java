@@ -7,6 +7,7 @@ import org.tornotron.echno_backend.grnItem.GrnItem;
 import org.tornotron.echno_backend.indentItem.IndentItem;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumption;
+import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItem;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,4 +40,7 @@ public class Material {
 
     @OneToMany(mappedBy = "material")
     private List<MaterialConsumption> materialConsumptions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "material")
+    private List<PurchaseOrderItem> purchaseOrderItems = new ArrayList<>();
 }
