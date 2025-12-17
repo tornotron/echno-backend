@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.tornotron.echno_backend.grnItem.GrnItem;
+import org.tornotron.echno_backend.payable.Payable;
+import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.vendor.Vendor;
 
@@ -44,5 +46,10 @@ public class GoodsReceivedNote {
     @OneToMany(mappedBy = "goodsReceivedNote")
     private List<GrnItem> items = new ArrayList<>();
 
+    @ManyToOne
+    @JoinColumn(name = "purchase_order_id")
+    private PurchaseOrder purchaseOrder;
 
+    @OneToMany(mappedBy = "goodsReceivedNote")
+    private List<Payable> payables = new ArrayList<>();
 }
