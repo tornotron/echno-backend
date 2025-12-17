@@ -1,7 +1,7 @@
 package org.tornotron.echno_backend.intend.dto;
 
 import lombok.Data;
-import org.tornotron.echno_backend.indentItem.IndentItem;
+import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
 import org.tornotron.echno_backend.intend.enums.IntendStatus;
 import org.tornotron.echno_backend.user.dto.UserDto;
 
@@ -17,5 +17,5 @@ public class IntendDto {
     private IntendStatus status;
     private LocalDateTime expectedOn;
     private String remarks;
-    private List<IndentItem> items;
+    private List<IndentItemDto> items;
 }
