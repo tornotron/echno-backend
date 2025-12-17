@@ -1327,3 +1327,201 @@ databaseChangeLog:
             columns:
               - column:
                   name: record_type
+
+  # ==========================================
+  # CHANGESET 27: Create Purchase Order
+  # ==========================================
+  - changeSet:
+      id: 27-create-purchase-order
+      author: system
+      changes:
+        - createTable:
+            tableName: purchase_order
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: po_number
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: vendor_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: intend_id
+                  type: BIGINT
+              - column:
+                  name: status
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by_id
+                  type: BIGINT
+              - column:
+                  name: expected_delivery_date
+                  type: TIMESTAMP
+              - column:
+                  name: remarks
+                  type: TEXT
+              - column:
+                  name: total_amount
+                  type: DECIMAL(15,2)
+        - addForeignKeyConstraint:
+            baseTableName: purchase_order
+            baseColumnNames: vendor_id
+            constraintName: fk_purchase_order_vendor
+            referencedTableName: vendor
+            referencedColumnNames: id
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: purchase_order
+            baseColumnNames: intend_id
+            constraintName: fk_purchase_order_intend
+            referencedTableName: intend
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - addForeignKeyConstraint:
+            baseTableName: purchase_order
+            baseColumnNames: created_by_id
+            constraintName: fk_purchase_order_user
+            referencedTableName: users_table
+            referencedColumnNames: id
+            onDelete: SET NULL
+
+  # ==========================================
+  # CHANGESET 28: Create Purchase Order Item
+  # ==========================================
+  - changeSet:
+      id: 28-create-purchase-order-item
+      author: system
+      changes:
+        - createTable:
+            tableName: purchase_order_item
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: purchase_order_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: material_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: indent_item_id
+                  type: BIGINT
+              - column:
+                  name: ordered_quantity
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: received_quantity
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: unit_price
+                  type: DECIMAL(10,2)
+              - column:
+                  name: total_price
+                  type: DECIMAL(15,2)
+              - column:
+                  name: remarks
+                  type: TEXT
+        - addForeignKeyConstraint:
+            baseTableName: purchase_order_item
+            baseColumnNames: purchase_order_id
+            constraintName: fk_purchase_order_item_po
+            referencedTableName: purchase_order
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: purchase_order_item
+            baseColumnNames: material_id
+            constraintName: fk_purchase_order_item_material
+            referencedTableName: material
+            referencedColumnNames: id
+            onDelete: RESTRICT
+        - addForeignKeyConstraint:
+            baseTableName: purchase_order_item
+            baseColumnNames: indent_item_id
+            constraintName: fk_purchase_order_item_indent_item
+            referencedTableName: indent_item
+            referencedColumnNames: id
+            onDelete: SET NULL
+
+  # ==========================================
+  # CHANGESET 29: Add Foreign Keys to Payable
+  # ==========================================
+  - changeSet:
+      id: 29-add-payable-foreign-keys
+      author: system
+      changes:
+        - addColumn:
+            tableName: payable
+            columns:
+              - column:
+                  name: vendor_id
+                  type: BIGINT
+              - column:
+                  name: goods_received_note_id
+                  type: BIGINT
+        - addForeignKeyConstraint:
+            baseTableName: payable
+            baseColumnNames: vendor_id
+            constraintName: fk_payable_vendor
+            referencedTableName: vendor
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - addForeignKeyConstraint:
+            baseTableName: payable
+            baseColumnNames: goods_received_note_id
+            constraintName: fk_payable_grn
+            referencedTableName: goods_received_note
+            referencedColumnNames: id
+            onDelete: SET NULL
+
+  # ==========================================
+  # CHANGESET 30: Add Purchase Order FK to GRN
+  # ==========================================
+  - changeSet:
+      id: 30-add-grn-purchase-order-fk
+      author: system
+      changes:
+        - addColumn:
+            tableName: goods_received_note
+            columns:
+              - column:
+                  name: purchase_order_id
+                  type: BIGINT
+        - addForeignKeyConstraint:
+            baseTableName: goods_received_note
+            baseColumnNames: purchase_order_id
+            constraintName: fk_grn_purchase_order
+            referencedTableName: purchase_order
+            referencedColumnNames: id
+            onDelete: SET NULL
