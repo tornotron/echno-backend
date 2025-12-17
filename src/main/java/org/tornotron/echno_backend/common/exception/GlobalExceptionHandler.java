@@ -170,6 +170,18 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InsufficientStockException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleInsufficientStockException(InsufficientStockException ex, WebRequest request) {
+        logger.error("Insufficient stock: ", ex);
+        return new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+    }
+
     @ExceptionHandler(InvalidRequestException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleInvalidRequestException(InvalidRequestException ex, WebRequest request) {
