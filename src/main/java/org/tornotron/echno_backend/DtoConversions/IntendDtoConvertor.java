@@ -4,6 +4,9 @@ import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.intend.Intend;
 import org.tornotron.echno_backend.intend.dto.IntendDto;
 
+import java.util.Collections;
+import java.util.stream.Collectors;
+
 @Component
 public class IntendDtoConvertor {
 
@@ -16,7 +19,16 @@ public class IntendDtoConvertor {
         dto.setStatus(intend.getStatus());
         dto.setExpectedOn(intend.getExpectedOn());
         dto.setRemarks(intend.getRemarks());
-        dto.setItems(intend.getItems());
+
+        // Convert items collection to DTOs (this triggers lazy loading within the transaction)
+        if (intend.getItems() != null) {
+            dto.setItems(intend.getItems().stream()
+                    .map(IndentItemDtoConvertor::convertIndentItemToDto)
+                    .collect(Collectors.toList()));
+        } else {
+            dto.setItems(Collections.emptyList());
+        }
+
         return dto;
     }
 }

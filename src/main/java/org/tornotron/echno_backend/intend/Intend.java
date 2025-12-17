@@ -6,9 +6,11 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.tornotron.echno_backend.indentItem.IndentItem;
 import org.tornotron.echno_backend.intend.enums.IntendStatus;
+import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 import org.tornotron.echno_backend.user.User;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -42,4 +44,7 @@ public class Intend {
 
     @OneToMany(mappedBy = "intend")
     private List<IndentItem> items;
+
+    @OneToMany(mappedBy = "intend")
+    private List<PurchaseOrder> purchaseOrders = new ArrayList<>();
 }
