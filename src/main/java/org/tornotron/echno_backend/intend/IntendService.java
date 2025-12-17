@@ -63,4 +63,12 @@ public class IntendService {
                 .map(IntendDtoConvertor::convertIntendToDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Intend not found with id: " + id));
     }
+
+    @Transactional
+    public void deleteIntend(Long id) {
+        if(!intendRepository.existsById(id)){
+            throw new ResourceNotFoundException("Intend not found with id: " + id);
+        }
+        intendRepository.deleteById(id);
+    }
 }

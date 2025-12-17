@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.intend.dto.IntendCreationDto;
 import org.tornotron.echno_backend.intend.dto.IntendDto;
 
@@ -28,11 +29,11 @@ public class IntendController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<Page<IntendDto>> getAllIntends(
+    public ResponseEntity<List<IntendDto>> getAllIntends(
             @RequestParam(defaultValue = "0") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize
     ) {
-        return new ResponseEntity<>(intendService.getAllIntends(pageNo, pageSize), HttpStatus.OK);
+        return new ResponseEntity<>(intendService.getAllIntends(pageNo, pageSize).getContent(), HttpStatus.OK);
     }
 
     @GetMapping
@@ -43,5 +44,11 @@ public class IntendController {
     @GetMapping("/{id}")
     public ResponseEntity<IntendDto> getAnIntend(@PathVariable Long id) {
         return new ResponseEntity<>(intendService.getAnIntend(id), HttpStatus.OK);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse> deleteIntend(@PathVariable Long id) {
+        intendService.deleteIntend(id);
+        return ResponseEntity.ok(new ApiResponse("Intend with id: " + id + " deleted successfully"));
     }
 }
