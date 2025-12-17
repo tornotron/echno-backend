@@ -4,9 +4,10 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-import org.springframework.lang.Contract;
+import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
 import org.tornotron.echno_backend.payable.enums.ContractType;
 import org.tornotron.echno_backend.user.User;
+import org.tornotron.echno_backend.vendor.Vendor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -30,10 +31,10 @@ public class Payable {
     @Column(name = "contract_type")
     private ContractType contractType;
 
-    @Column(name = "amount_recorded")
+    @Column(name = "amount_recorded", precision = 15, scale = 2)
     private BigDecimal amountRecorded;
 
-    @Column(name = "amount_paid")
+    @Column(name = "amount_paid", precision = 15, scale = 2)
     private BigDecimal amountPaid;
 
     public BigDecimal getAmountDue() {
@@ -42,8 +43,17 @@ public class Payable {
     }
 
     @ManyToOne
+    @JoinColumn(name = "vendor_id")
+    private Vendor vendor;
+
+    @ManyToOne
+    @JoinColumn(name = "goods_received_note_id")
+    private GoodsReceivedNote goodsReceivedNote;
+
+    @ManyToOne
     private User createdBy;
 
+    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 }
