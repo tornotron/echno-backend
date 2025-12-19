@@ -24,6 +24,15 @@ public class KeycloakConfigGenerator {
     @Value("${keycloak.web-origin}")
     private String webOrigin;
 
+    @Value("${keycloak.frontend.client-id}")
+    private String frontendClientId;
+
+    @Value("${keycloak.frontend.redirect-uri}")
+    private String frontendRedirectUri;
+
+    @Value("${keycloak.frontend.web-origin}")
+    private String frontendWebOrigin;
+
     @Value("${keycloak.admin.userName}")
     private String adminUsername;
 
@@ -75,8 +84,10 @@ public class KeycloakConfigGenerator {
         String config = template
                 .replace("${KEYCLOAK_CLIENT_ID}",clientId)
                 .replace("${KEYCLOAK_REDIRECT_URI}",redirectUri)
-                .replace("${KEYCLOAK_WEB_ORIGIN}",webOrigin);
-
+                .replace("${KEYCLOAK_WEB_ORIGIN}",webOrigin)
+                .replace("${KEYCLOAK_FRONTEND_CLIENT_ID}",frontendClientId)
+                .replace("${KEYCLOAK_FRONTEND_REDIRECT_URI}",frontendRedirectUri)
+                .replace("${KEYCLOAK_FRONTEND_WEB_ORIGIN}",frontendWebOrigin);
 
         writeConfig("init-keycloak.json",config);
 

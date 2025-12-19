@@ -19,6 +19,15 @@
       "webOrigins": ["${KEYCLOAK_WEB_ORIGIN}"],
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true
+    },
+    {
+        "clientId": "${KEYCLOAK_FRONTEND_CLIENT_ID}",
+        "publicClient": true,
+        "protocol": "openid-connect",
+        "redirectUris": ["${KEYCLOAK_FRONTEND_REDIRECT_URI}"],
+        "webOrigins": ["${KEYCLOAK_FRONTEND_WEB_ORIGIN}"],
+        "standardFlowEnabled": true,
+        "directAccessGrantsEnabled": false
     }
   ],
   "roles": {

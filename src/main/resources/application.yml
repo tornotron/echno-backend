@@ -54,6 +54,10 @@ bucket4j:
 
 
 keycloak:
+  frontend:
+    client-id: ${KEYCLOAK_FRONTEND_CLIENT}
+    redirect-uri: ${KEYCLOAK_FRONTEND_REDIRECT_URI}
+    web-origin: ${KEYCLOAK_FRONTEND_WEB_ORIGIN}
   client-id: ${KEYCLOAK_BACKEND_CLIENT}
   redirect-uri: ${KEYCLOAK_BACKEND_REDIRECT_URI}
   web-origin: ${KEYCLOAK_BACKEND_WEB_ORIGIN}
