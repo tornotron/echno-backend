@@ -59,25 +59,25 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ------------ Job 2: Deploy to Server ------------
-  deploy:
-    name: Deploy to Staging Server
-    needs: build_and_push
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Deploy to Server via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.REMOTE_HOST }}
-          username: ${{ secrets.REMOTE_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /opt/echno-backend
-            
-            source .env
-            
-            docker compose stop ${{ env.SERVICE_NAME }}
-            
-            docker compose pull ${{ env.SERVICE_NAME }}
-            
-            docker compose up --force-recreate ${{ env.SERVICE_NAME }} -d
+#  deploy:
+#    name: Deploy to Staging Server
+#    needs: build_and_push
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: Deploy to Server via SSH
+#        uses: appleboy/ssh-action@v1.0.3
+#        with:
+#          host: ${{ secrets.REMOTE_HOST }}
+#          username: ${{ secrets.REMOTE_USER }}
+#          key: ${{ secrets.SSH_PRIVATE_KEY }}
+#          script: |
+#            cd /opt/echno-backend
+#
+#            source .env
+#
+#            docker compose stop ${{ env.SERVICE_NAME }}
+#
+#            docker compose pull ${{ env.SERVICE_NAME }}
+#
+#            docker compose up --force-recreate ${{ env.SERVICE_NAME }} -d
