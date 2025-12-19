@@ -1,0 +1,112 @@
+package org.tornotron.echno_backend.organization;
+
+import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
+import org.tornotron.echno_backend.organization.dto.OrganizationDto;
+import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
+import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/v1/organization/web")
+@Validated
+public class OrganizationWebController {
+
+    private final OrganizationService service;
+
+    public OrganizationWebController(OrganizationService service) {
+        this.service = service;
+    }
+    /**
+     * Creates a new organization.
+     *
+     * @param organizationCreationDto DTO containing the details for the new organization.
+     * @return A {@link ResponseEntity} with the created organization's simple DTO and HTTP status 201 (Created).
+     */
+    @PostMapping
+    public ResponseEntity<OrganizationSimpleDto> createOrganization(@Valid @RequestBody OrganizationCreationDto organizationCreationDto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.addOrganization(organizationCreationDto));
+    }
+
+    /**
+     * Retrieves a paginated list of all organizations.
+     *
+     * @param pageNo   The page number to retrieve (default is 0).
+     * @param pageSize The number of organizations per page (default is 10).
+     * @return A {@link ResponseEntity} containing the list of organization DTOs and HTTP status 200 (OK).
+     */
+    @GetMapping
+    public ResponseEntity<List<OrganizationDto>> readAllOrganizations(@RequestParam(defaultValue = "0") int pageNo,
+                                                                      @RequestParam(defaultValue = "10") int pageSize) {
+        Page<OrganizationDto> organizations = service.getAllOrganization(pageNo, pageSize);
+        return new ResponseEntity<>(organizations.getContent(), HttpStatus.OK);
+    }
+
+    /**
+     * Retrieves all organizations created by a specific user.
+     *
+     * @param creatorId The ID of the user who created the organizations.
+     * @return A {@link ResponseEntity} containing a list of organization DTOs and HTTP status 200 (OK).
+     */
+    @GetMapping("/creator/{creatorId}")
+    public ResponseEntity<List<OrganizationDto>> readAllOrganizationsByCreatorId(@PathVariable Integer creatorId) {
+        return ResponseEntity.status(HttpStatus.OK).body(service.getAllOrganizationsByCreatorId(creatorId));
+    }
+
+    /**
+     * Retrieves a single organization by its ID.
+     *
+     * @param id The ID of the organization to retrieve.
+     * @return A {@link ResponseEntity} containing the organization DTO and HTTP status 200 (OK).
+     */
+    @GetMapping("{id}")
+    public ResponseEntity<?> readAnOrganization(@PathVariable Long id) {
+        OrganizationDto organization = service.getAnOrganization(id);
+        return new ResponseEntity<>(organization, HttpStatus.OK);
+    }
+
+    /**
+     * Partially updates an existing organization.
+     *
+     * @param updates A map of fields to update.
+     * @param id      The ID of the organization to update.
+     * @return A {@link ResponseEntity} with the updated organization's simple DTO and HTTP status 200 (OK).
+     */
+    @PatchMapping("{id}")
+    public ResponseEntity<OrganizationSimpleDto> partialUpdateAnOrganization(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
+        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAnOrganization(updates, id));
+    }
+
+    /**
+     * Updates multiple organizations in a batch.
+     *
+     * @param updates A list of DTOs containing the updates for each organization.
+     * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
+     */
+    @PatchMapping("/batch")
+    public ResponseEntity<ApiResponse> batchUpdateOrganizations(@Valid @RequestBody List<OrganizationPatchDto> updates) {
+        service.batchUpdateOrganization(updates);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organizations updated successfully"));
+    }
+
+    /**
+     * Deletes an organization by its ID.
+     *
+     * @param id The ID of the organization to delete.
+     * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
+     */
+    @DeleteMapping("{id}")
+    public ResponseEntity<ApiResponse> deleteOrganization(@PathVariable Long id) {
+        service.deleteAnOrganization(id);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organization with id: " + id + " deleted"));
+    }
+}
+
