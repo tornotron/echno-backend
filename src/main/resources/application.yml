@@ -89,6 +89,11 @@ spring:
     job:
       enabled: false
   datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout:
+        30000
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
@@ -123,6 +128,11 @@ spring:
 
 
 server:
+  tomcat:
+    threads:
+      max: 150
+    accept-count: 100
+    connection-timeout: 20000
   port: 8080
   forward-headers-strategy: FRAMEWORK
   servlet:
