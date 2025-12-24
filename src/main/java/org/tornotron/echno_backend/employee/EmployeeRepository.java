@@ -36,4 +36,12 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
      * @return A list of {@link Employee}s in the specified organization.
      */
     List<Employee> findEmployeesByOrganization_Id(Long organizationId);
+
+    /**
+     * Finds employees by a list of their names.
+     *
+     * @param employeeNames The list of employee names to find.
+     * @return A list of {@link Employee}s matching the given names.
+     */
+    List<Employee> findByEmployeeNameIn(List<String> employeeNames);
 }
