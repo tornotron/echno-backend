@@ -2,10 +2,11 @@ package org.tornotron.echno_backend.user;
 
 import jakarta.ws.rs.core.Response;
 import org.keycloak.admin.client.Keycloak;
-import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.admin.client.resource.UsersResource;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -15,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.DtoConversions.UserDtoConvertor;
-import org.tornotron.echno_backend.common.configuration.KeycloakInitializer;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -38,24 +38,24 @@ import java.util.stream.Collectors;
 @Service
 public class UserService {
 
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
     private final UserRepository userRepository;
     private final Keycloak keycloak;
 
     @Value("${keycloak-initializer.application-realm}")
     private String realm;
 
-
-
     /**
      * Constructs a UserService with the given UserRepository.
      *
      * @param userRepository The repository for user data access.
+     * @param keycloak       The Keycloak client.
      */
     public UserService(UserRepository userRepository, Keycloak keycloak) {
         this.userRepository = userRepository;
         this.keycloak = keycloak;
     }
-
 
     /**
      * Creates a new user.
@@ -65,55 +65,34 @@ public class UserService {
      */
     @Transactional
     public UserDto addUser(UserCreationDto userCreationDto) {
-
-        UsersResource usersResource = keycloak.realm(realm).users();
-
-        String keycloakId;
-
-        if (userRepository.existsUserByEmail(userCreationDto.getEmail()) || keycloakUserExists(userCreationDto.getEmail())) {
-            throw new DuplicateResourceException();
+        if (userRepository.existsUserByEmail(userCreationDto.getEmail())) {
+            throw new DuplicateResourceException("User with email " + userCreationDto.getEmail() + " already exists.");
         }
 
-        UserRepresentation userRepresentation = new UserRepresentation();
-        userRepresentation.setUsername(userCreationDto.getUserName());
-        userRepresentation.setEmail(userCreationDto.getEmail());
-        userRepresentation.setEnabled(true);
-        userRepresentation.setEmailVerified(true);
+        String keycloakId = createKeycloakUser(userCreationDto.getUserName(), userCreationDto.getEmail(), userCreationDto.getPassword());
 
-        try(Response response = usersResource.create(userRepresentation)) {
-            if(response.getStatus() != 201) {
-                throw new RuntimeException("Failed to create user, status: "+response.getStatus());
-            }
-            String location = response.getLocation().toString();
-            keycloakId = location.substring(location.lastIndexOf('/')+1);
+        try {
+            User user = new User();
+            user.setName(userCreationDto.getName());
+            user.setGender(userCreationDto.getGender());
+            user.setAddress(userCreationDto.getAddress());
+            user.setBloodGroup(userCreationDto.getBloodGroup());
+            user.setEmail(userCreationDto.getEmail());
+            user.setPhone(userCreationDto.getPhone());
+            user.setDateOfBirth(userCreationDto.getDateOfBirth());
+            user.setQualification(userCreationDto.getQualification());
+            user.setSkills(userCreationDto.getSkills());
+            user.setExperience(userCreationDto.getExperience());
+            user.setCvUrl(userCreationDto.getCvUrl());
+            user.setEmergencyContact(userCreationDto.getEmergencyContact());
+            user.setRole(UserRole.valueOf(userCreationDto.getRole()));
+            user.setProfilePictureUrl(userCreationDto.getProfilePictureUrl());
+            user.setKeycloakId(keycloakId);
+            return UserDtoConvertor.convertUserToDto(userRepository.save(user));
+        } catch (Exception e) {
+            deleteKeycloakUser(keycloakId);
+            throw e;
         }
-
-        CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
-        credentialRepresentation.setType(CredentialRepresentation.PASSWORD);
-        credentialRepresentation.setValue(userCreationDto.getPassword());
-        credentialRepresentation.setTemporary(false);
-
-        usersResource.get(keycloakId).resetPassword(credentialRepresentation);
-
-
-
-        User user = new User();
-        user.setName(userCreationDto.getName());
-        user.setGender(userCreationDto.getGender());
-        user.setAddress(userCreationDto.getAddress());
-        user.setBloodGroup(userCreationDto.getBloodGroup());
-        user.setEmail(userCreationDto.getEmail());
-        user.setPhone(userCreationDto.getPhone());
-        user.setDateOfBirth(userCreationDto.getDateOfBirth());
-        user.setQualification(userCreationDto.getQualification());
-        user.setSkills(userCreationDto.getSkills());
-        user.setExperience(userCreationDto.getExperience());
-        user.setCvUrl(userCreationDto.getCvUrl());
-        user.setEmergencyContact(userCreationDto.getEmergencyContact());
-        user.setRole(UserRole.valueOf(userCreationDto.getRole()));
-        user.setProfilePictureUrl(userCreationDto.getProfilePictureUrl());
-        user.setKeycloakId(keycloakId);
-        return UserDtoConvertor.convertUserToDto(userRepository.save(user));
     }
 
     /**
@@ -124,45 +103,73 @@ public class UserService {
      */
     @Transactional
     public UserDto registerUser(UserRegistrationDto userRegistrationDto) {
+        if (userRepository.existsUserByEmail(userRegistrationDto.getEmail())) {
+            throw new DuplicateResourceException("User with email " + userRegistrationDto.getEmail() + " already exists.");
+        }
+
+        String keycloakId = createKeycloakUser(userRegistrationDto.getUserName(), userRegistrationDto.getEmail(), userRegistrationDto.getPassword());
+
+        try {
+            User user = new User();
+            user.setName(userRegistrationDto.getName());
+            user.setPhone(userRegistrationDto.getPhone());
+            user.setGender(userRegistrationDto.getGender());
+            user.setDateOfBirth(userRegistrationDto.getDateOfBirth());
+            user.setEmail(userRegistrationDto.getEmail());
+            try {
+                user.setRole(UserRole.valueOf(userRegistrationDto.getRole()));
+            } catch (IllegalArgumentException | NullPointerException e) {
+                throw new IllegalArgumentException("Invalid user role: " + userRegistrationDto.getRole());
+            }
+            user.setKeycloakId(keycloakId);
+            return UserDtoConvertor.convertUserToDto(userRepository.save(user));
+        } catch (Exception e) {
+            deleteKeycloakUser(keycloakId);
+            throw e;
+        }
+    }
+
+    private String createKeycloakUser(String username, String email, String password) {
+        if (keycloakUserExists(email)) {
+            throw new DuplicateResourceException("User with email " + email + " already exists in Keycloak.");
+        }
+
         UsersResource usersResource = keycloak.realm(realm).users();
 
-        String keycloakId;
-
         UserRepresentation userRepresentation = new UserRepresentation();
-        userRepresentation.setUsername(userRegistrationDto.getUserName());
-        userRepresentation.setEmail(userRegistrationDto.getEmail());
+        userRepresentation.setUsername(username);
+        userRepresentation.setEmail(email);
         userRepresentation.setEnabled(true);
         userRepresentation.setEmailVerified(true);
 
-        if (userRepository.existsUserByEmail(userRegistrationDto.getEmail()) || keycloakUserExists(userRegistrationDto.getEmail())) {
-            throw new DuplicateResourceException();
-        }
-
-        try(Response response = usersResource.create(userRepresentation)) {
-            if(response.getStatus() != 201) {
-                throw new RuntimeException("Failed to create user, status: "+response.getStatus());
+        String keycloakId;
+        try (Response response = usersResource.create(userRepresentation)) {
+            if (response.getStatus() != 201) {
+                throw new RuntimeException("Failed to create user in Keycloak, status: " + response.getStatus());
             }
             String location = response.getLocation().toString();
-            keycloakId = location.substring(location.lastIndexOf('/')+1);
+            keycloakId = location.substring(location.lastIndexOf('/') + 1);
         }
 
         CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
         credentialRepresentation.setType(CredentialRepresentation.PASSWORD);
-        credentialRepresentation.setValue(userRegistrationDto.getPassword());
+        credentialRepresentation.setValue(password);
         credentialRepresentation.setTemporary(false);
 
         usersResource.get(keycloakId).resetPassword(credentialRepresentation);
-        // usersResource.get(keycloakId).sendVerifyEmail();
 
-        User user = new User();
-        user.setName(userRegistrationDto.getName());
-        user.setPhone(userRegistrationDto.getPhone());
-        user.setGender(userRegistrationDto.getGender());
-        user.setDateOfBirth(userRegistrationDto.getDateOfBirth());
-        user.setEmail(userRegistrationDto.getEmail());
-        user.setRole(UserRole.valueOf(userRegistrationDto.getRole()));
-        user.setKeycloakId(keycloakId);
-        return UserDtoConvertor.convertUserToDto(userRepository.save(user));
+        return keycloakId;
+    }
+
+    private void deleteKeycloakUser(String keycloakId) {
+        try {
+            if (keycloakId != null) {
+                keycloak.realm(realm).users().get(keycloakId).remove();
+                logger.info("Rolled back Keycloak user creation for ID: {}", keycloakId);
+            }
+        } catch (Exception e) {
+            logger.error("Failed to rollback Keycloak user creation for ID: {}. Manual intervention required.", keycloakId, e);
+        }
     }
 
     /**
