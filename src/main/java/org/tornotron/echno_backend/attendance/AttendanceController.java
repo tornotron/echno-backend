@@ -29,6 +29,12 @@ public class AttendanceController {
         return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Attendance Recorded Successfully"));
     }
 
+    @PostMapping("/bulk")
+    public ResponseEntity<ApiResponse> createBulkAttendance(@Valid @RequestBody BulkAttendanceCreationDto bulkDto) {
+        service.recordBulkAttendance(bulkDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Bulk Attendance Recorded Successfully"));
+    }
+
     @GetMapping("/employee/{employeeId}")
     public ResponseEntity<List<AttendanceResponseDto>> getAttendanceByEmployee(
             @PathVariable Long employeeId,

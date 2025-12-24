@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.attendance.dto.AttendanceCreationDto;
 import org.tornotron.echno_backend.attendance.dto.AttendanceResponseDto;
 import org.tornotron.echno_backend.attendance.dto.AttendanceSummaryDto;
 import org.tornotron.echno_backend.attendance.dto.AttendanceUpdateDto;
+import org.tornotron.echno_backend.attendance.dto.BulkAttendanceCreationDto;
 import org.tornotron.echno_backend.attendance.enums.RecordType;
 import org.tornotron.echno_backend.attendance.mapper.AttendanceMapper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -59,6 +60,38 @@ public class AttendanceService {
         attendanceRecord.setDeviceInfo(attendanceCreationDto.getDeviceInfo());
 
         attendanceRepository.save(attendanceRecord);
+    }
+
+    @Transactional
+    public void recordBulkAttendance(BulkAttendanceCreationDto bulkDto) {
+        List<Employee> employees = employeeRepository.findByEmployeeNameIn(bulkDto.getEmployeeNames());
+
+        List<String> foundNames = employees.stream().map(Employee::getEmployeeName).toList();
+        List<String> missingNames = bulkDto.getEmployeeNames().stream()
+                .filter(name -> !foundNames.contains(name))
+                .toList();
+
+        if (!missingNames.isEmpty()) {
+            throw new ResourceNotFoundException("Employees not found: " + missingNames);
+        }
+
+        List<Attendance> attendanceRecords = new ArrayList<>();
+
+        for (Employee employee : employees) {
+            Optional<Attendance> lastRecord = attendanceRepository.findLatestRecordForEmployee(employee.getId());
+
+            sequenceValidator.validateRecordTypeSequence(lastRecord, bulkDto.getRecordType());
+
+            Attendance attendanceRecord = new Attendance();
+            attendanceRecord.setEmployeeId(employee.getId());
+            attendanceRecord.setLocation(bulkDto.getLocation());
+            attendanceRecord.setRecordType(bulkDto.getRecordType());
+            attendanceRecord.setGeoLocation(bulkDto.getGeoLocation());
+
+            attendanceRecords.add(attendanceRecord);
+        }
+
+        attendanceRepository.saveAll(attendanceRecords);
     }
 
     @Transactional(readOnly = true)
