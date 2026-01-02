@@ -7,7 +7,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.payable.dto.PayableCreationDto;
 import org.tornotron.echno_backend.payable.dto.PayableDto;
 import org.tornotron.echno_backend.payable.dto.PaymentRecordDto;
