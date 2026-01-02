@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.attendance.dto.*;
@@ -24,18 +25,21 @@ public class AttendanceController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('attendance:create') or hasAuthority('attendance:admin')")
     public ResponseEntity<ApiResponse> createAttendance(@Valid @RequestBody AttendanceCreationDto attendanceCreationDto) {
         service.recordAttendance(attendanceCreationDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Attendance Recorded Successfully"));
     }
 
     @PostMapping("/bulk")
+    @PreAuthorize("hasAuthority('attendance:create') or hasAuthority('attendance:admin')")
     public ResponseEntity<ApiResponse> createBulkAttendance(@Valid @RequestBody BulkAttendanceCreationDto bulkDto) {
         service.recordBulkAttendance(bulkDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Bulk Attendance Recorded Successfully"));
     }
 
     @GetMapping("/employee/{employeeId}")
+    @PreAuthorize("hasAuthority('attendance:read') or hasAuthority('attendance:admin')")
     public ResponseEntity<List<AttendanceResponseDto>> getAttendanceByEmployee(
             @PathVariable Long employeeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -45,6 +49,7 @@ public class AttendanceController {
     }
 
     @GetMapping("/employee/name/{employeeName}")
+    @PreAuthorize("hasAuthority('attendance:read') or hasAuthority('attendance:admin')")
     public ResponseEntity<List<AttendanceResponseDto>> getAttendanceByEmployeeName(
             @PathVariable String employeeName,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -54,6 +59,7 @@ public class AttendanceController {
     }
 
     @GetMapping("/summary/daily/{employeeId}")
+    @PreAuthorize("hasAuthority('attendance:read') or hasAuthority('attendance:admin')")
     public ResponseEntity<AttendanceSummaryDto> getDailySummary(
             @PathVariable Long employeeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
@@ -62,6 +68,7 @@ public class AttendanceController {
     }
 
     @GetMapping("/summary/range/{employeeId}")
+    @PreAuthorize("hasAuthority('attendance:read') or hasAuthority('attendance:admin')")
     public ResponseEntity<List<AttendanceSummaryDto>> getSummaryForDateRange(
             @PathVariable Long employeeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -71,12 +78,14 @@ public class AttendanceController {
     }
 
     @PutMapping("/update")
+    @PreAuthorize("hasAuthority('attendance:update') or hasAuthority('attendance:admin')")
     public ResponseEntity<AttendanceResponseDto> updateAttendance(@Valid @RequestBody AttendanceUpdateDto updateDto) {
         AttendanceResponseDto updated = service.updateAttendance(updateDto);
         return ResponseEntity.ok(updated);
     }
 
     @GetMapping("/corrected")
+    @PreAuthorize("hasAuthority('attendance:read') or hasAuthority('attendance:admin')")
     public ResponseEntity<List<AttendanceResponseDto>> getCorrectedRecords(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -85,12 +94,14 @@ public class AttendanceController {
     }
 
     @GetMapping("/corrected/employee/{employeeId}")
+    @PreAuthorize("hasAuthority('attendance:read') or hasAuthority('attendance:admin')")
     public ResponseEntity<List<AttendanceResponseDto>> getCorrectedRecordsByEmployee(@PathVariable Long employeeId) {
         List<AttendanceResponseDto> correctedRecords = service.getCorrectedRecordsByEmployee(employeeId);
         return ResponseEntity.ok(correctedRecords);
     }
 
     @DeleteMapping("/{attendanceId}")
+    @PreAuthorize("hasAuthority('attendance:delete') or hasAuthority('attendance:admin')")
     public ResponseEntity<ApiResponse> deleteAttendance(@PathVariable Long attendanceId) {
         service.deleteAttendance(attendanceId);
         return ResponseEntity.ok(new ApiResponse("Attendance record deleted successfully"));
