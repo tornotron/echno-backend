@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
@@ -24,11 +25,13 @@ public class IntendController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('intend:create') or hasAuthority('intend:admin')")
     public ResponseEntity<IntendDto> createIntend(@Valid @RequestBody IntendCreationDto intendCreationDto) {
         return new ResponseEntity<>(intendService.addIntend(intendCreationDto), HttpStatus.CREATED);
     }
 
     @GetMapping("/all")
+    @PreAuthorize("hasAuthority('intend:read') or hasAuthority('intend:admin')")
     public ResponseEntity<List<IntendDto>> getAllIntends(
             @RequestParam(defaultValue = "0") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize
@@ -37,16 +40,19 @@ public class IntendController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('intend:read') or hasAuthority('intend:admin')")
     public ResponseEntity<List<IntendDto>> getAllIntends() {
         return new ResponseEntity<>(intendService.getAllIntends(), HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('intend:read') or hasAuthority('intend:admin')")
     public ResponseEntity<IntendDto> getAnIntend(@PathVariable Long id) {
         return new ResponseEntity<>(intendService.getAnIntend(id), HttpStatus.OK);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('intend:delete') or hasAuthority('intend:admin')")
     public ResponseEntity<ApiResponse> deleteIntend(@PathVariable Long id) {
         intendService.deleteIntend(id);
         return ResponseEntity.ok(new ApiResponse("Intend with id: " + id + " deleted successfully"));

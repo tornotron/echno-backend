@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
@@ -46,6 +47,7 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 201 (Created).
      */
     @PostMapping
+    @PreAuthorize("hasAuthority('task:create') or hasAuthority('task:admin')")
     public ResponseEntity<TaskSimpleDto> createTask(@Valid @RequestBody TaskCreationDto taskCreationDto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addTask(taskCreationDto));
     }
@@ -58,6 +60,7 @@ public class TaskController {
      * @return A {@link ResponseEntity} containing the list of task DTOs and HTTP status 200 (OK).
      */
     @GetMapping
+    @PreAuthorize("hasAuthority('task:read') or hasAuthority('task:admin')")
     public ResponseEntity<List<TaskDto>> readAllTasks(@RequestParam(defaultValue = "0") int pageNo,
                                                       @RequestParam(defaultValue = "10") int pageSize) {
         Page<TaskDto> tasks = service.getAllTasks(pageNo, pageSize);
@@ -72,6 +75,7 @@ public class TaskController {
      * @return A {@link ResponseEntity} containing the task DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
+    @PreAuthorize("hasAuthority('task:read') or hasAuthority('task:admin')")
     public ResponseEntity<?> readATask(@PathVariable Long id) {
         TaskDto taskDto = service.getATask(id);
         return new ResponseEntity<>(taskDto, HttpStatus.OK);
@@ -85,6 +89,7 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("{id}")
+    @PreAuthorize("hasAuthority('task:update') or hasAuthority('task:admin')")
     public ResponseEntity<TaskSimpleDto> partialUpdateATask(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
         return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateATask(updates, id));
     }
@@ -96,6 +101,7 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("/batch")
+    @PreAuthorize("hasAuthority('task:update') or hasAuthority('task:admin')")
     public ResponseEntity<ApiResponse> batchUpdateTasks(@Valid @RequestBody List<TaskPatchDto> updates) {
         service.batchUpdateTasks(updates);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
@@ -108,6 +114,7 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
+    @PreAuthorize("hasAuthority('task:delete') or hasAuthority('task:admin')")
     public ResponseEntity<ApiResponse> deleteATask(@PathVariable Long id) {
         service.deleteATask(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Task with id: " + id + " deleted"));

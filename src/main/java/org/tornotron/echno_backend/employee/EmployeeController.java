@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.employee;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
@@ -44,6 +45,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} with the created employee's DTO and HTTP status 201 (Created).
      */
     @PostMapping("/joinOrganization/{userId}/{orgId}")
+    @PreAuthorize("hasAuthority('employee:create') or hasAuthority('employee:admin')")
     public ResponseEntity<EmployeeDto> joinOrganization(@PathVariable Long userId, @PathVariable Long orgId, @Valid @RequestBody EmployeeJoinOrgDto employeeJoinOrgDto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.joinOrganization(userId, orgId, employeeJoinOrgDto));
     }
@@ -55,6 +57,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} with the created employee's DTO and HTTP status 201 (Created).
      */
     @PostMapping
+    @PreAuthorize("hasAuthority('employee:create') or hasAuthority('employee:admin')")
     public ResponseEntity<EmployeeDto> createEmployee(@Valid @RequestBody EmployeeCreationDto employeeCreationDto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.addEmployee(employeeCreationDto));
     }
@@ -65,6 +68,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} containing the list of employee DTOs and HTTP status 200 (OK).
      */
     @GetMapping
+    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
     public ResponseEntity<List<EmployeeDto>> readAllEmployees() {
         return new ResponseEntity<>(employeeService.displayAllEmployees(),HttpStatus.OK);
     }
@@ -76,6 +80,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} containing the employee DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
+    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
     public ResponseEntity<EmployeeDto> readAnEmployee(@PathVariable Long id) {
         EmployeeDto employee = employeeService.displayAnEmployee(id);
        return ResponseEntity.status(HttpStatus.OK).body(employee);
@@ -89,6 +94,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} containing a list of employee DTOs for the specified organization and HTTP status 200 (OK).
      */
     @GetMapping("/organization/{id}")
+    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
     public ResponseEntity<List<EmployeeDto>> readEmployeesByOrganizationId(@PathVariable Long id) {
         return ResponseEntity.status(HttpStatus.OK).body(employeeService.displayEmployeesByOrganization(id));
     }
@@ -101,6 +107,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("{id}")
+    @PreAuthorize("hasAuthority('employee:update') or hasAuthority('employee:admin')")
     public ResponseEntity<ApiResponse> partialUpdateAnEmployee(@RequestBody Map<String,Object> updates,@PathVariable Long id) {
         employeeService.partialUpdateAnEmployee(updates,id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Employee with id: "+id+" updated"));
@@ -113,6 +120,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("/batch")
+    @PreAuthorize("hasAuthority('employee:update') or hasAuthority('employee:admin')")
     public ResponseEntity<ApiResponse> batchUpdateEmployees(@Valid @RequestBody List<EmployeePatchDto> updates) {
         employeeService.batchUpdateEmployees(updates);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
@@ -125,6 +133,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
+    @PreAuthorize("hasAuthority('employee:delete') or hasAuthority('employee:admin')")
     public ResponseEntity<ApiResponse> deleteEmployee(@PathVariable Long id) {
         employeeService.deleteAnEmployee(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Employee with id: "+id+" has been deleted"));

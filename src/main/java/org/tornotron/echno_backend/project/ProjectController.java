@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
@@ -46,6 +47,7 @@ public class ProjectController {
      * @return A {@link ResponseEntity} with the created project's simple DTO and HTTP status 201 (Created).
      */
     @PostMapping
+    @PreAuthorize("hasAuthority('project:create') or hasAuthority('project:admin')")
     public ResponseEntity<ProjectSimpleDto> createProject(@Valid @RequestBody ProjectCreationDto projectDto) {
         logger.info("Project Added Successfully");
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addProject(projectDto));
@@ -59,6 +61,7 @@ public class ProjectController {
      * @return A {@link ResponseEntity} containing the list of project DTOs and HTTP status 200 (OK).
      */
     @GetMapping
+    @PreAuthorize("hasAuthority('project:read') or hasAuthority('project:admin')")
     public ResponseEntity<List<ProjectDto>> readAllProjects(@RequestParam(defaultValue = "0") int pageNo,
                                                                  @RequestParam(defaultValue = "10") int pageSize) {
           Page<ProjectDto> projects = service.getAllProjects(pageNo,pageSize);
@@ -73,6 +76,7 @@ public class ProjectController {
      * @return A {@link ResponseEntity} containing the project DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
+    @PreAuthorize("hasAuthority('project:read') or hasAuthority('project:admin')")
     public ResponseEntity<?> readAProject(@PathVariable Long id) {
         ProjectDto project = service.getAProject(id);
         return new ResponseEntity<>(project,HttpStatus.OK);
@@ -86,6 +90,7 @@ public class ProjectController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("{id}")
+    @PreAuthorize("hasAuthority('project:update') or hasAuthority('project:admin')")
     public ResponseEntity<ApiResponse> partialUpdateAProject(@RequestBody Map<String,Object> updates,@PathVariable Long id) {
         service.partialUpdateAProject(updates,id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Project with id: "+id+" updated"));
@@ -98,6 +103,7 @@ public class ProjectController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("/batch")
+    @PreAuthorize("hasAuthority('project:update') or hasAuthority('project:admin')")
     public ResponseEntity<ApiResponse> batchUpdateProjects(@Valid @RequestBody List<ProjectPatchDto> updates) {
         service.batchUpdateProjects(updates);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
@@ -110,6 +116,7 @@ public class ProjectController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
+    @PreAuthorize("hasAuthority('project:delete') or hasAuthority('project:admin')")
     public ResponseEntity<ApiResponse> deleteProject(@PathVariable Long id) {
         service.deleteAProject(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Project with id: "+id+" has been deleted"));
@@ -122,6 +129,7 @@ public class ProjectController {
      * @return A {@link ResponseEntity} containing the organization ID and HTTP status 200 (OK).
      */
     @GetMapping("{id}/organization")
+    @PreAuthorize("hasAuthority('project:read') or hasAuthority('project:admin')")
     public ResponseEntity<Long> getOrganizationIdByProjectId(@PathVariable Long id) {
         Long organizationId = service.getOrganizationIdByProjectId(id);
         return new ResponseEntity<>(organizationId, HttpStatus.OK);

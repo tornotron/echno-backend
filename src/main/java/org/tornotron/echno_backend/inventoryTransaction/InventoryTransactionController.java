@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.inventoryTransaction;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryTransactionDto;
@@ -23,18 +24,21 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
     public ResponseEntity<InventoryTransactionDto> getTransactionById(@PathVariable Long id) {
         InventoryTransactionDto transaction = inventoryTransactionService.getTransactionById(id);
         return ResponseEntity.ok(transaction);
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
     public ResponseEntity<List<InventoryTransactionDto>> getAllTransactions() {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getAllTransactions();
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/all")
+    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
     public ResponseEntity<Page<InventoryTransactionDto>> getAllTransactionsPaginated(
             @RequestParam(defaultValue = "0") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize
@@ -44,18 +48,21 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/material/{materialId}")
+    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByMaterial(@PathVariable Long materialId) {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByMaterial(materialId);
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/type/{transactionType}")
+    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByType(@PathVariable InventoryTransactionType transactionType) {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByType(transactionType);
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/date-range")
+    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate
