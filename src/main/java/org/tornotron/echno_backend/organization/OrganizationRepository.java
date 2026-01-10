@@ -28,4 +28,6 @@ public interface OrganizationRepository extends JpaRepository<Organization, Long
      * @return A list of {@link Organization}s created by the specified user.
      */
     List<Organization> findOrganizationsByCreatorId(Integer creatorId);
+
+    boolean existsByOrganizationEmail(String organizationEmail);
 }
