@@ -7,7 +7,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.category.dto.CategoryCreationDto;
 import org.tornotron.echno_backend.category.dto.CategoryDto;
@@ -16,25 +15,20 @@ import org.tornotron.echno_backend.common.response.ApiResponse;
 
 import java.util.List;
 
-/**
- * REST controller for managing work categories.
- * Provides endpoints for creating, reading, and deleting categories.
- */
 @RestController
-@RequestMapping("api/v1/workCategories")
-@Validated
-public class CategoryController {
+@RequestMapping("/api/v1/category/web")
+public class CategoryControllerWeb {
 
     private final CategoryService categoryService;
     /** Logger for this class. */
-    private static final Logger logger = LoggerFactory.getLogger(CategoryController.class);
+    private static final Logger logger = LoggerFactory.getLogger(CategoryControllerWeb.class);
 
     /**
      * Constructs a CategoryController with the given CategoryService.
      *
      * @param categoryService The service for handling category-related business logic.
      */
-    public CategoryController(CategoryService categoryService) {
+    public CategoryControllerWeb(CategoryService categoryService) {
         this.categoryService = categoryService;
     }
 
@@ -95,4 +89,6 @@ public class CategoryController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(new ApiResponse("Category with id: " + id + " deleted"));
     }
+
+
 }
