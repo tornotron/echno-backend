@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.ProjectDtoConvertor;
+import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
@@ -52,6 +53,9 @@ public class ProjectService {
     public ProjectSimpleDto addProject(ProjectCreationDto projectDto) {
             Organization organization = organizationRepository.findById(projectDto.getOrganizationId())
                     .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + projectDto.getOrganizationId()));
+            if(repository.existsProjectByProjectName(projectDto.getProjectName())){
+                throw new DuplicateResourceException("Project with the same name already exists");
+            }
             Project project = new Project();
             project.setProjectName(projectDto.getProjectName());
             project.setProjectAddress(projectDto.getProjectAddress());

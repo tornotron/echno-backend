@@ -16,4 +16,6 @@ public interface ProjectRepository extends JpaRepository<Project,Long> {
      * @return The {@link Project} with the given name, or null if not found.
      */
     Project findProjectByProjectName(@NotBlank(message = "projectName is required") @Size(min = 3,max = 50,message = "projectName must be between 3 and 50 characters") String projectName);
+
+    boolean existsProjectByProjectName(String projectName);
 }
