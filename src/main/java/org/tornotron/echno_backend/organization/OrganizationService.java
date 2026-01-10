@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
+import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
@@ -47,6 +48,9 @@ public class OrganizationService {
      */
     @Transactional
     public OrganizationSimpleDto addOrganization(OrganizationCreationDto organizationCreationDto) {
+        if(repository.existsByOrganizationEmail(organizationCreationDto.getOrganizationEmail())){
+            throw new DuplicateResourceException("Organization already exists");
+        }
         Organization organization = new Organization();
         organization.setOrganizationName(organizationCreationDto.getOrganizationName());
         organization.setOrganizationAddress(organizationCreationDto.getOrganizationAddress());
