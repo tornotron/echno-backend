@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.customAnnotation.RequireSubscription;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
@@ -34,6 +35,7 @@ public class OrganizationWebController {
      */
     @PostMapping
     @PreAuthorize("hasAuthority('organization:create') or hasAuthority('organization:admin')")
+    @RequireSubscription(feature = "ORG_CREATE")
     public ResponseEntity<OrganizationSimpleDto> createOrganization(@Valid @RequestBody OrganizationCreationDto organizationCreationDto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addOrganization(organizationCreationDto));
     }
