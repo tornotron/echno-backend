@@ -1,14 +1,19 @@
 package org.tornotron.echno_backend.project;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
@@ -24,6 +29,8 @@ import java.util.Map;
 public class ProjectControllerWeb {
 
     private final ProjectService service;
+
+    private final ObjectMapper objectMapper;
     /** Logger for this class. */
     private static final Logger logger = LoggerFactory.getLogger(ProjectControllerWeb.class);
 
@@ -32,8 +39,9 @@ public class ProjectControllerWeb {
      *
      * @param service The service to handle project-related business logic.
      */
-    public ProjectControllerWeb(ProjectService service) {
+    public ProjectControllerWeb(ProjectService service, ObjectMapper objectMapper) {
         this.service = service;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -42,13 +50,14 @@ public class ProjectControllerWeb {
      * @param projectDto DTO containing the details for the new project.
      * @return A {@link ResponseEntity} with the created project's simple DTO and HTTP status 201 (Created).
      */
-    @PostMapping
-    @PreAuthorize("hasAuthority('project:create') or hasAuthority('project:admin')")
-    public ResponseEntity<ProjectSimpleDto> createProject(@Valid @RequestBody ProjectCreationDto projectDto) {
-        logger.info("Project Added Successfully");
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.addProject(projectDto));
-    }
 
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('project:create') or hasAuthority('project:admin')")
+    public ResponseEntity<ProjectSimpleDto> createProject(@RequestPart("data") @Valid String data,
+                                                          @RequestPart(value = "attachment", required = false) MultipartFile attachment) throws JsonProcessingException {
+        ProjectCreationDto dto = objectMapper.readValue(data, ProjectCreationDto.class);
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.addProject(dto,attachment));
+    }
     /**
      * Retrieves a paginated list of all projects.
      *

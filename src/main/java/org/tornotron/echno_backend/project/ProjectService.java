@@ -6,20 +6,25 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.DtoConversions.ProjectDtoConvertor;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
-import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
-import org.tornotron.echno_backend.project.dto.ProjectDto;
-import org.tornotron.echno_backend.project.dto.ProjectPatchDto;
-import org.tornotron.echno_backend.project.dto.ProjectSimpleDto;
+import org.tornotron.echno_backend.project.dto.*;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.endpoints.internal.Value;
+import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -28,8 +33,11 @@ import java.util.stream.Collectors;
  */
 @Service
 public class ProjectService {
+
+    private final S3Client s3Client;
     private final ProjectRepository repository;
     private final OrganizationRepository organizationRepository;
+    private final String bucketName = "echno-object-store";
 
     /**
      * Constructs a ProjectService with the necessary repositories.
@@ -37,9 +45,47 @@ public class ProjectService {
      * @param repository             The repository for project data access.
      * @param organizationRepository The repository for organization data access.
      */
-    public ProjectService(ProjectRepository repository, OrganizationRepository organizationRepository) {
+    public ProjectService(ProjectRepository repository, OrganizationRepository organizationRepository,S3Client s3Client) {
+        this.s3Client = s3Client;
         this.repository = repository;
         this.organizationRepository = organizationRepository;
+    }
+
+    public StoredFile upload(MultipartFile file) {
+
+        String key = "projects/"
+                + UUID.randomUUID()
+                + "-"
+                + file.getOriginalFilename();
+
+        PutObjectRequest request = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .contentType(file.getContentType())
+                .acl(ObjectCannedACL.PRIVATE)
+                .build();
+
+        try {
+            s3Client.putObject(
+                    request,
+                    RequestBody.fromInputStream(
+                            file.getInputStream(),
+                            file.getSize()
+                    )
+            );
+        } catch (IOException e) {
+            throw new RuntimeException("File upload failed", e);
+        }
+
+        String fileUrl = "https://"+bucketName+".blr1.digitaloceanspaces.com/"+key;
+
+        return new StoredFile(
+                key,
+                fileUrl,
+                file.getContentType(),
+                file.getSize()
+        );
+
     }
 
     /**
@@ -50,7 +96,7 @@ public class ProjectService {
      * @throws ResourceNotFoundException if the organization specified in the DTO does not exist.
      */
     @Transactional
-    public ProjectSimpleDto addProject(ProjectCreationDto projectDto) {
+    public ProjectSimpleDto addProject(ProjectCreationDto projectDto,MultipartFile attachment) {
             Organization organization = organizationRepository.findById(projectDto.getOrganizationId())
                     .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + projectDto.getOrganizationId()));
             if(repository.existsProjectByProjectName(projectDto.getProjectName())){
@@ -66,6 +112,13 @@ public class ProjectService {
             project.setOrganization(organization);
             project.setStartDate(projectDto.getStartDate());
             project.setEndDate(projectDto.getEndDate());
+            if (attachment != null && !attachment.isEmpty()) {
+                StoredFile storedFile = upload(attachment);
+                project.setAttachmentKey(storedFile.key());
+                project.setAttachmentUrl(storedFile.url());
+                project.setAttachmentContentType(storedFile.contentType());
+                project.setAttachmentSize(storedFile.size());
+            }
             return ProjectDtoConvertor.convertProjectToSimpleDto(repository.save(project));
     }
 
