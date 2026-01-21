@@ -35,7 +35,6 @@ public class OrganizationWebController {
      */
     @PostMapping
     @PreAuthorize("hasAuthority('organization:create') or hasAuthority('organization:admin')")
-    @RequireSubscription(feature = "ORG_CREATE")
     public ResponseEntity<OrganizationSimpleDto> createOrganization(@Valid @RequestBody OrganizationCreationDto organizationCreationDto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addOrganization(organizationCreationDto));
     }
