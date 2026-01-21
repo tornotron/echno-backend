@@ -74,4 +74,12 @@ public class Project {
     /** The scheduled end date and time of the project. */
     @Column(name = "end_date")
     private LocalDateTime endDate;
+
+    private String attachmentKey;
+
+    private String attachmentUrl;
+
+    private String attachmentContentType;
+
+    private Long attachmentSize;
 }

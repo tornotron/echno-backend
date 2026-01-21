@@ -1525,3 +1525,26 @@ databaseChangeLog:
             referencedTableName: purchase_order
             referencedColumnNames: id
             onDelete: SET NULL
+
+  # ==========================================
+  # CHANGESET 31: Add Attachment Fields to Project
+  # ==========================================
+  - changeSet:
+      id: 31-add-project-attachment-fields
+      author: system
+      changes:
+        - addColumn:
+            tableName: project
+            columns:
+              - column:
+                  name: attachment_key
+                  type: VARCHAR(500)
+              - column:
+                  name: attachment_url
+                  type: VARCHAR(1000)
+              - column:
+                  name: attachment_content_type
+                  type: VARCHAR(255)
+              - column:
+                  name: attachment_size
+                  type: BIGINT
