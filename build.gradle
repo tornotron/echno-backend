@@ -17,6 +17,7 @@ dependencies {
         exclude group: 'commons-logging', module: 'commons-logging'
     }
     implementation 'com.github.librepdf:openpdf:3.0.0'
+    implementation 'software.amazon.awssdk:s3:2.41.10'
     implementation 'org.liquibase:liquibase-core:5.0.1'
     implementation 'org.keycloak:keycloak-admin-client:26.0.7'
     implementation 'com.giffing.bucket4j.spring.boot.starter:bucket4j-spring-boot-starter:0.13.0'

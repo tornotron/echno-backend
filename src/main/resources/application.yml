@@ -4,6 +4,11 @@ jwt:
       resource-id: ${KEYCLOAK_BACKEND_CLIENT}
       principle-attribute: preferred_username
 
+digital-ocean:
+  uri: ${DIGITAL_OCEAN_SPACES_URI}
+  access-key-id: ${DIGITAL_OCEAN_SPACES_KEY_ID}
+  secret-access-key: ${DIGITAL_OCEAN_SPACES_KEY_SECRET}
+
 management:
   endpoint:
     health:
