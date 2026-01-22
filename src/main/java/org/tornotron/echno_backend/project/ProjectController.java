@@ -47,15 +47,15 @@ public class ProjectController {
     /**
      * Creates a new project.
      *
-     * @param projectDto DTO containing the details for the new project.
+     *  projectDto DTO containing the details for the new project.
      * @return A {@link ResponseEntity} with the created project's simple DTO and HTTP status 201 (Created).
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('project:create') or hasAuthority('project:admin')")
     public ResponseEntity<ProjectSimpleDto> createProject(@RequestPart("data") @Valid String data,
-                                                          @RequestPart(value = "attachment", required = false) MultipartFile attachment) throws JsonProcessingException {
+                                                          @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments) throws JsonProcessingException {
         ProjectCreationDto dto = new ObjectMapper().readValue(data, ProjectCreationDto.class);
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.addProject(dto,attachment));
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.addProject(dto, attachments));
     }
 
 
