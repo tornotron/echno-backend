@@ -8,6 +8,8 @@ digital-ocean:
   uri: ${DIGITAL_OCEAN_SPACES_URI}
   access-key-id: ${DIGITAL_OCEAN_SPACES_KEY_ID}
   secret-access-key: ${DIGITAL_OCEAN_SPACES_KEY_SECRET}
+  bucket-name: ${DIGITAL_OCEAN_SPACES_BUCKET_NAME}
+  cdn-endpoint: ${DIGITAL_OCEAN_SPACES_CDN_ENDPOINT}
 
 management:
   endpoint:
