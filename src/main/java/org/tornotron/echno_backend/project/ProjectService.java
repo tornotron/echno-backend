@@ -10,21 +10,15 @@ import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.DtoConversions.ProjectDtoConvertor;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.dto.*;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.endpoints.internal.Value;
-import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -34,58 +28,25 @@ import java.util.stream.Collectors;
 @Service
 public class ProjectService {
 
-    private final S3Client s3Client;
+    private static final String PROJECTS_FOLDER = "projects";
+
     private final ProjectRepository repository;
     private final OrganizationRepository organizationRepository;
-    private final String bucketName = "echno-object-store";
+    private final AttachmentService attachmentService;
 
     /**
      * Constructs a ProjectService with the necessary repositories.
      *
      * @param repository             The repository for project data access.
      * @param organizationRepository The repository for organization data access.
+     * @param attachmentService      The service for attachment operations.
      */
-    public ProjectService(ProjectRepository repository, OrganizationRepository organizationRepository,S3Client s3Client) {
-        this.s3Client = s3Client;
+    public ProjectService(ProjectRepository repository, 
+                          OrganizationRepository organizationRepository,
+                          AttachmentService attachmentService) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
-    }
-
-    public StoredFile upload(MultipartFile file) {
-
-        String key = "projects/"
-                + UUID.randomUUID()
-                + "-"
-                + file.getOriginalFilename();
-
-        PutObjectRequest request = PutObjectRequest.builder()
-                .bucket(bucketName)
-                .key(key)
-                .contentType(file.getContentType())
-                .acl(ObjectCannedACL.PRIVATE)
-                .build();
-
-        try {
-            s3Client.putObject(
-                    request,
-                    RequestBody.fromInputStream(
-                            file.getInputStream(),
-                            file.getSize()
-                    )
-            );
-        } catch (IOException e) {
-            throw new RuntimeException("File upload failed", e);
-        }
-
-        String fileUrl = "https://"+bucketName+".blr1.digitaloceanspaces.com/"+key;
-
-        return new StoredFile(
-                key,
-                fileUrl,
-                file.getContentType(),
-                file.getSize()
-        );
-
+        this.attachmentService = attachmentService;
     }
 
     /**
@@ -96,7 +57,7 @@ public class ProjectService {
      * @throws ResourceNotFoundException if the organization specified in the DTO does not exist.
      */
     @Transactional
-    public ProjectSimpleDto addProject(ProjectCreationDto projectDto,MultipartFile attachment) {
+    public ProjectSimpleDto addProject(ProjectCreationDto projectDto,List<MultipartFile> attachments) {
             Organization organization = organizationRepository.findById(projectDto.getOrganizationId())
                     .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + projectDto.getOrganizationId()));
             if(repository.existsProjectByProjectName(projectDto.getProjectName())){
@@ -112,14 +73,17 @@ public class ProjectService {
             project.setOrganization(organization);
             project.setStartDate(projectDto.getStartDate());
             project.setEndDate(projectDto.getEndDate());
-            if (attachment != null && !attachment.isEmpty()) {
-                StoredFile storedFile = upload(attachment);
-                project.setAttachmentKey(storedFile.key());
-                project.setAttachmentUrl(storedFile.url());
-                project.setAttachmentContentType(storedFile.contentType());
-                project.setAttachmentSize(storedFile.size());
+            
+            // Save the project first to get the ID
+            Project savedProject = repository.save(project);
+            System.out.println(attachments);
+            
+            // Upload attachments if provided
+            if (attachments != null && !attachments.isEmpty()) {
+                attachmentService.uploadAttachments(attachments, "PROJECT", savedProject.getId(), PROJECTS_FOLDER);
             }
-            return ProjectDtoConvertor.convertProjectToSimpleDto(repository.save(project));
+            
+            return ProjectDtoConvertor.convertProjectToSimpleDto(savedProject);
     }
 
     /**
@@ -210,15 +174,18 @@ public class ProjectService {
     }
 
     /**
-     * Deletes a project by its ID.
+     * Deletes a project by its ID, including all associated attachments.
      *
      * @param id The ID of the project to delete.
      * @throws ResourceNotFoundException if no project with the given ID is found.
      */
+    @Transactional
     public void deleteAProject(Long id) {
         if(!repository.existsById(id)) {
             throw new ResourceNotFoundException("Project not found with id: "+id);
         }
+        // Delete all attachments associated with this project
+        attachmentService.deleteAllAttachments("PROJECT", id);
         repository.deleteById(id);
     }
 
