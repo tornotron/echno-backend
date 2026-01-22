@@ -1548,3 +1548,83 @@ databaseChangeLog:
               - column:
                   name: attachment_size
                   type: BIGINT
+
+  # ==========================================
+  # CHANGESET 32: Create Attachment Table
+  # ==========================================
+  - changeSet:
+      id: 32-create-attachment
+      author: system
+      changes:
+        - createTable:
+            tableName: attachment
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: entity_type
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: entity_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: storage_key
+                  type: VARCHAR(500)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: url
+                  type: VARCHAR(1024)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content_type
+                  type: VARCHAR(100)
+              - column:
+                  name: file_size
+                  type: BIGINT
+              - column:
+                  name: original_filename
+                  type: VARCHAR(255)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_attachment_entity
+            tableName: attachment
+            columns:
+              - column:
+                  name: entity_type
+              - column:
+                  name: entity_id
+
+  # ==========================================
+  # CHANGESET 33: Remove Attachment Fields from Project
+  # ==========================================
+  - changeSet:
+      id: 33-remove-project-attachment-fields
+      author: system
+      changes:
+        - dropColumn:
+            tableName: project
+            columnName: attachment_key
+        - dropColumn:
+            tableName: project
+            columnName: attachment_url
+        - dropColumn:
+            tableName: project
+            columnName: attachment_content_type
+        - dropColumn:
+            tableName: project
+            columnName: attachment_size
