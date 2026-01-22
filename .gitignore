@@ -58,3 +58,4 @@ serviceAccountKey.json
 /src/main/resources/application-local.yml
 /logs/
 /src/main/resources/config/
+/bin
