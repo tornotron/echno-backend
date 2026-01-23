@@ -1628,3 +1628,607 @@ databaseChangeLog:
         - dropColumn:
             tableName: project
             columnName: attachment_size
+
+  # ==========================================
+  # CHANGESET 34: Create Plan Table
+  # ==========================================
+  - changeSet:
+      id: 34-create-plan
+      author: system
+      changes:
+        - createTable:
+            tableName: plan
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: code
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: version
+                  type: INTEGER
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+              - column:
+                  name: monthly_price
+                  type: DECIMAL(10,2)
+              - column:
+                  name: annual_price
+                  type: DECIMAL(10,2)
+              - column:
+                  name: currency
+                  type: VARCHAR(3)
+                  defaultValue: USD
+              - column:
+                  name: is_active
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+              - column:
+                  name: is_public
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+              - column:
+                  name: trial_days
+                  type: INTEGER
+                  defaultValueNumeric: 0
+              - column:
+                  name: max_users
+                  type: INTEGER
+              - column:
+                  name: sort_order
+                  type: INTEGER
+                  defaultValueNumeric: 0
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addUniqueConstraint:
+            tableName: plan
+            columnNames: code, version
+            constraintName: unique_plan_code_version
+        - createIndex:
+            indexName: idx_plan_code
+            tableName: plan
+            columns:
+              - column:
+                  name: code
+        - createIndex:
+            indexName: idx_plan_active
+            tableName: plan
+            columns:
+              - column:
+                  name: is_active
+
+  # ==========================================
+  # CHANGESET 35: Create Feature Table
+  # ==========================================
+  - changeSet:
+      id: 35-create-feature
+      author: system
+      changes:
+        - createTable:
+            tableName: feature
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: code
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: feature_type
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: category
+                  type: VARCHAR(50)
+              - column:
+                  name: is_active
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - sql:
+            sql: ALTER TABLE feature ADD CONSTRAINT chk_feature_type CHECK (feature_type IN ('BOOLEAN', 'QUOTA', 'RATE_LIMIT'))
+        - createIndex:
+            indexName: idx_feature_code
+            tableName: feature
+            columns:
+              - column:
+                  name: code
+        - createIndex:
+            indexName: idx_feature_category
+            tableName: feature
+            columns:
+              - column:
+                  name: category
+
+  # ==========================================
+  # CHANGESET 36: Create Plan Feature Table
+  # ==========================================
+  - changeSet:
+      id: 36-create-plan-feature
+      author: system
+      changes:
+        - createTable:
+            tableName: plan_feature
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: plan_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: feature_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+              - column:
+                  name: quota_limit
+                  type: BIGINT
+              - column:
+                  name: quota_period
+                  type: VARCHAR(20)
+              - column:
+                  name: metadata
+                  type: JSONB
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addUniqueConstraint:
+            tableName: plan_feature
+            columnNames: plan_id, feature_id
+            constraintName: unique_plan_feature
+        - addForeignKeyConstraint:
+            baseTableName: plan_feature
+            baseColumnNames: plan_id
+            constraintName: fk_plan_feature_plan
+            referencedTableName: plan
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: plan_feature
+            baseColumnNames: feature_id
+            constraintName: fk_plan_feature_feature
+            referencedTableName: feature
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - sql:
+            sql: ALTER TABLE plan_feature ADD CONSTRAINT chk_quota_period CHECK (quota_period IN ('HOURLY', 'DAILY', 'MONTHLY', 'ANNUAL', 'TOTAL', 'PER_REQUEST'))
+        - createIndex:
+            indexName: idx_plan_feature_plan
+            tableName: plan_feature
+            columns:
+              - column:
+                  name: plan_id
+        - createIndex:
+            indexName: idx_plan_feature_feature
+            tableName: plan_feature
+            columns:
+              - column:
+                  name: feature_id
+
+  # ==========================================
+  # CHANGESET 37: Create Subscription Table
+  # ==========================================
+  - changeSet:
+      id: 37-create-subscription
+      author: system
+      changes:
+        - createTable:
+            tableName: subscription
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: plan_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: ACTIVE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: current_period_start
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: current_period_end
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: trial_start
+                  type: TIMESTAMP
+              - column:
+                  name: trial_end
+                  type: TIMESTAMP
+              - column:
+                  name: cancel_at_period_end
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+              - column:
+                  name: canceled_at
+                  type: TIMESTAMP
+              - column:
+                  name: cancellation_reason
+                  type: TEXT
+              - column:
+                  name: external_subscription_id
+                  type: VARCHAR(255)
+              - column:
+                  name: metadata
+                  type: JSONB
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addForeignKeyConstraint:
+            baseTableName: subscription
+            baseColumnNames: plan_id
+            constraintName: fk_subscription_plan
+            referencedTableName: plan
+            referencedColumnNames: id
+            onDelete: RESTRICT
+        - sql:
+            sql: ALTER TABLE subscription ADD CONSTRAINT chk_subscription_status CHECK (status IN ('INCOMPLETE', 'INCOMPLETE_EXPIRED', 'TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'UNPAID', 'PAUSED'))
+        - createIndex:
+            indexName: idx_subscription_user
+            tableName: subscription
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            indexName: idx_subscription_status
+            tableName: subscription
+            columns:
+              - column:
+                  name: status
+        - createIndex:
+            indexName: idx_subscription_period_end
+            tableName: subscription
+            columns:
+              - column:
+                  name: current_period_end
+        - sql:
+            sql: CREATE UNIQUE INDEX idx_subscription_user_active ON subscription(user_id) WHERE status IN ('ACTIVE', 'TRIALING')
+
+  # ==========================================
+  # CHANGESET 38: Create Subscription Item Table
+  # ==========================================
+  - changeSet:
+      id: 38-create-subscription-item
+      author: system
+      changes:
+        - createTable:
+            tableName: subscription_item
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: subscription_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: feature_id
+                  type: BIGINT
+              - column:
+                  name: plan_feature_id
+                  type: BIGINT
+              - column:
+                  name: quantity
+                  type: INTEGER
+                  defaultValueNumeric: 1
+              - column:
+                  name: unit_price
+                  type: DECIMAL(10,2)
+              - column:
+                  name: override_quota_limit
+                  type: BIGINT
+              - column:
+                  name: override_enabled
+                  type: BOOLEAN
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addForeignKeyConstraint:
+            baseTableName: subscription_item
+            baseColumnNames: subscription_id
+            constraintName: fk_subscription_item_subscription
+            referencedTableName: subscription
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: subscription_item
+            baseColumnNames: feature_id
+            constraintName: fk_subscription_item_feature
+            referencedTableName: feature
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - addForeignKeyConstraint:
+            baseTableName: subscription_item
+            baseColumnNames: plan_feature_id
+            constraintName: fk_subscription_item_plan_feature
+            referencedTableName: plan_feature
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - createIndex:
+            indexName: idx_subscription_item_subscription
+            tableName: subscription_item
+            columns:
+              - column:
+                  name: subscription_id
+
+  # ==========================================
+  # CHANGESET 39: Create Usage Record Table
+  # ==========================================
+  - changeSet:
+      id: 39-create-usage-record
+      author: system
+      changes:
+        - createTable:
+            tableName: usage_record
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: subscription_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: feature_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: usage_amount
+                  type: BIGINT
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+              - column:
+                  name: period_start
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: period_end
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: resource_id
+                  type: VARCHAR(255)
+              - column:
+                  name: metadata
+                  type: JSONB
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addForeignKeyConstraint:
+            baseTableName: usage_record
+            baseColumnNames: subscription_id
+            constraintName: fk_usage_record_subscription
+            referencedTableName: subscription
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: usage_record
+            baseColumnNames: feature_id
+            constraintName: fk_usage_record_feature
+            referencedTableName: feature
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - sql:
+            sql: ALTER TABLE usage_record ADD CONSTRAINT chk_usage_amount CHECK (usage_amount > 0)
+        - createIndex:
+            indexName: idx_usage_user_feature
+            tableName: usage_record
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: feature_id
+        - createIndex:
+            indexName: idx_usage_subscription
+            tableName: usage_record
+            columns:
+              - column:
+                  name: subscription_id
+        - createIndex:
+            indexName: idx_usage_period
+            tableName: usage_record
+            columns:
+              - column:
+                  name: period_start
+              - column:
+                  name: period_end
+        - createIndex:
+            indexName: idx_usage_feature_period
+            tableName: usage_record
+            columns:
+              - column:
+                  name: feature_id
+              - column:
+                  name: period_start
+              - column:
+                  name: user_id
+
+  # ==========================================
+  # CHANGESET 40: Create Subscription History Table
+  # ==========================================
+  - changeSet:
+      id: 40-create-subscription-history
+      author: system
+      changes:
+        - createTable:
+            tableName: subscription_history
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: subscription_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: action
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: from_plan_id
+                  type: BIGINT
+              - column:
+                  name: to_plan_id
+                  type: BIGINT
+              - column:
+                  name: from_status
+                  type: VARCHAR(20)
+              - column:
+                  name: to_status
+                  type: VARCHAR(20)
+              - column:
+                  name: reason
+                  type: TEXT
+              - column:
+                  name: metadata
+                  type: JSONB
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - addForeignKeyConstraint:
+            baseTableName: subscription_history
+            baseColumnNames: subscription_id
+            constraintName: fk_subscription_history_subscription
+            referencedTableName: subscription
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: subscription_history
+            baseColumnNames: from_plan_id
+            constraintName: fk_subscription_history_from_plan
+            referencedTableName: plan
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - addForeignKeyConstraint:
+            baseTableName: subscription_history
+            baseColumnNames: to_plan_id
+            constraintName: fk_subscription_history_to_plan
+            referencedTableName: plan
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - createIndex:
+            indexName: idx_subscription_history_subscription
+            tableName: subscription_history
+            columns:
+              - column:
+                  name: subscription_id
+        - createIndex:
+            indexName: idx_subscription_history_user
+            tableName: subscription_history
+            columns:
+              - column:
+                  name: user_id
