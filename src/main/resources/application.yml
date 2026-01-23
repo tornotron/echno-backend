@@ -13,6 +13,8 @@ digital-ocean:
 
 management:
   endpoint:
+    prometheus:
+      access: unrestricted
     health:
       show-details: always
   endpoints:
@@ -159,4 +161,4 @@ logging:
   config: classpath:logback-spring.xml
 
 loki:
-  url: ${LOKI_URL:http://loki:3100/loki/api/v1/push}
+  url: ${LOKI_URL:http://localhost:3100/loki/api/v1/push}
