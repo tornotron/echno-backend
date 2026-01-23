@@ -8,10 +8,12 @@
         </encoder>
     </appender>
 
+    <springProperty scope="context" name="LOKI_URL" source="loki.url" defaultValue="http://localhost:3100/loki/api/v1/push"/>
+
     <!-- Loki Appender Configuration -->
     <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
         <http>
-            <url>${LOKI_URL:-http://localhost:3100/loki/api/v1/push}</url>
+            <url>${LOKI_URL}</url>
         </http>
         <format>
             <label>

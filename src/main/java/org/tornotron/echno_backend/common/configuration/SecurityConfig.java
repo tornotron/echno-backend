@@ -43,6 +43,7 @@ public class SecurityConfig {
                 .addFilterBefore(rPTExchangeFilter, UsernamePasswordAuthenticationFilter.class)
                         .authorizeHttpRequests(auth -> auth
                                 .requestMatchers(HttpMethod.POST, "/api/"+backend_version+"/auth/register").permitAll()
+                                .requestMatchers("/actuator/**").permitAll()
                                 .anyRequest()
                                 .authenticated()
                         )
