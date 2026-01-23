@@ -274,9 +274,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(FileUploadException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ErrorResponse handleFileUploadException(FileUploadException ex, WebRequest request) {
+    public CustomErrorResponse handleFileUploadException(FileUploadException ex, WebRequest request) {
         logger.error("File upload failed: ", ex);
-        return new ErrorResponse(
+        return new CustomErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 ex.getMessage(),
                 request.getDescription(false),

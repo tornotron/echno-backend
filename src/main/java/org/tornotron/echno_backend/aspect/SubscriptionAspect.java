@@ -37,12 +37,10 @@ public class SubscriptionAspect {
                 .checkFeatureAccess(userId, featureCode);
 
         if(!accessResultDto.isAllowed()) {
-            log.warn("Access denied for user {} to feature {}: {}",
-                    userId, featureCode, accessResultDto.getReason());
 
             throw new SubscriptionAccessDeniedException(
                     requireSubscription.errorMessage().isEmpty()
-                    ? accessResultDto.getReason()
+                    ? (accessResultDto.getMessage() != null ? accessResultDto.getMessage() : accessResultDto.getReason())
                             : requireSubscription.errorMessage(),
                     accessResultDto
             );
