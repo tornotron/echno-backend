@@ -7,6 +7,7 @@ import lombok.Value;
 @Builder
 public class FeatureAccessResultDto {
     boolean allowed;
+    String message;
     String reason;
     Long currentUsage;
     Long quotaLimit;
@@ -35,6 +36,7 @@ public class FeatureAccessResultDto {
     public static FeatureAccessResultDto featureNotInPlan() {
         return FeatureAccessResultDto.builder()
                 .allowed(false)
+                .message("Upgrade to higher tier plan")
                 .reason("Feature not included in current plan")
                 .build();
     }
