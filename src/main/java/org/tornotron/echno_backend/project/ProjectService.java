@@ -76,8 +76,6 @@ public class ProjectService {
             
             // Save the project first to get the ID
             Project savedProject = repository.save(project);
-            System.out.println(attachments);
-            
             // Upload attachments if provided
             if (attachments != null && !attachments.isEmpty()) {
                 attachmentService.uploadAttachments(attachments, "PROJECT", savedProject.getId(), PROJECTS_FOLDER);
