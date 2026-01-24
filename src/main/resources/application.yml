@@ -91,7 +91,7 @@ spring:
     cache-names:
       - rate-limit-buckets
     caffeine:
-      spec: maximumSize=100000,expireAfterAccess=3600s
+      spec: maximumSize=100000,expireAfterAccess=3600s,recordStats
   batch:
     jdbc:
       initialize-schema: always
