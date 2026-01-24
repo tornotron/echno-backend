@@ -1,12 +1,16 @@
 package org.tornotron.echno_backend.issue;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.issue.dto.IssueCreationDto;
 import org.tornotron.echno_backend.issue.dto.IssueDto;
 import org.tornotron.echno_backend.issue.dto.IssueSimpleDto;
@@ -21,8 +25,11 @@ public class IssueController {
 
     private final IssueService issueService;
 
-    public IssueController(IssueService issueService) {
+    private final ObjectMapper objectMapper;
+
+    public IssueController(IssueService issueService, ObjectMapper objectMapper) {
         this.issueService = issueService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping
@@ -34,11 +41,14 @@ public class IssueController {
 
     }
 
-    @PostMapping
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('issue:create') or hasAuthority('issue:admin')")
-    public ResponseEntity<IssueSimpleDto> createIssue(@Valid @RequestBody IssueCreationDto issueCreationDto) {
+    public ResponseEntity<IssueSimpleDto> createIssue(@RequestPart("data") @Valid String data,
+                                                      @RequestParam(value = "attachments",required = false) List<MultipartFile> attachments) throws JsonProcessingException {
+        IssueCreationDto dto = objectMapper.readValue(data, IssueCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(issueService.addIssue(issueCreationDto));
+                .body(issueService.addIssue(dto,attachments));
     }
 
     @PatchMapping("{id}")

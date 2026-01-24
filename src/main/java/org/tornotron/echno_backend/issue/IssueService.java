@@ -6,8 +6,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.DtoConversions.IssueDtoConvertor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.issue.dto.IssueCreationDto;
 import org.tornotron.echno_backend.issue.dto.IssueDto;
 import org.tornotron.echno_backend.issue.dto.IssueSimpleDto;
@@ -16,22 +18,27 @@ import org.tornotron.echno_backend.issue.enums.IssueType;
 import org.tornotron.echno_backend.task.Task;
 import org.tornotron.echno_backend.task.TaskRepository;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 @Service
 public class IssueService {
 
+    private static final String ISSUES_FOLDER = "issues";
+
     private final IssueRepository issueRepository;
     private final TaskRepository taskRepository;
+    private final AttachmentService attachmentService;
 
-    public IssueService(IssueRepository issueRepository, TaskRepository taskRepository) {
+    public IssueService(IssueRepository issueRepository, TaskRepository taskRepository, AttachmentService attachmentService) {
         this.issueRepository = issueRepository;
         this.taskRepository = taskRepository;
+        this.attachmentService = attachmentService;
     }
 
     @Transactional
-    public IssueSimpleDto addIssue(IssueCreationDto issueCreationDto) {
+    public IssueSimpleDto addIssue(IssueCreationDto issueCreationDto, List<MultipartFile> attachments) {
         Task task = taskRepository.findById(issueCreationDto.getTaskId())
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + issueCreationDto.getTaskId()));
         Issue issue = new Issue();
@@ -42,7 +49,14 @@ public class IssueService {
         issue.setCreator(issueCreationDto.getCreator());
         issue.setCreator(issueCreationDto.getCreator());
         issue.setTask(task);
-        return IssueDtoConvertor.convertIssueToSimpleDto(issueRepository.save(issue));
+
+        Issue savedIssue = issueRepository.save(issue);
+
+        if (attachments != null && !attachments.isEmpty()) {
+            attachmentService.uploadAttachments(attachments, "ISSUE", savedIssue.getId(), ISSUES_FOLDER);
+        }
+
+        return IssueDtoConvertor.convertIssueToSimpleDto(savedIssue);
     }
 
     @Transactional(readOnly = true)
