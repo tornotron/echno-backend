@@ -6,11 +6,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.DtoConversions.TaskDtoConvertor;
 import org.tornotron.echno_backend.category.CategoryRepository;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.organization.Organization;
@@ -32,10 +34,13 @@ import java.util.stream.Collectors;
 @Service
 public class TaskService {
 
+    private static final String TASKS_FOLDER = "tasks";
+
     private final TaskRepository taskRepository;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
     private final CategoryRepository categoryRepository;
+    private final AttachmentService attachmentService;
 
 
     /**
@@ -49,12 +54,14 @@ public class TaskService {
     public TaskService(TaskRepository taskRepository,
                        EmployeeRepository employeeRepository,
                        ProjectRepository projectRepository,
-                       CategoryRepository categoryRepository
+                       CategoryRepository categoryRepository,
+                       AttachmentService attachmentService
                       ) {
         this.taskRepository = taskRepository;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.categoryRepository = categoryRepository;
+        this.attachmentService = attachmentService;
     }
 
 
@@ -68,7 +75,7 @@ public class TaskService {
      * @throws DatabaseOperationException if there is an error saving the task.
      */
     @Transactional
-    public TaskSimpleDto addTask(TaskCreationDto taskCreationDto) {
+    public TaskSimpleDto addTask(TaskCreationDto taskCreationDto, List<MultipartFile> attachments) {
         Task task = new Task();
         task.setTitle(taskCreationDto.getTitle());
         task.setStartDate(taskCreationDto.getStartDate());
@@ -126,12 +133,15 @@ public class TaskService {
             task.setTags(cleanedTags);
         }
 
-        try {
-            taskRepository.save(task);
-        } catch (Exception e) {
-            throw new DatabaseOperationException("Error while adding task: " + e.getMessage());
+        Task savedTask = taskRepository.save(task);
+
+        if(attachments != null && !attachments.isEmpty()) {
+            attachmentService.uploadAttachments(attachments,"TASK", savedTask.getId(), TASKS_FOLDER);
         }
-        return TaskDtoConvertor.convertTaskToSimpleDto(task);
+
+
+
+        return TaskDtoConvertor.convertTaskToSimpleDto(savedTask);
     }
 
     /**
