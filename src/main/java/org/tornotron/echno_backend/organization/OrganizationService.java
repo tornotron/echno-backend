@@ -6,9 +6,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
@@ -28,17 +30,21 @@ import java.util.stream.Collectors;
 @Service
 public class OrganizationService {
 
+    private static final String ORGANIZATION_FOLDER = "organizations";
+
     private final OrganizationRepository repository;
     private final OrganizationDtoConvertor orgConvertor;
+    private final AttachmentService attachmentService;
 
     /**
      * Constructs an {@code OrganizationService} with the necessary dependencies.
      * @param repository The repository for accessing organization data.
      * @param orgConvertor The converter for mapping between Organization entities and DTOs.
      */
-    public OrganizationService(OrganizationRepository repository, OrganizationDtoConvertor orgConvertor) {
+    public OrganizationService(OrganizationRepository repository, OrganizationDtoConvertor orgConvertor,AttachmentService attachmentService) {
         this.orgConvertor = orgConvertor;
         this.repository = repository;
+        this.attachmentService = attachmentService;
     }
 
     /**
@@ -47,7 +53,7 @@ public class OrganizationService {
      * @return An {@link OrganizationSimpleDto} representing the newly created organization.
      */
     @Transactional
-    public OrganizationSimpleDto addOrganization(OrganizationCreationDto organizationCreationDto) {
+    public OrganizationSimpleDto addOrganization(OrganizationCreationDto organizationCreationDto, List<MultipartFile> attachments) {
         if(repository.existsByOrganizationEmail(organizationCreationDto.getOrganizationEmail())){
             throw new DuplicateResourceException("Organization already exists");
         }
@@ -61,7 +67,13 @@ public class OrganizationService {
         organization.setOrganizationLogo(organizationCreationDto.getOrganizationLogo());
         organization.setCreatorId(organizationCreationDto.getCreatorId());
         organization.setIsActive(true);
-        return orgConvertor.convertOrganizationToSimpleDto(repository.save(organization));
+        Organization savedOrganization = repository.save(organization);
+
+        if (attachments != null && !attachments.isEmpty()) {
+            attachmentService.uploadAttachments(attachments, "ORGANIZATION", savedOrganization.getId(), ORGANIZATION_FOLDER);
+        }
+
+        return OrganizationDtoConvertor.convertOrganizationToSimpleDto(savedOrganization);
     }
 
     /**

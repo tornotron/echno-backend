@@ -1,12 +1,16 @@
 package org.tornotron.echno_backend.organization;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
@@ -26,28 +30,30 @@ import java.util.Map;
 public class OrganizationController {
 
     private final OrganizationService service;
+    private final ObjectMapper objectMapper;
 
     /**
      * Constructs an OrganizationController with the given OrganizationService.
      *
      * @param service The service to handle organization-related business logic.
      */
-    public OrganizationController(OrganizationService service) {
+    public OrganizationController(OrganizationService service,ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
         this.service = service;
     }
 
     /**
      * Creates a new organization.
-     *
-     * @param organizationCreationDto DTO containing the details for the new organization.
+     *  organizationCreationDto DTO containing the details for the new organization.
      * @return A {@link ResponseEntity} with the created organization's simple DTO and HTTP status 201 (Created).
      */
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('organization:create') or hasAuthority('organization:admin')")
-    public ResponseEntity<OrganizationSimpleDto> createOrganization(@Valid @RequestBody OrganizationCreationDto organizationCreationDto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.addOrganization(organizationCreationDto));
+    public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") @Valid String data,
+                                                                    @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
+        OrganizationCreationDto dto = objectMapper.readValue(data, OrganizationCreationDto.class);
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.addOrganization(dto,attachments));
     }
-
     /**
      * Retrieves a paginated list of all organizations.
      *

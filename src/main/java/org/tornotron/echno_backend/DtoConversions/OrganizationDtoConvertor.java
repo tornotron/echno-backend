@@ -102,7 +102,7 @@ public class OrganizationDtoConvertor {
         return employeeDto;
     }
 
-    public OrganizationSimpleDto convertOrganizationToSimpleDto(Organization organization) {
+    public static OrganizationSimpleDto convertOrganizationToSimpleDto(Organization organization) {
         OrganizationSimpleDto dto = new OrganizationSimpleDto();
         dto.setId(organization.getId());
         dto.setOrganizationName(organization.getOrganizationName());
