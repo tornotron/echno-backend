@@ -249,7 +249,11 @@ public class UserService {
                     user.setPhone((String) value);
                     break;
                 case "dateOfBirth":
-                    user.setDateOfBirth((LocalDateTime) value);
+                    if (value instanceof String) {
+                        user.setDateOfBirth(LocalDateTime.parse((String) value));
+                    } else if (value instanceof LocalDateTime) {
+                        user.setDateOfBirth((LocalDateTime) value);
+                    }
                     break;
                 case "qualification":
                     user.setQualification((String) value);
