@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="001-create-users-table" author="echno">
+        <createTable tableName="users_table">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="keycloak_id" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_users_keycloak_id"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="gender" type="VARCHAR(50)"/>
+            <column name="address" type="TEXT"/>
+            <column name="blood_group" type="VARCHAR(10)"/>
+            <column name="email" type="VARCHAR(255)">
+                <constraints unique="true" uniqueConstraintName="uk_users_email"/>
+            </column>
+            <column name="phone" type="VARCHAR(50)">
+                <constraints unique="true" uniqueConstraintName="uk_users_phone"/>
+            </column>
+            <column name="accept_terms" type="BOOLEAN"/>
+            <column name="date_of_birth" type="TIMESTAMP"/>
+            <column name="qualification" type="VARCHAR(255)"/>
+            <column name="skills" type="STRING[]"/>
+            <column name="experience" type="INT"/>
+            <column name="cv_url" type="VARCHAR(1024)"/>
+            <column name="emergency_contact" type="VARCHAR(255)"/>
+            <column name="role" type="VARCHAR(50)"/>
+            <column name="profile_picture_url" type="VARCHAR(1024)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="users_table" indexName="idx_users_email">
+            <column name="email"/>
+        </createIndex>
+
+        <createIndex tableName="users_table" indexName="idx_users_keycloak_id">
+            <column name="keycloak_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

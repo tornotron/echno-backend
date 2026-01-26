@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="020-create-subscription-item" author="echno">
+        <createTable tableName="subscription_item">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="quantity" type="INT" defaultValueNumeric="1"/>
+            <column name="unit_price" type="DECIMAL(10,2)"/>
+            <column name="override_quota_limit" type="BIGINT"/>
+            <column name="override_enabled" type="BOOLEAN"/>
+            <column name="subscription_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="feature_id" type="BIGINT"/>
+            <column name="plan_feature_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="subscription_item"
+                baseColumnNames="subscription_id"
+                constraintName="fk_subscription_item_subscription"
+                referencedTableName="subscription"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="subscription_item"
+                baseColumnNames="feature_id"
+                constraintName="fk_subscription_item_feature"
+                referencedTableName="feature"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint
+                baseTableName="subscription_item"
+                baseColumnNames="plan_feature_id"
+                constraintName="fk_subscription_item_plan_feature"
+                referencedTableName="plan_feature"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <createIndex tableName="subscription_item" indexName="idx_subscription_item_subscription">
+            <column name="subscription_id"/>
+        </createIndex>
+
+        <createIndex tableName="subscription_item" indexName="idx_subscription_item_feature">
+            <column name="feature_id"/>
+        </createIndex>
+
+        <createIndex tableName="subscription_item" indexName="idx_subscription_item_plan_feature">
+            <column name="plan_feature_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

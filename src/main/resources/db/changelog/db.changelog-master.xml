@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================== -->
+    <!-- v1.0 - Initial Schema                                          -->
+    <!-- Created: 2026-01-26                                            -->
+    <!-- Description: Base schema for Echno Backend                     -->
+    <!-- ============================================================== -->
+
+    <!-- Level 0: Base tables with no foreign key dependencies -->
+    <include file="db/changelog/v1.0/001-create-users-table.xml"/>
+    <include file="db/changelog/v1.0/002-create-organization.xml"/>
+    <include file="db/changelog/v1.0/003-create-category.xml"/>
+    <include file="db/changelog/v1.0/004-create-vendor.xml"/>
+    <include file="db/changelog/v1.0/005-create-material.xml"/>
+    <include file="db/changelog/v1.0/006-create-feature.xml"/>
+    <include file="db/changelog/v1.0/007-create-plan.xml"/>
+    <include file="db/changelog/v1.0/008-create-attachment.xml"/>
+
+    <!-- Level 1: Tables depending on Level 0 -->
+    <include file="db/changelog/v1.0/009-create-employee.xml"/>
+    <include file="db/changelog/v1.0/010-create-project.xml"/>
+    <include file="db/changelog/v1.0/011-create-project-invite-code.xml"/>
+    <include file="db/changelog/v1.0/012-create-intend.xml"/>
+    <include file="db/changelog/v1.0/013-create-plan-feature.xml"/>
+    <include file="db/changelog/v1.0/014-create-subscription.xml"/>
+    <include file="db/changelog/v1.0/015-create-site-transfer.xml"/>
+
+    <!-- Level 2: Tables depending on Level 1 -->
+    <include file="db/changelog/v1.0/016-create-team-member.xml"/>
+    <include file="db/changelog/v1.0/017-create-task.xml"/>
+    <include file="db/changelog/v1.0/018-create-indent-item.xml"/>
+    <include file="db/changelog/v1.0/019-create-purchase-order.xml"/>
+    <include file="db/changelog/v1.0/020-create-subscription-item.xml"/>
+    <include file="db/changelog/v1.0/021-create-site-transfer-item.xml"/>
+
+    <!-- Level 3: Tables depending on Level 2 -->
+    <include file="db/changelog/v1.0/022-create-task-assignees.xml"/>
+    <include file="db/changelog/v1.0/023-create-task-tags.xml"/>
+    <include file="db/changelog/v1.0/024-create-issue.xml"/>
+    <include file="db/changelog/v1.0/025-create-purchase-order-item.xml"/>
+    <include file="db/changelog/v1.0/026-create-goods-received-note.xml"/>
+    <include file="db/changelog/v1.0/027-create-inventory-transaction.xml"/>
+    <include file="db/changelog/v1.0/028-create-material-consumption.xml"/>
+
+    <!-- Level 4: Tables depending on Level 3 -->
+    <include file="db/changelog/v1.0/029-create-issue-comments.xml"/>
+    <include file="db/changelog/v1.0/030-create-grn-item.xml"/>
+    <include file="db/changelog/v1.0/031-create-payable.xml"/>
+
+    <!-- Level 5: Standalone tables with denormalized references -->
+    <include file="db/changelog/v1.0/032-create-usage-record.xml"/>
+    <include file="db/changelog/v1.0/033-create-attendance.xml"/>
+
+    <!-- Tag v1.0 release -->
+    <include file="db/changelog/v1.0/034-tag-v1.0.xml"/>
+
+    <!-- ============================================================== -->
+    <!-- v1.1 - Future enhancements go here                             -->
+    <!-- ============================================================== -->
+    <!-- <include file="db/changelog/v1.1/035-your-next-change.xml"/>   -->
+
+</databaseChangeLog>

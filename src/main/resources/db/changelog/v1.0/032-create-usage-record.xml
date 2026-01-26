@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="032-create-usage-record" author="echno">
+        <createTable tableName="usage_record">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subscription_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="feature_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="usage_amount" type="BIGINT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_start" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_end" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="resource_id" type="VARCHAR(255)"/>
+        </createTable>
+
+        <!-- Note: No FK constraints as entity uses denormalized IDs for performance -->
+
+        <createIndex tableName="usage_record" indexName="idx_usage_user_feature">
+            <column name="user_id"/>
+            <column name="feature_id"/>
+        </createIndex>
+
+        <createIndex tableName="usage_record" indexName="idx_usage_subscription">
+            <column name="subscription_id"/>
+        </createIndex>
+
+        <createIndex tableName="usage_record" indexName="idx_usage_period">
+            <column name="period_start"/>
+            <column name="period_end"/>
+        </createIndex>
+
+        <createIndex tableName="usage_record" indexName="idx_usage_feature_period">
+            <column name="feature_id"/>
+            <column name="period_start"/>
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

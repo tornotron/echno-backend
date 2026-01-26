@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="015-create-site-transfer" author="echno">
+        <createTable tableName="site_transfer">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="transfer_number" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_site_transfer_number"/>
+            </column>
+            <column name="issue_date" type="TIMESTAMP"/>
+            <column name="receiving_site" type="VARCHAR(255)"/>
+            <column name="status" type="VARCHAR(50)"/>
+            <column name="sending_person_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="site_transfer"
+                baseColumnNames="sending_person_id"
+                constraintName="fk_site_transfer_sending_person"
+                referencedTableName="users_table"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <createIndex tableName="site_transfer" indexName="idx_site_transfer_sending_person">
+            <column name="sending_person_id"/>
+        </createIndex>
+
+        <createIndex tableName="site_transfer" indexName="idx_site_transfer_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

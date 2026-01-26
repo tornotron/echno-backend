@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="022-create-task-assignees" author="echno">
+        <createTable tableName="task_assignees">
+            <column name="task_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="creator_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addPrimaryKey
+                tableName="task_assignees"
+                columnNames="task_id, creator_id"
+                constraintName="pk_task_assignees"/>
+
+        <addForeignKeyConstraint
+                baseTableName="task_assignees"
+                baseColumnNames="task_id"
+                constraintName="fk_task_assignees_task"
+                referencedTableName="task"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="task_assignees"
+                baseColumnNames="creator_id"
+                constraintName="fk_task_assignees_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="task_assignees" indexName="idx_task_assignees_task">
+            <column name="task_id"/>
+        </createIndex>
+
+        <createIndex tableName="task_assignees" indexName="idx_task_assignees_employee">
+            <column name="creator_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
