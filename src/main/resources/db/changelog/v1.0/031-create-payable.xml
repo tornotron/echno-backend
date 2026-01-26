@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="031-create-payable" author="echno">
+        <createTable tableName="payable">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="payable_number" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_payable_number"/>
+            </column>
+            <column name="contactor_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="contract_type" type="VARCHAR(50)"/>
+            <column name="amount_recorded" type="DECIMAL(15,2)"/>
+            <column name="amount_paid" type="DECIMAL(15,2)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="vendor_id" type="BIGINT"/>
+            <column name="goods_received_note_id" type="BIGINT"/>
+            <column name="created_by_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="payable"
+                baseColumnNames="vendor_id"
+                constraintName="fk_payable_vendor"
+                referencedTableName="vendor"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint
+                baseTableName="payable"
+                baseColumnNames="goods_received_note_id"
+                constraintName="fk_payable_grn"
+                referencedTableName="goods_received_note"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint
+                baseTableName="payable"
+                baseColumnNames="created_by_id"
+                constraintName="fk_payable_created_by"
+                referencedTableName="users_table"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <createIndex tableName="payable" indexName="idx_payable_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+
+        <createIndex tableName="payable" indexName="idx_payable_grn">
+            <column name="goods_received_note_id"/>
+        </createIndex>
+
+        <createIndex tableName="payable" indexName="idx_payable_created_by">
+            <column name="created_by_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="021-create-site-transfer-item" author="echno">
+        <createTable tableName="site_transfer_item">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="sent_quantity" type="INT"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="site_transfer_id" type="BIGINT"/>
+            <column name="material_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="site_transfer_item"
+                baseColumnNames="site_transfer_id"
+                constraintName="fk_site_transfer_item_site_transfer"
+                referencedTableName="site_transfer"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="site_transfer_item"
+                baseColumnNames="material_id"
+                constraintName="fk_site_transfer_item_material"
+                referencedTableName="material"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="site_transfer_item" indexName="idx_site_transfer_item_transfer">
+            <column name="site_transfer_id"/>
+        </createIndex>
+
+        <createIndex tableName="site_transfer_item" indexName="idx_site_transfer_item_material">
+            <column name="material_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

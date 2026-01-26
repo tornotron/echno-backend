@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="025-create-purchase-order-item" author="echno">
+        <createTable tableName="purchase_order_item">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="ordered_quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="received_quantity" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_price" type="DECIMAL(10,2)"/>
+            <column name="total_price" type="DECIMAL(15,2)"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="purchase_order_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="material_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="indent_item_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="purchase_order_item"
+                baseColumnNames="purchase_order_id"
+                constraintName="fk_purchase_order_item_po"
+                referencedTableName="purchase_order"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="purchase_order_item"
+                baseColumnNames="material_id"
+                constraintName="fk_purchase_order_item_material"
+                referencedTableName="material"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint
+                baseTableName="purchase_order_item"
+                baseColumnNames="indent_item_id"
+                constraintName="fk_purchase_order_item_indent_item"
+                referencedTableName="indent_item"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <createIndex tableName="purchase_order_item" indexName="idx_purchase_order_item_po">
+            <column name="purchase_order_id"/>
+        </createIndex>
+
+        <createIndex tableName="purchase_order_item" indexName="idx_purchase_order_item_material">
+            <column name="material_id"/>
+        </createIndex>
+
+        <createIndex tableName="purchase_order_item" indexName="idx_purchase_order_item_indent">
+            <column name="indent_item_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
