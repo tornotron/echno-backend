@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="013-create-plan-feature" author="echno">
+        <createTable tableName="plan_feature">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="plan_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="feature_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enabled" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="quota_limit" type="BIGINT"/>
+            <column name="quota_period" type="VARCHAR(20)"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="plan_feature"
+                baseColumnNames="plan_id"
+                constraintName="fk_plan_feature_plan"
+                referencedTableName="plan"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="plan_feature"
+                baseColumnNames="feature_id"
+                constraintName="fk_plan_feature_feature"
+                referencedTableName="feature"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addUniqueConstraint
+                tableName="plan_feature"
+                columnNames="plan_id, feature_id"
+                constraintName="uk_plan_feature_plan_feature"/>
+
+        <createIndex tableName="plan_feature" indexName="idx_plan_feature_plan">
+            <column name="plan_id"/>
+        </createIndex>
+
+        <createIndex tableName="plan_feature" indexName="idx_plan_feature_feature">
+            <column name="feature_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="014-create-subscription" author="echno">
+        <createTable tableName="subscription">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="plan_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_period_start" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_period_end" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="trial_start" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="trial_end" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="cancel_at_period_end" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="canceled_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cancellation_reason" type="TEXT"/>
+            <column name="external_subscription_id" type="VARCHAR(255)"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="subscription"
+                baseColumnNames="plan_id"
+                constraintName="fk_subscription_plan"
+                referencedTableName="plan"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="subscription" indexName="idx_subscription_user">
+            <column name="user_id"/>
+        </createIndex>
+
+        <createIndex tableName="subscription" indexName="idx_subscription_status">
+            <column name="status"/>
+        </createIndex>
+
+        <createIndex tableName="subscription" indexName="idx_subscription_period_end">
+            <column name="current_period_end"/>
+        </createIndex>
+
+        <createIndex tableName="subscription" indexName="idx_subscription_plan">
+            <column name="plan_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

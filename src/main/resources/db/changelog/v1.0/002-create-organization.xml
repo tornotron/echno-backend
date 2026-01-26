@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="002-create-organization" author="echno">
+        <createTable tableName="organization">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_address" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_email" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_phone" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_website" type="VARCHAR(1024)"/>
+            <column name="organization_logo" type="VARCHAR(1024)"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="creator_id" type="INT"/>
+            <column name="is_active" type="BOOLEAN"/>
+        </createTable>
+
+        <createIndex tableName="organization" indexName="idx_organization_name">
+            <column name="organization_name"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

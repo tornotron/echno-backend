@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="018-create-indent-item" author="echno">
+        <createTable tableName="indent_item">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="additional_specifications" type="TEXT"/>
+            <column name="requested_quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ordered_quantity" type="INT"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="converted_to_purchase_order" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="linked_purchase_order_number" type="VARCHAR(100)"/>
+            <column name="intend_id" type="BIGINT"/>
+            <column name="material_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="indent_item"
+                baseColumnNames="intend_id"
+                constraintName="fk_indent_item_intend"
+                referencedTableName="intend"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="indent_item"
+                baseColumnNames="material_id"
+                constraintName="fk_indent_item_material"
+                referencedTableName="material"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="indent_item" indexName="idx_indent_item_intend">
+            <column name="intend_id"/>
+        </createIndex>
+
+        <createIndex tableName="indent_item" indexName="idx_indent_item_material">
+            <column name="material_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

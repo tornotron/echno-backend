@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="030-create-grn-item" author="echno">
+        <createTable tableName="grn_item">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="ordered_quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="received_quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="goods_received_note_id" type="BIGINT"/>
+            <column name="material_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="grn_item"
+                baseColumnNames="goods_received_note_id"
+                constraintName="fk_grn_item_grn"
+                referencedTableName="goods_received_note"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="grn_item"
+                baseColumnNames="material_id"
+                constraintName="fk_grn_item_material"
+                referencedTableName="material"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="grn_item" indexName="idx_grn_item_grn">
+            <column name="goods_received_note_id"/>
+        </createIndex>
+
+        <createIndex tableName="grn_item" indexName="idx_grn_item_material">
+            <column name="material_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

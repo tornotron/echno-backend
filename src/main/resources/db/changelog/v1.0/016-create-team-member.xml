@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="016-create-team-member" author="echno">
+        <createTable tableName="team_member">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="member_name" type="VARCHAR(255)">
+                <constraints unique="true" uniqueConstraintName="uk_team_member_name"/>
+            </column>
+            <column name="member_email" type="VARCHAR(255)">
+                <constraints unique="true" uniqueConstraintName="uk_team_member_email"/>
+            </column>
+            <column name="member_phone" type="VARCHAR(50)">
+                <constraints unique="true" uniqueConstraintName="uk_team_member_phone"/>
+            </column>
+            <column name="member_role" type="VARCHAR(100)"/>
+            <column name="member_image" type="VARCHAR(1024)"/>
+            <column name="project_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="team_member"
+                baseColumnNames="project_id"
+                constraintName="fk_team_member_project"
+                referencedTableName="project"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="team_member" indexName="idx_team_member_project">
+            <column name="project_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

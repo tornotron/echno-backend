@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="012-create-intend" author="echno">
+        <createTable tableName="intend">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="intend_number" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_intend_number"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expected_on" type="TIMESTAMP"/>
+            <column name="remark" type="TEXT"/>
+            <column name="created_by_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="intend"
+                baseColumnNames="created_by_id"
+                constraintName="fk_intend_created_by"
+                referencedTableName="users_table"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <createIndex tableName="intend" indexName="idx_intend_created_by">
+            <column name="created_by_id"/>
+        </createIndex>
+
+        <createIndex tableName="intend" indexName="idx_intend_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

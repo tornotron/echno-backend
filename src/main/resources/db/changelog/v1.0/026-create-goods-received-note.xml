@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="026-create-goods-received-note" author="echno">
+        <createTable tableName="goods_received_note">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="grn_number" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_grn_number"/>
+            </column>
+            <column name="received_on" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="delivery_challan_number" type="VARCHAR(100)"/>
+            <column name="invoice_number" type="VARCHAR(100)"/>
+            <column name="invoice_amount" type="DOUBLE PRECISION"/>
+            <column name="received_by_id" type="BIGINT"/>
+            <column name="vendor_id" type="BIGINT"/>
+            <column name="purchase_order_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="goods_received_note"
+                baseColumnNames="received_by_id"
+                constraintName="fk_grn_received_by"
+                referencedTableName="users_table"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint
+                baseTableName="goods_received_note"
+                baseColumnNames="vendor_id"
+                constraintName="fk_grn_vendor"
+                referencedTableName="vendor"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint
+                baseTableName="goods_received_note"
+                baseColumnNames="purchase_order_id"
+                constraintName="fk_grn_purchase_order"
+                referencedTableName="purchase_order"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <createIndex tableName="goods_received_note" indexName="idx_grn_received_by">
+            <column name="received_by_id"/>
+        </createIndex>
+
+        <createIndex tableName="goods_received_note" indexName="idx_grn_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+
+        <createIndex tableName="goods_received_note" indexName="idx_grn_purchase_order">
+            <column name="purchase_order_id"/>
+        </createIndex>
+
+        <createIndex tableName="goods_received_note" indexName="idx_grn_received_on">
+            <column name="received_on"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

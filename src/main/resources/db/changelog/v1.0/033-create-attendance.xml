@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="033-create-attendance" author="echno">
+        <createTable tableName="attendance">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="location" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_type" type="VARCHAR(50)"/>
+            <column name="timestamp" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source" type="VARCHAR(100)"/>
+            <!-- Embedded GeoLocation fields -->
+            <column name="latitude" type="DOUBLE PRECISION"/>
+            <column name="longitude" type="DOUBLE PRECISION"/>
+            <!-- End embedded fields -->
+            <column name="device_info" type="JSONB"/>
+            <column name="last_modified_at" type="TIMESTAMP"/>
+            <column name="modified_by" type="VARCHAR(255)"/>
+            <column name="correction_reason" type="VARCHAR(500)"/>
+        </createTable>
+
+        <!-- Note: employee_id is denormalized (no FK) as per entity definition -->
+
+        <createIndex tableName="attendance" indexName="idx_employee_timestamp">
+            <column name="employee_id"/>
+            <column name="timestamp"/>
+        </createIndex>
+
+        <createIndex tableName="attendance" indexName="idx_employee_id">
+            <column name="employee_id"/>
+        </createIndex>
+
+        <createIndex tableName="attendance" indexName="idx_timestamp">
+            <column name="timestamp"/>
+        </createIndex>
+
+        <createIndex tableName="attendance" indexName="idx_record_type">
+            <column name="record_type"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

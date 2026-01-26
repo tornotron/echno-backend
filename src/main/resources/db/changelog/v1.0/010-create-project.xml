@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="010-create-project" author="echno">
+        <createTable tableName="project">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="project_name" type="VARCHAR(255)"/>
+            <column name="project_address" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="status" type="VARCHAR(50)"/>
+            <column name="latitude" type="REAL"/>
+            <column name="longitude" type="REAL"/>
+            <column name="start_date" type="TIMESTAMP"/>
+            <column name="end_date" type="TIMESTAMP"/>
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="project"
+                baseColumnNames="organization_id"
+                constraintName="fk_project_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="project" indexName="idx_project_name">
+            <column name="project_name"/>
+        </createIndex>
+
+        <createIndex tableName="project" indexName="idx_project_organization">
+            <column name="organization_id"/>
+        </createIndex>
+
+        <createIndex tableName="project" indexName="idx_project_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

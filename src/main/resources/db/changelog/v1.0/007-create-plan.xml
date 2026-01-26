@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="007-create-plan" author="echno">
+        <createTable tableName="plan">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_plan_code"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="version" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="monthly_price" type="DECIMAL(10,2)"/>
+            <column name="annual_price" type="DECIMAL(10,2)"/>
+            <column name="currency" type="VARCHAR(3)" defaultValue="INR"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="is_public" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="trial_days" type="INT" defaultValueNumeric="0"/>
+            <column name="max_users" type="INT"/>
+            <column name="sort_order" type="INT" defaultValueNumeric="0"/>
+        </createTable>
+
+        <createIndex tableName="plan" indexName="idx_plan_code">
+            <column name="code"/>
+        </createIndex>
+
+        <createIndex tableName="plan" indexName="idx_plan_active">
+            <column name="is_active"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

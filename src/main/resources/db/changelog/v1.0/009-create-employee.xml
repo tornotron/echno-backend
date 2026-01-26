@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="009-create-employee" author="echno">
+        <createTable tableName="employee">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="designation" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="department" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="joining_date" type="TIMESTAMP"/>
+            <column name="salary" type="DOUBLE PRECISION"/>
+            <column name="reporting_manager" type="VARCHAR(255)"/>
+            <column name="shift_timing" type="VARCHAR(100)"/>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="gender" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="phone_number" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="address" type="TEXT"/>
+            <column name="email_address" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_employee_email"/>
+            </column>
+            <column name="date_of_birth" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="employee"
+                baseColumnNames="organization_id"
+                constraintName="fk_employee_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint
+                baseTableName="employee"
+                baseColumnNames="user_id"
+                constraintName="fk_employee_user"
+                referencedTableName="users_table"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="employee" indexName="idx_employee_organization">
+            <column name="organization_id"/>
+        </createIndex>
+
+        <createIndex tableName="employee" indexName="idx_employee_user">
+            <column name="user_id"/>
+        </createIndex>
+
+        <createIndex tableName="employee" indexName="idx_employee_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

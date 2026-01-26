@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="011-create-project-invite-code" author="echno">
+        <createTable tableName="project_invite_code">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="INT">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_project_invite_code"/>
+            </column>
+            <column name="expiry_date" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_uses" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_uses" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_details" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="project_invite_code"
+                baseColumnNames="organization_id"
+                constraintName="fk_project_invite_code_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="project_invite_code" indexName="idx_project_invite_code_org">
+            <column name="organization_id"/>
+        </createIndex>
+
+        <createIndex tableName="project_invite_code" indexName="idx_project_invite_code_active">
+            <column name="is_active"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
