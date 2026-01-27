@@ -84,7 +84,6 @@ public class UserControllerWeb {
     /**
      * Retrieves a single user by their ID.
      *
-     * @param id The ID of the user to retrieve.
      * @return A {@link ResponseEntity} containing the user DTO and HTTP status 200 (OK).
      */
     @GetMapping
@@ -117,6 +116,12 @@ public class UserControllerWeb {
     @GetMapping("/userId/{userId}/attachmentType/{attachmentType}")
     public ResponseEntity<List<AttachmentDto>> readAttachments(@PathVariable String attachmentType,@PathVariable Long userId) {
         return ResponseEntity.status(HttpStatus.OK).body(attachmentService.getAttachments(attachmentType,userId));
+    }
+
+    @DeleteMapping("/attachmentId/{attachmentId}")
+    public ResponseEntity<ApiResponse> deleteAttachment(@PathVariable Long attachmentId) {
+        attachmentService.deleteAttachment(attachmentId);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Attachment deleted"));
     }
 
     /**
