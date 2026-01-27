@@ -63,5 +63,6 @@
     <!-- v1.1 - Schema alterations                                      -->
     <!-- ============================================================== -->
     <include file="db/changelog/v1.1/035-alter-attachment-url-nullable.xml"/>
+    <include file="db/changelog/v1.1/036-add-updated-at-to-attachment.xml"/>
 
 </databaseChangeLog>
