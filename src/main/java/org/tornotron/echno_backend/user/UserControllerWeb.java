@@ -51,10 +51,10 @@ public class UserControllerWeb {
      * @param userCreationDto DTO containing the details for the new user.
      * @return A {@link ResponseEntity} with the created user's DTO and HTTP status 201 (Created).
      */
-    @PostMapping
-    public ResponseEntity<UserDto> createUser(@RequestBody @Valid UserCreationDto userCreationDto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(userService.addUser(userCreationDto));
-    }
+//    @PostMapping
+//    public ResponseEntity<UserDto> createUser(@RequestBody @Valid UserCreationDto userCreationDto) {
+//        return ResponseEntity.status(HttpStatus.CREATED).body(userService.addUser(userCreationDto));
+//    }
 
     /**
      * Retrieves a paginated list of all users.
