@@ -8,10 +8,14 @@ import org.tornotron.echno_backend.common.exception.FileUploadException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -24,6 +28,7 @@ import java.util.UUID;
 public class FileStorageService {
 
     private final S3Client s3Client;
+    private final S3Presigner s3Presigner;
 
     @Value("${digital-ocean.bucket-name}")
     private String bucketName;
@@ -31,8 +36,9 @@ public class FileStorageService {
     @Value("${digital-ocean.cdn-endpoint}")
     private String cdnEndpoint;
 
-    public FileStorageService(S3Client s3Client) {
+    public FileStorageService(S3Client s3Client, S3Presigner s3Presigner) {
         this.s3Client = s3Client;
+        this.s3Presigner = s3Presigner;
     }
 
     /**
@@ -64,9 +70,22 @@ public class FileStorageService {
             throw new FileUploadException("Failed to upload file: " + file.getOriginalFilename(), e);
         }
 
-        String fileUrl = buildFileUrl(key);
 
-        return new StoredFile(key, fileUrl, file.getContentType(), file.getSize());
+        return new StoredFile(key,file.getContentType(), file.getSize());
+    }
+
+    public String generateDownloadUrl(String key, Duration expiry) {
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build();
+
+        PresignedGetObjectRequest presignedRequest =
+                s3Presigner.presignGetObject(r -> r
+                        .signatureDuration(expiry)
+                        .getObjectRequest(getObjectRequest)
+                );
+        return presignedRequest.url().toString();
     }
 
     /**
