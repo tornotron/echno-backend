@@ -5,8 +5,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.common.dto.StoredFile;
 import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,7 +53,6 @@ public class AttachmentService {
             attachment.setEntityType(entityType);
             attachment.setEntityId(entityId);
             attachment.setStorageKey(storedFile.key());
-            attachment.setUrl(storedFile.url());
             attachment.setContentType(storedFile.contentType());
             attachment.setFileSize(storedFile.size());
             attachment.setOriginalFilename(originalFile.getOriginalFilename());
@@ -79,7 +80,6 @@ public class AttachmentService {
         attachment.setEntityType(entityType);
         attachment.setEntityId(entityId);
         attachment.setStorageKey(storedFile.key());
-        attachment.setUrl(storedFile.url());
         attachment.setContentType(storedFile.contentType());
         attachment.setFileSize(storedFile.size());
         attachment.setOriginalFilename(file.getOriginalFilename());
@@ -95,8 +95,19 @@ public class AttachmentService {
      * @return List of attachments
      */
     @Transactional(readOnly = true)
-    public List<Attachment> getAttachments(String entityType, Long entityId) {
-        return attachmentRepository.findByEntityTypeAndEntityId(entityType, entityId);
+    public List<AttachmentDto> getAttachments(String entityType, Long entityId) {
+        return attachmentRepository.findByEntityTypeAndEntityId(entityType, entityId)
+                .stream()
+                .map(attachment -> {
+                    AttachmentDto dto = new AttachmentDto();
+                    dto.setEntityType(attachment.getEntityType());
+                    dto.setContentType(attachment.getContentType());
+                    dto.setFileSize(attachment.getFileSize());
+                    dto.setFileName(attachment.getOriginalFilename());
+                    dto.setUrl(fileStorageService.generateDownloadUrl(attachment.getStorageKey(), Duration.ofHours(1)));
+                    dto.setCreatedAt(attachment.getCreatedAt().toString());
+                    return dto;
+                }).toList();
     }
 
     /**
@@ -121,7 +132,7 @@ public class AttachmentService {
     @Transactional
     public void deleteAllAttachments(String entityType, Long entityId) {
         List<Attachment> attachments = attachmentRepository.findByEntityTypeAndEntityId(entityType, entityId);
-        
+
         // Delete files from storage
         List<String> keys = attachments.stream()
                 .map(Attachment::getStorageKey)
