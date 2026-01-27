@@ -1,13 +1,20 @@
 package org.tornotron.echno_backend.user;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.user.dto.UserCreationDto;
 import org.tornotron.echno_backend.user.dto.UserDto;
@@ -22,14 +29,20 @@ import java.util.Map;
 public class UserControllerWeb {
 
     private final UserService userService;
+    private final ObjectMapper objectMapper;
+    private final AttachmentService attachmentService;
 
     /**
      * Constructs a UserController with the given UserService.
      *
      * @param userService The service for handling user-related business logic.
+     * @param objectMapper The ObjectMapper for JSON processing.
      */
-    public UserControllerWeb(UserService userService) {
+    public UserControllerWeb(UserService userService, ObjectMapper objectMapper,AttachmentService
+                             attachmentService) {
         this.userService = userService;
+        this.objectMapper = objectMapper;
+        this.attachmentService = attachmentService;
     }
 
     /**
@@ -82,13 +95,28 @@ public class UserControllerWeb {
     /**
      * Partially updates an existing user.
      *
-     * @param updates A map of fields to update.
+     * @param data    JSON string containing the fields to update.
      * @param id      The ID of the user to update.
+     * @param profilePicture Optional profile picture file.
+     * @param cv      Optional CV/resume file.
      * @return A {@link ResponseEntity} with the updated user's DTO and HTTP status 200 (OK).
      */
-    @PatchMapping("{id}")
-    public ResponseEntity<UserDto> partialUpdateAUser(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
-        return ResponseEntity.status(HttpStatus.OK).body(userService.partialUpdateAnUser(updates, id));
+    @PatchMapping(value = "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UserDto> partialUpdateAUser(
+            @RequestPart(value = "data", required = false) String data,
+            @PathVariable Long id,
+            @RequestParam(value = "profilePicture", required = false) MultipartFile profilePicture,
+            @RequestParam(value = "cv", required = false) MultipartFile cv) throws JsonProcessingException {
+        Map<String, Object> updates = data != null
+                ? objectMapper.readValue(data, new TypeReference<>() {
+        })
+                : Map.of();
+        return ResponseEntity.status(HttpStatus.OK).body(userService.partialUpdateAnUser(updates, id, profilePicture, cv));
+    }
+
+    @GetMapping("/userId/{userId}/attachmentType/{attachmentType}")
+    public ResponseEntity<List<AttachmentDto>> readAttachments(@PathVariable String attachmentType,@PathVariable Long userId) {
+        return ResponseEntity.status(HttpStatus.OK).body(attachmentService.getAttachments(attachmentType,userId));
     }
 
     /**
