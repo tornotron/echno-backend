@@ -60,8 +60,8 @@
     <include file="db/changelog/v1.0/034-tag-v1.0.xml"/>
 
     <!-- ============================================================== -->
-    <!-- v1.1 - Future enhancements go here                             -->
+    <!-- v1.1 - Schema alterations                                      -->
     <!-- ============================================================== -->
-    <!-- <include file="db/changelog/v1.1/035-your-next-change.xml"/>   -->
+    <include file="db/changelog/v1.1/035-alter-attachment-url-nullable.xml"/>
 
 </databaseChangeLog>
