@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.common.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 
 import java.util.List;
 
@@ -12,15 +13,7 @@ import java.util.List;
 @Repository
 public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
 
-    /**
-     * Finds all attachments for a specific entity.
-     *
-     * @param entityType The type of entity (e.g., "PROJECT", "TASK")
-     * @param entityId   The ID of the entity
-     * @return List of attachments for the entity
-     */
     List<Attachment> findByEntityTypeAndEntityId(String entityType, Long entityId);
-
     /**
      * Deletes all attachments for a specific entity.
      *
