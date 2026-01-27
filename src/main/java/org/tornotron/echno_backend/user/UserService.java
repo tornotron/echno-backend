@@ -14,8 +14,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.DtoConversions.UserDtoConvertor;
+import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -39,9 +42,11 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+    private static final String USERS_FOLDER = "users";
 
     private final UserRepository userRepository;
     private final Keycloak keycloak;
+    private final AttachmentService attachmentService;
 
     @Value("${keycloak-initializer.application-realm}")
     private String realm;
@@ -51,10 +56,12 @@ public class UserService {
      *
      * @param userRepository The repository for user data access.
      * @param keycloak       The Keycloak client.
+     * @param attachmentService The service for attachment operations.
      */
-    public UserService(UserRepository userRepository, Keycloak keycloak) {
+    public UserService(UserRepository userRepository, Keycloak keycloak, AttachmentService attachmentService) {
         this.userRepository = userRepository;
         this.keycloak = keycloak;
+        this.attachmentService = attachmentService;
     }
 
     /**
@@ -215,7 +222,7 @@ public class UserService {
     }
 
     /**
-     * Partially updates an existing user.
+     * Partially updates an existing user (without file uploads).
      *
      * @param updates A map of fields to update.
      * @param id      The ID of the user to update.
@@ -224,9 +231,37 @@ public class UserService {
      */
     @Transactional
     public UserDto partialUpdateAnUser(Map<String, Object> updates, Long id) {
+        return partialUpdateAnUser(updates, id, null, null);
+    }
+
+    /**
+     * Partially updates an existing user with optional file uploads.
+     *
+     * @param updates A map of fields to update.
+     * @param id      The ID of the user to update.
+     * @param profilePicture Optional profile picture file.
+     * @param cv Optional CV/resume file.
+     * @return The DTO of the updated user.
+     * @throws ResourceNotFoundException if no user with the given ID is found.
+     */
+    @Transactional
+    public UserDto partialUpdateAnUser(Map<String, Object> updates, Long id, MultipartFile profilePicture, MultipartFile cv) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
         partialUpdateAnUser(updates, user);
+
+        // Handle profile picture upload
+        if (profilePicture != null && !profilePicture.isEmpty()) {
+            Attachment attachment = attachmentService.uploadAttachment(profilePicture, "USER_PROFILE_PICTURE", id, USERS_FOLDER);
+            user.setProfilePictureUrl(attachment.getUrl());
+        }
+
+        // Handle CV upload
+        if (cv != null && !cv.isEmpty()) {
+            Attachment attachment = attachmentService.uploadAttachment(cv, "USER_CV", id, USERS_FOLDER);
+            user.setCvUrl(attachment.getUrl());
+        }
+
         return UserDtoConvertor.convertUserToDto(userRepository.save(user));
     }
 
