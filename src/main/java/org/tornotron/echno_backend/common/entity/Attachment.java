@@ -47,7 +47,7 @@ public class Attachment {
     /**
      * The public URL to access the file.
      */
-    @Column(name = "url", nullable = false, length = 1024)
+    @Column(name = "url", nullable = true, length = 1024)
     private String url;
 
     /**
