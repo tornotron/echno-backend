@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
@@ -129,11 +130,21 @@ public class OrganizationService {
      * @throws ResourceNotFoundException if no organization with the given ID is found.
      */
     @Transactional
-    public OrganizationSimpleDto partialUpdateAnOrganization(Map<String, Object> updates, Long id) {
+    public OrganizationSimpleDto partialUpdateAnOrganization(Map<String, Object> updates, Long id,MultipartFile organizationLogo, MultipartFile organizationWebsite) {
        Organization organization = repository.findById(id)
                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+id));
-       partialUpdateAnOrganization(updates, organization);
-      return orgConvertor.convertOrganizationToSimpleDto(repository.save(organization));
+       partialUpdateAnOrganization(updates,organization);
+
+       if(organizationLogo != null) {
+           Attachment attachment = attachmentService.uploadAttachment(organizationLogo, "ORGANIZATION_LOGO", id, ORGANIZATION_FOLDER);
+           organization.setOrganizationLogo(attachment.getUrl());
+       }
+
+       if(organizationWebsite != null) {
+           Attachment attachment = attachmentService.uploadAttachment(organizationWebsite,"ORGANIZATION_WEBSITE", id, ORGANIZATION_FOLDER);
+           organization.setOrganizationWebsite(attachment.getUrl());
+       }
+        return OrganizationDtoConvertor.convertOrganizationToSimpleDto(repository.save(organization));
     }
 
     private void partialUpdateAnOrganization(Map<String, Object> updates, Organization organization) {
