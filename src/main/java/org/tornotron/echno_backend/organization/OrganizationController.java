@@ -101,11 +101,11 @@ public class OrganizationController {
      * @param id      The ID of the organization to update.
      * @return A {@link ResponseEntity} with the updated organization's simple DTO and HTTP status 200 (OK).
      */
-    @PatchMapping("{id}")
-    @PreAuthorize("hasAuthority('organization:update') or hasAuthority('organization:admin')")
-    public ResponseEntity<OrganizationSimpleDto> partialUpdateAnOrganization(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
-        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAnOrganization(updates, id));
-    }
+//    @PatchMapping("{id}")
+//    @PreAuthorize("hasAuthority('organization:update') or hasAuthority('organization:admin')")
+//    public ResponseEntity<OrganizationSimpleDto> partialUpdateAnOrganization(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
+//        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAnOrganization(updates, id));
+//    }
 
     /**
      * Updates multiple organizations in a batch.
