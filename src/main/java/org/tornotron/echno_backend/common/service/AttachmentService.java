@@ -100,6 +100,7 @@ public class AttachmentService {
                 .stream()
                 .map(attachment -> {
                     AttachmentDto dto = new AttachmentDto();
+                    dto.setId(attachment.getId());
                     dto.setEntityType(attachment.getEntityType());
                     dto.setContentType(attachment.getContentType());
                     dto.setFileSize(attachment.getFileSize());
