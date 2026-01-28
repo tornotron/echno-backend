@@ -27,7 +27,7 @@ public class AttachmentControllerWeb {
         this.fileStorageService = fileStorageService;
     }
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE,value = "entityType/{entityType}/entityId/{entityId}")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE,value = "/entityId/{entityId}/entityType/{entityType}")
     public ResponseEntity<List<AttachmentDto>> creatAttachment(@RequestParam(value = "attachments",required = true)List<MultipartFile> attachments,
                                                          @PathVariable String entityType,
                                                          @PathVariable Long entityId)  {
