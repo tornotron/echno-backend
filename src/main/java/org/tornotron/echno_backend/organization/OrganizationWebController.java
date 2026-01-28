@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.organization;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -90,14 +91,19 @@ public class OrganizationWebController {
     /**
      * Partially updates an existing organization.
      *
-     * @param updates A map of fields to update.
      * @param id      The ID of the organization to update.
      * @return A {@link ResponseEntity} with the updated organization's simple DTO and HTTP status 200 (OK).
      */
-    @PatchMapping("{id}")
+    @PatchMapping(value = "{id}",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('organization:update') or hasAuthority('organization:admin')")
-    public ResponseEntity<OrganizationSimpleDto> partialUpdateAnOrganization(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
-        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAnOrganization(updates, id));
+    public ResponseEntity<OrganizationSimpleDto> partialUpdateAnOrganization(
+            @RequestPart(value = "data", required = false) String data,
+            @PathVariable Long id,
+            @RequestParam(value = "organizationWebsite",required = false) MultipartFile organizationWebsite,
+            @RequestParam(value = "organizationLogo",required = false) MultipartFile organizationLogo) throws JsonProcessingException{
+        Map<String ,Object> updates = data != null
+                ? objectMapper.readValue(data, new TypeReference<>() {}) : Map.of();
+        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAnOrganization(updates,id,organizationLogo,organizationWebsite));
     }
 
     /**
