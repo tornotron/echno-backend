@@ -30,7 +30,6 @@ public class UserControllerWeb {
 
     private final UserService userService;
     private final ObjectMapper objectMapper;
-    private final AttachmentService attachmentService;
 
     /**
      * Constructs a UserController with the given UserService.
@@ -38,11 +37,9 @@ public class UserControllerWeb {
      * @param userService The service for handling user-related business logic.
      * @param objectMapper The ObjectMapper for JSON processing.
      */
-    public UserControllerWeb(UserService userService, ObjectMapper objectMapper,AttachmentService
-                             attachmentService) {
+    public UserControllerWeb(UserService userService, ObjectMapper objectMapper) {
         this.userService = userService;
         this.objectMapper = objectMapper;
-        this.attachmentService = attachmentService;
     }
 
     /**
@@ -112,18 +109,6 @@ public class UserControllerWeb {
                 : Map.of();
         return ResponseEntity.status(HttpStatus.OK).body(userService.partialUpdateAnUser(updates, id, profilePicture, cv));
     }
-
-    @GetMapping("/userId/{userId}/attachmentType/{attachmentType}")
-    public ResponseEntity<List<AttachmentDto>> readAttachments(@PathVariable String attachmentType,@PathVariable Long userId) {
-        return ResponseEntity.status(HttpStatus.OK).body(attachmentService.getAttachments(attachmentType,userId));
-    }
-
-    @DeleteMapping("/attachmentId/{attachmentId}")
-    public ResponseEntity<ApiResponse> deleteAttachment(@PathVariable Long attachmentId) {
-        attachmentService.deleteAttachment(attachmentId);
-        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Attachment deleted"));
-    }
-
     /**
      * Updates multiple users in a batch.
      *
