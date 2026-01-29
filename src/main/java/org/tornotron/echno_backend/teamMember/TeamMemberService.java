@@ -54,6 +54,15 @@ public class TeamMemberService {
   }
 
   @Transactional(readOnly = true)
+  public List<TeamMemberDto> getTeamMembersByProjectId(Long projectId) {
+      Project project = projectRepository.findById(projectId)
+              .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: "+projectId));
+
+      return repository.findByProject(project);
+
+  }
+
+  @Transactional(readOnly = true)
   public TeamMemberDto getATeamMember(Long id) {
     TeamMemberDto teamMemberDto = repository.findById(id)
         .map(TeamMemberDtoConvertor::convertTeamMemberToDTO)

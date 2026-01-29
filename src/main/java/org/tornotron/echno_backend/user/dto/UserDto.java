@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.user.dto;
 
 import lombok.Data;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.user.enums.UserRole;
 
 import java.time.LocalDateTime;
@@ -25,4 +26,6 @@ public class UserDto {
     private String profilePictureUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long defaultOrganizationId;
+    private List<AttachmentDto> attachments;
 }

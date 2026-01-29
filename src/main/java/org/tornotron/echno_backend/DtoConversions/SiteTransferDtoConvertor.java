@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.DtoConversions;
 
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.siteTransfer.SiteTransfer;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferItemDto;
@@ -12,7 +13,7 @@ import java.util.stream.Collectors;
 @Component
 public class SiteTransferDtoConvertor {
 
-    public static SiteTransferDto convertToDto(SiteTransfer transfer) {
+    public static SiteTransferDto convertToDto(SiteTransfer transfer, FileStorageService fileStorageService) {
         if (transfer == null) {
             return null;
         }
@@ -26,7 +27,7 @@ public class SiteTransferDtoConvertor {
 
         // Sending person
         if (transfer.getSendingPerson() != null) {
-            dto.setSendingPerson(UserDtoConvertor.convertUserToDto(transfer.getSendingPerson()));
+            dto.setSendingPerson(UserDtoConvertor.convertUserToDto(transfer.getSendingPerson(), fileStorageService));
         }
 
         // Items

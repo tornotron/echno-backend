@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.DtoConversions;
 
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.intend.Intend;
 import org.tornotron.echno_backend.intend.dto.IntendDto;
 
@@ -10,10 +11,10 @@ import java.util.stream.Collectors;
 @Component
 public class IntendDtoConvertor {
 
-    public static IntendDto convertIntendToDto(Intend intend) {
+    public static IntendDto convertIntendToDto(Intend intend, FileStorageService fileStorageService) {
         IntendDto dto = new IntendDto();
         dto.setId(intend.getId());
-        dto.setCreatedBy(UserDtoConvertor.convertUserToDto(intend.getCreatedBy()));
+        dto.setCreatedBy(UserDtoConvertor.convertUserToDto(intend.getCreatedBy(), fileStorageService));
         dto.setIntendNumber(intend.getIntendNumber());
         dto.setCreatedAt(intend.getCreatedAt());
         dto.setStatus(intend.getStatus());

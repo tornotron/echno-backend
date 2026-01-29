@@ -1,13 +1,14 @@
 package org.tornotron.echno_backend.DtoConversions;
 
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.payable.Payable;
 import org.tornotron.echno_backend.payable.dto.PayableDto;
 
 @Component
 public class PayableDtoConvertor {
 
-    public static PayableDto convertToDto(Payable payable) {
+    public static PayableDto convertToDto(Payable payable, FileStorageService fileStorageService) {
         if (payable == null) {
             return null;
         }
@@ -36,7 +37,7 @@ public class PayableDtoConvertor {
 
         // Created by
         if (payable.getCreatedBy() != null) {
-            dto.setCreatedBy(UserDtoConvertor.convertUserToDto(payable.getCreatedBy()));
+            dto.setCreatedBy(UserDtoConvertor.convertUserToDto(payable.getCreatedBy(), fileStorageService));
         }
 
         return dto;

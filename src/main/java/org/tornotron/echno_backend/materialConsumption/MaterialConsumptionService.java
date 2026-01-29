@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.MaterialConsumptionDtoConvertor;
 import org.tornotron.echno_backend.common.events.MaterialConsumedEvent;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
@@ -31,17 +32,20 @@ public class MaterialConsumptionService {
     private final UserRepository userRepository;
     private final InventoryService inventoryService;
     private final ApplicationEventPublisher eventPublisher;
+    private final FileStorageService fileStorageService;
 
     public MaterialConsumptionService(MaterialConsumptionRepository materialConsumptionRepository,
                                      MaterialRepository materialRepository,
                                      UserRepository userRepository,
                                      InventoryService inventoryService,
-                                     ApplicationEventPublisher eventPublisher) {
+                                     ApplicationEventPublisher eventPublisher,
+                                     FileStorageService fileStorageService) {
         this.materialConsumptionRepository = materialConsumptionRepository;
         this.materialRepository = materialRepository;
         this.userRepository = userRepository;
         this.inventoryService = inventoryService;
         this.eventPublisher = eventPublisher;
+        this.fileStorageService = fileStorageService;
     }
 
     @Transactional
@@ -71,20 +75,20 @@ public class MaterialConsumptionService {
         // Publish MaterialConsumedEvent for automatic inventory update
         eventPublisher.publishEvent(new MaterialConsumedEvent(this, consumption));
 
-        return MaterialConsumptionDtoConvertor.convertToDto(consumption);
+        return MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService);
     }
 
     @Transactional(readOnly = true)
     public MaterialConsumptionDto getMaterialConsumptionById(Long id) {
         MaterialConsumption consumption = materialConsumptionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Material consumption not found with id: " + id));
-        return MaterialConsumptionDtoConvertor.convertToDto(consumption);
+        return MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService);
     }
 
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getAllMaterialConsumptions() {
         return materialConsumptionRepository.findAll().stream()
-                .map(MaterialConsumptionDtoConvertor::convertToDto)
+                .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService))
                 .collect(Collectors.toList());
     }
 
@@ -92,27 +96,27 @@ public class MaterialConsumptionService {
     public Page<MaterialConsumptionDto> getAllMaterialConsumptions(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "consumptionDate"));
         return materialConsumptionRepository.findAll(pageable)
-                .map(MaterialConsumptionDtoConvertor::convertToDto);
+                .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService));
     }
 
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByMaterial(Long materialId) {
         return materialConsumptionRepository.findByMaterialId(materialId).stream()
-                .map(MaterialConsumptionDtoConvertor::convertToDto)
+                .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByType(MaterialConsumptionType consumptionType) {
         return materialConsumptionRepository.findByConsumptionType(consumptionType).stream()
-                .map(MaterialConsumptionDtoConvertor::convertToDto)
+                .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         return materialConsumptionRepository.findByConsumptionDateBetween(startDate, endDate).stream()
-                .map(MaterialConsumptionDtoConvertor::convertToDto)
+                .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService))
                 .collect(Collectors.toList());
     }
 }

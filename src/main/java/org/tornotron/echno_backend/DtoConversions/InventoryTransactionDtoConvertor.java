@@ -1,13 +1,14 @@
 package org.tornotron.echno_backend.DtoConversions;
 
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryTransactionDto;
 
 @Component
 public class InventoryTransactionDtoConvertor {
 
-    public static InventoryTransactionDto convertToDto(InventoryTransaction transaction) {
+    public static InventoryTransactionDto convertToDto(InventoryTransaction transaction, FileStorageService fileStorageService) {
         if (transaction == null) {
             return null;
         }
@@ -30,7 +31,7 @@ public class InventoryTransactionDtoConvertor {
 
         // Created by
         if (transaction.getCreatedBy() != null) {
-            dto.setCreatedBy(UserDtoConvertor.convertUserToDto(transaction.getCreatedBy()));
+            dto.setCreatedBy(UserDtoConvertor.convertUserToDto(transaction.getCreatedBy(), fileStorageService));
         }
 
         return dto;

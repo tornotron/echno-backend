@@ -1,6 +1,11 @@
 package org.tornotron.echno_backend.DtoConversions;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.organization.Organization;
@@ -13,10 +18,12 @@ import org.tornotron.echno_backend.task.dto.TaskDto;
 import org.tornotron.echno_backend.teamMember.TeamMember;
 import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 
+import java.time.Duration;
 import java.util.stream.Collectors;
 
 @Component
 public class OrganizationDtoConvertor {
+
 
     private static TeamMemberDto convertTeamMemberToTeamMemberDTO(TeamMember teamMember) {
         TeamMemberDto teamMemberDto = new TeamMemberDto();
@@ -102,6 +109,20 @@ public class OrganizationDtoConvertor {
         return employeeDto;
     }
 
+
+    public static AttachmentDto convertAttachmentToDto(Attachment attachment, FileStorageService fileStorageService) {
+        AttachmentDto dto = new AttachmentDto();
+        dto.setId(attachment.getId());
+        dto.setUrl(fileStorageService.generateDownloadUrl(attachment.getStorageKey(), Duration.ofHours(1)));
+        dto.setEntityType(attachment.getEntityType());
+        dto.setContentType(attachment.getContentType());
+        dto.setFileSize(attachment.getFileSize());
+        dto.setFileName(attachment.getOriginalFilename());
+        dto.setCreatedAt(attachment.getCreatedAt().toString());
+        dto.setUpdatedAt(attachment.getUpdatedAt().toString());
+        return dto;
+    }
+
     public static OrganizationSimpleDto convertOrganizationToSimpleDto(Organization organization) {
         OrganizationSimpleDto dto = new OrganizationSimpleDto();
         dto.setId(organization.getId());
@@ -118,8 +139,9 @@ public class OrganizationDtoConvertor {
     }
 
 
-    public static OrganizationDto convertOrganizationToDto(Organization organization) {
+    public static OrganizationDto convertOrganizationToDto(Organization organization, FileStorageService fileStorageService) {
         OrganizationDto dto = new OrganizationDto();
+
         dto.setId(organization.getId());
         dto.setOrganizationName(organization.getOrganizationName());
         dto.setOrganizationAddress(organization.getOrganizationAddress());
@@ -134,9 +156,13 @@ public class OrganizationDtoConvertor {
         dto.setProjects(organization.getProjects().stream()
                 .map(OrganizationDtoConvertor::convertProjectToProjectDto)
                 .collect(Collectors.toList()));
+        dto.setAttachments(organization.getAttachments().stream()
+                .map(attachment -> convertAttachmentToDto(attachment, fileStorageService))
+                .collect(Collectors.toList()));
         dto.setIsActive(organization.getIsActive());
         dto.setCreatorId(organization.getCreatorId());
         return dto;
+
     }
 
 }

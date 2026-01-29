@@ -31,6 +31,12 @@ public class TeamMember {
     @Column(name = "member_image")
     private String memberImage;
 
+    @Column(name = "department")
+    private String department;
+
+    @Column(name = "designation")
+    private String designation;
+
     @ManyToOne
     private Project project;
 

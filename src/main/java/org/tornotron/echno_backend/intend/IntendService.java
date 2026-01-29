@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.IntendDtoConvertor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.intend.dto.IntendCreationDto;
 import org.tornotron.echno_backend.intend.dto.IntendDto;
 import org.tornotron.echno_backend.intend.enums.IntendStatus;
@@ -21,10 +22,12 @@ public class IntendService {
 
     private final IntendRepository intendRepository;
     private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
 
-    public IntendService(IntendRepository intendRepository, UserRepository userRepository) {
+    public IntendService(IntendRepository intendRepository, UserRepository userRepository, FileStorageService fileStorageService) {
         this.intendRepository = intendRepository;
         this.userRepository = userRepository;
+        this.fileStorageService = fileStorageService;
     }
 
 
@@ -38,7 +41,7 @@ public class IntendService {
         intend.setStatus(IntendStatus.valueOf(intendCreationDto.getStatus()));
         intend.setExpectedOn(intendCreationDto.getExpectedOn());
         intend.setRemarks(intendCreationDto.getRemarks());
-        return IntendDtoConvertor.convertIntendToDto(intendRepository.save(intend));
+        return IntendDtoConvertor.convertIntendToDto(intendRepository.save(intend), fileStorageService);
     }
 
 
@@ -46,21 +49,21 @@ public class IntendService {
     public Page<IntendDto> getAllIntends(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return intendRepository.findAll(pageable)
-                .map(IntendDtoConvertor::convertIntendToDto);
+                .map(intend -> IntendDtoConvertor.convertIntendToDto(intend, fileStorageService));
     }
 
 
     @Transactional(readOnly = true)
     public List<IntendDto> getAllIntends() {
         return intendRepository.findAll().stream()
-                .map(IntendDtoConvertor::convertIntendToDto)
+                .map(intend -> IntendDtoConvertor.convertIntendToDto(intend, fileStorageService))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public IntendDto getAnIntend(Long id) {
         return intendRepository.findById(id)
-                .map(IntendDtoConvertor::convertIntendToDto)
+                .map(intend -> IntendDtoConvertor.convertIntendToDto(intend, fileStorageService))
                 .orElseThrow(() -> new ResourceNotFoundException("Intend not found with id: " + id));
     }
 

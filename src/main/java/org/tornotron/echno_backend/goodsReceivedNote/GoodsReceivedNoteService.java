@@ -11,6 +11,7 @@ import org.tornotron.echno_backend.DtoConversions.GoodsReceivedNoteDtoConvertor;
 import org.tornotron.echno_backend.common.events.GrnCreatedEvent;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteCreationDto;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteDto;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GrnItemDto;
@@ -37,19 +38,22 @@ public class GoodsReceivedNoteService {
     private final UserRepository userRepository;
     private final MaterialRepository materialRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final FileStorageService fileStorageService;
 
     public GoodsReceivedNoteService(GoodsReceivedNoteRepository goodsReceivedNoteRepository,
                                    GrnItemRepository grnItemRepository,
                                    VendorRepository vendorRepository,
                                    UserRepository userRepository,
                                    MaterialRepository materialRepository,
-                                   ApplicationEventPublisher eventPublisher) {
+                                   ApplicationEventPublisher eventPublisher,
+                                   FileStorageService fileStorageService) {
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.grnItemRepository = grnItemRepository;
         this.vendorRepository = vendorRepository;
         this.userRepository = userRepository;
         this.materialRepository = materialRepository;
         this.eventPublisher = eventPublisher;
+        this.fileStorageService = fileStorageService;
     }
 
     @Transactional
@@ -101,20 +105,20 @@ public class GoodsReceivedNoteService {
         // Publish GrnCreatedEvent for automatic inventory update
         eventPublisher.publishEvent(new GrnCreatedEvent(this, grn));
 
-        return GoodsReceivedNoteDtoConvertor.convertToDto(grn);
+        return GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService);
     }
 
     @Transactional(readOnly = true)
     public GoodsReceivedNoteDto getGrnById(Long id) {
         GoodsReceivedNote grn = goodsReceivedNoteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("GRN not found with id: " + id));
-        return GoodsReceivedNoteDtoConvertor.convertToDto(grn);
+        return GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService);
     }
 
     @Transactional(readOnly = true)
     public List<GoodsReceivedNoteDto> getAllGrns() {
         return goodsReceivedNoteRepository.findAll().stream()
-                .map(GoodsReceivedNoteDtoConvertor::convertToDto)
+                .map(grn -> GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService))
                 .collect(Collectors.toList());
     }
 
@@ -122,20 +126,20 @@ public class GoodsReceivedNoteService {
     public Page<GoodsReceivedNoteDto> getAllGrns(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "receivedOn"));
         return goodsReceivedNoteRepository.findAll(pageable)
-                .map(GoodsReceivedNoteDtoConvertor::convertToDto);
+                .map(grn -> GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService));
     }
 
     @Transactional(readOnly = true)
     public List<GoodsReceivedNoteDto> getGrnsByVendor(Long vendorId) {
         return goodsReceivedNoteRepository.findByVendorId(vendorId).stream()
-                .map(GoodsReceivedNoteDtoConvertor::convertToDto)
+                .map(grn -> GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<GoodsReceivedNoteDto> getGrnsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         return goodsReceivedNoteRepository.findByReceivedOnBetween(startDate, endDate).stream()
-                .map(GoodsReceivedNoteDtoConvertor::convertToDto)
+                .map(grn -> GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService))
                 .collect(Collectors.toList());
     }
 }

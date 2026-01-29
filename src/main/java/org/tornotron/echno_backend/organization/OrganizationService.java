@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
@@ -34,18 +35,19 @@ public class OrganizationService {
     private static final String ORGANIZATION_FOLDER = "organizations";
 
     private final OrganizationRepository repository;
-    private final OrganizationDtoConvertor orgConvertor;
     private final AttachmentService attachmentService;
+    private final FileStorageService fileStorageService;
 
     /**
      * Constructs an {@code OrganizationService} with the necessary dependencies.
      * @param repository The repository for accessing organization data.
-     * @param orgConvertor The converter for mapping between Organization entities and DTOs.
+     * @param attachmentService The service for managing attachments.
+     * @param fileStorageService The service for file storage operations.
      */
-    public OrganizationService(OrganizationRepository repository, OrganizationDtoConvertor orgConvertor,AttachmentService attachmentService) {
-        this.orgConvertor = orgConvertor;
+    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService) {
         this.repository = repository;
         this.attachmentService = attachmentService;
+        this.fileStorageService = fileStorageService;
     }
 
     /**
@@ -87,7 +89,7 @@ public class OrganizationService {
     public Page<OrganizationDto> getAllOrganization(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return repository.findAll(pageable)
-                .map(OrganizationDtoConvertor::convertOrganizationToDto);
+                .map(org -> OrganizationDtoConvertor.convertOrganizationToDto(org, fileStorageService));
     }
 
     /**
@@ -99,7 +101,7 @@ public class OrganizationService {
     public List<OrganizationDto> getAllOrganizationsByCreatorId(Integer creatorId) {
         return repository.findOrganizationsByCreatorId(creatorId)
                 .stream()
-                .map(OrganizationDtoConvertor::convertOrganizationToDto)
+                .map(org -> OrganizationDtoConvertor.convertOrganizationToDto(org, fileStorageService))
                 .collect(Collectors.toList());
     }
 
@@ -112,7 +114,7 @@ public class OrganizationService {
     @Transactional(readOnly = true)
     public OrganizationDto getAnOrganization(Long id) {
         OrganizationDto organizationDto = repository.findById(id)
-                .map(OrganizationDtoConvertor::convertOrganizationToDto)
+                .map(org -> OrganizationDtoConvertor.convertOrganizationToDto(org, fileStorageService))
                 .orElse(null);
         if(organizationDto == null) {
             throw new ResourceNotFoundException("Organization not found with id: "+id);
