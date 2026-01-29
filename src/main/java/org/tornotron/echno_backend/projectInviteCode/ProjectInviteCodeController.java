@@ -47,9 +47,9 @@ public class ProjectInviteCodeController {
      * @param inviteCodeValidationDto DTO containing the user ID and the invite code to validate.
      * @return A {@link ResponseEntity} with the organization DTO that was joined and HTTP status 200 (OK).
      */
-    @PostMapping("/validate")
-    public ResponseEntity<OrganizationDto> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto) {
-        return ResponseEntity.status(HttpStatus.OK).body(projectInviteCodeService.validateAndUseInviteCode(inviteCodeValidationDto));
-    }
+//    @PostMapping("/validate")
+//    public ResponseEntity<OrganizationDto> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto) {
+//        return ResponseEntity.status(HttpStatus.OK).body(projectInviteCodeService.validateAndUseInviteCode(inviteCodeValidationDto));
+//    }
     
 }
