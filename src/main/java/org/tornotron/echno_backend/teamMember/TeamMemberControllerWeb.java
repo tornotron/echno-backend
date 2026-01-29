@@ -45,6 +45,11 @@ public class TeamMemberControllerWeb {
         return new ResponseEntity<>(teamMember,HttpStatus.OK);
     }
 
+    @GetMapping("/projectId/{projectId}")
+    public ResponseEntity<List<TeamMemberDto>> readTeamMembersByProjectId(@PathVariable Long projectId) {
+        return ResponseEntity.status(HttpStatus.OK).body(service.getTeamMembersByProjectId(projectId));
+    }
+
     @PatchMapping("{id}")
     @PreAuthorize("hasAuthority('team-member:update') or hasAuthority('team-member:admin')")
     public ResponseEntity<ApiResponse> partialUpdateATeamMember(@RequestBody Map<String,Object> updates, @PathVariable Long id) {

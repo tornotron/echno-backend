@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.DtoConversions;
 
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteDto;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GrnItemDto;
@@ -12,7 +13,7 @@ import java.util.stream.Collectors;
 @Component
 public class GoodsReceivedNoteDtoConvertor {
 
-    public static GoodsReceivedNoteDto convertToDto(GoodsReceivedNote grn) {
+    public static GoodsReceivedNoteDto convertToDto(GoodsReceivedNote grn, FileStorageService fileStorageService) {
         if (grn == null) {
             return null;
         }
@@ -27,7 +28,7 @@ public class GoodsReceivedNoteDtoConvertor {
 
         // Received by
         if (grn.getReceivedBy() != null) {
-            dto.setReceivedBy(UserDtoConvertor.convertUserToDto(grn.getReceivedBy()));
+            dto.setReceivedBy(UserDtoConvertor.convertUserToDto(grn.getReceivedBy(), fileStorageService));
         }
 
         // Vendor info

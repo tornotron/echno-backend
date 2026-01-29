@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.organization.dto;
 
 import lombok.Data;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 
@@ -21,4 +22,5 @@ public class OrganizationDto {
     private List<EmployeeDto> employees;
     private Boolean isActive;
     private Integer creatorId;
+    private List<AttachmentDto> attachments;
 }

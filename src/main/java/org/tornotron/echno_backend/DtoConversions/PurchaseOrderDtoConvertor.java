@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.DtoConversions;
 
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderDto;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderItemDto;
@@ -12,7 +13,7 @@ import java.util.stream.Collectors;
 @Component
 public class PurchaseOrderDtoConvertor {
 
-    public static PurchaseOrderDto convertToDto(PurchaseOrder purchaseOrder) {
+    public static PurchaseOrderDto convertToDto(PurchaseOrder purchaseOrder, FileStorageService fileStorageService) {
         if (purchaseOrder == null) {
             return null;
         }
@@ -40,7 +41,7 @@ public class PurchaseOrderDtoConvertor {
 
         // Created by
         if (purchaseOrder.getCreatedBy() != null) {
-            dto.setCreatedBy(UserDtoConvertor.convertUserToDto(purchaseOrder.getCreatedBy()));
+            dto.setCreatedBy(UserDtoConvertor.convertUserToDto(purchaseOrder.getCreatedBy(), fileStorageService));
         }
 
         // Items

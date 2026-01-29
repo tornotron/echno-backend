@@ -1,13 +1,14 @@
 package org.tornotron.echno_backend.DtoConversions;
 
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumption;
 import org.tornotron.echno_backend.materialConsumption.dto.MaterialConsumptionDto;
 
 @Component
 public class MaterialConsumptionDtoConvertor {
 
-    public static MaterialConsumptionDto convertToDto(MaterialConsumption consumption) {
+    public static MaterialConsumptionDto convertToDto(MaterialConsumption consumption, FileStorageService fileStorageService) {
         if (consumption == null) {
             return null;
         }
@@ -27,7 +28,7 @@ public class MaterialConsumptionDtoConvertor {
 
         // Created by
         if (consumption.getCreatedBy() != null) {
-            dto.setCreatedBy(UserDtoConvertor.convertUserToDto(consumption.getCreatedBy()));
+            dto.setCreatedBy(UserDtoConvertor.convertUserToDto(consumption.getCreatedBy(), fileStorageService));
         }
 
         return dto;
