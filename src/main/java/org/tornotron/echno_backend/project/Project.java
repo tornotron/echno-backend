@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.project;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.task.Task;
@@ -74,4 +75,8 @@ public class Project {
     /** The scheduled end date and time of the project. */
     @Column(name = "end_date")
     private LocalDateTime endDate;
+
+    /** The list of attachments associated with this project. */
+    @OneToMany(mappedBy = "project")
+    private List<Attachment> attachments;
 }

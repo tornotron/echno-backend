@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.category.Category;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.issue.Issue;
 import org.tornotron.echno_backend.project.Project;
@@ -88,4 +89,8 @@ public class Task {
 
     @OneToMany(mappedBy = "task")
     private List<Issue> issues;
+
+    /** The list of attachments associated with this task. */
+    @OneToMany(mappedBy = "task")
+    private List<Attachment> attachments;
 }

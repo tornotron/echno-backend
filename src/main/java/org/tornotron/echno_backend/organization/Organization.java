@@ -4,6 +4,7 @@ package org.tornotron.echno_backend.organization;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.project.Project;
 
@@ -71,4 +72,8 @@ public class Organization {
     /** A flag indicating whether the organization is active. */
     @Column(name = "is_active", nullable = true)
     private Boolean isActive;
+
+    /** The list of attachments associated with this organization. */
+    @OneToMany(mappedBy = "organization")
+    private List<Attachment> attachments;
 }
