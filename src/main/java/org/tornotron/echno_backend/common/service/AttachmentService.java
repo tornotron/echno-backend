@@ -6,7 +6,13 @@ import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.common.dto.StoredFile;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
+import org.tornotron.echno_backend.issue.IssueRepository;
+import org.tornotron.echno_backend.organization.OrganizationRepository;
+import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.task.TaskRepository;
+import org.tornotron.echno_backend.user.UserRepository;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -21,10 +27,20 @@ public class AttachmentService {
 
     private final AttachmentRepository attachmentRepository;
     private final FileStorageService fileStorageService;
+    private final OrganizationRepository organizationRepository;
+    private final ProjectRepository projectRepository;
+    private final TaskRepository taskRepository;
+    private final IssueRepository issueRepository;
+    private final UserRepository userRepository;
 
-    public AttachmentService(AttachmentRepository attachmentRepository, FileStorageService fileStorageService) {
+    public AttachmentService(AttachmentRepository attachmentRepository, FileStorageService fileStorageService, OrganizationRepository organizationRepository, ProjectRepository projectRepository, TaskRepository taskRepository, IssueRepository issueRepository, UserRepository userRepository) {
         this.attachmentRepository = attachmentRepository;
         this.fileStorageService = fileStorageService;
+        this.organizationRepository = organizationRepository;
+        this.projectRepository = projectRepository;
+        this.taskRepository = taskRepository;
+        this.issueRepository = issueRepository;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -56,7 +72,27 @@ public class AttachmentService {
             attachment.setContentType(storedFile.contentType());
             attachment.setFileSize(storedFile.size());
             attachment.setOriginalFilename(originalFile.getOriginalFilename());
+            switch (folder) {
+                case "organization":
+                    attachment.setOrganization(organizationRepository.findById(entityId).orElse(null));
+                    break;
 
+                case "project":
+                    attachment.setProject(projectRepository.findById(entityId).orElse(null));
+                    break;
+
+                case "task":
+                    attachment.setTask(taskRepository.findById(entityId).orElse(null));
+                    break;
+
+                case "issue":
+                    attachment.setIssue(issueRepository.findById(entityId).orElse(null));
+                    break;
+
+                case "user":
+                    attachment.setUser(userRepository.findById(entityId).orElse(null));
+                    break;
+            }
             attachments.add(attachmentRepository.save(attachment));
         }
 

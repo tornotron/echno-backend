@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
 import org.tornotron.echno_backend.intend.Intend;
@@ -95,6 +96,10 @@ public class User {
     @Column(name = "profile_picture_url", nullable = true)
     private String profilePictureUrl;
 
+    /** The default organization ID for the user. */
+    @Column(name = "default_organization_id")
+    private Long defaultOrganizationId;
+
     /** The timestamp when the user was created. Automatically generated. */
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -132,5 +137,9 @@ public class User {
     /** The list of site transfers initiated by this user. */
     @OneToMany(mappedBy = "sendingPerson")
     private List<SiteTransfer> siteTransfers = new ArrayList<>();
+
+    /** The list of attachments associated with this user. */
+    @OneToMany(mappedBy = "user")
+    private List<Attachment> attachments = new ArrayList<>();
 
 }
