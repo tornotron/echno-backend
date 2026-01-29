@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="037-add-attachment-relationships" author="echno">
+        <!-- Add foreign key columns for each entity type -->
+        <addColumn tableName="attachment">
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="attachment">
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="attachment">
+            <column name="task_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="attachment">
+            <column name="issue_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="attachment">
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <!-- Add foreign key constraints -->
+        <addForeignKeyConstraint
+                baseTableName="attachment"
+                baseColumnNames="organization_id"
+                constraintName="fk_attachment_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="attachment"
+                baseColumnNames="project_id"
+                constraintName="fk_attachment_project"
+                referencedTableName="project"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="attachment"
+                baseColumnNames="task_id"
+                constraintName="fk_attachment_task"
+                referencedTableName="task"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="attachment"
+                baseColumnNames="issue_id"
+                constraintName="fk_attachment_issue"
+                referencedTableName="issue"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="attachment"
+                baseColumnNames="user_id"
+                constraintName="fk_attachment_user"
+                referencedTableName="users_table"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <!-- Create indexes for the foreign keys -->
+        <createIndex tableName="attachment" indexName="idx_attachment_organization">
+            <column name="organization_id"/>
+        </createIndex>
+
+        <createIndex tableName="attachment" indexName="idx_attachment_project">
+            <column name="project_id"/>
+        </createIndex>
+
+        <createIndex tableName="attachment" indexName="idx_attachment_task">
+            <column name="task_id"/>
+        </createIndex>
+
+        <createIndex tableName="attachment" indexName="idx_attachment_issue">
+            <column name="issue_id"/>
+        </createIndex>
+
+        <createIndex tableName="attachment" indexName="idx_attachment_user">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

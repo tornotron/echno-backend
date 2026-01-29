@@ -64,5 +64,8 @@
     <!-- ============================================================== -->
     <include file="db/changelog/v1.1/035-alter-attachment-url-nullable.xml"/>
     <include file="db/changelog/v1.1/036-add-updated-at-to-attachment.xml"/>
+    <include file="db/changelog/v1.1/037-add-attachment-relationships.xml"/>
+    <include file="db/changelog/v1.1/038-add-team-member-department-designation.xml"/>
+    <include file="db/changelog/v1.1/039-add-user-default-organization-id.xml"/>
 
 </databaseChangeLog>
