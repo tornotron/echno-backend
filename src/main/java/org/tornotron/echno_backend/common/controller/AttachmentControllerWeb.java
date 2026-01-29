@@ -31,7 +31,7 @@ public class AttachmentControllerWeb {
     public ResponseEntity<List<AttachmentDto>> creatAttachment(@RequestParam(value = "attachments",required = true)List<MultipartFile> attachments,
                                                          @PathVariable String entityType,
                                                          @PathVariable Long entityId)  {
-        return ResponseEntity.status(HttpStatus.CREATED).body(attachmentService.uploadAttachments(attachments,entityType,entityId,entityType.toLowerCase())
+        return ResponseEntity.status(HttpStatus.CREATED).body(attachmentService.uploadAttachments(attachments,entityType,entityId,entityType.split("_",2)[0].toLowerCase())
                 .stream()
                 .map(attachment -> {
                     AttachmentDto dto = new AttachmentDto();
