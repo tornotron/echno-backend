@@ -293,9 +293,9 @@ public class UserService {
                 case "qualification":
                     user.setQualification((String) value);
                     break;
-//                case "skills":
-//                    user.setSkills((List<String>) value);
-//                    break;
+                case "address":
+                    user.setAddress((String) value);
+                    break;
                 case "experience":
                     user.setExperience((Integer) value);
                     break;
@@ -310,6 +310,34 @@ public class UserService {
                     break;
                 case "profilePictureUrl":
                     user.setProfilePictureUrl((String) value);
+                    break;
+                case "skills":
+                    if (value != null) {
+                        if (!(value instanceof List)) {
+                            throw new IllegalArgumentException("Skills must be a list");
+                        }
+                        @SuppressWarnings("unchecked")
+                        List<?> rawList = (List<?>) value;
+                        List<String> validatedSkills = rawList.stream()
+                                .map(item -> {
+                                    if (item == null) {
+                                        throw new IllegalArgumentException("Skill cannot be null");
+                                    }
+                                    if (!(item instanceof String)) {
+                                        throw new IllegalArgumentException("Each skill must be a string");
+                                    }
+                                    String skill = ((String) item).trim();
+                                    if (skill.isBlank()) {
+                                        throw new IllegalArgumentException("Skill cannot be blank");
+                                    }
+                                    if (skill.length() > 100) {
+                                        throw new IllegalArgumentException("Skill cannot exceed 100 characters");
+                                    }
+                                    return skill;
+                                })
+                                .toList();
+                        user.setSkills(validatedSkills);
+                    }
                     break;
             }
         });
