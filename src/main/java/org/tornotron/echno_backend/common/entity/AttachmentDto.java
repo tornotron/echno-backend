@@ -11,4 +11,5 @@ public class AttachmentDto {
     private Long fileSize;
     private String fileName;
     private String createdAt;
+    private String updatedAt;
 }
