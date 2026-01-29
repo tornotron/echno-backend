@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.PayableDtoConvertor;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteRepository;
 import org.tornotron.echno_backend.payable.dto.PayableCreationDto;
@@ -30,15 +31,18 @@ public class PayableService {
     private final VendorRepository vendorRepository;
     private final GoodsReceivedNoteRepository goodsReceivedNoteRepository;
     private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
 
     public PayableService(PayableRepository payableRepository,
                          VendorRepository vendorRepository,
                          GoodsReceivedNoteRepository goodsReceivedNoteRepository,
-                         UserRepository userRepository) {
+                         UserRepository userRepository,
+                         FileStorageService fileStorageService) {
         this.payableRepository = payableRepository;
         this.vendorRepository = vendorRepository;
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.userRepository = userRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     @Transactional
@@ -77,7 +81,7 @@ public class PayableService {
         payable.setCreatedBy(createdBy);
 
         payable = payableRepository.save(payable);
-        return PayableDtoConvertor.convertToDto(payable);
+        return PayableDtoConvertor.convertToDto(payable, fileStorageService);
     }
 
     @Transactional
@@ -89,20 +93,20 @@ public class PayableService {
         payable.setAmountPaid(currentPaid.add(paymentAmount));
 
         payable = payableRepository.save(payable);
-        return PayableDtoConvertor.convertToDto(payable);
+        return PayableDtoConvertor.convertToDto(payable, fileStorageService);
     }
 
     @Transactional(readOnly = true)
     public PayableDto getPayableById(Long id) {
         Payable payable = payableRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Payable not found with id: " + id));
-        return PayableDtoConvertor.convertToDto(payable);
+        return PayableDtoConvertor.convertToDto(payable, fileStorageService);
     }
 
     @Transactional(readOnly = true)
     public List<PayableDto> getAllPayables() {
         return payableRepository.findAll().stream()
-                .map(PayableDtoConvertor::convertToDto)
+                .map(payable -> PayableDtoConvertor.convertToDto(payable, fileStorageService))
                 .collect(Collectors.toList());
     }
 
@@ -110,20 +114,20 @@ public class PayableService {
     public Page<PayableDto> getAllPayables(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         return payableRepository.findAll(pageable)
-                .map(PayableDtoConvertor::convertToDto);
+                .map(payable -> PayableDtoConvertor.convertToDto(payable, fileStorageService));
     }
 
     @Transactional(readOnly = true)
     public List<PayableDto> getPayablesByVendor(Long vendorId) {
         return payableRepository.findByVendorId(vendorId).stream()
-                .map(PayableDtoConvertor::convertToDto)
+                .map(payable -> PayableDtoConvertor.convertToDto(payable, fileStorageService))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<PayableDto> getOutstandingPayables() {
         return payableRepository.findOutstandingPayables().stream()
-                .map(PayableDtoConvertor::convertToDto)
+                .map(payable -> PayableDtoConvertor.convertToDto(payable, fileStorageService))
                 .collect(Collectors.toList());
     }
 }

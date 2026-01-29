@@ -20,6 +20,7 @@ import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferItemDto;
 import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferStatus;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItemRepository;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
 
@@ -39,19 +40,22 @@ public class SiteTransferService {
     private final MaterialRepository materialRepository;
     private final InventoryService inventoryService;
     private final ApplicationEventPublisher eventPublisher;
+    private final FileStorageService fileStorageService;
 
     public SiteTransferService(SiteTransferRepository siteTransferRepository,
                               SiteTransferItemRepository siteTransferItemRepository,
                               UserRepository userRepository,
                               MaterialRepository materialRepository,
                               InventoryService inventoryService,
-                              ApplicationEventPublisher eventPublisher) {
+                              ApplicationEventPublisher eventPublisher,
+                              FileStorageService fileStorageService) {
         this.siteTransferRepository = siteTransferRepository;
         this.siteTransferItemRepository = siteTransferItemRepository;
         this.userRepository = userRepository;
         this.materialRepository = materialRepository;
         this.inventoryService = inventoryService;
         this.eventPublisher = eventPublisher;
+        this.fileStorageService = fileStorageService;
     }
 
     @Transactional
@@ -104,20 +108,20 @@ public class SiteTransferService {
         // Publish SiteTransferCreatedEvent for automatic inventory update
         eventPublisher.publishEvent(new SiteTransferCreatedEvent(this, transfer));
 
-        return SiteTransferDtoConvertor.convertToDto(transfer);
+        return SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService);
     }
 
     @Transactional(readOnly = true)
     public SiteTransferDto getSiteTransferById(Long id) {
         SiteTransfer transfer = siteTransferRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Site transfer not found with id: " + id));
-        return SiteTransferDtoConvertor.convertToDto(transfer);
+        return SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService);
     }
 
     @Transactional(readOnly = true)
     public List<SiteTransferDto> getAllSiteTransfers() {
         return siteTransferRepository.findAll().stream()
-                .map(SiteTransferDtoConvertor::convertToDto)
+                .map(transfer -> SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService))
                 .collect(Collectors.toList());
     }
 
@@ -125,20 +129,20 @@ public class SiteTransferService {
     public Page<SiteTransferDto> getAllSiteTransfers(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "issueDate"));
         return siteTransferRepository.findAll(pageable)
-                .map(SiteTransferDtoConvertor::convertToDto);
+                .map(transfer -> SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService));
     }
 
     @Transactional(readOnly = true)
     public List<SiteTransferDto> getSiteTransfersByStatus(SiteTransferStatus status) {
         return siteTransferRepository.findByStatus(status).stream()
-                .map(SiteTransferDtoConvertor::convertToDto)
+                .map(transfer -> SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<SiteTransferDto> getSiteTransfersByReceivingSite(String receivingSite) {
         return siteTransferRepository.findByReceivingSite(receivingSite).stream()
-                .map(SiteTransferDtoConvertor::convertToDto)
+                .map(transfer -> SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService))
                 .collect(Collectors.toList());
     }
 

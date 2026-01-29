@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.PurchaseOrderDtoConvertor;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.indentItem.IndentItem;
 import org.tornotron.echno_backend.indentItem.IndentItemRepository;
 import org.tornotron.echno_backend.intend.Intend;
@@ -42,6 +43,7 @@ public class PurchaseOrderService {
     private final IntendRepository intendRepository;
     private final IndentItemRepository indentItemRepository;
     private final MaterialRepository materialRepository;
+    private final FileStorageService fileStorageService;
 
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                                 PurchaseOrderItemRepository purchaseOrderItemRepository,
@@ -49,7 +51,8 @@ public class PurchaseOrderService {
                                 UserRepository userRepository,
                                 IntendRepository intendRepository,
                                 IndentItemRepository indentItemRepository,
-                                MaterialRepository materialRepository) {
+                                MaterialRepository materialRepository,
+                                FileStorageService fileStorageService) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.purchaseOrderItemRepository = purchaseOrderItemRepository;
         this.vendorRepository = vendorRepository;
@@ -57,6 +60,7 @@ public class PurchaseOrderService {
         this.intendRepository = intendRepository;
         this.indentItemRepository = indentItemRepository;
         this.materialRepository = materialRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     @Transactional
@@ -128,20 +132,20 @@ public class PurchaseOrderService {
         purchaseOrderItemRepository.saveAll(items);
         purchaseOrder.setItems(items);
 
-        return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder);
+        return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder, fileStorageService);
     }
 
     @Transactional(readOnly = true)
     public PurchaseOrderDto getPurchaseOrderById(Long id) {
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase Order not found with id: " + id));
-        return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder);
+        return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder, fileStorageService);
     }
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderDto> getAllPurchaseOrders() {
         return purchaseOrderRepository.findAll().stream()
-                .map(PurchaseOrderDtoConvertor::convertToDto)
+                .map(po -> PurchaseOrderDtoConvertor.convertToDto(po, fileStorageService))
                 .collect(Collectors.toList());
     }
 
@@ -149,27 +153,27 @@ public class PurchaseOrderService {
     public Page<PurchaseOrderDto> getAllPurchaseOrders(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         return purchaseOrderRepository.findAll(pageable)
-                .map(PurchaseOrderDtoConvertor::convertToDto);
+                .map(po -> PurchaseOrderDtoConvertor.convertToDto(po, fileStorageService));
     }
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderDto> getPurchaseOrdersByVendor(Long vendorId) {
         return purchaseOrderRepository.findByVendorId(vendorId).stream()
-                .map(PurchaseOrderDtoConvertor::convertToDto)
+                .map(po -> PurchaseOrderDtoConvertor.convertToDto(po, fileStorageService))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderDto> getPurchaseOrdersByIntend(Long intendId) {
         return purchaseOrderRepository.findByIntendId(intendId).stream()
-                .map(PurchaseOrderDtoConvertor::convertToDto)
+                .map(po -> PurchaseOrderDtoConvertor.convertToDto(po, fileStorageService))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderDto> getPurchaseOrdersByStatus(PurchaseOrderStatus status) {
         return purchaseOrderRepository.findByStatus(status).stream()
-                .map(PurchaseOrderDtoConvertor::convertToDto)
+                .map(po -> PurchaseOrderDtoConvertor.convertToDto(po, fileStorageService))
                 .collect(Collectors.toList());
     }
 
@@ -195,7 +199,7 @@ public class PurchaseOrderService {
         }
 
         purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
-        return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder);
+        return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder, fileStorageService);
     }
 
     @Transactional

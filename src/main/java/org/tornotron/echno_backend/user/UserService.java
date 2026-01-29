@@ -22,6 +22,7 @@ import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.user.dto.UserCreationDto;
 import org.tornotron.echno_backend.user.dto.UserDto;
@@ -47,6 +48,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final Keycloak keycloak;
     private final AttachmentService attachmentService;
+    private final FileStorageService fileStorageService;
 
     @Value("${keycloak-initializer.application-realm}")
     private String realm;
@@ -58,10 +60,11 @@ public class UserService {
      * @param keycloak       The Keycloak client.
      * @param attachmentService The service for attachment operations.
      */
-    public UserService(UserRepository userRepository, Keycloak keycloak, AttachmentService attachmentService) {
+    public UserService(UserRepository userRepository, Keycloak keycloak, AttachmentService attachmentService,FileStorageService fileStorageService) {
         this.userRepository = userRepository;
         this.keycloak = keycloak;
         this.attachmentService = attachmentService;
+        this.fileStorageService = fileStorageService;
     }
 
     /**
@@ -95,7 +98,7 @@ public class UserService {
             user.setRole(UserRole.valueOf(userCreationDto.getRole()));
             user.setProfilePictureUrl(userCreationDto.getProfilePictureUrl());
             user.setKeycloakId(keycloakId);
-            return UserDtoConvertor.convertUserToDto(userRepository.save(user));
+            return UserDtoConvertor.convertUserToDto(userRepository.save(user), fileStorageService);
         } catch (Exception e) {
             deleteKeycloakUser(keycloakId);
             throw e;
@@ -129,7 +132,7 @@ public class UserService {
                 throw new IllegalArgumentException("Invalid user role: " + userRegistrationDto.getRole());
             }
             user.setKeycloakId(keycloakId);
-            return UserDtoConvertor.convertUserToDto(userRepository.save(user));
+            return UserDtoConvertor.convertUserToDto(userRepository.save(user), fileStorageService);
         } catch (Exception e) {
             deleteKeycloakUser(keycloakId);
             throw e;
@@ -189,7 +192,9 @@ public class UserService {
     public List<OrganizationDto> getOrganizationsForCurrentUser(Long userId) {
         return userRepository.findOrganizationsByUserId(userId)
                 .stream()
-                .map(OrganizationDtoConvertor::convertOrganizationToDto)
+                .map(org ->
+                    OrganizationDtoConvertor.convertOrganizationToDto(org,fileStorageService)
+                )
                 .collect(Collectors.toList());
 
     }
@@ -205,7 +210,7 @@ public class UserService {
     public Page<UserDto> getAllUsers(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return userRepository.findAll(pageable)
-                .map(UserDtoConvertor::convertUserToDto);
+                .map(usr -> UserDtoConvertor.convertUserToDto(usr,fileStorageService));
     }
 
     /**
@@ -217,7 +222,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserDto getAnUser(String sub) {
         return userRepository.findUserByKeycloakId(sub)
-                .map(UserDtoConvertor::convertUserToDto)
+                .map(usr -> UserDtoConvertor.convertUserToDto(usr,fileStorageService))
                 .orElseThrow(() -> new ResourceNotFoundException("No user found for the provided subject identifier"));
     }
 
@@ -262,7 +267,7 @@ public class UserService {
             user.setCvUrl(attachment.getUrl());
         }
 
-        return UserDtoConvertor.convertUserToDto(userRepository.save(user));
+        return UserDtoConvertor.convertUserToDto(userRepository.save(user), fileStorageService);
     }
 
     private void partialUpdateAnUser(Map<String, Object> updates, User user) {
@@ -271,6 +276,13 @@ public class UserService {
                 case "name":
                     user.setName((String) value);
                     break;
+                case "defaultOrganizationId":
+                    if(value instanceof Long) {
+                        user.setDefaultOrganizationId((Long) value);
+                        break;
+                    } else {
+                        throw new IllegalArgumentException("defaultOrganizationId must be a number");
+                    }
                 case "gender":
                     user.setGender((String) value);
                     break;

@@ -59,4 +59,6 @@ public class UserCreationDto {
     private String role;
 
     private String profilePictureUrl;
+
+    private Long defaultOrganizationId;
 }

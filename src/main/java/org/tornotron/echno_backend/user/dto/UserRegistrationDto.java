@@ -36,4 +36,6 @@ public class UserRegistrationDto {
 
     @NotBlank(message = "password is required")
     private String password;
+
+    private Long defaultOrganizationId;
 }
