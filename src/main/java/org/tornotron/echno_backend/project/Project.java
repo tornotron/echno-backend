@@ -79,4 +79,9 @@ public class Project {
     /** The list of attachments associated with this project. */
     @OneToMany(mappedBy = "project")
     private List<Attachment> attachments;
+
+    public void addAttachment(Attachment attachment) {
+        attachments.add(attachment);
+        attachment.setProject(this);
+    }
 }

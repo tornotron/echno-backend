@@ -24,7 +24,6 @@ import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
-import org.tornotron.echno_backend.user.dto.UserCreationDto;
 import org.tornotron.echno_backend.user.dto.UserDto;
 import org.tornotron.echno_backend.user.dto.UserPatchDto;
 import org.tornotron.echno_backend.user.dto.UserRegistrationDto;
@@ -44,6 +43,8 @@ public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     private static final String USERS_FOLDER = "users";
+    private static final String ATTACHMENT_TYPE_PROFILE_PICTURE = "USER_PROFILE_PICTURE";
+    private static final String ATTACHMENT_TYPE_CV = "USER_CV";
 
     private final UserRepository userRepository;
     private final Keycloak keycloak;
@@ -65,44 +66,6 @@ public class UserService {
         this.keycloak = keycloak;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
-    }
-
-    /**
-     * Creates a new user.
-     *
-     * @param userCreationDto DTO containing the details for the new user.
-     * @return The DTO of the newly created user.
-     */
-    @Transactional
-    public UserDto addUser(UserCreationDto userCreationDto) {
-        if (userRepository.existsUserByEmail(userCreationDto.getEmail())) {
-            throw new DuplicateResourceException("User with email " + userCreationDto.getEmail() + " already exists.");
-        }
-
-        String keycloakId = createKeycloakUser(userCreationDto.getUserName(), userCreationDto.getEmail(), userCreationDto.getPassword());
-
-        try {
-            User user = new User();
-            user.setName(userCreationDto.getName());
-            user.setGender(userCreationDto.getGender());
-            user.setAddress(userCreationDto.getAddress());
-            user.setBloodGroup(userCreationDto.getBloodGroup());
-            user.setEmail(userCreationDto.getEmail());
-            user.setPhone(userCreationDto.getPhone());
-            user.setDateOfBirth(userCreationDto.getDateOfBirth());
-            user.setQualification(userCreationDto.getQualification());
-            user.setSkills(userCreationDto.getSkills());
-            user.setExperience(userCreationDto.getExperience());
-            user.setCvUrl(userCreationDto.getCvUrl());
-            user.setEmergencyContact(userCreationDto.getEmergencyContact());
-            user.setRole(UserRole.valueOf(userCreationDto.getRole()));
-            user.setProfilePictureUrl(userCreationDto.getProfilePictureUrl());
-            user.setKeycloakId(keycloakId);
-            return UserDtoConvertor.convertUserToDto(userRepository.save(user), fileStorageService);
-        } catch (Exception e) {
-            deleteKeycloakUser(keycloakId);
-            throw e;
-        }
     }
 
     /**
@@ -253,108 +216,99 @@ public class UserService {
     public UserDto partialUpdateAnUser(Map<String, Object> updates, Long id, MultipartFile profilePicture, MultipartFile cv) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
-        partialUpdateAnUser(updates, user);
+        applyUpdates(updates, user);
 
-        // Handle profile picture upload
-        if (profilePicture != null && !profilePicture.isEmpty()) {
-            Attachment attachment = attachmentService.uploadAttachment(profilePicture, "USER_PROFILE_PICTURE", id, USERS_FOLDER);
-            user.setProfilePictureUrl(attachment.getUrl());
-            user.addAttachment(attachment);
-        }
-
-        // Handle CV upload
-        if (cv != null && !cv.isEmpty()) {
-            Attachment attachment = attachmentService.uploadAttachment(cv, "USER_CV", id, USERS_FOLDER);
-            user.setCvUrl(attachment.getUrl());
-            user.addAttachment(attachment);
-        }
+        handleProfilePictureUpload(user, profilePicture, id);
+        handleCvUpload(user, cv, id);
 
         return UserDtoConvertor.convertUserToDto(userRepository.save(user), fileStorageService);
     }
 
-    private void partialUpdateAnUser(Map<String, Object> updates, User user) {
+    private void applyUpdates(Map<String, Object> updates, User user) {
         updates.forEach((key, value) -> {
             switch (key) {
-                case "name":
-                    user.setName((String) value);
-                    break;
-                case "defaultOrganizationId":
-                    if(value instanceof Long) {
-                        user.setDefaultOrganizationId((Long) value);
-                        break;
-                    } else {
-                        throw new IllegalArgumentException("defaultOrganizationId must be a number");
-                    }
-                case "gender":
-                    user.setGender((String) value);
-                    break;
-                case "bloodGroup":
-                    user.setBloodGroup((String) value);
-                    break;
-                case "email":
-                    user.setEmail((String) value);
-                    break;
-                case "phone":
-                    user.setPhone((String) value);
-                    break;
-                case "dateOfBirth":
-                    if (value instanceof String) {
-                        user.setDateOfBirth(LocalDateTime.parse((String) value));
-                    } else if (value instanceof LocalDateTime) {
-                        user.setDateOfBirth((LocalDateTime) value);
-                    }
-                    break;
-                case "qualification":
-                    user.setQualification((String) value);
-                    break;
-                case "address":
-                    user.setAddress((String) value);
-                    break;
-                case "experience":
-                    user.setExperience((Integer) value);
-                    break;
-                case "cvUrl":
-                    user.setCvUrl((String) value);
-                    break;
-                case "emergencyContact":
-                    user.setEmergencyContact((String) value);
-                    break;
-                case "role":
-                    user.setRole(UserRole.valueOf((String) value));
-                    break;
-                case "profilePictureUrl":
-                    user.setProfilePictureUrl((String) value);
-                    break;
-                case "skills":
-                    if (value != null) {
-                        if (!(value instanceof List)) {
-                            throw new IllegalArgumentException("Skills must be a list");
-                        }
-                        @SuppressWarnings("unchecked")
-                        List<?> rawList = (List<?>) value;
-                        List<String> validatedSkills = rawList.stream()
-                                .map(item -> {
-                                    if (item == null) {
-                                        throw new IllegalArgumentException("Skill cannot be null");
-                                    }
-                                    if (!(item instanceof String)) {
-                                        throw new IllegalArgumentException("Each skill must be a string");
-                                    }
-                                    String skill = ((String) item).trim();
-                                    if (skill.isBlank()) {
-                                        throw new IllegalArgumentException("Skill cannot be blank");
-                                    }
-                                    if (skill.length() > 100) {
-                                        throw new IllegalArgumentException("Skill cannot exceed 100 characters");
-                                    }
-                                    return skill;
-                                })
-                                .toList();
-                        user.setSkills(validatedSkills);
-                    }
-                    break;
+                case "name" -> user.setName((String) value);
+                case "defaultOrganizationId" -> user.setDefaultOrganizationId(parseDefaultOrganizationId(value));
+                case "gender" -> user.setGender((String) value);
+                case "bloodGroup" -> user.setBloodGroup((String) value);
+                case "email" -> user.setEmail((String) value);
+                case "phone" -> user.setPhone((String) value);
+                case "dateOfBirth" -> user.setDateOfBirth(parseDateOfBirth(value));
+                case "qualification" -> user.setQualification((String) value);
+                case "address" -> user.setAddress((String) value);
+                case "experience" -> user.setExperience((Integer) value);
+                case "cvUrl" -> user.setCvUrl((String) value);
+                case "emergencyContact" -> user.setEmergencyContact((String) value);
+                case "role" -> user.setRole(UserRole.valueOf((String) value));
+                case "profilePictureUrl" -> user.setProfilePictureUrl((String) value);
+                case "skills" -> user.setSkills(parseSkills(value));
+                default -> { }
             }
         });
+    }
+
+    private Long parseDefaultOrganizationId(Object value) {
+        if (value instanceof Long) {
+            return (Long) value;
+        }
+        throw new IllegalArgumentException("defaultOrganizationId must be a number");
+    }
+
+    private LocalDateTime parseDateOfBirth(Object value) {
+        if (value instanceof String) {
+            return LocalDateTime.parse((String) value);
+        }
+        if (value instanceof LocalDateTime) {
+            return (LocalDateTime) value;
+        }
+        return null;
+    }
+
+    private List<String> parseSkills(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (!(value instanceof List<?> rawList)) {
+            throw new IllegalArgumentException("Skills must be a list");
+        }
+        return rawList.stream()
+                .map(this::validateSkill)
+                .toList();
+    }
+
+    private String validateSkill(Object item) {
+        if (item == null) {
+            throw new IllegalArgumentException("Skill cannot be null");
+        }
+        if (!(item instanceof String)) {
+            throw new IllegalArgumentException("Each skill must be a string");
+        }
+        String skill = ((String) item).trim();
+        if (skill.isBlank()) {
+            throw new IllegalArgumentException("Skill cannot be blank");
+        }
+        if (skill.length() > 100) {
+            throw new IllegalArgumentException("Skill cannot exceed 100 characters");
+        }
+        return skill;
+    }
+
+    private void handleProfilePictureUpload(User user, MultipartFile profilePicture, Long userId) {
+        if (profilePicture != null && !profilePicture.isEmpty()) {
+            Attachment attachment = attachmentService.uploadAttachment(
+                    profilePicture, ATTACHMENT_TYPE_PROFILE_PICTURE, userId, USERS_FOLDER);
+            user.setProfilePictureUrl(attachment.getUrl());
+            user.addAttachment(attachment);
+        }
+    }
+
+    private void handleCvUpload(User user, MultipartFile cv, Long userId) {
+        if (cv != null && !cv.isEmpty()) {
+            Attachment attachment = attachmentService.uploadAttachment(
+                    cv, ATTACHMENT_TYPE_CV, userId, USERS_FOLDER);
+            user.setCvUrl(attachment.getUrl());
+            user.addAttachment(attachment);
+        }
     }
 
     /**
@@ -372,7 +326,7 @@ public class UserService {
         updates.forEach(update -> {
             User user = userMap.get(update.getId());
             if (user != null) {
-                partialUpdateAnUser(update.getUpdates(), user);
+                applyUpdates(update.getUpdates(), user);
             }
         });
 
