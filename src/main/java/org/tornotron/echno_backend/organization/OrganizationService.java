@@ -132,20 +132,13 @@ public class OrganizationService {
      * @throws ResourceNotFoundException if no organization with the given ID is found.
      */
     @Transactional
-    public OrganizationSimpleDto partialUpdateAnOrganization(Map<String, Object> updates, Long id,MultipartFile organizationLogo, MultipartFile organizationWebsite) {
+    public OrganizationSimpleDto partialUpdateAnOrganization(Map<String, Object> updates, Long id,List<MultipartFile> attachments,String entityType) {
        Organization organization = repository.findById(id)
                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+id));
        partialUpdateAnOrganization(updates,organization);
 
-       if(organizationLogo != null) {
-           Attachment attachment = attachmentService.uploadAttachment(organizationLogo, "ORGANIZATION_LOGO", id, ORGANIZATION_FOLDER);
-           organization.setOrganizationLogo(attachment.getUrl());
-           organization.addAttachment(attachment);
-       }
-
-       if(organizationWebsite != null) {
-           Attachment attachment = attachmentService.uploadAttachment(organizationWebsite,"ORGANIZATION_WEBSITE", id, ORGANIZATION_FOLDER);
-           organization.setOrganizationWebsite(attachment.getUrl());
+       for (MultipartFile att:attachments) {
+           Attachment attachment = attachmentService.uploadAttachment(att,entityType,id,ORGANIZATION_FOLDER);
            organization.addAttachment(attachment);
        }
         return OrganizationDtoConvertor.convertOrganizationToSimpleDto(repository.save(organization));
