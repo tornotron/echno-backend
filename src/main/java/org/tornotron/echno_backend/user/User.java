@@ -144,9 +144,7 @@ public class User {
 
     public void addAttachment(Attachment attachment) {
         attachments.add(attachment);
-        attachment.setUser(
-                this
-        );
+        attachment.setUser(this);
     }
 
 }

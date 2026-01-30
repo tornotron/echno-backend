@@ -140,11 +140,13 @@ public class OrganizationService {
        if(organizationLogo != null) {
            Attachment attachment = attachmentService.uploadAttachment(organizationLogo, "ORGANIZATION_LOGO", id, ORGANIZATION_FOLDER);
            organization.setOrganizationLogo(attachment.getUrl());
+           organization.addAttachment(attachment);
        }
 
        if(organizationWebsite != null) {
            Attachment attachment = attachmentService.uploadAttachment(organizationWebsite,"ORGANIZATION_WEBSITE", id, ORGANIZATION_FOLDER);
            organization.setOrganizationWebsite(attachment.getUrl());
+           organization.addAttachment(attachment);
        }
         return OrganizationDtoConvertor.convertOrganizationToSimpleDto(repository.save(organization));
     }
