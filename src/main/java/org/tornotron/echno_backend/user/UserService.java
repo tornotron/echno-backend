@@ -248,8 +248,8 @@ public class UserService {
     }
 
     private Long parseDefaultOrganizationId(Object value) {
-        if (value instanceof Long) {
-            return (Long) value;
+        if (value instanceof Number number) {
+            return number.longValue();
         }
         throw new IllegalArgumentException("defaultOrganizationId must be a number");
     }
