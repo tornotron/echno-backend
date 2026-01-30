@@ -259,12 +259,14 @@ public class UserService {
         if (profilePicture != null && !profilePicture.isEmpty()) {
             Attachment attachment = attachmentService.uploadAttachment(profilePicture, "USER_PROFILE_PICTURE", id, USERS_FOLDER);
             user.setProfilePictureUrl(attachment.getUrl());
+            user.addAttachment(attachment);
         }
 
         // Handle CV upload
         if (cv != null && !cv.isEmpty()) {
             Attachment attachment = attachmentService.uploadAttachment(cv, "USER_CV", id, USERS_FOLDER);
             user.setCvUrl(attachment.getUrl());
+            user.addAttachment(attachment);
         }
 
         return UserDtoConvertor.convertUserToDto(userRepository.save(user), fileStorageService);
