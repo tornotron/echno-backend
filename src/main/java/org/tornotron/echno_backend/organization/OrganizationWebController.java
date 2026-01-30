@@ -99,11 +99,11 @@ public class OrganizationWebController {
     public ResponseEntity<OrganizationSimpleDto> partialUpdateAnOrganization(
             @RequestPart(value = "data", required = false) String data,
             @PathVariable Long id,
-            @RequestParam(value = "organizationWebsite",required = false) MultipartFile organizationWebsite,
-            @RequestParam(value = "organizationLogo",required = false) MultipartFile organizationLogo) throws JsonProcessingException{
+            @RequestParam(value = "attachments",required = false) List<MultipartFile> attachments,
+            @RequestParam(value = "entityType",required = false,defaultValue = "ORGANIZATION_LOGO") String entityType) throws JsonProcessingException{
         Map<String ,Object> updates = data != null
                 ? objectMapper.readValue(data, new TypeReference<>() {}) : Map.of();
-        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAnOrganization(updates,id,organizationLogo,organizationWebsite));
+        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAnOrganization(updates,id,attachments,entityType));
     }
 
     /**
