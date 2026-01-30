@@ -7,6 +7,7 @@ import org.tornotron.echno_backend.DtoConversions.ProjectInviteCodeDtoConvertor;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.organization.Organization;
@@ -33,6 +34,7 @@ public class ProjectInviteCodeService {
     private final EmployeeService employeeService;
     private final SecureRandom secureRandom = new SecureRandom();
     private final OrganizationRepository organizationRepository;
+    private final FileStorageService fileStorageService;
 
     /**
      * Constructs a ProjectInviteCodeService with the necessary repositories and services.
@@ -41,10 +43,11 @@ public class ProjectInviteCodeService {
      * @param employeeService        The service for employee-related operations.
      * @param organizationRepository The repository for organization data access.
      */
-    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository) {
+    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository, FileStorageService fileStorageService) {
         this.inviteCodeRepository = inviteCodeRepository;
         this.employeeService = employeeService;
         this.organizationRepository = organizationRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     /**
@@ -101,35 +104,35 @@ public class ProjectInviteCodeService {
      * @throws ResourceNotFoundException if the invite code is not found.
      * @throws InvalidInviteCodeException if the code is expired, inactive, or has reached its usage limit.
      */
-//    @Transactional
-//    public OrganizationDto validateAndUseInviteCode(InviteCodeValidationDto inviteCodeValidationDto) {
-//        ProjectInviteCode inviteCode = inviteCodeRepository.findByCode(Integer.parseInt(inviteCodeValidationDto.getCode()))
-//                .orElseThrow(() -> new ResourceNotFoundException("Invite code not found: " + inviteCodeValidationDto.getCode()));
-//        if(inviteCode.getExpiryDate().isBefore(LocalDateTime.now())) {
-//            throw new InvalidInviteCodeException("Invite code has expired");
-//        }
-//        if(!inviteCode.isActive()) {
-//            throw new InvalidInviteCodeException("Invite code is not active");
-//        }
-//        if(inviteCode.getCurrentUses() >= inviteCode.getMaxUses()) {
-//            throw new InvalidInviteCodeException("Invite code has reached maximum usage limit");
-//        }
-//        inviteCodeRepository.save(inviteCode);
-//        Organization organization = inviteCode.getOrganization();
-//        Map<String,Object> employeeDetails = inviteCode.getEmployeeDetails();
-//        EmployeeJoinOrgDto employeeJoinOrgDto = new EmployeeJoinOrgDto();
-//        employeeJoinOrgDto.setDesignation((String) employeeDetails.get("designation"));
-//        employeeJoinOrgDto.setDepartment((String) employeeDetails.get("department"));
-//        if (employeeDetails.get("joiningDate") != null) {
-//            employeeJoinOrgDto.setJoiningDate(LocalDateTime.parse(employeeDetails.get("joiningDate").toString()));
-//        }
-//        employeeJoinOrgDto.setSalary((Double) employeeDetails.get("salary"));
-//        employeeJoinOrgDto.setReportingManager((String) employeeDetails.get("reportingManager"));
-//        employeeJoinOrgDto.setShiftTiming((String) employeeDetails.get("shiftTiming"));
-//        employeeJoinOrgDto.setStatus((String) employeeDetails.get("status"));
-//
-//        employeeService.joinOrganization(inviteCodeValidationDto.getUserId(), organization.getId(), employeeJoinOrgDto);
-//        inviteCode.setCurrentUses(inviteCode.getCurrentUses() + 1);
-//        return OrganizationDtoConvertor.convertOrganizationToDto(organization);
-//    }
+    @Transactional
+    public OrganizationDto validateAndUseInviteCode(InviteCodeValidationDto inviteCodeValidationDto) {
+        ProjectInviteCode inviteCode = inviteCodeRepository.findByCode(Integer.parseInt(inviteCodeValidationDto.getCode()))
+                .orElseThrow(() -> new ResourceNotFoundException("Invite code not found: " + inviteCodeValidationDto.getCode()));
+        if(inviteCode.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new InvalidInviteCodeException("Invite code has expired");
+        }
+        if(!inviteCode.isActive()) {
+            throw new InvalidInviteCodeException("Invite code is not active");
+        }
+        if(inviteCode.getCurrentUses() >= inviteCode.getMaxUses()) {
+            throw new InvalidInviteCodeException("Invite code has reached maximum usage limit");
+        }
+        inviteCodeRepository.save(inviteCode);
+        Organization organization = inviteCode.getOrganization();
+        Map<String,Object> employeeDetails = inviteCode.getEmployeeDetails();
+        EmployeeJoinOrgDto employeeJoinOrgDto = new EmployeeJoinOrgDto();
+        employeeJoinOrgDto.setDesignation((String) employeeDetails.get("designation"));
+        employeeJoinOrgDto.setDepartment((String) employeeDetails.get("department"));
+        if (employeeDetails.get("joiningDate") != null) {
+            employeeJoinOrgDto.setJoiningDate(LocalDateTime.parse(employeeDetails.get("joiningDate").toString()));
+        }
+        employeeJoinOrgDto.setSalary((Double) employeeDetails.get("salary"));
+        employeeJoinOrgDto.setReportingManager((String) employeeDetails.get("reportingManager"));
+        employeeJoinOrgDto.setShiftTiming((String) employeeDetails.get("shiftTiming"));
+        employeeJoinOrgDto.setStatus((String) employeeDetails.get("status"));
+
+        employeeService.joinOrganization(inviteCodeValidationDto.getUserId(), organization.getId(), employeeJoinOrgDto);
+        inviteCode.setCurrentUses(inviteCode.getCurrentUses() + 1);
+        return OrganizationDtoConvertor.convertOrganizationToDto(organization,fileStorageService);
+    }
 }
