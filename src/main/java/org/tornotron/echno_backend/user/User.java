@@ -142,4 +142,11 @@ public class User {
     @OneToMany(mappedBy = "user")
     private List<Attachment> attachments = new ArrayList<>();
 
+    public void addAttachment(Attachment attachment) {
+        attachments.add(attachment);
+        attachment.setUser(
+                this
+        );
+    }
+
 }
