@@ -93,4 +93,9 @@ public class Task {
     /** The list of attachments associated with this task. */
     @OneToMany(mappedBy = "task")
     private List<Attachment> attachments;
+
+    public void addAttachment(Attachment attachment) {
+        attachments.add(attachment);
+        attachment.setTask(this);
+    }
 }

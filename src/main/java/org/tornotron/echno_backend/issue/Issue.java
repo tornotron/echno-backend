@@ -57,4 +57,9 @@ public class Issue {
     /** The list of attachments associated with this issue. */
     @OneToMany(mappedBy = "issue")
     private List<Attachment> attachments;
+
+    public void addAttachment(Attachment attachment) {
+        attachments.add(attachment);
+        attachment.setIssue(this);
+    }
 }

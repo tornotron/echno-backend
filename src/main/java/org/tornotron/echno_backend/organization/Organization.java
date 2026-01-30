@@ -76,4 +76,12 @@ public class Organization {
     /** The list of attachments associated with this organization. */
     @OneToMany(mappedBy = "organization")
     private List<Attachment> attachments;
+
+    public void addAttachment(Attachment attachment) {
+        attachments.add(attachment);
+        attachment.setOrganization(
+                this
+        );
+
+    }
 }
