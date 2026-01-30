@@ -16,7 +16,9 @@ import org.tornotron.echno_backend.user.UserRepository;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Service for managing attachments across different modules.
@@ -57,6 +59,8 @@ public class AttachmentService {
         if (files == null || files.isEmpty()) {
             return List.of();
         }
+
+        validateNoDuplicateFiles(files);
 
         List<Attachment> attachments = new ArrayList<>();
         List<StoredFile> storedFiles = fileStorageService.uploadFiles(files, folder);
@@ -202,5 +206,28 @@ public class AttachmentService {
     @Transactional(readOnly = true)
     public long countAttachments(String entityType, Long entityId) {
         return attachmentRepository.countByEntityTypeAndEntityId(entityType, entityId);
+    }
+
+    /**
+     * Validates that the list contains no duplicate files.
+     * A file is considered duplicate if it has the same filename AND size as another file.
+     *
+     * @param files The list of files to validate
+     * @throws IllegalArgumentException if duplicate files are found
+     */
+    private void validateNoDuplicateFiles(List<MultipartFile> files) {
+        Set<String> fileSignatures = new HashSet<>();
+        List<String> duplicates = new ArrayList<>();
+
+        for (MultipartFile file : files) {
+            String signature = file.getOriginalFilename() + "_" + file.getSize();
+            if (!fileSignatures.add(signature)) {
+                duplicates.add(file.getOriginalFilename());
+            }
+        }
+
+        if (!duplicates.isEmpty()) {
+            throw new IllegalArgumentException("Duplicate files detected: " + String.join(", ", duplicates));
+        }
     }
 }
