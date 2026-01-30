@@ -15,7 +15,7 @@ import org.tornotron.echno_backend.projectInviteCode.dto.ProjectInviteCodeDto;
  * Provides endpoints for generating and validating invite codes.
  */
 @RestController
-@RequestMapping("/api/v1/invitation")
+@RequestMapping("/api/v1/invitation/web")
 @Validated
 public class ProjectInviteCodeController {
 
@@ -47,9 +47,9 @@ public class ProjectInviteCodeController {
      * @param inviteCodeValidationDto DTO containing the user ID and the invite code to validate.
      * @return A {@link ResponseEntity} with the organization DTO that was joined and HTTP status 200 (OK).
      */
-//    @PostMapping("/validate")
-//    public ResponseEntity<OrganizationDto> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto) {
-//        return ResponseEntity.status(HttpStatus.OK).body(projectInviteCodeService.validateAndUseInviteCode(inviteCodeValidationDto));
-//    }
+    @PostMapping("/validate")
+    public ResponseEntity<OrganizationDto> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto) {
+        return ResponseEntity.status(HttpStatus.OK).body(projectInviteCodeService.validateAndUseInviteCode(inviteCodeValidationDto));
+    }
     
 }
