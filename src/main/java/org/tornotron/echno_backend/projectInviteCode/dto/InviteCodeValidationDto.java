@@ -12,6 +12,4 @@ public class InviteCodeValidationDto {
     @Size(min = 5,max = 5,message = "code must be exactly 5 characters")
     String code;
 
-    @NotNull(message = "userId is a required request parameter")
-    Long userId;
 }

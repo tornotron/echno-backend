@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeGenerationDto;
+import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodePatchDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeValidationDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.ProjectInviteCodeDto;
 
@@ -69,9 +70,9 @@ public class ProjectInviteCodeService {
      * @throws DatabaseOperationException if the invite code cannot be saved.
      */
     @Transactional
-    public ProjectInviteCodeDto generateInviteCode(InviteCodeGenerationDto inviteCodeGenerationDto) {
-        Organization organization = organizationRepository.findOrganizationByOrganizationName(inviteCodeGenerationDto.getOrganizationName())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with name: " + inviteCodeGenerationDto.getOrganizationName()));
+    public ProjectInviteCodeDto generateInviteCode(InviteCodeGenerationDto inviteCodeGenerationDto,Long organizationId) {
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+ organizationId));
         int inviteCode = generateSecureFiveDigitNumber();
         ProjectInviteCode projectInviteCode = new ProjectInviteCode();
         projectInviteCode.setCode(inviteCode);
@@ -105,7 +106,7 @@ public class ProjectInviteCodeService {
      * @throws InvalidInviteCodeException if the code is expired, inactive, or has reached its usage limit.
      */
     @Transactional
-    public OrganizationDto validateAndUseInviteCode(InviteCodeValidationDto inviteCodeValidationDto) {
+    public OrganizationDto validateAndUseInviteCode(InviteCodeValidationDto inviteCodeValidationDto,Long userId) {
         ProjectInviteCode inviteCode = inviteCodeRepository.findByCode(Integer.parseInt(inviteCodeValidationDto.getCode()))
                 .orElseThrow(() -> new ResourceNotFoundException("Invite code not found: " + inviteCodeValidationDto.getCode()));
         if(inviteCode.getExpiryDate().isBefore(LocalDateTime.now())) {
@@ -131,8 +132,36 @@ public class ProjectInviteCodeService {
         employeeJoinOrgDto.setShiftTiming((String) employeeDetails.get("shiftTiming"));
         employeeJoinOrgDto.setStatus((String) employeeDetails.get("status"));
 
-        employeeService.joinOrganization(inviteCodeValidationDto.getUserId(), organization.getId(), employeeJoinOrgDto);
+        employeeService.joinOrganization(userId, organization.getId(), employeeJoinOrgDto);
         inviteCode.setCurrentUses(inviteCode.getCurrentUses() + 1);
         return OrganizationDtoConvertor.convertOrganizationToDto(organization,fileStorageService);
+    }
+
+    /**
+     * Partially updates an invite code's properties.
+     * Only non-null fields in the DTO will be updated.
+     *
+     * @param inviteCodeId The ID of the invite code to update.
+     * @param patchDto     DTO containing the fields to update.
+     * @return A DTO of the updated invite code.
+     * @throws ResourceNotFoundException if the invite code is not found.
+     */
+    @Transactional
+    public ProjectInviteCodeDto patchInviteCode(Long inviteCodeId, InviteCodePatchDto patchDto) {
+        ProjectInviteCode inviteCode = inviteCodeRepository.findById(inviteCodeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Invite code not found with id: " + inviteCodeId));
+
+        if (patchDto.getMaxUses() != null) {
+            inviteCode.setMaxUses(patchDto.getMaxUses());
+        }
+        if (patchDto.getCurrentUses() != null) {
+            inviteCode.setCurrentUses(patchDto.getCurrentUses());
+        }
+        if (patchDto.getIsActive() != null) {
+            inviteCode.setActive(patchDto.getIsActive());
+        }
+
+        ProjectInviteCode updatedInviteCode = inviteCodeRepository.save(inviteCode);
+        return ProjectInviteCodeDtoConvertor.convertToDto(updatedInviteCode);
     }
 }
