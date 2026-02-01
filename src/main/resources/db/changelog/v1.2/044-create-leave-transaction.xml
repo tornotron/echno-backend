@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="044-create-leave-transaction" author="echno">
+        <createTable tableName="leave_transaction">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_balance_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_request_id" type="BIGINT"/>
+            <column name="transaction_type" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="days" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="balance_before" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="balance_after" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transaction_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reference_month" type="INTEGER"/>
+            <column name="reference_year" type="INTEGER"/>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_transaction"
+                baseColumnNames="employee_id"
+                constraintName="fk_leave_txn_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_transaction"
+                baseColumnNames="leave_balance_id"
+                constraintName="fk_leave_txn_balance"
+                referencedTableName="leave_balance"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_transaction"
+                baseColumnNames="leave_request_id"
+                constraintName="fk_leave_txn_request"
+                referencedTableName="leave_request"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_transaction"
+                baseColumnNames="created_by_id"
+                constraintName="fk_leave_txn_created_by"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <createIndex tableName="leave_transaction" indexName="idx_leave_txn_employee">
+            <column name="employee_id"/>
+        </createIndex>
+
+        <createIndex tableName="leave_transaction" indexName="idx_leave_txn_balance">
+            <column name="leave_balance_id"/>
+        </createIndex>
+
+        <createIndex tableName="leave_transaction" indexName="idx_leave_txn_request">
+            <column name="leave_request_id"/>
+        </createIndex>
+
+        <createIndex tableName="leave_transaction" indexName="idx_leave_txn_date">
+            <column name="transaction_date"/>
+        </createIndex>
+
+        <createIndex tableName="leave_transaction" indexName="idx_leave_txn_type">
+            <column name="transaction_type"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
