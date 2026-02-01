@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.DtoConversions.ProjectDtoConvertor;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
@@ -15,6 +16,7 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.dto.*;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
+import software.amazon.awssdk.services.s3.endpoints.internal.Value;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -126,11 +128,16 @@ public class ProjectService {
      * @throws ResourceNotFoundException if no project with the given ID is found.
      */
     @Transactional
-    public void partialUpdateAProject(Map<String,Object> updates,Long id) {
+    public ProjectSimpleDto partialUpdateAProject(Map<String,Object> updates, Long id, List<MultipartFile> attachments, String entityType) {
         Project project = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: "+id));
         partialUpdateAProject(updates, project);
-        repository.save(project);
+
+        for(MultipartFile att:attachments) {
+            Attachment attachment = attachmentService.uploadAttachment(att,entityType,id,PROJECTS_FOLDER);
+            project.addAttachment(attachment);
+        }
+        return ProjectDtoConvertor.convertProjectToSimpleDto(repository.save(project));
     }
 
     private void partialUpdateAProject(Map<String, Object> updates, Project project) {

@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.project;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -90,15 +91,20 @@ public class ProjectControllerWeb {
     /**
      * Partially updates an existing project.
      *
-     * @param updates A map of fields to update.
      * @param id      The ID of the project to update.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
-    @PatchMapping("{id}")
+    @PatchMapping(value = "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('project:update') or hasAuthority('project:admin')")
-    public ResponseEntity<ApiResponse> partialUpdateAProject(@RequestBody Map<String,Object> updates, @PathVariable Long id) {
-        service.partialUpdateAProject(updates,id);
-        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Project with id: "+id+" updated"));
+    public ResponseEntity<ProjectSimpleDto> partialUpdateAProject(
+            @RequestPart(value = "data", required = false) String data,
+            @PathVariable Long id,
+            @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments,
+            @RequestParam(value = "entityType", required = false,defaultValue = "TASK_ATTACHMENTS") String entityType) throws JsonProcessingException
+     {
+        Map<String, Object> updates = data != null
+                ? objectMapper.readValue(data, new TypeReference<>() {}) : Map.of();
+        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAProject(updates,id,attachments,entityType));
     }
 
     /**
