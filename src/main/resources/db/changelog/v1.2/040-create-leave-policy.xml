@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="040-create-leave-policy" author="echno">
+        <createTable tableName="leave_policy">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_type_code" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_type_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="annual_quota" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="accrual_rate_per_month" type="DOUBLE PRECISION"/>
+            <column name="carry_forward_limit" type="DOUBLE PRECISION"/>
+            <column name="carry_forward_expiry_months" type="INTEGER"/>
+            <column name="min_days_per_request" type="DOUBLE PRECISION" defaultValueNumeric="0.5"/>
+            <column name="max_days_per_request" type="DOUBLE PRECISION"/>
+            <column name="advance_notice_days" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="requires_attachment" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="attachment_required_after_days" type="INTEGER"/>
+            <column name="applicable_genders" type="VARCHAR(50)" defaultValue="ALL"/>
+            <column name="min_service_months" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="allow_half_day" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="is_paid" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="display_order" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_policy"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_policy_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="leave_policy" indexName="idx_leave_policy_org">
+            <column name="organization_id"/>
+        </createIndex>
+
+        <createIndex tableName="leave_policy" indexName="idx_leave_policy_type_code">
+            <column name="leave_type_code"/>
+        </createIndex>
+
+        <createIndex tableName="leave_policy" indexName="idx_leave_policy_active">
+            <column name="is_active"/>
+        </createIndex>
+
+        <addUniqueConstraint
+                tableName="leave_policy"
+                columnNames="organization_id, leave_type_code"
+                constraintName="uk_leave_policy_org_type"/>
+    </changeSet>
+
+</databaseChangeLog>

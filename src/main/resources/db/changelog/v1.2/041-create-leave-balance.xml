@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="041-create-leave-balance" author="echno">
+        <createTable tableName="leave_balance">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_policy_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="year" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="opening_balance" type="DOUBLE PRECISION" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="accrued" type="DOUBLE PRECISION" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="used" type="DOUBLE PRECISION" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pending" type="DOUBLE PRECISION" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="carry_forward_from_previous" type="DOUBLE PRECISION" defaultValueNumeric="0"/>
+            <column name="carry_forward_expiry_date" type="DATE"/>
+            <column name="last_calculated_at" type="TIMESTAMP"/>
+            <column name="last_calculation_month" type="INTEGER"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_balance"
+                baseColumnNames="employee_id"
+                constraintName="fk_leave_balance_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_balance"
+                baseColumnNames="leave_policy_id"
+                constraintName="fk_leave_balance_policy"
+                referencedTableName="leave_policy"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="leave_balance" indexName="idx_leave_balance_employee">
+            <column name="employee_id"/>
+        </createIndex>
+
+        <createIndex tableName="leave_balance" indexName="idx_leave_balance_policy">
+            <column name="leave_policy_id"/>
+        </createIndex>
+
+        <createIndex tableName="leave_balance" indexName="idx_leave_balance_year">
+            <column name="year"/>
+        </createIndex>
+
+        <addUniqueConstraint
+                tableName="leave_balance"
+                columnNames="employee_id, leave_policy_id, year"
+                constraintName="uk_leave_balance_emp_policy_year"/>
+    </changeSet>
+
+</databaseChangeLog>

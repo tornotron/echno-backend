@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="042-create-leave-request" author="echno">
+        <createTable tableName="leave_request">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="request_number" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_policy_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="start_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="start_half_day_type" type="VARCHAR(20)"/>
+            <column name="end_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="end_half_day_type" type="VARCHAR(20)"/>
+            <column name="total_days" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="VARCHAR(1000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_approver_id" type="BIGINT"/>
+            <column name="current_approval_level" type="INTEGER"/>
+            <column name="max_approval_level" type="INTEGER"/>
+            <column name="contact_during_leave" type="VARCHAR(100)"/>
+            <column name="handover_to_id" type="BIGINT"/>
+            <column name="handover_notes" type="VARCHAR(500)"/>
+            <column name="cancelled_at" type="TIMESTAMP"/>
+            <column name="cancellation_reason" type="VARCHAR(500)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_request"
+                baseColumnNames="employee_id"
+                constraintName="fk_leave_request_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_request"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_request_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_request"
+                baseColumnNames="leave_policy_id"
+                constraintName="fk_leave_request_policy"
+                referencedTableName="leave_policy"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_request"
+                baseColumnNames="current_approver_id"
+                constraintName="fk_leave_request_current_approver"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_request"
+                baseColumnNames="handover_to_id"
+                constraintName="fk_leave_request_handover"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <createIndex tableName="leave_request" indexName="idx_leave_request_employee">
+            <column name="employee_id"/>
+        </createIndex>
+
+        <createIndex tableName="leave_request" indexName="idx_leave_request_org">
+            <column name="organization_id"/>
+        </createIndex>
+
+        <createIndex tableName="leave_request" indexName="idx_leave_request_policy">
+            <column name="leave_policy_id"/>
+        </createIndex>
+
+        <createIndex tableName="leave_request" indexName="idx_leave_request_status">
+            <column name="status"/>
+        </createIndex>
+
+        <createIndex tableName="leave_request" indexName="idx_leave_request_dates">
+            <column name="start_date"/>
+            <column name="end_date"/>
+        </createIndex>
+
+        <createIndex tableName="leave_request" indexName="idx_leave_request_approver">
+            <column name="current_approver_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
