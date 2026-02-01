@@ -11,6 +11,8 @@ import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodePatchDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeValidationDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.ProjectInviteCodeDto;
 
+import java.util.List;
+
 /**
  * REST controller for managing project and organization invitations.
  * Provides endpoints for generating and validating invite codes.
@@ -29,6 +31,11 @@ public class ProjectInviteCodeController {
      */
     public ProjectInviteCodeController(ProjectInviteCodeService projectInviteCodeService) {
         this.projectInviteCodeService = projectInviteCodeService;
+    }
+
+    @GetMapping("/organizationId/{organizationId}")
+    public ResponseEntity<List<ProjectInviteCodeDto>> readAllInviteCodes(@PathVariable Long organizationId) {
+        return ResponseEntity.status(HttpStatus.OK).body(projectInviteCodeService.readAllProjectInviteCodes(organizationId));
     }
 
     /**

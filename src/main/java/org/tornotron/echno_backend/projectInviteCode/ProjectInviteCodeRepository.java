@@ -1,7 +1,7 @@
 package org.tornotron.echno_backend.projectInviteCode;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -16,4 +16,6 @@ public interface ProjectInviteCodeRepository extends JpaRepository<ProjectInvite
      * @return An {@link Optional} containing the found {@link ProjectInviteCode}, or {@link Optional#empty()} if no code matches.
      */
     Optional<ProjectInviteCode> findByCode(int code);
+
+    List<ProjectInviteCode> findByOrganization_Id(Long organizationId);
 }
