@@ -7,6 +7,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeGenerationDto;
+import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodePatchDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeValidationDto;
 import org.tornotron.echno_backend.projectInviteCode.dto.ProjectInviteCodeDto;
 
@@ -36,9 +37,10 @@ public class ProjectInviteCodeController {
      * @param inviteCodeGenerationDto DTO containing the details for generating the invite code.
      * @return A {@link ResponseEntity} with the created invite code DTO and HTTP status 201 (Created).
      */
-    @PostMapping("/generateCode")
-    public ResponseEntity<ProjectInviteCodeDto> createInviteCode(@Valid @RequestBody InviteCodeGenerationDto inviteCodeGenerationDto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(projectInviteCodeService.generateInviteCode(inviteCodeGenerationDto));
+    @PostMapping("/generateCode/organizationId/{organizationId}")
+    public ResponseEntity<ProjectInviteCodeDto> createInviteCode(@Valid @RequestBody InviteCodeGenerationDto inviteCodeGenerationDto,
+                                                                 @PathVariable Long organizationId) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(projectInviteCodeService.generateInviteCode(inviteCodeGenerationDto,organizationId));
     }
 
     /**
@@ -47,9 +49,23 @@ public class ProjectInviteCodeController {
      * @param inviteCodeValidationDto DTO containing the user ID and the invite code to validate.
      * @return A {@link ResponseEntity} with the organization DTO that was joined and HTTP status 200 (OK).
      */
-    @PostMapping("/validate")
-    public ResponseEntity<OrganizationDto> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto) {
-        return ResponseEntity.status(HttpStatus.OK).body(projectInviteCodeService.validateAndUseInviteCode(inviteCodeValidationDto));
+    @PostMapping("/validate/userId/{userId}")
+    public ResponseEntity<OrganizationDto> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto,
+                                                              @PathVariable Long userId) {
+        return ResponseEntity.status(HttpStatus.OK).body(projectInviteCodeService.validateAndUseInviteCode(inviteCodeValidationDto,userId));
     }
-    
+
+    /**
+     * Partially updates an invite code's properties.
+     * Use this to adjust maxUses, currentUses, or isActive status.
+     *
+     * @param inviteCodeId The ID of the invite code to update.
+     * @param patchDto     DTO containing the fields to update.
+     * @return A {@link ResponseEntity} with the updated invite code DTO and HTTP status 200 (OK).
+     */
+    @PatchMapping("/{inviteCodeId}")
+    public ResponseEntity<ProjectInviteCodeDto> patchInviteCode(@PathVariable Long inviteCodeId,
+                                                                 @Valid @RequestBody InviteCodePatchDto patchDto) {
+        return ResponseEntity.ok(projectInviteCodeService.patchInviteCode(inviteCodeId, patchDto));
+    }
 }
