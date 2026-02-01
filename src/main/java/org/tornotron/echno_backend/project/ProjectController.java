@@ -95,12 +95,12 @@ public class ProjectController {
      * @param id      The ID of the project to update.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
-    @PatchMapping("{id}")
-    @PreAuthorize("hasAuthority('project:update') or hasAuthority('project:admin')")
-    public ResponseEntity<ApiResponse> partialUpdateAProject(@RequestBody Map<String,Object> updates,@PathVariable Long id) {
-        service.partialUpdateAProject(updates,id);
-        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Project with id: "+id+" updated"));
-    }
+//    @PatchMapping("{id}")
+//    @PreAuthorize("hasAuthority('project:update') or hasAuthority('project:admin')")
+//    public ResponseEntity<ApiResponse> partialUpdateAProject(@RequestBody Map<String,Object> updates,@PathVariable Long id) {
+//        service.partialUpdateAProject(updates,id);
+//        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Project with id: "+id+" updated"));
+//    }
 
     /**
      * Updates multiple projects in a batch.
