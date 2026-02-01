@@ -68,4 +68,29 @@
     <include file="db/changelog/v1.1/038-add-team-member-department-designation.xml"/>
     <include file="db/changelog/v1.1/039-add-user-default-organization-id.xml"/>
 
+    <!-- ============================================================== -->
+    <!-- v1.2 - Leave Management Module                                  -->
+    <!-- Created: 2026-02-01                                            -->
+    <!-- Description: Enterprise leave management with approvals         -->
+    <!-- ============================================================== -->
+
+    <!-- Level 0: Base leave tables -->
+    <include file="db/changelog/v1.2/040-create-leave-policy.xml"/>
+
+    <!-- Level 1: Tables depending on leave_policy -->
+    <include file="db/changelog/v1.2/041-create-leave-balance.xml"/>
+    <include file="db/changelog/v1.2/042-create-leave-request.xml"/>
+
+    <!-- Level 2: Tables depending on leave_request -->
+    <include file="db/changelog/v1.2/043-create-leave-approval.xml"/>
+    <include file="db/changelog/v1.2/044-create-leave-transaction.xml"/>
+    <include file="db/changelog/v1.2/045-create-leave-calendar.xml"/>
+
+    <!-- Level 3: Supporting tables -->
+    <include file="db/changelog/v1.2/046-create-notification.xml"/>
+    <include file="db/changelog/v1.2/047-create-leave-request-sequence.xml"/>
+
+    <!-- Tag v1.2 release -->
+    <include file="db/changelog/v1.2/049-tag-v1.2.xml"/>
+
 </databaseChangeLog>
