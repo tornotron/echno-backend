@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="045-create-leave-calendar" author="echno">
+        <createTable tableName="leave_calendar">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_request_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="day_type" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_type_code" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_type_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="department" type="VARCHAR(100)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_calendar"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_calendar_org"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_calendar"
+                baseColumnNames="employee_id"
+                constraintName="fk_leave_calendar_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_calendar"
+                baseColumnNames="leave_request_id"
+                constraintName="fk_leave_calendar_request"
+                referencedTableName="leave_request"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="leave_calendar" indexName="idx_leave_calendar_org_date">
+            <column name="organization_id"/>
+            <column name="leave_date"/>
+        </createIndex>
+
+        <createIndex tableName="leave_calendar" indexName="idx_leave_calendar_employee">
+            <column name="employee_id"/>
+        </createIndex>
+
+        <createIndex tableName="leave_calendar" indexName="idx_leave_calendar_request">
+            <column name="leave_request_id"/>
+        </createIndex>
+
+        <createIndex tableName="leave_calendar" indexName="idx_leave_calendar_date">
+            <column name="leave_date"/>
+        </createIndex>
+
+        <createIndex tableName="leave_calendar" indexName="idx_leave_calendar_dept">
+            <column name="department"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
