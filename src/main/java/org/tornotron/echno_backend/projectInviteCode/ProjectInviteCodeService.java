@@ -21,6 +21,7 @@ import org.tornotron.echno_backend.projectInviteCode.dto.ProjectInviteCodeDto;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -163,5 +164,13 @@ public class ProjectInviteCodeService {
 
         ProjectInviteCode updatedInviteCode = inviteCodeRepository.save(inviteCode);
         return ProjectInviteCodeDtoConvertor.convertToDto(updatedInviteCode);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProjectInviteCodeDto> readAllProjectInviteCodes(Long organizationId) {
+        return inviteCodeRepository.findByOrganization_Id(organizationId)
+                .stream()
+                .map(ProjectInviteCodeDtoConvertor::convertToDto)
+                .toList();
     }
 }
