@@ -90,7 +90,10 @@
     <include file="db/changelog/v1.2/046-create-notification.xml"/>
     <include file="db/changelog/v1.2/047-create-leave-request-sequence.xml"/>
 
-    <!-- Tag v1.2 release -->
-    <include file="db/changelog/v1.2/049-tag-v1.2.xml"/>
+    <!-- Schema alterations -->
+    <include file="db/changelog/v1.2/050-add-timestamps-to-project-invite-code.xml"/>
+    <include file="db/changelog/v1.2/051-add-user-certifications-list.xml"/>
+    <include file="db/changelog/v1.2/052-refactor-reporting-manager.xml"/>
+    <include file="db/changelog/v1.2/053-add-is-manager-to-employee.xml"/>
 
 </databaseChangeLog>
