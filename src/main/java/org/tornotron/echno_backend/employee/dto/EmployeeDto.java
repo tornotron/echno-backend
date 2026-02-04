@@ -10,6 +10,8 @@ import java.util.List;
 @Data
 public class EmployeeDto {
     private Long id;
+    private Long organizationId;
+    private String organizationName;
     private String employeeName;
     private String designation;
     private String department;
@@ -21,16 +23,19 @@ public class EmployeeDto {
     private LocalDateTime dateOfBirth;
     private String bloodGroup;
     private Double salary;
-    private String reportingManager;
+    private Long managerId;
+    private String managerName;
     private String shiftTiming;
     private EmployeeStatus status;
     private String qualification;
     private List<String> skills;
+    private List<String> certifications;
     private Integer experience;
     private String cvUrl;
     private String emergencyContact;
     private UserRole role;
     private String profilePictureUrl;
+    private Boolean isManager;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -37,8 +37,8 @@ public class EmployeeControllerWeb {
      * @param employeeJoinOrgDto DTO containing additional employment details.
      * @return A {@link ResponseEntity} with the created employee's DTO and HTTP status 201 (Created).
      */
-    @PostMapping("/joinOrganization/{userId}/{orgId}")
-    @PreAuthorize("hasAuthority('employee:create') or hasAuthority('employee:admin')")
+    @PostMapping("/joinOrganization/userId/{userId}/organizationId/{orgId}")
+//    @PreAuthorize("hasAuthority('employee:create') or hasAuthority('employee:admin')")
     public ResponseEntity<EmployeeDto> joinOrganization(@PathVariable Long userId, @PathVariable Long orgId, @Valid @RequestBody EmployeeJoinOrgDto employeeJoinOrgDto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.joinOrganization(userId, orgId, employeeJoinOrgDto));
     }
@@ -50,7 +50,7 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} with the created employee's DTO and HTTP status 201 (Created).
      */
     @PostMapping
-    @PreAuthorize("hasAuthority('employee:create') or hasAuthority('employee:admin')")
+//    @PreAuthorize("hasAuthority('employee:create') or hasAuthority('employee:admin')")
     public ResponseEntity<EmployeeDto> createEmployee(@Valid @RequestBody EmployeeCreationDto employeeCreationDto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.addEmployee(employeeCreationDto));
     }
@@ -61,7 +61,7 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} containing the list of employee DTOs and HTTP status 200 (OK).
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
+//    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
     public ResponseEntity<List<EmployeeDto>> readAllEmployees() {
         return new ResponseEntity<>(employeeService.displayAllEmployees(),HttpStatus.OK);
     }
@@ -73,7 +73,7 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} containing the employee DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
+//    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
     public ResponseEntity<EmployeeDto> readAnEmployee(@PathVariable Long id) {
         EmployeeDto employee = employeeService.displayAnEmployee(id);
         return ResponseEntity.status(HttpStatus.OK).body(employee);
@@ -87,7 +87,7 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} containing a list of employee DTOs for the specified organization and HTTP status 200 (OK).
      */
     @GetMapping("/organization/{id}")
-    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
+//    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
     public ResponseEntity<List<EmployeeDto>> readEmployeesByOrganizationId(@PathVariable Long id) {
         return ResponseEntity.status(HttpStatus.OK).body(employeeService.displayEmployeesByOrganization(id));
     }
@@ -100,7 +100,7 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("{id}")
-    @PreAuthorize("hasAuthority('employee:update') or hasAuthority('employee:admin')")
+//    @PreAuthorize("hasAuthority('employee:update') or hasAuthority('employee:admin')")
     public ResponseEntity<ApiResponse> partialUpdateAnEmployee(@RequestBody Map<String,Object> updates, @PathVariable Long id) {
         employeeService.partialUpdateAnEmployee(updates,id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Employee with id: "+id+" updated"));
@@ -113,7 +113,7 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("/batch")
-    @PreAuthorize("hasAuthority('employee:update') or hasAuthority('employee:admin')")
+//    @PreAuthorize("hasAuthority('employee:update') or hasAuthority('employee:admin')")
     public ResponseEntity<ApiResponse> batchUpdateEmployees(@Valid @RequestBody List<EmployeePatchDto> updates) {
         employeeService.batchUpdateEmployees(updates);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
@@ -126,10 +126,57 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("hasAuthority('employee:delete') or hasAuthority('employee:admin')")
+//    @PreAuthorize("hasAuthority('employee:delete') or hasAuthority('employee:admin')")
     public ResponseEntity<ApiResponse> deleteEmployee(@PathVariable Long id) {
         employeeService.deleteAnEmployee(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Employee with id: "+id+" has been deleted"));
+    }
+
+    /**
+     * Assigns a manager to an employee.
+     *
+     * @param employeeId The ID of the employee.
+     * @param managerId  The ID of the manager to assign.
+     * @return A {@link ResponseEntity} containing the updated employee DTO and HTTP status 200 (OK).
+     */
+    @PutMapping("/employeeId/{employeeId}/managerId/{managerId}")
+//    @PreAuthorize("hasAuthority('employee:update') or hasAuthority('employee:admin')")
+    public ResponseEntity<EmployeeDto> assignManager(@PathVariable Long employeeId, @PathVariable Long managerId) {
+        return ResponseEntity.status(HttpStatus.OK).body(employeeService.assignManager(employeeId, managerId));
+    }
+
+    /**
+     * Removes the manager assignment from an employee.
+     *
+     * @param employeeId The ID of the employee.
+     * @return A {@link ResponseEntity} containing the updated employee DTO and HTTP status 200 (OK).
+     */
+    @DeleteMapping("/employeeId/{employeeId}/manager")
+//    @PreAuthorize("hasAuthority('employee:update') or hasAuthority('employee:admin')")
+    public ResponseEntity<EmployeeDto> removeManager(@PathVariable Long employeeId) {
+        return ResponseEntity.status(HttpStatus.OK).body(employeeService.removeManager(employeeId));
+    }
+
+    /**
+     * Retrieves all direct subordinates of a manager.
+     *
+     * @param managerId The ID of the manager.
+     * @return A {@link ResponseEntity} containing a list of employee DTOs who report to the manager and HTTP status 200 (OK).
+     */
+    @GetMapping("/managerId/{managerId}/subordinates")
+//    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
+    public ResponseEntity<List<EmployeeDto>> getDirectSubordinates(@PathVariable Long managerId) {
+        return ResponseEntity.status(HttpStatus.OK).body(employeeService.getDirectSubordinates(managerId));
+    }
+
+    @GetMapping("/managers")
+    public ResponseEntity<List<EmployeeDto>> getAllTheManagers() {
+        return ResponseEntity.status(HttpStatus.OK).body(employeeService.readAllTheManagers());
+    }
+
+    @GetMapping("/managers/organizationId/{organizationId}")
+    public ResponseEntity<List<EmployeeDto>> getAllManagersForAnOrganization(@PathVariable Long organizationId) {
+        return ResponseEntity.status(HttpStatus.OK).body(employeeService.readAllTheManagersByOrganizationId(organizationId));
     }
 
 }

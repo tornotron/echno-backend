@@ -22,7 +22,7 @@ public class EmployeeCreationDto {
 
     private Double salary;
 
-    private String reportingManager;
+    private Long managerId;
 
     private String shiftTiming;
 
@@ -59,4 +59,6 @@ public class EmployeeCreationDto {
 
     @Size(max = 255, message = "organizationName must be at most 255 characters")
     private String organizationName;
+
+    private boolean isManager;
 }
