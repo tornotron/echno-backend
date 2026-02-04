@@ -38,6 +38,7 @@ public class UserDtoConvertor {
         dto.setDateOfBirth(user.getDateOfBirth());
         dto.setQualification(user.getQualification());
         dto.setSkills(user.getSkills());
+        dto.setCertifications(user.getCertifications());
         dto.setExperience(user.getExperience());
         dto.setCvUrl(user.getCvUrl());
         dto.setEmergencyContact(user.getEmergencyContact());

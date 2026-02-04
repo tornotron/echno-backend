@@ -15,8 +15,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.DtoConversions.EmployeeDtoConvertor;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.DtoConversions.UserDtoConvertor;
+import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
@@ -163,6 +165,35 @@ public class UserService {
     }
 
     /**
+     * Retrieves all employees associated with a user by their Keycloak ID.
+     *
+     * @param keycloakId The Keycloak ID of the user.
+     * @return A list of employee DTOs.
+     */
+    @Transactional(readOnly = true)
+    public List<EmployeeDto> getEmployeesForUser(String keycloakId) {
+        return userRepository.findUserWithEmployeesByKeycloakId(keycloakId)
+                .map(user -> user.getEmployees().stream()
+                        .map(EmployeeDtoConvertor::convertEmployeeToDto)
+                        .collect(Collectors.toList()))
+                .orElse(List.of());
+    }
+
+    /**
+     * Retrieves the current user by their Keycloak ID with attachments eagerly loaded.
+     *
+     * @param keycloakId The Keycloak ID of the user.
+     * @return The user DTO.
+     * @throws ResourceNotFoundException if no user with the given Keycloak ID is found.
+     */
+    @Transactional(readOnly = true)
+    public UserDto getCurrentUserDto(String keycloakId) {
+        return userRepository.findUserWithAttachmentsByKeycloakId(keycloakId)
+                .map(user -> UserDtoConvertor.convertUserToDto(user, fileStorageService))
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for keycloak ID: " + keycloakId));
+    }
+
+    /**
      * Retrieves a paginated list of all users.
      *
      * @param pageNo   The page number to retrieve.
@@ -242,6 +273,7 @@ public class UserService {
                 case "role" -> user.setRole(UserRole.valueOf((String) value));
                 case "profilePictureUrl" -> user.setProfilePictureUrl((String) value);
                 case "skills" -> user.setSkills(parseSkills(value));
+                case "certifications" -> user.setCertifications(parseCertifications(value));
                 default -> { }
             }
         });
@@ -291,6 +323,35 @@ public class UserService {
             throw new IllegalArgumentException("Skill cannot exceed 100 characters");
         }
         return skill;
+    }
+
+    private List<String> parseCertifications(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (!(value instanceof List<?> rawList)) {
+            throw new IllegalArgumentException("Certification must be a list");
+        }
+        return rawList.stream()
+                .map(this::validateCertification)
+                .toList();
+    }
+
+    private String validateCertification(Object item) {
+        if (item == null) {
+            throw new IllegalArgumentException("Certification cannot be null");
+        }
+        if (!(item instanceof String)) {
+            throw new IllegalArgumentException("Each certification must be a string");
+        }
+        String certification = ((String) item).trim();
+        if (certification.isBlank()) {
+            throw new IllegalArgumentException("Certification cannot be blank");
+        }
+        if (certification.length() > 100) {
+            throw new IllegalArgumentException("Certification cannot exceed 100 characters");
+        }
+        return certification;
     }
 
     private void handleProfilePictureUpload(User user, MultipartFile profilePicture, Long userId) {

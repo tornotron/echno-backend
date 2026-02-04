@@ -86,7 +86,10 @@ public class OrganizationDtoConvertor {
         employeeDto.setDesignation(employee.getDesignation());
         employeeDto.setDepartment(employee.getDepartment());
         employeeDto.setJoiningDate(employee.getJoiningDate());
-        employeeDto.setReportingManager(employee.getReportingManager());
+        if (employee.getManager() != null) {
+            employeeDto.setManagerId(employee.getManager().getId());
+            employeeDto.setManagerName(employee.getManager().getEmployeeName());
+        }
         employeeDto.setShiftTiming(employee.getShiftTiming());
         employeeDto.setStatus(employee.getStatus());
         employeeDto.setSalary(employee.getSalary());
