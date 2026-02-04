@@ -22,7 +22,7 @@ public class EmployeeJoinOrgDto {
 
     private Double salary;
 
-    private String reportingManager;
+    private Long managerId;
 
     private String shiftTiming;
 
@@ -30,6 +30,14 @@ public class EmployeeJoinOrgDto {
     @Size(min = 3, max = 50, message = "status must be between 3 and 50 characters")
     @Enumerated(EnumType.STRING)
     private String status;
+
+    private String employeeId;
+
+    private String employeeName;
+
+    private String email;
+
+    private String phone;
 
 
 }

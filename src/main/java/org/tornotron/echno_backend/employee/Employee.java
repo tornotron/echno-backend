@@ -44,9 +44,10 @@ public class Employee {
     @Column(name = "salary", nullable = true)
     private Double salary;
 
-    /** The name or ID of the employee's reporting manager. */
-    @Column(name = "reporting_manager", nullable = true)
-    private String reportingManager;
+    /** The employee's reporting manager. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id")
+    private Employee manager;
 
     /** The employee's work shift schedule. */
     @Column(name = "shift_timing", nullable = true)
@@ -84,6 +85,9 @@ public class Employee {
     /** The date of birth of the employee. */
     @Column(name = "date_of_birth",nullable = false)
     private LocalDateTime dateOfBirth;
+
+    @Column(name = "is_manager", nullable = false)
+    private boolean isManager = false;
 
     /** The list of tasks created by this employee. */
     @OneToMany(mappedBy = "creator")
