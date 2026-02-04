@@ -48,6 +48,8 @@ public class UserCreationDto {
 
     private List<String> skills;
 
+    private List<String> certifications;
+
     private Integer experience;
 
     private String cvUrl;

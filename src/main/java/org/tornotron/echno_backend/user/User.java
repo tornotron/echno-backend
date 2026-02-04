@@ -75,6 +75,10 @@ public class User {
     @Column(name = "skills", columnDefinition = "text[]")
     private List<String> skills;
 
+    /** A list of certifications mastered by the user. */
+    @Column(name = "certifications", columnDefinition = "text[]")
+    private  List<String> certifications;
+
     /** The user's years of professional experience. */
     @Column(name = "experience")
     private Integer experience;

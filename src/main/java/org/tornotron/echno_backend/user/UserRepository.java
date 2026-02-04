@@ -35,5 +35,11 @@ public interface UserRepository extends JpaRepository<User,Long> {
 
     Optional<User> findUserByKeycloakId(String keycloakId);
 
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.employees WHERE u.keycloakId = :keycloakId")
+    Optional<User> findUserWithEmployeesByKeycloakId(@Param("keycloakId") String keycloakId);
+
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.attachments WHERE u.keycloakId = :keycloakId")
+    Optional<User> findUserWithAttachmentsByKeycloakId(@Param("keycloakId") String keycloakId);
+
     boolean existsUserByEmail(String email);
 }
