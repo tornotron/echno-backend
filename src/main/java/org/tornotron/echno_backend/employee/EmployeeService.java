@@ -19,6 +19,7 @@ import org.tornotron.echno_backend.user.UserRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -63,6 +64,17 @@ public class EmployeeService {
         employee.setEmailAddress(employeeCreationDto.getEmailAddress());
         employee.setDateOfBirth(employeeCreationDto.getDateOfBirth());
         employee.setOrganization(organization);
+
+        if (employeeCreationDto.getManagerId() != null) {
+            Employee manager = employeeRepository.findById(employeeCreationDto.getManagerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Manager not found with id: " + employeeCreationDto.getManagerId()));
+            // Validate manager is from the same organization
+            if (!manager.getOrganization().getId().equals(organization.getId())) {
+                throw new IllegalArgumentException("Manager must be from the same organization");
+            }
+            employee.setManager(manager);
+        }
+
         return EmployeeDtoConvertor.convertEmployeeToDto(employeeRepository.save(employee));
     }
 
@@ -78,12 +90,15 @@ public class EmployeeService {
      * @throws IllegalStateException     if the user is already an employee of the organization.
      */
     @Transactional
-    public EmployeeDto joinOrganization(Long userId, Long orgId,@Valid EmployeeJoinOrgDto employeeJoinOrgDto) {
+    public EmployeeDto joinOrganization(Long userId, Long orgId, @Valid EmployeeJoinOrgDto employeeJoinOrgDto) {
 
-        User user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-        Organization org = organizationRepository.findById(orgId).orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + orgId));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
-        if(employeeRepository.existsByUserAndOrganization(user, org)) {
+        Organization org = organizationRepository.findById(orgId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + orgId));
+
+        if (employeeRepository.existsByUserAndOrganization(user, org)) {
             throw new IllegalStateException("User already employed in this organization");
         }
 
@@ -96,9 +111,20 @@ public class EmployeeService {
         employee.setDepartment(employeeJoinOrgDto.getDepartment());
         employee.setJoiningDate(employeeJoinOrgDto.getJoiningDate());
         employee.setSalary(employeeJoinOrgDto.getSalary());
-        employee.setReportingManager(employeeJoinOrgDto.getReportingManager());
+
+        if (employeeJoinOrgDto.getManagerId() != null) {
+            Employee manager = employeeRepository.findById(employeeJoinOrgDto.getManagerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Manager not found with id: " + employeeJoinOrgDto.getManagerId()));
+            // Validate manager is from the same organization
+            if (!manager.getOrganization().getId().equals(org.getId())) {
+                throw new IllegalArgumentException("Manager must be from the same organization");
+            }
+            employee.setManager(manager);
+        }
+
         employee.setShiftTiming(employeeJoinOrgDto.getShiftTiming());
         employee.setStatus(EmployeeStatus.valueOf(employeeJoinOrgDto.getStatus()));
+
         employee.setEmployeeName(user.getName());
         employee.setGender(user.getGender());
         employee.setAddress(user.getAddress());
@@ -201,8 +227,115 @@ public class EmployeeService {
                 case "dateOfBirth":
                     employee.setDateOfBirth((LocalDateTime) value);
                     break;
+                case "managerId":
+                    Long managerId = ((Number) value).longValue();
+                    Employee manager = employeeRepository.findById(managerId)
+                            .orElseThrow(() -> new ResourceNotFoundException("Manager not found with id: " + managerId));
+                    validateManager(employee, manager);
+                    employee.setManager(manager);
+                    break;
             }
         });
+    }
+
+    /**
+     * Validates that a manager assignment is valid.
+     * Checks that:
+     * - The employee is not being assigned as their own manager
+     * - The manager belongs to the same organization as the employee
+     * - No circular reference is created in the management hierarchy
+     *
+     * @param employee The employee to assign a manager to.
+     * @param manager  The proposed manager.
+     * @throws IllegalArgumentException if validation fails.
+     */
+    private void validateManager(Employee employee, Employee manager) {
+        if (employee.getId() != null && manager.getId().equals(employee.getId())) {
+            throw new IllegalArgumentException("Employee cannot be their own manager");
+        }
+        if (!manager.getOrganization().getId().equals(employee.getOrganization().getId())) {
+            throw new IllegalArgumentException("Manager must be from the same organization");
+        }
+        // Check for circular reference in management chain
+        if (employee.getId() != null && wouldCreateCircularReference(employee, manager)) {
+            throw new IllegalArgumentException("This assignment would create a circular reference in the management hierarchy");
+        }
+    }
+
+    /**
+     * Checks if assigning the given manager to the employee would create a circular reference.
+     * A circular reference occurs when the proposed manager (or any manager up the chain)
+     * reports to the employee being updated.
+     *
+     * @param employee The employee to assign a manager to.
+     * @param manager  The proposed manager.
+     * @return true if a circular reference would be created, false otherwise.
+     */
+    private boolean wouldCreateCircularReference(Employee employee, Employee manager) {
+        Employee current = manager;
+        while (current.getManager() != null) {
+            if (current.getManager().getId().equals(employee.getId())) {
+                return true;
+            }
+            current = current.getManager();
+        }
+        return false;
+    }
+
+    /**
+     * Assigns a manager to an employee.
+     *
+     * @param employeeId The ID of the employee.
+     * @param managerId  The ID of the manager to assign.
+     * @return The updated employee DTO.
+     * @throws ResourceNotFoundException if the employee or manager is not found.
+     * @throws IllegalArgumentException  if validation fails.
+     */
+    @Transactional
+    public EmployeeDto assignManager(Long employeeId, Long managerId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+        Employee manager = employeeRepository.findById(managerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Manager not found with id: " + managerId));
+
+        validateManager(employee, manager);
+        employee.setManager(manager);
+
+        return EmployeeDtoConvertor.convertEmployeeToDto(employeeRepository.save(employee));
+    }
+
+    /**
+     * Removes the manager assignment from an employee.
+     *
+     * @param employeeId The ID of the employee.
+     * @return The updated employee DTO.
+     * @throws ResourceNotFoundException if the employee is not found.
+     */
+    @Transactional
+    public EmployeeDto removeManager(Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+
+        employee.setManager(null);
+
+        return EmployeeDtoConvertor.convertEmployeeToDto(employeeRepository.save(employee));
+    }
+
+    /**
+     * Retrieves all direct subordinates of a manager.
+     *
+     * @param managerId The ID of the manager.
+     * @return A list of employee DTOs who report to the specified manager.
+     * @throws ResourceNotFoundException if the manager is not found.
+     */
+    @Transactional(readOnly = true)
+    public List<EmployeeDto> getDirectSubordinates(Long managerId) {
+        if (!employeeRepository.existsById(managerId)) {
+            throw new ResourceNotFoundException("Manager not found with id: " + managerId);
+        }
+        return employeeRepository.findByManager_Id(managerId).stream()
+                .map(EmployeeDtoConvertor::convertEmployeeToDto)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -239,6 +372,22 @@ public class EmployeeService {
             throw new ResourceNotFoundException("Employee not found with id: " + id);
         }
         employeeRepository.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<EmployeeDto> readAllTheManagers() {
+        return employeeRepository.findEmployeesByIsManager(true)
+                .stream()
+                .map(EmployeeDtoConvertor::convertEmployeeToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<EmployeeDto> readAllTheManagersByOrganizationId(Long organizationId) {
+        return employeeRepository.findEmployeesByOrganization_IdAndIsManager(organizationId,true)
+                .stream()
+                .map(EmployeeDtoConvertor::convertEmployeeToDto)
+                .collect(Collectors.toList());
     }
 
 }
