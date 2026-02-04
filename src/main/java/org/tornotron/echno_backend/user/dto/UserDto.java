@@ -19,6 +19,7 @@ public class UserDto {
     private LocalDateTime dateOfBirth;
     private String qualification;
     private List<String> skills;
+    private List<String> certifications;
     private Integer experience;
     private String cvUrl;
     private String emergencyContact;

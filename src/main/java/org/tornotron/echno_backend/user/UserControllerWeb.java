@@ -8,15 +8,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.response.ApiResponse;
-import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
-import org.tornotron.echno_backend.user.dto.UserCreationDto;
 import org.tornotron.echno_backend.user.dto.UserDto;
 import org.tornotron.echno_backend.user.dto.UserPatchDto;
 
@@ -30,6 +27,7 @@ public class UserControllerWeb {
 
     private final UserService userService;
     private final ObjectMapper objectMapper;
+    private final UserContextService userContextService;
 
     /**
      * Constructs a UserController with the given UserService.
@@ -37,9 +35,10 @@ public class UserControllerWeb {
      * @param userService The service for handling user-related business logic.
      * @param objectMapper The ObjectMapper for JSON processing.
      */
-    public UserControllerWeb(UserService userService, ObjectMapper objectMapper) {
+    public UserControllerWeb(UserService userService, ObjectMapper objectMapper, UserContextService userContextService) {
         this.userService = userService;
         this.objectMapper = objectMapper;
+        this.userContextService = userContextService;
     }
 
     /**
@@ -83,9 +82,22 @@ public class UserControllerWeb {
      *
      * @return A {@link ResponseEntity} containing the user DTO and HTTP status 200 (OK).
      */
+//    @GetMapping
+//    public ResponseEntity<UserDto> readAnUser(JwtAuthenticationToken authenticationToken) {
+//        return ResponseEntity.status(HttpStatus.OK).body(userService.getAnUser(authenticationToken.getToken().getClaimAsString("sub")));
+//    }
+
     @GetMapping
-    public ResponseEntity<UserDto> readAnUser(JwtAuthenticationToken authenticationToken) {
-        return ResponseEntity.status(HttpStatus.OK).body(userService.getAnUser(authenticationToken.getToken().getClaimAsString("sub")));
+    public ResponseEntity<UserDto> getCurrentUser() {
+        String keycloakId = userContextService.getCurrentKeycloakId();
+        return ResponseEntity.ok(userService.getCurrentUserDto(keycloakId));
+    }
+
+    @GetMapping("/employees")
+    public ResponseEntity<List<EmployeeDto>> getEmployeesForCurrentUser() {
+        String keycloakId = userContextService.getCurrentKeycloakId();
+        List<EmployeeDto> employees = userService.getEmployeesForUser(keycloakId);
+        return ResponseEntity.ok(employees);
     }
 
     /**
