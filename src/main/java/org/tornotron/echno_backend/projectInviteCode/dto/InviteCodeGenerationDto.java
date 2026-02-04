@@ -15,6 +15,14 @@ public class InviteCodeGenerationDto {
 
     int validityDays = 5;
 
+    private String employeeId;
+
+    private String employeeName;
+
+    private String email;
+
+    private String phone;
+
     @NotBlank(message = "designation is required")
     @Size(min = 3, max = 50, message = "designation must be between 3 and 50 characters")
     private String designation;
@@ -25,7 +33,7 @@ public class InviteCodeGenerationDto {
 
     private Double salary;
 
-    private String reportingManager;
+    private Long managerId;
 
     private String shiftTiming;
 
