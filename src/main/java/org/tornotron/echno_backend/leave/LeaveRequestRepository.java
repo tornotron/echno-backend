@@ -1,0 +1,91 @@
+package org.tornotron.echno_backend.leave;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.tornotron.echno_backend.leave.enums.LeaveStatus;
+
+import java.time.LocalDate;
+import java.util.List;
+
+public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
+
+    List<LeaveRequest> findByEmployeeId(Long employeeId);
+
+    Page<LeaveRequest> findByEmployeeId(Long employeeId, Pageable pageable);
+
+    List<LeaveRequest> findByEmployeeIdAndStatus(Long employeeId, LeaveStatus status);
+
+    Page<LeaveRequest> findByOrganizationId(Long organizationId, Pageable pageable);
+
+    Page<LeaveRequest> findByCurrentApproverId(Long approverId, Pageable pageable);
+
+    List<LeaveRequest> findByCurrentApproverIdAndStatus(Long approverId, LeaveStatus status);
+
+    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.employee.id = :employeeId " +
+           "AND lr.status NOT IN ('CANCELLED', 'REJECTED', 'WITHDRAWN') " +
+           "AND ((lr.startDate <= :endDate AND lr.endDate >= :startDate))")
+    List<LeaveRequest> findOverlappingRequests(
+            @Param("employeeId") Long employeeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT COALESCE(SUM(lr.totalDays), 0) FROM LeaveRequest lr " +
+           "WHERE lr.employee.id = :employeeId " +
+           "AND lr.leavePolicy.id = :policyId " +
+           "AND lr.status = 'APPROVED' " +
+           "AND YEAR(lr.startDate) = :year")
+    Double sumApprovedDaysByEmployeePolicyYear(
+            @Param("employeeId") Long employeeId,
+            @Param("policyId") Long policyId,
+            @Param("year") Integer year);
+
+    @Query("SELECT COALESCE(SUM(lr.totalDays), 0) FROM LeaveRequest lr " +
+           "WHERE lr.employee.id = :employeeId " +
+           "AND lr.leavePolicy.id = :policyId " +
+           "AND lr.status = 'PENDING_APPROVAL' " +
+           "AND YEAR(lr.startDate) = :year")
+    Double sumPendingDaysByEmployeePolicyYear(
+            @Param("employeeId") Long employeeId,
+            @Param("policyId") Long policyId,
+            @Param("year") Integer year);
+
+    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.employee.id = :employeeId " +
+           "AND lr.startDate >= :startDate AND lr.endDate <= :endDate")
+    List<LeaveRequest> findByEmployeeIdAndDateRange(
+            @Param("employeeId") Long employeeId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT lr FROM LeaveRequest lr " +
+           "WHERE lr.status = 'APPROVED' " +
+           "AND lr.endDate = :date")
+    List<LeaveRequest> findApprovedRequestsEndingOnDate(@Param("date") LocalDate date);
+
+    @Query("SELECT lr FROM LeaveRequest lr " +
+           "WHERE lr.employee.id = :employeeId " +
+           "AND lr.status = 'APPROVED' " +
+           "AND lr.endDate >= :currentDate")
+    List<LeaveRequest> findOngoingApprovedLeaves(
+            @Param("employeeId") Long employeeId,
+            @Param("currentDate") LocalDate currentDate);
+
+    boolean existsByEmployeeIdAndStatusAndEndDateGreaterThanEqual(
+            Long employeeId, LeaveStatus status, LocalDate date);
+
+    @Query("SELECT lr FROM LeaveRequest lr " +
+           "WHERE lr.organization.id = :orgId " +
+           "AND lr.status IN :statuses " +
+           "AND lr.startDate >= :startDate " +
+           "AND lr.startDate <= :endDate")
+    Page<LeaveRequest> findByOrganizationAndStatusAndDateRange(
+            @Param("orgId") Long organizationId,
+            @Param("statuses") List<LeaveStatus> statuses,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable);
+
+    long countByCurrentApproverIdAndStatus(Long approverId, LeaveStatus status);
+}
