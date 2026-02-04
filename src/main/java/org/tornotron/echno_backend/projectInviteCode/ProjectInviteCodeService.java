@@ -8,6 +8,7 @@ import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
+import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.organization.Organization;
@@ -20,9 +21,7 @@ import org.tornotron.echno_backend.projectInviteCode.dto.ProjectInviteCodeDto;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Service class for managing project invite codes.
@@ -37,6 +36,7 @@ public class ProjectInviteCodeService {
     private final SecureRandom secureRandom = new SecureRandom();
     private final OrganizationRepository organizationRepository;
     private final FileStorageService fileStorageService;
+    private final EmployeeRepository employeeRepository;
 
     /**
      * Constructs a ProjectInviteCodeService with the necessary repositories and services.
@@ -45,11 +45,12 @@ public class ProjectInviteCodeService {
      * @param employeeService        The service for employee-related operations.
      * @param organizationRepository The repository for organization data access.
      */
-    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository, FileStorageService fileStorageService) {
+    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository, FileStorageService fileStorageService, EmployeeRepository employeeRepository) {
         this.inviteCodeRepository = inviteCodeRepository;
         this.employeeService = employeeService;
         this.organizationRepository = organizationRepository;
         this.fileStorageService = fileStorageService;
+        this.employeeRepository = employeeRepository;
     }
 
     /**
@@ -74,6 +75,10 @@ public class ProjectInviteCodeService {
     public ProjectInviteCodeDto generateInviteCode(InviteCodeGenerationDto inviteCodeGenerationDto,Long organizationId) {
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+ organizationId));
+        Set<Long> managerIdSet = new HashSet<>(employeeRepository.findAllManagerIds());
+        if(!managerIdSet.contains(inviteCodeGenerationDto.getManagerId())) {
+            throw new ResourceNotFoundException("Manager with id: "+inviteCodeGenerationDto.getManagerId()+" does not exist");
+        }
         int inviteCode = generateSecureFiveDigitNumber();
         ProjectInviteCode projectInviteCode = new ProjectInviteCode();
         projectInviteCode.setCode(inviteCode);
@@ -87,9 +92,13 @@ public class ProjectInviteCodeService {
         employeeDetails.put("department", inviteCodeGenerationDto.getDepartment());
         employeeDetails.put("joiningDate", LocalDateTime.now().toString());
         employeeDetails.put("salary", inviteCodeGenerationDto.getSalary());
-        employeeDetails.put("reportingManager", inviteCodeGenerationDto.getReportingManager());
+        employeeDetails.put("managerId", inviteCodeGenerationDto.getManagerId());
         employeeDetails.put("shiftTiming", inviteCodeGenerationDto.getShiftTiming());
         employeeDetails.put("status", inviteCodeGenerationDto.getStatus());
+        employeeDetails.put("employeeId", inviteCodeGenerationDto.getEmployeeId());
+        employeeDetails.put("employeeName", inviteCodeGenerationDto.getEmployeeName());
+        employeeDetails.put("email", inviteCodeGenerationDto.getEmail());
+        employeeDetails.put("phone", inviteCodeGenerationDto.getPhone());
         projectInviteCode.setEmployeeDetails(employeeDetails);
         ProjectInviteCode savedProjectInviteCode = inviteCodeRepository.save(projectInviteCode);
         if(savedProjectInviteCode.getId() == null) {
@@ -129,10 +138,15 @@ public class ProjectInviteCodeService {
             employeeJoinOrgDto.setJoiningDate(LocalDateTime.parse(employeeDetails.get("joiningDate").toString()));
         }
         employeeJoinOrgDto.setSalary((Double) employeeDetails.get("salary"));
-        employeeJoinOrgDto.setReportingManager((String) employeeDetails.get("reportingManager"));
+        if (employeeDetails.get("managerId") != null) {
+            employeeJoinOrgDto.setManagerId(((Number) employeeDetails.get("managerId")).longValue());
+        }
         employeeJoinOrgDto.setShiftTiming((String) employeeDetails.get("shiftTiming"));
         employeeJoinOrgDto.setStatus((String) employeeDetails.get("status"));
-
+        employeeJoinOrgDto.setEmployeeId((String) employeeDetails.get("employeeId"));
+        employeeJoinOrgDto.setEmployeeName((String) employeeDetails.get("employeeName"));
+        employeeJoinOrgDto.setEmail((String) employeeDetails.get("email"));
+        employeeJoinOrgDto.setPhone((String) employeeDetails.get("phone"));
         employeeService.joinOrganization(userId, organization.getId(), employeeJoinOrgDto);
         inviteCode.setCurrentUses(inviteCode.getCurrentUses() + 1);
         return OrganizationDtoConvertor.convertOrganizationToDto(organization,fileStorageService);
