@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="052-refactor-reporting-manager" author="echno">
+        <!-- Add new column for Manager ID -->
+        <addColumn tableName="employee">
+            <column name="manager_id" type="BIGINT"/>
+        </addColumn>
+
+        <!-- Add Foreign Key Constraint -->
+        <addForeignKeyConstraint
+                baseTableName="employee"
+                baseColumnNames="manager_id"
+                constraintName="fk_employee_manager"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <!-- Create Index for performance -->
+        <createIndex tableName="employee" indexName="idx_employee_manager">
+            <column name="manager_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
