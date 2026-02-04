@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.employee;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.user.User;
 
@@ -44,4 +45,18 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
      * @return A list of {@link Employee}s matching the given names.
      */
     List<Employee> findByEmployeeNameIn(List<String> employeeNames);
+
+    Employee findEmployeesByEmailAddress(String emailAddress);
+
+    List<Employee> findByManager_Id(Long managerId);
+
+    boolean existsByManager_Id(Long managerId);
+
+
+    List<Employee> findEmployeesByIsManager(boolean isManager);
+
+    List<Employee> findEmployeesByOrganization_IdAndIsManager(Long organizationId, boolean isManager);
+
+    @Query("select e.id from Employee e where e.isManager = true")
+    List<Long> findAllManagerIds();
 }
