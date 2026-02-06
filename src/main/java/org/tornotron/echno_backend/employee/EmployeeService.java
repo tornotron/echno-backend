@@ -4,8 +4,10 @@ import jakarta.validation.Valid;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
+import lombok.extern.slf4j.Slf4j;
 import org.tornotron.echno_backend.DtoConversions.EmployeeDtoConvertor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
  * Handles business logic related to employee creation, retrieval, updates, and deletion,
  * as well as joining organizations.
  */
+@Slf4j
 @Service
 @Validated
 public class EmployeeService {
@@ -34,6 +37,7 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
+    private final KeycloakGroupService keycloakGroupService;
 
     /**
      * Constructs an EmployeeService with the necessary repositories.
@@ -41,11 +45,13 @@ public class EmployeeService {
      * @param employeeRepository     The repository for employee data access.
      * @param organizationRepository The repository for organization data access.
      * @param userRepository         The repository for user data access.
+     * @param keycloakGroupService   The service for managing Keycloak groups.
      */
-    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, KeycloakGroupService keycloakGroupService) {
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
+        this.keycloakGroupService = keycloakGroupService;
     }
 
     /**
@@ -133,6 +139,16 @@ public class EmployeeService {
         employee.setDateOfBirth(user.getDateOfBirth());
 
         Employee savedEmployee = employeeRepository.save(employee);
+
+        try {
+            keycloakGroupService.addUserToOrganization(
+                    user.getKeycloakId(),
+                    org.getId().toString()
+            );
+        } catch (Exception e) {
+            log.error("Failed to add user {} to Keycloak group for organization {}: {}",
+                    user.getKeycloakId(), org.getId(), e.getMessage());
+        }
 
         return EmployeeDtoConvertor.convertEmployeeToDto(savedEmployee);
     }
@@ -368,9 +384,23 @@ public class EmployeeService {
      */
     @Transactional
     public void deleteAnEmployee(Long id) {
-        if (!employeeRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Employee not found with id: " + id);
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+
+        if (employee.getUser() != null && employee.getUser().getKeycloakId() != null) {
+            try {
+                keycloakGroupService.removeUserFromOrganization(
+                        employee.getUser().getKeycloakId(),
+                        employee.getOrganization().getId().toString()
+                );
+            } catch (Exception e) {
+                log.error("Failed to remove user {} from Keycloak group for organization {}: {}",
+                        employee.getUser().getKeycloakId(),
+                        employee.getOrganization().getId(),
+                        e.getMessage());
+            }
         }
+
         employeeRepository.deleteById(id);
     }
 

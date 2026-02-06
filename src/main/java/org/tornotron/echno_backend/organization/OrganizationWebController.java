@@ -41,7 +41,8 @@ public class OrganizationWebController {
      * @return A {@link ResponseEntity} with the created organization's simple DTO and HTTP status 201 (Created).
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('organization:create') or hasAuthority('organization:admin')")
+//    @PreAuthorize("hasAuthority('organization:create') or hasAuthority('organization:admin')")
+    @RequireSubscription(feature = "CREATE_ORGANIZATION",recordUsage = true)
     public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") @Valid String data,
                                                                     @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
         OrganizationCreationDto dto = objectMapper.readValue(data, OrganizationCreationDto.class);
@@ -56,7 +57,7 @@ public class OrganizationWebController {
      * @return A {@link ResponseEntity} containing the list of organization DTOs and HTTP status 200 (OK).
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('organization:read') or hasAuthority('organization:admin')")
+//    @PreAuthorize("hasAuthority('organization:read') or hasAuthority('organization:admin')")
     public ResponseEntity<List<OrganizationDto>> readAllOrganizations(@RequestParam(defaultValue = "0") int pageNo,
                                                                       @RequestParam(defaultValue = "10") int pageSize) {
         Page<OrganizationDto> organizations = service.getAllOrganization(pageNo, pageSize);
@@ -70,7 +71,7 @@ public class OrganizationWebController {
      * @return A {@link ResponseEntity} containing a list of organization DTOs and HTTP status 200 (OK).
      */
     @GetMapping("/creator/{creatorId}")
-    @PreAuthorize("hasAuthority('organization:read') or hasAuthority('organization:admin')")
+//    @PreAuthorize("hasAuthority('organization:read') or hasAuthority('organization:admin')")
     public ResponseEntity<List<OrganizationDto>> readAllOrganizationsByCreatorId(@PathVariable Integer creatorId) {
         return ResponseEntity.status(HttpStatus.OK).body(service.getAllOrganizationsByCreatorId(creatorId));
     }
@@ -82,7 +83,7 @@ public class OrganizationWebController {
      * @return A {@link ResponseEntity} containing the organization DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("hasAuthority('organization:read') or hasAuthority('organization:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOrAdmin(#id)")
     public ResponseEntity<?> readAnOrganization(@PathVariable Long id) {
         OrganizationDto organization = service.getAnOrganization(id);
         return new ResponseEntity<>(organization, HttpStatus.OK);
@@ -95,7 +96,7 @@ public class OrganizationWebController {
      * @return A {@link ResponseEntity} with the updated organization's simple DTO and HTTP status 200 (OK).
      */
     @PatchMapping(value = "{id}",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('organization:update') or hasAuthority('organization:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOrAdmin(#id)")
     public ResponseEntity<OrganizationSimpleDto> partialUpdateAnOrganization(
             @RequestPart(value = "data", required = false) String data,
             @PathVariable Long id,
@@ -113,7 +114,7 @@ public class OrganizationWebController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("/batch")
-    @PreAuthorize("hasAuthority('organization:update') or hasAuthority('organization:admin')")
+//    @PreAuthorize("hasAuthority('organization:update') or hasAuthority('organization:admin')")
     public ResponseEntity<ApiResponse> batchUpdateOrganizations(@Valid @RequestBody List<OrganizationPatchDto> updates) {
         service.batchUpdateOrganization(updates);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organizations updated successfully"));
@@ -126,7 +127,7 @@ public class OrganizationWebController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("hasAuthority('organization:delete') or hasAuthority('organization:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOrAdmin(#id)")
     public ResponseEntity<ApiResponse> deleteOrganization(@PathVariable Long id) {
         service.deleteAnOrganization(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organization with id: " + id + " deleted"));
