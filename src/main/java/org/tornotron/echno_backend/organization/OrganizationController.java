@@ -11,11 +11,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.common.customAnnotation.RequireSubscription;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
+import org.tornotron.echno_backend.common.customAnnotation.RequireSubscription;
 
 import java.util.List;
 import java.util.Map;
@@ -49,6 +51,7 @@ public class OrganizationController {
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('organization:create') or hasAuthority('organization:admin')")
+    @RequireSubscription(feature = "CREATE_ORGANIZATION", recordUsage = true)
     public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") @Valid String data,
                                                                     @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
         OrganizationCreationDto dto = objectMapper.readValue(data, OrganizationCreationDto.class);
@@ -88,7 +91,7 @@ public class OrganizationController {
      * @return A {@link ResponseEntity} containing the organization DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("hasAuthority('organization:read') or hasAuthority('organization:admin')")
+    @PreAuthorize("(hasAuthority('organization:read') and @orgSecurity.isMember(#id)) or hasAuthority('organization:admin')")
     public ResponseEntity<?> readAnOrganization(@PathVariable Long id) {
         OrganizationDto organization = service.getAnOrganization(id);
         return new ResponseEntity<>(organization, HttpStatus.OK);
@@ -127,7 +130,7 @@ public class OrganizationController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("hasAuthority('organization:delete') or hasAuthority('organization:admin')")
+    @PreAuthorize("(hasAuthority('organization:delete') and @orgSecurity.isMember(#id)) or hasAuthority('organization:admin')")
     public ResponseEntity<ApiResponse> deleteOrganization(@PathVariable Long id) {
         service.deleteAnOrganization(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organization with id: " + id + " deleted"));

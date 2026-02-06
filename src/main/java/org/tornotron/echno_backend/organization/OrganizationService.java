@@ -13,10 +13,14 @@ import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
+import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
+import org.tornotron.echno_backend.billing.services.SubscriptionService;
+
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,6 +33,7 @@ import java.util.stream.Collectors;
  * {@link OrganizationRepository} to perform database operations and uses
  * {@link OrganizationDtoConvertor} to map entities to DTOs.
  */
+@Slf4j
 @Service
 public class OrganizationService {
 
@@ -37,17 +42,23 @@ public class OrganizationService {
     private final OrganizationRepository repository;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
+    private final KeycloakGroupService keycloakGroupService;
+    private final SubscriptionService subscriptionService;
 
     /**
      * Constructs an {@code OrganizationService} with the necessary dependencies.
      * @param repository The repository for accessing organization data.
      * @param attachmentService The service for managing attachments.
      * @param fileStorageService The service for file storage operations.
+     * @param keycloakGroupService The service for managing Keycloak groups.
+     * @param subscriptionService The service for handling subscription billing.
      */
-    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService) {
+    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService) {
         this.repository = repository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
+        this.keycloakGroupService = keycloakGroupService;
+        this.subscriptionService = subscriptionService;
     }
 
     /**
@@ -71,6 +82,16 @@ public class OrganizationService {
         organization.setCreatorId(organizationCreationDto.getCreatorId());
         organization.setIsActive(true);
         Organization savedOrganization = repository.save(organization);
+
+        try {
+            keycloakGroupService.createOrganizationGroup(
+                    savedOrganization.getId().toString(),
+                    savedOrganization.getOrganizationName()
+            );
+        } catch (Exception e) {
+            log.error("Failed to create Keycloak group for organization {}: {}",
+                    savedOrganization.getId(), e.getMessage());
+        }
 
         if (attachments != null && !attachments.isEmpty()) {
             attachmentService.uploadAttachments(attachments, "ORGANIZATION", savedOrganization.getId(), ORGANIZATION_FOLDER);
@@ -198,10 +219,25 @@ public class OrganizationService {
      */
     @Transactional
     public void deleteAnOrganization(Long id) {
-        if(!repository.existsById(id)) {
-            throw new ResourceNotFoundException("Organization not found with id: "+id);
-        } else {
-            repository.deleteById(id);
+        Organization organization = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+id));
+
+        try {
+            keycloakGroupService.deleteOrganizationGroup(id.toString());
+        } catch (Exception e) {
+            log.error("Failed to delete Keycloak group for organization {}: {}",
+                    id, e.getMessage());
+        }
+
+        Integer creatorId = organization.getCreatorId();
+        repository.deleteById(id);
+
+        if (creatorId != null) {
+            try {
+                subscriptionService.recordUsage(creatorId.longValue(), "CREATE_ORGANIZATION", -1L);
+            } catch (Exception e) {
+                log.warn("Failed to decrement organization usage for user {}", creatorId);
+            }
         }
     }
 }
