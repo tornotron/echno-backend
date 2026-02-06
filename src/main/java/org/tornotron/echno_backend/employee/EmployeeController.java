@@ -94,7 +94,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} containing a list of employee DTOs for the specified organization and HTTP status 200 (OK).
      */
     @GetMapping("/organization/{id}")
-    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
+    @PreAuthorize("(hasAuthority('employee:read') and @orgSecurity.isMember(#id)) or hasAuthority('employee:admin')")
     public ResponseEntity<List<EmployeeDto>> readEmployeesByOrganizationId(@PathVariable Long id) {
         return ResponseEntity.status(HttpStatus.OK).body(employeeService.displayEmployeesByOrganization(id));
     }

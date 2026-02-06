@@ -5,10 +5,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestCreationDto;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestDto;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
@@ -18,13 +16,13 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/leave-requests")
+@RequestMapping("/api/v1/leave-requests/web")
 @Validated
-public class LeaveRequestController {
+public class LeaveRequestControllerWeb {
 
     private final LeaveRequestService requestService;
 
-    public LeaveRequestController(LeaveRequestService requestService) {
+    public LeaveRequestControllerWeb(LeaveRequestService requestService) {
         this.requestService = requestService;
     }
 
@@ -36,34 +34,34 @@ public class LeaveRequestController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @GetMapping("/requestId/{requestId}")
+    @GetMapping("/request")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
-    public ResponseEntity<LeaveRequestDto> getRequest(@PathVariable Long requestId) {
+    public ResponseEntity<LeaveRequestDto> getRequest(@RequestParam Long requestId) {
         return ResponseEntity.ok(requestService.getRequest(requestId));
     }
 
-    @GetMapping("/employeeId/{employeeId}")
+    @GetMapping("/employee")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
-    public ResponseEntity<Page<LeaveRequestDto>> getEmployeeRequests(
-            @PathVariable Long employeeId,
+    public ResponseEntity<List<LeaveRequestDto>> getEmployeeRequests(
+            @RequestParam Long employeeId,
             Pageable pageable) {
-        return ResponseEntity.ok(requestService.getRequestsByEmployee(employeeId, pageable));
+        return ResponseEntity.ok(requestService.getRequestsByEmployee(employeeId, pageable).getContent());
     }
 
-    @GetMapping("/employeeId/{employeeId}/status/{status}")
+    @GetMapping("/employee-by-status")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
     public ResponseEntity<List<LeaveRequestDto>> getEmployeeRequestsByStatus(
-            @PathVariable Long employeeId,
-            @PathVariable LeaveStatus status) {
+            @RequestParam Long employeeId,
+            @RequestParam LeaveStatus status) {
         return ResponseEntity.ok(requestService.getRequestsByEmployeeAndStatus(employeeId, status));
     }
 
-    @GetMapping("/organizationId/{organizationId}")
+    @GetMapping("/organization")
 //    @PreAuthorize("hasAuthority('leave:admin')")
-    public ResponseEntity<Page<LeaveRequestDto>> getOrganizationRequests(
-            @PathVariable Long organizationId,
+    public ResponseEntity<List<LeaveRequestDto>> getOrganizationRequests(
+            @RequestParam Long organizationId,
             Pageable pageable) {
-        return ResponseEntity.ok(requestService.getRequestsByOrganization(organizationId, pageable));
+        return ResponseEntity.ok(requestService.getRequestsByOrganization(organizationId, pageable).getContent());
     }
 
     @GetMapping("/pending-approvals")
@@ -82,32 +80,32 @@ public class LeaveRequestController {
         return ResponseEntity.ok(Map.of("count", count));
     }
 
-    @PatchMapping("requestId/{requestId}")
+    @PatchMapping("/update")
 //    @PreAuthorize("hasAuthority('leave:update') or hasAuthority('leave:admin')")
     public ResponseEntity<LeaveRequestDto> updateRequest(
-            @PathVariable Long requestId,
+            @RequestParam Long requestId,
             @RequestBody Map<String, Object> updates) {
         return ResponseEntity.ok(requestService.updateRequest(requestId, updates));
     }
 
-    @PostMapping("/requestId/{requestId}/submit")
+    @PostMapping("/submit")
 //    @PreAuthorize("hasAuthority('leave:create') or hasAuthority('leave:admin')")
-    public ResponseEntity<LeaveRequestDto> submitRequest(@PathVariable Long requestId) {
+    public ResponseEntity<LeaveRequestDto> submitRequest(@RequestParam Long requestId) {
         return ResponseEntity.ok(requestService.submitRequest(requestId));
     }
 
-    @PostMapping("/requestId/{requestId}/cancel")
+    @PostMapping("/cancel")
 //    @PreAuthorize("hasAuthority('leave:update') or hasAuthority('leave:admin')")
     public ResponseEntity<LeaveRequestDto> cancelRequest(
-            @PathVariable Long requestId,
+            @RequestParam Long requestId,
             @RequestBody Map<String, String> body) {
         String reason = body.get("reason");
         return ResponseEntity.ok(requestService.cancelRequest(requestId, reason));
     }
 
-    @PostMapping("/requestId/{requestId}/withdraw")
+    @PostMapping("/withdraw")
 //    @PreAuthorize("hasAuthority('leave:update') or hasAuthority('leave:admin')")
-    public ResponseEntity<LeaveRequestDto> withdrawRequest(@PathVariable Long requestId) {
+    public ResponseEntity<LeaveRequestDto> withdrawRequest(@RequestParam Long requestId) {
         return ResponseEntity.ok(requestService.withdrawRequest(requestId));
     }
 

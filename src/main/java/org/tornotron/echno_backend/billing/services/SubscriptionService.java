@@ -7,12 +7,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.billing.*;
 import org.tornotron.echno_backend.billing.components.SubscriptionCache;
 import org.tornotron.echno_backend.billing.dto.FeatureAccessResultDto;
+import org.tornotron.echno_backend.billing.enums.BillingPeriod;
 import org.tornotron.echno_backend.billing.enums.FeatureType;
 import org.tornotron.echno_backend.billing.enums.QuotaPeriod;
 import org.tornotron.echno_backend.billing.enums.SubscriptionStatus;
 import org.tornotron.echno_backend.billing.repositories.PlanRepository;
 import org.tornotron.echno_backend.billing.repositories.SubscriptionRepository;
 import org.tornotron.echno_backend.billing.repositories.UsageRecordRepository;
+import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.NoActiveSubscriptionException;
 import org.tornotron.echno_backend.common.exception.PlanNotFoundException;
 
@@ -135,7 +137,7 @@ public class SubscriptionService {
             case TOTAL:
                 return new Instant[]{
                         Instant.EPOCH,
-                        Instant.MAX
+                        now.plus(36500, ChronoUnit.DAYS) // 100 years approx, safe for DB
                 };
 
             default:
@@ -188,12 +190,22 @@ public class SubscriptionService {
 
     }
 
-    public Subscription createSubscription(Long userId, String planCode) {
+    @Transactional
+    public Subscription createSubscription(Long userId, String planCode, BillingPeriod billingPeriod) {
+        if (getActiveSubscription(userId).isPresent()) {
+            throw new DuplicateResourceException("User already has an active subscription. Please upgrade/change plan instead.");
+        }
+
         Plan plan = planRepository.findByCodeWithFeatures(planCode)
-                .orElseThrow(() -> new PlanNotFoundException("Plan not found: {} "+ planCode));
+                .orElseThrow(() -> new PlanNotFoundException("Plan not found: " + planCode));
 
         Instant now = Instant.now();
-        Instant periodEnd = now.plus(30, ChronoUnit.DAYS);
+        Instant periodEnd;
+        if (billingPeriod == BillingPeriod.ANNUAL) {
+            periodEnd = now.plus(365, ChronoUnit.DAYS);
+        } else {
+            periodEnd = now.plus(30, ChronoUnit.DAYS);
+        }
 
         Subscription subscription = Subscription.builder()
                 .userId(userId)
@@ -209,10 +221,10 @@ public class SubscriptionService {
 
         subscriptionCache.evict(userId);
 
-        log.info("Created subscription {} for user {} on plan {}", subscription.getId(), userId, planCode);
+        log.info("Created subscription {} for user {} on plan {} ({})", 
+                subscription.getId(), userId, planCode, billingPeriod);
 
         return subscription;
-
     }
 
     @Transactional

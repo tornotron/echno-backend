@@ -14,6 +14,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -36,11 +37,13 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
         Collection<GrantedAuthority> standardAuthorities = jwtGrantedAuthoritiesConverter.convert(jwt);
         Collection<? extends GrantedAuthority> resourceRoles = extractResourceRoles(jwt);
         Collection<? extends GrantedAuthority> permissions = extractPermissions(jwt);
+        Collection<? extends GrantedAuthority> groupAuthorities = extractGroupAuthorities(jwt);
 
         Collection<GrantedAuthority> authorities = Stream.of(
                 standardAuthorities,
                 resourceRoles,
-                permissions
+                permissions,
+                groupAuthorities
         )
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
@@ -51,6 +54,7 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
         log.debug("Standard authorities: {}", standardAuthorities);
         log.debug("Resource roles: {}", resourceRoles);
         log.debug("Extracted permissions: {}", permissions);
+        log.debug("Group authorities: {}", groupAuthorities);
         log.debug("Total authorities: {}", authorities);
 
         return new JwtAuthenticationToken(
@@ -119,6 +123,25 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
                     return scopes.stream()
                             .map(scope ->
                                     new SimpleGrantedAuthority(resource + ":" + scope));
+                })
+                .collect(Collectors.toSet());
+    }
+
+    private Collection<? extends GrantedAuthority> extractGroupAuthorities(Jwt jwt) {
+        List<String> groups = jwt.getClaim("groups");
+        if (groups == null || groups.isEmpty()) {
+            log.debug("No 'groups' claim found in JWT");
+            return Set.of();
+        }
+
+        log.debug("Found {} group(s) in JWT: {}", groups.size(), groups);
+
+        return groups.stream()
+                .map(group -> group.startsWith("/") ? group.substring(1) : group)
+                .filter(group -> group.startsWith("org-"))
+                .map(group -> {
+                    String orgId = group.substring(4); // Remove "org-" prefix
+                    return new SimpleGrantedAuthority("ORG_MEMBER_" + orgId);
                 })
                 .collect(Collectors.toSet());
     }
