@@ -9,11 +9,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.common.service.KeycloakGroupService;
+import org.tornotron.echno_backend.employee.EmployeeService;
+import org.tornotron.echno_backend.employee.dto.EmployeeDto;
+import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
@@ -21,6 +25,8 @@ import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 
 import lombok.extern.slf4j.Slf4j;
+import org.tornotron.echno_backend.user.User;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,6 +50,8 @@ public class OrganizationService {
     private final FileStorageService fileStorageService;
     private final KeycloakGroupService keycloakGroupService;
     private final SubscriptionService subscriptionService;
+    private final UserContextService userContextService;
+    private final EmployeeService employeeService;
 
     /**
      * Constructs an {@code OrganizationService} with the necessary dependencies.
@@ -53,12 +61,14 @@ public class OrganizationService {
      * @param keycloakGroupService The service for managing Keycloak groups.
      * @param subscriptionService The service for handling subscription billing.
      */
-    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService) {
+    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService) {
         this.repository = repository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
         this.keycloakGroupService = keycloakGroupService;
         this.subscriptionService = subscriptionService;
+        this.userContextService = userContextService;
+        this.employeeService = employeeService;
     }
 
     /**
@@ -71,6 +81,7 @@ public class OrganizationService {
         if(repository.existsByOrganizationEmail(organizationCreationDto.getOrganizationEmail())){
             throw new DuplicateResourceException("Organization already exists");
         }
+        User currentUser = userContextService.getCurrentUser();
         Organization organization = new Organization();
         organization.setOrganizationName(organizationCreationDto.getOrganizationName());
         organization.setOrganizationAddress(organizationCreationDto.getOrganizationAddress());
@@ -79,19 +90,19 @@ public class OrganizationService {
         organization.setOrganizationPhone(organizationCreationDto.getOrganizationPhone());
         organization.setOrganizationWebsite(organizationCreationDto.getOrganizationWebsite());
         organization.setOrganizationLogo(organizationCreationDto.getOrganizationLogo());
-        organization.setCreatorId(organizationCreationDto.getCreatorId());
+        organization.setCreatorId(currentUser.getId().intValue());
         organization.setIsActive(true);
         Organization savedOrganization = repository.save(organization);
 
-        try {
-            keycloakGroupService.createOrganizationGroup(
-                    savedOrganization.getId().toString(),
-                    savedOrganization.getOrganizationName()
-            );
-        } catch (Exception e) {
-            log.error("Failed to create Keycloak group for organization {}: {}",
-                    savedOrganization.getId(), e.getMessage());
-        }
+        // Create Keycloak group BEFORE joining the organization
+        keycloakGroupService.createOrganizationGroup(
+                savedOrganization.getId().toString(),
+                savedOrganization.getOrganizationName()
+        );
+
+        EmployeeJoinOrgDto joinOrgDto = new EmployeeJoinOrgDto();
+        EmployeeDto employeeDto = employeeService.joinOrganization(currentUser.getId(), savedOrganization.getId(), joinOrgDto);
+        employeeService.assignOrgRole(employeeDto.getId(), OrgRole.SYSTEM_ADMIN);
 
         if (attachments != null && !attachments.isEmpty()) {
             attachmentService.uploadAttachments(attachments, "ORGANIZATION", savedOrganization.getId(), ORGANIZATION_FOLDER);
