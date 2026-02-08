@@ -8,8 +8,12 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.task.Task;
 import org.tornotron.echno_backend.user.User;
 
+import org.tornotron.echno_backend.common.enums.OrgRole;
+
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Represents an employee entity in the system.
@@ -29,11 +33,11 @@ public class Employee {
     private Long id;
 
     /** The employee's job title or designation. */
-    @Column(name = "designation", nullable = false)
+    @Column(name = "designation", nullable = true)
     private String designation;
 
     /** The department the employee works in. */
-    @Column(name = "department", nullable = false)
+    @Column(name = "department", nullable = true)
     private String department;
 
     /** The date and time the employee joined the organization. */
@@ -55,7 +59,7 @@ public class Employee {
 
     /** The current employment status of the employee. */
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = true)
     private EmployeeStatus status;
 
 //    @Column(name = "certifications", nullable = true)
@@ -88,6 +92,12 @@ public class Employee {
 
     @Column(name = "is_manager", nullable = false)
     private boolean isManager = false;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "employee_org_roles", joinColumns = @JoinColumn(name = "employee_id"))
+    @Column(name = "role")
+    @Enumerated(EnumType.STRING)
+    private Set<OrgRole> orgRoles = new HashSet<>();
 
     /** The list of tasks created by this employee. */
     @OneToMany(mappedBy = "creator")

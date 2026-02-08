@@ -18,10 +18,13 @@ import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
 
+import org.tornotron.echno_backend.common.enums.OrgRole;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -140,6 +143,7 @@ public class EmployeeService {
 
         Employee savedEmployee = employeeRepository.save(employee);
 
+        // Add user to Keycloak group - if this fails, the transaction will rollback
         try {
             keycloakGroupService.addUserToOrganization(
                     user.getKeycloakId(),
@@ -148,6 +152,7 @@ public class EmployeeService {
         } catch (Exception e) {
             log.error("Failed to add user {} to Keycloak group for organization {}: {}",
                     user.getKeycloakId(), org.getId(), e.getMessage());
+            throw new RuntimeException("Failed to add user to organization in Keycloak: " + e.getMessage(), e);
         }
 
         return EmployeeDtoConvertor.convertEmployeeToDto(savedEmployee);
@@ -418,6 +423,59 @@ public class EmployeeService {
                 .stream()
                 .map(EmployeeDtoConvertor::convertEmployeeToDto)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public EmployeeDto assignOrgRole(Long employeeId, OrgRole role) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+
+        employee.getOrgRoles().add(role);
+        Employee savedEmployee = employeeRepository.save(employee);
+
+        try {
+            keycloakGroupService.assignOrgRole(
+                    employee.getUser().getKeycloakId(),
+                    employee.getOrganization().getId().toString(),
+                    role
+            );
+        } catch (Exception e) {
+            log.error("Failed to assign role {} to employee {} in Keycloak: {}",
+                    role, employeeId, e.getMessage());
+            throw new RuntimeException("Failed to assign role in Keycloak: " + e.getMessage(), e);
+        }
+
+        return EmployeeDtoConvertor.convertEmployeeToDto(savedEmployee);
+    }
+
+    @Transactional
+    public EmployeeDto removeOrgRole(Long employeeId, OrgRole role) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+
+        employee.getOrgRoles().remove(role);
+        Employee savedEmployee = employeeRepository.save(employee);
+
+        try {
+            keycloakGroupService.removeOrgRole(
+                    employee.getUser().getKeycloakId(),
+                    employee.getOrganization().getId().toString(),
+                    role
+            );
+        } catch (Exception e) {
+            log.error("Failed to remove role {} from employee {} in Keycloak: {}",
+                    role, employeeId, e.getMessage());
+            throw new RuntimeException("Failed to remove role in Keycloak: " + e.getMessage(), e);
+        }
+
+        return EmployeeDtoConvertor.convertEmployeeToDto(savedEmployee);
+    }
+
+    @Transactional(readOnly = true)
+    public Set<OrgRole> getOrgRoles(Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+        return employee.getOrgRoles();
     }
 
 }
