@@ -130,7 +130,7 @@ public class OrganizationController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("(hasAuthority('organization:delete') and @orgSecurity.isMember(#id)) or hasAuthority('organization:admin')")
+    @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin') or (hasAuthority('organization:delete') and @orgSecurity.isMember(#id)) or hasAuthority('organization:admin')")
     public ResponseEntity<ApiResponse> deleteOrganization(@PathVariable Long id) {
         service.deleteAnOrganization(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organization with id: " + id + " deleted"));

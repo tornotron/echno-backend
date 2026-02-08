@@ -2,9 +2,35 @@ package org.tornotron.echno_backend.common.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
+import java.util.Collection;
+
+/**
+ * Security service for organization-level authorization checks.
+ * Used in @PreAuthorize annotations via the bean name "orgSecurity".
+ *
+ * Provides three levels of checks:
+ *
+ * 1. MEMBERSHIP: isMember(orgId)
+ *    - Checks if user belongs to the org (ORG_MEMBER_{id} authority)
+ *    - Source: user is in Keycloak group "org-{id}"
+ *
+ * 2. ORG-SCOPED ROLES: hasOrgRole(orgId, "system-admin")
+ *    - Checks if user has a specific role within this org (ORG_{id}_ROLE_{role} authority)
+ *    - Source: user is in Keycloak subgroup "org-{id}/system-admin"
+ *
+ * 3. GLOBAL PERMISSIONS: still checked via hasAuthority() directly in @PreAuthorize
+ *    - e.g., hasAuthority('organization:admin') for global admins
+ *
+ * Example @PreAuthorize combining all three:
+ *   @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin') or
+ *                  (hasAuthority('organization:delete') and @orgSecurity.isMember(#id)) or
+ *                  hasAuthority('organization:admin')")
+ */
 @Service("orgSecurity")
 @Slf4j
 public class OrganizationSecurityService {
@@ -42,5 +68,58 @@ public class OrganizationSecurityService {
         return auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals(memberAuthority)
                         || a.getAuthority().equals("organization:admin"));
+    }
+
+    /**
+     * Checks if the current user has a specific org-scoped role in the given organization.
+     *
+     * This checks for the authority "ORG_{orgId}_ROLE_{role}" which is extracted from
+     * the JWT groups claim by JwtAuthConverter when the user belongs to a Keycloak
+     * subgroup like "org-{id}/{role}".
+     *
+     * Example usage in @PreAuthorize:
+     *   @PreAuthorize("@orgSecurity.hasOrgRole(#orgId, 'system-admin')")
+     *
+     * @param organizationId the organization to check the role for
+     * @param role the role name (must match the Keycloak subgroup name, e.g., "system-admin")
+     * @return true if the user has this role in the specified organization
+     */
+    public boolean hasOrgRole(Long organizationId, String role) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            return false;
+        }
+        // This authority format matches what JwtAuthConverter produces from "/org-{id}/{role}"
+        String requiredAuthority = "ORG_" + organizationId + "_ROLE_" + role;
+        boolean result = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals(requiredAuthority));
+        log.debug("Org role check for org {} role '{}': {}", organizationId, role, result);
+        return result;
+    }
+
+    /**
+     * Checks if the current user has ANY of the specified org-scoped roles in the given organization.
+     *
+     * Useful when multiple roles can perform the same action:
+     *   @PreAuthorize("@orgSecurity.hasAnyOrgRole(#orgId, 'system-admin', 'hr-admin')")
+     *
+     * @param organizationId the organization to check roles for
+     * @param roles one or more role names to check
+     * @return true if the user has at least one of the specified roles in the organization
+     */
+    public boolean hasAnyOrgRole(Long organizationId, String... roles) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            return false;
+        }
+
+        Collection<? extends GrantedAuthority> authorities = auth.getAuthorities();
+        boolean result = Arrays.stream(roles)
+                .map(role -> "ORG_" + organizationId + "_ROLE_" + role)
+                .anyMatch(required -> authorities.stream()
+                        .anyMatch(a -> a.getAuthority().equals(required)));
+
+        log.debug("Org any-role check for org {} roles {}: {}", organizationId, Arrays.toString(roles), result);
+        return result;
     }
 }

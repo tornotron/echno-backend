@@ -83,7 +83,7 @@ public class OrganizationWebController {
      * @return A {@link ResponseEntity} containing the organization DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOrAdmin(#id)")
+    @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin')")
     public ResponseEntity<?> readAnOrganization(@PathVariable Long id) {
         OrganizationDto organization = service.getAnOrganization(id);
         return new ResponseEntity<>(organization, HttpStatus.OK);
