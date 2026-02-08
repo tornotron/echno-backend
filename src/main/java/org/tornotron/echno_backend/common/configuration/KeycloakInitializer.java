@@ -42,6 +42,9 @@ public class KeycloakInitializer implements InitializingBean {
     @Value("${keycloak.config.output-path}")
     private String configOutput;
 
+    @Value("${keycloak.client-id}")
+    private String appClientId;
+
     public KeycloakInitializer(Keycloak keycloak,
                                KeycloakInitializerConfigurationProperties keycloakInitializerConfigurationProperties,
                                ObjectMapper objectMapper) {
@@ -86,7 +89,53 @@ public class KeycloakInitializer implements InitializingBean {
         } else {
 
             log.warn("Keycloak initialization cancelled: realm already exists");
+            // Sync client configuration from JSON even if realm exists
+            syncClientConfiguration();
+            // Ensure service account roles are assigned even if realm exists
+            assignServiceAccountRoles();
+        }
+    }
 
+    private void syncClientConfiguration() {
+        try {
+            log.info("Syncing client configuration for '{}'", appClientId);
+            
+            Path configFile = Paths.get(configOutput, "init-keycloak.json");
+            if (!Files.exists(configFile)) {
+                log.warn("Config file not found at: " + configFile + ". Skipping client sync.");
+                return;
+            }
+
+            RealmRepresentation realmRep = mapper.readValue(configFile.toFile(), RealmRepresentation.class);
+            org.keycloak.representations.idm.ClientRepresentation clientFromConfig = realmRep.getClients().stream()
+                    .filter(c -> appClientId.equals(c.getClientId()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (clientFromConfig == null) {
+                log.warn("Client '{}' not found in configuration file.", appClientId);
+                return;
+            }
+
+            List<org.keycloak.representations.idm.ClientRepresentation> existingClients = keycloak.realm(REALM_ID).clients().findByClientId(appClientId);
+            if (existingClients.isEmpty()) {
+                log.warn("Client '{}' not found in Keycloak. Skipping sync.", appClientId);
+                return;
+            }
+
+            org.keycloak.representations.idm.ClientRepresentation existingClient = existingClients.get(0);
+            org.keycloak.admin.client.resource.ClientResource clientResource = keycloak.realm(REALM_ID).clients().get(existingClient.getId());
+
+            // Update specific fields from config to existing client
+            // We preserve the ID and Secret from the existing client
+            clientFromConfig.setId(existingClient.getId());
+            clientFromConfig.setSecret(existingClient.getSecret());
+            
+            clientResource.update(clientFromConfig);
+            log.info("Client '{}' configuration synced successfully.", appClientId);
+
+        } catch (Exception e) {
+            log.error("Failed to sync client configuration: {}", e.getMessage());
         }
     }
 
@@ -94,8 +143,70 @@ public class KeycloakInitializer implements InitializingBean {
 
         initKeycloakRealm();
         initKeycloakUsers();
+        assignServiceAccountRoles();
 
     }
+
+    private void assignServiceAccountRoles() {
+        try {
+            log.info("Assigning service account roles for client '{}'", appClientId);
+
+            // 1. Find the client UUID (not clientId) for the application client
+            List<org.keycloak.representations.idm.ClientRepresentation> clients = keycloak.realm(REALM_ID).clients().findByClientId(appClientId);
+            if (clients.isEmpty()) {
+                log.error("Client '{}' not found in realm '{}'", appClientId, REALM_ID);
+                return;
+            }
+            org.keycloak.representations.idm.ClientRepresentation appClientRep = clients.get(0);
+            org.keycloak.admin.client.resource.ClientResource appClientResource = keycloak.realm(REALM_ID).clients().get(appClientRep.getId());
+
+            // 2. Enable Service Accounts if not enabled
+            if (!Boolean.TRUE.equals(appClientRep.isServiceAccountsEnabled())) {
+                appClientRep.setServiceAccountsEnabled(true);
+                appClientResource.update(appClientRep);
+                log.info("Enabled service accounts for client '{}'", appClientId);
+            }
+
+            // 3. Get the Service Account User
+            UserRepresentation serviceAccountUser = appClientResource.getServiceAccountUser();
+            if (serviceAccountUser == null) {
+                log.error("Service account user not found for client '{}'", appClientId);
+                return;
+            }
+            UserResource serviceAccountUserResource = keycloak.realm(REALM_ID).users().get(serviceAccountUser.getId());
+
+            // 4. Find the 'realm-management' client UUID
+            List<org.keycloak.representations.idm.ClientRepresentation> realmMgmtClients = keycloak.realm(REALM_ID).clients().findByClientId("realm-management");
+            if (realmMgmtClients.isEmpty()) {
+                log.error("'realm-management' client not found!");
+                return;
+            }
+            org.keycloak.representations.idm.ClientRepresentation realmMgmtClientRep = realmMgmtClients.get(0);
+
+            // 5. Get the required roles from 'realm-management'
+            String[] requiredRoles = {"manage-users", "view-users", "manage-groups", "query-groups", "query-users"};
+            List<RoleRepresentation> rolesToAdd = new ArrayList<>();
+
+            for (String roleName : requiredRoles) {
+                try {
+                    RoleRepresentation role = keycloak.realm(REALM_ID).clients().get(realmMgmtClientRep.getId()).roles().get(roleName).toRepresentation();
+                    rolesToAdd.add(role);
+                } catch (Exception e) {
+                    log.warn("Role '{}' not found in realm-management", roleName);
+                }
+            }
+
+            // 6. Assign roles to the service account user
+            if (!rolesToAdd.isEmpty()) {
+                serviceAccountUserResource.roles().clientLevel(realmMgmtClientRep.getId()).add(rolesToAdd);
+                log.info("Assigned realm-management roles {} to service account for '{}'", rolesToAdd.stream().map(RoleRepresentation::getName).toList(), appClientId);
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to assign service account roles: {}", e.getMessage(), e);
+        }
+    }
+
 
 
     private void initKeycloakRealm() {
