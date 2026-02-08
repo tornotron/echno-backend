@@ -23,7 +23,7 @@ public class UserContextService {
 
     private final UserRepository userRepository;
 
-    @Cacheable(value = "userContext", key = "#root.methodName + '_' + @userContextService.getCurrentKeycloakId()")
+//    @Cacheable(value = "userContext", key = "#root.methodName + '_' + @userContextService.getCurrentKeycloakId()")
     public Long getCurrentUserId() {
         String keycloakId = getCurrentKeycloakId();
         System.out.println(keycloakId);
