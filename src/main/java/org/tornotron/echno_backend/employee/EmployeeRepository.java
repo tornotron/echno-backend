@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.employee;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.user.User;
 
@@ -59,4 +60,7 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
 
     @Query("select e.id from Employee e where e.isManager = true")
     List<Long> findAllManagerIds();
+
+    @Query("SELECT e FROM Employee e JOIN e.orgRoles r WHERE e.organization.id = :orgId AND r = :role")
+    List<Employee> findByOrganizationIdAndOrgRole(Long orgId, OrgRole role);
 }

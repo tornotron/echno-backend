@@ -38,6 +38,7 @@ public class EmployeeDtoConvertor {
         dto.setEmergencyContact(employee.getUser().getEmergencyContact());
         dto.setRole(employee.getUser().getRole());
         dto.setProfilePictureUrl(employee.getUser().getProfilePictureUrl());
+        dto.setOrgRoles(employee.getOrgRoles());
         dto.setCreatedAt(employee.getUser().getCreatedAt());
         dto.setUpdatedAt(employee.getUser().getUpdatedAt());
         return dto;
