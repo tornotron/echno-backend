@@ -13,21 +13,52 @@
     {
       "clientId": "${KEYCLOAK_CLIENT_ID}",
       "publicClient": false,
-      "serviceAccountsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
       "protocol": "openid-connect",
-      "redirectUris": ["${KEYCLOAK_REDIRECT_URI}"],
-      "webOrigins": ["${KEYCLOAK_WEB_ORIGIN}"],
+      "redirectUris": [${KEYCLOAK_REDIRECT_URI}],
+      "webOrigins": [${KEYCLOAK_WEB_ORIGIN}],
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": true
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
     },
     {
         "clientId": "${KEYCLOAK_FRONTEND_CLIENT_ID}",
         "publicClient": true,
         "protocol": "openid-connect",
-        "redirectUris": ["${KEYCLOAK_FRONTEND_REDIRECT_URI}"],
-        "webOrigins": ["${KEYCLOAK_FRONTEND_WEB_ORIGIN}"],
+        "redirectUris": [${KEYCLOAK_FRONTEND_REDIRECT_URI}],
+        "webOrigins": [${KEYCLOAK_FRONTEND_WEB_ORIGIN}],
         "standardFlowEnabled": true,
-        "directAccessGrantsEnabled": false
+        "directAccessGrantsEnabled": false,
+        "protocolMappers": [
+          {
+            "name": "groups",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-group-membership-mapper",
+            "consentRequired": false,
+            "config": {
+              "full.path": "true",
+              "id.token.claim": "true",
+              "access.token.claim": "true",
+              "claim.name": "groups",
+              "userinfo.token.claim": "true"
+            }
+          }
+        ]
     }
   ],
   "roles": {
