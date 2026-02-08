@@ -6,13 +6,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.employee.dto.EmployeePatchDto;
+import org.tornotron.echno_backend.employee.dto.OrgRoleAssignmentDto;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/employee/web")
@@ -177,6 +180,21 @@ public class EmployeeControllerWeb {
     @GetMapping("/managers/organizationId/{organizationId}")
     public ResponseEntity<List<EmployeeDto>> getAllManagersForAnOrganization(@PathVariable Long organizationId) {
         return ResponseEntity.status(HttpStatus.OK).body(employeeService.readAllTheManagersByOrganizationId(organizationId));
+    }
+
+    @PostMapping("/{employeeId}/roles")
+    public ResponseEntity<EmployeeDto> assignOrgRole(@PathVariable Long employeeId, @Valid @RequestBody OrgRoleAssignmentDto dto) {
+        return ResponseEntity.status(HttpStatus.OK).body(employeeService.assignOrgRole(employeeId, dto.getRole()));
+    }
+
+    @DeleteMapping("/{employeeId}/roles/{role}")
+    public ResponseEntity<EmployeeDto> removeOrgRole(@PathVariable Long employeeId, @PathVariable OrgRole role) {
+        return ResponseEntity.status(HttpStatus.OK).body(employeeService.removeOrgRole(employeeId, role));
+    }
+
+    @GetMapping("/{employeeId}/roles")
+    public ResponseEntity<Set<OrgRole>> getOrgRoles(@PathVariable Long employeeId) {
+        return ResponseEntity.status(HttpStatus.OK).body(employeeService.getOrgRoles(employeeId));
     }
 
 }
