@@ -95,5 +95,7 @@
     <include file="db/changelog/v1.2/051-add-user-certifications-list.xml"/>
     <include file="db/changelog/v1.2/052-refactor-reporting-manager.xml"/>
     <include file="db/changelog/v1.2/053-add-is-manager-to-employee.xml"/>
+    <include file="db/changelog/v1.2/054-make-employee-fields-nullable.xml"/>
+    <include file="db/changelog/v1.2/055-create-employee-org-roles.xml"/>
 
 </databaseChangeLog>

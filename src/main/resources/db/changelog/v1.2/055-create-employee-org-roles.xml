@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="055-create-employee-org-roles" author="echno">
+        <createTable tableName="employee_org_roles">
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="employee_org_roles"
+                baseColumnNames="employee_id"
+                constraintName="fk_employee_org_roles_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addUniqueConstraint
+                tableName="employee_org_roles"
+                columnNames="employee_id, role"
+                constraintName="uq_employee_org_roles"/>
+
+        <createIndex tableName="employee_org_roles" indexName="idx_employee_org_roles_employee_id">
+            <column name="employee_id"/>
+        </createIndex>
+
+        <createIndex tableName="employee_org_roles" indexName="idx_employee_org_roles_role">
+            <column name="role"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
