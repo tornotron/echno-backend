@@ -10,11 +10,11 @@ import java.time.LocalDateTime;
 
 @Data
 public class EmployeeJoinOrgDto {
-    @NotBlank(message = "designation is required")
+//    @NotBlank(message = "designation is required")
     @Size(min = 3, max = 50, message = "designation must be between 3 and 50 characters")
     private String designation;
 
-    @NotBlank(message = "department is required")
+//    @NotBlank(message = "department is required")
     @Size(min = 3, max = 50, message = "department must be between 3 and 50 characters")
     private String department;
 
@@ -29,7 +29,7 @@ public class EmployeeJoinOrgDto {
     @NotBlank(message = "status is required")
     @Size(min = 3, max = 50, message = "status must be between 3 and 50 characters")
     @Enumerated(EnumType.STRING)
-    private String status;
+    private String status = "active";
 
     private String employeeId;
 
