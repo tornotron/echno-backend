@@ -38,7 +38,4 @@ public class OrganizationCreationDto {
 
     private LocalDateTime createdAt;
 
-    @NotNull(message = "creatorId is required")
-    private Integer creatorId;
-
 }
