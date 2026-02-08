@@ -101,6 +101,18 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(com.fasterxml.jackson.core.JsonProcessingException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public CustomErrorResponse handleJsonProcessingException(com.fasterxml.jackson.core.JsonProcessingException ex, WebRequest request) {
+        logger.error("JSON processing error: ", ex);
+        return new CustomErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Invalid JSON format: " + ex.getOriginalMessage(),
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public CustomErrorResponse handleAllUncaughtException(Exception ex, WebRequest request) {
