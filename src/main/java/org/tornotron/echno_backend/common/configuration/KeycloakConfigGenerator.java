@@ -83,11 +83,11 @@ public class KeycloakConfigGenerator {
 
         String config = template
                 .replace("${KEYCLOAK_CLIENT_ID}",clientId)
-                .replace("${KEYCLOAK_REDIRECT_URI}",redirectUri)
-                .replace("${KEYCLOAK_WEB_ORIGIN}",webOrigin)
+                .replace("${KEYCLOAK_REDIRECT_URI}",formatListString(redirectUri))
+                .replace("${KEYCLOAK_WEB_ORIGIN}",formatListString(webOrigin))
                 .replace("${KEYCLOAK_FRONTEND_CLIENT_ID}",frontendClientId)
-                .replace("${KEYCLOAK_FRONTEND_REDIRECT_URI}",frontendRedirectUri)
-                .replace("${KEYCLOAK_FRONTEND_WEB_ORIGIN}",frontendWebOrigin);
+                .replace("${KEYCLOAK_FRONTEND_REDIRECT_URI}",formatListString(frontendRedirectUri))
+                .replace("${KEYCLOAK_FRONTEND_WEB_ORIGIN}",formatListString(frontendWebOrigin));
 
         writeConfig("init-keycloak.json",config);
 
@@ -124,5 +124,20 @@ public class KeycloakConfigGenerator {
 
         Path outputFile = outputDir.resolve(filename);
         Files.writeString(outputFile, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+    }
+
+    private String formatListString(String input) {
+        if (input == null || input.isBlank()) {
+            return "";
+        }
+        String[] items = input.split(",");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < items.length; i++) {
+            sb.append("\"").append(items[i].trim()).append("\"");
+            if (i < items.length - 1) {
+                sb.append(", ");
+            }
+        }
+        return sb.toString();
     }
 }

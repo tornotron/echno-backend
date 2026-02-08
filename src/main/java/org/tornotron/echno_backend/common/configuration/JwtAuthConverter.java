@@ -54,7 +54,7 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
         log.debug("Standard authorities: {}", standardAuthorities);
         log.debug("Resource roles: {}", resourceRoles);
         log.debug("Extracted permissions: {}", permissions);
-        log.debug("Group authorities: {}", groupAuthorities);
+        log.debug("Group authorities (memberships + org-scoped roles): {}", groupAuthorities);
         log.debug("Total authorities: {}", authorities);
 
         return new JwtAuthenticationToken(
@@ -127,6 +127,22 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
                 .collect(Collectors.toSet());
     }
 
+    /**
+     * Extracts organization-related authorities from the JWT "groups" claim.
+     *
+     * Keycloak groups follow this structure:
+     *   /org-{id}                → flat membership group   → authority: ORG_MEMBER_{id}
+     *   /org-{id}/{role-name}    → role subgroup           → authority: ORG_{id}_ROLE_{role-name}
+     *
+     * Examples:
+     *   "/org-5"               → ORG_MEMBER_5
+     *   "/org-5/system-admin"  → ORG_5_ROLE_system-admin
+     *   "/org-10/hr-admin"     → ORG_10_ROLE_hr-admin
+     *
+     * The ORG_MEMBER_* authorities represent simple org membership (existing behavior).
+     * The ORG_*_ROLE_* authorities represent org-scoped roles (new behavior).
+     * Both are extracted in a single pass over the groups claim.
+     */
     private Collection<? extends GrantedAuthority> extractGroupAuthorities(Jwt jwt) {
         List<String> groups = jwt.getClaim("groups");
         if (groups == null || groups.isEmpty()) {
@@ -139,9 +155,25 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
         return groups.stream()
                 .map(group -> group.startsWith("/") ? group.substring(1) : group)
                 .filter(group -> group.startsWith("org-"))
-                .map(group -> {
-                    String orgId = group.substring(4); // Remove "org-" prefix
-                    return new SimpleGrantedAuthority("ORG_MEMBER_" + orgId);
+                .flatMap(group -> {
+                    // Find the first "/" after the "org-" prefix — this separates org ID from role name
+                    int slashIndex = group.indexOf('/');
+
+                    if (slashIndex == -1) {
+                        // No slash → flat org group like "org-5"
+                        // This is plain membership, same as before
+                        String orgId = group.substring(4); // Remove "org-" prefix
+                        log.debug("Org membership: {} → ORG_MEMBER_{}", group, orgId);
+                        return Stream.of(new SimpleGrantedAuthority("ORG_MEMBER_" + orgId));
+                    } else {
+                        // Has slash → role subgroup like "org-5/system-admin"
+                        // orgId is between "org-" and the slash, role is after the slash
+                        String orgId = group.substring(4, slashIndex);
+                        String role = group.substring(slashIndex + 1);
+                        String authority = "ORG_" + orgId + "_ROLE_" + role;
+                        log.debug("Org role: {} → {}", group, authority);
+                        return Stream.of(new SimpleGrantedAuthority(authority));
+                    }
                 })
                 .collect(Collectors.toSet());
     }
