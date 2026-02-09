@@ -3,7 +3,12 @@ package org.tornotron.echno_backend.goodsReceivedNote;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.grnItem.GrnItem;
+import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.payable.Payable;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 import org.tornotron.echno_backend.user.User;
@@ -16,7 +21,9 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @Entity
-public class GoodsReceivedNote {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class GoodsReceivedNote implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,4 +59,8 @@ public class GoodsReceivedNote {
 
     @OneToMany(mappedBy = "goodsReceivedNote")
     private List<Payable> payables = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 }

@@ -4,6 +4,11 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.tornotron.echno_backend.task.Task;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.organization.Organization;
 
 import java.util.List;
 
@@ -15,7 +20,9 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @Table(name = "Category")
-public class Category {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class Category implements TenantScopedEntity {
 
     /** The unique identifier for the category. */
     @Id
@@ -23,7 +30,7 @@ public class Category {
     private Long id;
 
     /** The name of the category. It must be unique. */
-    @Column(name = "category_name", unique = true, nullable = false)
+    @Column(name = "category_name", nullable = false)
     private String name;
 
     /** A brief description of the category. */
@@ -37,6 +44,10 @@ public class Category {
     /** The URL or path to an image representing the category. */
     @Column(name = "category_image")
     private String image;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
     /** The list of tasks associated with this category. */
     @OneToMany(mappedBy = "category")

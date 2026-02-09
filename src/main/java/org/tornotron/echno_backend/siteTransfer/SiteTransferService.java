@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.SiteTransferDtoConvertor;
 import org.tornotron.echno_backend.common.events.SiteTransferCreatedEvent;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
@@ -41,6 +42,7 @@ public class SiteTransferService {
     private final InventoryService inventoryService;
     private final ApplicationEventPublisher eventPublisher;
     private final FileStorageService fileStorageService;
+    private final TenantEntityHelper tenantEntityHelper;
 
     public SiteTransferService(SiteTransferRepository siteTransferRepository,
                               SiteTransferItemRepository siteTransferItemRepository,
@@ -48,7 +50,8 @@ public class SiteTransferService {
                               MaterialRepository materialRepository,
                               InventoryService inventoryService,
                               ApplicationEventPublisher eventPublisher,
-                              FileStorageService fileStorageService) {
+                              FileStorageService fileStorageService,
+                              TenantEntityHelper tenantEntityHelper) {
         this.siteTransferRepository = siteTransferRepository;
         this.siteTransferItemRepository = siteTransferItemRepository;
         this.userRepository = userRepository;
@@ -56,6 +59,7 @@ public class SiteTransferService {
         this.inventoryService = inventoryService;
         this.eventPublisher = eventPublisher;
         this.fileStorageService = fileStorageService;
+        this.tenantEntityHelper = tenantEntityHelper;
     }
 
     @Transactional
@@ -83,6 +87,7 @@ public class SiteTransferService {
         transfer.setSendingPerson(sendingPerson);
         transfer.setReceivingSite(creationDto.getReceivingSite());
         transfer.setStatus(SiteTransferStatus.valueOf(creationDto.getStatus()));
+        transfer.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         // Save transfer first
         transfer = siteTransferRepository.save(transfer);
@@ -98,6 +103,7 @@ public class SiteTransferService {
             item.setMaterial(material);
             item.setSentQuantity(itemDto.getSentQuantity());
             item.setRemarks(itemDto.getRemarks());
+            item.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
             items.add(item);
         }

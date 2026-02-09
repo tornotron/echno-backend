@@ -35,6 +35,7 @@ public class NotificationService {
     public void sendApprovalRequiredNotification(LeaveRequest request, Employee approver) {
         Notification notification = new Notification();
         notification.setRecipient(approver);
+        notification.setOrganization(approver.getOrganization());
         notification.setNotificationType(NotificationType.LEAVE_PENDING_APPROVAL);
         notification.setTitle("Leave Approval Required");
         notification.setMessage(String.format(
@@ -62,6 +63,7 @@ public class NotificationService {
 
         Notification notification = new Notification();
         notification.setRecipient(request.getEmployee());
+        notification.setOrganization(request.getEmployee().getOrganization());
         notification.setNotificationType(type);
         notification.setTitle("Leave Request " + status.substring(0, 1).toUpperCase() + status.substring(1));
         notification.setMessage(String.format(
@@ -87,6 +89,7 @@ public class NotificationService {
 
         Notification notification = new Notification();
         notification.setRecipient(delegatedTo);
+        notification.setOrganization(delegatedTo.getOrganization());
         notification.setNotificationType(NotificationType.APPROVAL_DELEGATED);
         notification.setTitle("Leave Approval Delegated to You");
         notification.setMessage(String.format(
@@ -106,6 +109,7 @@ public class NotificationService {
     public void sendLeaveSubmittedNotification(LeaveRequest request) {
         Notification notification = new Notification();
         notification.setRecipient(request.getEmployee());
+        notification.setOrganization(request.getEmployee().getOrganization());
         notification.setNotificationType(NotificationType.LEAVE_REQUEST_SUBMITTED);
         notification.setTitle("Leave Request Submitted");
         notification.setMessage(String.format(
@@ -126,6 +130,7 @@ public class NotificationService {
     public void sendLeaveCancelledNotification(LeaveRequest request) {
         Notification notification = new Notification();
         notification.setRecipient(request.getEmployee());
+        notification.setOrganization(request.getEmployee().getOrganization());
         notification.setNotificationType(NotificationType.LEAVE_CANCELLED);
         notification.setTitle("Leave Request Cancelled");
         notification.setMessage(String.format(

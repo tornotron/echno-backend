@@ -54,6 +54,7 @@ public class InventoryEventListener {
             transaction.setReferenceNumber(grn.getGrnNumber());
             transaction.setRemarks("GRN received from " + (grn.getVendor() != null ? grn.getVendor().getVendorName() : "vendor"));
             transaction.setCreatedBy(grn.getReceivedBy());
+            transaction.setOrganization(grn.getOrganization());
 
             inventoryTransactionRepository.save(transaction);
             logger.debug("Created inventory transaction for material ID: {}, quantity: {}, closing stock: {}",
@@ -81,6 +82,7 @@ public class InventoryEventListener {
         transaction.setRemarks("Material consumed - " + consumption.getConsumptionType() +
                 (consumption.getDetails() != null ? ": " + consumption.getDetails() : ""));
         transaction.setCreatedBy(consumption.getCreatedBy());
+        transaction.setOrganization(consumption.getOrganization());
 
         inventoryTransactionRepository.save(transaction);
         logger.debug("Created inventory transaction for material ID: {}, quantity: {}, closing stock: {}",
@@ -109,6 +111,7 @@ public class InventoryEventListener {
                     " by " + (transfer.getSendingPerson() != null ? transfer.getSendingPerson().getName() : "user") +
                     (item.getRemarks() != null ? " - " + item.getRemarks() : ""));
             transaction.setCreatedBy(transfer.getSendingPerson());
+            transaction.setOrganization(transfer.getOrganization());
 
             inventoryTransactionRepository.save(transaction);
             logger.debug("Created inventory transaction for material ID: {}, quantity: {}, closing stock: {}",

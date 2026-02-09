@@ -11,6 +11,11 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.issue.Issue;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.task.enums.TaskStatus;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,7 +28,9 @@ import java.util.Set;
 @Entity
 @Data
 @NoArgsConstructor
-public class Task {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class Task implements TenantScopedEntity {
 
     /** The unique identifier for the task. */
     @Id
@@ -51,6 +58,10 @@ public class Task {
     @ManyToOne
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
     /** The set of employees assigned to this task. */
     @ManyToMany

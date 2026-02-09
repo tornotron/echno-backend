@@ -165,6 +165,7 @@ public class LeaveBalanceService {
 
         LeaveTransaction transaction = new LeaveTransaction();
         transaction.setEmployee(employee);
+        transaction.setOrganization(employee.getOrganization());
         transaction.setLeaveBalance(balance);
         transaction.setTransactionType(TransactionType.ADJUSTMENT);
         transaction.setDays(dto.getDays());
@@ -197,6 +198,7 @@ public class LeaveBalanceService {
     private LeaveBalance initializeBalance(Employee employee, LeavePolicy policy, Integer year) {
         LeaveBalance balance = new LeaveBalance();
         balance.setEmployee(employee);
+        balance.setOrganization(employee.getOrganization());
         balance.setLeavePolicy(policy);
         balance.setYear(year);
         balance.setOpeningBalance(0.0);
@@ -426,6 +428,7 @@ public class LeaveBalanceService {
 
         LeaveTransaction transaction = new LeaveTransaction();
         transaction.setEmployee(balance.getEmployee());
+        transaction.setOrganization(balance.getEmployee().getOrganization());
         transaction.setLeaveBalance(balance);
         transaction.setTransactionType(TransactionType.ACCRUAL);
         transaction.setDays(days);
