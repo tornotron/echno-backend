@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.common.configuration;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -11,6 +12,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.tornotron.echno_backend.common.multitenancy.TenantFilter;
@@ -42,7 +44,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .addFilterBefore(rPTExchangeFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(tenantFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(tenantFilter, BearerTokenAuthenticationFilter.class)
                         .authorizeHttpRequests(auth -> auth
                                 .requestMatchers(HttpMethod.POST, "/api/"+backend_version+"/auth/register").permitAll()
                                 .requestMatchers("/actuator/**").permitAll()
@@ -57,6 +59,26 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         return http.build();
+    }
+
+    /**
+     * Prevent Spring Boot from auto-registering these filters as servlet filters.
+     * They must only run inside the security filter chain (at their configured positions).
+     * Without this, OncePerRequestFilter causes them to run before the security chain
+     * (where there is no authentication context) and then skip their security chain execution.
+     */
+    @Bean
+    public FilterRegistrationBean<TenantFilter> tenantFilterRegistration(TenantFilter tenantFilter) {
+        FilterRegistrationBean<TenantFilter> registration = new FilterRegistrationBean<>(tenantFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<RPTExchangeFilter> rptExchangeFilterRegistration(RPTExchangeFilter rptExchangeFilter) {
+        FilterRegistrationBean<RPTExchangeFilter> registration = new FilterRegistrationBean<>(rptExchangeFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
