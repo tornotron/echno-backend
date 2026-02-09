@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.VendorDtoConvertor;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.vendor.dto.VendorCreationDto;
@@ -19,9 +20,12 @@ import java.util.stream.Collectors;
 public class VendorService {
 
     private final VendorRepository vendorRepository;
+    private final TenantEntityHelper tenantEntityHelper;
 
-    public VendorService(VendorRepository vendorRepository) {
+    public VendorService(VendorRepository vendorRepository,
+                        TenantEntityHelper tenantEntityHelper) {
         this.vendorRepository = vendorRepository;
+        this.tenantEntityHelper = tenantEntityHelper;
     }
 
     @Transactional
@@ -35,6 +39,7 @@ public class VendorService {
         vendor.setVendorName(creationDto.getVendorName());
         vendor.setVendorAddress(creationDto.getVendorAddress());
         vendor.setVendorEmail(creationDto.getVendorEmail());
+        vendor.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         vendor = vendorRepository.save(vendor);
         return VendorDtoConvertor.convertToDto(vendor);

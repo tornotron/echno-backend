@@ -90,8 +90,10 @@ public class TaskService {
             throw new InvalidRequestException("Employee ID must be provided");
         }
         if (taskCreationDto.getProjectId() != null) {
-            task.setProject(projectRepository.findById(taskCreationDto.getProjectId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + taskCreationDto.getProjectId())));
+            var project = projectRepository.findById(taskCreationDto.getProjectId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + taskCreationDto.getProjectId()));
+            task.setProject(project);
+            task.setOrganization(project.getOrganization());
         } else {
             throw new InvalidRequestException("Project ID must be provided");
         }

@@ -3,13 +3,20 @@ package org.tornotron.echno_backend.indentItem;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.intend.Intend;
+import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.material.Material;
 
 @Data
 @NoArgsConstructor
 @Entity
-public class IndentItem {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class IndentItem implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,5 +45,9 @@ public class IndentItem {
 
     @Column(name = "linked_purchase_order_number")
     private String linkedPurchaseOrderNumber;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
 }

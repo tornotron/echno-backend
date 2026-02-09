@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.category.dto.CategoryDto;
 import org.tornotron.echno_backend.category.dto.CategorySimpleDto;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 
 
 /**
@@ -22,14 +23,17 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final TenantEntityHelper tenantEntityHelper;
 
     /**
      * Constructs a CategoryService with the given CategoryRepository.
      *
      * @param categoryRepository The repository for category data access.
+     * @param tenantEntityHelper The helper for resolving the current organization.
      */
-    public CategoryService(CategoryRepository categoryRepository) {
+    public CategoryService(CategoryRepository categoryRepository, TenantEntityHelper tenantEntityHelper) {
         this.categoryRepository = categoryRepository;
+        this.tenantEntityHelper = tenantEntityHelper;
     }
 
     /**
@@ -41,6 +45,7 @@ public class CategoryService {
     @Transactional
     public CategorySimpleDto addCategory(CategoryCreationDto categoryCreationDto) {
         Category category = new Category();
+        category.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
         category.setName(categoryCreationDto.getName());
         category.setDescription(categoryCreationDto.getDescription());
         category.setIcon(categoryCreationDto.getIcon());

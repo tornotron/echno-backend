@@ -21,10 +21,12 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         SELECT * FROM attendance
         WHERE employee_id = :employeeId
         AND DATE(timestamp) = CURRENT_DATE
+        AND (:organizationId IS NULL OR organization_id = :organizationId)
         ORDER BY timestamp DESC
         LIMIT 1
         """, nativeQuery = true)
-    Optional<Attendance> findLatestRecordForEmployee(@Param("employeeId") Long employeeId);
+    Optional<Attendance> findLatestRecordForEmployee(@Param("employeeId") Long employeeId,
+                                                     @Param("organizationId") Long organizationId);
 
     @Query("SELECT a FROM Attendance a WHERE a.employeeId = :employeeId AND a.recordType = :recordType AND a.timestamp BETWEEN :startDate AND :endDate ORDER BY a.timestamp DESC")
     List<Attendance> findByEmployeeIdAndRecordTypeAndTimestampBetween(
@@ -47,6 +49,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         SELECT DISTINCT a.employee_id
         FROM attendance a
         WHERE DATE(a.timestamp) = :date
+        AND (:organizationId IS NULL OR a.organization_id = :organizationId)
         """, nativeQuery = true)
-    List<Long> findEmployeesPresentOnDate(@Param("date") LocalDateTime date);
+    List<Long> findEmployeesPresentOnDate(@Param("date") LocalDateTime date,
+                                          @Param("organizationId") Long organizationId);
 }

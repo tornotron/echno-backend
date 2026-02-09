@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.indentItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.IndentItemDtoConvertor;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemCreationDto;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
@@ -20,13 +21,16 @@ public class IndentItemService {
     private final IndentItemRepository indentItemRepository;
     private final IntendRepository intendRepository;
     private final MaterialRepository materialRepository;
+    private final TenantEntityHelper tenantEntityHelper;
 
     public IndentItemService(IndentItemRepository indentItemRepository,
                             IntendRepository intendRepository,
-                            MaterialRepository materialRepository) {
+                            MaterialRepository materialRepository,
+                            TenantEntityHelper tenantEntityHelper) {
         this.indentItemRepository = indentItemRepository;
         this.intendRepository = intendRepository;
         this.materialRepository = materialRepository;
+        this.tenantEntityHelper = tenantEntityHelper;
     }
 
     @Transactional
@@ -45,6 +49,7 @@ public class IndentItemService {
         indentItem.setOrderedQuantity(creationDto.getOrderedQuantity());
         indentItem.setRemarks(creationDto.getRemarks());
         indentItem.setConvertedToPurchaseOrder(false);
+        indentItem.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         indentItem = indentItemRepository.save(indentItem);
         return IndentItemDtoConvertor.convertIndentItemToDto(indentItem);

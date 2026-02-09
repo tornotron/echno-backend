@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.PurchaseOrderDtoConvertor;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
@@ -44,6 +45,7 @@ public class PurchaseOrderService {
     private final IndentItemRepository indentItemRepository;
     private final MaterialRepository materialRepository;
     private final FileStorageService fileStorageService;
+    private final TenantEntityHelper tenantEntityHelper;
 
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                                 PurchaseOrderItemRepository purchaseOrderItemRepository,
@@ -52,7 +54,8 @@ public class PurchaseOrderService {
                                 IntendRepository intendRepository,
                                 IndentItemRepository indentItemRepository,
                                 MaterialRepository materialRepository,
-                                FileStorageService fileStorageService) {
+                                FileStorageService fileStorageService,
+                                TenantEntityHelper tenantEntityHelper) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.purchaseOrderItemRepository = purchaseOrderItemRepository;
         this.vendorRepository = vendorRepository;
@@ -61,6 +64,7 @@ public class PurchaseOrderService {
         this.indentItemRepository = indentItemRepository;
         this.materialRepository = materialRepository;
         this.fileStorageService = fileStorageService;
+        this.tenantEntityHelper = tenantEntityHelper;
     }
 
     @Transactional
@@ -95,6 +99,7 @@ public class PurchaseOrderService {
         purchaseOrder.setExpectedDeliveryDate(creationDto.getExpectedDeliveryDate());
         purchaseOrder.setRemarks(creationDto.getRemarks());
         purchaseOrder.setTotalAmount(creationDto.getTotalAmount() != null ? creationDto.getTotalAmount() : BigDecimal.ZERO);
+        purchaseOrder.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         // Save PO first to get ID
         purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
@@ -125,6 +130,7 @@ public class PurchaseOrderService {
             poItem.setUnitPrice(itemDto.getUnitPrice());
             poItem.setTotalPrice(itemDto.getTotalPrice());
             poItem.setRemarks(itemDto.getRemarks());
+            poItem.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
             items.add(poItem);
         }

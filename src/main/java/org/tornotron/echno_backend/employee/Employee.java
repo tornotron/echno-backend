@@ -3,6 +3,10 @@ package org.tornotron.echno_backend.employee;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.task.Task;
@@ -24,7 +28,9 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @Table(name = "Employee")
-public class Employee {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class Employee implements TenantScopedEntity {
 
     /** The unique identifier for the employee record. */
     @Id

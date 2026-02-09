@@ -3,9 +3,13 @@ package org.tornotron.echno_backend.projectInviteCode;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.ParamDef;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDateTime;
@@ -17,7 +21,9 @@ import java.util.Map;
  */
 @Entity
 @Data
-public class ProjectInviteCode {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class ProjectInviteCode implements TenantScopedEntity {
 
     /** The unique identifier for the invite code. */
     @Id

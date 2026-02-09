@@ -3,7 +3,12 @@ package org.tornotron.echno_backend.materialConsumption;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.material.Material;
+import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.materialConsumption.enums.MaterialConsumptionType;
 import org.tornotron.echno_backend.user.User;
 
@@ -12,7 +17,9 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @Entity
-public class MaterialConsumption {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class MaterialConsumption implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,5 +42,9 @@ public class MaterialConsumption {
 
     @ManyToOne
     private User createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
 }

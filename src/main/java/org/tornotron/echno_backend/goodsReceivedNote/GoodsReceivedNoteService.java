@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.GoodsReceivedNoteDtoConvertor;
 import org.tornotron.echno_backend.common.events.GrnCreatedEvent;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
@@ -39,6 +40,7 @@ public class GoodsReceivedNoteService {
     private final MaterialRepository materialRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final FileStorageService fileStorageService;
+    private final TenantEntityHelper tenantEntityHelper;
 
     public GoodsReceivedNoteService(GoodsReceivedNoteRepository goodsReceivedNoteRepository,
                                    GrnItemRepository grnItemRepository,
@@ -46,7 +48,8 @@ public class GoodsReceivedNoteService {
                                    UserRepository userRepository,
                                    MaterialRepository materialRepository,
                                    ApplicationEventPublisher eventPublisher,
-                                   FileStorageService fileStorageService) {
+                                   FileStorageService fileStorageService,
+                                   TenantEntityHelper tenantEntityHelper) {
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.grnItemRepository = grnItemRepository;
         this.vendorRepository = vendorRepository;
@@ -54,6 +57,7 @@ public class GoodsReceivedNoteService {
         this.materialRepository = materialRepository;
         this.eventPublisher = eventPublisher;
         this.fileStorageService = fileStorageService;
+        this.tenantEntityHelper = tenantEntityHelper;
     }
 
     @Transactional
@@ -80,6 +84,7 @@ public class GoodsReceivedNoteService {
         grn.setDeliveryChallanNumber(creationDto.getDeliveryChallanNumber());
         grn.setInvoiceNumber(creationDto.getInvoiceNumber());
         grn.setInvoiceAmount(creationDto.getInvoiceAmount());
+        grn.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         // Save GRN first
         grn = goodsReceivedNoteRepository.save(grn);
@@ -95,6 +100,7 @@ public class GoodsReceivedNoteService {
             grnItem.setMaterial(material);
             grnItem.setOrderedQuantity(itemDto.getOrderedQuantity());
             grnItem.setReceivedQuantity(itemDto.getReceivedQuantity());
+            grnItem.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
             items.add(grnItem);
         }
