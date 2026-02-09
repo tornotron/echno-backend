@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +15,6 @@ import org.tornotron.echno_backend.common.customAnnotation.RequireSubscription;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
-import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
 
 import java.util.List;
@@ -41,7 +39,6 @@ public class OrganizationWebController {
      * @return A {@link ResponseEntity} with the created organization's simple DTO and HTTP status 201 (Created).
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-//    @PreAuthorize("hasAuthority('organization:create') or hasAuthority('organization:admin')")
     @RequireSubscription(feature = "CREATE_ORGANIZATION",recordUsage = true)
     public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") @Valid String data,
                                                                     @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
@@ -50,40 +47,25 @@ public class OrganizationWebController {
     }
 
     /**
-     * Retrieves a paginated list of all organizations.
+     * Retrieves a paginated list of organizations that the authenticated user is a member of.
+     * Returns only organizations where the user has ORG_MEMBER_{id} authority.
      *
-     * @param pageNo   The page number to retrieve (default is 0).
-     * @param pageSize The number of organizations per page (default is 10).
      * @return A {@link ResponseEntity} containing the list of organization DTOs and HTTP status 200 (OK).
      */
     @GetMapping
-//    @PreAuthorize("hasAuthority('organization:read') or hasAuthority('organization:admin')")
-    public ResponseEntity<List<OrganizationDto>> readAllOrganizations(@RequestParam(defaultValue = "0") int pageNo,
-                                                                      @RequestParam(defaultValue = "10") int pageSize) {
-        Page<OrganizationDto> organizations = service.getAllOrganization(pageNo, pageSize);
-        return new ResponseEntity<>(organizations.getContent(), HttpStatus.OK);
-    }
-
-    /**
-     * Retrieves all organizations created by a specific user.
-     *
-     * @param creatorId The ID of the user who created the organizations.
-     * @return A {@link ResponseEntity} containing a list of organization DTOs and HTTP status 200 (OK).
-     */
-    @GetMapping("/creator/{creatorId}")
-//    @PreAuthorize("hasAuthority('organization:read') or hasAuthority('organization:admin')")
-    public ResponseEntity<List<OrganizationDto>> readAllOrganizationsByCreatorId(@PathVariable Integer creatorId) {
-        return ResponseEntity.status(HttpStatus.OK).body(service.getAllOrganizationsByCreatorId(creatorId));
+    public ResponseEntity<List<OrganizationDto>> readAllOrganizations() {
+        return ResponseEntity.status(HttpStatus.OK).body(service.getAllOrganization());
     }
 
     /**
      * Retrieves a single organization by its ID.
+     * User must be a member of the organization or a platform admin.
      *
      * @param id The ID of the organization to retrieve.
      * @return A {@link ResponseEntity} containing the organization DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin')")
+    @PreAuthorize("@orgSecurity.isMemberOrAdmin(#id)")
     public ResponseEntity<?> readAnOrganization(@PathVariable Long id) {
         OrganizationDto organization = service.getAnOrganization(id);
         return new ResponseEntity<>(organization, HttpStatus.OK);
@@ -91,12 +73,13 @@ public class OrganizationWebController {
 
     /**
      * Partially updates an existing organization.
+     * Requires system-admin or hr-admin role in the organization, or platform admin access.
      *
      * @param id      The ID of the organization to update.
      * @return A {@link ResponseEntity} with the updated organization's simple DTO and HTTP status 200 (OK).
      */
     @PatchMapping(value = "{id}",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@orgSecurity.isMemberOrAdmin(#id)")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRole(#id, 'system-admin', 'hr-admin')")
     public ResponseEntity<OrganizationSimpleDto> partialUpdateAnOrganization(
             @RequestPart(value = "data", required = false) String data,
             @PathVariable Long id,
@@ -108,26 +91,14 @@ public class OrganizationWebController {
     }
 
     /**
-     * Updates multiple organizations in a batch.
-     *
-     * @param updates A list of DTOs containing the updates for each organization.
-     * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
-     */
-    @PatchMapping("/batch")
-//    @PreAuthorize("hasAuthority('organization:update') or hasAuthority('organization:admin')")
-    public ResponseEntity<ApiResponse> batchUpdateOrganizations(@Valid @RequestBody List<OrganizationPatchDto> updates) {
-        service.batchUpdateOrganization(updates);
-        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organizations updated successfully"));
-    }
-
-    /**
      * Deletes an organization by its ID.
+     * Requires system-admin role in the organization or platform admin access.
      *
      * @param id The ID of the organization to delete.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOrAdmin(#id)")
+    @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin')")
     public ResponseEntity<ApiResponse> deleteOrganization(@PathVariable Long id) {
         service.deleteAnOrganization(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organization with id: " + id + " deleted"));

@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -18,7 +17,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
-import org.tornotron.echno_backend.project.dto.ProjectPatchDto;
 import org.tornotron.echno_backend.project.dto.ProjectSimpleDto;
 
 import java.util.List;
@@ -53,7 +51,7 @@ public class ProjectControllerWeb {
      */
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-//    @PreAuthorize("hasAuthority('project:create') or hasAuthority('project:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     public ResponseEntity<ProjectSimpleDto> createProject(@RequestPart("data") @Valid String data,
                                                           @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments) throws JsonProcessingException {
         ProjectCreationDto dto = objectMapper.readValue(data, ProjectCreationDto.class);
@@ -67,7 +65,6 @@ public class ProjectControllerWeb {
      * @return A {@link ResponseEntity} containing the list of project DTOs and HTTP status 200 (OK).
      */
     @GetMapping
-//    @PreAuthorize("hasAuthority('project:read') or hasAuthority('project:admin')")
     public ResponseEntity<List<ProjectDto>> readAllProjects(@RequestParam(defaultValue = "0") int pageNo,
                                                             @RequestParam(defaultValue = "10") int pageSize) {
         Page<ProjectDto> projects = service.getAllProjects(pageNo,pageSize);
@@ -75,18 +72,17 @@ public class ProjectControllerWeb {
         return new ResponseEntity<>(projects.getContent(),HttpStatus.OK);
     }
 
-    /**
-     * Retrieves a single project by its ID.
-     *
-     * @param id The ID of the project to retrieve.
-     * @return A {@link ResponseEntity} containing the project DTO and HTTP status 200 (OK).
-     */
-    @GetMapping("{id}")
-//    @PreAuthorize("hasAuthority('project:read') or hasAuthority('project:admin')")
-    public ResponseEntity<?> readAProject(@PathVariable Long id) {
-        ProjectDto project = service.getAProject(id);
-        return new ResponseEntity<>(project,HttpStatus.OK);
-    }
+//    /**
+//     * Retrieves a single project by its ID.
+//     *
+//     * @param id The ID of the project to retrieve.
+//     * @return A {@link ResponseEntity} containing the project DTO and HTTP status 200 (OK).
+//     */
+//    @GetMapping("{id}")
+//    public ResponseEntity<?> readAProject(@PathVariable Long id) {
+//        ProjectDto project = service.getAProject(id);
+//        return new ResponseEntity<>(project,HttpStatus.OK);
+//    }
 
     /**
      * Partially updates an existing project.
@@ -95,7 +91,7 @@ public class ProjectControllerWeb {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping(value = "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-//    @PreAuthorize("hasAuthority('project:update') or hasAuthority('project:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     public ResponseEntity<ProjectSimpleDto> partialUpdateAProject(
             @RequestPart(value = "data", required = false) String data,
             @PathVariable Long id,
@@ -107,18 +103,17 @@ public class ProjectControllerWeb {
         return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAProject(updates,id,attachments,entityType));
     }
 
-    /**
-     * Updates multiple projects in a batch.
-     *
-     * @param updates A list of DTOs containing the updates for each project.
-     * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
-     */
-    @PatchMapping("/batch")
-//    @PreAuthorize("hasAuthority('project:update') or hasAuthority('project:admin')")
-    public ResponseEntity<ApiResponse> batchUpdateProjects(@Valid @RequestBody List<ProjectPatchDto> updates) {
-        service.batchUpdateProjects(updates);
-        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
-    }
+//    /**
+//     * Updates multiple projects in a batch.
+//     *
+//     * @param updates A list of DTOs containing the updates for each project.
+//     * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
+//     */
+//    @PatchMapping("/batch")
+//    public ResponseEntity<ApiResponse> batchUpdateProjects(@Valid @RequestBody List<ProjectPatchDto> updates) {
+//        service.batchUpdateProjects(updates);
+//        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
+//    }
 
     /**
      * Deletes a project by its ID.
@@ -127,23 +122,22 @@ public class ProjectControllerWeb {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-//    @PreAuthorize("hasAuthority('project:delete') or hasAuthority('project:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     public ResponseEntity<ApiResponse> deleteProject(@PathVariable Long id) {
         service.deleteAProject(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Project with id: "+id+" has been deleted"));
     }
 
-    /**
-     * Retrieves the organization ID for a given project ID.
-     *
-     * @param id The ID of the project.
-     * @return A {@link ResponseEntity} containing the organization ID and HTTP status 200 (OK).
-     */
-    @GetMapping("{id}/organization")
-//    @PreAuthorize("hasAuthority('project:read') or hasAuthority('project:admin')")
-    public ResponseEntity<Long> getOrganizationIdByProjectId(@PathVariable Long id) {
-        Long organizationId = service.getOrganizationIdByProjectId(id);
-        return new ResponseEntity<>(organizationId, HttpStatus.OK);
-    }
+//    /**
+//     * Retrieves the organization ID for a given project ID.
+//     *
+//     * @param id The ID of the project.
+//     * @return A {@link ResponseEntity} containing the organization ID and HTTP status 200 (OK).
+//     */
+//    @GetMapping("{id}/organization")
+//    public ResponseEntity<Long> getOrganizationIdByProjectId(@PathVariable Long id) {
+//        Long organizationId = service.getOrganizationIdByProjectId(id);
+//        return new ResponseEntity<>(organizationId, HttpStatus.OK);
+//    }
 
 }
