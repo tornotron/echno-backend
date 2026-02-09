@@ -5,6 +5,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -121,5 +122,26 @@ public class OrganizationSecurityService {
 
         log.debug("Org any-role check for org {} roles {}: {}", organizationId, Arrays.toString(roles), result);
         return result;
+    }
+
+    /**
+     * Checks if the current user has ANY of the specified org-scoped roles
+     * for the current tenant (organization) set by TenantFilter.
+     *
+     * This reads the organization ID from TenantContext, which is populated
+     * by the TenantFilter before @PreAuthorize evaluates.
+     *
+     * Usage in @PreAuthorize: @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')
+     *
+     * @param roles one or more role names to check
+     * @return true if the user has at least one of the specified roles in the current tenant organization
+     */
+    public boolean hasAnyOrgRoleForCurrentTenant(String... roles) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        if (orgId == null) {
+            log.debug("No current tenant org ID set in TenantContext");
+            return false;
+        }
+        return hasAnyOrgRole(orgId, roles);
     }
 }
