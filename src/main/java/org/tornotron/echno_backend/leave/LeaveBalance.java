@@ -7,8 +7,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.employee.Employee;
 import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
@@ -27,7 +25,6 @@ import java.util.List;
 }, uniqueConstraints = {
         @UniqueConstraint(name = "uk_leave_balance_emp_policy_year", columnNames = {"employee_id", "leave_policy_id", "year"})
 })
-@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 public class LeaveBalance implements TenantScopedEntity {
 

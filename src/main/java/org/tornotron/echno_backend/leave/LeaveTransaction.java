@@ -7,8 +7,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.leave.enums.TransactionType;
 import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
@@ -25,7 +23,6 @@ import java.time.LocalDateTime;
         @Index(name = "idx_leave_txn_date", columnList = "transaction_date"),
         @Index(name = "idx_leave_txn_type", columnList = "transaction_type")
 })
-@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 public class LeaveTransaction implements TenantScopedEntity {
 
