@@ -4,6 +4,8 @@ package org.tornotron.echno_backend.organization;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -30,4 +32,13 @@ public interface OrganizationRepository extends JpaRepository<Organization, Long
     List<Organization> findOrganizationsByCreatorId(Integer creatorId);
 
     boolean existsByOrganizationEmail(String organizationEmail);
+
+    @Query(
+            "SELECT DISTINCT o FROM Organization o " +
+                    "JOIN o.employees e " +
+                    "JOIN e.user u " +
+                    "WHERE u.email = :email"
+    )
+    List<Organization> findAllByUserEmail(@Param("email") String email);
+
 }
