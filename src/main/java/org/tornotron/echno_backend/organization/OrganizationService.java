@@ -113,15 +113,14 @@ public class OrganizationService {
 
     /**
      * Retrieves a paginated list of all organizations, sorted by their ID in ascending order.
-     * @param pageNo The page number to retrieve (0-indexed).
-     * @param pageSize The number of organizations per page.
      * @return A {@link Page} of {@link OrganizationDto}s.
      */
     @Transactional(readOnly = true)
-    public Page<OrganizationDto> getAllOrganization(int pageNo, int pageSize) {
-        Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
-        return repository.findAll(pageable)
-                .map(org -> OrganizationDtoConvertor.convertOrganizationToDto(org, fileStorageService));
+    public List<OrganizationDto> getAllOrganization() {
+        User user = userContextService.getCurrentUser();
+        return repository.findAllByUserEmail(user.getEmail()).stream()
+                .map(org -> OrganizationDtoConvertor.convertOrganizationToDto(org, fileStorageService))
+                .collect(Collectors.toList());
     }
 
     /**

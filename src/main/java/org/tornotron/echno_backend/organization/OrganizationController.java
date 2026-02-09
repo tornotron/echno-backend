@@ -64,13 +64,13 @@ public class OrganizationController {
      * @param pageSize The number of organizations per page (default is 10).
      * @return A {@link ResponseEntity} containing the list of organization DTOs and HTTP status 200 (OK).
      */
-    @GetMapping
-    @PreAuthorize("hasAuthority('organization:read') or hasAuthority('organization:admin')")
-    public ResponseEntity<List<OrganizationDto>> readAllOrganizations(@RequestParam(defaultValue = "0") int pageNo,
-                                                                      @RequestParam(defaultValue = "10") int pageSize) {
-        Page<OrganizationDto> organizations = service.getAllOrganization(pageNo, pageSize);
-        return new ResponseEntity<>(organizations.getContent(), HttpStatus.OK);
-    }
+//    @GetMapping
+//    @PreAuthorize("hasAuthority('organization:read') or hasAuthority('organization:admin')")
+//    public ResponseEntity<List<OrganizationDto>> readAllOrganizations(@RequestParam(defaultValue = "0") int pageNo,
+//                                                                      @RequestParam(defaultValue = "10") int pageSize) {
+//        Page<OrganizationDto> organizations = service.getAllOrganization(pageNo, pageSize);
+//        return new ResponseEntity<>(organizations.getContent(), HttpStatus.OK);
+//    }
 
     /**
      * Retrieves all organizations created by a specific user.
