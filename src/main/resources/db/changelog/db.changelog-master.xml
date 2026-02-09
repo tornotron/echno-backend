@@ -98,4 +98,21 @@
     <include file="db/changelog/v1.2/054-make-employee-fields-nullable.xml"/>
     <include file="db/changelog/v1.2/055-create-employee-org-roles.xml"/>
 
+    <!-- ============================================================== -->
+    <!-- v1.3 - Multi-Tenancy: Organization-level data isolation         -->
+    <!-- Created: 2026-02-08                                            -->
+    <!-- Description: Add organization_id to tenant-scoped entities      -->
+    <!-- ============================================================== -->
+
+    <!-- Add organization_id columns -->
+    <include file="db/changelog/v1.3/056-add-org-id-to-task-related-entities.xml"/>
+    <include file="db/changelog/v1.3/057-add-org-id-to-leave-related-entities.xml"/>
+    <include file="db/changelog/v1.3/058-add-org-id-to-procurement-entities.xml"/>
+
+    <!-- Backfill organization_id from parent relationships -->
+    <include file="db/changelog/v1.3/059-backfill-org-id.xml"/>
+
+    <!-- Tag v1.3 release -->
+    <include file="db/changelog/v1.3/060-tag-v1.3.xml"/>
+
 </databaseChangeLog>
