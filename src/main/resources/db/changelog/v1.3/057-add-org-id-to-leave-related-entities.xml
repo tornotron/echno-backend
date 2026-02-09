@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- leave_approval -->
+    <changeSet id="057-01-add-org-id-to-leave-approval" author="echno">
+        <addColumn tableName="leave_approval">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="leave_approval"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_approval_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="leave_approval" indexName="idx_leave_approval_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- leave_balance -->
+    <changeSet id="057-02-add-org-id-to-leave-balance" author="echno">
+        <addColumn tableName="leave_balance">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="leave_balance"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_balance_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="leave_balance" indexName="idx_leave_balance_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- leave_transaction -->
+    <changeSet id="057-03-add-org-id-to-leave-transaction" author="echno">
+        <addColumn tableName="leave_transaction">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="leave_transaction"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_transaction_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="leave_transaction" indexName="idx_leave_transaction_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- notification -->
+    <changeSet id="057-04-add-org-id-to-notification" author="echno">
+        <addColumn tableName="notification">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="notification"
+                baseColumnNames="organization_id"
+                constraintName="fk_notification_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="notification" indexName="idx_notification_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- attendance -->
+    <changeSet id="057-05-add-org-id-to-attendance" author="echno">
+        <addColumn tableName="attendance">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="attendance"
+                baseColumnNames="organization_id"
+                constraintName="fk_attendance_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="attendance" indexName="idx_attendance_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
