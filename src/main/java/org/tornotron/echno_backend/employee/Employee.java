@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.organization.Organization;
@@ -28,7 +26,6 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @Table(name = "Employee")
-@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 public class Employee implements TenantScopedEntity {
 
@@ -88,8 +85,8 @@ public class Employee implements TenantScopedEntity {
     @Column(name = "address")
     private String address;
 
-    /** The contact email address of the employee. Must be unique. */
-    @Column(name = "email_address",nullable = false,unique = true)
+    /** The contact email address of the employee. */
+    @Column(name = "email_address",nullable = false)
     private String emailAddress;
 
     /** The date of birth of the employee. */

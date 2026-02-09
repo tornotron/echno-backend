@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.grnItem.GrnItem;
 import org.tornotron.echno_backend.organization.Organization;
@@ -20,7 +18,6 @@ import java.util.List;
 @Entity
 @NoArgsConstructor
 @Data
-@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 public class Material implements TenantScopedEntity {
 

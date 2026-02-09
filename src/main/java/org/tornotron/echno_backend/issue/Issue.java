@@ -11,8 +11,6 @@ import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
 import org.tornotron.echno_backend.task.Task;
 import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
@@ -22,7 +20,6 @@ import java.util.List;
 @Entity
 @Data
 @NoArgsConstructor
-@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 public class Issue implements TenantScopedEntity {
 
