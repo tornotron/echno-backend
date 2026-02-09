@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.MaterialConsumptionDtoConvertor;
 import org.tornotron.echno_backend.common.events.MaterialConsumedEvent;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
@@ -33,19 +34,22 @@ public class MaterialConsumptionService {
     private final InventoryService inventoryService;
     private final ApplicationEventPublisher eventPublisher;
     private final FileStorageService fileStorageService;
+    private final TenantEntityHelper tenantEntityHelper;
 
     public MaterialConsumptionService(MaterialConsumptionRepository materialConsumptionRepository,
                                      MaterialRepository materialRepository,
                                      UserRepository userRepository,
                                      InventoryService inventoryService,
                                      ApplicationEventPublisher eventPublisher,
-                                     FileStorageService fileStorageService) {
+                                     FileStorageService fileStorageService,
+                                     TenantEntityHelper tenantEntityHelper) {
         this.materialConsumptionRepository = materialConsumptionRepository;
         this.materialRepository = materialRepository;
         this.userRepository = userRepository;
         this.inventoryService = inventoryService;
         this.eventPublisher = eventPublisher;
         this.fileStorageService = fileStorageService;
+        this.tenantEntityHelper = tenantEntityHelper;
     }
 
     @Transactional
@@ -69,6 +73,7 @@ public class MaterialConsumptionService {
         consumption.setConsumptionType(MaterialConsumptionType.valueOf(creationDto.getConsumptionType()));
         consumption.setDetails(creationDto.getDetails());
         consumption.setCreatedBy(createdBy);
+        consumption.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         consumption = materialConsumptionRepository.save(consumption);
 

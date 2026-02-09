@@ -10,6 +10,11 @@ import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
 import org.tornotron.echno_backend.task.Task;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,7 +22,9 @@ import java.util.List;
 @Entity
 @Data
 @NoArgsConstructor
-public class Issue {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class Issue implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -53,6 +60,10 @@ public class Issue {
 
     @ManyToOne
     private Task task;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
     /** The list of attachments associated with this issue. */
     @OneToMany(mappedBy = "issue")

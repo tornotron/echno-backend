@@ -49,6 +49,7 @@ public class IssueService {
         issue.setCreator(issueCreationDto.getCreator());
         issue.setCreator(issueCreationDto.getCreator());
         issue.setTask(task);
+        issue.setOrganization(task.getOrganization());
 
         Issue savedIssue = issueRepository.save(issue);
 

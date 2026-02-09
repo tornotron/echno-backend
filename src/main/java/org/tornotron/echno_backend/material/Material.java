@@ -3,7 +3,12 @@ package org.tornotron.echno_backend.material;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.grnItem.GrnItem;
+import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.indentItem.IndentItem;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumption;
@@ -15,7 +20,9 @@ import java.util.List;
 @Entity
 @NoArgsConstructor
 @Data
-public class Material {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class Material implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,4 +50,8 @@ public class Material {
 
     @OneToMany(mappedBy = "material")
     private List<PurchaseOrderItem> purchaseOrderItems = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 }

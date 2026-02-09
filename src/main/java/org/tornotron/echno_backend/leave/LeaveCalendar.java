@@ -4,6 +4,10 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.leave.enums.HalfDayType;
 import org.tornotron.echno_backend.organization.Organization;
@@ -21,7 +25,9 @@ import java.time.LocalDateTime;
         @Index(name = "idx_leave_calendar_date", columnList = "leave_date"),
         @Index(name = "idx_leave_calendar_dept", columnList = "department")
 })
-public class LeaveCalendar {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class LeaveCalendar implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.PayableDtoConvertor;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
@@ -32,17 +33,20 @@ public class PayableService {
     private final GoodsReceivedNoteRepository goodsReceivedNoteRepository;
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
+    private final TenantEntityHelper tenantEntityHelper;
 
     public PayableService(PayableRepository payableRepository,
                          VendorRepository vendorRepository,
                          GoodsReceivedNoteRepository goodsReceivedNoteRepository,
                          UserRepository userRepository,
-                         FileStorageService fileStorageService) {
+                         FileStorageService fileStorageService,
+                         TenantEntityHelper tenantEntityHelper) {
         this.payableRepository = payableRepository;
         this.vendorRepository = vendorRepository;
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.userRepository = userRepository;
         this.fileStorageService = fileStorageService;
+        this.tenantEntityHelper = tenantEntityHelper;
     }
 
     @Transactional
@@ -79,6 +83,7 @@ public class PayableService {
         payable.setVendor(vendor);
         payable.setGoodsReceivedNote(grn);
         payable.setCreatedBy(createdBy);
+        payable.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         payable = payableRepository.save(payable);
         return PayableDtoConvertor.convertToDto(payable, fileStorageService);

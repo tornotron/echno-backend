@@ -3,7 +3,11 @@ package org.tornotron.echno_backend.project;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
 import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.task.Task;
@@ -22,7 +26,9 @@ import java.util.List;
 @Table(name = "Project",indexes = {
         @Index(name = "idx_project_name", columnList = "project_name")
 })
-public class Project {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class Project implements TenantScopedEntity {
 
     /** The unique identifier for the project. */
     @Id
