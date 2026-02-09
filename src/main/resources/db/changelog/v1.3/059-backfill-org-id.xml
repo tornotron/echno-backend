@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Group A backfill: derive organization_id from parent relationships -->
+
+    <!-- task.organization_id = project.organization_id (via task.project_id) -->
+    <changeSet id="059-01-backfill-task-org-id" author="echno">
+        <sql>
+            UPDATE task t
+            SET organization_id = p.organization_id
+            FROM project p
+            WHERE t.project_id = p.id
+              AND t.organization_id IS NULL
+              AND p.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <!-- issue.organization_id = task.organization_id (via issue.task_id) -->
+    <changeSet id="059-02-backfill-issue-org-id" author="echno">
+        <sql>
+            UPDATE issue i
+            SET organization_id = t.organization_id
+            FROM task t
+            WHERE i.task_id = t.id
+              AND i.organization_id IS NULL
+              AND t.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <!-- issue_comments.organization_id = issue.organization_id (via issue_comments.issue_id) -->
+    <changeSet id="059-03-backfill-issue-comments-org-id" author="echno">
+        <sql>
+            UPDATE issue_comments ic
+            SET organization_id = i.organization_id
+            FROM issue i
+            WHERE ic.issue_id = i.id
+              AND ic.organization_id IS NULL
+              AND i.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <!-- team_member.organization_id = project.organization_id (via team_member.project_id) -->
+    <changeSet id="059-04-backfill-team-member-org-id" author="echno">
+        <sql>
+            UPDATE team_member tm
+            SET organization_id = p.organization_id
+            FROM project p
+            WHERE tm.project_id = p.id
+              AND tm.organization_id IS NULL
+              AND p.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <!-- leave_approval.organization_id = leave_request.organization_id (via leave_approval.leave_request_id) -->
+    <changeSet id="059-05-backfill-leave-approval-org-id" author="echno">
+        <sql>
+            UPDATE leave_approval la
+            SET organization_id = lr.organization_id
+            FROM leave_request lr
+            WHERE la.leave_request_id = lr.id
+              AND la.organization_id IS NULL
+              AND lr.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <!-- leave_balance.organization_id = employee.organization_id (via leave_balance.employee_id) -->
+    <changeSet id="059-06-backfill-leave-balance-org-id" author="echno">
+        <sql>
+            UPDATE leave_balance lb
+            SET organization_id = e.organization_id
+            FROM employee e
+            WHERE lb.employee_id = e.id
+              AND lb.organization_id IS NULL
+              AND e.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <!-- leave_transaction.organization_id = employee.organization_id (via leave_transaction.employee_id) -->
+    <changeSet id="059-07-backfill-leave-transaction-org-id" author="echno">
+        <sql>
+            UPDATE leave_transaction lt
+            SET organization_id = e.organization_id
+            FROM employee e
+            WHERE lt.employee_id = e.id
+              AND lt.organization_id IS NULL
+              AND e.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <!-- notification.organization_id = employee.organization_id (via notification.recipient_id) -->
+    <changeSet id="059-08-backfill-notification-org-id" author="echno">
+        <sql>
+            UPDATE notification n
+            SET organization_id = e.organization_id
+            FROM employee e
+            WHERE n.recipient_id = e.id
+              AND n.organization_id IS NULL
+              AND e.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <!-- attendance.organization_id = employee.organization_id (via attendance.employee_id) -->
+    <changeSet id="059-09-backfill-attendance-org-id" author="echno">
+        <sql>
+            UPDATE attendance a
+            SET organization_id = e.organization_id
+            FROM employee e
+            WHERE a.employee_id = e.id
+              AND a.organization_id IS NULL
+              AND e.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <!-- Note: Group B (procurement) entities have no backfill path.
+         Existing data stays NULL and requires manual admin assignment. -->
+
+</databaseChangeLog>

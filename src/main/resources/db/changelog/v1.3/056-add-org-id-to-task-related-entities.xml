@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- task -->
+    <changeSet id="056-01-add-org-id-to-task" author="echno">
+        <addColumn tableName="task">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="task"
+                baseColumnNames="organization_id"
+                constraintName="fk_task_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="task" indexName="idx_task_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- issue -->
+    <changeSet id="056-02-add-org-id-to-issue" author="echno">
+        <addColumn tableName="issue">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="issue"
+                baseColumnNames="organization_id"
+                constraintName="fk_issue_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="issue" indexName="idx_issue_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- issue_comments -->
+    <changeSet id="056-03-add-org-id-to-issue-comments" author="echno">
+        <addColumn tableName="issue_comments">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="issue_comments"
+                baseColumnNames="organization_id"
+                constraintName="fk_issue_comments_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="issue_comments" indexName="idx_issue_comments_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- team_member -->
+    <changeSet id="056-04-add-org-id-to-team-member" author="echno">
+        <addColumn tableName="team_member">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="team_member"
+                baseColumnNames="organization_id"
+                constraintName="fk_team_member_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="team_member" indexName="idx_team_member_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- category: add org_id, drop old unique, add composite unique -->
+    <changeSet id="056-05-add-org-id-to-category" author="echno">
+        <addColumn tableName="category">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="category"
+                baseColumnNames="organization_id"
+                constraintName="fk_category_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="category" indexName="idx_category_organization">
+            <column name="organization_id"/>
+        </createIndex>
+        <dropUniqueConstraint tableName="category" constraintName="uk_category_name"/>
+        <addUniqueConstraint tableName="category"
+                             columnNames="category_name, organization_id"
+                             constraintName="uk_category_name_org"/>
+    </changeSet>
+
+</databaseChangeLog>
