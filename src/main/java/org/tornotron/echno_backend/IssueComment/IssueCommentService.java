@@ -30,8 +30,10 @@ public class IssueCommentService {
         issueComment.setAuthor(issueCommentCreationDto.getAuthor());
         issueComment.setComment(issueCommentCreationDto.getComment());
         if(issueCommentCreationDto.getIssueId() != null) {
-            issueComment.setIssue(issueRepository.findById(issueCommentCreationDto.getIssueId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Issue not found with id: " + issueCommentCreationDto.getIssueId())));
+            var issue = issueRepository.findById(issueCommentCreationDto.getIssueId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Issue not found with id: " + issueCommentCreationDto.getIssueId()));
+            issueComment.setIssue(issue);
+            issueComment.setOrganization(issue.getOrganization());
         }
         return IssueCommentDtoConvertor.convertIssueCommentToSimpleDto(issueCommentRepository.save(issueComment));
     }

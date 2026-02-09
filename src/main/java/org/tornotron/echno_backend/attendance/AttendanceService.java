@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.attendance.dto.BulkAttendanceCreationDto;
 import org.tornotron.echno_backend.attendance.enums.RecordType;
 import org.tornotron.echno_backend.attendance.mapper.AttendanceMapper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.validator.AttendanceSequenceValidator;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -48,12 +49,13 @@ public class AttendanceService {
         Employee employee = employeeRepository.findEmployeeByEmployeeName(attendanceCreationDto.getEmployeeName())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee does not exist"));
 
-        Optional<Attendance> lastRecord = attendanceRepository.findLatestRecordForEmployee(employee.getId());
+        Optional<Attendance> lastRecord = attendanceRepository.findLatestRecordForEmployee(employee.getId(), TenantContext.getCurrentOrgId());
 
         sequenceValidator.validateRecordTypeSequence(lastRecord, attendanceCreationDto.getRecordType());
 
         Attendance attendanceRecord = new Attendance();
         attendanceRecord.setEmployeeId(employee.getId());
+        attendanceRecord.setOrganization(employee.getOrganization());
         attendanceRecord.setLocation(attendanceCreationDto.getLocation());
         attendanceRecord.setRecordType(attendanceCreationDto.getRecordType());
         attendanceRecord.setGeoLocation(attendanceCreationDto.getGeoLocation());
@@ -78,12 +80,13 @@ public class AttendanceService {
         List<Attendance> attendanceRecords = new ArrayList<>();
 
         for (Employee employee : employees) {
-            Optional<Attendance> lastRecord = attendanceRepository.findLatestRecordForEmployee(employee.getId());
+            Optional<Attendance> lastRecord = attendanceRepository.findLatestRecordForEmployee(employee.getId(), TenantContext.getCurrentOrgId());
 
             sequenceValidator.validateRecordTypeSequence(lastRecord, bulkDto.getRecordType());
 
             Attendance attendanceRecord = new Attendance();
             attendanceRecord.setEmployeeId(employee.getId());
+            attendanceRecord.setOrganization(employee.getOrganization());
             attendanceRecord.setLocation(bulkDto.getLocation());
             attendanceRecord.setRecordType(bulkDto.getRecordType());
             attendanceRecord.setGeoLocation(bulkDto.getGeoLocation());

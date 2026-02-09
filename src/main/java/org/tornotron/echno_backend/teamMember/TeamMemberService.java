@@ -39,6 +39,7 @@ public class TeamMemberService {
     teamMember.setMemberRole(teamMemberCreationDTO.getMemberRole());
     teamMember.setMemberImage(teamMemberCreationDTO.getMemberImage());
     teamMember.setProject(project);
+    teamMember.setOrganization(project.getOrganization());
     TeamMember savedTeamMember = repository.save(teamMember);
     if (savedTeamMember.getId() == null) {
       throw new DatabaseOperationException("TeamMember could not be created");

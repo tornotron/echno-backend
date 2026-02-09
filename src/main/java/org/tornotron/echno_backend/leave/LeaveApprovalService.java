@@ -70,6 +70,7 @@ public class LeaveApprovalService {
         for (int i = 0; i < approvers.size(); i++) {
             LeaveApproval approval = new LeaveApproval();
             approval.setLeaveRequest(request);
+            approval.setOrganization(request.getOrganization());
             approval.setApprover(approvers.get(i));
             approval.setApprovalLevel(i + 1);
             approval.setAction(ApprovalAction.PENDING);
@@ -186,6 +187,7 @@ public class LeaveApprovalService {
 
         LeaveApproval delegatedApproval = new LeaveApproval();
         delegatedApproval.setLeaveRequest(request);
+        delegatedApproval.setOrganization(request.getOrganization());
         delegatedApproval.setApprover(delegateTo);
         delegatedApproval.setApprovalLevel(request.getCurrentApprovalLevel());
         delegatedApproval.setAction(ApprovalAction.PENDING);
@@ -308,6 +310,7 @@ public class LeaveApprovalService {
 
                     LeaveTransaction transaction = new LeaveTransaction();
                     transaction.setEmployee(request.getEmployee());
+                    transaction.setOrganization(request.getOrganization());
                     transaction.setLeaveBalance(balance);
                     transaction.setLeaveRequest(request);
                     transaction.setTransactionType(TransactionType.DEDUCTION);

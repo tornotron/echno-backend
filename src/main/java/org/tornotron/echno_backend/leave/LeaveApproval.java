@@ -6,6 +6,11 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.leave.enums.ApprovalAction;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDateTime;
 
@@ -17,7 +22,9 @@ import java.time.LocalDateTime;
         @Index(name = "idx_leave_approval_approver", columnList = "approver_id"),
         @Index(name = "idx_leave_approval_action", columnList = "action")
 })
-public class LeaveApproval {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class LeaveApproval implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,6 +34,10 @@ public class LeaveApproval {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "leave_request_id", nullable = false)
     private LeaveRequest leaveRequest;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approver_id", nullable = false)

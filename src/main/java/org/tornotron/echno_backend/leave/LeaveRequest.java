@@ -4,7 +4,11 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.leave.enums.HalfDayType;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
@@ -18,6 +22,8 @@ import java.util.List;
 @Entity
 @Data
 @NoArgsConstructor
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Table(name = "leave_request", indexes = {
         @Index(name = "idx_leave_request_employee", columnList = "employee_id"),
         @Index(name = "idx_leave_request_org", columnList = "organization_id"),
@@ -26,7 +32,7 @@ import java.util.List;
         @Index(name = "idx_leave_request_dates", columnList = "start_date, end_date"),
         @Index(name = "idx_leave_request_approver", columnList = "current_approver_id")
 })
-public class LeaveRequest {
+public class LeaveRequest implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

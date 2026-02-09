@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.MaterialDtoConvertor;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.material.dto.MaterialCreationDto;
@@ -21,11 +22,14 @@ public class MaterialService {
 
     private final MaterialRepository materialRepository;
     private final org.tornotron.echno_backend.inventoryTransaction.InventoryService inventoryService;
+    private final TenantEntityHelper tenantEntityHelper;
 
     public MaterialService(MaterialRepository materialRepository,
-                          org.tornotron.echno_backend.inventoryTransaction.InventoryService inventoryService) {
+                          org.tornotron.echno_backend.inventoryTransaction.InventoryService inventoryService,
+                          TenantEntityHelper tenantEntityHelper) {
         this.materialRepository = materialRepository;
         this.inventoryService = inventoryService;
+        this.tenantEntityHelper = tenantEntityHelper;
     }
 
     @Transactional
@@ -39,6 +43,7 @@ public class MaterialService {
         material.setSku(creationDto.getSku());
         material.setMaterialName(creationDto.getMaterialName());
         material.setUnit(creationDto.getUnit());
+        material.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         material = materialRepository.save(material);
         return MaterialDtoConvertor.convertToDto(material);

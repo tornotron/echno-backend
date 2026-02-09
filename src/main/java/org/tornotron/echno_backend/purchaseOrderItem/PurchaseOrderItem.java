@@ -3,7 +3,12 @@ package org.tornotron.echno_backend.purchaseOrderItem;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.indentItem.IndentItem;
+import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 
@@ -12,7 +17,9 @@ import java.math.BigDecimal;
 @Entity
 @Data
 @NoArgsConstructor
-public class PurchaseOrderItem {
+@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
+public class PurchaseOrderItem implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,4 +51,8 @@ public class PurchaseOrderItem {
 
     @Column(name = "remarks")
     private String remarks;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 }
