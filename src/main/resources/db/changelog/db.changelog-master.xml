@@ -112,6 +112,9 @@
     <!-- Backfill organization_id from parent relationships -->
     <include file="db/changelog/v1.3/059-backfill-org-id.xml"/>
 
+    <!-- Remove unique constraint from employee email -->
+    <include file="db/changelog/v1.3/061-remove-employee-email-unique-constraint.xml"/>
+
     <!-- Tag v1.3 release -->
     <include file="db/changelog/v1.3/060-tag-v1.3.xml"/>
 
