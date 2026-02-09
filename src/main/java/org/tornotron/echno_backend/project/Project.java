@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
@@ -26,7 +24,6 @@ import java.util.List;
 @Table(name = "Project",indexes = {
         @Index(name = "idx_project_name", columnList = "project_name")
 })
-@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 public class Project implements TenantScopedEntity {
 

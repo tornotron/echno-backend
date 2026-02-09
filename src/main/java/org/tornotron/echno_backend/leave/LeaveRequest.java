@@ -5,8 +5,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.Employee;
@@ -22,7 +20,6 @@ import java.util.List;
 @Entity
 @Data
 @NoArgsConstructor
-@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Table(name = "leave_request", indexes = {
         @Index(name = "idx_leave_request_employee", columnList = "employee_id"),

@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
-import org.hibernate.annotations.FilterDef;
-import org.hibernate.annotations.ParamDef;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
@@ -18,7 +16,6 @@ import java.time.LocalDateTime;
 @Table(name = "leave_request_sequence", uniqueConstraints = {
         @UniqueConstraint(name = "uk_leave_req_seq_org_year", columnNames = {"organization_id", "year"})
 })
-@FilterDef(name = "orgFilter", parameters = @ParamDef(name = "organizationId", type = Long.class))
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 public class LeaveRequestSequence implements TenantScopedEntity {
 
