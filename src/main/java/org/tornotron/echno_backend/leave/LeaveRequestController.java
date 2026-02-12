@@ -31,8 +31,9 @@ public class LeaveRequestController {
     @PostMapping
 //    @PreAuthorize("hasAuthority('leave:create') or hasAuthority('leave:admin')")
     public ResponseEntity<LeaveRequestDto> createRequest(
+            @RequestParam Long employeeId,
             @Valid @RequestBody LeaveRequestCreationDto dto) {
-        LeaveRequestDto created = requestService.createRequest(dto);
+        LeaveRequestDto created = requestService.createRequest(dto,employeeId);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
