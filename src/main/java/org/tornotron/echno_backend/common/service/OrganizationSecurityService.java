@@ -148,6 +148,44 @@ public class OrganizationSecurityService {
      * @param roles one or more role names to check
      * @return true if the user has at least one of the specified roles in the current tenant organization
      */
+    /**
+     * Checks if the current user is a member of the current tenant organization.
+     *
+     * Usage in @PreAuthorize: @orgSecurity.isMemberOfCurrentTenant()
+     */
+    /**
+     * Checks if the current user IS the given employee within the current tenant organization.
+     *
+     * Useful for composing fine-grained checks in @PreAuthorize:
+     *   @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('hr-admin')")
+     *
+     * @param employeeId the employee ID to check against the current user
+     */
+    public boolean isSelfInCurrentTenant(Long employeeId) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        if (orgId == null) {
+            log.debug("No current tenant org ID set in TenantContext");
+            return false;
+        }
+        Long currentUserId = userContextService.getCurrentUserId();
+        if (currentUserId == null) {
+            return false;
+        }
+        Optional<Employee> employee = employeeRepository.findByIdAndOrganizationId(employeeId, orgId);
+        boolean result = employee.isPresent() && employee.get().getUser().getId().equals(currentUserId);
+        log.debug("Self-in-tenant check for employee {}: {}", employeeId, result);
+        return result;
+    }
+
+    public boolean isMemberOfCurrentTenant() {
+        Long orgId = TenantContext.getCurrentOrgId();
+        if (orgId == null) {
+            log.debug("No current tenant org ID set in TenantContext");
+            return false;
+        }
+        return isMember(orgId);
+    }
+
     public boolean hasAnyOrgRoleForCurrentTenant(String... roles) {
         Long orgId = TenantContext.getCurrentOrgId();
         if (orgId == null) {
