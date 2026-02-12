@@ -24,7 +24,7 @@ public class LeaveApprovalControllerWeb {
     }
 
     @PostMapping("/approve")
-//    @PreAuthorize("hasAuthority('leave:approve') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveRequestDto> approve(
             @RequestParam Long requestId,
             @Valid @RequestBody LeaveApprovalActionDto dto) {
@@ -32,7 +32,7 @@ public class LeaveApprovalControllerWeb {
     }
 
     @PostMapping("/reject")
-//    @PreAuthorize("hasAuthority('leave:approve') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveRequestDto> reject(
             @RequestParam Long requestId,
             @Valid @RequestBody LeaveApprovalActionDto dto) {
@@ -40,7 +40,7 @@ public class LeaveApprovalControllerWeb {
     }
 
     @PostMapping("/delegate")
-//    @PreAuthorize("hasAuthority('leave:approve') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveRequestDto> delegate(
             @RequestParam Long requestId,
             @Valid @RequestBody LeaveApprovalActionDto dto) {
@@ -48,21 +48,21 @@ public class LeaveApprovalControllerWeb {
     }
 
     @GetMapping("/history")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveApprovalDto>> getApprovalHistory(
             @RequestParam Long requestId) {
         return ResponseEntity.ok(approvalService.getApprovalHistory(requestId));
     }
 
     @GetMapping("/chain")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveApprovalDto>> getApprovalChain(
             @RequestParam Long requestId) {
         return ResponseEntity.ok(approvalService.getApprovalChain(requestId));
     }
 
     @GetMapping("/can-approve")
-//    @PreAuthorize("hasAuthority('leave:approve') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<Map<String, Boolean>> canApprove(
             @RequestParam Long requestId,
             @RequestParam Long employeeId) {

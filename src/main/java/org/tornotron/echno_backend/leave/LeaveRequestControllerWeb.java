@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestCreationDto;
@@ -22,26 +23,28 @@ public class LeaveRequestControllerWeb {
 
     private final LeaveRequestService requestService;
 
+
     public LeaveRequestControllerWeb(LeaveRequestService requestService) {
         this.requestService = requestService;
     }
 
     @PostMapping
-//    @PreAuthorize("hasAuthority('leave:create') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<LeaveRequestDto> createRequest(
+            @RequestParam Long employeeId,
             @Valid @RequestBody LeaveRequestCreationDto dto) {
-        LeaveRequestDto created = requestService.createRequest(dto);
+        LeaveRequestDto created = requestService.createRequest(dto,employeeId);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @GetMapping("/request")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveRequestDto> getRequest(@RequestParam Long requestId) {
         return ResponseEntity.ok(requestService.getRequest(requestId));
     }
 
     @GetMapping("/employee")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveRequestDto>> getEmployeeRequests(
             @RequestParam Long employeeId,
             Pageable pageable) {
@@ -49,23 +52,23 @@ public class LeaveRequestControllerWeb {
     }
 
     @GetMapping("/employee-by-status")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveRequestDto>> getEmployeeRequestsByStatus(
             @RequestParam Long employeeId,
             @RequestParam LeaveStatus status) {
         return ResponseEntity.ok(requestService.getRequestsByEmployeeAndStatus(employeeId, status));
     }
 
-    @GetMapping("/organization")
-//    @PreAuthorize("hasAuthority('leave:admin')")
-    public ResponseEntity<List<LeaveRequestDto>> getOrganizationRequests(
-            @RequestParam Long organizationId,
-            Pageable pageable) {
-        return ResponseEntity.ok(requestService.getRequestsByOrganization(organizationId, pageable).getContent());
-    }
+//    @GetMapping("/organization")
+//    @PreAuthorize()
+//    public ResponseEntity<List<LeaveRequestDto>> getOrganizationRequests(
+//            @RequestParam Long organizationId,
+//            Pageable pageable) {
+//        return ResponseEntity.ok(requestService.getRequestsByOrganization(organizationId, pageable).getContent());
+//    }
 
     @GetMapping("/pending-approvals")
-//    @PreAuthorize("hasAuthority('leave:approve') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admim','hr-admin')")
     public ResponseEntity<List<LeaveRequestDto>> getPendingApprovals(
             @RequestParam Long approverId,
             Pageable pageable) {
@@ -73,7 +76,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @GetMapping("/pending-approvals/count")
-//    @PreAuthorize("hasAuthority('leave:approve') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<Map<String, Long>> getPendingApprovalCount(
             @RequestParam Long approverId) {
         long count = requestService.getPendingApprovalCount(approverId);
@@ -81,21 +84,21 @@ public class LeaveRequestControllerWeb {
     }
 
     @PatchMapping("/update")
-//    @PreAuthorize("hasAuthority('leave:update') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveRequestDto> updateRequest(
             @RequestParam Long requestId,
             @RequestBody Map<String, Object> updates) {
         return ResponseEntity.ok(requestService.updateRequest(requestId, updates));
     }
 
-    @PostMapping("/submit")
-//    @PreAuthorize("hasAuthority('leave:create') or hasAuthority('leave:admin')")
-    public ResponseEntity<LeaveRequestDto> submitRequest(@RequestParam Long requestId) {
+    @PostMapping("employeeId/{employeeId}/submit")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    public ResponseEntity<LeaveRequestDto> submitRequest(@RequestParam Long requestId,@PathVariable Long employeeId) {
         return ResponseEntity.ok(requestService.submitRequest(requestId));
     }
 
     @PostMapping("/cancel")
-//    @PreAuthorize("hasAuthority('leave:update') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveRequestDto> cancelRequest(
             @RequestParam Long requestId,
             @RequestBody Map<String, String> body) {
@@ -103,14 +106,14 @@ public class LeaveRequestControllerWeb {
         return ResponseEntity.ok(requestService.cancelRequest(requestId, reason));
     }
 
-    @PostMapping("/withdraw")
-//    @PreAuthorize("hasAuthority('leave:update') or hasAuthority('leave:admin')")
-    public ResponseEntity<LeaveRequestDto> withdrawRequest(@RequestParam Long requestId) {
+    @PostMapping("employeeId/{employeeId}/withdraw")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    public ResponseEntity<LeaveRequestDto> withdrawRequest(@RequestParam Long requestId,@PathVariable Long employeeId) {
         return ResponseEntity.ok(requestService.withdrawRequest(requestId));
     }
 
     @GetMapping("/conflicts")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LocalDate>> getConflictingDates(
             @RequestParam Long employeeId,
             @RequestParam LocalDate startDate,
@@ -119,7 +122,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @PostMapping("/calculate-days")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<Map<String, Double>> calculateDays(
             @RequestBody Map<String, String> body) {
         LocalDate startDate = LocalDate.parse(body.get("startDate"));

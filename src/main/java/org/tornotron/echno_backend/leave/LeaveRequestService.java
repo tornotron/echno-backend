@@ -8,6 +8,7 @@ import org.springframework.validation.annotation.Validated;
 import org.tornotron.echno_backend.DtoConversions.LeaveRequestDtoConvertor;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestCreationDto;
@@ -53,12 +54,12 @@ public class LeaveRequestService {
     }
 
     @Transactional
-    public LeaveRequestDto createRequest(LeaveRequestCreationDto dto) {
-        Employee employee = employeeRepository.findById(dto.getEmployeeId())
+    public LeaveRequestDto createRequest(LeaveRequestCreationDto dto,Long employeeId) {
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee not found with id: " + dto.getEmployeeId()));
 
-        LeavePolicy policy = policyRepository.findById(dto.getLeavePolicyId())
+        LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(dto.getLeavePolicyId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy not found with id: " + dto.getLeavePolicyId()));
 
@@ -106,7 +107,7 @@ public class LeaveRequestService {
 
     @Transactional(readOnly = true)
     public LeaveRequestDto getRequest(Long requestId) {
-        LeaveRequest request = requestRepository.findById(requestId)
+        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request not found with id: " + requestId));
         return LeaveRequestDtoConvertor.convertToDtoWithHandover(request, employeeRepository);
@@ -146,7 +147,7 @@ public class LeaveRequestService {
 
     @Transactional
     public LeaveRequestDto updateRequest(Long requestId, Map<String, Object> updates) {
-        LeaveRequest request = requestRepository.findById(requestId)
+        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request not found with id: " + requestId));
 
@@ -183,7 +184,7 @@ public class LeaveRequestService {
 
     @Transactional
     public LeaveRequestDto submitRequest(Long requestId) {
-        LeaveRequest request = requestRepository.findById(requestId)
+        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request not found with id: " + requestId));
 
@@ -207,7 +208,7 @@ public class LeaveRequestService {
 
     @Transactional
     public LeaveRequestDto cancelRequest(Long requestId, String reason) {
-        LeaveRequest request = requestRepository.findById(requestId)
+        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request not found with id: " + requestId));
 

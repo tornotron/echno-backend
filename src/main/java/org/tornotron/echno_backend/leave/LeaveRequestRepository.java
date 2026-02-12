@@ -9,10 +9,13 @@ import org.tornotron.echno_backend.leave.enums.LeaveStatus;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
 
     List<LeaveRequest> findByEmployeeId(Long employeeId);
+
+    Optional<LeaveRequest> findByIdAndOrganization_Id(Long id, Long organizationId);
 
     Page<LeaveRequest> findByEmployeeId(Long employeeId, Pageable pageable);
 
