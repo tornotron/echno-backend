@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.projectInviteCode;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
@@ -34,6 +35,7 @@ public class ProjectInviteCodeController {
     }
 
     @GetMapping("/organizationId/{organizationId}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<ProjectInviteCodeDto>> readAllInviteCodes(@PathVariable Long organizationId) {
         return ResponseEntity.status(HttpStatus.OK).body(projectInviteCodeService.readAllProjectInviteCodes(organizationId));
     }
@@ -45,6 +47,7 @@ public class ProjectInviteCodeController {
      * @return A {@link ResponseEntity} with the created invite code DTO and HTTP status 201 (Created).
      */
     @PostMapping("/generateCode/organizationId/{organizationId}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<ProjectInviteCodeDto> createInviteCode(@Valid @RequestBody InviteCodeGenerationDto inviteCodeGenerationDto,
                                                                  @PathVariable Long organizationId) {
         return ResponseEntity.status(HttpStatus.CREATED).body(projectInviteCodeService.generateInviteCode(inviteCodeGenerationDto,organizationId));
@@ -71,6 +74,7 @@ public class ProjectInviteCodeController {
      * @return A {@link ResponseEntity} with the updated invite code DTO and HTTP status 200 (OK).
      */
     @PatchMapping("/{inviteCodeId}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<ProjectInviteCodeDto> patchInviteCode(@PathVariable Long inviteCodeId,
                                                                  @Valid @RequestBody InviteCodePatchDto patchDto) {
         return ResponseEntity.ok(projectInviteCodeService.patchInviteCode(inviteCodeId, patchDto));

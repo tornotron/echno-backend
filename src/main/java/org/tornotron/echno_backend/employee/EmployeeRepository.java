@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.employee;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.user.User;
@@ -39,6 +40,11 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
      */
     List<Employee> findEmployeesByOrganization_Id(Long organizationId);
 
+    @Query("SELECT e FROM Employee e WHERE e.id = :id AND e.organization.id = :orgId")
+    Optional<Employee> findByIdAndOrganizationId(@Param("id") Long id, @Param("orgId") Long orgId);
+
+    @Query("SELECT e FROM Employee e WHERE e.user.id = :userId AND e.organization.id = :orgId")
+    Optional<Employee> findByUserIdAndOrganizationId(@Param("userId") Long userId, @Param("orgId") Long orgId);
     /**
      * Finds employees by a list of their names.
      *

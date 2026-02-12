@@ -6,9 +6,13 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.EmployeeRepository;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Optional;
 
 /**
  * Security service for organization-level authorization checks.
@@ -35,6 +39,14 @@ import java.util.Collection;
 @Service("orgSecurity")
 @Slf4j
 public class OrganizationSecurityService {
+
+    private final UserContextService userContextService;
+    private final EmployeeRepository employeeRepository;
+
+    public OrganizationSecurityService(UserContextService userContextService, EmployeeRepository employeeRepository) {
+        this.userContextService = userContextService;
+        this.employeeRepository = employeeRepository;
+    }
 
     /**
      * Checks if the currently authenticated user is a member of the specified organization.
@@ -142,6 +154,41 @@ public class OrganizationSecurityService {
             log.debug("No current tenant org ID set in TenantContext");
             return false;
         }
+        return hasAnyOrgRole(orgId, roles);
+    }
+
+    /**
+     * Checks if the current user IS the given employee, OR has any of the specified
+     * org-scoped roles in the current tenant organization.
+     *
+     * This allows employees to perform actions on their own records while restricting
+     * actions on other employees' records to users with admin roles.
+     *
+     * Usage in @PreAuthorize:
+     *   @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#id, 'system-admin', 'hr-admin')")
+     *
+     * @param employeeId the employee ID to check against the current user
+     * @param roles one or more admin role names that bypass the self-check
+     * @return true if the current user is the employee or has an admin role
+     */
+    public boolean isSelfOrHasAnyOrgRole(Long employeeId, String... roles) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        if (orgId == null) {
+            log.debug("No current tenant org ID set in TenantContext");
+            return false;
+        }
+
+        // Check if the current user IS this employee
+        Long currentUserId = userContextService.getCurrentUserId();
+        if (currentUserId != null) {
+            Optional<Employee> employee = employeeRepository.findByIdAndOrganizationId(employeeId, orgId);
+            if (employee.isPresent() && employee.get().getUser().getId().equals(currentUserId)) {
+                log.debug("Self-check passed: user {} is employee {}", currentUserId, employeeId);
+                return true;
+            }
+        }
+
+        // Fall back to admin role check
         return hasAnyOrgRole(orgId, roles);
     }
 }
