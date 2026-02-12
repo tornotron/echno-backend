@@ -13,6 +13,8 @@ public interface LeavePolicyRepository extends JpaRepository<LeavePolicy, Long> 
 
     List<LeavePolicy> findByOrganizationId(Long organizationId);
 
+    Optional<LeavePolicy> findByIdAndOrganization_Id(Long id, Long organizationId);
+
     Optional<LeavePolicy> findByOrganizationIdAndLeaveTypeCode(Long organizationId, String leaveTypeCode);
 
     boolean existsByOrganizationIdAndLeaveTypeCode(Long organizationId, String leaveTypeCode);

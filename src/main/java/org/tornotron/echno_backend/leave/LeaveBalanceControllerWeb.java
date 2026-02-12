@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.leave;
 
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.leave.dto.LeaveBalanceAdjustmentDto;
@@ -24,7 +25,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @GetMapping
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveBalanceDto>> getEmployeeBalances(
             @RequestParam Long employeeId,
             @RequestParam(required = false) Integer year) {
@@ -33,7 +34,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @GetMapping("/specific")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveBalanceDto> getSpecificBalance(
             @RequestParam Long employeeId,
             @RequestParam Long policyId,
@@ -43,7 +44,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @GetMapping("/summary")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveBalanceSummaryDto> getBalanceSummary(
             @RequestParam Long employeeId,
             @RequestParam(required = false) Integer year) {
@@ -52,7 +53,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @PostMapping("/recalculate")
-//    @PreAuthorize("hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveBalanceDto>> recalculateBalances(
             @RequestParam Long employeeId,
             @RequestParam(required = false) Integer year) {
@@ -61,21 +62,21 @@ public class LeaveBalanceControllerWeb {
     }
 
     @PostMapping("/adjust")
-//    @PreAuthorize("hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveTransactionDto> adjustBalance(
             @Valid @RequestBody LeaveBalanceAdjustmentDto dto) {
         return ResponseEntity.ok(balanceService.adjustBalance(dto));
     }
 
     @GetMapping("/transactions")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveTransactionDto>> getTransactionHistory(
             @RequestParam Long employeeId) {
         return ResponseEntity.ok(balanceService.getTransactionHistory(employeeId));
     }
 
     @GetMapping("/transactions-by-balance")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveTransactionDto>> getTransactionsByBalance(
             @RequestParam Long balanceId) {
         return ResponseEntity.ok(balanceService.getTransactionsByBalance(balanceId));

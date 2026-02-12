@@ -24,7 +24,7 @@ public class NotificationControllerWeb {
     }
 
     @GetMapping
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<Page<NotificationDto>> getNotifications(
             @RequestParam Long employeeId,
             Pageable pageable) {
@@ -32,14 +32,14 @@ public class NotificationControllerWeb {
     }
 
     @GetMapping("/unread")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<NotificationDto>> getUnreadNotifications(
             @RequestParam Long employeeId) {
         return ResponseEntity.ok(notificationService.getUnreadNotifications(employeeId));
     }
 
     @GetMapping("/unread-count")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<Map<String, Long>> getUnreadCount(
             @RequestParam Long employeeId) {
         long count = notificationService.getUnreadCount(employeeId);
@@ -47,14 +47,14 @@ public class NotificationControllerWeb {
     }
 
     @PatchMapping("/read")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<ApiResponse> markAsRead(@RequestParam Long notificationId) {
         notificationService.markAsRead(notificationId);
         return ResponseEntity.ok(new ApiResponse("Notification marked as read"));
     }
 
     @PostMapping("/mark-all-read")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<Map<String, Integer>> markAllAsRead(
             @RequestParam Long employeeId) {
         int count = notificationService.markAllAsRead(employeeId);

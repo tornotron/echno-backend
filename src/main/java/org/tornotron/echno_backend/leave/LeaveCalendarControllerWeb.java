@@ -22,7 +22,7 @@ public class LeaveCalendarControllerWeb {
     }
 
     @GetMapping("/organization")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveCalendarDto>> getOrganizationCalendar(
             @RequestParam Long organizationId,
             @RequestParam LocalDate startDate,
@@ -32,7 +32,7 @@ public class LeaveCalendarControllerWeb {
     }
 
     @GetMapping("/department")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveCalendarDto>> getDepartmentCalendar(
             @RequestParam Long organizationId,
             @RequestParam String department,
@@ -43,7 +43,7 @@ public class LeaveCalendarControllerWeb {
     }
 
     @GetMapping("/employee")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveCalendarDto>> getEmployeeCalendar(
             @RequestParam Long employeeId,
             @RequestParam LocalDate startDate,
@@ -53,7 +53,7 @@ public class LeaveCalendarControllerWeb {
     }
 
     @GetMapping("/team")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveCalendarDto>> getTeamCalendar(
             @RequestParam Long managerId,
             @RequestParam LocalDate startDate,
@@ -63,7 +63,7 @@ public class LeaveCalendarControllerWeb {
     }
 
     @GetMapping("/grouped")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<Map<LocalDate, List<LeaveCalendarDto>>> getCalendarGroupedByDate(
             @RequestParam Long organizationId,
             @RequestParam LocalDate startDate,
@@ -73,7 +73,7 @@ public class LeaveCalendarControllerWeb {
     }
 
     @GetMapping("/count")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<Map<String, Long>> getEmployeesOnLeaveCount(
             @RequestParam Long organizationId,
             @RequestParam LocalDate date) {

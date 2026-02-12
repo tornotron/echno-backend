@@ -6,12 +6,14 @@ import org.springframework.validation.annotation.Validated;
 import org.tornotron.echno_backend.DtoConversions.LeavePolicyDtoConvertor;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeavePolicyCreationDto;
 import org.tornotron.echno_backend.leave.dto.LeavePolicyDto;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -26,19 +28,21 @@ public class LeavePolicyService {
     private final LeavePolicyRepository policyRepository;
     private final OrganizationRepository organizationRepository;
     private final EmployeeRepository employeeRepository;
+    private final UserContextService userContextService;
 
     public LeavePolicyService(
             LeavePolicyRepository policyRepository,
             OrganizationRepository organizationRepository,
-            EmployeeRepository employeeRepository) {
+            EmployeeRepository employeeRepository, UserContextService userContextService) {
         this.policyRepository = policyRepository;
         this.organizationRepository = organizationRepository;
         this.employeeRepository = employeeRepository;
+        this.userContextService = userContextService;
     }
 
     @Transactional
     public LeavePolicyDto createPolicy(LeavePolicyCreationDto dto) {
-        Organization organization = organizationRepository.findById(dto.getOrganizationId())
+        Organization organization = organizationRepository.findByIdAndUserEmail(TenantContext.getCurrentOrgId(), userContextService.getCurrentUserEmail())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Organization not found with id: " + dto.getOrganizationId()));
 
@@ -76,7 +80,7 @@ public class LeavePolicyService {
 
     @Transactional(readOnly = true)
     public LeavePolicyDto getPolicy(Long policyId) {
-        LeavePolicy policy = policyRepository.findById(policyId)
+        LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy not found with id: " + policyId));
         return LeavePolicyDtoConvertor.convertToDto(policy);
@@ -117,7 +121,7 @@ public class LeavePolicyService {
 
     @Transactional(readOnly = true)
     public List<LeavePolicyDto> getApplicablePoliciesForEmployee(Long employeeId) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee not found with id: " + employeeId));
 
@@ -138,7 +142,7 @@ public class LeavePolicyService {
 
     @Transactional
     public LeavePolicyDto updatePolicy(Long policyId, Map<String, Object> updates) {
-        LeavePolicy policy = policyRepository.findById(policyId)
+        LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy not found with id: " + policyId));
 
@@ -179,7 +183,7 @@ public class LeavePolicyService {
 
     @Transactional
     public void deactivatePolicy(Long policyId) {
-        LeavePolicy policy = policyRepository.findById(policyId)
+        LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy not found with id: " + policyId));
 
@@ -189,7 +193,7 @@ public class LeavePolicyService {
 
     @Transactional
     public void activatePolicy(Long policyId) {
-        LeavePolicy policy = policyRepository.findById(policyId)
+        LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy not found with id: " + policyId));
 
@@ -199,11 +203,11 @@ public class LeavePolicyService {
 
     @Transactional
     public LeavePolicyDto duplicatePolicy(Long policyId, Long targetOrganizationId) {
-        LeavePolicy source = policyRepository.findById(policyId)
+        LeavePolicy source = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy not found with id: " + policyId));
 
-        Organization targetOrg = organizationRepository.findById(targetOrganizationId)
+        Organization targetOrg = organizationRepository.findByIdAndUserEmail(targetOrganizationId,userContextService.getCurrentUserEmail())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Organization not found with id: " + targetOrganizationId));
 
