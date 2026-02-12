@@ -10,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.enums.OrgRole;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
@@ -102,6 +103,7 @@ public class OrganizationService {
 
         EmployeeJoinOrgDto joinOrgDto = new EmployeeJoinOrgDto();
         EmployeeDto employeeDto = employeeService.joinOrganization(currentUser.getId(), savedOrganization.getId(), joinOrgDto);
+        TenantContext.setCurrentOrgId(savedOrganization.getId());
         employeeService.assignOrgRole(employeeDto.getId(), OrgRole.SYSTEM_ADMIN);
 
         if (attachments != null && !attachments.isEmpty()) {
