@@ -7,6 +7,7 @@ import org.springframework.validation.annotation.Validated;
 import lombok.extern.slf4j.Slf4j;
 import org.tornotron.echno_backend.DtoConversions.EmployeeDtoConvertor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -195,10 +196,10 @@ public class EmployeeService {
      */
     @Transactional(readOnly = true)
     public EmployeeDto displayAnEmployee(Long id) {
-        EmployeeDto employeeDto = employeeRepository.findById(id)
+        EmployeeDto employeeDto = employeeRepository.findByIdAndOrganizationId(id,TenantContext.getCurrentOrgId())
                 .map(EmployeeDtoConvertor::convertEmployeeToDto)
                 .orElse(null);
-        if(employeeDto==null) {
+        if(employeeDto == null) {
             throw new ResourceNotFoundException("Employee not found with id: "+id);
         } else {
             return employeeDto;
@@ -427,7 +428,7 @@ public class EmployeeService {
 
     @Transactional
     public EmployeeDto assignOrgRole(Long employeeId, OrgRole role) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
 
         employee.getOrgRoles().add(role);
@@ -450,7 +451,7 @@ public class EmployeeService {
 
     @Transactional
     public EmployeeDto removeOrgRole(Long employeeId, OrgRole role) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
 
         employee.getOrgRoles().remove(role);
@@ -473,7 +474,7 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public Set<OrgRole> getOrgRoles(Long employeeId) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
         return employee.getOrgRoles();
     }

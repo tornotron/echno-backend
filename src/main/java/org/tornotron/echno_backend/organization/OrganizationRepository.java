@@ -41,4 +41,12 @@ public interface OrganizationRepository extends JpaRepository<Organization, Long
     )
     List<Organization> findAllByUserEmail(@Param("email") String email);
 
+    @Query(
+            "SELECT o FROM Organization o " +
+                    "JOIN o.employees e " +
+                    "JOIN e.user u " +
+                    "WHERE o.id = :organizationId AND u.email = :email"
+    )
+    Optional<Organization> findByIdAndUserEmail(@Param("organizationId") Long organizationId, @Param("email") String email);
+
 }
