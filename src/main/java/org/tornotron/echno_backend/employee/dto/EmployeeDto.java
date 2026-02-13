@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.employee.dto;
 
 import lombok.Data;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.user.enums.UserRole;
@@ -41,4 +42,5 @@ public class EmployeeDto {
     private Set<OrgRole> orgRoles;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private List<AttachmentDto> attachments;
 }
