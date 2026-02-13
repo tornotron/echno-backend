@@ -13,6 +13,7 @@ import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.organization.Organization;
@@ -41,6 +42,7 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final CategoryRepository categoryRepository;
     private final AttachmentService attachmentService;
+    private final FileStorageService fileStorageService;
 
 
     /**
@@ -55,13 +57,14 @@ public class TaskService {
                        EmployeeRepository employeeRepository,
                        ProjectRepository projectRepository,
                        CategoryRepository categoryRepository,
-                       AttachmentService attachmentService
-                      ) {
+                       AttachmentService attachmentService,
+                       FileStorageService fileStorageService) {
         this.taskRepository = taskRepository;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.categoryRepository = categoryRepository;
         this.attachmentService = attachmentService;
+        this.fileStorageService = fileStorageService;
     }
 
 
@@ -157,7 +160,7 @@ public class TaskService {
     public Page<TaskDto> getAllTasks(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
         return taskRepository.findAll(pageable)
-                .map(TaskDtoConvertor::convertTaskToDto);
+                .map(task -> TaskDtoConvertor.convertTaskToDto(task,fileStorageService));
     }
 
     /**
@@ -168,7 +171,7 @@ public class TaskService {
     @Transactional(readOnly = true)
     public List<TaskDto> getAllTasks() {
         return taskRepository.findAll().stream()
-                .map(TaskDtoConvertor::convertTaskToDto)
+                .map(task -> TaskDtoConvertor.convertTaskToDto(task,fileStorageService))
                 .toList();
     }
 
@@ -182,7 +185,7 @@ public class TaskService {
     @Transactional(readOnly = true)
     public TaskDto getATask(Long id) {
         TaskDto taskDto = taskRepository.findById(id)
-                .map(TaskDtoConvertor::convertTaskToDto)
+                .map(task -> TaskDtoConvertor.convertTaskToDto(task,fileStorageService))
                 .orElse(null);
         if(taskDto == null) {
             throw new ResourceNotFoundException("Task not found with id: " + id);

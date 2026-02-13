@@ -174,7 +174,7 @@ public class UserService {
     public List<EmployeeDto> getEmployeesForUser(String keycloakId) {
         return userRepository.findUserWithEmployeesByKeycloakId(keycloakId)
                 .map(user -> user.getEmployees().stream()
-                        .map(EmployeeDtoConvertor::convertEmployeeToDto)
+                        .map(emp -> EmployeeDtoConvertor.convertEmployeeToDto(emp, fileStorageService))
                         .collect(Collectors.toList()))
                 .orElse(List.of());
     }

@@ -36,17 +36,17 @@ public class OrganizationDtoConvertor {
         return teamMemberDto;
     }
 
-    private static TaskDto convertTaskToTaskDto(Task task) {
+    private static TaskDto convertTaskToTaskDto(Task task,FileStorageService fileStorageService) {
         TaskDto taskDto = new TaskDto();
         taskDto.setId(task.getId());
         taskDto.setTitle(task.getTitle());
         taskDto.setStartDate(task.getStartDate());
         taskDto.setEndDate(task.getEndDate());
-        taskDto.setCreator(EmployeeDtoConvertor.convertEmployeeToDto(task.getCreator()));
+        taskDto.setCreator(EmployeeDtoConvertor.convertEmployeeToDto(task.getCreator(),fileStorageService));
         taskDto.setProjectId(task.getProject().getId());
         taskDto.setProgress(task.getProgress());
         taskDto.setAssignees(task.getAssignees().stream()
-                .map(EmployeeDtoConvertor::convertEmployeeToDto)
+                .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
                 .collect(Collectors.toSet()));
         taskDto.setCategory(CategoryDtoConvertor.convertCategoryToDto(task.getCategory()));
         taskDto.setTags(task.getTags());
@@ -59,7 +59,7 @@ public class OrganizationDtoConvertor {
         return taskDto;
     }
 
-    private static ProjectDto convertProjectToProjectDto(Project project) {
+    private static ProjectDto convertProjectToProjectDto(Project project,FileStorageService fileStorageService) {
         ProjectDto projectDto = new ProjectDto();
         projectDto.setId(project.getId());
         projectDto.setProjectName(project.getProjectName());
@@ -74,7 +74,7 @@ public class OrganizationDtoConvertor {
                 .map(OrganizationDtoConvertor::convertTeamMemberToTeamMemberDTO)
                 .collect(Collectors.toList()));
         projectDto.setTasks(project.getTasks().stream()
-                .map(OrganizationDtoConvertor::convertTaskToTaskDto)
+                .map(task ->TaskDtoConvertor.convertTaskToDto(task,fileStorageService))
                 .collect(Collectors.toList()));
         return projectDto;
     }
@@ -157,7 +157,7 @@ public class OrganizationDtoConvertor {
                 .map(OrganizationDtoConvertor::convertEmployeeToEmployeeDto)
                 .collect(Collectors.toList()));
         dto.setProjects(organization.getProjects().stream()
-                .map(OrganizationDtoConvertor::convertProjectToProjectDto)
+                .map(project -> ProjectDtoConvertor.convertProjectToDto(project,fileStorageService))
                 .collect(Collectors.toList()));
         dto.setAttachments(organization.getAttachments().stream()
                 .map(attachment -> convertAttachmentToDto(attachment, fileStorageService))
