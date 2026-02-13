@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.dto.*;
@@ -35,6 +36,7 @@ public class ProjectService {
     private final ProjectRepository repository;
     private final OrganizationRepository organizationRepository;
     private final AttachmentService attachmentService;
+    private final FileStorageService fileStorageService;
 
     /**
      * Constructs a ProjectService with the necessary repositories.
@@ -43,12 +45,13 @@ public class ProjectService {
      * @param organizationRepository The repository for organization data access.
      * @param attachmentService      The service for attachment operations.
      */
-    public ProjectService(ProjectRepository repository, 
+    public ProjectService(ProjectRepository repository,
                           OrganizationRepository organizationRepository,
-                          AttachmentService attachmentService) {
+                          AttachmentService attachmentService, FileStorageService fileStorageService) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
         this.attachmentService = attachmentService;
+        this.fileStorageService = fileStorageService;
     }
 
     /**
@@ -97,7 +100,7 @@ public class ProjectService {
     public Page<ProjectDto> getAllProjects(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return repository.findAll(pageable)
-                .map(ProjectDtoConvertor::convertProjectToDto);
+                .map(project -> ProjectDtoConvertor.convertProjectToDto(project,fileStorageService));
     }
 
     /**
@@ -110,7 +113,7 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public ProjectDto getAProject(Long id) {
         ProjectDto projectDto =repository.findById(id)
-                .map(ProjectDtoConvertor::convertProjectToDto)
+                .map(project -> ProjectDtoConvertor.convertProjectToDto(project,fileStorageService))
                 .orElse(null);
         if(projectDto==null) {
             throw new ResourceNotFoundException("Project not found with id: "+id);

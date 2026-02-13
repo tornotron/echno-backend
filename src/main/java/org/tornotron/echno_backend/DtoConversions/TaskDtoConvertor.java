@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.DtoConversions;
 
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.task.Task;
@@ -30,16 +31,16 @@ public class TaskDtoConvertor {
     }
 
 
-    public static TaskDto convertTaskToDto(Task task) {
+    public static TaskDto convertTaskToDto(Task task, FileStorageService fileStorageService) {
         TaskDto dto = new TaskDto();
         dto.setId(task.getId());
         dto.setTitle(task.getTitle());
         dto.setStartDate(task.getStartDate());
         dto.setEndDate(task.getEndDate());
-        dto.setCreator(EmployeeDtoConvertor.convertEmployeeToDto(task.getCreator()));
+        dto.setCreator(EmployeeDtoConvertor.convertEmployeeToDto(task.getCreator(),fileStorageService));
         dto.setProjectId(task.getProject().getId());
         dto.setAssignees(task.getAssignees().stream()
-                .map(EmployeeDtoConvertor::convertEmployeeToDto)
+                .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
                 .collect(Collectors.toSet()));
         dto.setCategory(CategoryDtoConvertor.convertCategoryToDto(task.getCategory()));
         dto.setProgress(task.getProgress());

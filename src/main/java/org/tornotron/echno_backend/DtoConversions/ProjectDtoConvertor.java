@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.DtoConversions;
 
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
@@ -26,16 +27,16 @@ public class ProjectDtoConvertor {
         return teamMemberDto;
     }
 
-    private static TaskDto convertTaskToTaskDto(Task task) {
+    private static TaskDto convertTaskToTaskDto(Task task, FileStorageService fileStorageService) {
         TaskDto taskDto = new TaskDto();
         taskDto.setId(task.getId());
         taskDto.setTitle(task.getTitle());
         taskDto.setStartDate(task.getStartDate());
         taskDto.setEndDate(task.getEndDate());
-        taskDto.setCreator(EmployeeDtoConvertor.convertEmployeeToDto(task.getCreator()));
+        taskDto.setCreator(EmployeeDtoConvertor.convertEmployeeToDto(task.getCreator(),fileStorageService));
         taskDto.setProjectId(task.getProject().getId());
         taskDto.setAssignees(task.getAssignees().stream()
-                .map(EmployeeDtoConvertor::convertEmployeeToDto)
+                .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
                 .collect(Collectors.toSet()));
         taskDto.setCategory(CategoryDtoConvertor.convertCategoryToDto(task.getCategory()));
         taskDto.setProgress(task.getProgress());
@@ -60,7 +61,7 @@ public class ProjectDtoConvertor {
         return simpleDto;
     }
 
-    public static ProjectDto convertProjectToDto(Project project) {
+    public static ProjectDto convertProjectToDto(Project project,FileStorageService fileStorageService) {
         ProjectDto dto = new ProjectDto();
         dto.setId(project.getId());
         dto.setProjectName(project.getProjectName());
@@ -75,7 +76,7 @@ public class ProjectDtoConvertor {
                 .map(ProjectDtoConvertor::convertTeamMemberToTeamMemberDTO)
                 .collect(Collectors.toList()));
         dto.setTasks(project.getTasks().stream()
-                .map(ProjectDtoConvertor::convertTaskToTaskDto)
+                .map(task -> TaskDtoConvertor.convertTaskToDto(task, fileStorageService))
                 .collect(Collectors.toList()));
         return dto;
     }
