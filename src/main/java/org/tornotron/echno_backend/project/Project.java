@@ -6,12 +6,13 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.task.Task;
-import org.tornotron.echno_backend.teamMember.TeamMember;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -50,10 +51,14 @@ public class Project implements TenantScopedEntity {
     @Column(name = "status", nullable = true)
     private ProjectCreationStatus status;
 
-    /** The list of team members assigned to this project. */
-    @OneToMany(mappedBy = "project")
-    @Column(nullable = true)
-    private List<TeamMember> teamMembers;
+    /** The list of employees assigned to this project. */
+    @ManyToMany
+    @JoinTable(
+            name = "project_employees",
+            joinColumns = @JoinColumn(name = "project_id"),
+            inverseJoinColumns = @JoinColumn(name = "employee_id")
+    )
+    private List<Employee> employees = new ArrayList<>();
 
     /** The organization to which this project belongs. */
     @ManyToOne

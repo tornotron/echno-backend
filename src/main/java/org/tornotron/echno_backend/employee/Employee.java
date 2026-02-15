@@ -7,12 +7,14 @@ import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.task.Task;
 import org.tornotron.echno_backend.user.User;
 
 import org.tornotron.echno_backend.common.enums.OrgRole;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -101,6 +103,10 @@ public class Employee implements TenantScopedEntity {
     @Column(name = "role")
     @Enumerated(EnumType.STRING)
     private Set<OrgRole> orgRoles = new HashSet<>();
+
+    /** The list of projects this employee is assigned to. */
+    @ManyToMany(mappedBy = "employees")
+    private List<Project> projects = new ArrayList<>();
 
     /** The list of tasks created by this employee. */
     @OneToMany(mappedBy = "creator")
