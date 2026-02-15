@@ -75,9 +75,11 @@ public class ProjectInviteCodeService {
     public ProjectInviteCodeDto generateInviteCode(InviteCodeGenerationDto inviteCodeGenerationDto,Long organizationId) {
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+ organizationId));
-        Set<Long> managerIdSet = new HashSet<>(employeeRepository.findAllManagerIds());
-        if(!managerIdSet.contains(inviteCodeGenerationDto.getManagerId())) {
-            throw new ResourceNotFoundException("Manager with id: "+inviteCodeGenerationDto.getManagerId()+" does not exist");
+        if (inviteCodeGenerationDto.getManagerId() != null) {
+            Set<Long> managerIdSet = new HashSet<>(employeeRepository.findAllManagerIds());
+            if (!managerIdSet.contains(inviteCodeGenerationDto.getManagerId())) {
+                throw new ResourceNotFoundException("Manager with id: " + inviteCodeGenerationDto.getManagerId() + " does not exist");
+            }
         }
         int inviteCode = generateSecureFiveDigitNumber();
         ProjectInviteCode projectInviteCode = new ProjectInviteCode();
