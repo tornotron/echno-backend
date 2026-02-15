@@ -33,7 +33,7 @@ public class EmployeeDtoConvertor {
         dto.setOrganizationName(employee.getOrganization().getOrganizationName());
         dto.setSalary(employee.getSalary());
         dto.setEmployeeName(employee.getEmployeeName());
-        dto.setAddress(employee.getAddress());
+        dto.setAddress(employee.getUser().getAddress());
         dto.setDesignation(employee.getDesignation());
         dto.setDepartment(employee.getDepartment());
         dto.setJoiningDate(employee.getJoiningDate());
