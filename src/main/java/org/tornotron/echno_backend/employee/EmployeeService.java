@@ -242,6 +242,9 @@ public class EmployeeService {
                 case "employeeName":
                     employee.setEmployeeName((String) value);
                     break;
+                case "designation":
+                    employee.setDesignation((String) value);
+                    break;
                 case "phoneNumber":
                     employee.setPhoneNumber((String) value);
                     break;
