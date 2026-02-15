@@ -115,6 +115,9 @@
     <!-- Remove unique constraint from employee email -->
     <include file="db/changelog/v1.3/061-remove-employee-email-unique-constraint.xml"/>
 
+    <!-- Replace team_member with project-employee many-to-many -->
+    <include file="db/changelog/v1.3/062-create-project-employees.xml"/>
+
     <!-- Tag v1.3 release -->
     <include file="db/changelog/v1.3/060-tag-v1.3.xml"/>
 
