@@ -7,17 +7,20 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.DtoConversions.EmployeeDtoConvertor;
 import org.tornotron.echno_backend.DtoConversions.ProjectDtoConvertor;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.EmployeeRepository;
+import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.dto.*;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
-import software.amazon.awssdk.services.s3.endpoints.internal.Value;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,6 +38,7 @@ public class ProjectService {
 
     private final ProjectRepository repository;
     private final OrganizationRepository organizationRepository;
+    private final EmployeeRepository employeeRepository;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
 
@@ -43,13 +47,16 @@ public class ProjectService {
      *
      * @param repository             The repository for project data access.
      * @param organizationRepository The repository for organization data access.
+     * @param employeeRepository     The repository for employee data access.
      * @param attachmentService      The service for attachment operations.
      */
     public ProjectService(ProjectRepository repository,
                           OrganizationRepository organizationRepository,
+                          EmployeeRepository employeeRepository,
                           AttachmentService attachmentService, FileStorageService fileStorageService) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
+        this.employeeRepository = employeeRepository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
     }
@@ -209,5 +216,67 @@ public class ProjectService {
         Project project = repository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
         return project.getOrganization().getId();
+    }
+
+    /**
+     * Adds an employee to a project.
+     *
+     * @param projectId  The ID of the project.
+     * @param employeeId The ID of the employee to add.
+     * @return A list of employee DTOs currently assigned to the project.
+     */
+    @Transactional
+    public List<EmployeeDto> addEmployeeToProject(Long projectId, Long employeeId) {
+        Project project = repository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+
+        if (project.getEmployees().contains(employee)) {
+            throw new DuplicateResourceException("Employee is already assigned to this project");
+        }
+
+        project.getEmployees().add(employee);
+        repository.save(project);
+
+        return project.getEmployees().stream()
+                .map(e -> EmployeeDtoConvertor.convertEmployeeToDto(e, fileStorageService))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Removes an employee from a project.
+     *
+     * @param projectId  The ID of the project.
+     * @param employeeId The ID of the employee to remove.
+     */
+    @Transactional
+    public void removeEmployeeFromProject(Long projectId, Long employeeId) {
+        Project project = repository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+
+        if (!project.getEmployees().remove(employee)) {
+            throw new ResourceNotFoundException("Employee with id: " + employeeId + " is not assigned to project with id: " + projectId);
+        }
+
+        repository.save(project);
+    }
+
+    /**
+     * Retrieves all employees assigned to a project.
+     *
+     * @param projectId The ID of the project.
+     * @return A list of employee DTOs assigned to the project.
+     */
+    @Transactional(readOnly = true)
+    public List<EmployeeDto> getEmployeesByProjectId(Long projectId) {
+        Project project = repository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+
+        return project.getEmployees().stream()
+                .map(e -> EmployeeDtoConvertor.convertEmployeeToDto(e, fileStorageService))
+                .collect(Collectors.toList());
     }
 }

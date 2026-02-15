@@ -15,6 +15,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.project.dto.ProjectSimpleDto;
@@ -128,16 +129,22 @@ public class ProjectControllerWeb {
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Project with id: "+id+" has been deleted"));
     }
 
-//    /**
-//     * Retrieves the organization ID for a given project ID.
-//     *
-//     * @param id The ID of the project.
-//     * @return A {@link ResponseEntity} containing the organization ID and HTTP status 200 (OK).
-//     */
-//    @GetMapping("{id}/organization")
-//    public ResponseEntity<Long> getOrganizationIdByProjectId(@PathVariable Long id) {
-//        Long organizationId = service.getOrganizationIdByProjectId(id);
-//        return new ResponseEntity<>(organizationId, HttpStatus.OK);
-//    }
+    @PostMapping("{projectId}/employees/{employeeId}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    public ResponseEntity<List<EmployeeDto>> addEmployeeToProject(@PathVariable Long projectId, @PathVariable Long employeeId) {
+        return ResponseEntity.status(HttpStatus.OK).body(service.addEmployeeToProject(projectId, employeeId));
+    }
+
+    @DeleteMapping("{projectId}/employees/{employeeId}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    public ResponseEntity<ApiResponse> removeEmployeeFromProject(@PathVariable Long projectId, @PathVariable Long employeeId) {
+        service.removeEmployeeFromProject(projectId, employeeId);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Employee removed from project"));
+    }
+
+    @GetMapping("{projectId}/employees")
+    public ResponseEntity<List<EmployeeDto>> getEmployeesByProjectId(@PathVariable Long projectId) {
+        return ResponseEntity.status(HttpStatus.OK).body(service.getEmployeesByProjectId(projectId));
+    }
 
 }

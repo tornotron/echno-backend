@@ -2,50 +2,14 @@ package org.tornotron.echno_backend.DtoConversions;
 
 import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.project.dto.ProjectSimpleDto;
-import org.tornotron.echno_backend.task.Task;
-import org.tornotron.echno_backend.task.dto.TaskDto;
-import org.tornotron.echno_backend.teamMember.TeamMember;
-import org.tornotron.echno_backend.teamMember.dto.TeamMemberDto;
 
 import java.util.stream.Collectors;
 
 @Component
 public class ProjectDtoConvertor {
-
-    private static TeamMemberDto convertTeamMemberToTeamMemberDTO(TeamMember teamMember) {
-        TeamMemberDto teamMemberDto = new TeamMemberDto();
-        teamMemberDto.setId(teamMember.getId());
-        teamMemberDto.setMemberName(teamMember.getMemberName());
-        teamMemberDto.setMemberEmail(teamMember.getMemberEmail());
-        teamMemberDto.setMemberPhone(teamMember.getMemberPhone());
-        teamMemberDto.setMemberRole(teamMember.getMemberRole());
-        teamMemberDto.setMemberImage(teamMember.getMemberImage());
-        return teamMemberDto;
-    }
-
-    private static TaskDto convertTaskToTaskDto(Task task, FileStorageService fileStorageService) {
-        TaskDto taskDto = new TaskDto();
-        taskDto.setId(task.getId());
-        taskDto.setTitle(task.getTitle());
-        taskDto.setStartDate(task.getStartDate());
-        taskDto.setEndDate(task.getEndDate());
-        taskDto.setCreator(EmployeeDtoConvertor.convertEmployeeToDto(task.getCreator(),fileStorageService));
-        taskDto.setProjectId(task.getProject().getId());
-        taskDto.setAssignees(task.getAssignees().stream()
-                .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
-                .collect(Collectors.toSet()));
-        taskDto.setCategory(CategoryDtoConvertor.convertCategoryToDto(task.getCategory()));
-        taskDto.setProgress(task.getProgress());
-        taskDto.setTags(task.getTags());
-        taskDto.setCreatedAt(task.getCreatedAt());
-        taskDto.setUpdatedAt(task.getUpdatedAt());
-        taskDto.setStatus(task.getStatus());
-        return taskDto;
-    }
 
     public static ProjectSimpleDto convertProjectToSimpleDto(Project project) {
         ProjectSimpleDto simpleDto = new ProjectSimpleDto();
@@ -61,7 +25,7 @@ public class ProjectDtoConvertor {
         return simpleDto;
     }
 
-    public static ProjectDto convertProjectToDto(Project project,FileStorageService fileStorageService) {
+    public static ProjectDto convertProjectToDto(Project project, FileStorageService fileStorageService) {
         ProjectDto dto = new ProjectDto();
         dto.setId(project.getId());
         dto.setProjectName(project.getProjectName());
@@ -72,8 +36,8 @@ public class ProjectDtoConvertor {
         dto.setCreatedAt(project.getCreatedAt());
         dto.setStartDate(project.getStartDate());
         dto.setEndDate(project.getEndDate());
-        dto.setTeamMembers(project.getTeamMembers().stream()
-                .map(ProjectDtoConvertor::convertTeamMemberToTeamMemberDTO)
+        dto.setEmployees(project.getEmployees().stream()
+                .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee, fileStorageService))
                 .collect(Collectors.toList()));
         dto.setTasks(project.getTasks().stream()
                 .map(task -> TaskDtoConvertor.convertTaskToDto(task, fileStorageService))
