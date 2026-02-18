@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.DtoConversions.ProjectInviteCodeDtoConvertor;
+import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -76,8 +77,7 @@ public class ProjectInviteCodeService {
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+ organizationId));
         if (inviteCodeGenerationDto.getManagerId() != null) {
-            Set<Long> managerIdSet = new HashSet<>(employeeRepository.findAllManagerIds());
-            if (!managerIdSet.contains(inviteCodeGenerationDto.getManagerId())) {
+            if (!employeeRepository.existsByIdAndOrgRolesIn(inviteCodeGenerationDto.getManagerId(), OrgRole.getManagerRoles())) {
                 throw new ResourceNotFoundException("Manager with id: " + inviteCodeGenerationDto.getManagerId() + " does not exist");
             }
         }
