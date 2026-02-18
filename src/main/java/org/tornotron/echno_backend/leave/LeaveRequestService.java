@@ -236,7 +236,7 @@ public class LeaveRequestService {
 
     @Transactional
     public LeaveRequestDto withdrawRequest(Long requestId) {
-        LeaveRequest request = requestRepository.findById(requestId)
+        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request not found with id: " + requestId));
 

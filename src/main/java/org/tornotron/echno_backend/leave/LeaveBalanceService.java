@@ -8,6 +8,7 @@ import org.tornotron.echno_backend.DtoConversions.LeaveTransactionDtoConvertor;
 import org.tornotron.echno_backend.attendance.AttendanceService;
 import org.tornotron.echno_backend.attendance.dto.AttendanceSummaryDto;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveBalanceAdjustmentDto;
@@ -51,11 +52,11 @@ public class LeaveBalanceService {
 
     @Transactional
     public LeaveBalanceDto getOrCalculateBalance(Long employeeId, Long policyId, Integer year) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee not found with id: " + employeeId));
 
-        LeavePolicy policy = policyRepository.findById(policyId)
+        LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy not found with id: " + policyId));
 
@@ -72,7 +73,7 @@ public class LeaveBalanceService {
 
     @Transactional
     public List<LeaveBalanceDto> getAllBalancesForEmployee(Long employeeId, Integer year) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee not found with id: " + employeeId));
 
@@ -88,7 +89,7 @@ public class LeaveBalanceService {
 
     @Transactional
     public LeaveBalanceSummaryDto getBalanceSummary(Long employeeId, Integer year) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee not found with id: " + employeeId));
 
@@ -139,11 +140,11 @@ public class LeaveBalanceService {
 
     @Transactional
     public LeaveTransactionDto adjustBalance(LeaveBalanceAdjustmentDto dto) {
-        Employee employee = employeeRepository.findById(dto.getEmployeeId())
+        Employee employee = employeeRepository.findByIdAndOrganizationId(dto.getEmployeeId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee not found with id: " + dto.getEmployeeId()));
 
-        LeavePolicy policy = policyRepository.findById(dto.getLeavePolicyId())
+        LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(dto.getLeavePolicyId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy not found with id: " + dto.getLeavePolicyId()));
 

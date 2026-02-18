@@ -9,12 +9,15 @@ import org.springframework.data.repository.query.Param;
 import org.tornotron.echno_backend.leave.enums.NotificationType;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
     Page<Notification> findByRecipientIdOrderByCreatedAtDesc(Long recipientId, Pageable pageable);
 
     List<Notification> findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(Long recipientId);
+
+    Optional<Notification> findByIdAndOrganization_Id(Long id, Long organizationId);
 
     Page<Notification> findByRecipientIdAndIsReadFalse(Long recipientId, Pageable pageable);
 
