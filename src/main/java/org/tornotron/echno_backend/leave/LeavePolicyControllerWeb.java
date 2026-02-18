@@ -56,7 +56,7 @@ public class LeavePolicyControllerWeb {
 //    }
 
     @GetMapping("/employee")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<List<LeavePolicyDto>> getApplicablePoliciesForEmployee(
             @RequestParam Long employeeId) {
         return ResponseEntity.ok(policyService.getApplicablePoliciesForEmployee(employeeId));
