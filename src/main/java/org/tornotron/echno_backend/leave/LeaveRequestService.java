@@ -63,7 +63,7 @@ public class LeaveRequestService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy not found with id: " + dto.getLeavePolicyId()));
 
-        validateRequest(employee, policy, dto);
+        validateRequest(employee, policy, dto, null);
 
         double totalDays = calculateTotalDays(
                 dto.getStartDate(),
@@ -128,15 +128,19 @@ public class LeaveRequestService {
     }
 
     @Transactional(readOnly = true)
-    public Page<LeaveRequestDto> getRequestsByOrganization(Long organizationId, Pageable pageable) {
-        return requestRepository.findByOrganizationId(organizationId, pageable)
-                .map(LeaveRequestDtoConvertor::convertToDto);
+    public List<LeaveRequestDto> getRequestsByOrganization() {
+        return requestRepository.findByOrganizationId(TenantContext.getCurrentOrgId())
+                .stream()
+                .map(LeaveRequestDtoConvertor::convertToDto)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public Page<LeaveRequestDto> getPendingApprovals(Long approverId, Pageable pageable) {
-        return requestRepository.findByCurrentApproverId(approverId, pageable)
-                .map(LeaveRequestDtoConvertor::convertToDto);
+    public List<LeaveRequestDto> getPendingApprovals(Long approverId) {
+        return requestRepository.findByCurrentApproverId(approverId)
+                .stream()
+                .map(LeaveRequestDtoConvertor::convertToDto)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -195,7 +199,8 @@ public class LeaveRequestService {
         validateRequest(
                 request.getEmployee(),
                 request.getLeavePolicy(),
-                createDtoFromRequest(request));
+                createDtoFromRequest(request),
+                request.getId());
 
         request.setStatus(LeaveStatus.PENDING_APPROVAL);
         LeaveRequest saved = requestRepository.save(request);
@@ -258,8 +263,13 @@ public class LeaveRequestService {
 
     @Transactional(readOnly = true)
     public List<LocalDate> getConflictingDates(Long employeeId, LocalDate startDate, LocalDate endDate) {
+        return getConflictingDates(employeeId, startDate, endDate, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<LocalDate> getConflictingDates(Long employeeId, LocalDate startDate, LocalDate endDate, Long excludeRequestId) {
         List<LeaveRequest> overlapping = requestRepository.findOverlappingRequests(
-                employeeId, startDate, endDate);
+                employeeId, startDate, endDate, excludeRequestId);
 
         return overlapping.stream()
                 .flatMap(req -> req.getStartDate().datesUntil(req.getEndDate().plusDays(1)))
@@ -300,7 +310,7 @@ public class LeaveRequestService {
         return total;
     }
 
-    private void validateRequest(Employee employee, LeavePolicy policy, LeaveRequestCreationDto dto) {
+    private void validateRequest(Employee employee, LeavePolicy policy, LeaveRequestCreationDto dto, Long excludeRequestId) {
         if (dto.getStartDate().isAfter(dto.getEndDate())) {
             throw new InvalidRequestException("Start date cannot be after end date");
         }
@@ -353,7 +363,7 @@ public class LeaveRequestService {
         }
 
         List<LocalDate> conflicts = getConflictingDates(
-                employee.getId(), dto.getStartDate(), dto.getEndDate());
+                employee.getId(), dto.getStartDate(), dto.getEndDate(), excludeRequestId);
         if (!conflicts.isEmpty()) {
             throw new InvalidRequestException(
                     "Leave already exists for dates: " + conflicts);
