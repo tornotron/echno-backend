@@ -44,7 +44,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @GetMapping("/summary")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<LeaveBalanceSummaryDto> getBalanceSummary(
             @RequestParam Long employeeId,
             @RequestParam(required = false) Integer year) {
