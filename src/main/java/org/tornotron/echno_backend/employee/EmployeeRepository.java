@@ -9,6 +9,7 @@ import org.tornotron.echno_backend.user.User;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Repository interface for {@link Employee} entities.
@@ -22,6 +23,9 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
      * @return An {@link Optional} containing the found {@link Employee}, or {@link Optional#empty()} if no employee with the given name exists.
      */
     Optional<Employee> findEmployeeByEmployeeName(String employeeName);
+
+    @Query("SELECT DISTINCT e FROM Employee e JOIN e.orgRoles r WHERE r IN :roles")
+    List<Employee> findEmployeesByOrgRoles(@Param("roles") Set<OrgRole> roles);
 
     /**
      * Checks if an employee record exists for a given user and organization.
@@ -69,4 +73,7 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
 
     @Query("SELECT e FROM Employee e JOIN e.orgRoles r WHERE e.organization.id = :orgId AND r = :role")
     List<Employee> findByOrganizationIdAndOrgRole(Long orgId, OrgRole role);
+
+    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM Employee e JOIN e.orgRoles r WHERE e.id = :employeeId AND r IN :roles")
+    boolean existsByIdAndOrgRolesIn(@Param("employeeId") Long employeeId, @Param("roles") Set<OrgRole> roles);
 }
