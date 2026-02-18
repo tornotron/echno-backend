@@ -245,6 +245,9 @@ public class EmployeeService {
                 case "designation":
                     employee.setDesignation((String) value);
                     break;
+                case "joiningDate":
+                    employee.setJoiningDate((LocalDateTime) value);
+                    break;
                 case "phoneNumber":
                     employee.setPhoneNumber((String) value);
                     break;
