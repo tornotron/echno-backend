@@ -22,19 +22,21 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
 
     List<LeaveRequest> findByEmployeeIdAndStatus(Long employeeId, LeaveStatus status);
 
-    Page<LeaveRequest> findByOrganizationId(Long organizationId, Pageable pageable);
+    List<LeaveRequest> findByOrganizationId(Long organizationId);
 
-    Page<LeaveRequest> findByCurrentApproverId(Long approverId, Pageable pageable);
+    List<LeaveRequest> findByCurrentApproverId(Long approverId);
 
     List<LeaveRequest> findByCurrentApproverIdAndStatus(Long approverId, LeaveStatus status);
 
     @Query("SELECT lr FROM LeaveRequest lr WHERE lr.employee.id = :employeeId " +
            "AND lr.status NOT IN ('CANCELLED', 'REJECTED', 'WITHDRAWN') " +
+           "AND (:excludeRequestId IS NULL OR lr.id != :excludeRequestId) " +
            "AND ((lr.startDate <= :endDate AND lr.endDate >= :startDate))")
     List<LeaveRequest> findOverlappingRequests(
             @Param("employeeId") Long employeeId,
             @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate);
+            @Param("endDate") LocalDate endDate,
+            @Param("excludeRequestId") Long excludeRequestId);
 
     @Query("SELECT COALESCE(SUM(lr.totalDays), 0) FROM LeaveRequest lr " +
            "WHERE lr.employee.id = :employeeId " +
