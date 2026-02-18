@@ -246,7 +246,7 @@ public class EmployeeService {
                     employee.setDesignation((String) value);
                     break;
                 case "joiningDate":
-                    employee.setJoiningDate((LocalDateTime) value);
+                    employee.setJoiningDate(LocalDateTime.parse((String) value));
                     break;
                 case "phoneNumber":
                     employee.setPhoneNumber((String) value);
@@ -255,7 +255,7 @@ public class EmployeeService {
                     employee.setEmailAddress((String) value);
                     break;
                 case "dateOfBirth":
-                    employee.setDateOfBirth((LocalDateTime) value);
+                    employee.setDateOfBirth(LocalDateTime.parse((String) value));
                     break;
                 case "managerId":
                     Long managerId = ((Number) value).longValue();
@@ -421,7 +421,7 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public List<EmployeeDto> readAllTheManagers() {
-        return employeeRepository.findEmployeesByIsManager(true)
+        return employeeRepository.findEmployeesByOrgRoles(OrgRole.getManagerRoles())
                 .stream()
                 .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
                 .collect(Collectors.toList());
