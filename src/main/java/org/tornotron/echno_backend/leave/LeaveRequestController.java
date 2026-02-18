@@ -61,18 +61,15 @@ public class LeaveRequestController {
 
     @GetMapping("/organizationId/{organizationId}")
 //    @PreAuthorize("hasAuthority('leave:admin')")
-    public ResponseEntity<Page<LeaveRequestDto>> getOrganizationRequests(
-            @PathVariable Long organizationId,
-            Pageable pageable) {
-        return ResponseEntity.ok(requestService.getRequestsByOrganization(organizationId, pageable));
+    public ResponseEntity<List<LeaveRequestDto>> getOrganizationRequests() {
+        return ResponseEntity.ok(requestService.getRequestsByOrganization());
     }
 
     @GetMapping("/pending-approvals")
 //    @PreAuthorize("hasAuthority('leave:approve') or hasAuthority('leave:admin')")
     public ResponseEntity<List<LeaveRequestDto>> getPendingApprovals(
-            @RequestParam Long approverId,
-            Pageable pageable) {
-        return ResponseEntity.ok(requestService.getPendingApprovals(approverId, pageable).getContent());
+            @RequestParam Long approverId) {
+        return ResponseEntity.ok(requestService.getPendingApprovals(approverId));
     }
 
     @GetMapping("/pending-approvals/count")
