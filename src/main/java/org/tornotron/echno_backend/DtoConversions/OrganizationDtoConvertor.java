@@ -42,6 +42,7 @@ public class OrganizationDtoConvertor {
         employeeDto.setCvUrl(employee.getUser().getCvUrl());
         employeeDto.setEmergencyContact(employee.getUser().getEmergencyContact());
         employeeDto.setRole(employee.getUser().getRole());
+        employeeDto.setOrgRoles(employee.getOrgRoles());
         employeeDto.setProfilePictureUrl(employee.getUser().getProfilePictureUrl());
         employeeDto.setCreatedAt(employee.getUser().getCreatedAt());
         employeeDto.setUpdatedAt(employee.getUser().getUpdatedAt());
