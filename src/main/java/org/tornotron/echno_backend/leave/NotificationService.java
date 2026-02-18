@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.tornotron.echno_backend.DtoConversions.NotificationDtoConvertor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.NotificationDto;
@@ -168,7 +169,7 @@ public class NotificationService {
 
     @Transactional
     public void markAsRead(Long notificationId) {
-        Notification notification = notificationRepository.findById(notificationId)
+        Notification notification = notificationRepository.findByIdAndOrganization_Id(notificationId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Notification not found with id: " + notificationId));
 

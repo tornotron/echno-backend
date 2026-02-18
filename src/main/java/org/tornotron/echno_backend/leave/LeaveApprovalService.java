@@ -7,6 +7,7 @@ import org.springframework.validation.annotation.Validated;
 import org.tornotron.echno_backend.DtoConversions.LeaveRequestDtoConvertor;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveApprovalActionDto;
@@ -108,7 +109,7 @@ public class LeaveApprovalService {
 
     @Transactional
     public LeaveRequestDto approve(Long requestId, LeaveApprovalActionDto dto) {
-        LeaveRequest request = requestRepository.findById(requestId)
+        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request not found with id: " + requestId));
 
@@ -134,7 +135,7 @@ public class LeaveApprovalService {
 
     @Transactional
     public LeaveRequestDto reject(Long requestId, LeaveApprovalActionDto dto) {
-        LeaveRequest request = requestRepository.findById(requestId)
+        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request not found with id: " + requestId));
 
@@ -166,13 +167,13 @@ public class LeaveApprovalService {
             throw new InvalidRequestException("Delegate to ID is required");
         }
 
-        LeaveRequest request = requestRepository.findById(requestId)
+        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request not found with id: " + requestId));
 
         validateApprover(request, dto.getApproverId());
 
-        Employee delegateTo = employeeRepository.findById(dto.getDelegateToId())
+        Employee delegateTo = employeeRepository.findByIdAndOrganizationId(dto.getDelegateToId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee not found with id: " + dto.getDelegateToId()));
 
@@ -212,7 +213,7 @@ public class LeaveApprovalService {
 
     @Transactional(readOnly = true)
     public List<LeaveApprovalDto> getApprovalChain(Long requestId) {
-        LeaveRequest request = requestRepository.findById(requestId)
+        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request not found with id: " + requestId));
 
@@ -224,7 +225,7 @@ public class LeaveApprovalService {
 
     @Transactional(readOnly = true)
     public boolean canApprove(Long requestId, Long employeeId) {
-        return requestRepository.findById(requestId)
+        return requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .map(request -> request.getCurrentApprover() != null &&
                                request.getCurrentApprover().getId().equals(employeeId) &&
                                request.getStatus() == LeaveStatus.PENDING_APPROVAL)
