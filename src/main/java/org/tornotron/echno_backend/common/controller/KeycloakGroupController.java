@@ -3,10 +3,7 @@ package org.tornotron.echno_backend.common.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.response.ApiResponse;
@@ -56,7 +53,8 @@ public class KeycloakGroupController {
     @GetMapping("/assignRole/userId/{userId}/organizationId/{organizationId}")
     public ResponseEntity<ApiResponse> assignOrgRole(
             @PathVariable Long userId,
-            @PathVariable Long organizationId
+            @PathVariable Long organizationId,
+            @RequestParam String orgRole
     ) {
         User user = userRepository.findById(userId)
                         .orElseThrow(() -> new ResourceNotFoundException("User not found with id: "+ userId));
@@ -72,7 +70,7 @@ public class KeycloakGroupController {
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found for user " + userId + " in organization " + organizationId));
 
-        employeeService.assignOrgRole(employee.getId(), OrgRole.SYSTEM_ADMIN);
+        employeeService.assignOrgRole(employee.getId(), OrgRole.valueOf(orgRole));
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("User assigned a role"));
     }
 }
