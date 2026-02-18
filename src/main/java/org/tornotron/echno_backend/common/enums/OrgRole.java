@@ -1,5 +1,8 @@
 package org.tornotron.echno_backend.common.enums;
 
+import java.util.List;
+import java.util.Set;
+
 /**
  * Defines the roles that can be assigned to users within a specific organization.
  *
@@ -27,5 +30,19 @@ public enum OrgRole {
 
     public String getGroupName() {
         return groupName;
+    }
+
+    private static final Set<OrgRole> MANAGER_ROLES = Set.of(
+            ORG_MANAGER,
+            HR_ADMIN,
+            PROJECT_MANAGER
+    );
+
+    public static Set<OrgRole> getManagerRoles() {
+        return MANAGER_ROLES;
+    }
+
+    public static boolean isManagerRole(OrgRole role) {
+        return MANAGER_ROLES.contains(role);
     }
 }
