@@ -44,7 +44,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @GetMapping("/employee")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<List<LeaveRequestDto>> getEmployeeRequests(
             @RequestParam Long employeeId,
             Pageable pageable) {
@@ -59,20 +59,17 @@ public class LeaveRequestControllerWeb {
         return ResponseEntity.ok(requestService.getRequestsByEmployeeAndStatus(employeeId, status));
     }
 
-//    @GetMapping("/organization")
-//    @PreAuthorize()
-//    public ResponseEntity<List<LeaveRequestDto>> getOrganizationRequests(
-//            @RequestParam Long organizationId,
-//            Pageable pageable) {
-//        return ResponseEntity.ok(requestService.getRequestsByOrganization(organizationId, pageable).getContent());
-//    }
+    @GetMapping("/organization")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    public ResponseEntity<List<LeaveRequestDto>> getOrganizationRequests() {
+        return ResponseEntity.ok(requestService.getRequestsByOrganization());
+    }
 
     @GetMapping("/pending-approvals")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admim','hr-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveRequestDto>> getPendingApprovals(
-            @RequestParam Long approverId,
-            Pageable pageable) {
-        return ResponseEntity.ok(requestService.getPendingApprovals(approverId, pageable).getContent());
+            @RequestParam Long approverId) {
+        return ResponseEntity.ok(requestService.getPendingApprovals(approverId));
     }
 
     @GetMapping("/pending-approvals/count")
@@ -113,7 +110,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @GetMapping("/conflicts")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<List<LocalDate>> getConflictingDates(
             @RequestParam Long employeeId,
             @RequestParam LocalDate startDate,
@@ -122,7 +119,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @PostMapping("/calculate-days")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<Map<String, Double>> calculateDays(
             @RequestBody Map<String, String> body) {
         LocalDate startDate = LocalDate.parse(body.get("startDate"));
