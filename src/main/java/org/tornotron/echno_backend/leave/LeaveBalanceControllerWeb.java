@@ -44,7 +44,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @GetMapping("/summary")
-    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<LeaveBalanceSummaryDto> getBalanceSummary(
             @RequestParam Long employeeId,
             @RequestParam(required = false) Integer year) {
@@ -69,7 +69,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @GetMapping("/transactions")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<List<LeaveTransactionDto>> getTransactionHistory(
             @RequestParam Long employeeId) {
         return ResponseEntity.ok(balanceService.getTransactionHistory(employeeId));
