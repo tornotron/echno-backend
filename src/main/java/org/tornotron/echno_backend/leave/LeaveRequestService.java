@@ -99,7 +99,9 @@ public class LeaveRequestService {
 
         if (saved.getStatus() == LeaveStatus.PENDING_APPROVAL) {
             approvalService.initializeApprovalChain(saved);
-            updatePendingBalance(saved, true);
+            if (saved.getStatus() == LeaveStatus.PENDING_APPROVAL) {
+                updatePendingBalance(saved, true);
+            }
         }
 
         return LeaveRequestDtoConvertor.convertToDto(saved);
@@ -137,7 +139,15 @@ public class LeaveRequestService {
 
     @Transactional(readOnly = true)
     public List<LeaveRequestDto> getPendingApprovals(Long approverId) {
-        return requestRepository.findByCurrentApproverId(approverId)
+        return requestRepository.findByCurrentApproverIdAndStatus(approverId, LeaveStatus.PENDING_APPROVAL)
+                .stream()
+                .map(LeaveRequestDtoConvertor::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<LeaveRequestDto> getRequestsByApprover(Long approverId) {
+        return requestRepository.findDistinctByApproverParticipation(approverId)
                 .stream()
                 .map(LeaveRequestDtoConvertor::convertToDto)
                 .collect(Collectors.toList());
@@ -206,7 +216,9 @@ public class LeaveRequestService {
         LeaveRequest saved = requestRepository.save(request);
 
         approvalService.initializeApprovalChain(saved);
-        updatePendingBalance(saved, true);
+        if (saved.getStatus() == LeaveStatus.PENDING_APPROVAL) {
+            updatePendingBalance(saved, true);
+        }
 
         return LeaveRequestDtoConvertor.convertToDto(saved);
     }
