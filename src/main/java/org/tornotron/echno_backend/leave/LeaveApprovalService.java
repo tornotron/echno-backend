@@ -115,9 +115,7 @@ public class LeaveApprovalService {
 
         validateApprover(request, dto.getApproverId());
 
-        LeaveApproval approval = approvalRepository
-                .findByLeaveRequestIdAndApprovalLevel(requestId, request.getCurrentApprovalLevel())
-                .orElseThrow(() -> new ResourceNotFoundException("Approval record not found"));
+        LeaveApproval approval = getPendingApproval(request.getId(), request.getCurrentApprovalLevel());
 
         approval.setAction(ApprovalAction.APPROVED);
         approval.setComments(dto.getComments());
@@ -141,9 +139,7 @@ public class LeaveApprovalService {
 
         validateApprover(request, dto.getApproverId());
 
-        LeaveApproval approval = approvalRepository
-                .findByLeaveRequestIdAndApprovalLevel(requestId, request.getCurrentApprovalLevel())
-                .orElseThrow(() -> new ResourceNotFoundException("Approval record not found"));
+        LeaveApproval approval = getPendingApproval(request.getId(), request.getCurrentApprovalLevel());
 
         approval.setAction(ApprovalAction.REJECTED);
         approval.setComments(dto.getComments());
@@ -177,9 +173,7 @@ public class LeaveApprovalService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee not found with id: " + dto.getDelegateToId()));
 
-        LeaveApproval currentApproval = approvalRepository
-                .findByLeaveRequestIdAndApprovalLevel(requestId, request.getCurrentApprovalLevel())
-                .orElseThrow();
+        LeaveApproval currentApproval = getPendingApproval(request.getId(), request.getCurrentApprovalLevel());
 
         currentApproval.setAction(ApprovalAction.DELEGATED);
         currentApproval.setComments(dto.getComments());
@@ -246,9 +240,7 @@ public class LeaveApprovalService {
     private void advanceToNextLevel(LeaveRequest request) {
         int nextLevel = request.getCurrentApprovalLevel() + 1;
 
-        LeaveApproval nextApproval = approvalRepository
-                .findByLeaveRequestIdAndApprovalLevel(request.getId(), nextLevel)
-                .orElseThrow(() -> new ResourceNotFoundException("Next approval level not found"));
+        LeaveApproval nextApproval = getPendingApproval(request.getId(), nextLevel);
 
         request.setCurrentApprovalLevel(nextLevel);
         request.setCurrentApprover(nextApproval.getApprover());
@@ -323,5 +315,16 @@ public class LeaveApprovalService {
 
                     transactionRepository.save(transaction);
                 });
+    }
+
+    private LeaveApproval getPendingApproval(Long requestId, Integer approvalLevel) {
+        return approvalRepository
+                .findFirstByLeaveRequestIdAndApprovalLevelAndActionOrderByCreatedAtDesc(
+                        requestId,
+                        approvalLevel,
+                        ApprovalAction.PENDING)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Pending approval record not found for request " + requestId +
+                        " at level " + approvalLevel));
     }
 }
