@@ -29,6 +29,7 @@ public class EmployeeDtoConvertor {
     public static EmployeeDto convertEmployeeToDto(Employee employee,FileStorageService fileStorageService) {
         EmployeeDto dto = new EmployeeDto();
         dto.setId(employee.getId());
+        dto.setEmployeeId(employee.getEmployeeId());
         dto.setOrganizationId(employee.getOrganization().getId());
         dto.setOrganizationName(employee.getOrganization().getOrganizationName());
         dto.setSalary(employee.getSalary());
