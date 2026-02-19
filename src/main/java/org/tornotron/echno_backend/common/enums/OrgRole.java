@@ -33,6 +33,7 @@ public enum OrgRole {
     }
 
     private static final Set<OrgRole> MANAGER_ROLES = Set.of(
+            SYSTEM_ADMIN,
             ORG_MANAGER,
             HR_ADMIN,
             PROJECT_MANAGER
