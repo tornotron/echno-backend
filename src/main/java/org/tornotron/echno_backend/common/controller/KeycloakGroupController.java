@@ -32,10 +32,9 @@ public class KeycloakGroupController {
         this.employeeRepository = employeeRepository;
     }
 
-    @GetMapping("/assign/userId/{userId}/organizationId/{organizationId}")
+    @PostMapping("/assign")
     public ResponseEntity<ApiResponse> assignUserToKeycloakOrg(
-            @PathVariable Long userId,
-            @PathVariable Long organizationId
+            @RequestParam Long userId
     ) {
         // Look up the user by database ID to get their Keycloak ID
         User user = userRepository.findById(userId)
@@ -45,11 +44,11 @@ public class KeycloakGroupController {
             throw new IllegalStateException("User does not have a Keycloak ID");
         }
 
-        keycloakGroupService.addUserToOrganization(user.getKeycloakId(), organizationId.toString());
+        keycloakGroupService.addUserToOrganization(user.getKeycloakId(), TenantContext.getCurrentOrgId().toString());
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("User added to keycloak Org"));
     }
 
-    @GetMapping("/assignRole")
+    @PostMapping("/assignRole")
     public ResponseEntity<ApiResponse> assignOrgRole(
             @RequestParam Long employeeId,
             @RequestParam String orgRole
@@ -64,5 +63,22 @@ public class KeycloakGroupController {
 
         employeeService.assignOrgRole(employee.getId(), OrgRole.valueOf(orgRole));
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("User assigned a role"));
+    }
+
+    @PostMapping("/unassignRole")
+    public ResponseEntity<ApiResponse> unassignOrgRole(
+            @RequestParam Long employeeId,
+            @RequestParam String orgRole
+    ) {
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId + " in organization"));
+
+        User user = employee.getUser();
+        if (user == null || user.getKeycloakId() == null) {
+            throw new IllegalStateException("Employee does not have a Keycloak user");
+        }
+
+        employeeService.removeOrgRole(employee.getId(), OrgRole.valueOf(orgRole));
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Role unassigned from user"));
     }
 }
