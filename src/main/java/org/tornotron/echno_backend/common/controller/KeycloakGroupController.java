@@ -53,7 +53,7 @@ public class KeycloakGroupController {
             @RequestParam Long employeeId,
             @RequestParam String orgRole
     ) {
-        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
+        Employee employee = employeeRepository.findByIdAndOrganizationIdWithUser(employeeId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId + " in organization "));
 
         User user = employee.getUser();
@@ -70,7 +70,7 @@ public class KeycloakGroupController {
             @RequestParam Long employeeId,
             @RequestParam String orgRole
     ) {
-        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
+        Employee employee = employeeRepository.findByIdAndOrganizationIdWithUser(employeeId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId + " in organization"));
 
         User user = employee.getUser();

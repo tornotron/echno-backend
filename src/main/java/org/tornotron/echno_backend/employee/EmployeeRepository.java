@@ -47,6 +47,9 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
     @Query("SELECT e FROM Employee e WHERE e.id = :id AND e.organization.id = :orgId")
     Optional<Employee> findByIdAndOrganizationId(@Param("id") Long id, @Param("orgId") Long orgId);
 
+    @Query("SELECT e FROM Employee e JOIN FETCH e.user WHERE e.id = :id AND e.organization.id = :orgId")
+    Optional<Employee> findByIdAndOrganizationIdWithUser(@Param("id") Long id, @Param("orgId") Long orgId);
+
     @Query("SELECT e FROM Employee e WHERE e.user.id = :userId AND e.organization.id = :orgId")
     Optional<Employee> findByUserIdAndOrganizationId(@Param("userId") Long userId, @Param("orgId") Long orgId);
     /**
