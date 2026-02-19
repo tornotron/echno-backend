@@ -37,6 +37,10 @@ public class Employee implements TenantScopedEntity {
     @Column(name = "id", nullable = false)
     private Long id;
 
+    /** The organization-specific identifier for the employee. */
+    @Column(name = "employee_id")
+    private String employeeId;
+
     /** The employee's job title or designation. */
     @Column(name = "designation", nullable = true)
     private String designation;

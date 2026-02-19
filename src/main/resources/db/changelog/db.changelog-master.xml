@@ -118,6 +118,9 @@
     <!-- Replace team_member with project-employee many-to-many -->
     <include file="db/changelog/v1.3/062-create-project-employees.xml"/>
 
+    <!-- Add employee_id column for human-friendly identifiers -->
+    <include file="db/changelog/v1.3/063-add-employee-id-to-employee.xml"/>
+
     <!-- Tag v1.3 release -->
     <include file="db/changelog/v1.3/060-tag-v1.3.xml"/>
 

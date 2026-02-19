@@ -20,6 +20,8 @@ public class EmployeeCreationDto {
 
     private LocalDateTime joiningDate;
 
+    private String employeeId;
+
     private Double salary;
 
     private Long managerId;

@@ -23,6 +23,7 @@ import org.tornotron.echno_backend.user.UserRepository;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -123,6 +124,7 @@ public class EmployeeService {
         employee.setDepartment(employeeJoinOrgDto.getDepartment());
         employee.setJoiningDate(employeeJoinOrgDto.getJoiningDate());
         employee.setSalary(employeeJoinOrgDto.getSalary());
+        employee.setEmployeeId(employeeJoinOrgDto.getEmployeeId());
 
         if (employeeJoinOrgDto.getManagerId() != null) {
             Employee manager = employeeRepository.findById(employeeJoinOrgDto.getManagerId())
@@ -239,6 +241,9 @@ public class EmployeeService {
     private void partialUpdateAnEmployee(Map<String, Object> updates, Employee employee) {
         updates.forEach((key, value) -> {
             switch (key) {
+                case "employeeId":
+                    employee.setEmployeeId((String) value);
+                    break;
                 case "employeeName":
                     employee.setEmployeeName((String) value);
                     break;
@@ -246,16 +251,25 @@ public class EmployeeService {
                     employee.setDesignation((String) value);
                     break;
                 case "joiningDate":
-                    employee.setJoiningDate(LocalDateTime.parse((String) value));
+                    employee.setJoiningDate(LocalDateTime.parse((String) value, DateTimeFormatter.ISO_DATE_TIME));
                     break;
                 case "phoneNumber":
                     employee.setPhoneNumber((String) value);
+                    break;
+                case "salary":
+                    employee.setSalary((Double) value);
+                    break;
+                case "shiftTiming":
+                    employee.setShiftTiming((String) value);
+                    break;
+                case "department":
+                    employee.setDepartment((String) value);
                     break;
                 case "emailAddress":
                     employee.setEmailAddress((String) value);
                     break;
                 case "dateOfBirth":
-                    employee.setDateOfBirth(LocalDateTime.parse((String) value));
+                    employee.setDateOfBirth(LocalDateTime.parse((String) value, DateTimeFormatter.ISO_DATE_TIME));
                     break;
                 case "managerId":
                     Long managerId = ((Number) value).longValue();
