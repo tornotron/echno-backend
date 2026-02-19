@@ -19,6 +19,7 @@ public class OrganizationDtoConvertor {
     private static EmployeeDto convertEmployeeToEmployeeDto(Employee employee) {
         EmployeeDto employeeDto = new EmployeeDto();
         employeeDto.setId(employee.getId());
+        employeeDto.setEmployeeId(employee.getEmployeeId());
         employeeDto.setEmployeeName(employee.getEmployeeName());
         employeeDto.setDesignation(employee.getDesignation());
         employeeDto.setDepartment(employee.getDepartment());
