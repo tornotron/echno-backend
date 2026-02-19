@@ -14,6 +14,11 @@ public interface LeaveApprovalRepository extends JpaRepository<LeaveApproval, Lo
 
     Optional<LeaveApproval> findByLeaveRequestIdAndApprovalLevel(Long leaveRequestId, Integer approvalLevel);
 
+    Optional<LeaveApproval> findFirstByLeaveRequestIdAndApprovalLevelAndActionOrderByCreatedAtDesc(
+            Long leaveRequestId,
+            Integer approvalLevel,
+            ApprovalAction action);
+
     Optional<LeaveApproval> findByLeaveRequestIdAndApproverId(Long leaveRequestId, Long approverId);
 
     List<LeaveApproval> findByApproverIdAndAction(Long approverId, ApprovalAction action);
