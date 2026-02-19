@@ -28,6 +28,11 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
 
     List<LeaveRequest> findByCurrentApproverIdAndStatus(Long approverId, LeaveStatus status);
 
+    @Query("SELECT DISTINCT lr FROM LeaveRequest lr " +
+           "JOIN lr.approvals la " +
+           "WHERE la.approver.id = :approverId")
+    List<LeaveRequest> findDistinctByApproverParticipation(@Param("approverId") Long approverId);
+
     @Query("SELECT lr FROM LeaveRequest lr WHERE lr.employee.id = :employeeId " +
            "AND lr.status NOT IN ('CANCELLED', 'REJECTED', 'WITHDRAWN') " +
            "AND (:excludeRequestId IS NULL OR lr.id != :excludeRequestId) " +

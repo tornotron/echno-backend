@@ -65,6 +65,13 @@ public class LeaveRequestControllerWeb {
         return ResponseEntity.ok(requestService.getRequestsByOrganization());
     }
 
+    @GetMapping("/approver")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    public ResponseEntity<List<LeaveRequestDto>> getRequestsByApprover(
+            @RequestParam Long approverId) {
+        return ResponseEntity.ok(requestService.getRequestsByApprover(approverId));
+    }
+
     @GetMapping("/pending-approvals")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveRequestDto>> getPendingApprovals(
@@ -81,9 +88,10 @@ public class LeaveRequestControllerWeb {
     }
 
     @PatchMapping("/update")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<LeaveRequestDto> updateRequest(
             @RequestParam Long requestId,
+            @RequestParam Long employeeId,
             @RequestBody Map<String, Object> updates) {
         return ResponseEntity.ok(requestService.updateRequest(requestId, updates));
     }
@@ -95,9 +103,10 @@ public class LeaveRequestControllerWeb {
     }
 
     @PostMapping("/cancel")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<LeaveRequestDto> cancelRequest(
             @RequestParam Long requestId,
+            @RequestParam Long employeeId,
             @RequestBody Map<String, String> body) {
         String reason = body.get("reason");
         return ResponseEntity.ok(requestService.cancelRequest(requestId, reason));
