@@ -13,6 +13,7 @@ import java.util.Set;
 @Data
 public class EmployeeDto {
     private Long id;
+    private String employeeId;
     private Long organizationId;
     private String organizationName;
     private String employeeName;
