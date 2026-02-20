@@ -6,11 +6,16 @@ import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.resource.ClientResource;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.keycloak.representations.idm.authorization.PolicyRepresentation;
+import org.keycloak.representations.idm.authorization.ResourcePermissionRepresentation;
+import org.keycloak.representations.idm.authorization.ResourceRepresentation;
+import org.keycloak.representations.idm.authorization.RolePolicyRepresentation;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.DependsOn;
@@ -25,6 +30,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -93,6 +99,8 @@ public class KeycloakInitializer implements InitializingBean {
             syncClientConfiguration();
             // Ensure service account roles are assigned even if realm exists
             assignServiceAccountRoles();
+            // Ensure authorization setup (JS policy, resource, permission) exists
+            ensureAuthorizationSetup();
         }
     }
 
@@ -144,6 +152,7 @@ public class KeycloakInitializer implements InitializingBean {
         initKeycloakRealm();
         initKeycloakUsers();
         assignServiceAccountRoles();
+        ensureAuthorizationSetup();
 
     }
 
@@ -288,13 +297,175 @@ public class KeycloakInitializer implements InitializingBean {
                 return;
             }
 
-            if (user.isAdmin() && userId != null) {
+            if (userId != null) {
                 UserResource userResource = keycloak.realm(REALM_ID).users().get(userId);
+                String roleName = user.isAdmin() ? "admin" : "user";
                 List<RoleRepresentation> rolesToAdd =
-                        Collections.singletonList(keycloak.realm(REALM_ID).roles().get("admin").toRepresentation());
+                        Collections.singletonList(keycloak.realm(REALM_ID).roles().get(roleName).toRepresentation());
                 userResource.roles().realmLevel().add(rolesToAdd);
-                log.info("Admin role assigned to user '{}'", user.getUserName());
+                log.info("Role '{}' assigned to user '{}'", roleName, user.getUserName());
             }
+        }
+    }
+
+    private void ensureAuthorizationSetup() {
+        try {
+            log.info("Ensuring authorization setup for client '{}'", appClientId);
+
+            List<org.keycloak.representations.idm.ClientRepresentation> clients =
+                    keycloak.realm(REALM_ID).clients().findByClientId(appClientId);
+            if (clients.isEmpty()) {
+                log.warn("Client '{}' not found, skipping authorization setup", appClientId);
+                return;
+            }
+
+            ClientResource clientResource = keycloak.realm(REALM_ID).clients().get(clients.get(0).getId());
+
+            String policyId = ensureDefaultRolePolicy(clientResource);
+            String resourceId = ensureDefaultResource(clientResource);
+            ensureDefaultPermission(clientResource, policyId, resourceId);
+            ensureUsersHaveBaseRole();
+
+            log.info("Authorization setup complete for client '{}'", appClientId);
+        } catch (Exception e) {
+            log.error("Failed to ensure authorization setup: {}", e.getMessage(), e);
+        }
+    }
+
+    // Returns the policy ID (existing or newly created)
+    private String ensureDefaultRolePolicy(ClientResource clientResource) {
+        String policyName = "Default Policy";
+        List<PolicyRepresentation> existing = clientResource.authorization().policies().policies();
+
+        PolicyRepresentation existingPolicy = existing == null ? null : existing.stream()
+                .filter(p -> policyName.equals(p.getName()))
+                .findFirst().orElse(null);
+
+        if (existingPolicy != null) {
+            log.info("Policy '{}' already exists (id={}), skipping", policyName, existingPolicy.getId());
+            return existingPolicy.getId();
+        }
+
+        RolePolicyRepresentation policy = new RolePolicyRepresentation();
+        policy.setName(policyName);
+        policy.setDescription("A policy that grants access to all authenticated users.");
+
+        // required=false = OR logic — user needs at least one of these roles
+        try {
+            RoleRepresentation userRole = keycloak.realm(REALM_ID).roles().get("user").toRepresentation();
+            policy.addRole(userRole.getId(), false);
+        } catch (Exception e) {
+            log.warn("Realm role 'user' not found, skipping from Default Policy");
+        }
+        try {
+            RoleRepresentation adminRole = keycloak.realm(REALM_ID).roles().get("admin").toRepresentation();
+            policy.addRole(adminRole.getId(), false);
+        } catch (Exception e) {
+            log.warn("Realm role 'admin' not found, skipping from Default Policy");
+        }
+
+        log.info("Attempting to create role-based Default Policy");
+        try (Response response = clientResource.authorization().policies().role().create(policy)) {
+            String body = response.hasEntity() ? response.readEntity(String.class) : "(no body)";
+            if (response.getStatus() == 201) {
+                String location = response.getHeaderString("Location");
+                String id = location.substring(location.lastIndexOf('/') + 1);
+                log.info("Default Policy created successfully (id={})", id);
+                return id;
+            } else {
+                log.error("Failed to create Default Policy. Status: {}, Body: {}", response.getStatus(), body);
+                return null;
+            }
+        }
+    }
+
+    // Returns the resource ID (existing or newly created)
+    private String ensureDefaultResource(ClientResource clientResource) {
+        String resourceName = "Default Resource";
+        var existingResource = clientResource.authorization().resources().resources().stream()
+                .filter(r -> resourceName.equals(r.getName()))
+                .findFirst().orElse(null);
+
+        if (existingResource != null) {
+            log.info("Resource '{}' already exists (id={}), skipping", resourceName, existingResource.getId());
+            return existingResource.getId();
+        }
+
+        ResourceRepresentation resource = new ResourceRepresentation();
+        resource.setName(resourceName);
+        resource.setUris(Set.of("/*"));
+
+        try (Response response = clientResource.authorization().resources().create(resource)) {
+            String body = response.hasEntity() ? response.readEntity(String.class) : "(no body)";
+            if (response.getStatus() == 201) {
+                String location = response.getHeaderString("Location");
+                String id = location.substring(location.lastIndexOf('/') + 1);
+                log.info("Resource '{}' created successfully (id={})", resourceName, id);
+                return id;
+            } else {
+                log.error("Failed to create resource '{}'. Status: {}, Body: {}", resourceName, response.getStatus(), body);
+                return null;
+            }
+        }
+    }
+
+    private void ensureDefaultPermission(ClientResource clientResource, String policyId, String resourceId) {
+        String permissionName = "Default Permission";
+
+        if (policyId == null || resourceId == null) {
+            log.error("Cannot create/update permission: policyId={}, resourceId={}", policyId, resourceId);
+            return;
+        }
+
+        List<PolicyRepresentation> existing = clientResource.authorization().policies().policies();
+        PolicyRepresentation existingPermission = existing == null ? null : existing.stream()
+                .filter(p -> permissionName.equals(p.getName()))
+                .findFirst().orElse(null);
+
+        ResourcePermissionRepresentation permission = new ResourcePermissionRepresentation();
+        permission.setName(permissionName);
+        permission.setDescription("A permission that applies to the default resource type");
+        permission.setPolicies(Set.of(policyId));
+        permission.setResources(Set.of(resourceId));
+
+        if (existingPermission != null) {
+            // Always update to ensure the policy ID is correctly linked
+            permission.setId(existingPermission.getId());
+            clientResource.authorization().permissions().resource()
+                    .findById(existingPermission.getId()).update(permission);
+            log.info("Permission '{}' updated with correct policy and resource link", permissionName);
+        } else {
+            try (Response response = clientResource.authorization().permissions().resource().create(permission)) {
+                String body = response.hasEntity() ? response.readEntity(String.class) : "(no body)";
+                if (response.getStatus() == 201) {
+                    log.info("Permission '{}' created successfully", permissionName);
+                } else {
+                    log.error("Failed to create permission '{}'. Status: {}, Body: {}", permissionName, response.getStatus(), body);
+                }
+            }
+        }
+    }
+
+    private void ensureUsersHaveBaseRole() {
+        try {
+            log.info("Ensuring all users have at least the 'user' realm role");
+            RoleRepresentation userRole = keycloak.realm(REALM_ID).roles().get("user").toRepresentation();
+
+            List<UserRepresentation> allUsers = keycloak.realm(REALM_ID).users().list();
+            for (UserRepresentation u : allUsers) {
+                List<RoleRepresentation> realmRoles = keycloak.realm(REALM_ID).users()
+                        .get(u.getId()).roles().realmLevel().listAll();
+                boolean hasRole = realmRoles.stream()
+                        .anyMatch(r -> "user".equals(r.getName()) || "admin".equals(r.getName()));
+                if (!hasRole) {
+                    keycloak.realm(REALM_ID).users().get(u.getId()).roles()
+                            .realmLevel().add(Collections.singletonList(userRole));
+                    log.info("Assigned 'user' role to existing user '{}'", u.getUsername());
+                }
+            }
+            log.info("Base role check complete for {} users", allUsers.size());
+        } catch (Exception e) {
+            log.error("Failed to ensure base role for users: {}", e.getMessage(), e);
         }
     }
 
