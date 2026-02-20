@@ -217,6 +217,17 @@ public class KeycloakManagementService {
         executeAuthzCreation(clientId, dto.getName(), "policy", () -> authz.policies().role().create(policy));
     }
 
+    public void createJsPolicy(String clientId, JsPolicyDefinitionDto dto) {
+        AuthorizationResource authz = getClientResource(clientId).authorization();
+
+        JSPolicyRepresentation policy = new JSPolicyRepresentation();
+        policy.setName(dto.getName());
+        policy.setDescription(dto.getDescription());
+        policy.setCode(dto.getCode());
+
+        executeAuthzCreation(clientId, dto.getName(), "js-policy", () -> authz.policies().js().create(policy));
+    }
+
     public void createPermission(String clientId, PermissionDefinitionDto dto) {
         AuthorizationResource authz = getClientResource(clientId).authorization();
 

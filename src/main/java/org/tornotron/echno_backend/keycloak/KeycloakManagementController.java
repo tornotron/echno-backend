@@ -65,6 +65,13 @@ public class KeycloakManagementController {
                 .body(new ApiResponse("Policy created successfully"));
     }
 
+    @PostMapping("/clients/{clientId}/policies/js")
+    public ResponseEntity<ApiResponse> addJsPolicy(@PathVariable String clientId, @Valid @RequestBody JsPolicyDefinitionDto dto) {
+        keycloakManagementService.createJsPolicy(clientId, dto);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(new ApiResponse("JS policy created successfully"));
+    }
+
     @PostMapping("/clients/{clientId}/permissions")
     public ResponseEntity<ApiResponse> addPermission(@PathVariable String clientId, @Valid @RequestBody PermissionDefinitionDto dto) {
         keycloakManagementService.createPermission(clientId,dto);
