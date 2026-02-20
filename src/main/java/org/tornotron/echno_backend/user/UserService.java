@@ -32,6 +32,7 @@ import org.tornotron.echno_backend.user.dto.UserRegistrationDto;
 import org.tornotron.echno_backend.user.enums.UserRole;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -132,6 +133,13 @@ public class UserService {
         credentialRepresentation.setTemporary(false);
 
         usersResource.get(keycloakId).resetPassword(credentialRepresentation);
+
+        try {
+            var userRole = keycloak.realm(realm).roles().get("user").toRepresentation();
+            usersResource.get(keycloakId).roles().realmLevel().add(Collections.singletonList(userRole));
+        } catch (Exception e) {
+            logger.warn("Failed to assign 'user' realm role to new user {}: {}", keycloakId, e.getMessage());
+        }
 
         return keycloakId;
     }
