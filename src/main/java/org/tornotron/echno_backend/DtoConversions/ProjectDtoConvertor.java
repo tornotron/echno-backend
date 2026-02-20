@@ -1,11 +1,14 @@
 package org.tornotron.echno_backend.DtoConversions;
 
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.project.dto.ProjectSimpleDto;
 
+import java.time.Duration;
 import java.util.stream.Collectors;
 
 @Component
@@ -25,6 +28,19 @@ public class ProjectDtoConvertor {
         return simpleDto;
     }
 
+    public static AttachmentDto convertAttachmentToDto(Attachment attachment, FileStorageService fileStorageService) {
+        AttachmentDto dto = new AttachmentDto();
+        dto.setId(attachment.getId());
+        dto.setUrl(fileStorageService.generateDownloadUrl(attachment.getStorageKey(), Duration.ofHours(1)));
+        dto.setEntityType(attachment.getEntityType());
+        dto.setContentType(attachment.getContentType());
+        dto.setFileSize(attachment.getFileSize());
+        dto.setFileName(attachment.getOriginalFilename());
+        dto.setCreatedAt(attachment.getCreatedAt().toString());
+        dto.setUpdatedAt(attachment.getUpdatedAt().toString());
+        return dto;
+    }
+
     public static ProjectDto convertProjectToDto(Project project, FileStorageService fileStorageService) {
         ProjectDto dto = new ProjectDto();
         dto.setId(project.getId());
@@ -41,6 +57,9 @@ public class ProjectDtoConvertor {
                 .collect(Collectors.toList()));
         dto.setTasks(project.getTasks().stream()
                 .map(task -> TaskDtoConvertor.convertTaskToDto(task, fileStorageService))
+                .collect(Collectors.toList()));
+        dto.setAttachments(project.getAttachments().stream()
+                .map(attachment -> convertAttachmentToDto(attachment, fileStorageService))
                 .collect(Collectors.toList()));
         return dto;
     }
