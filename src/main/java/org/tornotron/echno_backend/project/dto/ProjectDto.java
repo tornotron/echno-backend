@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.project.dto;
 
 import lombok.Data;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.task.dto.TaskDto;
@@ -21,4 +22,5 @@ public class ProjectDto {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private List<TaskDto> tasks;
+    private List<AttachmentDto> attachments;
 }
