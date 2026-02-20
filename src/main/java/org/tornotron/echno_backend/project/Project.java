@@ -86,7 +86,7 @@ public class Project implements TenantScopedEntity {
 
     /** The list of attachments associated with this project. */
     @OneToMany(mappedBy = "project")
-    private List<Attachment> attachments;
+    private List<Attachment> attachments = new ArrayList<>();
 
     public void addAttachment(Attachment attachment) {
         attachments.add(attachment);

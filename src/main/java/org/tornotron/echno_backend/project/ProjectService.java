@@ -91,9 +91,13 @@ public class ProjectService {
             Project savedProject = repository.save(project);
             // Upload attachments if provided
             if (attachments != null && !attachments.isEmpty()) {
-                attachmentService.uploadAttachments(attachments, "PROJECT", savedProject.getId(), PROJECTS_FOLDER);
+                List<Attachment> savedAttachments = attachmentService.uploadAttachments(attachments, "PROJECT", savedProject.getId(), PROJECTS_FOLDER);
+                for (Attachment attachment : savedAttachments) {
+                    savedProject.addAttachment(attachment);
+                }
+                savedProject = repository.save(savedProject);
             }
-            
+
             return ProjectDtoConvertor.convertProjectToSimpleDto(savedProject);
     }
 
@@ -144,9 +148,11 @@ public class ProjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: "+id));
         partialUpdateAProject(updates, project);
 
-        for(MultipartFile att:attachments) {
-            Attachment attachment = attachmentService.uploadAttachment(att,entityType,id,PROJECTS_FOLDER);
-            project.addAttachment(attachment);
+        if (attachments != null) {
+            for(MultipartFile att:attachments) {
+                Attachment attachment = attachmentService.uploadAttachment(att,entityType,id,PROJECTS_FOLDER);
+                project.addAttachment(attachment);
+            }
         }
         return ProjectDtoConvertor.convertProjectToSimpleDto(repository.save(project));
     }
@@ -268,9 +274,18 @@ public class ProjectService {
     /**
      * Retrieves all employees assigned to a project.
      *
-     * @param projectId The ID of the project.
      * @return A list of employee DTOs assigned to the project.
      */
+    @Transactional(readOnly = true)
+    public List<ProjectDto> getProjectsByEmployeeId(Long employeeId) {
+        employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+        return repository.findByEmployees_IdAndOrganization_Id(employeeId, TenantContext.getCurrentOrgId())
+                .stream()
+                .map(project -> ProjectDtoConvertor.convertProjectToDto(project, fileStorageService))
+                .collect(Collectors.toList());
+    }
+
     @Transactional(readOnly = true)
     public List<EmployeeDto> getEmployeesByProjectId(Long projectId) {
         Project project = repository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())

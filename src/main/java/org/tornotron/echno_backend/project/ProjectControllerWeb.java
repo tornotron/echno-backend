@@ -99,7 +99,7 @@ public class ProjectControllerWeb {
             @RequestPart(value = "data", required = false) String data,
             @PathVariable Long id,
             @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments,
-            @RequestParam(value = "entityType", required = false,defaultValue = "TASK_ATTACHMENTS") String entityType) throws JsonProcessingException
+            @RequestParam(value = "entityType", required = false,defaultValue = "PROJECT_ATTACHMENTS") String entityType) throws JsonProcessingException
      {
         Map<String, Object> updates = data != null
                 ? objectMapper.readValue(data, new TypeReference<>() {}) : Map.of();
@@ -148,6 +148,12 @@ public class ProjectControllerWeb {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<EmployeeDto>> getEmployeesByProjectId(@PathVariable Long projectId) {
         return ResponseEntity.status(HttpStatus.OK).body(service.getEmployeesByProjectId(projectId));
+    }
+
+    @GetMapping("employees/{employeeId}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    public ResponseEntity<List<ProjectDto>> getProjectsByEmployeeId(@PathVariable Long employeeId) {
+        return ResponseEntity.status(HttpStatus.OK).body(service.getProjectsByEmployeeId(employeeId));
     }
 
 }
