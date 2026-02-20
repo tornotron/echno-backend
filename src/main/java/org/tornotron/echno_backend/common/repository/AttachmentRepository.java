@@ -39,4 +39,7 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
      * @return Number of attachments
      */
     long countByEntityTypeAndEntityId(String entityType, Long entityId);
+
+    boolean existsByEntityTypeAndEntityIdAndOriginalFilenameAndFileSize(
+            String entityType, Long entityId, String originalFilename, Long fileSize);
 }
