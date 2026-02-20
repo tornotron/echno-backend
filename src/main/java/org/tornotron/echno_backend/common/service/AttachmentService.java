@@ -61,6 +61,7 @@ public class AttachmentService {
         }
 
         validateNoDuplicateFiles(files);
+        validateNoExistingAttachments(files, entityType, entityId);
 
         List<Attachment> attachments = new ArrayList<>();
         List<StoredFile> storedFiles = fileStorageService.uploadFiles(files, folder);
@@ -82,6 +83,7 @@ public class AttachmentService {
                     break;
 
                 case "project":
+                case "projects":
                     attachment.setProject(projectRepository.findById(entityId).orElse(null));
                     break;
 
@@ -114,6 +116,8 @@ public class AttachmentService {
      */
     @Transactional
     public Attachment uploadAttachment(MultipartFile file, String entityType, Long entityId, String folder) {
+        validateNoExistingAttachments(List.of(file), entityType, entityId);
+
         StoredFile storedFile = fileStorageService.uploadFile(file, folder);
 
         Attachment attachment = new Attachment();
@@ -215,6 +219,19 @@ public class AttachmentService {
      * @param files The list of files to validate
      * @throws IllegalArgumentException if duplicate files are found
      */
+    private void validateNoExistingAttachments(List<MultipartFile> files, String entityType, Long entityId) {
+        List<String> existing = new ArrayList<>();
+        for (MultipartFile file : files) {
+            if (attachmentRepository.existsByEntityTypeAndEntityIdAndOriginalFilenameAndFileSize(
+                    entityType, entityId, file.getOriginalFilename(), file.getSize())) {
+                existing.add(file.getOriginalFilename());
+            }
+        }
+        if (!existing.isEmpty()) {
+            throw new IllegalArgumentException("Attachments already exist: " + String.join(", ", existing));
+        }
+    }
+
     private void validateNoDuplicateFiles(List<MultipartFile> files) {
         Set<String> fileSignatures = new HashSet<>();
         List<String> duplicates = new ArrayList<>();
