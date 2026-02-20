@@ -65,7 +65,8 @@ public class ProjectControllerWeb {
      * @param pageSize The number of projects per page (default is 10).
      * @return A {@link ResponseEntity} containing the list of project DTOs and HTTP status 200 (OK).
      */
-    @GetMapping
+    @GetMapping()
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<ProjectDto>> readAllProjects(@RequestParam(defaultValue = "0") int pageNo,
                                                             @RequestParam(defaultValue = "10") int pageSize) {
         Page<ProjectDto> projects = service.getAllProjects(pageNo,pageSize);
@@ -73,17 +74,18 @@ public class ProjectControllerWeb {
         return new ResponseEntity<>(projects.getContent(),HttpStatus.OK);
     }
 
-//    /**
-//     * Retrieves a single project by its ID.
-//     *
-//     * @param id The ID of the project to retrieve.
-//     * @return A {@link ResponseEntity} containing the project DTO and HTTP status 200 (OK).
-//     */
-//    @GetMapping("{id}")
-//    public ResponseEntity<?> readAProject(@PathVariable Long id) {
-//        ProjectDto project = service.getAProject(id);
-//        return new ResponseEntity<>(project,HttpStatus.OK);
-//    }
+    /**
+     * Retrieves a single project by its ID.
+     *
+     * @param id The ID of the project to retrieve.
+     * @return A {@link ResponseEntity} containing the project DTO and HTTP status 200 (OK).
+     */
+    @GetMapping("{id}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    public ResponseEntity<?> readAProject(@PathVariable Long id) {
+        ProjectDto project = service.getAProject(id);
+        return new ResponseEntity<>(project,HttpStatus.OK);
+    }
 
     /**
      * Partially updates an existing project.
@@ -143,6 +145,7 @@ public class ProjectControllerWeb {
     }
 
     @GetMapping("{projectId}/employees")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<EmployeeDto>> getEmployeesByProjectId(@PathVariable Long projectId) {
         return ResponseEntity.status(HttpStatus.OK).body(service.getEmployeesByProjectId(projectId));
     }
