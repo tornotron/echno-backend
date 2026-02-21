@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.task;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -50,7 +51,7 @@ public class TaskControllerWeb {
      * @return A {@link ResponseEntity} with a success message and HTTP status 201 (Created).
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('task:create') or hasAuthority('task:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     public ResponseEntity<TaskSimpleDto> createTask(@RequestPart @Valid String data,
                                                     @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
         TaskCreationDto dto = objectMapper.readValue(data, TaskCreationDto.class);
@@ -65,7 +66,7 @@ public class TaskControllerWeb {
      * @return A {@link ResponseEntity} containing the list of task DTOs and HTTP status 200 (OK).
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('task:read') or hasAuthority('task:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<TaskDto>> readAllTasks(@RequestParam(defaultValue = "0") int pageNo,
                                                       @RequestParam(defaultValue = "10") int pageSize) {
         Page<TaskDto> tasks = service.getAllTasks(pageNo, pageSize);
@@ -80,7 +81,7 @@ public class TaskControllerWeb {
      * @return A {@link ResponseEntity} containing the task DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("hasAuthority('task:read') or hasAuthority('task:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<?> readATask(@PathVariable Long id) {
         TaskDto taskDto = service.getATask(id);
         return new ResponseEntity<>(taskDto, HttpStatus.OK);
@@ -89,14 +90,19 @@ public class TaskControllerWeb {
     /**
      * Partially updates an existing task.
      *
-     * @param updates A map of fields to update.
      * @param id      The ID of the task to update.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
-    @PatchMapping("{id}")
-    @PreAuthorize("hasAuthority('task:update') or hasAuthority('task:admin')")
-    public ResponseEntity<TaskSimpleDto> partialUpdateATask(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
-        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateATask(updates, id));
+    @PatchMapping(value = "{id}",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    public ResponseEntity<TaskSimpleDto> partialUpdateATask(@RequestPart(value = "data", required = false) String data,
+                                                            @PathVariable Long id,
+                                                            @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments,
+                                                            @RequestParam(value = "entityType", required = false, defaultValue = "TASK_ATTACHMENTS") String entityType) throws JsonProcessingException
+    {
+        Map<String, Object> updates = data != null
+                ? objectMapper.readValue(data, new TypeReference<>() {}) : Map.of();
+        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateATask(updates, id,attachments, entityType));
     }
 
     /**
@@ -106,7 +112,7 @@ public class TaskControllerWeb {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("/batch")
-    @PreAuthorize("hasAuthority('task:update') or hasAuthority('task:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     public ResponseEntity<ApiResponse> batchUpdateTasks(@Valid @RequestBody List<TaskPatchDto> updates) {
         service.batchUpdateTasks(updates);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
@@ -119,7 +125,7 @@ public class TaskControllerWeb {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("hasAuthority('task:delete') or hasAuthority('task:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     public ResponseEntity<ApiResponse> deleteATask(@PathVariable Long id) {
         service.deleteATask(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Task with id: " + id + " deleted"));
