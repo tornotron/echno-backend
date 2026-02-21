@@ -14,6 +14,7 @@ import java.util.Set;
 public class TaskSimpleDto {
     private Long id;
     private String title;
+    private String description;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private Long creatorId;
