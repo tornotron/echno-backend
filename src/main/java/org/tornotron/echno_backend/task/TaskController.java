@@ -98,11 +98,11 @@ public class TaskController {
      * @param id      The ID of the task to update.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
-    @PatchMapping("{id}")
-    @PreAuthorize("hasAuthority('task:update') or hasAuthority('task:admin')")
-    public ResponseEntity<TaskSimpleDto> partialUpdateATask(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
-        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateATask(updates, id));
-    }
+//    @PatchMapping("{id}")
+//    @PreAuthorize("hasAuthority('task:update') or hasAuthority('task:admin')")
+//    public ResponseEntity<TaskSimpleDto> partialUpdateATask(@RequestBody Map<String, Object> updates, @PathVariable Long id) {
+//        return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateATask(updates, id));
+//    }
 
     /**
      * Updates multiple tasks in a batch.

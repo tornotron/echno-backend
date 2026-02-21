@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.task.dto;
 
 import lombok.Data;
 import org.tornotron.echno_backend.category.dto.CategoryDto;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.issue.dto.IssueDto;
@@ -15,6 +16,7 @@ import java.util.Set;
 public class TaskDto {
     private Long id;
     private String title;
+    private String description;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private EmployeeDto creator;
@@ -27,4 +29,5 @@ public class TaskDto {
     private LocalDateTime updatedAt;
     private TaskStatus status;
     private List<IssueDto> issues;
+    private List<AttachmentDto> attachments;
 }
