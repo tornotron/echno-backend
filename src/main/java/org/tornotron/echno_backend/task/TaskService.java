@@ -9,9 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.DtoConversions.TaskDtoConvertor;
 import org.tornotron.echno_backend.category.CategoryRepository;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
@@ -25,6 +27,7 @@ import org.tornotron.echno_backend.task.dto.TaskSimpleDto;
 import org.tornotron.echno_backend.task.enums.TaskStatus;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -82,18 +85,19 @@ public class TaskService {
         Task task = new Task();
         task.setTitle(taskCreationDto.getTitle());
         task.setStartDate(taskCreationDto.getStartDate());
+        task.setDescription(taskCreationDto.getDescription());
         task.setEndDate(taskCreationDto.getEndDate());
         task.setProgress(taskCreationDto.getProgress());
         task.setStatus(TaskStatus.valueOf(taskCreationDto.getStatus()));
 
         if (taskCreationDto.getCreatorId() != null) {
-            task.setCreator(employeeRepository.findById(taskCreationDto.getCreatorId())
+            task.setCreator(employeeRepository.findByIdAndOrganizationId(taskCreationDto.getCreatorId(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + taskCreationDto.getCreatorId())));
         } else {
-            throw new InvalidRequestException("Employee ID must be provided");
+            throw new InvalidRequestException("Creator ID must be provided");
         }
         if (taskCreationDto.getProjectId() != null) {
-            var project = projectRepository.findById(taskCreationDto.getProjectId())
+            var project = projectRepository.findByIdAndOrganization_Id(taskCreationDto.getProjectId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + taskCreationDto.getProjectId()));
             task.setProject(project);
             task.setOrganization(project.getOrganization());
@@ -123,7 +127,7 @@ public class TaskService {
         }
 
         if(taskCreationDto.getCategoryId() != null) {
-            task.setCategory(categoryRepository.findById(taskCreationDto.getCategoryId())
+            task.setCategory(categoryRepository.findByIdAndOrganization_Id(taskCreationDto.getCategoryId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + taskCreationDto.getCategoryId())));
         } else {
             throw new InvalidRequestException("Category must be provided");
@@ -184,7 +188,7 @@ public class TaskService {
      */
     @Transactional(readOnly = true)
     public TaskDto getATask(Long id) {
-        TaskDto taskDto = taskRepository.findById(id)
+        TaskDto taskDto = taskRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .map(task -> TaskDtoConvertor.convertTaskToDto(task,fileStorageService))
                 .orElse(null);
         if(taskDto == null) {
@@ -202,10 +206,18 @@ public class TaskService {
      * @throws ResourceNotFoundException if no task with the given ID is found.
      */
     @Transactional
-    public TaskSimpleDto partialUpdateATask(Map<String,Object> updates,Long id) {
-        Task task = taskRepository.findById(id)
+    public TaskSimpleDto partialUpdateATask(Map<String,Object> updates,Long id,List<MultipartFile> attachments, String entityType) {
+        Task task = taskRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
         partialUpdateATask(updates, task);
+
+        if (attachments != null) {
+            for (MultipartFile att:attachments) {
+                Attachment attachment = attachmentService.uploadAttachment(att,entityType,id,TASKS_FOLDER);
+                task.addAttachment(attachment);
+            }
+        }
+
        return TaskDtoConvertor.convertTaskToSimpleDto(taskRepository.save(task));
     }
 
@@ -216,7 +228,7 @@ public class TaskService {
                     task.setTitle((String) value);
                     break;
                 case "endDate":
-                    task.setEndDate(value != null ? LocalDateTime.parse(value.toString()) : null);
+                    task.setEndDate(LocalDateTime.parse((String) value, DateTimeFormatter.ISO_DATE_TIME));
                     break;
                 case "progress":
                     if (value == null) {
@@ -228,8 +240,39 @@ public class TaskService {
                 case "status":
                     task.setStatus(TaskStatus.valueOf((String) value));
                     break;
+                case "tags":
+                    updateTags(value, task);
+                    break;
             }
         });
+    }
+
+    private void updateTags(Object rawTags, Task task) {
+        if (rawTags == null) {
+            task.setTags(null);
+            return;
+        }
+        if (!(rawTags instanceof List<?>)) {
+            throw new InvalidRequestException("Tags must be provided as a list of strings");
+        }
+
+        List<?> tagValues = (List<?>) rawTags;
+        List<String> cleanedTags = tagValues.stream()
+                .map(tag -> {
+                    if (tag == null) {
+                        return null;
+                    }
+                    if (!(tag instanceof String)) {
+                        throw new InvalidRequestException("Each tag must be a string value");
+                    }
+                    String trimmedTag = ((String) tag).trim();
+                    return trimmedTag.isEmpty() ? null : trimmedTag;
+                })
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        task.setTags(cleanedTags);
     }
 
     /**
@@ -262,7 +305,7 @@ public class TaskService {
      */
     @Transactional
     public void deleteATask(Long id) {
-        if(!taskRepository.existsById(id)) {
+        if(!taskRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
             throw new ResourceNotFoundException("Task not found with id: " + id);
         }
         taskRepository.deleteById(id);
