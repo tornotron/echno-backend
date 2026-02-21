@@ -19,4 +19,10 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
      * @return An {@link Optional} containing the found {@link Category}, or {@link Optional#empty()} if no category with the given name exists.
      */
     Optional<Category> findCategoryByName(@NotBlank(message = "name is required") @Size(min = 3,max = 50, message = "name must be between 3 and 50 characters") String name);
+
+    Optional<Category> findByIdAndOrganization_Id(Long id, Long organizationId);
+
+    boolean existsByNormalizedName(String normalizedName);
+
+    boolean existsByIdAndOrganization_Id(Long id, Long organizationId);
 }

@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.category.dto.CategoryDto;
 import org.tornotron.echno_backend.category.dto.CategorySimpleDto;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 
 
@@ -44,9 +45,14 @@ public class CategoryService {
      */
     @Transactional
     public CategorySimpleDto addCategory(CategoryCreationDto categoryCreationDto) {
+        String normalized = CategoryNormalizer.normalize(categoryCreationDto.getName());
+        if(categoryRepository.existsByNormalizedName(normalized)) {
+            throw new IllegalArgumentException("Category with name " + normalized + " already exists.");
+        }
         Category category = new Category();
         category.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
         category.setName(categoryCreationDto.getName());
+        category.setNormalizedName(normalized);
         category.setDescription(categoryCreationDto.getDescription());
         category.setIcon(categoryCreationDto.getIcon());
         category.setImage(categoryCreationDto.getImage());
@@ -76,7 +82,7 @@ public class CategoryService {
      */
     @Transactional(readOnly = true)
     public CategoryDto getACategory(Long id) {
-        CategoryDto categoryDto = categoryRepository.findById(id)
+        CategoryDto categoryDto = categoryRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
                 .map(CategoryDtoConvertor::convertCategoryToDto)
                 .orElse(null);
 
@@ -95,7 +101,7 @@ public class CategoryService {
      */
     @Transactional
     public void deleteACategory(Long id) {
-        if(!categoryRepository.existsById(id)) {
+        if(!categoryRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
             throw new ResourceNotFoundException("Category not found with id: " + id);
         }
         categoryRepository.deleteById(id);
