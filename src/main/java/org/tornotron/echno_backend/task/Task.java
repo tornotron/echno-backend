@@ -38,6 +38,9 @@ public class Task implements TenantScopedEntity {
     @Column(name = "title", nullable = false)
     private String title;
 
+    @Column(name = "description")
+    private String description;
+
     /** The scheduled start date and time of the task. */
     @Column(name = "start_date", nullable = true)
     private LocalDateTime startDate;
