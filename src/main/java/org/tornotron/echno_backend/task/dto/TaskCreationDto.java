@@ -18,6 +18,8 @@ public class TaskCreationDto {
 
     private LocalDateTime endDate;
 
+    private String description;
+
     @NotNull(message = "creatorId is required(type: Long)")
     private Long creatorId;
 
