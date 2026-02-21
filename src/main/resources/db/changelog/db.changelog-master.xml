@@ -121,6 +121,12 @@
     <!-- Add employee_id column for human-friendly identifiers -->
     <include file="db/changelog/v1.3/063-add-employee-id-to-employee.xml"/>
 
+    <!-- Add normalized_name to category for case-insensitive uniqueness -->
+    <include file="db/changelog/v1.3/064-add-normalized-name-to-category.xml"/>
+
+    <!-- Add description column to task -->
+    <include file="db/changelog/v1.3/065-add-description-to-task.xml"/>
+
     <!-- Tag v1.3 release -->
     <include file="db/changelog/v1.3/060-tag-v1.3.xml"/>
 

@@ -30,6 +30,9 @@ public class Category implements TenantScopedEntity {
     @Column(name = "category_name", nullable = false)
     private String name;
 
+    @Column(name = "normalized_name", unique = true)
+    private String normalizedName;
+
     /** A brief description of the category. */
     @Column(name = "category_description")
     private String description;
