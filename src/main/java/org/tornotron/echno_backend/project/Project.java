@@ -84,6 +84,9 @@ public class Project implements TenantScopedEntity {
     @Column(name = "end_date")
     private LocalDateTime endDate;
 
+    @Column(name = "progress")
+    private Double progress;
+
     /** The list of attachments associated with this project. */
     @OneToMany(mappedBy = "project")
     private List<Attachment> attachments = new ArrayList<>();

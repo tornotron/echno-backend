@@ -17,4 +17,5 @@ public class ProjectSimpleDto {
     private Float projectLongitude;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
+    private Double progress;
 }
