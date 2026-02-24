@@ -16,9 +16,11 @@ import org.keycloak.representations.idm.authorization.PolicyRepresentation;
 import org.keycloak.representations.idm.authorization.ResourcePermissionRepresentation;
 import org.keycloak.representations.idm.authorization.ResourceRepresentation;
 import org.keycloak.representations.idm.authorization.RolePolicyRepresentation;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.DependsOn;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.user.dto.UserKeycloakDto;
 
@@ -35,7 +37,7 @@ import java.util.Set;
 @Slf4j
 @Service
 @DependsOn("keycloakConfigGenerator")
-public class KeycloakInitializer implements InitializingBean {
+public class KeycloakInitializer {
 
     private final Keycloak keycloak;
 
@@ -60,15 +62,15 @@ public class KeycloakInitializer implements InitializingBean {
     }
 
 
-    @Override
-    public void afterPropertiesSet() throws Exception {
-
+    @Async
+    @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
         REALM_ID = keycloakInitializerConfigurationProperties.getApplicationRealm();
 
         if (keycloakInitializerConfigurationProperties.isInitializeOnStartup()) {
+            log.info("Starting async Keycloak initialization...");
             init(false);
         }
-
     }
 
     public void init(boolean overwrite) {
