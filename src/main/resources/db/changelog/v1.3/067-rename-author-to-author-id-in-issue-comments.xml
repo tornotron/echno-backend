@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="067-rename-author-to-author-id-in-issue-comments" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="issue_comments" columnName="author"/>
+        </preConditions>
+        <renameColumn tableName="issue_comments"
+                      oldColumnName="author"
+                      newColumnName="author_id"
+                      columnDataType="BIGINT"/>
+        <modifyDataType tableName="issue_comments"
+                        columnName="author_id"
+                        newDataType="BIGINT"/>
+    </changeSet>
+
+    <changeSet id="067-drop-and-recreate-issue-comments" author="echno">
+        <dropTable tableName="issue_comments"/>
+        <createTable tableName="issue_comments">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="author_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="comment" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="issue_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint
+                baseTableName="issue_comments"
+                baseColumnNames="issue_id"
+                constraintName="fk_issue_comments_issue"
+                referencedTableName="issue"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="issue_comments"
+                baseColumnNames="organization_id"
+                constraintName="fk_issue_comments_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"/>
+        <createIndex tableName="issue_comments" indexName="idx_issue_comments_issue">
+            <column name="issue_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
