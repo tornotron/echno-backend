@@ -8,8 +8,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.DtoConversions.IssueDtoConvertor;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.FileStorageService;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.issue.dto.IssueCreationDto;
 import org.tornotron.echno_backend.issue.dto.IssueDto;
 import org.tornotron.echno_backend.issue.dto.IssueSimpleDto;
@@ -21,6 +26,7 @@ import org.tornotron.echno_backend.task.TaskRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 public class IssueService {
@@ -30,46 +36,99 @@ public class IssueService {
     private final IssueRepository issueRepository;
     private final TaskRepository taskRepository;
     private final AttachmentService attachmentService;
+    private final FileStorageService fileStorageService;
+    private final EmployeeRepository employeeRepository;
 
-    public IssueService(IssueRepository issueRepository, TaskRepository taskRepository, AttachmentService attachmentService) {
+    public IssueService(IssueRepository issueRepository, TaskRepository taskRepository, AttachmentService attachmentService, FileStorageService fileStorageService, EmployeeRepository employeeRepository) {
         this.issueRepository = issueRepository;
         this.taskRepository = taskRepository;
         this.attachmentService = attachmentService;
+        this.fileStorageService = fileStorageService;
+        this.employeeRepository = employeeRepository;
     }
 
     @Transactional
     public IssueSimpleDto addIssue(IssueCreationDto issueCreationDto, List<MultipartFile> attachments) {
-        Task task = taskRepository.findById(issueCreationDto.getTaskId())
+        Task task = taskRepository.findByIdAndOrganization_Id(issueCreationDto.getTaskId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + issueCreationDto.getTaskId()));
+        Employee creator = employeeRepository.findByIdAndOrganizationId(issueCreationDto.getCreatedById(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee/creator not found with id: " + issueCreationDto.getCreatedById()));
         Issue issue = new Issue();
         issue.setTitle(issueCreationDto.getTitle());
         issue.setDescription(issueCreationDto.getDescription());
         issue.setType(IssueType.valueOf(issueCreationDto.getType()));
         issue.setStatus(IssueStatus.valueOf(issueCreationDto.getStatus()));
-        issue.setCreator(issueCreationDto.getCreator());
-        issue.setCreator(issueCreationDto.getCreator());
+        issue.setCreatedBy(creator);
         issue.setTask(task);
         issue.setOrganization(task.getOrganization());
+
+        if (issueCreationDto.getAssignedToId() != null) {
+            Employee assignee = employeeRepository.findByIdAndOrganizationId(issueCreationDto.getAssignedToId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee/assignee not found with id: " + issueCreationDto.getAssignedToId()));
+            issue.setAssignedTo(assignee);
+        }
 
         Issue savedIssue = issueRepository.save(issue);
 
         if (attachments != null && !attachments.isEmpty()) {
-            attachmentService.uploadAttachments(attachments, "ISSUE", savedIssue.getId(), ISSUES_FOLDER);
+            List<Attachment> savedAttachments = attachmentService.uploadAttachments(attachments, "ISSUE", savedIssue.getId(), ISSUES_FOLDER);
+            for(Attachment attachment : savedAttachments) {
+                savedIssue.addAttachment(attachment);
+            }
+            savedIssue = issueRepository.save(savedIssue);
         }
 
         return IssueDtoConvertor.convertIssueToSimpleDto(savedIssue);
     }
 
     @Transactional(readOnly = true)
-    public Page<IssueDto> getAllIssues(int pageNo, int pageSize) {
-        Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC, "id"));
-        return issueRepository.findAll(pageable)
-                .map(IssueDtoConvertor::convertIssueToDto);
+    public List<IssueDto> getAllIssues() {
+        return issueRepository.findAll().stream()
+                .map(issue -> IssueDtoConvertor.convertIssueToDto(issue,fileStorageService))
+                .collect(Collectors.toList());
     }
 
-    public IssueSimpleDto partialUpdateAnIssue(Map<String, Object> updates, Long id) {
-        Issue issue = issueRepository.findById(id)
+    @Transactional(readOnly = true)
+    public List<IssueDto> getAllIssuesByTaskId(Long taskId) {
+        return issueRepository.findAllByTask_IdAndOrganization_Id(taskId,TenantContext.getCurrentOrgId()).stream()
+                .map(issue -> IssueDtoConvertor.convertIssueToDto(issue,fileStorageService))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<IssueDto> getAllIssuesByProjectId(Long projectId) {
+        return issueRepository.findAllByTask_Project_IdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId()).stream()
+                .map(issue -> IssueDtoConvertor.convertIssueToDto(issue,fileStorageService))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public IssueDto getAnIssue(Long id) {
+        IssueDto issueDto = issueRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .map(issue -> IssueDtoConvertor.convertIssueToDto(issue, fileStorageService))
+                .orElse(null);
+        if (issueDto == null) {
+            throw new ResourceNotFoundException("Issue not found with id: " + id);
+        }
+        return issueDto;
+    }
+
+    @Transactional
+    public IssueSimpleDto partialUpdateAnIssue(Map<String, Object> updates, Long id, List<MultipartFile> attachments, String entityType) {
+        Issue issue = issueRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Issue not found with id: "+id));
+        partialUpdateAnIssue(updates, issue);
+
+        if (attachments != null) {
+            for (MultipartFile att : attachments) {
+                Attachment attachment = attachmentService.uploadAttachment(att, entityType, id, ISSUES_FOLDER);
+                issue.addAttachment(attachment);
+            }
+        }
+        return IssueDtoConvertor.convertIssueToSimpleDto(issueRepository.save(issue));
+    }
+
+    private void partialUpdateAnIssue(Map<String, Object> updates, Issue issue) {
         updates.forEach((key, value) -> {
             switch (key) {
                 case "title":
@@ -84,9 +143,24 @@ public class IssueService {
                 case "status":
                     issue.setStatus(IssueStatus.valueOf((String) value));
                     break;
+                case "assignedToId":
+                    Long assigneeId = ((Number) value).longValue();
+                    Employee assignee = employeeRepository.findByIdAndOrganizationId(assigneeId, TenantContext.getCurrentOrgId())
+                            .orElseThrow(() -> new ResourceNotFoundException("Employee/assignee not found with id: " + assigneeId));
+                    issue.setAssignedTo(assignee);
+                    break;
             }
         });
-        return IssueDtoConvertor.convertIssueToSimpleDto(issueRepository.save(issue));
+    }
+
+    @Transactional
+    public void deleteAnIssue(Long id) {
+        if(!issueRepository.existsByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())) {
+            throw new ResourceNotFoundException("Issue not found with id: " + id);
+        }
+
+        attachmentService.deleteAllAttachments("ISSUE", id);
+        issueRepository.deleteById(id);
     }
 
 }
