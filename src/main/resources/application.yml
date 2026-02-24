@@ -63,6 +63,7 @@ bucket4j:
 
 
 keycloak:
+  issuer-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI}
   frontend:
     client-id: ${KEYCLOAK_FRONTEND_CLIENT}
     redirect-uri: ${KEYCLOAK_FRONTEND_REDIRECT_URI}
@@ -95,7 +96,7 @@ spring:
       spec: maximumSize=100000,expireAfterAccess=3600s,recordStats
   batch:
     jdbc:
-      initialize-schema: always
+      initialize-schema: never
     job:
       enabled: false
   datasource:
@@ -113,7 +114,6 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI}
           jwk-set-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_JWK_SET_URI}
 
   jackson:
