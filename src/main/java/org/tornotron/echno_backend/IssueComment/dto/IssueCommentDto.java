@@ -8,6 +8,6 @@ import java.time.LocalDateTime;
 public class IssueCommentDto {
     private Long id;
     private String comment;
-    private String author;
+    private Long authorId;
     private LocalDateTime createdAt;
 }
