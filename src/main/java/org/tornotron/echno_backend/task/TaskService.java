@@ -16,9 +16,11 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
+import org.tornotron.echno_backend.DtoConversions.ProjectDtoConvertor;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.task.dto.TaskCreationDto;
 import org.tornotron.echno_backend.task.dto.TaskDto;
@@ -145,10 +147,14 @@ public class TaskService {
         Task savedTask = taskRepository.save(task);
 
         if(attachments != null && !attachments.isEmpty()) {
-            attachmentService.uploadAttachments(attachments,"TASK", savedTask.getId(), TASKS_FOLDER);
+            List<Attachment> savedAttachments = attachmentService.uploadAttachments(attachments,"TASK", savedTask.getId(), TASKS_FOLDER);
+            for(Attachment attachment : savedAttachments) {
+                savedTask.addAttachment(attachment);
+            }
+            savedTask = taskRepository.save(savedTask);
         }
 
-
+        updateProjectProgress(savedTask.getProject());
 
         return TaskDtoConvertor.convertTaskToSimpleDto(savedTask);
     }
@@ -198,6 +204,13 @@ public class TaskService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public List<TaskDto> getTasksByProjectId(Long projectId) {
+        return taskRepository.findAllByProject_IdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId()).stream()
+                .map(task -> TaskDtoConvertor.convertTaskToDto(task,fileStorageService))
+                .collect(Collectors.toList());
+    }
+
     /**
      * Partially updates an existing task.
      *
@@ -218,7 +231,9 @@ public class TaskService {
             }
         }
 
-       return TaskDtoConvertor.convertTaskToSimpleDto(taskRepository.save(task));
+       Task savedTask = taskRepository.save(task);
+       updateProjectProgress(savedTask.getProject());
+       return TaskDtoConvertor.convertTaskToSimpleDto(savedTask);
     }
 
     private void partialUpdateATask(Map<String, Object> updates, Task task) {
@@ -226,6 +241,9 @@ public class TaskService {
             switch (key) {
                 case "title":
                     task.setTitle((String) value);
+                    break;
+                case "description":
+                    task.setDescription((String) value);
                     break;
                 case "endDate":
                     task.setEndDate(LocalDateTime.parse((String) value, DateTimeFormatter.ISO_DATE_TIME));
@@ -295,6 +313,11 @@ public class TaskService {
         });
 
         taskRepository.saveAll(tasks);
+
+        tasks.stream()
+                .map(Task::getProject)
+                .distinct()
+                .forEach(this::updateProjectProgress);
     }
 
     /**
@@ -305,10 +328,19 @@ public class TaskService {
      */
     @Transactional
     public void deleteATask(Long id) {
-        if(!taskRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("Task not found with id: " + id);
-        }
+        Task task = taskRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+        Project project = task.getProject();
         taskRepository.deleteById(id);
+        taskRepository.flush();
+        updateProjectProgress(project);
+    }
+
+    private void updateProjectProgress(Project project) {
+        List<Task> tasks = taskRepository.findByProject_Id(project.getId());
+        Double progress = ProjectDtoConvertor.calculateProjectProgress(tasks);
+        project.setProgress(progress);
+        projectRepository.save(project);
     }
 
 }

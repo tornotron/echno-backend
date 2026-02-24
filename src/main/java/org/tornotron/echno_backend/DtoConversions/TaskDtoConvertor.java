@@ -67,7 +67,7 @@ public class TaskDtoConvertor {
         dto.setUpdatedAt(task.getUpdatedAt());
         dto.setStatus(task.getStatus());
         dto.setIssues(task.getIssues().stream()
-                .map(IssueDtoConvertor::convertIssueToDto)
+                .map(issue -> IssueDtoConvertor.convertIssueToDto(issue,fileStorageService))
                 .collect(Collectors.toList()));
         dto.setAttachments(task.getAttachments().stream()
                 .map(attachment -> convertAttachmentToDto(attachment,fileStorageService))

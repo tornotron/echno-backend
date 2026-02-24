@@ -74,6 +74,11 @@ public class TaskControllerWeb {
         return new ResponseEntity<>(tasks.getContent(), HttpStatus.OK);
     }
 
+    @GetMapping("/projectId/{projectId}")
+    public ResponseEntity<List<TaskDto>> readAllTasksForProject(@PathVariable Long projectId) {
+        return ResponseEntity.status(HttpStatus.OK).body(service.getTasksByProjectId(projectId));
+    }
+
     /**
      * Retrieves a single task by its ID.
      *
