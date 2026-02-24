@@ -50,8 +50,8 @@
     <logger name="com.giffing.bucket4j.spring.boot.starter" level="DEBUG"/>
 
     <!-- Reduce noise from specific packages -->
-    <logger name="org.hibernate.SQL" level="DEBUG"/>
-    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE"/>
+    <logger name="org.hibernate.SQL" level="WARN"/>
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="WARN"/>
     <logger name="org.springframework" level="INFO"/>
     <logger name="org.hibernate" level="WARN"/>
 </configuration>

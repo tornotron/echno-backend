@@ -18,7 +18,7 @@ import java.util.Map;
 @Slf4j
 public class KeycloakAuthorizationService {
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
+    @Value("${keycloak.issuer-uri}")
     private String issuerUri;
 
     @Value("${jwt.auth.converter.resource-id}")
