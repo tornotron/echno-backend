@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
+import org.tornotron.echno_backend.issue.Issue;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.task.Task;
@@ -129,4 +130,10 @@ public class Employee implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @OneToMany(mappedBy = "createdBy", fetch = FetchType.LAZY)
+    private List<Issue> createdIssues = new ArrayList<>();
+
+    @OneToMany(mappedBy = "assignedTo", fetch = FetchType.LAZY)
+    private List<Issue> assignedIssues = new ArrayList<>();
 }
