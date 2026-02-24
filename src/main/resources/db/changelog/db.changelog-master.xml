@@ -127,6 +127,15 @@
     <!-- Add description column to task -->
     <include file="db/changelog/v1.3/065-add-description-to-task.xml"/>
 
+    <!-- Add progress column to project -->
+    <include file="db/changelog/v1.3/066-add-progress-to-project.xml"/>
+
+    <!-- Rename author to author_id in issue_comments -->
+    <include file="db/changelog/v1.3/067-rename-author-to-author-id-in-issue-comments.xml"/>
+
+    <!-- Replace creator VARCHAR with created_by/assigned_to FK to employee -->
+    <include file="db/changelog/v1.3/068-add-created-by-assigned-to-issue.xml"/>
+
     <!-- Tag v1.3 release -->
     <include file="db/changelog/v1.3/060-tag-v1.3.xml"/>
 
