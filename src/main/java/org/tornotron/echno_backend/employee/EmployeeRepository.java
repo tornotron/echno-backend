@@ -79,4 +79,6 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
 
     @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM Employee e JOIN e.orgRoles r WHERE e.id = :employeeId AND r IN :roles")
     boolean existsByIdAndOrgRolesIn(@Param("employeeId") Long employeeId, @Param("roles") Set<OrgRole> roles);
+
+    boolean existsByIdAndOrganization_Id(Long id, Long organizationId);
 }
