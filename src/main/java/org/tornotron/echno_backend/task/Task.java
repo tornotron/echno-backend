@@ -16,6 +16,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -103,7 +104,7 @@ public class Task implements TenantScopedEntity {
 
     /** The list of attachments associated with this task. */
     @OneToMany(mappedBy = "task")
-    private List<Attachment> attachments;
+    private List<Attachment> attachments = new ArrayList<>();
 
     public void addAttachment(Attachment attachment) {
         attachments.add(attachment);
