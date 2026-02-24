@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.issue.dto;
 
 import lombok.Data;
 import org.tornotron.echno_backend.IssueComment.dto.IssueCommentDto;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
 
@@ -17,6 +18,12 @@ public class IssueDto {
     private IssueStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private String creator;
+    private Long createdById;
+    private String createdByName;
+    private Long assignedToId;
+    private String assignedToName;
     private List<IssueCommentDto> issueComments;
+    private List<AttachmentDto> attachments;
+    private Long taskId;
+    private String taskName;
 }

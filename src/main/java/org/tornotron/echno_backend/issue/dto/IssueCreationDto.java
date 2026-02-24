@@ -28,5 +28,7 @@ public class IssueCreationDto {
     @Enumerated(EnumType.STRING)
     private String status;
 
-    private String creator;
+    private Long createdById;
+
+    private Long assignedToId;
 }

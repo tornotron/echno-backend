@@ -15,6 +15,8 @@ public class IssueSimpleDto {
     private IssueStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private String creator;
-
+    private Long createdById;
+    private String createdByName;
+    private Long assignedToId;
+    private String assignedToName;
 }
