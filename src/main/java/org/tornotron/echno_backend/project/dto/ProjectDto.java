@@ -21,6 +21,7 @@ public class ProjectDto {
     private Float projectLongitude;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
+    private Double progress;
     private List<TaskDto> tasks;
     private List<AttachmentDto> attachments;
 }
