@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="068-1" author="echno">
+        <comment>Drop old creator VARCHAR column from issue table</comment>
+        <dropColumn tableName="issue" columnName="creator"/>
+    </changeSet>
+
+    <changeSet id="068-2" author="echno">
+        <comment>Add created_by FK column referencing employee</comment>
+        <addColumn tableName="issue">
+            <column name="created_by" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="issue"
+                baseColumnNames="created_by"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                constraintName="fk_issue_created_by"/>
+    </changeSet>
+
+    <changeSet id="068-3" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="issue" columnName="assigned_to"/>
+            </not>
+        </preConditions>
+        <comment>Add assigned_to FK column referencing employee</comment>
+        <addColumn tableName="issue">
+            <column name="assigned_to" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="068-4" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <foreignKeyConstraintExists foreignKeyName="fk_issue_assigned_to"/>
+            </not>
+        </preConditions>
+        <comment>Add FK constraint on assigned_to referencing employee</comment>
+        <addForeignKeyConstraint
+                baseTableName="issue"
+                baseColumnNames="assigned_to"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                constraintName="fk_issue_assigned_to"/>
+    </changeSet>
+
+</databaseChangeLog>
