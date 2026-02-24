@@ -7,6 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.IssueComment.IssueComment;
 import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
 import org.tornotron.echno_backend.task.Task;
@@ -15,6 +16,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -49,10 +51,15 @@ public class Issue implements TenantScopedEntity {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    private String creator;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by", nullable = false)
+    private Employee createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_to")
+    private Employee assignedTo;
 
     @OneToMany(mappedBy = "issue")
-    @Column(nullable = true)
     private List<IssueComment> issueComments;
 
     @ManyToOne
@@ -64,7 +71,7 @@ public class Issue implements TenantScopedEntity {
 
     /** The list of attachments associated with this issue. */
     @OneToMany(mappedBy = "issue")
-    private List<Attachment> attachments;
+    private List<Attachment> attachments = new ArrayList<>();
 
     public void addAttachment(Attachment attachment) {
         attachments.add(attachment);
