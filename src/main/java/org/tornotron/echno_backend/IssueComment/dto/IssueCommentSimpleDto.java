@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 public class IssueCommentSimpleDto {
     private Long id;
     private String comment;
-    private String author;
+    private Long authorId;
     private LocalDateTime createdAt;
 
 }

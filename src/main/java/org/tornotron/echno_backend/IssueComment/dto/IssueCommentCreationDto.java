@@ -16,7 +16,6 @@ public class IssueCommentCreationDto {
     @NotNull
     private Long issueId;
 
-    @NotBlank(message = "author is required")
-    @Size(max = 100, message = "Author name must not exceed 100 characters")
-    private String author;
+    @NotNull(message = "author is required")
+    private Long authorId;
 }

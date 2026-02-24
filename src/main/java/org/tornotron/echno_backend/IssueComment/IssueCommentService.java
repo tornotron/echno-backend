@@ -11,26 +11,37 @@ import org.tornotron.echno_backend.IssueComment.dto.IssueCommentCreationDto;
 import org.tornotron.echno_backend.IssueComment.dto.IssueCommentDto;
 import org.tornotron.echno_backend.IssueComment.dto.IssueCommentSimpleDto;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.service.FileStorageService;
+import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.issue.IssueRepository;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class IssueCommentService {
 
     private final IssueCommentRepository issueCommentRepository;
     private final IssueRepository issueRepository;
+    private final EmployeeRepository employeeRepository;
 
-    public IssueCommentService(IssueCommentRepository issueCommentRepository, IssueRepository issueRepository) {
+    public IssueCommentService(IssueCommentRepository issueCommentRepository, IssueRepository issueRepository, EmployeeRepository employeeRepository) {
         this.issueCommentRepository = issueCommentRepository;
         this.issueRepository = issueRepository;
+        this.employeeRepository = employeeRepository;
     }
 
     @Transactional
     public IssueCommentSimpleDto addIssueComment(IssueCommentCreationDto issueCommentCreationDto) {
         IssueComment issueComment = new IssueComment();
-        issueComment.setAuthor(issueCommentCreationDto.getAuthor());
+        if(!employeeRepository.existsByIdAndOrganization_Id(issueCommentCreationDto.getAuthorId(), TenantContext.getCurrentOrgId())) {
+            throw new ResourceNotFoundException("Employee not found with id: " + issueCommentCreationDto.getAuthorId());
+        }
+        issueComment.setAuthorId(issueCommentCreationDto.getAuthorId());
         issueComment.setComment(issueCommentCreationDto.getComment());
         if(issueCommentCreationDto.getIssueId() != null) {
-            var issue = issueRepository.findById(issueCommentCreationDto.getIssueId())
+            var issue = issueRepository.findByIdAndOrganization_Id(issueCommentCreationDto.getIssueId(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Issue not found with id: " + issueCommentCreationDto.getIssueId()));
             issueComment.setIssue(issue);
             issueComment.setOrganization(issue.getOrganization());
@@ -45,9 +56,23 @@ public class IssueCommentService {
                 .map(IssueCommentDtoConvertor::convertIssueCommentToDto);
     }
 
+    @Transactional(readOnly = true)
+    public IssueCommentDto getAnIssueComment(Long id) {
+        IssueComment issueComment = issueCommentRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("IssueComment not found with id: " + id));
+        return IssueCommentDtoConvertor.convertIssueCommentToDto(issueComment);
+    }
+
+    @Transactional(readOnly = true)
+    public List<IssueCommentDto> getAllIssueCommentsByIssueId(Long issueId) {
+        return issueCommentRepository.findAllByIssue_IdAndOrganization_Id(issueId,TenantContext.getCurrentOrgId()).stream()
+                .map(IssueCommentDtoConvertor::convertIssueCommentToDto)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public void deleteAnIssueComment(Long id) {
-        if(!issueCommentRepository.existsById(id)){
+        if(!issueCommentRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())){
             throw new ResourceNotFoundException("IsseComment not found with id: " + id);
         } else {
             issueCommentRepository.deleteById(id);

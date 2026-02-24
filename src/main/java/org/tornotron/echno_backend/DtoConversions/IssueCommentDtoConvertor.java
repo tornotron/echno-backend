@@ -11,7 +11,7 @@ public class IssueCommentDtoConvertor {
     public static IssueCommentSimpleDto convertIssueCommentToSimpleDto(IssueComment issueComment) {
         IssueCommentSimpleDto simpleDto = new IssueCommentSimpleDto();
         simpleDto.setId(issueComment.getId());
-        simpleDto.setAuthor(issueComment.getAuthor());
+        simpleDto.setAuthorId(issueComment.getAuthorId());
         simpleDto.setComment(issueComment.getComment());
         simpleDto.setCreatedAt(issueComment.getCreatedAt());
         return simpleDto;
@@ -21,7 +21,7 @@ public class IssueCommentDtoConvertor {
     public static IssueCommentDto convertIssueCommentToDto(IssueComment issueComment) {
         IssueCommentDto dto = new IssueCommentDto();
         dto.setId(issueComment.getId());
-        dto.setAuthor(issueComment.getAuthor());
+        dto.setAuthorId(issueComment.getAuthorId());
         dto.setComment(issueComment.getComment());
         dto.setCreatedAt(issueComment.getCreatedAt());
         return dto;
