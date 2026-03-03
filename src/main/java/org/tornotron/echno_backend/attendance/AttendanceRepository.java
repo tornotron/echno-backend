@@ -1,56 +1,47 @@
 package org.tornotron.echno_backend.attendance;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.tornotron.echno_backend.attendance.enums.RecordType;
+import org.tornotron.echno_backend.attendance.enums.ApprovalStatus;
+import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
-    List<Attendance> findByEmployeeIdAndTimestampBetween(
-            Long employeeId,
-            LocalDateTime startDate,
-            LocalDateTime endDate
-    );
+    Optional<Attendance> findByEmployeeIdAndAttendanceDateAndProjectId(
+            Long employeeId, LocalDate attendanceDate, Long projectId);
 
-    @Query(value = """
-        SELECT * FROM attendance
-        WHERE employee_id = :employeeId
-        AND DATE(timestamp) = CURRENT_DATE
-        AND (:organizationId IS NULL OR organization_id = :organizationId)
-        ORDER BY timestamp DESC
-        LIMIT 1
-        """, nativeQuery = true)
-    Optional<Attendance> findLatestRecordForEmployee(@Param("employeeId") Long employeeId,
-                                                     @Param("organizationId") Long organizationId);
+    List<Attendance> findByEmployeeIdAndAttendanceDateBetween(
+            Long employeeId, LocalDate from, LocalDate to);
 
-    @Query("SELECT a FROM Attendance a WHERE a.employeeId = :employeeId AND a.recordType = :recordType AND a.timestamp BETWEEN :startDate AND :endDate ORDER BY a.timestamp DESC")
-    List<Attendance> findByEmployeeIdAndRecordTypeAndTimestampBetween(
-            @Param("employeeId") Long employeeId,
-            @Param("recordType") RecordType recordType,
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endDate") LocalDateTime endDate
-    );
+    Page<Attendance> findByProjectIdAndAttendanceDateBetween(
+            Long projectId, LocalDate from, LocalDate to, Pageable pageable);
 
-    @Query("SELECT a FROM Attendance a WHERE a.modifiedBy IS NOT NULL AND a.timestamp BETWEEN :startDate AND :endDate ORDER BY a.lastModifiedAt DESC")
-    List<Attendance> findCorrectedRecords(
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endDate") LocalDateTime endDate
-    );
+    Page<Attendance> findByProjectIdAndAttendanceDate(
+            Long projectId, LocalDate date, Pageable pageable);
 
-    @Query("SELECT a FROM Attendance a WHERE a.employeeId = :employeeId AND a.modifiedBy IS NOT NULL ORDER BY a.lastModifiedAt DESC")
-    List<Attendance> findCorrectedRecordsByEmployee(@Param("employeeId") Long employeeId);
+    Page<Attendance> findByApprovalStatus(ApprovalStatus status, Pageable pageable);
 
-    @Query(value = """
-        SELECT DISTINCT a.employee_id
-        FROM attendance a
-        WHERE DATE(a.timestamp) = :date
-        AND (:organizationId IS NULL OR a.organization_id = :organizationId)
-        """, nativeQuery = true)
-    List<Long> findEmployeesPresentOnDate(@Param("date") LocalDateTime date,
-                                          @Param("organizationId") Long organizationId);
+    @Query("""
+        SELECT a FROM Attendance a
+        WHERE a.projectId = :projectId
+          AND a.attendanceDate = :date
+          AND (:status IS NULL OR a.status = :status)
+          AND (:search IS NULL OR LOWER(a.employeeName) LIKE LOWER(CONCAT('%', :search, '%')))
+        """)
+    Page<Attendance> findWithFilters(
+            @Param("projectId") Long projectId,
+            @Param("date") LocalDate date,
+            @Param("status") AttendanceStatus status,
+            @Param("search") String search,
+            Pageable pageable);
+
+    List<Attendance> findByEmployeeIdAndAttendanceDateBetweenAndStatus(
+            Long employeeId, LocalDate from, LocalDate to, AttendanceStatus status);
 }
