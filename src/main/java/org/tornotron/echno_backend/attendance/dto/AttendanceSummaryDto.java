@@ -5,10 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -16,12 +12,20 @@ import java.time.LocalDateTime;
 public class AttendanceSummaryDto {
     private Long employeeId;
     private String employeeName;
-    private LocalDate date;
-    private LocalDateTime checkInTime;
-    private LocalDateTime checkOutTime;
-    private Long totalWorkMinutes;
-    private Long totalBreakMinutes;
-    private String status; // PRESENT, ABSENT, HALF_DAY, LATE
-    private Boolean isLate;
-    private Boolean isEarlyCheckout;
+    private Integer month;
+    private Integer year;
+    private Integer totalWorkingDays;
+    private Integer presentDays;
+    private Integer halfDays;
+    private Integer absentDays;
+    private Integer leaveDays;
+    private Integer weeklyOffs;
+    private Integer holidays;
+    private Integer lateDays;
+    private Integer overtimeDays;
+    private Double totalHoursWorked;
+    private Double totalOvertimeHours;
+    private Double averageWorkHours;
+    private Double attendancePercentage;
+    private Double effectiveWorkDays;
 }

@@ -3,42 +3,69 @@ package org.tornotron.echno_backend.attendance.mapper;
 import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.attendance.Attendance;
 import org.tornotron.echno_backend.attendance.dto.AttendanceResponseDto;
-import org.tornotron.echno_backend.employee.Employee;
+
+import java.util.stream.Collectors;
 
 @Component
 public class AttendanceMapper {
 
-    public AttendanceResponseDto toResponseDto(Attendance attendance, Employee employee) {
-        return AttendanceResponseDto.builder()
-                .id(attendance.getId())
-                .employeeId(attendance.getEmployeeId())
-                .employeeName(employee != null ? employee.getEmployeeName() : null)
-                .location(attendance.getLocation())
-                .recordType(attendance.getRecordType())
-                .timestamp(attendance.getTimestamp())
-                .source(attendance.getSource())
-                .geoLocation(attendance.getGeoLocation())
-                .deviceInfo(attendance.getDeviceInfo())
-                .lastModifiedAt(attendance.getLastModifiedAt())
-                .modifiedBy(attendance.getModifiedBy())
-                .correctionReason(attendance.getCorrectionReason())
-                .build();
+    private final ShiftTimingMapper shiftTimingMapper;
+    private final ClockEventMapper clockEventMapper;
+    private final MovementRecordMapper movementRecordMapper;
+    private final AttendanceRegularizationMapper regularizationMapper;
+
+    public AttendanceMapper(ShiftTimingMapper shiftTimingMapper,
+                           ClockEventMapper clockEventMapper,
+                           MovementRecordMapper movementRecordMapper,
+                           AttendanceRegularizationMapper regularizationMapper) {
+        this.shiftTimingMapper = shiftTimingMapper;
+        this.clockEventMapper = clockEventMapper;
+        this.movementRecordMapper = movementRecordMapper;
+        this.regularizationMapper = regularizationMapper;
     }
 
-    public AttendanceResponseDto toResponseDto(Attendance attendance, String employeeName) {
+    public AttendanceResponseDto toResponseDto(Attendance attendance) {
+        if (attendance == null) return null;
         return AttendanceResponseDto.builder()
                 .id(attendance.getId())
                 .employeeId(attendance.getEmployeeId())
-                .employeeName(employeeName)
-                .location(attendance.getLocation())
-                .recordType(attendance.getRecordType())
-                .timestamp(attendance.getTimestamp())
-                .source(attendance.getSource())
-                .geoLocation(attendance.getGeoLocation())
-                .deviceInfo(attendance.getDeviceInfo())
-                .lastModifiedAt(attendance.getLastModifiedAt())
-                .modifiedBy(attendance.getModifiedBy())
-                .correctionReason(attendance.getCorrectionReason())
+                .employeeName(attendance.getEmployeeName())
+                .attendanceDate(attendance.getAttendanceDate())
+                .projectId(attendance.getProjectId())
+                .projectName(attendance.getProjectName())
+                .status(attendance.getStatus())
+                .shiftTiming(shiftTimingMapper.toDto(attendance.getShiftTiming()))
+                .clockEvents(attendance.getClockEvents() != null
+                        ? attendance.getClockEvents().stream()
+                            .map(clockEventMapper::toDto)
+                            .collect(Collectors.toList())
+                        : null)
+                .totalWorkMinutes(attendance.getTotalWorkMinutes())
+                .morningSessionMinutes(attendance.getMorningSessionMinutes())
+                .afternoonSessionMinutes(attendance.getAfternoonSessionMinutes())
+                .overtimeMinutes(attendance.getOvertimeMinutes())
+                .breakDurationMinutes(attendance.getBreakDurationMinutes())
+                .isLateArrival(attendance.getIsLateArrival())
+                .isEarlyCheckout(attendance.getIsEarlyCheckout())
+                .isOvertime(attendance.getIsOvertime())
+                .leaveId(attendance.getLeaveId())
+                .leaveType(attendance.getLeaveType())
+                .regularizations(attendance.getRegularizations() != null
+                        ? attendance.getRegularizations().stream()
+                            .map(regularizationMapper::toDto)
+                            .collect(Collectors.toList())
+                        : null)
+                .movements(attendance.getMovements() != null
+                        ? attendance.getMovements().stream()
+                            .map(movementRecordMapper::toDto)
+                            .collect(Collectors.toList())
+                        : null)
+                .approvalStatus(attendance.getApprovalStatus())
+                .approvedBy(attendance.getApprovedBy())
+                .approvedAt(attendance.getApprovedAt())
+                .remarks(attendance.getRemarks())
+                .createdAt(attendance.getCreatedAt())
+                .updatedAt(attendance.getUpdatedAt())
                 .build();
     }
 }
