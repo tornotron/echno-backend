@@ -59,3 +59,7 @@ serviceAccountKey.json
 /logs/
 /src/main/resources/config/
 /bin
+
+
+# Miscellaneous
+.DS_Store
