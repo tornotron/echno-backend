@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="069-create-shift-timing" author="echno">
+        <createTable tableName="shift_timing">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="shift_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="start_time" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="end_time" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lunch_break_start" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lunch_break_end" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="grace_period_minutes" type="INT" defaultValueNumeric="15">
+                <constraints nullable="false"/>
+            </column>
+            <column name="minimum_work_hours" type="DECIMAL(4,2)" defaultValueNumeric="8.0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="half_day_work_hours" type="DECIMAL(4,2)" defaultValueNumeric="4.0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="overtime_threshold" type="DECIMAL(4,2)" defaultValueNumeric="9.0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="shift_timing"
+                baseColumnNames="organization_id"
+                constraintName="fk_shift_timing_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"/>
+
+        <createIndex tableName="shift_timing" indexName="idx_shift_timing_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

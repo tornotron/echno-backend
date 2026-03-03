@@ -139,4 +139,28 @@
     <!-- Tag v1.3 release -->
     <include file="db/changelog/v1.3/060-tag-v1.3.xml"/>
 
+    <!-- ============================================================== -->
+    <!-- v1.4 - Attendance Module Rework                                -->
+    <!-- Created: 2026-02-27                                            -->
+    <!-- Description: Restructured attendance with shifts, settings,    -->
+    <!--              clock events, movements, and regularization        -->
+    <!-- ============================================================== -->
+
+    <!-- Level 0: Shift timing templates -->
+    <include file="db/changelog/v1.4/069-create-shift-timing.xml"/>
+
+    <!-- Level 1: Attendance settings (depends on shift_timing) -->
+    <include file="db/changelog/v1.4/070-create-attendance-settings.xml"/>
+
+    <!-- Level 2: Rename old attendance, create new attendance table -->
+    <include file="db/changelog/v1.4/071-create-new-attendance.xml"/>
+
+    <!-- Level 3: Tables depending on new attendance -->
+    <include file="db/changelog/v1.4/072-create-clock-event.xml"/>
+    <include file="db/changelog/v1.4/073-create-movement-record.xml"/>
+    <include file="db/changelog/v1.4/074-create-attendance-regularization.xml"/>
+
+    <!-- Tag v1.4 release -->
+    <include file="db/changelog/v1.4/075-tag-v1.4.xml"/>
+
 </databaseChangeLog>

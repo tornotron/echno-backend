@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="072-create-clock-event" author="echno">
+        <createTable tableName="clock_event">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="attendance_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_type" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_timestamp" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="latitude" type="DOUBLE PRECISION"/>
+            <column name="longitude" type="DOUBLE PRECISION"/>
+            <column name="gps_accuracy" type="DOUBLE PRECISION"/>
+            <column name="altitude" type="DOUBLE PRECISION"/>
+            <column name="photo_url" type="TEXT"/>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="device_platform" type="VARCHAR(50)"/>
+            <column name="device_id" type="VARCHAR(255)"/>
+            <column name="ip_address" type="VARCHAR(45)"/>
+            <column name="is_within_geofence" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="distance_from_project" type="DOUBLE PRECISION" defaultValueNumeric="0"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="verified_by" type="VARCHAR(255)"/>
+            <column name="verified_at" type="TIMESTAMP"/>
+            <column name="is_regularized" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="regularization_reason" type="TEXT"/>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="clock_event"
+                baseColumnNames="attendance_id"
+                constraintName="fk_clock_event_attendance"
+                referencedTableName="attendance"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="clock_event"
+                baseColumnNames="organization_id"
+                constraintName="fk_clock_event_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"/>
+
+        <createIndex tableName="clock_event" indexName="idx_clock_event_attendance">
+            <column name="attendance_id"/>
+        </createIndex>
+
+        <createIndex tableName="clock_event" indexName="idx_clock_event_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

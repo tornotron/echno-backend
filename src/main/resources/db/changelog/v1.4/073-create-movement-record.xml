@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="073-create-movement-record" author="echno">
+        <createTable tableName="movement_record">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="attendance_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="movement_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="from_location" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="to_location" type="VARCHAR(500)"/>
+            <column name="start_time" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="end_time" type="TIMESTAMP"/>
+            <column name="duration_minutes" type="INT"/>
+            <column name="distance_km" type="DOUBLE PRECISION"/>
+            <column name="purpose" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="remarks" type="TEXT"/>
+            <column name="start_latitude" type="DOUBLE PRECISION"/>
+            <column name="start_longitude" type="DOUBLE PRECISION"/>
+            <column name="end_latitude" type="DOUBLE PRECISION"/>
+            <column name="end_longitude" type="DOUBLE PRECISION"/>
+            <column name="attachments" type="TEXT"/>
+            <column name="verified_by" type="VARCHAR(255)"/>
+            <column name="verified_at" type="TIMESTAMP"/>
+            <column name="is_verified" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="movement_record"
+                baseColumnNames="attendance_id"
+                constraintName="fk_movement_record_attendance"
+                referencedTableName="attendance"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="movement_record"
+                baseColumnNames="organization_id"
+                constraintName="fk_movement_record_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"/>
+
+        <createIndex tableName="movement_record" indexName="idx_movement_record_attendance">
+            <column name="attendance_id"/>
+        </createIndex>
+
+        <createIndex tableName="movement_record" indexName="idx_movement_record_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
