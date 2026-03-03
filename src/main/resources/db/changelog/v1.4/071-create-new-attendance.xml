@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="071-rename-old-attendance" author="echno">
+        <renameTable oldTableName="attendance" newTableName="attendance_legacy"/>
+    </changeSet>
+
+    <changeSet id="071-create-new-attendance" author="echno">
+        <createTable tableName="attendance">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attendance_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="shift_timing_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="total_work_minutes" type="INT" defaultValueNumeric="0"/>
+            <column name="morning_session_minutes" type="INT" defaultValueNumeric="0"/>
+            <column name="afternoon_session_minutes" type="INT" defaultValueNumeric="0"/>
+            <column name="overtime_minutes" type="INT" defaultValueNumeric="0"/>
+            <column name="break_duration_minutes" type="INT" defaultValueNumeric="0"/>
+            <column name="is_late_arrival" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_early_checkout" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_overtime" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="leave_type" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="approval_status" type="VARCHAR(20)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+            <column name="approved_by" type="VARCHAR(255)"/>
+            <column name="approved_at" type="TIMESTAMP"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <addUniqueConstraint
+                tableName="attendance"
+                columnNames="employee_id, attendance_date, project_id"
+                constraintName="uq_attendance_employee_date_project"/>
+
+        <addForeignKeyConstraint
+                baseTableName="attendance"
+                baseColumnNames="organization_id"
+                constraintName="fk_attendance_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"/>
+
+        <addForeignKeyConstraint
+                baseTableName="attendance"
+                baseColumnNames="shift_timing_id"
+                constraintName="fk_attendance_shift_timing"
+                referencedTableName="shift_timing"
+                referencedColumnNames="id"/>
+
+        <createIndex tableName="attendance" indexName="idx_attendance_employee_date">
+            <column name="employee_id"/>
+            <column name="attendance_date" descending="true"/>
+        </createIndex>
+
+        <createIndex tableName="attendance" indexName="idx_attendance_project_date">
+            <column name="project_id"/>
+            <column name="attendance_date" descending="true"/>
+        </createIndex>
+
+        <createIndex tableName="attendance" indexName="idx_attendance_status">
+            <column name="status"/>
+        </createIndex>
+
+        <createIndex tableName="attendance" indexName="idx_attendance_approval_status">
+            <column name="approval_status"/>
+        </createIndex>
+
+        <createIndex tableName="attendance" indexName="idx_attendance_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

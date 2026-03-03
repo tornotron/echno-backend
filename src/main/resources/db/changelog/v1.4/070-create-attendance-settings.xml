@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="070-create-attendance-settings" author="echno">
+        <createTable tableName="attendance_settings">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="setting_name" type="VARCHAR(150)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="check_in_out_cycles" type="INT" defaultValueNumeric="2">
+                <constraints nullable="false"/>
+            </column>
+            <column name="photo_required_on_check_in" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="photo_required_on_check_out" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="geolocation_required" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="geofence_radius_meters" type="INT" defaultValueNumeric="100">
+                <constraints nullable="false"/>
+            </column>
+            <column name="movement_tracking_enabled" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="movement_photo_required" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="movement_geolocation_required" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="auto_mark_absent_after_hours" type="INT" defaultValueNumeric="4">
+                <constraints nullable="false"/>
+            </column>
+            <column name="allow_self_regularization" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="regularization_approval_required" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_regularization_days_per_month" type="INT" defaultValueNumeric="3">
+                <constraints nullable="false"/>
+            </column>
+            <column name="default_shift_timing_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="attendance_settings"
+                baseColumnNames="organization_id"
+                constraintName="fk_attendance_settings_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"/>
+
+        <addForeignKeyConstraint
+                baseTableName="attendance_settings"
+                baseColumnNames="project_id"
+                constraintName="fk_attendance_settings_project"
+                referencedTableName="project"
+                referencedColumnNames="id"/>
+
+        <addForeignKeyConstraint
+                baseTableName="attendance_settings"
+                baseColumnNames="default_shift_timing_id"
+                constraintName="fk_attendance_settings_shift_timing"
+                referencedTableName="shift_timing"
+                referencedColumnNames="id"/>
+
+        <createIndex tableName="attendance_settings" indexName="idx_attendance_settings_org">
+            <column name="organization_id"/>
+        </createIndex>
+
+        <createIndex tableName="attendance_settings" indexName="idx_attendance_settings_project">
+            <column name="project_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
