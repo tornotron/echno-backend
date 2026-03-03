@@ -5,8 +5,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.tornotron.echno_backend.DtoConversions.LeaveBalanceDtoConvertor;
 import org.tornotron.echno_backend.DtoConversions.LeaveTransactionDtoConvertor;
-import org.tornotron.echno_backend.attendance.AttendanceService;
-import org.tornotron.echno_backend.attendance.dto.AttendanceSummaryDto;
+import org.tornotron.echno_backend.attendance.Attendance;
+import org.tornotron.echno_backend.attendance.AttendanceRepository;
+import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.employee.Employee;
@@ -33,7 +34,7 @@ public class LeaveBalanceService {
     private final LeaveTransactionRepository transactionRepository;
     private final LeaveRequestRepository requestRepository;
     private final EmployeeRepository employeeRepository;
-    private final AttendanceService attendanceService;
+    private final AttendanceRepository attendanceRepository;
 
     public LeaveBalanceService(
             LeaveBalanceRepository balanceRepository,
@@ -41,13 +42,13 @@ public class LeaveBalanceService {
             LeaveTransactionRepository transactionRepository,
             LeaveRequestRepository requestRepository,
             EmployeeRepository employeeRepository,
-            AttendanceService attendanceService) {
+            AttendanceRepository attendanceRepository) {
         this.balanceRepository = balanceRepository;
         this.policyRepository = policyRepository;
         this.transactionRepository = transactionRepository;
         this.requestRepository = requestRepository;
         this.employeeRepository = employeeRepository;
-        this.attendanceService = attendanceService;
+        this.attendanceRepository = attendanceRepository;
     }
 
     @Transactional
@@ -357,29 +358,28 @@ public class LeaveBalanceService {
         }
 
         try {
-            List<AttendanceSummaryDto> summaries = attendanceService.getSummaryForDateRange(
+            List<Attendance> records = attendanceRepository.findByEmployeeIdAndAttendanceDateBetween(
                     employee.getId(), monthStart, monthEnd);
 
             // If no attendance data exists, give full accrual (attendance-based accrual is optional)
-            if (summaries == null || summaries.isEmpty()) {
+            if (records == null || records.isEmpty()) {
                 return defaultMonthlyAccrual;
             }
 
             // Count days with actual attendance records (non-ABSENT status)
-            // The attendance service returns "ABSENT" for days with no records
-            long daysPresent = summaries.stream()
-                    .filter(s -> "PRESENT".equalsIgnoreCase(s.getStatus()) ||
-                                 "LATE".equalsIgnoreCase(s.getStatus()))
+            long daysPresent = records.stream()
+                    .filter(a -> a.getStatus() == AttendanceStatus.PRESENT ||
+                                 a.getStatus() == AttendanceStatus.LATE)
                     .count();
 
-            long halfDays = summaries.stream()
-                    .filter(s -> "HALF_DAY".equalsIgnoreCase(s.getStatus()))
+            long halfDays = records.stream()
+                    .filter(a -> a.getStatus() == AttendanceStatus.HALF_DAY)
                     .count();
 
             // Check if there's ANY actual attendance tracking happening
             // If all days are ABSENT, it means attendance isn't being tracked - give full accrual
-            long daysWithAttendanceRecords = summaries.stream()
-                    .filter(s -> !"ABSENT".equalsIgnoreCase(s.getStatus()))
+            long daysWithAttendanceRecords = records.stream()
+                    .filter(a -> a.getStatus() != AttendanceStatus.ABSENT)
                     .count();
 
             if (daysWithAttendanceRecords == 0) {
