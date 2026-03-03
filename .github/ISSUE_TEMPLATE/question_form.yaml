@@ -1,0 +1,84 @@
+name: Question Form
+description: Submit a question or report an issue
+
+title: "[Question/Issue]: "
+labels: ["question", "help wanted"]
+
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reaching out! Please fill in the details below.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Please provide a detailed description of your question or issue.
+      placeholder: Describe the problem or ask your question here.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: Select the appropriate category for your question or issue.
+      options:
+        - Question
+        - Need Help
+        - Dependancies
+        - Version Issue
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce the Issue (if applicable)
+      description: If the issue is reproducible, please provide the steps to reproduce it.
+      placeholder: Describe the steps to reproduce the problem here.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Select your operating system/platform.
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: false
+  
+  - type: input
+    id: version
+    attributes:
+      label: Distribution/Version
+      description: Name of environment distribution and version 
+      placeholder: ex. Windows 11, Ubuntu 22.04 LTS, Sierra
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: Additional Information
+      description: Provide any additional information or relevant details here.
+      placeholder: Include error messages or code snippets if possible.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: agreement
+    attributes:
+      label: Agreement
+      description: By submitting this issue, you agree to follow our [Code of Conduct].
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
