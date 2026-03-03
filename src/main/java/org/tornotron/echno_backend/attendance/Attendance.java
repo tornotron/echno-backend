@@ -79,12 +79,15 @@ public class Attendance implements TenantScopedEntity {
     @Column(name = "break_duration_minutes")
     private Integer breakDurationMinutes = 0;
 
+    @Builder.Default
     @Column(name = "is_late_arrival", nullable = false)
     private Boolean isLateArrival = false;
 
+    @Builder.Default
     @Column(name = "is_early_checkout", nullable = false)
     private Boolean isEarlyCheckout = false;
 
+    @Builder.Default
     @Column(name = "is_overtime", nullable = false)
     private Boolean isOvertime = false;
 
