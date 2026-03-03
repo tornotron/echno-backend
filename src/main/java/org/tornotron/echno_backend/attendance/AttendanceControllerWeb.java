@@ -1,13 +1,16 @@
 package org.tornotron.echno_backend.attendance;
 
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.attendance.dto.*;
+import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 
 import java.time.LocalDate;
@@ -18,93 +21,74 @@ import java.util.List;
 @Validated
 public class AttendanceControllerWeb {
 
-    private final AttendanceService service;
+    private final AttendanceService attendanceService;
 
-    public AttendanceControllerWeb(AttendanceService service) {
-        this.service = service;
+    public AttendanceControllerWeb(AttendanceService attendanceService) {
+        this.attendanceService = attendanceService;
     }
 
-    @PostMapping
-    @PreAuthorize("hasAuthority('attendance:create') or hasAuthority('attendance:admin')")
-    public ResponseEntity<ApiResponse> createAttendance(@Valid @RequestBody AttendanceCreationDto attendanceCreationDto) {
-        service.recordAttendance(attendanceCreationDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Attendance Recorded Successfully"));
+    @PostMapping("/check-in")
+    public ResponseEntity<AttendanceResponseDto> checkIn(@Valid @RequestBody AttendanceCheckInDto dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(attendanceService.checkIn(dto));
     }
 
-    @PostMapping("/bulk")
-    @PreAuthorize("hasAuthority('attendance:create') or hasAuthority('attendance:admin')")
-    public ResponseEntity<ApiResponse> createBulkAttendance(@Valid @RequestBody BulkAttendanceCreationDto bulkDto) {
-        service.recordBulkAttendance(bulkDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiResponse("Bulk Attendance Recorded Successfully"));
+    @PostMapping("/clock-event")
+    public ResponseEntity<AttendanceResponseDto> recordClockEvent(@Valid @RequestBody AttendanceClockEventDto dto) {
+        return ResponseEntity.ok(attendanceService.recordClockEvent(dto));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<AttendanceResponseDto> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(attendanceService.getAttendanceById(id));
     }
 
     @GetMapping("/employee/{employeeId}")
-    @PreAuthorize("hasAuthority('attendance:read') or hasAuthority('attendance:admin')")
-    public ResponseEntity<List<AttendanceResponseDto>> getAttendanceByEmployee(
+    public ResponseEntity<List<AttendanceResponseDto>> getByEmployee(
             @PathVariable Long employeeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        List<AttendanceResponseDto> records = service.getAttendanceByEmployee(employeeId, startDate, endDate);
-        return ResponseEntity.ok(records);
+        return ResponseEntity.ok(attendanceService.getAttendanceByEmployee(employeeId, startDate, endDate));
     }
 
-    @GetMapping("/employee/name/{employeeName}")
-    @PreAuthorize("hasAuthority('attendance:read') or hasAuthority('attendance:admin')")
-    public ResponseEntity<List<AttendanceResponseDto>> getAttendanceByEmployeeName(
-            @PathVariable String employeeName,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        List<AttendanceResponseDto> records = service.getAttendanceByEmployeeName(employeeName, startDate, endDate);
-        return ResponseEntity.ok(records);
+    @GetMapping("/project/{projectId}")
+    public ResponseEntity<Page<AttendanceResponseDto>> getByProject(
+            @PathVariable Long projectId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) AttendanceStatus status,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(attendanceService.getAttendanceByProject(
+                projectId, date, status, search,
+                PageRequest.of(page, size, Sort.by("employeeName"))));
     }
 
-    @GetMapping("/summary/daily/{employeeId}")
-    @PreAuthorize("hasAuthority('attendance:read') or hasAuthority('attendance:admin')")
-    public ResponseEntity<AttendanceSummaryDto> getDailySummary(
-            @PathVariable Long employeeId,
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<AttendanceResponseDto> approve(
+            @PathVariable Long id,
+            @Valid @RequestBody AttendanceApprovalDto dto) {
+        return ResponseEntity.ok(attendanceService.approveAttendance(id, dto, "system"));
+    }
+
+    @PostMapping("/mark-absent")
+    public ResponseEntity<AttendanceResponseDto> markAbsent(
+            @RequestParam Long employeeId,
+            @RequestParam Long projectId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        AttendanceSummaryDto summary = service.getDailySummary(employeeId, date);
-        return ResponseEntity.ok(summary);
+        return ResponseEntity.ok(attendanceService.markAbsent(employeeId, projectId, date));
     }
 
-    @GetMapping("/summary/range/{employeeId}")
-    @PreAuthorize("hasAuthority('attendance:read') or hasAuthority('attendance:admin')")
-    public ResponseEntity<List<AttendanceSummaryDto>> getSummaryForDateRange(
+    @GetMapping("/summary/{employeeId}")
+    public ResponseEntity<AttendanceSummaryDto> getMonthlySummary(
             @PathVariable Long employeeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        List<AttendanceSummaryDto> summaries = service.getSummaryForDateRange(employeeId, startDate, endDate);
-        return ResponseEntity.ok(summaries);
+            @RequestParam int month,
+            @RequestParam int year) {
+        return ResponseEntity.ok(attendanceService.getMonthlySummary(employeeId, month, year));
     }
 
-    @PutMapping("/update")
-    @PreAuthorize("hasAuthority('attendance:update') or hasAuthority('attendance:admin')")
-    public ResponseEntity<AttendanceResponseDto> updateAttendance(@Valid @RequestBody AttendanceUpdateDto updateDto) {
-        AttendanceResponseDto updated = service.updateAttendance(updateDto);
-        return ResponseEntity.ok(updated);
-    }
-
-    @GetMapping("/corrected")
-    @PreAuthorize("hasAuthority('attendance:read') or hasAuthority('attendance:admin')")
-    public ResponseEntity<List<AttendanceResponseDto>> getCorrectedRecords(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        List<AttendanceResponseDto> correctedRecords = service.getCorrectedRecords(startDate, endDate);
-        return ResponseEntity.ok(correctedRecords);
-    }
-
-    @GetMapping("/corrected/employee/{employeeId}")
-    @PreAuthorize("hasAuthority('attendance:read') or hasAuthority('attendance:admin')")
-    public ResponseEntity<List<AttendanceResponseDto>> getCorrectedRecordsByEmployee(@PathVariable Long employeeId) {
-        List<AttendanceResponseDto> correctedRecords = service.getCorrectedRecordsByEmployee(employeeId);
-        return ResponseEntity.ok(correctedRecords);
-    }
-
-    @DeleteMapping("/{attendanceId}")
-    @PreAuthorize("hasAuthority('attendance:delete') or hasAuthority('attendance:admin')")
-    public ResponseEntity<ApiResponse> deleteAttendance(@PathVariable Long attendanceId) {
-        service.deleteAttendance(attendanceId);
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse> delete(@PathVariable Long id) {
+        attendanceService.deleteAttendance(id);
         return ResponseEntity.ok(new ApiResponse("Attendance record deleted successfully"));
     }
-
 }

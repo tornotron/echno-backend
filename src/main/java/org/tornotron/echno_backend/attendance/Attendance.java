@@ -1,26 +1,34 @@
 package org.tornotron.echno_backend.attendance;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-import org.tornotron.echno_backend.attendance.enums.RecordType;
-import org.tornotron.echno_backend.common.embed.GeoLocation;
 import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.tornotron.echno_backend.attendance.enums.ApprovalStatus;
+import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
+@Table(name = "attendance",
+    uniqueConstraints = @UniqueConstraint(
+        name = "uq_attendance_employee_date_project",
+        columnNames = {"employee_id", "attendance_date", "project_id"}
+    )
+)
 @Data
 @NoArgsConstructor
-@Table(name = "Attendance", indexes = {
-    @Index(name = "idx_employee_timestamp", columnList = "employeeId, timestamp"),
-    @Index(name = "idx_employee_id", columnList = "employeeId"),
-    @Index(name = "idx_timestamp", columnList = "timestamp"),
-    @Index(name = "idx_record_type", columnList = "recordType")
-})
+@AllArgsConstructor
+@Builder
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 public class Attendance implements TenantScopedEntity {
 
@@ -28,38 +36,95 @@ public class Attendance implements TenantScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "employee_id", nullable = false)
     private Long employeeId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id")
-    private Organization organization;
+    @Column(name = "employee_name", nullable = false)
+    private String employeeName;
 
-    @Column(nullable = false)
-    private String location;
+    @Column(name = "attendance_date", nullable = false)
+    private LocalDate attendanceDate;
+
+    @Column(name = "project_id", nullable = false)
+    private Long projectId;
+
+    @Column(name = "project_name", nullable = false)
+    private String projectName;
 
     @Enumerated(EnumType.STRING)
-    private RecordType recordType;
+    @Column(name = "status", nullable = false)
+    private AttendanceStatus status;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shift_timing_id")
+    private ShiftTiming shiftTiming;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "attendance", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("eventTimestamp ASC")
+    private List<ClockEvent> clockEvents = new ArrayList<>();
+
+    @Column(name = "total_work_minutes")
+    private Integer totalWorkMinutes = 0;
+
+    @Column(name = "morning_session_minutes")
+    private Integer morningSessionMinutes = 0;
+
+    @Column(name = "afternoon_session_minutes")
+    private Integer afternoonSessionMinutes = 0;
+
+    @Column(name = "overtime_minutes")
+    private Integer overtimeMinutes = 0;
+
+    @Column(name = "break_duration_minutes")
+    private Integer breakDurationMinutes = 0;
+
+    @Column(name = "is_late_arrival", nullable = false)
+    private Boolean isLateArrival = false;
+
+    @Column(name = "is_early_checkout", nullable = false)
+    private Boolean isEarlyCheckout = false;
+
+    @Column(name = "is_overtime", nullable = false)
+    private Boolean isOvertime = false;
+
+    @Column(name = "leave_id")
+    private Long leaveId;
+
+    @Column(name = "leave_type")
+    private String leaveType;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "attendance", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<AttendanceRegularization> regularizations = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "attendance", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("startTime ASC")
+    private List<MovementRecord> movements = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", nullable = false)
+    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
+
+    @Column(name = "approved_by")
+    private String approvedBy;
+
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
+
+    @Column(name = "remarks")
+    private String remarks;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", nullable = false)
+    private Organization organization;
 
     @CreationTimestamp
-    @Column(nullable = false)
-    private LocalDateTime timestamp;
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
-    @Column(nullable = true)
-    private String source;
-
-    @Embedded
-    private GeoLocation geoLocation;
-
-    @Column(columnDefinition = "jsonb")
-    private String deviceInfo;
-
-    @Column
-    private LocalDateTime lastModifiedAt;
-
-    @Column
-    private String modifiedBy;
-
-    @Column(length = 500)
-    private String correctionReason;
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }
