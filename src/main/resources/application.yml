@@ -135,6 +135,7 @@ spring:
       max-request-size: 10MB
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
+    contexts: v2
 
 
 server:

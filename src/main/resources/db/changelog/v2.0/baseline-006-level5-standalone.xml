@@ -1,0 +1,656 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================== -->
+    <!-- Baseline Level 5: Standalone / leave management tables         -->
+    <!-- Consolidates: v1.0 (032), v1.2 (040-047), v1.3 (057)          -->
+    <!-- ============================================================== -->
+
+    <!-- usage_record (unchanged from 032) -->
+    <changeSet id="baseline-006-create-usage-record" author="echno-baseline">
+        <createTable tableName="usage_record">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subscription_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="feature_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="usage_amount" type="BIGINT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_start" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_end" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="resource_id" type="VARCHAR(255)"/>
+        </createTable>
+
+        <createIndex tableName="usage_record" indexName="idx_usage_user_feature">
+            <column name="user_id"/>
+            <column name="feature_id"/>
+        </createIndex>
+        <createIndex tableName="usage_record" indexName="idx_usage_subscription">
+            <column name="subscription_id"/>
+        </createIndex>
+        <createIndex tableName="usage_record" indexName="idx_usage_period">
+            <column name="period_start"/>
+            <column name="period_end"/>
+        </createIndex>
+        <createIndex tableName="usage_record" indexName="idx_usage_feature_period">
+            <column name="feature_id"/>
+            <column name="period_start"/>
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- leave_policy (from v1.2 040) -->
+    <changeSet id="baseline-006-create-leave-policy" author="echno-baseline">
+        <createTable tableName="leave_policy">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_type_code" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_type_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="annual_quota" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="accrual_rate_per_month" type="DOUBLE PRECISION"/>
+            <column name="carry_forward_limit" type="DOUBLE PRECISION"/>
+            <column name="carry_forward_expiry_months" type="INTEGER"/>
+            <column name="min_days_per_request" type="DOUBLE PRECISION" defaultValueNumeric="0.5"/>
+            <column name="max_days_per_request" type="DOUBLE PRECISION"/>
+            <column name="advance_notice_days" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="requires_attachment" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="attachment_required_after_days" type="INTEGER"/>
+            <column name="applicable_genders" type="VARCHAR(50)" defaultValue="ALL"/>
+            <column name="min_service_months" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="allow_half_day" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="is_paid" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="display_order" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_policy"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_policy_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="leave_policy" indexName="idx_leave_policy_org">
+            <column name="organization_id"/>
+        </createIndex>
+        <createIndex tableName="leave_policy" indexName="idx_leave_policy_type_code">
+            <column name="leave_type_code"/>
+        </createIndex>
+        <createIndex tableName="leave_policy" indexName="idx_leave_policy_active">
+            <column name="is_active"/>
+        </createIndex>
+        <addUniqueConstraint
+                tableName="leave_policy"
+                columnNames="organization_id, leave_type_code"
+                constraintName="uk_leave_policy_org_type"/>
+    </changeSet>
+
+    <!-- leave_balance (squashed: 041 + 057-02 org_id) -->
+    <changeSet id="baseline-006-create-leave-balance" author="echno-baseline">
+        <createTable tableName="leave_balance">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_policy_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="year" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="opening_balance" type="DOUBLE PRECISION" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="accrued" type="DOUBLE PRECISION" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="used" type="DOUBLE PRECISION" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pending" type="DOUBLE PRECISION" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="carry_forward_from_previous" type="DOUBLE PRECISION" defaultValueNumeric="0"/>
+            <column name="carry_forward_expiry_date" type="DATE"/>
+            <column name="last_calculated_at" type="TIMESTAMP"/>
+            <column name="last_calculation_month" type="INTEGER"/>
+            <!-- Added in v1.3 (057-02) -->
+            <column name="organization_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_balance"
+                baseColumnNames="employee_id"
+                constraintName="fk_leave_balance_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_balance"
+                baseColumnNames="leave_policy_id"
+                constraintName="fk_leave_balance_policy"
+                referencedTableName="leave_policy"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_balance"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_balance_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="leave_balance" indexName="idx_leave_balance_employee">
+            <column name="employee_id"/>
+        </createIndex>
+        <createIndex tableName="leave_balance" indexName="idx_leave_balance_policy">
+            <column name="leave_policy_id"/>
+        </createIndex>
+        <createIndex tableName="leave_balance" indexName="idx_leave_balance_year">
+            <column name="year"/>
+        </createIndex>
+        <createIndex tableName="leave_balance" indexName="idx_leave_balance_organization">
+            <column name="organization_id"/>
+        </createIndex>
+        <addUniqueConstraint
+                tableName="leave_balance"
+                columnNames="employee_id, leave_policy_id, year"
+                constraintName="uk_leave_balance_emp_policy_year"/>
+    </changeSet>
+
+    <!-- leave_request (unchanged from 042) -->
+    <changeSet id="baseline-006-create-leave-request" author="echno-baseline">
+        <createTable tableName="leave_request">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="request_number" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_policy_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="start_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="start_half_day_type" type="VARCHAR(20)"/>
+            <column name="end_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="end_half_day_type" type="VARCHAR(20)"/>
+            <column name="total_days" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="VARCHAR(1000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_approver_id" type="BIGINT"/>
+            <column name="current_approval_level" type="INTEGER"/>
+            <column name="max_approval_level" type="INTEGER"/>
+            <column name="contact_during_leave" type="VARCHAR(100)"/>
+            <column name="handover_to_id" type="BIGINT"/>
+            <column name="handover_notes" type="VARCHAR(500)"/>
+            <column name="cancelled_at" type="TIMESTAMP"/>
+            <column name="cancellation_reason" type="VARCHAR(500)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_request"
+                baseColumnNames="employee_id"
+                constraintName="fk_leave_request_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_request"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_request_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_request"
+                baseColumnNames="leave_policy_id"
+                constraintName="fk_leave_request_policy"
+                referencedTableName="leave_policy"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_request"
+                baseColumnNames="current_approver_id"
+                constraintName="fk_leave_request_current_approver"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_request"
+                baseColumnNames="handover_to_id"
+                constraintName="fk_leave_request_handover"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <createIndex tableName="leave_request" indexName="idx_leave_request_employee">
+            <column name="employee_id"/>
+        </createIndex>
+        <createIndex tableName="leave_request" indexName="idx_leave_request_org">
+            <column name="organization_id"/>
+        </createIndex>
+        <createIndex tableName="leave_request" indexName="idx_leave_request_policy">
+            <column name="leave_policy_id"/>
+        </createIndex>
+        <createIndex tableName="leave_request" indexName="idx_leave_request_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="leave_request" indexName="idx_leave_request_dates">
+            <column name="start_date"/>
+            <column name="end_date"/>
+        </createIndex>
+        <createIndex tableName="leave_request" indexName="idx_leave_request_approver">
+            <column name="current_approver_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- leave_approval (squashed: 043 + 057-01 org_id) -->
+    <changeSet id="baseline-006-create-leave-approval" author="echno-baseline">
+        <createTable tableName="leave_approval">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="leave_request_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="approver_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="approval_level" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="comments" type="VARCHAR(1000)"/>
+            <column name="delegated_from_id" type="BIGINT"/>
+            <column name="action_at" type="TIMESTAMP"/>
+            <!-- Added in v1.3 (057-01) -->
+            <column name="organization_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_approval"
+                baseColumnNames="leave_request_id"
+                constraintName="fk_leave_approval_request"
+                referencedTableName="leave_request"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_approval"
+                baseColumnNames="approver_id"
+                constraintName="fk_leave_approval_approver"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_approval"
+                baseColumnNames="delegated_from_id"
+                constraintName="fk_leave_approval_delegated_from"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_approval"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_approval_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="leave_approval" indexName="idx_leave_approval_request">
+            <column name="leave_request_id"/>
+        </createIndex>
+        <createIndex tableName="leave_approval" indexName="idx_leave_approval_approver">
+            <column name="approver_id"/>
+        </createIndex>
+        <createIndex tableName="leave_approval" indexName="idx_leave_approval_action">
+            <column name="action"/>
+        </createIndex>
+        <createIndex tableName="leave_approval" indexName="idx_leave_approval_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- leave_transaction (squashed: 044 + 057-03 org_id) -->
+    <changeSet id="baseline-006-create-leave-transaction" author="echno-baseline">
+        <createTable tableName="leave_transaction">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_balance_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_request_id" type="BIGINT"/>
+            <column name="transaction_type" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="days" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="balance_before" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="balance_after" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transaction_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reference_month" type="INTEGER"/>
+            <column name="reference_year" type="INTEGER"/>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <!-- Added in v1.3 (057-03) -->
+            <column name="organization_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_transaction"
+                baseColumnNames="employee_id"
+                constraintName="fk_leave_txn_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_transaction"
+                baseColumnNames="leave_balance_id"
+                constraintName="fk_leave_txn_balance"
+                referencedTableName="leave_balance"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_transaction"
+                baseColumnNames="leave_request_id"
+                constraintName="fk_leave_txn_request"
+                referencedTableName="leave_request"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_transaction"
+                baseColumnNames="created_by_id"
+                constraintName="fk_leave_txn_created_by"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_transaction"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_transaction_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="leave_transaction" indexName="idx_leave_txn_employee">
+            <column name="employee_id"/>
+        </createIndex>
+        <createIndex tableName="leave_transaction" indexName="idx_leave_txn_balance">
+            <column name="leave_balance_id"/>
+        </createIndex>
+        <createIndex tableName="leave_transaction" indexName="idx_leave_txn_request">
+            <column name="leave_request_id"/>
+        </createIndex>
+        <createIndex tableName="leave_transaction" indexName="idx_leave_txn_date">
+            <column name="transaction_date"/>
+        </createIndex>
+        <createIndex tableName="leave_transaction" indexName="idx_leave_txn_type">
+            <column name="transaction_type"/>
+        </createIndex>
+        <createIndex tableName="leave_transaction" indexName="idx_leave_transaction_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- leave_calendar (unchanged from 045) -->
+    <changeSet id="baseline-006-create-leave-calendar" author="echno-baseline">
+        <createTable tableName="leave_calendar">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_request_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="day_type" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_type_code" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_type_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="department" type="VARCHAR(100)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_calendar"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_calendar_org"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_calendar"
+                baseColumnNames="employee_id"
+                constraintName="fk_leave_calendar_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="leave_calendar"
+                baseColumnNames="leave_request_id"
+                constraintName="fk_leave_calendar_request"
+                referencedTableName="leave_request"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="leave_calendar" indexName="idx_leave_calendar_org_date">
+            <column name="organization_id"/>
+            <column name="leave_date"/>
+        </createIndex>
+        <createIndex tableName="leave_calendar" indexName="idx_leave_calendar_employee">
+            <column name="employee_id"/>
+        </createIndex>
+        <createIndex tableName="leave_calendar" indexName="idx_leave_calendar_request">
+            <column name="leave_request_id"/>
+        </createIndex>
+        <createIndex tableName="leave_calendar" indexName="idx_leave_calendar_date">
+            <column name="leave_date"/>
+        </createIndex>
+        <createIndex tableName="leave_calendar" indexName="idx_leave_calendar_dept">
+            <column name="department"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- notification (squashed: 046 + 057-04 org_id) -->
+    <changeSet id="baseline-006-create-notification" author="echno-baseline">
+        <createTable tableName="notification">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="recipient_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notification_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message" type="VARCHAR(1000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_type" type="VARCHAR(50)"/>
+            <column name="entity_id" type="BIGINT"/>
+            <column name="action_url" type="VARCHAR(500)"/>
+            <column name="is_read" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="read_at" type="TIMESTAMP"/>
+            <!-- Added in v1.3 (057-04) -->
+            <column name="organization_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="notification"
+                baseColumnNames="recipient_id"
+                constraintName="fk_notification_recipient"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="notification"
+                baseColumnNames="organization_id"
+                constraintName="fk_notification_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="notification" indexName="idx_notification_recipient">
+            <column name="recipient_id"/>
+        </createIndex>
+        <createIndex tableName="notification" indexName="idx_notification_read">
+            <column name="is_read"/>
+        </createIndex>
+        <createIndex tableName="notification" indexName="idx_notification_created">
+            <column name="created_at" descending="true"/>
+        </createIndex>
+        <createIndex tableName="notification" indexName="idx_notification_type">
+            <column name="notification_type"/>
+        </createIndex>
+        <createIndex tableName="notification" indexName="idx_notification_entity">
+            <column name="entity_type"/>
+            <column name="entity_id"/>
+        </createIndex>
+        <createIndex tableName="notification" indexName="idx_notification_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- leave_request_sequence (unchanged from 047) -->
+    <changeSet id="baseline-006-create-leave-request-sequence" author="echno-baseline">
+        <createTable tableName="leave_request_sequence">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="year" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_sequence" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="leave_request_sequence"
+                baseColumnNames="organization_id"
+                constraintName="fk_leave_req_seq_org"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addUniqueConstraint
+                tableName="leave_request_sequence"
+                columnNames="organization_id, year"
+                constraintName="uk_leave_req_seq_org_year"/>
+    </changeSet>
+
+</databaseChangeLog>

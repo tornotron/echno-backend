@@ -6,161 +6,124 @@
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <!-- ============================================================== -->
-    <!-- v1.0 - Initial Schema                                          -->
-    <!-- Created: 2026-01-26                                            -->
-    <!-- Description: Base schema for Echno Backend                     -->
+    <!-- VERSION-BASED MIGRATION STRATEGY                               -->
+    <!--                                                                -->
+    <!-- Set spring.liquibase.contexts in application.yml:             -->
+    <!--   contexts: v2   → runs only v2.0 (fresh install, recommended)-->
+    <!--   contexts: v1   → runs only v1.0 through v1.4 (legacy)       -->
+    <!--                                                                -->
+    <!-- FUTURE MIGRATIONS: add below with NO context so they run      -->
+    <!-- regardless of which version was used for the base schema.     -->
     <!-- ============================================================== -->
 
-    <!-- Level 0: Base tables with no foreign key dependencies -->
-    <include file="db/changelog/v1.0/001-create-users-table.xml"/>
-    <include file="db/changelog/v1.0/002-create-organization.xml"/>
-    <include file="db/changelog/v1.0/003-create-category.xml"/>
-    <include file="db/changelog/v1.0/004-create-vendor.xml"/>
-    <include file="db/changelog/v1.0/005-create-material.xml"/>
-    <include file="db/changelog/v1.0/006-create-feature.xml"/>
-    <include file="db/changelog/v1.0/007-create-plan.xml"/>
-    <include file="db/changelog/v1.0/008-create-attachment.xml"/>
-
-    <!-- Level 1: Tables depending on Level 0 -->
-    <include file="db/changelog/v1.0/009-create-employee.xml"/>
-    <include file="db/changelog/v1.0/010-create-project.xml"/>
-    <include file="db/changelog/v1.0/011-create-project-invite-code.xml"/>
-    <include file="db/changelog/v1.0/012-create-intend.xml"/>
-    <include file="db/changelog/v1.0/013-create-plan-feature.xml"/>
-    <include file="db/changelog/v1.0/014-create-subscription.xml"/>
-    <include file="db/changelog/v1.0/015-create-site-transfer.xml"/>
-
-    <!-- Level 2: Tables depending on Level 1 -->
-    <include file="db/changelog/v1.0/016-create-team-member.xml"/>
-    <include file="db/changelog/v1.0/017-create-task.xml"/>
-    <include file="db/changelog/v1.0/018-create-indent-item.xml"/>
-    <include file="db/changelog/v1.0/019-create-purchase-order.xml"/>
-    <include file="db/changelog/v1.0/020-create-subscription-item.xml"/>
-    <include file="db/changelog/v1.0/021-create-site-transfer-item.xml"/>
-
-    <!-- Level 3: Tables depending on Level 2 -->
-    <include file="db/changelog/v1.0/022-create-task-assignees.xml"/>
-    <include file="db/changelog/v1.0/023-create-task-tags.xml"/>
-    <include file="db/changelog/v1.0/024-create-issue.xml"/>
-    <include file="db/changelog/v1.0/025-create-purchase-order-item.xml"/>
-    <include file="db/changelog/v1.0/026-create-goods-received-note.xml"/>
-    <include file="db/changelog/v1.0/027-create-inventory-transaction.xml"/>
-    <include file="db/changelog/v1.0/028-create-material-consumption.xml"/>
-
-    <!-- Level 4: Tables depending on Level 3 -->
-    <include file="db/changelog/v1.0/029-create-issue-comments.xml"/>
-    <include file="db/changelog/v1.0/030-create-grn-item.xml"/>
-    <include file="db/changelog/v1.0/031-create-payable.xml"/>
-
-    <!-- Level 5: Standalone tables with denormalized references -->
-    <include file="db/changelog/v1.0/032-create-usage-record.xml"/>
-    <include file="db/changelog/v1.0/033-create-attendance.xml"/>
-
-    <!-- Tag v1.0 release -->
-    <include file="db/changelog/v1.0/034-tag-v1.0.xml"/>
+    <!-- ============================================================== -->
+    <!-- v2.0 - Consolidated baseline schema (context: v2)             -->
+    <!-- ============================================================== -->
+    <include file="db/changelog/v2.0/baseline-001-level0-tables.xml" context="v2"/>
+    <include file="db/changelog/v2.0/baseline-002-level1-tables.xml" context="v2"/>
+    <include file="db/changelog/v2.0/baseline-003-level2-tables.xml" context="v2"/>
+    <include file="db/changelog/v2.0/baseline-004-level3-tables.xml" context="v2"/>
+    <include file="db/changelog/v2.0/baseline-005-level4-tables.xml" context="v2"/>
+    <include file="db/changelog/v2.0/baseline-006-level5-standalone.xml" context="v2"/>
+    <include file="db/changelog/v2.0/baseline-007-tag.xml" context="v2"/>
 
     <!-- ============================================================== -->
-    <!-- v1.1 - Schema alterations                                      -->
+    <!-- v1.0 - Initial Schema (context: v1)                           -->
     <!-- ============================================================== -->
-    <include file="db/changelog/v1.1/035-alter-attachment-url-nullable.xml"/>
-    <include file="db/changelog/v1.1/036-add-updated-at-to-attachment.xml"/>
-    <include file="db/changelog/v1.1/037-add-attachment-relationships.xml"/>
-    <include file="db/changelog/v1.1/038-add-team-member-department-designation.xml"/>
-    <include file="db/changelog/v1.1/039-add-user-default-organization-id.xml"/>
-
-    <!-- ============================================================== -->
-    <!-- v1.2 - Leave Management Module                                  -->
-    <!-- Created: 2026-02-01                                            -->
-    <!-- Description: Enterprise leave management with approvals         -->
-    <!-- ============================================================== -->
-
-    <!-- Level 0: Base leave tables -->
-    <include file="db/changelog/v1.2/040-create-leave-policy.xml"/>
-
-    <!-- Level 1: Tables depending on leave_policy -->
-    <include file="db/changelog/v1.2/041-create-leave-balance.xml"/>
-    <include file="db/changelog/v1.2/042-create-leave-request.xml"/>
-
-    <!-- Level 2: Tables depending on leave_request -->
-    <include file="db/changelog/v1.2/043-create-leave-approval.xml"/>
-    <include file="db/changelog/v1.2/044-create-leave-transaction.xml"/>
-    <include file="db/changelog/v1.2/045-create-leave-calendar.xml"/>
-
-    <!-- Level 3: Supporting tables -->
-    <include file="db/changelog/v1.2/046-create-notification.xml"/>
-    <include file="db/changelog/v1.2/047-create-leave-request-sequence.xml"/>
-
-    <!-- Schema alterations -->
-    <include file="db/changelog/v1.2/050-add-timestamps-to-project-invite-code.xml"/>
-    <include file="db/changelog/v1.2/051-add-user-certifications-list.xml"/>
-    <include file="db/changelog/v1.2/052-refactor-reporting-manager.xml"/>
-    <include file="db/changelog/v1.2/053-add-is-manager-to-employee.xml"/>
-    <include file="db/changelog/v1.2/054-make-employee-fields-nullable.xml"/>
-    <include file="db/changelog/v1.2/055-create-employee-org-roles.xml"/>
-
-    <!-- ============================================================== -->
-    <!-- v1.3 - Multi-Tenancy: Organization-level data isolation         -->
-    <!-- Created: 2026-02-08                                            -->
-    <!-- Description: Add organization_id to tenant-scoped entities      -->
-    <!-- ============================================================== -->
-
-    <!-- Add organization_id columns -->
-    <include file="db/changelog/v1.3/056-add-org-id-to-task-related-entities.xml"/>
-    <include file="db/changelog/v1.3/057-add-org-id-to-leave-related-entities.xml"/>
-    <include file="db/changelog/v1.3/058-add-org-id-to-procurement-entities.xml"/>
-
-    <!-- Backfill organization_id from parent relationships -->
-    <include file="db/changelog/v1.3/059-backfill-org-id.xml"/>
-
-    <!-- Remove unique constraint from employee email -->
-    <include file="db/changelog/v1.3/061-remove-employee-email-unique-constraint.xml"/>
-
-    <!-- Replace team_member with project-employee many-to-many -->
-    <include file="db/changelog/v1.3/062-create-project-employees.xml"/>
-
-    <!-- Add employee_id column for human-friendly identifiers -->
-    <include file="db/changelog/v1.3/063-add-employee-id-to-employee.xml"/>
-
-    <!-- Add normalized_name to category for case-insensitive uniqueness -->
-    <include file="db/changelog/v1.3/064-add-normalized-name-to-category.xml"/>
-
-    <!-- Add description column to task -->
-    <include file="db/changelog/v1.3/065-add-description-to-task.xml"/>
-
-    <!-- Add progress column to project -->
-    <include file="db/changelog/v1.3/066-add-progress-to-project.xml"/>
-
-    <!-- Rename author to author_id in issue_comments -->
-    <include file="db/changelog/v1.3/067-rename-author-to-author-id-in-issue-comments.xml"/>
-
-    <!-- Replace creator VARCHAR with created_by/assigned_to FK to employee -->
-    <include file="db/changelog/v1.3/068-add-created-by-assigned-to-issue.xml"/>
-
-    <!-- Tag v1.3 release -->
-    <include file="db/changelog/v1.3/060-tag-v1.3.xml"/>
+    <include file="db/changelog/v1.0/001-create-users-table.xml" context="v1"/>
+    <include file="db/changelog/v1.0/002-create-organization.xml" context="v1"/>
+    <include file="db/changelog/v1.0/003-create-category.xml" context="v1"/>
+    <include file="db/changelog/v1.0/004-create-vendor.xml" context="v1"/>
+    <include file="db/changelog/v1.0/005-create-material.xml" context="v1"/>
+    <include file="db/changelog/v1.0/006-create-feature.xml" context="v1"/>
+    <include file="db/changelog/v1.0/007-create-plan.xml" context="v1"/>
+    <include file="db/changelog/v1.0/008-create-attachment.xml" context="v1"/>
+    <include file="db/changelog/v1.0/009-create-employee.xml" context="v1"/>
+    <include file="db/changelog/v1.0/010-create-project.xml" context="v1"/>
+    <include file="db/changelog/v1.0/011-create-project-invite-code.xml" context="v1"/>
+    <include file="db/changelog/v1.0/012-create-intend.xml" context="v1"/>
+    <include file="db/changelog/v1.0/013-create-plan-feature.xml" context="v1"/>
+    <include file="db/changelog/v1.0/014-create-subscription.xml" context="v1"/>
+    <include file="db/changelog/v1.0/015-create-site-transfer.xml" context="v1"/>
+    <include file="db/changelog/v1.0/016-create-team-member.xml" context="v1"/>
+    <include file="db/changelog/v1.0/017-create-task.xml" context="v1"/>
+    <include file="db/changelog/v1.0/018-create-indent-item.xml" context="v1"/>
+    <include file="db/changelog/v1.0/019-create-purchase-order.xml" context="v1"/>
+    <include file="db/changelog/v1.0/020-create-subscription-item.xml" context="v1"/>
+    <include file="db/changelog/v1.0/021-create-site-transfer-item.xml" context="v1"/>
+    <include file="db/changelog/v1.0/022-create-task-assignees.xml" context="v1"/>
+    <include file="db/changelog/v1.0/023-create-task-tags.xml" context="v1"/>
+    <include file="db/changelog/v1.0/024-create-issue.xml" context="v1"/>
+    <include file="db/changelog/v1.0/025-create-purchase-order-item.xml" context="v1"/>
+    <include file="db/changelog/v1.0/026-create-goods-received-note.xml" context="v1"/>
+    <include file="db/changelog/v1.0/027-create-inventory-transaction.xml" context="v1"/>
+    <include file="db/changelog/v1.0/028-create-material-consumption.xml" context="v1"/>
+    <include file="db/changelog/v1.0/029-create-issue-comments.xml" context="v1"/>
+    <include file="db/changelog/v1.0/030-create-grn-item.xml" context="v1"/>
+    <include file="db/changelog/v1.0/031-create-payable.xml" context="v1"/>
+    <include file="db/changelog/v1.0/032-create-usage-record.xml" context="v1"/>
+    <include file="db/changelog/v1.0/033-create-attendance.xml" context="v1"/>
+    <include file="db/changelog/v1.0/034-tag-v1.0.xml" context="v1"/>
 
     <!-- ============================================================== -->
-    <!-- v1.4 - Attendance Module Rework                                -->
-    <!-- Created: 2026-02-27                                            -->
-    <!-- Description: Restructured attendance with shifts, settings,    -->
-    <!--              clock events, movements, and regularization        -->
+    <!-- v1.1 - Schema alterations (context: v1)                       -->
     <!-- ============================================================== -->
+    <include file="db/changelog/v1.1/035-alter-attachment-url-nullable.xml" context="v1"/>
+    <include file="db/changelog/v1.1/036-add-updated-at-to-attachment.xml" context="v1"/>
+    <include file="db/changelog/v1.1/037-add-attachment-relationships.xml" context="v1"/>
+    <include file="db/changelog/v1.1/038-add-team-member-department-designation.xml" context="v1"/>
+    <include file="db/changelog/v1.1/039-add-user-default-organization-id.xml" context="v1"/>
 
-    <!-- Level 0: Shift timing templates -->
-    <include file="db/changelog/v1.4/069-create-shift-timing.xml"/>
+    <!-- ============================================================== -->
+    <!-- v1.2 - Leave Management Module (context: v1)                  -->
+    <!-- ============================================================== -->
+    <include file="db/changelog/v1.2/040-create-leave-policy.xml" context="v1"/>
+    <include file="db/changelog/v1.2/041-create-leave-balance.xml" context="v1"/>
+    <include file="db/changelog/v1.2/042-create-leave-request.xml" context="v1"/>
+    <include file="db/changelog/v1.2/043-create-leave-approval.xml" context="v1"/>
+    <include file="db/changelog/v1.2/044-create-leave-transaction.xml" context="v1"/>
+    <include file="db/changelog/v1.2/045-create-leave-calendar.xml" context="v1"/>
+    <include file="db/changelog/v1.2/046-create-notification.xml" context="v1"/>
+    <include file="db/changelog/v1.2/047-create-leave-request-sequence.xml" context="v1"/>
+    <include file="db/changelog/v1.2/049-tag-v1.2.xml" context="v1"/>
+    <include file="db/changelog/v1.2/050-add-timestamps-to-project-invite-code.xml" context="v1"/>
+    <include file="db/changelog/v1.2/051-add-user-certifications-list.xml" context="v1"/>
+    <include file="db/changelog/v1.2/052-refactor-reporting-manager.xml" context="v1"/>
+    <include file="db/changelog/v1.2/053-add-is-manager-to-employee.xml" context="v1"/>
+    <include file="db/changelog/v1.2/054-make-employee-fields-nullable.xml" context="v1"/>
+    <include file="db/changelog/v1.2/055-create-employee-org-roles.xml" context="v1"/>
 
-    <!-- Level 1: Attendance settings (depends on shift_timing) -->
-    <include file="db/changelog/v1.4/070-create-attendance-settings.xml"/>
+    <!-- ============================================================== -->
+    <!-- v1.3 - Multi-Tenancy (context: v1)                            -->
+    <!-- ============================================================== -->
+    <include file="db/changelog/v1.3/056-add-org-id-to-task-related-entities.xml" context="v1"/>
+    <include file="db/changelog/v1.3/057-add-org-id-to-leave-related-entities.xml" context="v1"/>
+    <include file="db/changelog/v1.3/058-add-org-id-to-procurement-entities.xml" context="v1"/>
+    <include file="db/changelog/v1.3/059-backfill-org-id.xml" context="v1"/>
+    <include file="db/changelog/v1.3/060-tag-v1.3.xml" context="v1"/>
+    <include file="db/changelog/v1.3/061-remove-employee-email-unique-constraint.xml" context="v1"/>
+    <include file="db/changelog/v1.3/062-create-project-employees.xml" context="v1"/>
+    <include file="db/changelog/v1.3/063-add-employee-id-to-employee.xml" context="v1"/>
+    <include file="db/changelog/v1.3/064-add-normalized-name-to-category.xml" context="v1"/>
+    <include file="db/changelog/v1.3/065-add-description-to-task.xml" context="v1"/>
+    <include file="db/changelog/v1.3/066-add-progress-to-project.xml" context="v1"/>
+    <include file="db/changelog/v1.3/067-rename-author-to-author-id-in-issue-comments.xml" context="v1"/>
+    <include file="db/changelog/v1.3/068-add-created-by-assigned-to-issue.xml" context="v1"/>
 
-    <!-- Level 2: Rename old attendance, create new attendance table -->
-    <include file="db/changelog/v1.4/071-create-new-attendance.xml"/>
+    <!-- ============================================================== -->
+    <!-- v1.4 - Attendance Module Rework (context: v1)                 -->
+    <!-- ============================================================== -->
+    <include file="db/changelog/v1.4/069-create-shift-timing.xml" context="v1"/>
+    <include file="db/changelog/v1.4/070-create-attendance-settings.xml" context="v1"/>
+    <include file="db/changelog/v1.4/071-create-new-attendance.xml" context="v1"/>
+    <include file="db/changelog/v1.4/072-create-clock-event.xml" context="v1"/>
+    <include file="db/changelog/v1.4/073-create-movement-record.xml" context="v1"/>
+    <include file="db/changelog/v1.4/074-create-attendance-regularization.xml" context="v1"/>
+    <include file="db/changelog/v1.4/075-tag-v1.4.xml" context="v1"/>
 
-    <!-- Level 3: Tables depending on new attendance -->
-    <include file="db/changelog/v1.4/072-create-clock-event.xml"/>
-    <include file="db/changelog/v1.4/073-create-movement-record.xml"/>
-    <include file="db/changelog/v1.4/074-create-attendance-regularization.xml"/>
-
-    <!-- Tag v1.4 release -->
-    <include file="db/changelog/v1.4/075-tag-v1.4.xml"/>
+    <!-- ============================================================== -->
+    <!-- FUTURE MIGRATIONS go below this line                           -->
+    <!-- Add WITHOUT any context so they run on all versions            -->
+    <!-- ============================================================== -->
 
 </databaseChangeLog>
