@@ -1,0 +1,553 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================== -->
+    <!-- Baseline Level 3: Tables depending on Level 2                  -->
+    <!-- Consolidates: v1.0 (022-028, 033), v1.3 (056-058, 068),       -->
+    <!--               v1.4 (071)                                       -->
+    <!-- ============================================================== -->
+
+    <!-- task_assignees (unchanged from 022) -->
+    <changeSet id="baseline-004-create-task-assignees" author="echno-baseline">
+        <createTable tableName="task_assignees">
+            <column name="task_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="creator_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addPrimaryKey
+                tableName="task_assignees"
+                columnNames="task_id, creator_id"
+                constraintName="pk_task_assignees"/>
+        <addForeignKeyConstraint
+                baseTableName="task_assignees"
+                baseColumnNames="task_id"
+                constraintName="fk_task_assignees_task"
+                referencedTableName="task"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="task_assignees"
+                baseColumnNames="creator_id"
+                constraintName="fk_task_assignees_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="task_assignees" indexName="idx_task_assignees_task">
+            <column name="task_id"/>
+        </createIndex>
+        <createIndex tableName="task_assignees" indexName="idx_task_assignees_employee">
+            <column name="creator_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- task_tags (unchanged from 023) -->
+    <changeSet id="baseline-004-create-task-tags" author="echno-baseline">
+        <createTable tableName="task_tags">
+            <column name="id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tags" type="VARCHAR(255)"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="task_tags"
+                baseColumnNames="id"
+                constraintName="fk_task_tags_task"
+                referencedTableName="task"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="task_tags" indexName="idx_task_tags_task">
+            <column name="id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- issue (squashed: 024 + 056-02 org_id + 068 drop creator, add created_by/assigned_to) -->
+    <changeSet id="baseline-004-create-issue" author="echno-baseline">
+        <createTable tableName="issue">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_issue_title"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="task_id" type="BIGINT"/>
+            <!-- Added in v1.3 (056-02) -->
+            <column name="organization_id" type="BIGINT"/>
+            <!-- Added in v1.3 (068): replaces old 'creator' VARCHAR column -->
+            <column name="created_by" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="assigned_to" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="issue"
+                baseColumnNames="task_id"
+                constraintName="fk_issue_task"
+                referencedTableName="task"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="issue"
+                baseColumnNames="organization_id"
+                constraintName="fk_issue_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <addForeignKeyConstraint
+                baseTableName="issue"
+                baseColumnNames="created_by"
+                constraintName="fk_issue_created_by"
+                referencedTableName="employee"
+                referencedColumnNames="id"/>
+        <addForeignKeyConstraint
+                baseTableName="issue"
+                baseColumnNames="assigned_to"
+                constraintName="fk_issue_assigned_to"
+                referencedTableName="employee"
+                referencedColumnNames="id"/>
+
+        <createIndex tableName="issue" indexName="idx_issue_task">
+            <column name="task_id"/>
+        </createIndex>
+        <createIndex tableName="issue" indexName="idx_issue_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="issue" indexName="idx_issue_type">
+            <column name="type"/>
+        </createIndex>
+        <createIndex tableName="issue" indexName="idx_issue_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Add deferred attachment FK for issue (issue table now exists) -->
+    <changeSet id="baseline-004-add-attachment-issue-fk" author="echno-baseline">
+        <addForeignKeyConstraint
+                baseTableName="attachment"
+                baseColumnNames="issue_id"
+                constraintName="fk_attachment_issue"
+                referencedTableName="issue"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <createIndex tableName="attachment" indexName="idx_attachment_issue">
+            <column name="issue_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- purchase_order_item (squashed: 025 + 058-06 org_id) -->
+    <changeSet id="baseline-004-create-purchase-order-item" author="echno-baseline">
+        <createTable tableName="purchase_order_item">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="ordered_quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="received_quantity" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_price" type="DECIMAL(10,2)"/>
+            <column name="total_price" type="DECIMAL(15,2)"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="purchase_order_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="material_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="indent_item_id" type="BIGINT"/>
+            <!-- Added in v1.3 (058-06) -->
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="purchase_order_item"
+                baseColumnNames="purchase_order_id"
+                constraintName="fk_purchase_order_item_po"
+                referencedTableName="purchase_order"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="purchase_order_item"
+                baseColumnNames="material_id"
+                constraintName="fk_purchase_order_item_material"
+                referencedTableName="material"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <addForeignKeyConstraint
+                baseTableName="purchase_order_item"
+                baseColumnNames="indent_item_id"
+                constraintName="fk_purchase_order_item_indent_item"
+                referencedTableName="indent_item"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="purchase_order_item"
+                baseColumnNames="organization_id"
+                constraintName="fk_purchase_order_item_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="purchase_order_item" indexName="idx_purchase_order_item_po">
+            <column name="purchase_order_id"/>
+        </createIndex>
+        <createIndex tableName="purchase_order_item" indexName="idx_purchase_order_item_material">
+            <column name="material_id"/>
+        </createIndex>
+        <createIndex tableName="purchase_order_item" indexName="idx_purchase_order_item_indent">
+            <column name="indent_item_id"/>
+        </createIndex>
+        <createIndex tableName="purchase_order_item" indexName="idx_purchase_order_item_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- goods_received_note (squashed: 026 + 058-07 org_id) -->
+    <changeSet id="baseline-004-create-goods-received-note" author="echno-baseline">
+        <createTable tableName="goods_received_note">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="grn_number" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_grn_number"/>
+            </column>
+            <column name="received_on" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="delivery_challan_number" type="VARCHAR(100)"/>
+            <column name="invoice_number" type="VARCHAR(100)"/>
+            <column name="invoice_amount" type="DOUBLE PRECISION"/>
+            <column name="received_by_id" type="BIGINT"/>
+            <column name="vendor_id" type="BIGINT"/>
+            <column name="purchase_order_id" type="BIGINT"/>
+            <!-- Added in v1.3 (058-07) -->
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="goods_received_note"
+                baseColumnNames="received_by_id"
+                constraintName="fk_grn_received_by"
+                referencedTableName="users_table"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="goods_received_note"
+                baseColumnNames="vendor_id"
+                constraintName="fk_grn_vendor"
+                referencedTableName="vendor"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <addForeignKeyConstraint
+                baseTableName="goods_received_note"
+                baseColumnNames="purchase_order_id"
+                constraintName="fk_grn_purchase_order"
+                referencedTableName="purchase_order"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="goods_received_note"
+                baseColumnNames="organization_id"
+                constraintName="fk_goods_received_note_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="goods_received_note" indexName="idx_grn_received_by">
+            <column name="received_by_id"/>
+        </createIndex>
+        <createIndex tableName="goods_received_note" indexName="idx_grn_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+        <createIndex tableName="goods_received_note" indexName="idx_grn_purchase_order">
+            <column name="purchase_order_id"/>
+        </createIndex>
+        <createIndex tableName="goods_received_note" indexName="idx_grn_received_on">
+            <column name="received_on"/>
+        </createIndex>
+        <createIndex tableName="goods_received_note" indexName="idx_goods_received_note_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- inventory_transaction (squashed: 027 + 058-09 org_id) -->
+    <changeSet id="baseline-004-create-inventory-transaction" author="echno-baseline">
+        <createTable tableName="inventory_transaction">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="transaction_date" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="opening_stock" type="INT"/>
+            <column name="quantity_changed" type="INT"/>
+            <column name="closing_stock" type="INT"/>
+            <column name="transaction_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reference_number" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="remarks" type="TEXT"/>
+            <column name="material_id" type="BIGINT"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <!-- Added in v1.3 (058-09) -->
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="inventory_transaction"
+                baseColumnNames="material_id"
+                constraintName="fk_inventory_transaction_material"
+                referencedTableName="material"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <addForeignKeyConstraint
+                baseTableName="inventory_transaction"
+                baseColumnNames="created_by_id"
+                constraintName="fk_inventory_transaction_created_by"
+                referencedTableName="users_table"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="inventory_transaction"
+                baseColumnNames="organization_id"
+                constraintName="fk_inventory_transaction_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="inventory_transaction" indexName="idx_inventory_transaction_material">
+            <column name="material_id"/>
+        </createIndex>
+        <createIndex tableName="inventory_transaction" indexName="idx_inventory_transaction_created_by">
+            <column name="created_by_id"/>
+        </createIndex>
+        <createIndex tableName="inventory_transaction" indexName="idx_inventory_transaction_date">
+            <column name="transaction_date"/>
+        </createIndex>
+        <createIndex tableName="inventory_transaction" indexName="idx_inventory_transaction_type">
+            <column name="transaction_type"/>
+        </createIndex>
+        <createIndex tableName="inventory_transaction" indexName="idx_inventory_transaction_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- material_consumption (squashed: 028 + 058-10 org_id) -->
+    <changeSet id="baseline-004-create-material-consumption" author="echno-baseline">
+        <createTable tableName="material_consumption">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="consumption_date" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="consumption_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="details" type="TEXT"/>
+            <column name="material_id" type="BIGINT"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <!-- Added in v1.3 (058-10) -->
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="material_consumption"
+                baseColumnNames="material_id"
+                constraintName="fk_material_consumption_material"
+                referencedTableName="material"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <addForeignKeyConstraint
+                baseTableName="material_consumption"
+                baseColumnNames="created_by_id"
+                constraintName="fk_material_consumption_created_by"
+                referencedTableName="users_table"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="material_consumption"
+                baseColumnNames="organization_id"
+                constraintName="fk_material_consumption_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="material_consumption" indexName="idx_material_consumption_material">
+            <column name="material_id"/>
+        </createIndex>
+        <createIndex tableName="material_consumption" indexName="idx_material_consumption_created_by">
+            <column name="created_by_id"/>
+        </createIndex>
+        <createIndex tableName="material_consumption" indexName="idx_material_consumption_date">
+            <column name="consumption_date"/>
+        </createIndex>
+        <createIndex tableName="material_consumption" indexName="idx_material_consumption_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- attendance_legacy: the old attendance table renamed in v1.4 (071)
+         with organization_id added in v1.3 (057-05) -->
+    <changeSet id="baseline-004-create-attendance-legacy" author="echno-baseline">
+        <createTable tableName="attendance_legacy">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="location" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_type" type="VARCHAR(50)"/>
+            <column name="timestamp" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source" type="VARCHAR(100)"/>
+            <column name="latitude" type="DOUBLE PRECISION"/>
+            <column name="longitude" type="DOUBLE PRECISION"/>
+            <column name="device_info" type="JSONB"/>
+            <column name="last_modified_at" type="TIMESTAMP"/>
+            <column name="modified_by" type="VARCHAR(255)"/>
+            <column name="correction_reason" type="VARCHAR(500)"/>
+            <!-- Added in v1.3 (057-05) -->
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+
+        <createIndex tableName="attendance_legacy" indexName="idx_legacy_employee_timestamp">
+            <column name="employee_id"/>
+            <column name="timestamp"/>
+        </createIndex>
+        <createIndex tableName="attendance_legacy" indexName="idx_legacy_employee_id">
+            <column name="employee_id"/>
+        </createIndex>
+        <createIndex tableName="attendance_legacy" indexName="idx_legacy_timestamp">
+            <column name="timestamp"/>
+        </createIndex>
+        <createIndex tableName="attendance_legacy" indexName="idx_legacy_record_type">
+            <column name="record_type"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- attendance (new table from v1.4 071) -->
+    <changeSet id="baseline-004-create-attendance" author="echno-baseline">
+        <createTable tableName="attendance">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attendance_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="shift_timing_id" type="BIGINT"/>
+            <column name="total_work_minutes" type="INT" defaultValueNumeric="0"/>
+            <column name="morning_session_minutes" type="INT" defaultValueNumeric="0"/>
+            <column name="afternoon_session_minutes" type="INT" defaultValueNumeric="0"/>
+            <column name="overtime_minutes" type="INT" defaultValueNumeric="0"/>
+            <column name="break_duration_minutes" type="INT" defaultValueNumeric="0"/>
+            <column name="is_late_arrival" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_early_checkout" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_overtime" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="leave_id" type="BIGINT"/>
+            <column name="leave_type" type="VARCHAR(50)"/>
+            <column name="approval_status" type="VARCHAR(20)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+            <column name="approved_by" type="VARCHAR(255)"/>
+            <column name="approved_at" type="TIMESTAMP"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <addUniqueConstraint
+                tableName="attendance"
+                columnNames="employee_id, attendance_date, project_id"
+                constraintName="uq_attendance_employee_date_project"/>
+        <addForeignKeyConstraint
+                baseTableName="attendance"
+                baseColumnNames="organization_id"
+                constraintName="fk_attendance_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"/>
+        <addForeignKeyConstraint
+                baseTableName="attendance"
+                baseColumnNames="shift_timing_id"
+                constraintName="fk_attendance_shift_timing"
+                referencedTableName="shift_timing"
+                referencedColumnNames="id"/>
+
+        <createIndex tableName="attendance" indexName="idx_attendance_employee_date">
+            <column name="employee_id"/>
+            <column name="attendance_date" descending="true"/>
+        </createIndex>
+        <createIndex tableName="attendance" indexName="idx_attendance_project_date">
+            <column name="project_id"/>
+            <column name="attendance_date" descending="true"/>
+        </createIndex>
+        <createIndex tableName="attendance" indexName="idx_attendance_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="attendance" indexName="idx_attendance_approval_status">
+            <column name="approval_status"/>
+        </createIndex>
+        <createIndex tableName="attendance" indexName="idx_attendance_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

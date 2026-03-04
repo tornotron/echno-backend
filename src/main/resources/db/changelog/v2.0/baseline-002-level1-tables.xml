@@ -1,0 +1,429 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================== -->
+    <!-- Baseline Level 1: Tables depending on Level 0                  -->
+    <!-- Consolidates: v1.0 (009-015), v1.1 (038), v1.2 (050, 052-054) -->
+    <!--               v1.3 (058, 061, 063), v1.4 (069)                -->
+    <!-- ============================================================== -->
+
+    <!-- employee (squashed: 009 + 052 manager_id + 053 is_manager + 054 nullable fields
+                            + 061 drop email unique + 063 employee_id) -->
+    <changeSet id="baseline-002-create-employee" author="echno-baseline">
+        <createTable tableName="employee">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <!-- Made nullable in v1.2 (054) -->
+            <column name="designation" type="VARCHAR(255)"/>
+            <!-- Made nullable in v1.2 (054) -->
+            <column name="department" type="VARCHAR(255)"/>
+            <column name="joining_date" type="TIMESTAMP"/>
+            <column name="salary" type="DOUBLE PRECISION"/>
+            <column name="reporting_manager" type="VARCHAR(255)"/>
+            <column name="shift_timing" type="VARCHAR(100)"/>
+            <!-- Made nullable in v1.2 (054) -->
+            <column name="status" type="VARCHAR(50)"/>
+            <column name="employee_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="gender" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="phone_number" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="address" type="TEXT"/>
+            <!-- uk_employee_email dropped in v1.3 (061) -->
+            <column name="email_address" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_of_birth" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Added in v1.2 (052) -->
+            <column name="manager_id" type="BIGINT"/>
+            <!-- Added in v1.2 (053) -->
+            <column name="is_manager" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Added in v1.3 (063) -->
+            <column name="employee_id" type="VARCHAR(100)"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="employee"
+                baseColumnNames="organization_id"
+                constraintName="fk_employee_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <addForeignKeyConstraint
+                baseTableName="employee"
+                baseColumnNames="user_id"
+                constraintName="fk_employee_user"
+                referencedTableName="users_table"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <addForeignKeyConstraint
+                baseTableName="employee"
+                baseColumnNames="manager_id"
+                constraintName="fk_employee_manager"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <createIndex tableName="employee" indexName="idx_employee_organization">
+            <column name="organization_id"/>
+        </createIndex>
+        <createIndex tableName="employee" indexName="idx_employee_user">
+            <column name="user_id"/>
+        </createIndex>
+        <createIndex tableName="employee" indexName="idx_employee_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="employee" indexName="idx_employee_manager">
+            <column name="manager_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- project (squashed: 010 + 066 progress) -->
+    <changeSet id="baseline-002-create-project" author="echno-baseline">
+        <createTable tableName="project">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="project_name" type="VARCHAR(255)"/>
+            <column name="project_address" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="status" type="VARCHAR(50)"/>
+            <column name="latitude" type="REAL"/>
+            <column name="longitude" type="REAL"/>
+            <column name="start_date" type="TIMESTAMP"/>
+            <column name="end_date" type="TIMESTAMP"/>
+            <column name="organization_id" type="BIGINT"/>
+            <!-- Added in v1.3 (066) -->
+            <column name="progress" type="DOUBLE"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="project"
+                baseColumnNames="organization_id"
+                constraintName="fk_project_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="project" indexName="idx_project_name">
+            <column name="project_name"/>
+        </createIndex>
+        <createIndex tableName="project" indexName="idx_project_organization">
+            <column name="organization_id"/>
+        </createIndex>
+        <createIndex tableName="project" indexName="idx_project_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- project_invite_code (squashed: 011 + 050 timestamps) -->
+    <changeSet id="baseline-002-create-project-invite-code" author="echno-baseline">
+        <createTable tableName="project_invite_code">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="INT">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_project_invite_code"/>
+            </column>
+            <column name="expiry_date" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_uses" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_uses" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_details" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT"/>
+            <!-- Added in v1.2 (050) -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="project_invite_code"
+                baseColumnNames="organization_id"
+                constraintName="fk_project_invite_code_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="project_invite_code" indexName="idx_project_invite_code_org">
+            <column name="organization_id"/>
+        </createIndex>
+        <createIndex tableName="project_invite_code" indexName="idx_project_invite_code_active">
+            <column name="is_active"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- intend (squashed: 012 + 058-03 org_id) -->
+    <changeSet id="baseline-002-create-intend" author="echno-baseline">
+        <createTable tableName="intend">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="intend_number" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_intend_number"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expected_on" type="TIMESTAMP"/>
+            <column name="remark" type="TEXT"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <!-- Added in v1.3 (058-03) -->
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="intend"
+                baseColumnNames="created_by_id"
+                constraintName="fk_intend_created_by"
+                referencedTableName="users_table"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="intend"
+                baseColumnNames="organization_id"
+                constraintName="fk_intend_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="intend" indexName="idx_intend_created_by">
+            <column name="created_by_id"/>
+        </createIndex>
+        <createIndex tableName="intend" indexName="idx_intend_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="intend" indexName="idx_intend_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- plan_feature (unchanged from 013) -->
+    <changeSet id="baseline-002-create-plan-feature" author="echno-baseline">
+        <createTable tableName="plan_feature">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="plan_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="feature_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enabled" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="quota_limit" type="BIGINT"/>
+            <column name="quota_period" type="VARCHAR(20)"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="plan_feature"
+                baseColumnNames="plan_id"
+                constraintName="fk_plan_feature_plan"
+                referencedTableName="plan"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+                baseTableName="plan_feature"
+                baseColumnNames="feature_id"
+                constraintName="fk_plan_feature_feature"
+                referencedTableName="feature"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        <addUniqueConstraint
+                tableName="plan_feature"
+                columnNames="plan_id, feature_id"
+                constraintName="uk_plan_feature_plan_feature"/>
+
+        <createIndex tableName="plan_feature" indexName="idx_plan_feature_plan">
+            <column name="plan_id"/>
+        </createIndex>
+        <createIndex tableName="plan_feature" indexName="idx_plan_feature_feature">
+            <column name="feature_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- subscription (unchanged from 014) -->
+    <changeSet id="baseline-002-create-subscription" author="echno-baseline">
+        <createTable tableName="subscription">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="plan_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_period_start" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_period_end" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="trial_start" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="trial_end" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="cancel_at_period_end" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="canceled_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cancellation_reason" type="TEXT"/>
+            <column name="external_subscription_id" type="VARCHAR(255)"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="subscription"
+                baseColumnNames="plan_id"
+                constraintName="fk_subscription_plan"
+                referencedTableName="plan"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="subscription" indexName="idx_subscription_user">
+            <column name="user_id"/>
+        </createIndex>
+        <createIndex tableName="subscription" indexName="idx_subscription_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="subscription" indexName="idx_subscription_period_end">
+            <column name="current_period_end"/>
+        </createIndex>
+        <createIndex tableName="subscription" indexName="idx_subscription_plan">
+            <column name="plan_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- site_transfer (squashed: 015 + 058-12 org_id) -->
+    <changeSet id="baseline-002-create-site-transfer" author="echno-baseline">
+        <createTable tableName="site_transfer">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="transfer_number" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_site_transfer_number"/>
+            </column>
+            <column name="issue_date" type="TIMESTAMP"/>
+            <column name="receiving_site" type="VARCHAR(255)"/>
+            <column name="status" type="VARCHAR(50)"/>
+            <column name="sending_person_id" type="BIGINT"/>
+            <!-- Added in v1.3 (058-12) -->
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="site_transfer"
+                baseColumnNames="sending_person_id"
+                constraintName="fk_site_transfer_sending_person"
+                referencedTableName="users_table"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="site_transfer"
+                baseColumnNames="organization_id"
+                constraintName="fk_site_transfer_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="site_transfer" indexName="idx_site_transfer_sending_person">
+            <column name="sending_person_id"/>
+        </createIndex>
+        <createIndex tableName="site_transfer" indexName="idx_site_transfer_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="site_transfer" indexName="idx_site_transfer_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- shift_timing (from v1.4 069) -->
+    <changeSet id="baseline-002-create-shift-timing" author="echno-baseline">
+        <createTable tableName="shift_timing">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="shift_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="start_time" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="end_time" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lunch_break_start" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lunch_break_end" type="TIME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="grace_period_minutes" type="INT" defaultValueNumeric="15">
+                <constraints nullable="false"/>
+            </column>
+            <column name="minimum_work_hours" type="DECIMAL(4,2)" defaultValueNumeric="8.0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="half_day_work_hours" type="DECIMAL(4,2)" defaultValueNumeric="4.0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="overtime_threshold" type="DECIMAL(4,2)" defaultValueNumeric="9.0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="shift_timing"
+                baseColumnNames="organization_id"
+                constraintName="fk_shift_timing_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"/>
+
+        <createIndex tableName="shift_timing" indexName="idx_shift_timing_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
