@@ -169,6 +169,22 @@ public class ProjectService {
                 case "status":
                     project.setStatus(ProjectCreationStatus.valueOf((String) value));
                     break;
+                case "projectLongitude":
+                    float longitude = Float.parseFloat((String) value);
+                    if(longitude >= -180 && longitude <= 180) {
+                        project.setProjectLongitude(longitude);
+                    } else {
+                        throw new IllegalArgumentException("Longitude must be between -180 and 180");
+                    }
+                    break;
+                case "projectLatitude":
+                    float latitude = Float.parseFloat((String) value);
+                    if (latitude >= -90 && latitude <= 90) {
+                        project.setProjectLatitude(latitude);
+                    } else {
+                        throw new IllegalArgumentException("Latitude must be between -90 and 90");
+                    }
+                    break;
             }
         });
     }
