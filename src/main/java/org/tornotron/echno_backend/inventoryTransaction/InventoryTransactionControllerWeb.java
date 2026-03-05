@@ -21,21 +21,21 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<InventoryTransactionDto> getTransactionById(@PathVariable Long id) {
         InventoryTransactionDto transaction = inventoryTransactionService.getTransactionById(id);
         return ResponseEntity.ok(transaction);
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<InventoryTransactionDto>> getAllTransactions() {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getAllTransactions();
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<Page<InventoryTransactionDto>> getAllTransactionsPaginated(
             @RequestParam(defaultValue = "0") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize
@@ -45,21 +45,21 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/material/{materialId}")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByMaterial(@PathVariable Long materialId) {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByMaterial(materialId);
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/type/{transactionType}")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByType(@PathVariable InventoryTransactionType transactionType) {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByType(transactionType);
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/date-range")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate
