@@ -25,28 +25,28 @@ public class VendorControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('vendor:create') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<VendorDto> createVendor(@Valid @RequestBody VendorCreationDto creationDto) {
         VendorDto created = vendorService.createVendor(creationDto);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<VendorDto> getVendorById(@PathVariable Long id) {
         VendorDto vendor = vendorService.getVendorById(id);
         return ResponseEntity.ok(vendor);
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<VendorDto>> getAllVendors() {
         List<VendorDto> vendors = vendorService.getAllVendors();
         return ResponseEntity.ok(vendors);
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<Page<VendorDto>> getAllVendorsPaginated(
             @RequestParam(defaultValue = "0") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize
@@ -56,14 +56,14 @@ public class VendorControllerWeb {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<VendorDto>> searchVendors(@RequestParam String name) {
         List<VendorDto> vendors = vendorService.searchVendorsByName(name);
         return ResponseEntity.ok(vendors);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<VendorDto> updateVendor(
             @PathVariable Long id,
             @Valid @RequestBody VendorCreationDto updateDto
@@ -73,7 +73,7 @@ public class VendorControllerWeb {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('vendor:delete') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<ApiResponse> deleteVendor(@PathVariable Long id) {
         vendorService.deleteVendor(id);
         return ResponseEntity.ok(new ApiResponse("Vendor with id: " + id + " deleted successfully"));
