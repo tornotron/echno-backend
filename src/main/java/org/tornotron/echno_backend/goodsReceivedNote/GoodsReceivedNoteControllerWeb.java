@@ -24,28 +24,28 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('grn:create') or hasAuthority('grn:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<GoodsReceivedNoteDto> createGrn(@Valid @RequestBody GoodsReceivedNoteCreationDto creationDto) {
         GoodsReceivedNoteDto created = goodsReceivedNoteService.createGoodsReceivedNote(creationDto);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('grn:read') or hasAuthority('grn:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<GoodsReceivedNoteDto> getGrnById(@PathVariable Long id) {
         GoodsReceivedNoteDto grn = goodsReceivedNoteService.getGrnById(id);
         return ResponseEntity.ok(grn);
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('grn:read') or hasAuthority('grn:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<GoodsReceivedNoteDto>> getAllGrns() {
         List<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getAllGrns();
         return ResponseEntity.ok(grns);
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('grn:read') or hasAuthority('grn:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<Page<GoodsReceivedNoteDto>> getAllGrnsPaginated(
             @RequestParam(defaultValue = "0") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize
@@ -55,14 +55,14 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @GetMapping("/vendor/{vendorId}")
-    @PreAuthorize("hasAuthority('grn:read') or hasAuthority('grn:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<GoodsReceivedNoteDto>> getGrnsByVendor(@PathVariable Long vendorId) {
         List<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getGrnsByVendor(vendorId);
         return ResponseEntity.ok(grns);
     }
 
     @GetMapping("/date-range")
-    @PreAuthorize("hasAuthority('grn:read') or hasAuthority('grn:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<GoodsReceivedNoteDto>> getGrnsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate

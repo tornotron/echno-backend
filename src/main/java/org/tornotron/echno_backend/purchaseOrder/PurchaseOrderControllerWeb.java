@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
@@ -26,24 +27,28 @@ public class PurchaseOrderControllerWeb {
     }
 
     @PostMapping
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<PurchaseOrderDto> createPurchaseOrder(@Valid @RequestBody PurchaseOrderCreationDto creationDto) {
         PurchaseOrderDto created = purchaseOrderService.createPurchaseOrder(creationDto);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<PurchaseOrderDto> getPurchaseOrderById(@PathVariable Long id) {
         PurchaseOrderDto purchaseOrder = purchaseOrderService.getPurchaseOrderById(id);
         return ResponseEntity.ok(purchaseOrder);
     }
 
     @GetMapping
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<PurchaseOrderDto>> getAllPurchaseOrders() {
         List<PurchaseOrderDto> purchaseOrders = purchaseOrderService.getAllPurchaseOrders();
         return ResponseEntity.ok(purchaseOrders);
     }
 
     @GetMapping("/all")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<Page<PurchaseOrderDto>> getAllPurchaseOrdersPaginated(
             @RequestParam(defaultValue = "0") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize
@@ -53,30 +58,35 @@ public class PurchaseOrderControllerWeb {
     }
 
     @GetMapping("/vendor/{vendorId}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<PurchaseOrderDto>> getPurchaseOrdersByVendor(@PathVariable Long vendorId) {
         List<PurchaseOrderDto> purchaseOrders = purchaseOrderService.getPurchaseOrdersByVendor(vendorId);
         return ResponseEntity.ok(purchaseOrders);
     }
 
     @GetMapping("/intend/{intendId}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<PurchaseOrderDto>> getPurchaseOrdersByIntend(@PathVariable Long intendId) {
         List<PurchaseOrderDto> purchaseOrders = purchaseOrderService.getPurchaseOrdersByIntend(intendId);
         return ResponseEntity.ok(purchaseOrders);
     }
 
     @GetMapping("/status/{status}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<PurchaseOrderDto>> getPurchaseOrdersByStatus(@PathVariable PurchaseOrderStatus status) {
         List<PurchaseOrderDto> purchaseOrders = purchaseOrderService.getPurchaseOrdersByStatus(status);
         return ResponseEntity.ok(purchaseOrders);
     }
 
     @PutMapping
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<PurchaseOrderDto> updatePurchaseOrder(@Valid @RequestBody PurchaseOrderUpdateDto updateDto) {
         PurchaseOrderDto updated = purchaseOrderService.updatePurchaseOrder(updateDto);
         return ResponseEntity.ok(updated);
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<ApiResponse> updatePurchaseOrderStatus(
             @PathVariable Long id,
             @RequestParam PurchaseOrderStatus status
