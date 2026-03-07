@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================== -->
+    <!-- Vendor enhancements: new columns + child tables                -->
+    <!-- ============================================================== -->
+
+    <!-- Add new columns to vendor table -->
+    <changeSet id="076-01-add-vendor-columns" author="echno">
+        <addColumn tableName="vendor">
+            <column name="city" type="VARCHAR(255)"/>
+            <column name="state" type="VARCHAR(255)"/>
+            <column name="pin_code" type="VARCHAR(255)"/>
+            <column name="country" type="VARCHAR(255)"/>
+            <column name="website" type="VARCHAR(255)"/>
+            <column name="type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="VARCHAR(1000)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <!-- Add status column to vendor table -->
+    <changeSet id="076-06-add-vendor-status" author="echno">
+        <addColumn tableName="vendor">
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <!-- vendor_contact -->
+    <changeSet id="076-02-create-vendor-contact" author="echno">
+        <createTable tableName="vendor_contact">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="contact_person" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="phone" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="alternate_phone" type="VARCHAR(255)"/>
+            <column name="is_primary" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="vendor_contact"
+                baseColumnNames="vendor_id"
+                constraintName="fk_vendor_contact_vendor"
+                referencedTableName="vendor"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="vendor_contact" indexName="idx_vendor_contact_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- vendor_tax_identifier -->
+    <changeSet id="076-03-create-vendor-tax-identifier" author="echno">
+        <createTable tableName="vendor_tax_identifier">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="value" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_vendor_tax_identifier_value"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="vendor_tax_identifier"
+                baseColumnNames="vendor_id"
+                constraintName="fk_vendor_tax_identifier_vendor"
+                referencedTableName="vendor"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="vendor_tax_identifier" indexName="idx_vendor_tax_identifier_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- vendor_payment_terms -->
+    <changeSet id="076-04-create-vendor-payment-terms" author="echno">
+        <createTable tableName="vendor_payment_terms">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_id" type="BIGINT">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_vendor_payment_terms_vendor"/>
+            </column>
+            <column name="payment_terms" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="credit_limit" type="DECIMAL(19,2)"/>
+            <column name="credit_days" type="INTEGER"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="vendor_payment_terms"
+                baseColumnNames="vendor_id"
+                constraintName="fk_vendor_payment_terms_vendor"
+                referencedTableName="vendor"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+    </changeSet>
+
+    <!-- vendor_bank_account -->
+    <changeSet id="076-05-create-vendor-bank-account" author="echno">
+        <createTable tableName="vendor_bank_account">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="bank_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="account_number" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ifsc_code" type="VARCHAR(255)"/>
+            <column name="account_holder_name" type="VARCHAR(255)"/>
+            <column name="swift" type="VARCHAR(255)"/>
+            <column name="is_default" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="vendor_bank_account"
+                baseColumnNames="vendor_id"
+                constraintName="fk_vendor_bank_account_vendor"
+                referencedTableName="vendor"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <createIndex tableName="vendor_bank_account" indexName="idx_vendor_bank_account_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
