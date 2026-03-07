@@ -18,4 +18,24 @@ public class VendorCreationDto {
     @NotBlank(message = "vendor email is required")
     @Email(message = "vendor email must be valid")
     private String vendorEmail;
+
+    private String city;
+
+    private String state;
+
+    private String pinCode;
+
+    private String country;
+
+    private String website;
+
+    @NotBlank(message = "type is required")
+    private String type;
+
+    @NotBlank(message = "status is required")
+    private String status;
+
+    private String notes;
+
+    private Long organizationId;
 }
