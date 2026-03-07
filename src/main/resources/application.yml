@@ -11,6 +11,9 @@ digital-ocean:
   bucket-name: ${DIGITAL_OCEAN_SPACES_BUCKET_NAME}
   cdn-endpoint: ${DIGITAL_OCEAN_SPACES_CDN_ENDPOINT}
 
+encryption:
+  secret-key: ${ENCRYPTION_SECRET_KEY}
+
 management:
   endpoint:
     prometheus:
