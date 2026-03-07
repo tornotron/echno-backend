@@ -126,4 +126,7 @@
     <!-- Add WITHOUT any context so they run on all versions            -->
     <!-- ============================================================== -->
 
+    <!-- v2.1 - Vendor enhancements -->
+    <include file="db/changelog/v2.1/076-vendor-enhancements.xml"/>
+
 </databaseChangeLog>
