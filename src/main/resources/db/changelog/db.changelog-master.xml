@@ -128,5 +128,6 @@
 
     <!-- v2.1 - Vendor enhancements -->
     <include file="db/changelog/v2.1/076-vendor-enhancements.xml"/>
+    <include file="db/changelog/v2.1/077-add-org-id-to-vendor-child-entities.xml"/>
 
 </databaseChangeLog>
