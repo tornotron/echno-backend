@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================== -->
+    <!-- Add organization_id to vendor child tables for org-scoped      -->
+    <!-- Hibernate filter (orgFilter) support                           -->
+    <!-- ============================================================== -->
+
+    <!-- vendor_contact -->
+    <changeSet id="077-01-add-org-id-to-vendor-contact" author="echno">
+        <addColumn tableName="vendor_contact">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+
+        <sql>
+            UPDATE vendor_contact vc
+            SET organization_id = (SELECT v.organization_id FROM vendor v WHERE v.id = vc.vendor_id)
+        </sql>
+
+        <addNotNullConstraint tableName="vendor_contact" columnName="organization_id" columnDataType="BIGINT"/>
+
+        <addForeignKeyConstraint
+                baseTableName="vendor_contact"
+                baseColumnNames="organization_id"
+                constraintName="fk_vendor_contact_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"/>
+
+        <createIndex tableName="vendor_contact" indexName="idx_vendor_contact_org">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- vendor_tax_identifier -->
+    <changeSet id="077-02-add-org-id-to-vendor-tax-identifier" author="echno">
+        <addColumn tableName="vendor_tax_identifier">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+
+        <sql>
+            UPDATE vendor_tax_identifier vti
+            SET organization_id = (SELECT v.organization_id FROM vendor v WHERE v.id = vti.vendor_id)
+        </sql>
+
+        <addNotNullConstraint tableName="vendor_tax_identifier" columnName="organization_id" columnDataType="BIGINT"/>
+
+        <addForeignKeyConstraint
+                baseTableName="vendor_tax_identifier"
+                baseColumnNames="organization_id"
+                constraintName="fk_vendor_tax_identifier_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"/>
+
+        <createIndex tableName="vendor_tax_identifier" indexName="idx_vendor_tax_identifier_org">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- vendor_payment_terms -->
+    <changeSet id="077-03-add-org-id-to-vendor-payment-terms" author="echno">
+        <addColumn tableName="vendor_payment_terms">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+
+        <sql>
+            UPDATE vendor_payment_terms vpt
+            SET organization_id = (SELECT v.organization_id FROM vendor v WHERE v.id = vpt.vendor_id)
+        </sql>
+
+        <addNotNullConstraint tableName="vendor_payment_terms" columnName="organization_id" columnDataType="BIGINT"/>
+
+        <addForeignKeyConstraint
+                baseTableName="vendor_payment_terms"
+                baseColumnNames="organization_id"
+                constraintName="fk_vendor_payment_terms_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"/>
+
+        <createIndex tableName="vendor_payment_terms" indexName="idx_vendor_payment_terms_org">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- vendor_bank_account -->
+    <changeSet id="077-04-add-org-id-to-vendor-bank-account" author="echno">
+        <addColumn tableName="vendor_bank_account">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+
+        <sql>
+            UPDATE vendor_bank_account vba
+            SET organization_id = (SELECT v.organization_id FROM vendor v WHERE v.id = vba.vendor_id)
+        </sql>
+
+        <addNotNullConstraint tableName="vendor_bank_account" columnName="organization_id" columnDataType="BIGINT"/>
+
+        <addForeignKeyConstraint
+                baseTableName="vendor_bank_account"
+                baseColumnNames="organization_id"
+                constraintName="fk_vendor_bank_account_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"/>
+
+        <createIndex tableName="vendor_bank_account" indexName="idx_vendor_bank_account_org">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
