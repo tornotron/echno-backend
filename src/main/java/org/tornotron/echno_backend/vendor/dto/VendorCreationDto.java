@@ -1,9 +1,12 @@
 package org.tornotron.echno_backend.vendor.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+
+import java.util.List;
 
 @Data
 public class VendorCreationDto {
@@ -38,4 +41,16 @@ public class VendorCreationDto {
     private String notes;
 
     private Long organizationId;
+
+    @Valid
+    private List<VendorContactCreationDto> contacts;
+
+    @Valid
+    private List<VendorTaxIdentifierCreationDto> taxIdentifiers;
+
+    @Valid
+    private List<VendorBankAccountCreationDto> bankAccounts;
+
+    @Valid
+    private VendorPaymentTermsCreationDto paymentTerms;
 }

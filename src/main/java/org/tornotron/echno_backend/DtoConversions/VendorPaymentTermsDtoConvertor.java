@@ -8,6 +8,9 @@ import org.tornotron.echno_backend.vendor.dto.VendorPaymentTermsDto;
 public class VendorPaymentTermsDtoConvertor {
 
     public static VendorPaymentTermsDto convertToDto(VendorPaymentTerms vendorPaymentTerms) {
+        if (vendorPaymentTerms == null) {
+            return null;
+        }
         VendorPaymentTermsDto dto = new VendorPaymentTermsDto();
         dto.setId(vendorPaymentTerms.getId());
         dto.setPaymentTerms(vendorPaymentTerms.getPaymentTerms());
