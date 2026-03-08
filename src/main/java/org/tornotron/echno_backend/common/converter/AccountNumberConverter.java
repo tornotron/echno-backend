@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.common.converter;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.common.configuration.EncryptionService;
 
@@ -11,6 +12,7 @@ public class AccountNumberConverter implements AttributeConverter<String, String
 
     private static EncryptionService encryptionService;
 
+    @Autowired
     public void setEncryptionService(EncryptionService encryptionService) {
         AccountNumberConverter.encryptionService = encryptionService;
     }
