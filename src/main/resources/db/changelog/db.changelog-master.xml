@@ -130,4 +130,10 @@
     <include file="db/changelog/v2.1/076-vendor-enhancements.xml"/>
     <include file="db/changelog/v2.1/077-add-org-id-to-vendor-child-entities.xml"/>
 
+    <!-- v2.2 - Goods management: migrate created_by from User to Employee -->
+    <include file="db/changelog/v2.1/078-goods-management-created-by-employee.xml"/>
+
+    <!-- v2.3 - site_transfer: migrate sending_person_id from User to Employee -->
+    <include file="db/changelog/v2.1/079-site-transfer-sending-person-employee.xml"/>
+
 </databaseChangeLog>
