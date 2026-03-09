@@ -7,9 +7,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.IntendDtoConvertor;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.intend.dto.IntendCreationDto;
 import org.tornotron.echno_backend.intend.dto.IntendDto;
 import org.tornotron.echno_backend.intend.enums.IntendStatus;
@@ -22,25 +25,25 @@ import java.util.List;
 public class IntendService {
 
     private final IntendRepository intendRepository;
-    private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
     private final TenantEntityHelper tenantEntityHelper;
+    private final EmployeeRepository employeeRepository;
 
-    public IntendService(IntendRepository intendRepository, UserRepository userRepository, FileStorageService fileStorageService,
-                        TenantEntityHelper tenantEntityHelper) {
+    public IntendService(IntendRepository intendRepository, FileStorageService fileStorageService,
+                         TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository) {
         this.intendRepository = intendRepository;
-        this.userRepository = userRepository;
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
+        this.employeeRepository = employeeRepository;
     }
 
 
     @Transactional
     public IntendDto addIntend(IntendCreationDto intendCreationDto) {
         Intend intend = new Intend();
-        User user = userRepository.findUserByName(intendCreationDto.getCreatedBy())
-                        .orElseThrow(() -> new ResourceNotFoundException("User not found with name: " + intendCreationDto.getCreatedBy()));
-        intend.setCreatedBy(user);
+        Employee employee = employeeRepository.findByIdAndOrganizationId(intendCreationDto.getCreatedByEmployeeId(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + intendCreationDto.getCreatedByEmployeeId()));
+        intend.setCreatedBy(employee);
         intend.setIntendNumber(intendCreationDto.getIntendNumber());
         intend.setStatus(IntendStatus.valueOf(intendCreationDto.getStatus()));
         intend.setExpectedOn(intendCreationDto.getExpectedOn());
