@@ -6,9 +6,15 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
+import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
+import org.tornotron.echno_backend.intend.Intend;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
 import org.tornotron.echno_backend.issue.Issue;
+import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.payable.Payable;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 import org.tornotron.echno_backend.task.Task;
 import org.tornotron.echno_backend.user.User;
 
@@ -136,4 +142,24 @@ public class Employee implements TenantScopedEntity {
 
     @OneToMany(mappedBy = "assignedTo", fetch = FetchType.LAZY)
     private List<Issue> assignedIssues = new ArrayList<>();
+
+    @OneToMany(mappedBy = "receivedBy")
+    private List<GoodsReceivedNote> goodsReceivedNotes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "createdBy")
+    private List<Intend> intends = new ArrayList<>();
+
+    @OneToMany(mappedBy = "createdBy")
+    private List<PurchaseOrder> purchaseOrders = new ArrayList<>();
+
+    @OneToMany(mappedBy = "createdBy")
+    private List<Payable> payables = new ArrayList<>();
+
+    @OneToMany(mappedBy = "createdBy")
+    private List<InventoryTransaction> inventoryTransactions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "createdBy")
+    private List<Material> materials = new ArrayList<>();
+
+
 }
