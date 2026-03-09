@@ -20,9 +20,8 @@ public class SiteTransferCreationDto {
     @NotNull(message = "issue date is required")
     private LocalDateTime issueDate;
 
-    @NotBlank(message = "sending person username is required")
-    @Size(min = 1, max = 50, message = "sending person must be between 1 and 50 characters")
-    private String sendingPerson;
+    @NotNull(message = "sending person employee id is required")
+    private Long sendingPerson;
 
     @NotBlank(message = "receiving site is required")
     @Size(min = 1, max = 100, message = "receiving site must be between 1 and 100 characters")

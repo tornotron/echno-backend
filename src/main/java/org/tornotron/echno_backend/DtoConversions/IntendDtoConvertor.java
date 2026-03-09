@@ -23,7 +23,7 @@ public class IntendDtoConvertor {
 
         if (intend.getItems() != null) {
             dto.setItems(intend.getItems().stream()
-                    .map(IndentItemDtoConvertor::convertIndentItemToDto)
+                    .map(indentItem -> IndentItemDtoConvertor.convertIndentItemToDto(indentItem,fileStorageService))
                     .collect(Collectors.toList()));
         } else {
             dto.setItems(Collections.emptyList());
