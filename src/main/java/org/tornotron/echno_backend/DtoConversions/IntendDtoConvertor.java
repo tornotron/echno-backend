@@ -14,14 +14,13 @@ public class IntendDtoConvertor {
     public static IntendDto convertIntendToDto(Intend intend, FileStorageService fileStorageService) {
         IntendDto dto = new IntendDto();
         dto.setId(intend.getId());
-        dto.setCreatedBy(UserDtoConvertor.convertUserToDto(intend.getCreatedBy(), fileStorageService));
+        dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(intend.getCreatedBy(),fileStorageService));
         dto.setIntendNumber(intend.getIntendNumber());
         dto.setCreatedAt(intend.getCreatedAt());
         dto.setStatus(intend.getStatus());
         dto.setExpectedOn(intend.getExpectedOn());
         dto.setRemarks(intend.getRemarks());
 
-        // Convert items collection to DTOs (this triggers lazy loading within the transaction)
         if (intend.getItems() != null) {
             dto.setItems(intend.getItems().stream()
                     .map(IndentItemDtoConvertor::convertIndentItemToDto)

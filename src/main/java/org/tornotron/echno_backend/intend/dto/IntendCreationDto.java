@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.intend.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -13,9 +14,8 @@ public class IntendCreationDto {
     @Size(min = 1, max = 50, message = "intendNumber must be between 1 and 50 characters")
     private String intendNumber;
 
-    @NotBlank(message = "createdBy is required(type: String)")
-    @Size(min = 1, max = 50, message = "createdBy must be between 1 and 50 characters")
-    private String createdBy;
+    @NotNull(message = "createdBy is required(type: Long)")
+    private Long createdByEmployeeId;
 
     @NotBlank(message = "status is required(type: String)")
     private String status;

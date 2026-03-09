@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.indentItem.IndentItem;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.intend.enums.IntendStatus;
@@ -33,8 +34,11 @@ public class Intend implements TenantScopedEntity {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @ManyToOne
-    private User createdBy;
+//    @ManyToOne
+//    private User createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Employee createdBy;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
