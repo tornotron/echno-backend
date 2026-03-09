@@ -6,11 +6,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.employee.Employee;
-import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
-import org.tornotron.echno_backend.intend.Intend;
-import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
-import org.tornotron.echno_backend.materialConsumption.MaterialConsumption;
-import org.tornotron.echno_backend.payable.Payable;
 import org.tornotron.echno_backend.siteTransfer.SiteTransfer;
 import org.tornotron.echno_backend.user.enums.UserRole;
 
@@ -119,14 +114,6 @@ public class User {
     private List<Employee> employees = new ArrayList<>();
 
 
-
-    /** The list of inventory transactions created by this user. */
-    @OneToMany(mappedBy = "createdBy")
-    private List<InventoryTransaction> inventoryTransactions = new ArrayList<>();
-
-    /** The list of material consumptions created by this user. */
-    @OneToMany(mappedBy = "createdBy")
-    private List<MaterialConsumption> materialConsumptions = new ArrayList<>();
 
     /** The list of site transfers initiated by this user. */
     @OneToMany(mappedBy = "sendingPerson")
