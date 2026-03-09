@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.material.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -17,4 +18,7 @@ public class MaterialCreationDto {
     @NotBlank(message = "unit is required")
     @Size(min = 1, max = 20, message = "unit must be between 1 and 20 characters")
     private String unit;
+
+    @NotNull(message = "created by employee id is required")
+    private Long createdBy;
 }

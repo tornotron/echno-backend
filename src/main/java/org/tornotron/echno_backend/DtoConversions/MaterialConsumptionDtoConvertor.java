@@ -28,7 +28,7 @@ public class MaterialConsumptionDtoConvertor {
 
         // Created by
         if (consumption.getCreatedBy() != null) {
-            dto.setCreatedBy(UserDtoConvertor.convertUserToDto(consumption.getCreatedBy(), fileStorageService));
+            dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(consumption.getCreatedBy(), fileStorageService));
         }
 
         return dto;

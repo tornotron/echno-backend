@@ -27,7 +27,6 @@ public class MaterialConsumptionCreationDto {
     @Size(max = 500, message = "details must not exceed 500 characters")
     private String details;
 
-    @NotBlank(message = "created by username is required")
-    @Size(min = 1, max = 50, message = "created by must be between 1 and 50 characters")
-    private String createdBy;
+    @NotNull(message = "created by employee id is required")
+    private Long createdBy;
 }
