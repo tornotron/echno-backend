@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.intend.Intend;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
@@ -47,9 +48,8 @@ public class PurchaseOrder implements TenantScopedEntity {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @ManyToOne
-    @JoinColumn(name = "created_by_id")
-    private User createdBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Employee createdBy;
 
     @Column(name = "expected_delivery_date")
     private LocalDateTime expectedDeliveryDate;

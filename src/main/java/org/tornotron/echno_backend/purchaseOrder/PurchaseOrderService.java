@@ -7,10 +7,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.PurchaseOrderDtoConvertor;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.indentItem.IndentItem;
 import org.tornotron.echno_backend.indentItem.IndentItemRepository;
 import org.tornotron.echno_backend.intend.Intend;
@@ -46,6 +49,7 @@ public class PurchaseOrderService {
     private final MaterialRepository materialRepository;
     private final FileStorageService fileStorageService;
     private final TenantEntityHelper tenantEntityHelper;
+    private final EmployeeRepository employeeRepository;
 
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                                 PurchaseOrderItemRepository purchaseOrderItemRepository,
@@ -55,7 +59,7 @@ public class PurchaseOrderService {
                                 IndentItemRepository indentItemRepository,
                                 MaterialRepository materialRepository,
                                 FileStorageService fileStorageService,
-                                TenantEntityHelper tenantEntityHelper) {
+                                TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.purchaseOrderItemRepository = purchaseOrderItemRepository;
         this.vendorRepository = vendorRepository;
@@ -65,6 +69,7 @@ public class PurchaseOrderService {
         this.materialRepository = materialRepository;
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
+        this.employeeRepository = employeeRepository;
     }
 
     @Transactional
@@ -78,9 +83,9 @@ public class PurchaseOrderService {
         Vendor vendor = vendorRepository.findById(creationDto.getVendorId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + creationDto.getVendorId()));
 
-        // Validate user exists
-        User createdBy = userRepository.findUserByName(creationDto.getCreatedBy())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with name: " + creationDto.getCreatedBy()));
+
+        Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: "+ creationDto.getCreatedBy()));
 
         // Validate intend if provided
         Intend intend = null;
