@@ -118,13 +118,7 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Employee> employees = new ArrayList<>();
 
-    /** The list of indents created by this user. */
-    @OneToMany(mappedBy = "createdBy")
-    private List<Intend> intends = new ArrayList<>();
 
-    /** The list of goods received notes where this user is the receiver. */
-    @OneToMany(mappedBy = "receivedBy")
-    private List<GoodsReceivedNote> goodsReceivedNotes = new ArrayList<>();
 
     /** The list of inventory transactions created by this user. */
     @OneToMany(mappedBy = "createdBy")
@@ -133,10 +127,6 @@ public class User {
     /** The list of material consumptions created by this user. */
     @OneToMany(mappedBy = "createdBy")
     private List<MaterialConsumption> materialConsumptions = new ArrayList<>();
-
-    /** The list of payables created by this user. */
-    @OneToMany(mappedBy = "createdBy")
-    private List<Payable> payables = new ArrayList<>();
 
     /** The list of site transfers initiated by this user. */
     @OneToMany(mappedBy = "sendingPerson")
