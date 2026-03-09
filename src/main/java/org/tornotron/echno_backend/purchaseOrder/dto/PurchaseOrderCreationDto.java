@@ -26,9 +26,8 @@ public class PurchaseOrderCreationDto {
     @NotBlank(message = "status is required")
     private String status;
 
-    @NotBlank(message = "created by username is required")
-    @Size(min = 1, max = 50, message = "created by must be between 1 and 50 characters")
-    private String createdBy;
+    @NotNull(message = "created by employee id is required")
+    private Long createdBy;
 
     private LocalDateTime expectedDeliveryDate;
 

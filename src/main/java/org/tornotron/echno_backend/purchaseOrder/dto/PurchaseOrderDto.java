@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.purchaseOrder.dto;
 
 import lombok.Data;
+import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
 import org.tornotron.echno_backend.user.dto.UserDto;
 
@@ -19,7 +20,7 @@ public class PurchaseOrderDto {
     private String intendNumber;
     private PurchaseOrderStatus status;
     private LocalDateTime createdAt;
-    private UserDto createdBy;
+    private EmployeeDto createdBy;
     private LocalDateTime expectedDeliveryDate;
     private String remarks;
     private List<PurchaseOrderItemDto> items;

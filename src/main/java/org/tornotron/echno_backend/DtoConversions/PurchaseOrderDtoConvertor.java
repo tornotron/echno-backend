@@ -41,7 +41,7 @@ public class PurchaseOrderDtoConvertor {
 
         // Created by
         if (purchaseOrder.getCreatedBy() != null) {
-            dto.setCreatedBy(UserDtoConvertor.convertUserToDto(purchaseOrder.getCreatedBy(), fileStorageService));
+            dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(purchaseOrder.getCreatedBy(), fileStorageService));
         }
 
         // Items
