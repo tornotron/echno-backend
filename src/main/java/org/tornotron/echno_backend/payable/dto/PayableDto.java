@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.payable.dto;
 
 import lombok.Data;
+import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.payable.enums.ContractType;
 import org.tornotron.echno_backend.user.dto.UserDto;
 
@@ -21,6 +22,6 @@ public class PayableDto {
     private String vendorName;
     private Long goodsReceivedNoteId;
     private String grnNumber;
-    private UserDto createdBy;
+    private EmployeeDto createdBy;
     private LocalDateTime createdAt;
 }
