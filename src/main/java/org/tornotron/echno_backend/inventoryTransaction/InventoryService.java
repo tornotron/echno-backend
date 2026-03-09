@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.inventoryTransaction;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.exception.InsufficientStockException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,7 +52,7 @@ public class InventoryService {
     public void validateSufficientStock(Long materialId, Integer requiredQuantity) {
         Integer currentStock = getCurrentStock(materialId);
         if (currentStock < requiredQuantity) {
-            throw new org.tornotron.echno_backend.common.exception.InsufficientStockException(
+            throw new InsufficientStockException(
                 String.format("Insufficient stock for material ID %d. Required: %d, Available: %d",
                     materialId, requiredQuantity, currentStock)
             );
@@ -81,7 +82,7 @@ public class InventoryService {
         }
 
         if (!insufficientItems.isEmpty()) {
-            throw new org.tornotron.echno_backend.common.exception.InsufficientStockException(
+            throw new InsufficientStockException(
                 "Insufficient stock for items: " + String.join("; ", insufficientItems)
             );
         }

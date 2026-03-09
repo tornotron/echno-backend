@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.material.Material;
@@ -46,8 +47,8 @@ public class InventoryTransaction implements TenantScopedEntity {
 
     private String remarks;
 
-    @ManyToOne
-    private User createdBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Employee createdBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
