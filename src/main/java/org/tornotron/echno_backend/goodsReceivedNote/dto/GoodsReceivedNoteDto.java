@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.goodsReceivedNote.dto;
 
 import lombok.Data;
+import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.user.dto.UserDto;
 
 import java.time.LocalDateTime;
@@ -12,7 +13,7 @@ public class GoodsReceivedNoteDto {
     private Long id;
     private String grnNumber;
     private LocalDateTime receivedOn;
-    private UserDto receivedBy;
+    private EmployeeDto receivedBy;
     private Long vendorId;
     private String vendorName;
     private Long purchaseOrderId;
