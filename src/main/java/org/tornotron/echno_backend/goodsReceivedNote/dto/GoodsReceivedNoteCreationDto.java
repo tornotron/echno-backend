@@ -20,9 +20,8 @@ public class GoodsReceivedNoteCreationDto {
     @NotNull(message = "received on date is required")
     private LocalDateTime receivedOn;
 
-    @NotBlank(message = "received by username is required")
-    @Size(min = 1, max = 50, message = "received by must be between 1 and 50 characters")
-    private String receivedBy;
+    @NotNull(message = "received by username is required")
+    private Long receivedByEmployeeId;
 
     @NotNull(message = "vendor ID is required")
     private Long vendorId;

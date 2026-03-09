@@ -28,7 +28,7 @@ public class GoodsReceivedNoteDtoConvertor {
 
         // Received by
         if (grn.getReceivedBy() != null) {
-            dto.setReceivedBy(UserDtoConvertor.convertUserToDto(grn.getReceivedBy(), fileStorageService));
+            dto.setReceivedBy(EmployeeDtoConvertor.convertEmployeeToDto(grn.getReceivedBy(), fileStorageService));
         }
 
         // Vendor info
