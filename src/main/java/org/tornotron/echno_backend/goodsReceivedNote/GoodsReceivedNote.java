@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.grnItem.GrnItem;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.payable.Payable;
@@ -32,8 +33,9 @@ public class GoodsReceivedNote implements TenantScopedEntity {
     @Column(name = "received_on", nullable = false)
     private LocalDateTime receivedOn;
 
-    @ManyToOne
-    private User receivedBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id")
+    private Employee receivedBy;
 
     @ManyToOne
     private Vendor vendor;
