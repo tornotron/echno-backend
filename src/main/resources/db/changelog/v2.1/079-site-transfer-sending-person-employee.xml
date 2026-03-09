@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================== -->
+    <!-- v2.3 - site_transfer: migrate sending_person_id from User      -->
+    <!--        to Employee                                              -->
+    <!-- ============================================================== -->
+
+    <changeSet id="079-site-transfer-sending-person-user-to-employee" author="echno">
+        <dropForeignKeyConstraint
+                baseTableName="site_transfer"
+                constraintName="fk_site_transfer_sending_person"/>
+        <addForeignKeyConstraint
+                baseTableName="site_transfer"
+                baseColumnNames="sending_person_id"
+                constraintName="fk_site_transfer_sending_person_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+    </changeSet>
+
+</databaseChangeLog>

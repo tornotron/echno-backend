@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================== -->
+    <!-- v2.2 - Migrate goods management created_by from User to Employee -->
+    <!--                                                                -->
+    <!-- Affected tables:                                               -->
+    <!--   goods_received_note: rename received_by_id -> employee_id   -->
+    <!--   intend:              created_by_id FK user -> employee       -->
+    <!--   inventory_transaction: created_by_id FK user -> employee    -->
+    <!--   material:            add created_by_id FK to employee        -->
+    <!--   material_consumption: created_by_id FK user -> employee     -->
+    <!--   payable:             created_by_id FK user -> employee       -->
+    <!--   purchase_order:      created_by_id FK user -> employee       -->
+    <!-- ============================================================== -->
+
+    <!-- goods_received_note: received_by_id (User) -> employee_id (Employee) -->
+    <changeSet id="078-grn-received-by-user-to-employee" author="echno">
+        <dropForeignKeyConstraint
+                baseTableName="goods_received_note"
+                constraintName="fk_grn_received_by"/>
+        <dropIndex tableName="goods_received_note" indexName="idx_grn_received_by"/>
+        <renameColumn tableName="goods_received_note"
+                      oldColumnName="received_by_id"
+                      newColumnName="employee_id"
+                      columnDataType="BIGINT"/>
+        <addForeignKeyConstraint
+                baseTableName="goods_received_note"
+                baseColumnNames="employee_id"
+                constraintName="fk_grn_received_by_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <createIndex tableName="goods_received_note" indexName="idx_grn_employee_id">
+            <column name="employee_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- intend: created_by_id FK user -> employee -->
+    <changeSet id="078-intend-created-by-user-to-employee" author="echno">
+        <dropForeignKeyConstraint
+                baseTableName="intend"
+                constraintName="fk_intend_created_by"/>
+        <addForeignKeyConstraint
+                baseTableName="intend"
+                baseColumnNames="created_by_id"
+                constraintName="fk_intend_created_by_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+    </changeSet>
+
+    <!-- inventory_transaction: created_by_id FK user -> employee -->
+    <changeSet id="078-inventory-transaction-created-by-user-to-employee" author="echno">
+        <dropForeignKeyConstraint
+                baseTableName="inventory_transaction"
+                constraintName="fk_inventory_transaction_created_by"/>
+        <addForeignKeyConstraint
+                baseTableName="inventory_transaction"
+                baseColumnNames="created_by_id"
+                constraintName="fk_inventory_transaction_created_by_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+    </changeSet>
+
+    <!-- material: add created_by_id column (Employee) -->
+    <changeSet id="078-material-add-created-by-employee" author="echno">
+        <addColumn tableName="material">
+            <column name="created_by_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="material"
+                baseColumnNames="created_by_id"
+                constraintName="fk_material_created_by_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <createIndex tableName="material" indexName="idx_material_created_by">
+            <column name="created_by_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- material_consumption: created_by_id FK user -> employee -->
+    <changeSet id="078-material-consumption-created-by-user-to-employee" author="echno">
+        <dropForeignKeyConstraint
+                baseTableName="material_consumption"
+                constraintName="fk_material_consumption_created_by"/>
+        <addForeignKeyConstraint
+                baseTableName="material_consumption"
+                baseColumnNames="created_by_id"
+                constraintName="fk_material_consumption_created_by_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+    </changeSet>
+
+    <!-- payable: created_by_id FK user -> employee -->
+    <changeSet id="078-payable-created-by-user-to-employee" author="echno">
+        <dropForeignKeyConstraint
+                baseTableName="payable"
+                constraintName="fk_payable_created_by"/>
+        <addForeignKeyConstraint
+                baseTableName="payable"
+                baseColumnNames="created_by_id"
+                constraintName="fk_payable_created_by_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+    </changeSet>
+
+    <!-- purchase_order: created_by_id FK user -> employee -->
+    <changeSet id="078-purchase-order-created-by-user-to-employee" author="echno">
+        <dropForeignKeyConstraint
+                baseTableName="purchase_order"
+                constraintName="fk_purchase_order_created_by"/>
+        <addForeignKeyConstraint
+                baseTableName="purchase_order"
+                baseColumnNames="created_by_id"
+                constraintName="fk_purchase_order_created_by_employee"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+    </changeSet>
+
+</databaseChangeLog>
