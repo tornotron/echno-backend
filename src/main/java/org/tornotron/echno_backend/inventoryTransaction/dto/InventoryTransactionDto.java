@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.inventoryTransaction.dto;
 
 import lombok.Data;
+import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
 import org.tornotron.echno_backend.user.dto.UserDto;
 
@@ -19,5 +20,5 @@ public class InventoryTransactionDto {
     private InventoryTransactionType transactionType;
     private String referenceNumber;
     private String remarks;
-    private UserDto createdBy;
+    private EmployeeDto createdBy;
 }

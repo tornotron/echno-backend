@@ -31,7 +31,7 @@ public class InventoryTransactionDtoConvertor {
 
         // Created by
         if (transaction.getCreatedBy() != null) {
-            dto.setCreatedBy(UserDtoConvertor.convertUserToDto(transaction.getCreatedBy(), fileStorageService));
+            dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(transaction.getCreatedBy(), fileStorageService));
         }
 
         return dto;
