@@ -114,11 +114,6 @@ public class User {
     private List<Employee> employees = new ArrayList<>();
 
 
-
-    /** The list of site transfers initiated by this user. */
-    @OneToMany(mappedBy = "sendingPerson")
-    private List<SiteTransfer> siteTransfers = new ArrayList<>();
-
     /** The list of attachments associated with this user. */
     @OneToMany(mappedBy = "user")
     private List<Attachment> attachments = new ArrayList<>();

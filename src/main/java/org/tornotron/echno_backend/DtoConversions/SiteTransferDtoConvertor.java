@@ -27,7 +27,7 @@ public class SiteTransferDtoConvertor {
 
         // Sending person
         if (transfer.getSendingPerson() != null) {
-            dto.setSendingPerson(UserDtoConvertor.convertUserToDto(transfer.getSendingPerson(), fileStorageService));
+            dto.setSendingPerson(EmployeeDtoConvertor.convertEmployeeToDto(transfer.getSendingPerson(), fileStorageService));
         }
 
         // Items

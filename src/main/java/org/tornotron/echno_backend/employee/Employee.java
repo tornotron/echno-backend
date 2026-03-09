@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.payable.Payable;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
+import org.tornotron.echno_backend.siteTransfer.SiteTransfer;
 import org.tornotron.echno_backend.task.Task;
 import org.tornotron.echno_backend.user.User;
 
@@ -160,6 +161,10 @@ public class Employee implements TenantScopedEntity {
 
     @OneToMany(mappedBy = "createdBy")
     private List<Material> materials = new ArrayList<>();
+
+    @OneToMany(mappedBy = "sendingPerson")
+    private List<SiteTransfer> siteTransfers = new ArrayList<>();
+
 
 
 }

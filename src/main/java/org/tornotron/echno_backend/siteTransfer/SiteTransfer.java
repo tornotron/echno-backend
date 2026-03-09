@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferStatus;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
@@ -29,8 +30,8 @@ public class SiteTransfer implements TenantScopedEntity {
     @Column(name = "issue_date")
     private LocalDateTime issueDate;
 
-    @ManyToOne
-    private User sendingPerson;
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Employee sendingPerson;
 
     @Column(name = "receiving_site")
     private String receivingSite;

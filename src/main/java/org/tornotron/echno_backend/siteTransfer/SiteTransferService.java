@@ -9,9 +9,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.SiteTransferDtoConvertor;
 import org.tornotron.echno_backend.common.events.SiteTransferCreatedEvent;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
@@ -43,15 +46,16 @@ public class SiteTransferService {
     private final ApplicationEventPublisher eventPublisher;
     private final FileStorageService fileStorageService;
     private final TenantEntityHelper tenantEntityHelper;
+    private final EmployeeRepository employeeRepository;
 
     public SiteTransferService(SiteTransferRepository siteTransferRepository,
-                              SiteTransferItemRepository siteTransferItemRepository,
-                              UserRepository userRepository,
-                              MaterialRepository materialRepository,
-                              InventoryService inventoryService,
-                              ApplicationEventPublisher eventPublisher,
-                              FileStorageService fileStorageService,
-                              TenantEntityHelper tenantEntityHelper) {
+                               SiteTransferItemRepository siteTransferItemRepository,
+                               UserRepository userRepository,
+                               MaterialRepository materialRepository,
+                               InventoryService inventoryService,
+                               ApplicationEventPublisher eventPublisher,
+                               FileStorageService fileStorageService,
+                               TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository) {
         this.siteTransferRepository = siteTransferRepository;
         this.siteTransferItemRepository = siteTransferItemRepository;
         this.userRepository = userRepository;
@@ -60,6 +64,7 @@ public class SiteTransferService {
         this.eventPublisher = eventPublisher;
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
+        this.employeeRepository = employeeRepository;
     }
 
     @Transactional
@@ -69,9 +74,8 @@ public class SiteTransferService {
             throw new DuplicateResourceException("Site transfer with number " + creationDto.getTransferNumber() + " already exists");
         }
 
-        // Validate user exists
-        User sendingPerson = userRepository.findUserByName(creationDto.getSendingPerson())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with name: " + creationDto.getSendingPerson()));
+        Employee sendingPerson = employeeRepository.findByIdAndOrganizationId(creationDto.getSendingPerson(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + creationDto.getSendingPerson()));
 
         // CRITICAL: Validate sufficient stock for ALL items before creating transfer
         Map<Long, Integer> requiredQuantities = new HashMap<>();

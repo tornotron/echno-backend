@@ -108,7 +108,7 @@ public class InventoryEventListener {
             transaction.setTransactionType(InventoryTransactionType.TRANSFER);
             transaction.setReferenceNumber(transfer.getTransferNumber());
             transaction.setRemarks("Site transfer to " + (transfer.getReceivingSite() != null ? transfer.getReceivingSite() : "site") +
-                    " by " + (transfer.getSendingPerson() != null ? transfer.getSendingPerson().getName() : "user") +
+                    " by " + (transfer.getSendingPerson() != null ? transfer.getSendingPerson().getEmployeeName() : "employee") +
                     (item.getRemarks() != null ? " - " + item.getRemarks() : ""));
             transaction.setCreatedBy(transfer.getSendingPerson());
             transaction.setOrganization(transfer.getOrganization());
