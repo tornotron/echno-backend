@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.materialConsumption.dto;
 
 import lombok.Data;
+import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.materialConsumption.enums.MaterialConsumptionType;
 import org.tornotron.echno_backend.user.dto.UserDto;
 
@@ -16,5 +17,5 @@ public class MaterialConsumptionDto {
     private Integer quantity;
     private MaterialConsumptionType consumptionType;
     private String details;
-    private UserDto createdBy;
+    private EmployeeDto createdBy;
 }

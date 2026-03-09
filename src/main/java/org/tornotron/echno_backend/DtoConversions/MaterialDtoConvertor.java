@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.DtoConversions;
 
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.dto.MaterialDto;
 import org.tornotron.echno_backend.material.dto.MaterialWithStockDto;
@@ -8,7 +9,7 @@ import org.tornotron.echno_backend.material.dto.MaterialWithStockDto;
 @Component
 public class MaterialDtoConvertor {
 
-    public static MaterialDto convertToDto(Material material) {
+    public static MaterialDto convertToDto(Material material, FileStorageService fileStorageService) {
         if (material == null) {
             return null;
         }
@@ -18,6 +19,10 @@ public class MaterialDtoConvertor {
         dto.setSku(material.getSku());
         dto.setMaterialName(material.getMaterialName());
         dto.setUnit(material.getUnit());
+
+        if(material.getCreatedBy() != null) {
+            dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(material.getCreatedBy(),fileStorageService));
+        }
 
         return dto;
     }

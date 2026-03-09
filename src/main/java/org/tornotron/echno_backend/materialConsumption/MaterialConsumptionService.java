@@ -9,9 +9,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.MaterialConsumptionDtoConvertor;
 import org.tornotron.echno_backend.common.events.MaterialConsumedEvent;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
@@ -30,26 +33,25 @@ public class MaterialConsumptionService {
 
     private final MaterialConsumptionRepository materialConsumptionRepository;
     private final MaterialRepository materialRepository;
-    private final UserRepository userRepository;
     private final InventoryService inventoryService;
     private final ApplicationEventPublisher eventPublisher;
     private final FileStorageService fileStorageService;
     private final TenantEntityHelper tenantEntityHelper;
+    private final EmployeeRepository employeeRepository;
 
     public MaterialConsumptionService(MaterialConsumptionRepository materialConsumptionRepository,
-                                     MaterialRepository materialRepository,
-                                     UserRepository userRepository,
-                                     InventoryService inventoryService,
-                                     ApplicationEventPublisher eventPublisher,
-                                     FileStorageService fileStorageService,
-                                     TenantEntityHelper tenantEntityHelper) {
+                                      MaterialRepository materialRepository,
+                                      InventoryService inventoryService,
+                                      ApplicationEventPublisher eventPublisher,
+                                      FileStorageService fileStorageService,
+                                      TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository) {
         this.materialConsumptionRepository = materialConsumptionRepository;
         this.materialRepository = materialRepository;
-        this.userRepository = userRepository;
         this.inventoryService = inventoryService;
         this.eventPublisher = eventPublisher;
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
+        this.employeeRepository = employeeRepository;
     }
 
     @Transactional
@@ -59,8 +61,8 @@ public class MaterialConsumptionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + creationDto.getMaterialId()));
 
         // Validate user exists
-        User createdBy = userRepository.findUserByName(creationDto.getCreatedBy())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with name: " + creationDto.getCreatedBy()));
+        Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + creationDto.getCreatedBy()));
 
         // CRITICAL: Validate sufficient stock before consumption
         inventoryService.validateSufficientStock(creationDto.getMaterialId(), creationDto.getQuantity());
