@@ -7,10 +7,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.PayableDtoConvertor;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteRepository;
 import org.tornotron.echno_backend.payable.dto.PayableCreationDto;
@@ -34,19 +37,21 @@ public class PayableService {
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
     private final TenantEntityHelper tenantEntityHelper;
+    private final EmployeeRepository employeeRepository;
 
     public PayableService(PayableRepository payableRepository,
-                         VendorRepository vendorRepository,
-                         GoodsReceivedNoteRepository goodsReceivedNoteRepository,
-                         UserRepository userRepository,
-                         FileStorageService fileStorageService,
-                         TenantEntityHelper tenantEntityHelper) {
+                          VendorRepository vendorRepository,
+                          GoodsReceivedNoteRepository goodsReceivedNoteRepository,
+                          UserRepository userRepository,
+                          FileStorageService fileStorageService,
+                          TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository) {
         this.payableRepository = payableRepository;
         this.vendorRepository = vendorRepository;
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.userRepository = userRepository;
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
+        this.employeeRepository = employeeRepository;
     }
 
     @Transactional
@@ -56,9 +61,9 @@ public class PayableService {
             throw new DuplicateResourceException("Payable with number " + creationDto.getPayableNumber() + " already exists");
         }
 
-        // Validate user
-        User createdBy = userRepository.findUserByName(creationDto.getCreatedBy())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with name: " + creationDto.getCreatedBy()));
+
+        Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: "+ creationDto.getCreatedBy()));
 
         // Validate vendor if provided
         Vendor vendor = null;

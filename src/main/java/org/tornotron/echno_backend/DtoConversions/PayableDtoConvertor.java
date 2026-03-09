@@ -37,7 +37,7 @@ public class PayableDtoConvertor {
 
         // Created by
         if (payable.getCreatedBy() != null) {
-            dto.setCreatedBy(UserDtoConvertor.convertUserToDto(payable.getCreatedBy(), fileStorageService));
+            dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(payable.getCreatedBy(), fileStorageService));
         }
 
         return dto;

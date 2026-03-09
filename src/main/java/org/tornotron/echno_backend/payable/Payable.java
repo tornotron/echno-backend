@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.payable.enums.ContractType;
@@ -54,8 +55,11 @@ public class Payable implements TenantScopedEntity {
     @JoinColumn(name = "goods_received_note_id")
     private GoodsReceivedNote goodsReceivedNote;
 
-    @ManyToOne
-    private User createdBy;
+//    @ManyToOne
+//    private User createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Employee createdBy;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
