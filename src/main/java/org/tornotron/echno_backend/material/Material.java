@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.grnItem.GrnItem;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.indentItem.IndentItem;
@@ -51,4 +52,7 @@ public class Material implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
     private Organization organization;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Employee createdBy;
 }
