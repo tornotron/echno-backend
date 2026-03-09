@@ -7,6 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
 import org.tornotron.echno_backend.intend.Intend;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
@@ -66,4 +67,8 @@ public class PurchaseOrder implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
     private Organization organization;
+
+    @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL)
+    private List<GoodsReceivedNote> goodsReceivedNotes = new ArrayList<>();
+
 }
