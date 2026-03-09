@@ -9,10 +9,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.GoodsReceivedNoteDtoConvertor;
 import org.tornotron.echno_backend.common.events.GrnCreatedEvent;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteCreationDto;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteDto;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GrnItemDto;
@@ -36,28 +39,28 @@ public class GoodsReceivedNoteService {
     private final GoodsReceivedNoteRepository goodsReceivedNoteRepository;
     private final GrnItemRepository grnItemRepository;
     private final VendorRepository vendorRepository;
-    private final UserRepository userRepository;
     private final MaterialRepository materialRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final FileStorageService fileStorageService;
     private final TenantEntityHelper tenantEntityHelper;
+    private final EmployeeRepository employeeRepository;
 
     public GoodsReceivedNoteService(GoodsReceivedNoteRepository goodsReceivedNoteRepository,
-                                   GrnItemRepository grnItemRepository,
-                                   VendorRepository vendorRepository,
-                                   UserRepository userRepository,
-                                   MaterialRepository materialRepository,
-                                   ApplicationEventPublisher eventPublisher,
-                                   FileStorageService fileStorageService,
-                                   TenantEntityHelper tenantEntityHelper) {
+                                    GrnItemRepository grnItemRepository,
+                                    VendorRepository vendorRepository,
+                                    UserRepository userRepository,
+                                    MaterialRepository materialRepository,
+                                    ApplicationEventPublisher eventPublisher,
+                                    FileStorageService fileStorageService,
+                                    TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository) {
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.grnItemRepository = grnItemRepository;
         this.vendorRepository = vendorRepository;
-        this.userRepository = userRepository;
         this.materialRepository = materialRepository;
         this.eventPublisher = eventPublisher;
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
+        this.employeeRepository = employeeRepository;
     }
 
     @Transactional
@@ -68,12 +71,11 @@ public class GoodsReceivedNoteService {
         }
 
         // Validate vendor
-        Vendor vendor = vendorRepository.findById(creationDto.getVendorId())
+        Vendor vendor = vendorRepository.findByIdAndOrganization_Id(creationDto.getVendorId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + creationDto.getVendorId()));
 
-        // Validate user
-        User receivedBy = userRepository.findUserByName(creationDto.getReceivedBy())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with name: " + creationDto.getReceivedBy()));
+        Employee receivedBy = employeeRepository.findByIdAndOrganizationId(creationDto.getReceivedByEmployeeId(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + creationDto.getReceivedByEmployeeId()));
 
         // Create GRN
         GoodsReceivedNote grn = new GoodsReceivedNote();
