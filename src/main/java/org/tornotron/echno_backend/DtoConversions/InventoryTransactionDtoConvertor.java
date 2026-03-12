@@ -29,6 +29,12 @@ public class InventoryTransactionDtoConvertor {
             dto.setMaterialName(transaction.getMaterial().getMaterialName());
         }
 
+        // Project info
+        if (transaction.getProject() != null) {
+            dto.setProjectId(transaction.getProject().getId());
+            dto.setProjectName(transaction.getProject().getProjectName());
+        }
+
         // Created by
         if (transaction.getCreatedBy() != null) {
             dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(transaction.getCreatedBy(), fileStorageService));

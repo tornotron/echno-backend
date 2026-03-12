@@ -57,6 +57,13 @@ public class InventoryTransactionService {
     }
 
     @Transactional(readOnly = true)
+    public List<InventoryTransactionDto> getTransactionsByProject(Long projectId) {
+        return inventoryTransactionRepository.findByProjectId(projectId).stream()
+                .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<InventoryTransactionDto> getTransactionsByType(InventoryTransactionType transactionType) {
         return inventoryTransactionRepository.findByTransactionType(transactionType).stream()
                 .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
