@@ -14,26 +14,18 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
-import org.tornotron.echno_backend.indentItem.IndentItem;
-import org.tornotron.echno_backend.indentItem.IndentItemRepository;
 import org.tornotron.echno_backend.intend.Intend;
 import org.tornotron.echno_backend.intend.IntendRepository;
-import org.tornotron.echno_backend.material.Material;
-import org.tornotron.echno_backend.material.MaterialRepository;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderCreationDto;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderDto;
-import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderItemDto;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderUpdateDto;
 import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
-import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItem;
-import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItemRepository;
-import org.tornotron.echno_backend.user.User;
-import org.tornotron.echno_backend.user.UserRepository;
 import org.tornotron.echno_backend.vendor.Vendor;
 import org.tornotron.echno_backend.vendor.VendorRepository;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,108 +33,63 @@ import java.util.stream.Collectors;
 public class PurchaseOrderService {
 
     private final PurchaseOrderRepository purchaseOrderRepository;
-    private final PurchaseOrderItemRepository purchaseOrderItemRepository;
     private final VendorRepository vendorRepository;
-    private final UserRepository userRepository;
     private final IntendRepository intendRepository;
-    private final IndentItemRepository indentItemRepository;
-    private final MaterialRepository materialRepository;
     private final FileStorageService fileStorageService;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
+    private final ProjectRepository projectRepository;
 
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
-                                PurchaseOrderItemRepository purchaseOrderItemRepository,
                                 VendorRepository vendorRepository,
-                                UserRepository userRepository,
                                 IntendRepository intendRepository,
-                                IndentItemRepository indentItemRepository,
-                                MaterialRepository materialRepository,
                                 FileStorageService fileStorageService,
-                                TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository) {
+                                TenantEntityHelper tenantEntityHelper,
+                                EmployeeRepository employeeRepository,
+                                ProjectRepository projectRepository) {
         this.purchaseOrderRepository = purchaseOrderRepository;
-        this.purchaseOrderItemRepository = purchaseOrderItemRepository;
         this.vendorRepository = vendorRepository;
-        this.userRepository = userRepository;
         this.intendRepository = intendRepository;
-        this.indentItemRepository = indentItemRepository;
-        this.materialRepository = materialRepository;
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
+        this.projectRepository = projectRepository;
     }
 
     @Transactional
     public PurchaseOrderDto createPurchaseOrder(PurchaseOrderCreationDto creationDto) {
-        // Check for duplicate PO number
         if (purchaseOrderRepository.existsByPoNumber(creationDto.getPoNumber())) {
             throw new DuplicateResourceException("Purchase Order with PO number " + creationDto.getPoNumber() + " already exists");
         }
 
-        // Validate vendor exists
         Vendor vendor = vendorRepository.findById(creationDto.getVendorId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + creationDto.getVendorId()));
 
-
         Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: "+ creationDto.getCreatedBy()));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + creationDto.getCreatedBy()));
 
-        // Validate intend if provided
+        Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + creationDto.getProjectId()));
+
         Intend intend = null;
         if (creationDto.getIntendId() != null) {
             intend = intendRepository.findById(creationDto.getIntendId())
                     .orElseThrow(() -> new ResourceNotFoundException("Intend not found with id: " + creationDto.getIntendId()));
         }
 
-        // Create purchase order
         PurchaseOrder purchaseOrder = new PurchaseOrder();
         purchaseOrder.setPoNumber(creationDto.getPoNumber());
         purchaseOrder.setVendor(vendor);
         purchaseOrder.setIntend(intend);
         purchaseOrder.setStatus(PurchaseOrderStatus.valueOf(creationDto.getStatus()));
         purchaseOrder.setCreatedBy(createdBy);
+        purchaseOrder.setProject(project);
         purchaseOrder.setExpectedDeliveryDate(creationDto.getExpectedDeliveryDate());
         purchaseOrder.setRemarks(creationDto.getRemarks());
         purchaseOrder.setTotalAmount(creationDto.getTotalAmount() != null ? creationDto.getTotalAmount() : BigDecimal.ZERO);
         purchaseOrder.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
-        // Save PO first to get ID
         purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
-
-        // Create PO items
-        List<PurchaseOrderItem> items = new ArrayList<>();
-        for (PurchaseOrderItemDto itemDto : creationDto.getItems()) {
-            Material material = materialRepository.findById(itemDto.getMaterialId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + itemDto.getMaterialId()));
-
-            IndentItem indentItem = null;
-            if (itemDto.getIndentItemId() != null) {
-                indentItem = indentItemRepository.findById(itemDto.getIndentItemId())
-                        .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + itemDto.getIndentItemId()));
-
-                // Update indent item to mark as converted to PO
-                indentItem.setConvertedToPurchaseOrder(true);
-                indentItem.setLinkedPurchaseOrderNumber(purchaseOrder.getPoNumber());
-                indentItemRepository.save(indentItem);
-            }
-
-            PurchaseOrderItem poItem = new PurchaseOrderItem();
-            poItem.setPurchaseOrder(purchaseOrder);
-            poItem.setMaterial(material);
-            poItem.setIndentItem(indentItem);
-            poItem.setOrderedQuantity(itemDto.getOrderedQuantity());
-            poItem.setReceivedQuantity(0);
-            poItem.setUnitPrice(itemDto.getUnitPrice());
-            poItem.setTotalPrice(itemDto.getTotalPrice());
-            poItem.setRemarks(itemDto.getRemarks());
-            poItem.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
-
-            items.add(poItem);
-        }
-
-        purchaseOrderItemRepository.saveAll(items);
-        purchaseOrder.setItems(items);
-
         return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder, fileStorageService);
     }
 

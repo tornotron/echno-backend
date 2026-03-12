@@ -1,15 +1,12 @@
 package org.tornotron.echno_backend.purchaseOrder.dto;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 public class PurchaseOrderCreationDto {
@@ -26,16 +23,15 @@ public class PurchaseOrderCreationDto {
     @NotBlank(message = "status is required")
     private String status;
 
+    @NotNull(message = "project ID is required")
+    private Long projectId;
+
     @NotNull(message = "created by employee id is required")
     private Long createdBy;
 
     private LocalDateTime expectedDeliveryDate;
 
     private String remarks;
-
-    @NotEmpty(message = "items list cannot be empty")
-    @Valid
-    private List<PurchaseOrderItemDto> items;
 
     private BigDecimal totalAmount;
 }

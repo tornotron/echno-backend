@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
 import org.tornotron.echno_backend.intend.Intend;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
 import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItem;
 import org.tornotron.echno_backend.user.User;
@@ -63,6 +64,10 @@ public class PurchaseOrder implements TenantScopedEntity {
 
     @Column(name = "total_amount", precision = 15, scale = 2)
     private BigDecimal totalAmount;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")

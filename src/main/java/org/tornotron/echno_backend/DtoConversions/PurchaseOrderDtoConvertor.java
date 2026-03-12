@@ -39,6 +39,12 @@ public class PurchaseOrderDtoConvertor {
             dto.setIntendNumber(purchaseOrder.getIntend().getIntendNumber());
         }
 
+        // Project info
+        if (purchaseOrder.getProject() != null) {
+            dto.setProjectId(purchaseOrder.getProject().getId());
+            dto.setProjectName(purchaseOrder.getProject().getProjectName());
+        }
+
         // Created by
         if (purchaseOrder.getCreatedBy() != null) {
             dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(purchaseOrder.getCreatedBy(), fileStorageService));
