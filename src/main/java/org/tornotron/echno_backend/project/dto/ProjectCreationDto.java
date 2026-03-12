@@ -28,9 +28,6 @@ public class ProjectCreationDto {
     @Enumerated(EnumType.STRING)
     private String status;
 
-    @NotNull(message = "organizationId is required")
-    private Long organizationId;
-
     @NotNull
     private Float projectLatitude;
 
