@@ -21,5 +21,7 @@ public class GoodsReceivedNoteDto {
     private String deliveryChallanNumber;
     private String invoiceNumber;
     private Double invoiceAmount;
+    private Long projectId;
+    private String projectName;
     private List<GrnItemDto> items;
 }

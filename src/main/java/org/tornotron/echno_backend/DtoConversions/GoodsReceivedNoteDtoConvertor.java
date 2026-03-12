@@ -37,8 +37,11 @@ public class GoodsReceivedNoteDtoConvertor {
             dto.setVendorName(grn.getVendor().getVendorName());
         }
 
-        // Purchase Order info (will be available after entity update)
-        // Placeholder for now
+        // Project info
+        if (grn.getProject() != null) {
+            dto.setProjectId(grn.getProject().getId());
+            dto.setProjectName(grn.getProject().getProjectName());
+        }
 
         // Items
         if (grn.getItems() != null && !grn.getItems().isEmpty()) {
