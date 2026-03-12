@@ -14,6 +14,9 @@ public class IntendCreationDto {
     @Size(min = 1, max = 50, message = "intendNumber must be between 1 and 50 characters")
     private String intendNumber;
 
+    @NotNull(message = "project ID is required")
+    private Long projectId;
+
     @NotNull(message = "createdBy is required(type: Long)")
     private Long createdByEmployeeId;
 
