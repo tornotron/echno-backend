@@ -30,6 +30,9 @@ public class PayableCreationDto {
 
     private Long goodsReceivedNoteId;
 
+    @NotNull(message = "project ID is required")
+    private Long projectId;
+
     @NotNull(message = "created by employee id is required")
     private Long createdBy;
 }

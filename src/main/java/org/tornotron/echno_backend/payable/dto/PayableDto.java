@@ -22,6 +22,8 @@ public class PayableDto {
     private String vendorName;
     private Long goodsReceivedNoteId;
     private String grnNumber;
+    private Long projectId;
+    private String projectName;
     private EmployeeDto createdBy;
     private LocalDateTime createdAt;
 }

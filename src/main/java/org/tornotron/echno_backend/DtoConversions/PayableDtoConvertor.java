@@ -35,6 +35,12 @@ public class PayableDtoConvertor {
             dto.setGrnNumber(payable.getGoodsReceivedNote().getGrnNumber());
         }
 
+        // Project info
+        if (payable.getProject() != null) {
+            dto.setProjectId(payable.getProject().getId());
+            dto.setProjectName(payable.getProject().getProjectName());
+        }
+
         // Created by
         if (payable.getCreatedBy() != null) {
             dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(payable.getCreatedBy(), fileStorageService));
