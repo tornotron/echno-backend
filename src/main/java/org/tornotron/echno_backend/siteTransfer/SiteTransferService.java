@@ -18,6 +18,8 @@ import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferCreationDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferItemDto;
@@ -47,6 +49,7 @@ public class SiteTransferService {
     private final FileStorageService fileStorageService;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
+    private final ProjectRepository projectRepository;
 
     public SiteTransferService(SiteTransferRepository siteTransferRepository,
                                SiteTransferItemRepository siteTransferItemRepository,
@@ -55,7 +58,9 @@ public class SiteTransferService {
                                InventoryService inventoryService,
                                ApplicationEventPublisher eventPublisher,
                                FileStorageService fileStorageService,
-                               TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository) {
+                               TenantEntityHelper tenantEntityHelper,
+                               EmployeeRepository employeeRepository,
+                               ProjectRepository projectRepository) {
         this.siteTransferRepository = siteTransferRepository;
         this.siteTransferItemRepository = siteTransferItemRepository;
         this.userRepository = userRepository;
@@ -65,6 +70,7 @@ public class SiteTransferService {
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
+        this.projectRepository = projectRepository;
     }
 
     @Transactional
@@ -77,19 +83,28 @@ public class SiteTransferService {
         Employee sendingPerson = employeeRepository.findByIdAndOrganizationId(creationDto.getSendingPerson(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + creationDto.getSendingPerson()));
 
-        // CRITICAL: Validate sufficient stock for ALL items before creating transfer
+        // Validate sending project
+        Project sendingProject = projectRepository.findByIdAndOrganization_Id(creationDto.getSendingProjectId(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Sending project not found with id: " + creationDto.getSendingProjectId()));
+
+        // Validate receiving project
+        Project receivingProject = projectRepository.findByIdAndOrganization_Id(creationDto.getReceivingProjectId(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Receiving project not found with id: " + creationDto.getReceivingProjectId()));
+
+        // CRITICAL: Validate sufficient stock at the SENDING project for ALL items
         Map<Long, Integer> requiredQuantities = new HashMap<>();
         for (SiteTransferItemDto itemDto : creationDto.getItems()) {
             requiredQuantities.merge(itemDto.getMaterialId(), itemDto.getSentQuantity(), Integer::sum);
         }
-        inventoryService.validateSufficientStockForMultipleItems(requiredQuantities);
+        inventoryService.validateSufficientStockForMultipleItems(requiredQuantities, sendingProject.getId());
 
         // Create site transfer
         SiteTransfer transfer = new SiteTransfer();
         transfer.setTransferNumber(creationDto.getTransferNumber());
         transfer.setIssueDate(creationDto.getIssueDate());
         transfer.setSendingPerson(sendingPerson);
-        transfer.setReceivingSite(creationDto.getReceivingSite());
+        transfer.setSendingProject(sendingProject);
+        transfer.setReceivingProject(receivingProject);
         transfer.setStatus(SiteTransferStatus.valueOf(creationDto.getStatus()));
         transfer.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
@@ -150,8 +165,15 @@ public class SiteTransferService {
     }
 
     @Transactional(readOnly = true)
-    public List<SiteTransferDto> getSiteTransfersByReceivingSite(String receivingSite) {
-        return siteTransferRepository.findByReceivingSite(receivingSite).stream()
+    public List<SiteTransferDto> getSiteTransfersBySendingProject(Long projectId) {
+        return siteTransferRepository.findBySendingProjectId(projectId).stream()
+                .map(transfer -> SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<SiteTransferDto> getSiteTransfersByReceivingProject(Long projectId) {
+        return siteTransferRepository.findByReceivingProjectId(projectId).stream()
                 .map(transfer -> SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService))
                 .collect(Collectors.toList());
     }
