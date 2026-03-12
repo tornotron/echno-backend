@@ -17,5 +17,7 @@ public class MaterialConsumptionDto {
     private Integer quantity;
     private MaterialConsumptionType consumptionType;
     private String details;
+    private Long projectId;
+    private String projectName;
     private EmployeeDto createdBy;
 }

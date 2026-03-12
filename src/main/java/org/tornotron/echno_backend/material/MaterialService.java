@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.material.dto.MaterialCreationDto;
 import org.tornotron.echno_backend.material.dto.MaterialDto;
 import org.tornotron.echno_backend.material.dto.MaterialWithStockDto;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -29,16 +30,18 @@ public class MaterialService {
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final FileStorageService fileStorageService;
+    private final UserContextService userContextService;
 
 
     public MaterialService(MaterialRepository materialRepository,
                            org.tornotron.echno_backend.inventoryTransaction.InventoryService inventoryService,
-                           TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository, FileStorageService fileStorageService) {
+                           TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository, FileStorageService fileStorageService, UserContextService userContextService) {
         this.materialRepository = materialRepository;
         this.inventoryService = inventoryService;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.fileStorageService = fileStorageService;
+        this.userContextService = userContextService;
     }
 
     @Transactional
@@ -118,11 +121,20 @@ public class MaterialService {
     }
 
     @Transactional(readOnly = true)
-    public MaterialWithStockDto getMaterialWithCurrentStock(Long id) {
+    public MaterialWithStockDto getMaterialWithCurrentStock(Long id, Long projectId) {
         Material material = materialRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
 
-        Integer currentStock = inventoryService.getCurrentStock(id);
+        Integer currentStock = inventoryService.getCurrentStock(id, projectId);
+        return MaterialDtoConvertor.convertToWithStockDto(material, currentStock);
+    }
+
+    @Transactional(readOnly = true)
+    public MaterialWithStockDto getMaterialWithAggregateStock(Long id) {
+        Material material = materialRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
+
+        Integer currentStock = inventoryService.getAggregateStock(id);
         return MaterialDtoConvertor.convertToWithStockDto(material, currentStock);
     }
 }

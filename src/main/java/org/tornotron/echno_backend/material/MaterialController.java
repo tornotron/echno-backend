@@ -65,8 +65,15 @@ public class MaterialController {
 
     @GetMapping("/{id}/stock")
     @PreAuthorize("hasAuthority('material:read') or hasAuthority('material:admin')")
-    public ResponseEntity<MaterialWithStockDto> getMaterialWithStock(@PathVariable Long id) {
-        MaterialWithStockDto material = materialService.getMaterialWithCurrentStock(id);
+    public ResponseEntity<MaterialWithStockDto> getMaterialWithStock(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long projectId) {
+        MaterialWithStockDto material;
+        if (projectId != null) {
+            material = materialService.getMaterialWithCurrentStock(id, projectId);
+        } else {
+            material = materialService.getMaterialWithAggregateStock(id);
+        }
         return ResponseEntity.ok(material);
     }
 
