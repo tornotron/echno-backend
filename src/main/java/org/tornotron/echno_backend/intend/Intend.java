@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.indentItem.IndentItem;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.intend.enums.IntendStatus;
+import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 import org.tornotron.echno_backend.user.User;
 
@@ -55,6 +56,10 @@ public class Intend implements TenantScopedEntity {
 
     @OneToMany(mappedBy = "intend")
     private List<PurchaseOrder> purchaseOrders = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")

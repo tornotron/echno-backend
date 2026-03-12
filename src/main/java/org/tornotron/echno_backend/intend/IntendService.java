@@ -16,6 +16,8 @@ import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.intend.dto.IntendCreationDto;
 import org.tornotron.echno_backend.intend.dto.IntendDto;
 import org.tornotron.echno_backend.intend.enums.IntendStatus;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
 
@@ -28,13 +30,16 @@ public class IntendService {
     private final FileStorageService fileStorageService;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
+    private final ProjectRepository projectRepository;
 
     public IntendService(IntendRepository intendRepository, FileStorageService fileStorageService,
-                         TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository) {
+                         TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository,
+                         ProjectRepository projectRepository) {
         this.intendRepository = intendRepository;
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
+        this.projectRepository = projectRepository;
     }
 
 
@@ -43,7 +48,12 @@ public class IntendService {
         Intend intend = new Intend();
         Employee employee = employeeRepository.findByIdAndOrganizationId(intendCreationDto.getCreatedByEmployeeId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + intendCreationDto.getCreatedByEmployeeId()));
+
+        Project project = projectRepository.findByIdAndOrganization_Id(intendCreationDto.getProjectId(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + intendCreationDto.getProjectId()));
+
         intend.setCreatedBy(employee);
+        intend.setProject(project);
         intend.setIntendNumber(intendCreationDto.getIntendNumber());
         intend.setStatus(IntendStatus.valueOf(intendCreationDto.getStatus()));
         intend.setExpectedOn(intendCreationDto.getExpectedOn());

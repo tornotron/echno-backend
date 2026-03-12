@@ -15,6 +15,8 @@ public class IntendDto {
     private String intendNumber;
     private LocalDateTime createdAt;
     private EmployeeDto createdBy;
+    private Long projectId;
+    private String projectName;
     private IntendStatus status;
     private LocalDateTime expectedOn;
     private String remarks;
