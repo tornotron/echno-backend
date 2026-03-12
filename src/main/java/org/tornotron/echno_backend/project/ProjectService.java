@@ -71,8 +71,9 @@ public class ProjectService {
      */
     @Transactional
     public ProjectSimpleDto addProject(ProjectCreationDto projectDto,List<MultipartFile> attachments) {
-            Organization organization = organizationRepository.findById(TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + projectDto.getOrganizationId()));
+            Long orgId = TenantContext.getCurrentOrgId();
+            Organization organization = organizationRepository.findById(orgId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + orgId));
             if(repository.existsProjectByProjectName(projectDto.getProjectName())){
                 throw new DuplicateResourceException("Project with the same name already exists");
             }
