@@ -21,6 +21,8 @@ import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.materialConsumption.dto.MaterialConsumptionCreationDto;
 import org.tornotron.echno_backend.materialConsumption.dto.MaterialConsumptionDto;
 import org.tornotron.echno_backend.materialConsumption.enums.MaterialConsumptionType;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
 
@@ -38,13 +40,16 @@ public class MaterialConsumptionService {
     private final FileStorageService fileStorageService;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
+    private final ProjectRepository projectRepository;
 
     public MaterialConsumptionService(MaterialConsumptionRepository materialConsumptionRepository,
                                       MaterialRepository materialRepository,
                                       InventoryService inventoryService,
                                       ApplicationEventPublisher eventPublisher,
                                       FileStorageService fileStorageService,
-                                      TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository) {
+                                      TenantEntityHelper tenantEntityHelper,
+                                      EmployeeRepository employeeRepository,
+                                      ProjectRepository projectRepository) {
         this.materialConsumptionRepository = materialConsumptionRepository;
         this.materialRepository = materialRepository;
         this.inventoryService = inventoryService;
@@ -52,6 +57,7 @@ public class MaterialConsumptionService {
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
+        this.projectRepository = projectRepository;
     }
 
     @Transactional
@@ -60,12 +66,15 @@ public class MaterialConsumptionService {
         Material material = materialRepository.findById(creationDto.getMaterialId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + creationDto.getMaterialId()));
 
-        // Validate user exists
         Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + creationDto.getCreatedBy()));
 
-        // CRITICAL: Validate sufficient stock before consumption
-        inventoryService.validateSufficientStock(creationDto.getMaterialId(), creationDto.getQuantity());
+        // Validate project
+        Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + creationDto.getProjectId()));
+
+        // CRITICAL: Validate sufficient stock at the project before consumption
+        inventoryService.validateSufficientStock(creationDto.getMaterialId(), project.getId(), creationDto.getQuantity());
 
         // Create material consumption
         MaterialConsumption consumption = new MaterialConsumption();
@@ -75,6 +84,7 @@ public class MaterialConsumptionService {
         consumption.setConsumptionType(MaterialConsumptionType.valueOf(creationDto.getConsumptionType()));
         consumption.setDetails(creationDto.getDetails());
         consumption.setCreatedBy(createdBy);
+        consumption.setProject(project);
         consumption.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         consumption = materialConsumptionRepository.save(consumption);
