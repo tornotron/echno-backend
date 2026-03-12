@@ -19,12 +19,12 @@ public class InventoryService {
     }
 
     /**
-     * Get current stock for a material by retrieving the latest closing stock
+     * Get current stock for a material at a specific project
      */
     @Transactional(readOnly = true)
-    public Integer getCurrentStock(Long materialId) {
+    public Integer getCurrentStock(Long materialId, Long projectId) {
         List<InventoryTransaction> latestTransactions =
-                inventoryTransactionRepository.findLatestTransactionForMaterial(materialId);
+                inventoryTransactionRepository.findLatestTransactionForMaterialAndProject(materialId, projectId);
 
         if (latestTransactions.isEmpty()) {
             return 0;
@@ -34,38 +34,51 @@ public class InventoryService {
     }
 
     /**
-     * Get current stock for multiple materials in batch
+     * Get aggregate stock for a material across all projects in the organization
      */
     @Transactional(readOnly = true)
-    public Map<Long, Integer> getCurrentStockForMaterials(List<Long> materialIds) {
+    public Integer getAggregateStock(Long materialId) {
+        List<Long> projectIds = inventoryTransactionRepository.findDistinctProjectIdsByMaterialId(materialId);
+        int totalStock = 0;
+        for (Long projectId : projectIds) {
+            totalStock += getCurrentStock(materialId, projectId);
+        }
+        return totalStock;
+    }
+
+    /**
+     * Get current stock for multiple materials at a specific project in batch
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, Integer> getCurrentStockForMaterials(List<Long> materialIds, Long projectId) {
         Map<Long, Integer> stockMap = new HashMap<>();
         for (Long materialId : materialIds) {
-            stockMap.put(materialId, getCurrentStock(materialId));
+            stockMap.put(materialId, getCurrentStock(materialId, projectId));
         }
         return stockMap;
     }
 
     /**
-     * Validate that sufficient stock exists for a single material
+     * Validate that sufficient stock exists for a single material at a specific project
      * Throws InsufficientStockException if stock is insufficient
      */
-    public void validateSufficientStock(Long materialId, Integer requiredQuantity) {
-        Integer currentStock = getCurrentStock(materialId);
+    public void validateSufficientStock(Long materialId, Long projectId, Integer requiredQuantity) {
+        Integer currentStock = getCurrentStock(materialId, projectId);
         if (currentStock < requiredQuantity) {
             throw new InsufficientStockException(
-                String.format("Insufficient stock for material ID %d. Required: %d, Available: %d",
-                    materialId, requiredQuantity, currentStock)
+                String.format("Insufficient stock for material ID %d at project ID %d. Required: %d, Available: %d",
+                    materialId, projectId, requiredQuantity, currentStock)
             );
         }
     }
 
     /**
-     * Validate sufficient stock for multiple materials
+     * Validate sufficient stock for multiple materials at a specific project
      * Throws InsufficientStockException if any material has insufficient stock
      */
-    public void validateSufficientStockForMultipleItems(Map<Long, Integer> requiredQuantities) {
+    public void validateSufficientStockForMultipleItems(Map<Long, Integer> requiredQuantities, Long projectId) {
         Map<Long, Integer> currentStock = getCurrentStockForMaterials(
-                new ArrayList<>(requiredQuantities.keySet()));
+                new ArrayList<>(requiredQuantities.keySet()), projectId);
 
         List<String> insufficientItems = new ArrayList<>();
         for (Map.Entry<Long, Integer> entry : requiredQuantities.entrySet()) {
@@ -83,7 +96,7 @@ public class InventoryService {
 
         if (!insufficientItems.isEmpty()) {
             throw new InsufficientStockException(
-                "Insufficient stock for items: " + String.join("; ", insufficientItems)
+                "Insufficient stock at project ID " + projectId + " for items: " + String.join("; ", insufficientItems)
             );
         }
     }

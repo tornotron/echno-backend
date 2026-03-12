@@ -40,7 +40,7 @@ public class InventoryEventListener {
         logger.info("Handling GRN created event for GRN number: {}", grn.getGrnNumber());
 
         for (GrnItem item : grn.getItems()) {
-            Integer openingStock = inventoryService.getCurrentStock(item.getMaterial().getId());
+            Integer openingStock = inventoryService.getCurrentStock(item.getMaterial().getId(), grn.getProject().getId());
             Integer quantityChanged = item.getReceivedQuantity();
             Integer closingStock = openingStock + quantityChanged;
 
@@ -54,11 +54,12 @@ public class InventoryEventListener {
             transaction.setReferenceNumber(grn.getGrnNumber());
             transaction.setRemarks("GRN received from " + (grn.getVendor() != null ? grn.getVendor().getVendorName() : "vendor"));
             transaction.setCreatedBy(grn.getReceivedBy());
+            transaction.setProject(grn.getProject());
             transaction.setOrganization(grn.getOrganization());
 
             inventoryTransactionRepository.save(transaction);
-            logger.debug("Created inventory transaction for material ID: {}, quantity: {}, closing stock: {}",
-                    item.getMaterial().getId(), quantityChanged, closingStock);
+            logger.debug("Created inventory transaction for material ID: {}, project ID: {}, quantity: {}, closing stock: {}",
+                    item.getMaterial().getId(), grn.getProject().getId(), quantityChanged, closingStock);
         }
     }
 
@@ -67,8 +68,8 @@ public class InventoryEventListener {
         MaterialConsumption consumption = event.getMaterialConsumption();
         logger.info("Handling material consumed event for consumption ID: {}", consumption.getId());
 
-        Integer openingStock = inventoryService.getCurrentStock(consumption.getMaterial().getId());
-        Integer quantityChanged = -consumption.getQuantity(); // Negative for consumption
+        Integer openingStock = inventoryService.getCurrentStock(consumption.getMaterial().getId(), consumption.getProject().getId());
+        Integer quantityChanged = -consumption.getQuantity();
         Integer closingStock = openingStock + quantityChanged;
 
         InventoryTransaction transaction = new InventoryTransaction();
@@ -82,11 +83,12 @@ public class InventoryEventListener {
         transaction.setRemarks("Material consumed - " + consumption.getConsumptionType() +
                 (consumption.getDetails() != null ? ": " + consumption.getDetails() : ""));
         transaction.setCreatedBy(consumption.getCreatedBy());
+        transaction.setProject(consumption.getProject());
         transaction.setOrganization(consumption.getOrganization());
 
         inventoryTransactionRepository.save(transaction);
-        logger.debug("Created inventory transaction for material ID: {}, quantity: {}, closing stock: {}",
-                consumption.getMaterial().getId(), quantityChanged, closingStock);
+        logger.debug("Created inventory transaction for material ID: {}, project ID: {}, quantity: {}, closing stock: {}",
+                consumption.getMaterial().getId(), consumption.getProject().getId(), quantityChanged, closingStock);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -95,27 +97,55 @@ public class InventoryEventListener {
         logger.info("Handling site transfer created event for transfer number: {}", transfer.getTransferNumber());
 
         for (SiteTransferItem item : transfer.getItems()) {
-            Integer openingStock = inventoryService.getCurrentStock(item.getMaterial().getId());
-            Integer quantityChanged = -item.getSentQuantity(); // Negative for transfer out
-            Integer closingStock = openingStock + quantityChanged;
+            // TRANSFER_OUT: Stock decreases at sending project
+            Integer sendingOpeningStock = inventoryService.getCurrentStock(
+                    item.getMaterial().getId(), transfer.getSendingProject().getId());
+            Integer sendingQuantityChanged = -item.getSentQuantity();
+            Integer sendingClosingStock = sendingOpeningStock + sendingQuantityChanged;
 
-            InventoryTransaction transaction = new InventoryTransaction();
-            transaction.setTransactionDate(transfer.getIssueDate() != null ? transfer.getIssueDate() : LocalDateTime.now());
-            transaction.setMaterial(item.getMaterial());
-            transaction.setOpeningStock(openingStock);
-            transaction.setQuantityChanged(quantityChanged);
-            transaction.setClosingStock(closingStock);
-            transaction.setTransactionType(InventoryTransactionType.TRANSFER);
-            transaction.setReferenceNumber(transfer.getTransferNumber());
-            transaction.setRemarks("Site transfer to " + (transfer.getReceivingSite() != null ? transfer.getReceivingSite() : "site") +
+            InventoryTransaction outTransaction = new InventoryTransaction();
+            outTransaction.setTransactionDate(transfer.getIssueDate() != null ? transfer.getIssueDate() : LocalDateTime.now());
+            outTransaction.setMaterial(item.getMaterial());
+            outTransaction.setOpeningStock(sendingOpeningStock);
+            outTransaction.setQuantityChanged(sendingQuantityChanged);
+            outTransaction.setClosingStock(sendingClosingStock);
+            outTransaction.setTransactionType(InventoryTransactionType.TRANSFER_OUT);
+            outTransaction.setReferenceNumber(transfer.getTransferNumber());
+            outTransaction.setRemarks("Transfer out to " + transfer.getReceivingProject().getProjectName() +
                     " by " + (transfer.getSendingPerson() != null ? transfer.getSendingPerson().getEmployeeName() : "employee") +
                     (item.getRemarks() != null ? " - " + item.getRemarks() : ""));
-            transaction.setCreatedBy(transfer.getSendingPerson());
-            transaction.setOrganization(transfer.getOrganization());
+            outTransaction.setCreatedBy(transfer.getSendingPerson());
+            outTransaction.setProject(transfer.getSendingProject());
+            outTransaction.setOrganization(transfer.getOrganization());
 
-            inventoryTransactionRepository.save(transaction);
-            logger.debug("Created inventory transaction for material ID: {}, quantity: {}, closing stock: {}",
-                    item.getMaterial().getId(), quantityChanged, closingStock);
+            inventoryTransactionRepository.save(outTransaction);
+            logger.debug("Created TRANSFER_OUT transaction for material ID: {}, sending project ID: {}, quantity: {}, closing stock: {}",
+                    item.getMaterial().getId(), transfer.getSendingProject().getId(), sendingQuantityChanged, sendingClosingStock);
+
+            // TRANSFER_IN: Stock increases at receiving project
+            Integer receivingOpeningStock = inventoryService.getCurrentStock(
+                    item.getMaterial().getId(), transfer.getReceivingProject().getId());
+            Integer receivingQuantityChanged = item.getSentQuantity();
+            Integer receivingClosingStock = receivingOpeningStock + receivingQuantityChanged;
+
+            InventoryTransaction inTransaction = new InventoryTransaction();
+            inTransaction.setTransactionDate(transfer.getIssueDate() != null ? transfer.getIssueDate() : LocalDateTime.now());
+            inTransaction.setMaterial(item.getMaterial());
+            inTransaction.setOpeningStock(receivingOpeningStock);
+            inTransaction.setQuantityChanged(receivingQuantityChanged);
+            inTransaction.setClosingStock(receivingClosingStock);
+            inTransaction.setTransactionType(InventoryTransactionType.TRANSFER_IN);
+            inTransaction.setReferenceNumber(transfer.getTransferNumber());
+            inTransaction.setRemarks("Transfer in from " + transfer.getSendingProject().getProjectName() +
+                    " by " + (transfer.getSendingPerson() != null ? transfer.getSendingPerson().getEmployeeName() : "employee") +
+                    (item.getRemarks() != null ? " - " + item.getRemarks() : ""));
+            inTransaction.setCreatedBy(transfer.getSendingPerson());
+            inTransaction.setProject(transfer.getReceivingProject());
+            inTransaction.setOrganization(transfer.getOrganization());
+
+            inventoryTransactionRepository.save(inTransaction);
+            logger.debug("Created TRANSFER_IN transaction for material ID: {}, receiving project ID: {}, quantity: {}, closing stock: {}",
+                    item.getMaterial().getId(), transfer.getReceivingProject().getId(), receivingQuantityChanged, receivingClosingStock);
         }
     }
 }

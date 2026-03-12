@@ -54,6 +54,13 @@ public class InventoryTransactionController {
         return ResponseEntity.ok(transactions);
     }
 
+    @GetMapping("/project/{projectId}")
+    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByProject(@PathVariable Long projectId) {
+        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByProject(projectId);
+        return ResponseEntity.ok(transactions);
+    }
+
     @GetMapping("/type/{transactionType}")
     @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByType(@PathVariable InventoryTransactionType transactionType) {
