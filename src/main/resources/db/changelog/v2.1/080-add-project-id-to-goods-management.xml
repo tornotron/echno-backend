@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================== -->
+    <!-- v2.4 - Add project_id to goods management tables               -->
+    <!--                                                                -->
+    <!-- Affected tables:                                               -->
+    <!--   intend:               add project_id FK to project           -->
+    <!--   purchase_order:       add project_id FK to project           -->
+    <!--   goods_received_note:  add project_id FK to project           -->
+    <!--   inventory_transaction: add project_id FK to project          -->
+    <!--   material_consumption: add project_id FK to project           -->
+    <!--   payable:              add project_id FK to project           -->
+    <!--   site_transfer:        add sending_project_id,                -->
+    <!--                             receiving_project_id FK to project -->
+    <!--                         drop obsolete receiving_site column    -->
+    <!-- ============================================================== -->
+
+    <!-- intend: add project_id -->
+    <changeSet id="080-intend-add-project-id" author="echno">
+        <addColumn tableName="intend">
+            <column name="project_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="intend"
+                baseColumnNames="project_id"
+                constraintName="fk_intend_project"
+                referencedTableName="project"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="intend" indexName="idx_intend_project_id">
+            <column name="project_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- purchase_order: add project_id -->
+    <changeSet id="080-purchase-order-add-project-id" author="echno">
+        <addColumn tableName="purchase_order">
+            <column name="project_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="purchase_order"
+                baseColumnNames="project_id"
+                constraintName="fk_purchase_order_project"
+                referencedTableName="project"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="purchase_order" indexName="idx_purchase_order_project_id">
+            <column name="project_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- goods_received_note: add project_id -->
+    <changeSet id="080-grn-add-project-id" author="echno">
+        <addColumn tableName="goods_received_note">
+            <column name="project_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="goods_received_note"
+                baseColumnNames="project_id"
+                constraintName="fk_grn_project"
+                referencedTableName="project"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="goods_received_note" indexName="idx_grn_project_id">
+            <column name="project_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- inventory_transaction: add project_id -->
+    <changeSet id="080-inventory-transaction-add-project-id" author="echno">
+        <addColumn tableName="inventory_transaction">
+            <column name="project_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="inventory_transaction"
+                baseColumnNames="project_id"
+                constraintName="fk_inventory_transaction_project"
+                referencedTableName="project"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="inventory_transaction" indexName="idx_inventory_transaction_project_id">
+            <column name="project_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- material_consumption: add project_id -->
+    <changeSet id="080-material-consumption-add-project-id" author="echno">
+        <addColumn tableName="material_consumption">
+            <column name="project_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="material_consumption"
+                baseColumnNames="project_id"
+                constraintName="fk_material_consumption_project"
+                referencedTableName="project"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="material_consumption" indexName="idx_material_consumption_project_id">
+            <column name="project_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- payable: add project_id -->
+    <changeSet id="080-payable-add-project-id" author="echno">
+        <addColumn tableName="payable">
+            <column name="project_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="payable"
+                baseColumnNames="project_id"
+                constraintName="fk_payable_project"
+                referencedTableName="project"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="payable" indexName="idx_payable_project_id">
+            <column name="project_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- site_transfer: add sending_project_id and receiving_project_id,
+         drop obsolete receiving_site text column -->
+    <changeSet id="080-site-transfer-add-project-columns" author="echno">
+        <dropColumn tableName="site_transfer" columnName="receiving_site"/>
+        <addColumn tableName="site_transfer">
+            <column name="sending_project_id" type="BIGINT"/>
+            <column name="receiving_project_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="site_transfer"
+                baseColumnNames="sending_project_id"
+                constraintName="fk_site_transfer_sending_project"
+                referencedTableName="project"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <addForeignKeyConstraint
+                baseTableName="site_transfer"
+                baseColumnNames="receiving_project_id"
+                constraintName="fk_site_transfer_receiving_project"
+                referencedTableName="project"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="site_transfer" indexName="idx_site_transfer_sending_project_id">
+            <column name="sending_project_id"/>
+        </createIndex>
+        <createIndex tableName="site_transfer" indexName="idx_site_transfer_receiving_project_id">
+            <column name="receiving_project_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
