@@ -18,6 +18,8 @@ public class PurchaseOrderDto {
     private String vendorName;
     private Long intendId;
     private String intendNumber;
+    private Long projectId;
+    private String projectName;
     private PurchaseOrderStatus status;
     private LocalDateTime createdAt;
     private EmployeeDto createdBy;
