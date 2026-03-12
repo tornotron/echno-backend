@@ -26,6 +26,12 @@ public class MaterialConsumptionDtoConvertor {
             dto.setMaterialName(consumption.getMaterial().getMaterialName());
         }
 
+        // Project info
+        if (consumption.getProject() != null) {
+            dto.setProjectId(consumption.getProject().getId());
+            dto.setProjectName(consumption.getProject().getProjectName());
+        }
+
         // Created by
         if (consumption.getCreatedBy() != null) {
             dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(consumption.getCreatedBy(), fileStorageService));
