@@ -23,6 +23,8 @@ import org.tornotron.echno_backend.grnItem.GrnItem;
 import org.tornotron.echno_backend.grnItem.GrnItemRepository;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
 import org.tornotron.echno_backend.vendor.Vendor;
@@ -44,6 +46,7 @@ public class GoodsReceivedNoteService {
     private final FileStorageService fileStorageService;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
+    private final ProjectRepository projectRepository;
 
     public GoodsReceivedNoteService(GoodsReceivedNoteRepository goodsReceivedNoteRepository,
                                     GrnItemRepository grnItemRepository,
@@ -52,7 +55,9 @@ public class GoodsReceivedNoteService {
                                     MaterialRepository materialRepository,
                                     ApplicationEventPublisher eventPublisher,
                                     FileStorageService fileStorageService,
-                                    TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository) {
+                                    TenantEntityHelper tenantEntityHelper,
+                                    EmployeeRepository employeeRepository,
+                                    ProjectRepository projectRepository) {
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.grnItemRepository = grnItemRepository;
         this.vendorRepository = vendorRepository;
@@ -61,6 +66,7 @@ public class GoodsReceivedNoteService {
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
+        this.projectRepository = projectRepository;
     }
 
     @Transactional
@@ -77,6 +83,10 @@ public class GoodsReceivedNoteService {
         Employee receivedBy = employeeRepository.findByIdAndOrganizationId(creationDto.getReceivedByEmployeeId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + creationDto.getReceivedByEmployeeId()));
 
+        // Validate project
+        Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + creationDto.getProjectId()));
+
         // Create GRN
         GoodsReceivedNote grn = new GoodsReceivedNote();
         grn.setGrnNumber(creationDto.getGrnNumber());
@@ -86,6 +96,7 @@ public class GoodsReceivedNoteService {
         grn.setDeliveryChallanNumber(creationDto.getDeliveryChallanNumber());
         grn.setInvoiceNumber(creationDto.getInvoiceNumber());
         grn.setInvoiceAmount(creationDto.getInvoiceAmount());
+        grn.setProject(project);
         grn.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         // Save GRN first

@@ -36,6 +36,9 @@ public class GoodsReceivedNoteCreationDto {
 
     private Double invoiceAmount;
 
+    @NotNull(message = "project ID is required")
+    private Long projectId;
+
     @NotEmpty(message = "items list cannot be empty")
     @Valid
     private List<GrnItemDto> items;
