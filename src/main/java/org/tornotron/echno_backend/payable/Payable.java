@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.payable.enums.ContractType;
+import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.vendor.Vendor;
 
@@ -64,6 +65,10 @@ public class Payable implements TenantScopedEntity {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
