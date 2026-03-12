@@ -13,7 +13,9 @@ public interface SiteTransferRepository extends JpaRepository<SiteTransfer, Long
 
     List<SiteTransfer> findByStatus(SiteTransferStatus status);
 
-    List<SiteTransfer> findByReceivingSite(String receivingSite);
+    List<SiteTransfer> findBySendingProjectId(Long projectId);
+
+    List<SiteTransfer> findByReceivingProjectId(Long projectId);
 
     List<SiteTransfer> findByIssueDateBetween(LocalDateTime startDate, LocalDateTime endDate);
 

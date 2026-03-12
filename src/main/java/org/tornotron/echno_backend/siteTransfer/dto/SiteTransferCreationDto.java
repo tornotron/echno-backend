@@ -23,9 +23,11 @@ public class SiteTransferCreationDto {
     @NotNull(message = "sending person employee id is required")
     private Long sendingPerson;
 
-    @NotBlank(message = "receiving site is required")
-    @Size(min = 1, max = 100, message = "receiving site must be between 1 and 100 characters")
-    private String receivingSite;
+    @NotNull(message = "sending project ID is required")
+    private Long sendingProjectId;
+
+    @NotNull(message = "receiving project ID is required")
+    private Long receivingProjectId;
 
     @NotBlank(message = "status is required")
     private String status;
