@@ -7,6 +7,7 @@ import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferStatus;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
 import org.tornotron.echno_backend.user.User;
@@ -33,8 +34,13 @@ public class SiteTransfer implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     private Employee sendingPerson;
 
-    @Column(name = "receiving_site")
-    private String receivingSite;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sending_project_id", nullable = false)
+    private Project sendingProject;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "receiving_project_id", nullable = false)
+    private Project receivingProject;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")

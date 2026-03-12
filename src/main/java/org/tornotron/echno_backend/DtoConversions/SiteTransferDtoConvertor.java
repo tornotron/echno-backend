@@ -22,12 +22,23 @@ public class SiteTransferDtoConvertor {
         dto.setId(transfer.getId());
         dto.setTransferNumber(transfer.getTransferNumber());
         dto.setIssueDate(transfer.getIssueDate());
-        dto.setReceivingSite(transfer.getReceivingSite());
         dto.setStatus(transfer.getStatus());
 
         // Sending person
         if (transfer.getSendingPerson() != null) {
             dto.setSendingPerson(EmployeeDtoConvertor.convertEmployeeToDto(transfer.getSendingPerson(), fileStorageService));
+        }
+
+        // Sending project
+        if (transfer.getSendingProject() != null) {
+            dto.setSendingProjectId(transfer.getSendingProject().getId());
+            dto.setSendingProjectName(transfer.getSendingProject().getProjectName());
+        }
+
+        // Receiving project
+        if (transfer.getReceivingProject() != null) {
+            dto.setReceivingProjectId(transfer.getReceivingProject().getId());
+            dto.setReceivingProjectName(transfer.getReceivingProject().getProjectName());
         }
 
         // Items

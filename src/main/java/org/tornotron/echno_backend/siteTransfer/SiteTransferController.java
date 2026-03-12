@@ -63,10 +63,17 @@ public class SiteTransferController {
         return ResponseEntity.ok(transfers);
     }
 
-    @GetMapping("/receiving-site/{receivingSite}")
+    @GetMapping("/sending-project/{projectId}")
     @PreAuthorize("hasAuthority('site-transfer:read') or hasAuthority('site-transfer:admin')")
-    public ResponseEntity<List<SiteTransferDto>> getSiteTransfersByReceivingSite(@PathVariable String receivingSite) {
-        List<SiteTransferDto> transfers = siteTransferService.getSiteTransfersByReceivingSite(receivingSite);
+    public ResponseEntity<List<SiteTransferDto>> getSiteTransfersBySendingProject(@PathVariable Long projectId) {
+        List<SiteTransferDto> transfers = siteTransferService.getSiteTransfersBySendingProject(projectId);
+        return ResponseEntity.ok(transfers);
+    }
+
+    @GetMapping("/receiving-project/{projectId}")
+    @PreAuthorize("hasAuthority('site-transfer:read') or hasAuthority('site-transfer:admin')")
+    public ResponseEntity<List<SiteTransferDto>> getSiteTransfersByReceivingProject(@PathVariable Long projectId) {
+        List<SiteTransferDto> transfers = siteTransferService.getSiteTransfersByReceivingProject(projectId);
         return ResponseEntity.ok(transfers);
     }
 
