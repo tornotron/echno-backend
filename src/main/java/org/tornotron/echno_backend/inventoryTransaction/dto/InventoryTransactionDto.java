@@ -20,5 +20,7 @@ public class InventoryTransactionDto {
     private InventoryTransactionType transactionType;
     private String referenceNumber;
     private String remarks;
+    private Long projectId;
+    private String projectName;
     private EmployeeDto createdBy;
 }
