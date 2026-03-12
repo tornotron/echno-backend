@@ -21,6 +21,12 @@ public class IntendDtoConvertor {
         dto.setExpectedOn(intend.getExpectedOn());
         dto.setRemarks(intend.getRemarks());
 
+        // Project info
+        if (intend.getProject() != null) {
+            dto.setProjectId(intend.getProject().getId());
+            dto.setProjectName(intend.getProject().getProjectName());
+        }
+
         if (intend.getItems() != null) {
             dto.setItems(intend.getItems().stream()
                     .map(indentItem -> IndentItemDtoConvertor.convertIndentItemToDto(indentItem,fileStorageService))
