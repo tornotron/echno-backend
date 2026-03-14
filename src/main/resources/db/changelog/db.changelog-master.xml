@@ -139,4 +139,14 @@
     <!-- v2.4 - Add project_id to goods management tables; add sending/receiving project to site_transfer -->
     <include file="db/changelog/v2.1/080-add-project-id-to-goods-management.xml"/>
 
+    <!-- v2.5 - Storage Location module -->
+    <include file="db/changelog/v2.1/081-create-storage-location.xml"/>
+    <include file="db/changelog/v2.1/082-add-storage-location-to-entities.xml"/>
+
+    <!-- v2.6 - Add created_at timestamp to inventory_transaction -->
+    <include file="db/changelog/v2.1/083-add-created-at-to-inventory-transaction.xml"/>
+
+    <!-- v2.7 - Add isActive and capacity to storage_location -->
+    <include file="db/changelog/v2.1/084-add-is-active-capacity-to-storage-location.xml"/>
+
 </databaseChangeLog>

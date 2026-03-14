@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Add storage_location_id to goods_received_note -->
+    <changeSet id="082-grn-add-storage-location" author="echno">
+        <addColumn tableName="goods_received_note">
+            <column name="storage_location_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="goods_received_note"
+                baseColumnNames="storage_location_id"
+                constraintName="fk_grn_storage_location"
+                referencedTableName="storage_location"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <createIndex tableName="goods_received_note" indexName="idx_grn_storage_location">
+            <column name="storage_location_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Add storage_location_id to inventory_transaction -->
+    <changeSet id="082-inventory-transaction-add-storage-location" author="echno">
+        <addColumn tableName="inventory_transaction">
+            <column name="storage_location_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="inventory_transaction"
+                baseColumnNames="storage_location_id"
+                constraintName="fk_inventory_transaction_storage_location"
+                referencedTableName="storage_location"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <createIndex tableName="inventory_transaction" indexName="idx_inventory_transaction_storage_location">
+            <column name="storage_location_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Add storage_location_id to material_consumption -->
+    <changeSet id="082-material-consumption-add-storage-location" author="echno">
+        <addColumn tableName="material_consumption">
+            <column name="storage_location_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="material_consumption"
+                baseColumnNames="storage_location_id"
+                constraintName="fk_material_consumption_storage_location"
+                referencedTableName="storage_location"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <createIndex tableName="material_consumption" indexName="idx_material_consumption_storage_location">
+            <column name="storage_location_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Add sending_storage_location_id and receiving_storage_location_id to site_transfer -->
+    <changeSet id="082-site-transfer-add-storage-locations" author="echno">
+        <addColumn tableName="site_transfer">
+            <column name="sending_storage_location_id" type="BIGINT"/>
+            <column name="receiving_storage_location_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="site_transfer"
+                baseColumnNames="sending_storage_location_id"
+                constraintName="fk_site_transfer_sending_storage_location"
+                referencedTableName="storage_location"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <addForeignKeyConstraint
+                baseTableName="site_transfer"
+                baseColumnNames="receiving_storage_location_id"
+                constraintName="fk_site_transfer_receiving_storage_location"
+                referencedTableName="storage_location"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <createIndex tableName="site_transfer" indexName="idx_site_transfer_sending_storage_location">
+            <column name="sending_storage_location_id"/>
+        </createIndex>
+        <createIndex tableName="site_transfer" indexName="idx_site_transfer_receiving_storage_location">
+            <column name="receiving_storage_location_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
