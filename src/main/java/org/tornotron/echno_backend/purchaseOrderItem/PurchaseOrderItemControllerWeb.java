@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemCreationDto;
 import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemResponseDto;
+import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemUpdateDto;
 
 import java.util.List;
 
@@ -56,6 +57,14 @@ public class PurchaseOrderItemControllerWeb {
     public ResponseEntity<List<PurchaseOrderItemResponseDto>> getItemsByMaterialId(@PathVariable Long materialId) {
         List<PurchaseOrderItemResponseDto> items = purchaseOrderItemService.getItemsByMaterialId(materialId);
         return ResponseEntity.ok(items);
+    }
+
+    @PatchMapping
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    public ResponseEntity<PurchaseOrderItemResponseDto> updatePurchaseOrderItem(
+            @Valid @RequestBody PurchaseOrderItemUpdateDto updateDto) {
+        PurchaseOrderItemResponseDto updated = purchaseOrderItemService.updatePurchaseOrderItem(updateDto);
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")

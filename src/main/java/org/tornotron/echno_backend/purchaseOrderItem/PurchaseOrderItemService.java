@@ -10,9 +10,12 @@ import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderRepository;
+import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderService;
 import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemCreationDto;
 import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemResponseDto;
+import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemUpdateDto;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,17 +27,20 @@ public class PurchaseOrderItemService {
     private final MaterialRepository materialRepository;
     private final IndentItemRepository indentItemRepository;
     private final TenantEntityHelper tenantEntityHelper;
+    private final PurchaseOrderService purchaseOrderService;
 
     public PurchaseOrderItemService(PurchaseOrderItemRepository purchaseOrderItemRepository,
                                     PurchaseOrderRepository purchaseOrderRepository,
                                     MaterialRepository materialRepository,
                                     IndentItemRepository indentItemRepository,
-                                    TenantEntityHelper tenantEntityHelper) {
+                                    TenantEntityHelper tenantEntityHelper,
+                                    PurchaseOrderService purchaseOrderService) {
         this.purchaseOrderItemRepository = purchaseOrderItemRepository;
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.materialRepository = materialRepository;
         this.indentItemRepository = indentItemRepository;
         this.tenantEntityHelper = tenantEntityHelper;
+        this.purchaseOrderService = purchaseOrderService;
     }
 
     @Transactional
@@ -62,11 +68,20 @@ public class PurchaseOrderItemService {
         poItem.setOrderedQuantity(creationDto.getOrderedQuantity());
         poItem.setReceivedQuantity(0);
         poItem.setUnitPrice(creationDto.getUnitPrice());
-        poItem.setTotalPrice(creationDto.getTotalPrice());
+        
+        // Calculate total price
+        BigDecimal unitPrice = creationDto.getUnitPrice() != null ? creationDto.getUnitPrice() : BigDecimal.ZERO;
+        BigDecimal totalPrice = unitPrice.multiply(new BigDecimal(creationDto.getOrderedQuantity()));
+        poItem.setTotalPrice(totalPrice);
+        
         poItem.setRemarks(creationDto.getRemarks());
         poItem.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         poItem = purchaseOrderItemRepository.save(poItem);
+        
+        // Recalculate PurchaseOrder total amount
+        purchaseOrderService.recalculateTotalAmount(purchaseOrder.getId());
+        
         return convertToResponseDto(poItem);
     }
 
@@ -99,11 +114,45 @@ public class PurchaseOrderItemService {
     }
 
     @Transactional
-    public void deletePurchaseOrderItem(Long id) {
-        if (!purchaseOrderItemRepository.existsById(id)) {
-            throw new ResourceNotFoundException("PurchaseOrderItem not found with id: " + id);
+    public PurchaseOrderItemResponseDto updatePurchaseOrderItem(PurchaseOrderItemUpdateDto updateDto) {
+        PurchaseOrderItem item = purchaseOrderItemRepository.findById(updateDto.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("PurchaseOrderItem not found with id: " + updateDto.getId()));
+
+        if (updateDto.getOrderedQuantity() != null) {
+            item.setOrderedQuantity(updateDto.getOrderedQuantity());
         }
+
+        if (updateDto.getUnitPrice() != null) {
+            item.setUnitPrice(updateDto.getUnitPrice());
+        }
+
+        if (updateDto.getRemarks() != null) {
+            item.setRemarks(updateDto.getRemarks());
+        }
+
+        // Recalculate item total price
+        BigDecimal unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO;
+        BigDecimal totalPrice = unitPrice.multiply(new BigDecimal(item.getOrderedQuantity()));
+        item.setTotalPrice(totalPrice);
+
+        item = purchaseOrderItemRepository.save(item);
+
+        // Recalculate PurchaseOrder total amount
+        purchaseOrderService.recalculateTotalAmount(item.getPurchaseOrder().getId());
+
+        return convertToResponseDto(item);
+    }
+
+    @Transactional
+    public void deletePurchaseOrderItem(Long id) {
+        PurchaseOrderItem item = purchaseOrderItemRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("PurchaseOrderItem not found with id: " + id));
+        
+        Long purchaseOrderId = item.getPurchaseOrder().getId();
         purchaseOrderItemRepository.deleteById(id);
+        
+        // Recalculate PurchaseOrder total amount after deletion
+        purchaseOrderService.recalculateTotalAmount(purchaseOrderId);
     }
 
     private PurchaseOrderItemResponseDto convertToResponseDto(PurchaseOrderItem item) {

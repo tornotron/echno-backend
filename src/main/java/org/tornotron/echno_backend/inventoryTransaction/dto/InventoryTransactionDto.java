@@ -22,5 +22,7 @@ public class InventoryTransactionDto {
     private String remarks;
     private Long projectId;
     private String projectName;
+    private Long storageLocationId;
+    private String storageLocationName;
     private EmployeeDto createdBy;
 }

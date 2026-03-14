@@ -11,5 +11,7 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
 
     List<Material> findByMaterialNameContainingIgnoreCase(String materialName);
 
+    Optional<Material> findByIdAndOrganization_Id(Long id, Long organizationId);
+
     boolean existsBySku(String sku);
 }

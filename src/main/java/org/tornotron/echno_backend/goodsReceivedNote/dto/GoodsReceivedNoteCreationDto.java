@@ -39,6 +39,8 @@ public class GoodsReceivedNoteCreationDto {
     @NotNull(message = "project ID is required")
     private Long projectId;
 
+    private Long storageLocationId;
+
     @NotEmpty(message = "items list cannot be empty")
     @Valid
     private List<GrnItemDto> items;

@@ -16,8 +16,12 @@ public class SiteTransferDto {
     private EmployeeDto sendingPerson;
     private Long sendingProjectId;
     private String sendingProjectName;
+    private Long sendingStorageLocationId;
+    private String sendingStorageLocationName;
     private Long receivingProjectId;
     private String receivingProjectName;
+    private Long receivingStorageLocationId;
+    private String receivingStorageLocationName;
     private SiteTransferStatus status;
     private List<SiteTransferItemDto> items;
 }
