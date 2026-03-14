@@ -23,6 +23,8 @@ import org.tornotron.echno_backend.materialConsumption.dto.MaterialConsumptionDt
 import org.tornotron.echno_backend.materialConsumption.enums.MaterialConsumptionType;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.storageLocation.StorageLocation;
+import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
 
@@ -41,6 +43,7 @@ public class MaterialConsumptionService {
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
+    private final StorageLocationRepository storageLocationRepository;
 
     public MaterialConsumptionService(MaterialConsumptionRepository materialConsumptionRepository,
                                       MaterialRepository materialRepository,
@@ -49,7 +52,8 @@ public class MaterialConsumptionService {
                                       FileStorageService fileStorageService,
                                       TenantEntityHelper tenantEntityHelper,
                                       EmployeeRepository employeeRepository,
-                                      ProjectRepository projectRepository) {
+                                      ProjectRepository projectRepository,
+                                      StorageLocationRepository storageLocationRepository) {
         this.materialConsumptionRepository = materialConsumptionRepository;
         this.materialRepository = materialRepository;
         this.inventoryService = inventoryService;
@@ -58,6 +62,7 @@ public class MaterialConsumptionService {
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
+        this.storageLocationRepository = storageLocationRepository;
     }
 
     @Transactional
@@ -73,8 +78,15 @@ public class MaterialConsumptionService {
         Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + creationDto.getProjectId()));
 
-        // CRITICAL: Validate sufficient stock at the project before consumption
-        inventoryService.validateSufficientStock(creationDto.getMaterialId(), project.getId(), creationDto.getQuantity());
+        // CRITICAL: Validate sufficient stock before consumption
+        // Use storage-location-level validation when a storage location is specified
+        if (creationDto.getStorageLocationId() != null) {
+            inventoryService.validateSufficientStockAtLocation(
+                    creationDto.getMaterialId(), project.getId(),
+                    creationDto.getStorageLocationId(), creationDto.getQuantity());
+        } else {
+            inventoryService.validateSufficientStock(creationDto.getMaterialId(), project.getId(), creationDto.getQuantity());
+        }
 
         // Create material consumption
         MaterialConsumption consumption = new MaterialConsumption();
@@ -85,6 +97,16 @@ public class MaterialConsumptionService {
         consumption.setDetails(creationDto.getDetails());
         consumption.setCreatedBy(createdBy);
         consumption.setProject(project);
+
+        // Validate and set storage location (optional)
+        if (creationDto.getStorageLocationId() != null) {
+            StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(
+                            creationDto.getStorageLocationId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Storage location not found with id: " + creationDto.getStorageLocationId()));
+            consumption.setStorageLocation(storageLocation);
+        }
+
         consumption.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         consumption = materialConsumptionRepository.save(consumption);

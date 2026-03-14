@@ -51,6 +51,13 @@ public class InventoryTransactionControllerWeb {
         return ResponseEntity.ok(transactions);
     }
 
+    @GetMapping("/project/{projectId}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByProject(@PathVariable Long projectId) {
+        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByProject(projectId);
+        return ResponseEntity.ok(transactions);
+    }
+
     @GetMapping("/type/{transactionType}")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByType(@PathVariable InventoryTransactionType transactionType) {
@@ -68,4 +75,11 @@ public class InventoryTransactionControllerWeb {
         return ResponseEntity.ok(transactions);
     }
 
+    @GetMapping("/storage-location/{storageLocationId}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByStorageLocation(
+            @PathVariable Long storageLocationId) {
+        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByStorageLocation(storageLocationId);
+        return ResponseEntity.ok(transactions);
+    }
 }

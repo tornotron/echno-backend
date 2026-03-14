@@ -22,6 +22,7 @@ import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderCreationDto;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderDto;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderUpdateDto;
 import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
+import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItemRepository;
 import org.tornotron.echno_backend.vendor.Vendor;
 import org.tornotron.echno_backend.vendor.VendorRepository;
 
@@ -39,6 +40,7 @@ public class PurchaseOrderService {
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
+    private final PurchaseOrderItemRepository purchaseOrderItemRepository;
 
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                                 VendorRepository vendorRepository,
@@ -46,7 +48,8 @@ public class PurchaseOrderService {
                                 FileStorageService fileStorageService,
                                 TenantEntityHelper tenantEntityHelper,
                                 EmployeeRepository employeeRepository,
-                                ProjectRepository projectRepository) {
+                                ProjectRepository projectRepository,
+                                PurchaseOrderItemRepository purchaseOrderItemRepository) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.vendorRepository = vendorRepository;
         this.intendRepository = intendRepository;
@@ -54,6 +57,7 @@ public class PurchaseOrderService {
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
+        this.purchaseOrderItemRepository = purchaseOrderItemRepository;
     }
 
     @Transactional
@@ -86,11 +90,25 @@ public class PurchaseOrderService {
         purchaseOrder.setProject(project);
         purchaseOrder.setExpectedDeliveryDate(creationDto.getExpectedDeliveryDate());
         purchaseOrder.setRemarks(creationDto.getRemarks());
-        purchaseOrder.setTotalAmount(creationDto.getTotalAmount() != null ? creationDto.getTotalAmount() : BigDecimal.ZERO);
+        purchaseOrder.setTotalAmount(BigDecimal.ZERO);
         purchaseOrder.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
         return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder, fileStorageService);
+    }
+
+    @Transactional
+    public void recalculateTotalAmount(Long purchaseOrderId) {
+        PurchaseOrder purchaseOrder = purchaseOrderRepository.findById(purchaseOrderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Purchase Order not found with id: " + purchaseOrderId));
+
+        BigDecimal totalAmount = purchaseOrderItemRepository.sumTotalPriceByPurchaseOrderId(purchaseOrderId);
+        if (totalAmount == null) {
+            totalAmount = BigDecimal.ZERO;
+        }
+
+        purchaseOrder.setTotalAmount(totalAmount);
+        purchaseOrderRepository.save(purchaseOrder);
     }
 
     @Transactional(readOnly = true)
@@ -150,10 +168,6 @@ public class PurchaseOrderService {
 
         if (updateDto.getRemarks() != null) {
             purchaseOrder.setRemarks(updateDto.getRemarks());
-        }
-
-        if (updateDto.getTotalAmount() != null) {
-            purchaseOrder.setTotalAmount(updateDto.getTotalAmount());
         }
 
         purchaseOrder = purchaseOrderRepository.save(purchaseOrder);

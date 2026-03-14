@@ -43,6 +43,12 @@ public class GoodsReceivedNoteDtoConvertor {
             dto.setProjectName(grn.getProject().getProjectName());
         }
 
+        // Storage location info
+        if (grn.getStorageLocation() != null) {
+            dto.setStorageLocationId(grn.getStorageLocation().getId());
+            dto.setStorageLocationName(grn.getStorageLocation().getLocationName());
+        }
+
         // Items
         if (grn.getItems() != null && !grn.getItems().isEmpty()) {
             List<GrnItemDto> itemDtos = grn.getItems().stream()

@@ -35,10 +35,22 @@ public class SiteTransferDtoConvertor {
             dto.setSendingProjectName(transfer.getSendingProject().getProjectName());
         }
 
+        // Sending storage location
+        if (transfer.getSendingStorageLocation() != null) {
+            dto.setSendingStorageLocationId(transfer.getSendingStorageLocation().getId());
+            dto.setSendingStorageLocationName(transfer.getSendingStorageLocation().getLocationName());
+        }
+
         // Receiving project
         if (transfer.getReceivingProject() != null) {
             dto.setReceivingProjectId(transfer.getReceivingProject().getId());
             dto.setReceivingProjectName(transfer.getReceivingProject().getProjectName());
+        }
+
+        // Receiving storage location
+        if (transfer.getReceivingStorageLocation() != null) {
+            dto.setReceivingStorageLocationId(transfer.getReceivingStorageLocation().getId());
+            dto.setReceivingStorageLocationName(transfer.getReceivingStorageLocation().getLocationName());
         }
 
         // Items
