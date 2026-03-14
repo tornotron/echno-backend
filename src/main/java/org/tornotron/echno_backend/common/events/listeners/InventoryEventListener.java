@@ -3,6 +3,8 @@ package org.tornotron.echno_backend.common.events.listeners;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.tornotron.echno_backend.common.events.GrnCreatedEvent;
@@ -34,13 +36,22 @@ public class InventoryEventListener {
         this.inventoryService = inventoryService;
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleGrnCreated(GrnCreatedEvent event) {
         GoodsReceivedNote grn = event.getGoodsReceivedNote();
         logger.info("Handling GRN created event for GRN number: {}", grn.getGrnNumber());
 
         for (GrnItem item : grn.getItems()) {
-            Integer openingStock = inventoryService.getCurrentStock(item.getMaterial().getId(), grn.getProject().getId());
+            // Use storage-location-level stock when a storage location is specified
+            Integer openingStock;
+            if (grn.getStorageLocation() != null) {
+                openingStock = inventoryService.getStockAtLocation(
+                        item.getMaterial().getId(), grn.getProject().getId(),
+                        grn.getStorageLocation().getId());
+            } else {
+                openingStock = inventoryService.getCurrentStock(item.getMaterial().getId(), grn.getProject().getId());
+            }
             Integer quantityChanged = item.getReceivedQuantity();
             Integer closingStock = openingStock + quantityChanged;
 
@@ -55,6 +66,7 @@ public class InventoryEventListener {
             transaction.setRemarks("GRN received from " + (grn.getVendor() != null ? grn.getVendor().getVendorName() : "vendor"));
             transaction.setCreatedBy(grn.getReceivedBy());
             transaction.setProject(grn.getProject());
+            transaction.setStorageLocation(grn.getStorageLocation());
             transaction.setOrganization(grn.getOrganization());
 
             inventoryTransactionRepository.save(transaction);
@@ -63,12 +75,21 @@ public class InventoryEventListener {
         }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleMaterialConsumed(MaterialConsumedEvent event) {
         MaterialConsumption consumption = event.getMaterialConsumption();
         logger.info("Handling material consumed event for consumption ID: {}", consumption.getId());
 
-        Integer openingStock = inventoryService.getCurrentStock(consumption.getMaterial().getId(), consumption.getProject().getId());
+        // Use storage-location-level stock when a storage location is specified
+        Integer openingStock;
+        if (consumption.getStorageLocation() != null) {
+            openingStock = inventoryService.getStockAtLocation(
+                    consumption.getMaterial().getId(), consumption.getProject().getId(),
+                    consumption.getStorageLocation().getId());
+        } else {
+            openingStock = inventoryService.getCurrentStock(consumption.getMaterial().getId(), consumption.getProject().getId());
+        }
         Integer quantityChanged = -consumption.getQuantity();
         Integer closingStock = openingStock + quantityChanged;
 
@@ -84,6 +105,7 @@ public class InventoryEventListener {
                 (consumption.getDetails() != null ? ": " + consumption.getDetails() : ""));
         transaction.setCreatedBy(consumption.getCreatedBy());
         transaction.setProject(consumption.getProject());
+        transaction.setStorageLocation(consumption.getStorageLocation());
         transaction.setOrganization(consumption.getOrganization());
 
         inventoryTransactionRepository.save(transaction);
@@ -91,6 +113,7 @@ public class InventoryEventListener {
                 consumption.getMaterial().getId(), consumption.getProject().getId(), quantityChanged, closingStock);
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleSiteTransferCreated(SiteTransferCreatedEvent event) {
         SiteTransfer transfer = event.getSiteTransfer();
@@ -98,8 +121,16 @@ public class InventoryEventListener {
 
         for (SiteTransferItem item : transfer.getItems()) {
             // TRANSFER_OUT: Stock decreases at sending project
-            Integer sendingOpeningStock = inventoryService.getCurrentStock(
-                    item.getMaterial().getId(), transfer.getSendingProject().getId());
+            // Use storage-location-level stock when a sending storage location is specified
+            Integer sendingOpeningStock;
+            if (transfer.getSendingStorageLocation() != null) {
+                sendingOpeningStock = inventoryService.getStockAtLocation(
+                        item.getMaterial().getId(), transfer.getSendingProject().getId(),
+                        transfer.getSendingStorageLocation().getId());
+            } else {
+                sendingOpeningStock = inventoryService.getCurrentStock(
+                        item.getMaterial().getId(), transfer.getSendingProject().getId());
+            }
             Integer sendingQuantityChanged = -item.getSentQuantity();
             Integer sendingClosingStock = sendingOpeningStock + sendingQuantityChanged;
 
@@ -116,6 +147,7 @@ public class InventoryEventListener {
                     (item.getRemarks() != null ? " - " + item.getRemarks() : ""));
             outTransaction.setCreatedBy(transfer.getSendingPerson());
             outTransaction.setProject(transfer.getSendingProject());
+            outTransaction.setStorageLocation(transfer.getSendingStorageLocation());
             outTransaction.setOrganization(transfer.getOrganization());
 
             inventoryTransactionRepository.save(outTransaction);
@@ -123,8 +155,16 @@ public class InventoryEventListener {
                     item.getMaterial().getId(), transfer.getSendingProject().getId(), sendingQuantityChanged, sendingClosingStock);
 
             // TRANSFER_IN: Stock increases at receiving project
-            Integer receivingOpeningStock = inventoryService.getCurrentStock(
-                    item.getMaterial().getId(), transfer.getReceivingProject().getId());
+            // Use storage-location-level stock when a receiving storage location is specified
+            Integer receivingOpeningStock;
+            if (transfer.getReceivingStorageLocation() != null) {
+                receivingOpeningStock = inventoryService.getStockAtLocation(
+                        item.getMaterial().getId(), transfer.getReceivingProject().getId(),
+                        transfer.getReceivingStorageLocation().getId());
+            } else {
+                receivingOpeningStock = inventoryService.getCurrentStock(
+                        item.getMaterial().getId(), transfer.getReceivingProject().getId());
+            }
             Integer receivingQuantityChanged = item.getSentQuantity();
             Integer receivingClosingStock = receivingOpeningStock + receivingQuantityChanged;
 
@@ -141,6 +181,7 @@ public class InventoryEventListener {
                     (item.getRemarks() != null ? " - " + item.getRemarks() : ""));
             inTransaction.setCreatedBy(transfer.getSendingPerson());
             inTransaction.setProject(transfer.getReceivingProject());
+            inTransaction.setStorageLocation(transfer.getReceivingStorageLocation());
             inTransaction.setOrganization(transfer.getOrganization());
 
             inventoryTransactionRepository.save(inTransaction);
