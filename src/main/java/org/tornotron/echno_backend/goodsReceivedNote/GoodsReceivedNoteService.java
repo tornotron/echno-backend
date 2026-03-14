@@ -25,6 +25,8 @@ import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.storageLocation.StorageLocation;
+import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
 import org.tornotron.echno_backend.vendor.Vendor;
@@ -47,6 +49,7 @@ public class GoodsReceivedNoteService {
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
+    private final StorageLocationRepository storageLocationRepository;
 
     public GoodsReceivedNoteService(GoodsReceivedNoteRepository goodsReceivedNoteRepository,
                                     GrnItemRepository grnItemRepository,
@@ -57,7 +60,8 @@ public class GoodsReceivedNoteService {
                                     FileStorageService fileStorageService,
                                     TenantEntityHelper tenantEntityHelper,
                                     EmployeeRepository employeeRepository,
-                                    ProjectRepository projectRepository) {
+                                    ProjectRepository projectRepository,
+                                    StorageLocationRepository storageLocationRepository) {
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.grnItemRepository = grnItemRepository;
         this.vendorRepository = vendorRepository;
@@ -67,6 +71,7 @@ public class GoodsReceivedNoteService {
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
+        this.storageLocationRepository = storageLocationRepository;
     }
 
     @Transactional
@@ -97,6 +102,16 @@ public class GoodsReceivedNoteService {
         grn.setInvoiceNumber(creationDto.getInvoiceNumber());
         grn.setInvoiceAmount(creationDto.getInvoiceAmount());
         grn.setProject(project);
+
+        // Validate and set storage location (optional)
+        if (creationDto.getStorageLocationId() != null) {
+            StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(
+                            creationDto.getStorageLocationId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Storage location not found with id: " + creationDto.getStorageLocationId()));
+            grn.setStorageLocation(storageLocation);
+        }
+
         grn.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         // Save GRN first

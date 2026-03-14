@@ -26,6 +26,8 @@ import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferItemDto;
 import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferStatus;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItemRepository;
+import org.tornotron.echno_backend.storageLocation.StorageLocation;
+import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
@@ -50,6 +52,7 @@ public class SiteTransferService {
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
+    private final StorageLocationRepository storageLocationRepository;
 
     public SiteTransferService(SiteTransferRepository siteTransferRepository,
                                SiteTransferItemRepository siteTransferItemRepository,
@@ -60,7 +63,8 @@ public class SiteTransferService {
                                FileStorageService fileStorageService,
                                TenantEntityHelper tenantEntityHelper,
                                EmployeeRepository employeeRepository,
-                               ProjectRepository projectRepository) {
+                               ProjectRepository projectRepository,
+                               StorageLocationRepository storageLocationRepository) {
         this.siteTransferRepository = siteTransferRepository;
         this.siteTransferItemRepository = siteTransferItemRepository;
         this.userRepository = userRepository;
@@ -71,6 +75,7 @@ public class SiteTransferService {
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
+        this.storageLocationRepository = storageLocationRepository;
     }
 
     @Transactional
@@ -91,12 +96,18 @@ public class SiteTransferService {
         Project receivingProject = projectRepository.findByIdAndOrganization_Id(creationDto.getReceivingProjectId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Receiving project not found with id: " + creationDto.getReceivingProjectId()));
 
-        // CRITICAL: Validate sufficient stock at the SENDING project for ALL items
+        // CRITICAL: Validate sufficient stock at the SENDING location for ALL items
+        // Use storage-location-level validation when a sending storage location is specified
         Map<Long, Integer> requiredQuantities = new HashMap<>();
         for (SiteTransferItemDto itemDto : creationDto.getItems()) {
             requiredQuantities.merge(itemDto.getMaterialId(), itemDto.getSentQuantity(), Integer::sum);
         }
-        inventoryService.validateSufficientStockForMultipleItems(requiredQuantities, sendingProject.getId());
+        if (creationDto.getSendingStorageLocationId() != null) {
+            inventoryService.validateSufficientStockForMultipleItemsAtLocation(
+                    requiredQuantities, sendingProject.getId(), creationDto.getSendingStorageLocationId());
+        } else {
+            inventoryService.validateSufficientStockForMultipleItems(requiredQuantities, sendingProject.getId());
+        }
 
         // Create site transfer
         SiteTransfer transfer = new SiteTransfer();
@@ -105,6 +116,23 @@ public class SiteTransferService {
         transfer.setSendingPerson(sendingPerson);
         transfer.setSendingProject(sendingProject);
         transfer.setReceivingProject(receivingProject);
+
+        // Validate and set storage locations (optional)
+        if (creationDto.getSendingStorageLocationId() != null) {
+            StorageLocation sendingLocation = storageLocationRepository.findByIdAndOrganization_Id(
+                            creationDto.getSendingStorageLocationId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Sending storage location not found with id: " + creationDto.getSendingStorageLocationId()));
+            transfer.setSendingStorageLocation(sendingLocation);
+        }
+        if (creationDto.getReceivingStorageLocationId() != null) {
+            StorageLocation receivingLocation = storageLocationRepository.findByIdAndOrganization_Id(
+                            creationDto.getReceivingStorageLocationId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Receiving storage location not found with id: " + creationDto.getReceivingStorageLocationId()));
+            transfer.setReceivingStorageLocation(receivingLocation);
+        }
+
         transfer.setStatus(SiteTransferStatus.valueOf(creationDto.getStatus()));
         transfer.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 

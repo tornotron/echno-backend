@@ -41,4 +41,25 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
 
     @Query("SELECT DISTINCT it.project.id FROM InventoryTransaction it WHERE it.material.id = :materialId")
     List<Long> findDistinctProjectIdsByMaterialId(@Param("materialId") Long materialId);
+
+    @Query("SELECT it.closingStock FROM InventoryTransaction it " +
+            "WHERE it.material.id = :materialId AND it.project.id = :projectId " +
+            "AND it.storageLocation.id = :storageLocationId " +
+            "ORDER BY it.createdAt DESC LIMIT 1")
+    Integer findCurrentStockByMaterialAndProjectAndStorageLocation(
+            @Param("materialId") Long materialId,
+            @Param("projectId") Long projectId,
+            @Param("storageLocationId") Long storageLocationId);
+
+    @Query("SELECT COALESCE(SUM(it.quantityChanged), 0) FROM InventoryTransaction it " +
+           "WHERE it.material.id = :materialId AND it.project.id = :projectId")
+    Integer sumQuantityChangedByMaterialAndProject(
+            @Param("materialId") Long materialId,
+            @Param("projectId") Long projectId);
+
+    @Query("SELECT COALESCE(SUM(it.quantityChanged), 0) FROM InventoryTransaction it " +
+           "WHERE it.material.id = :materialId")
+    Integer sumQuantityChangedByMaterial(@Param("materialId") Long materialId);
+
+    List<InventoryTransaction> findByStorageLocationId(Long storageLocationId);
 }

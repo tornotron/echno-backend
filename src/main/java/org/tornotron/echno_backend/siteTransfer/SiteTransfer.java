@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferStatus;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
+import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.user.User;
 
 import java.time.LocalDateTime;
@@ -48,6 +49,14 @@ public class SiteTransfer implements TenantScopedEntity {
 
     @OneToMany(mappedBy = "siteTransfer")
     private List<SiteTransferItem> items;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sending_storage_location_id")
+    private StorageLocation sendingStorageLocation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "receiving_storage_location_id")
+    private StorageLocation receivingStorageLocation;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")

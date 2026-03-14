@@ -76,4 +76,11 @@ public class InventoryTransactionService {
                 .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
                 .collect(Collectors.toList());
     }
+
+    @Transactional(readOnly = true)
+    public List<InventoryTransactionDto> getTransactionsByStorageLocation(Long storageLocationId) {
+        return inventoryTransactionRepository.findByStorageLocationId(storageLocationId).stream()
+                .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
+                .collect(Collectors.toList());
+    }
 }

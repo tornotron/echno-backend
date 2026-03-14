@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.materialConsumption.enums.MaterialConsumptionType;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.user.User;
 
 import java.time.LocalDateTime;
@@ -47,7 +48,10 @@ public class MaterialConsumption implements TenantScopedEntity {
     private Project project;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "storage_location_id")
+    private StorageLocation storageLocation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
     private Organization organization;
-
 }

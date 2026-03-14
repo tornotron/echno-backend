@@ -26,8 +26,12 @@ public class SiteTransferCreationDto {
     @NotNull(message = "sending project ID is required")
     private Long sendingProjectId;
 
+    private Long sendingStorageLocationId;
+
     @NotNull(message = "receiving project ID is required")
     private Long receivingProjectId;
+
+    private Long receivingStorageLocationId;
 
     @NotBlank(message = "status is required")
     private String status;

@@ -30,6 +30,8 @@ public class MaterialConsumptionCreationDto {
     @NotNull(message = "project ID is required")
     private Long projectId;
 
+    private Long storageLocationId;
+
     @NotNull(message = "created by employee id is required")
     private Long createdBy;
 }

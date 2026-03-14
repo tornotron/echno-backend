@@ -19,5 +19,7 @@ public class MaterialConsumptionDto {
     private String details;
     private Long projectId;
     private String projectName;
+    private Long storageLocationId;
+    private String storageLocationName;
     private EmployeeDto createdBy;
 }

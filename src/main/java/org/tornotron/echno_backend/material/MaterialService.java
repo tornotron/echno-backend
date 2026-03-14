@@ -137,4 +137,13 @@ public class MaterialService {
         Integer currentStock = inventoryService.getAggregateStock(id);
         return MaterialDtoConvertor.convertToWithStockDto(material, currentStock);
     }
+
+    @Transactional(readOnly = true)
+    public MaterialWithStockDto getMaterialStockAtLocation(Long id, Long projectId, Long storageLocationId) {
+        Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
+
+        Integer currentStock = inventoryService.getStockAtLocation(id, projectId, storageLocationId);
+        return MaterialDtoConvertor.convertToWithStockDto(material, currentStock);
+    }
 }

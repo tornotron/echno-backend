@@ -77,4 +77,12 @@ public class InventoryTransactionController {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByDateRange(startDate, endDate);
         return ResponseEntity.ok(transactions);
     }
+
+    @GetMapping("/storage-location/{storageLocationId}")
+    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByStorageLocation(
+            @PathVariable Long storageLocationId) {
+        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByStorageLocation(storageLocationId);
+        return ResponseEntity.ok(transactions);
+    }
 }
