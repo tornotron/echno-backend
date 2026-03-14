@@ -19,31 +19,21 @@ public class InventoryService {
     }
 
     /**
-     * Get current stock for a material at a specific project
+     * Get current stock for a material at a specific project.
+     * Uses SUM(quantityChanged) for reliable calculation regardless of transaction ordering.
      */
     @Transactional(readOnly = true)
     public Integer getCurrentStock(Long materialId, Long projectId) {
-        List<InventoryTransaction> latestTransactions =
-                inventoryTransactionRepository.findLatestTransactionForMaterialAndProject(materialId, projectId);
-
-        if (latestTransactions.isEmpty()) {
-            return 0;
-        }
-
-        return latestTransactions.getFirst().getClosingStock();
+        return inventoryTransactionRepository.sumQuantityChangedByMaterialAndProject(materialId, projectId);
     }
 
     /**
-     * Get aggregate stock for a material across all projects in the organization
+     * Get aggregate stock for a material across all projects in the organization.
+     * Uses SUM(quantityChanged) across all transactions for the material.
      */
     @Transactional(readOnly = true)
     public Integer getAggregateStock(Long materialId) {
-        List<Long> projectIds = inventoryTransactionRepository.findDistinctProjectIdsByMaterialId(materialId);
-        int totalStock = 0;
-        for (Long projectId : projectIds) {
-            totalStock += getCurrentStock(materialId, projectId);
-        }
-        return totalStock;
+        return inventoryTransactionRepository.sumQuantityChangedByMaterial(materialId);
     }
 
     /**
@@ -68,6 +58,57 @@ public class InventoryService {
             throw new InsufficientStockException(
                 String.format("Insufficient stock for material ID %d at project ID %d. Required: %d, Available: %d",
                     materialId, projectId, requiredQuantity, currentStock)
+            );
+        }
+    }
+
+    /**
+     * Get current stock for a material at a specific storage location within a project.
+     * Calculated by summing all quantityChanged values for the (material, project, storageLocation) triple.
+     */
+    @Transactional(readOnly = true)
+    public Integer getStockAtLocation(Long materialId, Long projectId, Long storageLocationId) {
+        return inventoryTransactionRepository.findCurrentStockByMaterialAndProjectAndStorageLocation(
+                materialId, projectId, storageLocationId);
+    }
+
+    /**
+     * Validate that sufficient stock exists for a single material at a specific storage location
+     * Throws InsufficientStockException if stock is insufficient
+     */
+    public void validateSufficientStockAtLocation(Long materialId, Long projectId, Long storageLocationId, Integer requiredQuantity) {
+        Integer currentStock = getStockAtLocation(materialId, projectId, storageLocationId);
+        if (currentStock < requiredQuantity) {
+            throw new InsufficientStockException(
+                String.format("Insufficient stock for material ID %d at project ID %d, storage location ID %d. Required: %d, Available: %d",
+                    materialId, projectId, storageLocationId, requiredQuantity, currentStock)
+            );
+        }
+    }
+
+    /**
+     * Validate sufficient stock for multiple materials at a specific storage location
+     * Throws InsufficientStockException if any material has insufficient stock
+     */
+    public void validateSufficientStockForMultipleItemsAtLocation(Map<Long, Integer> requiredQuantities, Long projectId, Long storageLocationId) {
+        List<String> insufficientItems = new ArrayList<>();
+        for (Map.Entry<Long, Integer> entry : requiredQuantities.entrySet()) {
+            Long materialId = entry.getKey();
+            Integer required = entry.getValue();
+            Integer available = getStockAtLocation(materialId, projectId, storageLocationId);
+
+            if (available < required) {
+                insufficientItems.add(
+                    String.format("Material ID %d: Required %d, Available %d",
+                        materialId, required, available)
+                );
+            }
+        }
+
+        if (!insufficientItems.isEmpty()) {
+            throw new InsufficientStockException(
+                "Insufficient stock at project ID " + projectId + ", storage location ID " + storageLocationId +
+                " for items: " + String.join("; ", insufficientItems)
             );
         }
     }
