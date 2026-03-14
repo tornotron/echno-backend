@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="081-create-storage-location" author="echno">
+        <createTable tableName="storage_location">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="location_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="location_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="address" type="TEXT"/>
+            <column name="project_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="storage_location"
+                baseColumnNames="project_id"
+                constraintName="fk_storage_location_project"
+                referencedTableName="project"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint
+                baseTableName="storage_location"
+                baseColumnNames="organization_id"
+                constraintName="fk_storage_location_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <createIndex tableName="storage_location" indexName="idx_storage_location_project">
+            <column name="project_id"/>
+        </createIndex>
+
+        <createIndex tableName="storage_location" indexName="idx_storage_location_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
