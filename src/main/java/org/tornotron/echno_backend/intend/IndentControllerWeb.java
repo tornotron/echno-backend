@@ -12,7 +12,7 @@ import org.tornotron.echno_backend.intend.dto.IntendDto;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/indents/web")
+@RequestMapping("/api/v1/intends/web")
 public class IndentControllerWeb {
 
     private final IntendService intendService;

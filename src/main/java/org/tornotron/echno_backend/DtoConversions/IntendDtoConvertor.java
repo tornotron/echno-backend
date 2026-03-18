@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.intend.Intend;
 import org.tornotron.echno_backend.intend.dto.IntendDto;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 
 import java.util.Collections;
 import java.util.stream.Collectors;
@@ -11,7 +12,7 @@ import java.util.stream.Collectors;
 @Component
 public class IntendDtoConvertor {
 
-    public static IntendDto convertIntendToDto(Intend intend, FileStorageService fileStorageService) {
+    public static IntendDto convertIntendToDto(Intend intend, FileStorageService fileStorageService, InventoryService inventoryService) {
         IntendDto dto = new IntendDto();
         dto.setId(intend.getId());
         dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(intend.getCreatedBy(),fileStorageService));
@@ -29,7 +30,7 @@ public class IntendDtoConvertor {
 
         if (intend.getItems() != null) {
             dto.setItems(intend.getItems().stream()
-                    .map(indentItem -> IndentItemDtoConvertor.convertIndentItemToDto(indentItem,fileStorageService))
+                    .map(indentItem -> IndentItemDtoConvertor.convertIndentItemToDto(indentItem,fileStorageService,inventoryService))
                     .collect(Collectors.toList()));
         } else {
             dto.setItems(Collections.emptyList());
