@@ -5,5 +5,6 @@ public enum InventoryTransactionType {
     USE,
     TRANSFER_OUT,
     TRANSFER_IN,
-    ADJUST
+    ADJUST,
+    OPENING_BALANCE
 }
