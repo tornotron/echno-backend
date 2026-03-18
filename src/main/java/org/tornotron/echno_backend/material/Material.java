@@ -3,7 +3,9 @@ package org.tornotron.echno_backend.material;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.grnItem.GrnItem;
@@ -13,6 +15,7 @@ import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumption;
 import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItem;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +36,30 @@ public class Material implements TenantScopedEntity {
 
     @Column(name = "unit", nullable = false)
     private String unit;
+
+    @Column(name = "description")
+    private String description;
+
+    @Column(name = "hsn")
+    private String hsn;
+
+    @Column(name = "opening_stock")
+    private Double openingStock;
+
+    @Column(name = "moq")
+    private Double moq;
+
+    @Column(name = "min_stock")
+    private Double minStock;
+
+    @Column(name = "max_stock")
+    private Double maxStock;
+
+    @Column(name = "safety_stock")
+    private Double safetyStock;
+
+    @Column(name = "reorder_level")
+    private Double reorderLevel;
 
     @OneToMany(mappedBy = "material")
     private List<IndentItem> indentItems;
@@ -55,4 +82,10 @@ public class Material implements TenantScopedEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     private Employee createdBy;
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
 }
