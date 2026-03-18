@@ -83,9 +83,9 @@ public class MaterialConsumptionService {
         if (creationDto.getStorageLocationId() != null) {
             inventoryService.validateSufficientStockAtLocation(
                     creationDto.getMaterialId(), project.getId(),
-                    creationDto.getStorageLocationId(), creationDto.getQuantity());
+                    creationDto.getStorageLocationId(), creationDto.getQuantity().doubleValue());
         } else {
-            inventoryService.validateSufficientStock(creationDto.getMaterialId(), project.getId(), creationDto.getQuantity());
+            inventoryService.validateSufficientStock(creationDto.getMaterialId(), project.getId(), creationDto.getQuantity().doubleValue());
         }
 
         // Create material consumption
