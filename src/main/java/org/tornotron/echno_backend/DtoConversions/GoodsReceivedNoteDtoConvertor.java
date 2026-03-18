@@ -76,6 +76,8 @@ public class GoodsReceivedNoteDtoConvertor {
             dto.setMaterialName(item.getMaterial().getMaterialName());
         }
 
+        dto.setUnitCost(item.getUnitCost());
+
         return dto;
     }
 }

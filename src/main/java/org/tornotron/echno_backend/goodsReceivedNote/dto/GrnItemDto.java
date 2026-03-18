@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.goodsReceivedNote.dto;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import java.math.BigDecimal;
 
 @Data
 public class GrnItemDto {
@@ -21,4 +22,6 @@ public class GrnItemDto {
     @NotNull(message = "received quantity is required")
     @Min(value = 0, message = "received quantity must be at least 0")
     private Integer receivedQuantity;
+
+    private BigDecimal unitCost;
 }

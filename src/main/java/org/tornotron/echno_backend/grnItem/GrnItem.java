@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.grnItem;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
@@ -30,6 +31,9 @@ public class GrnItem implements TenantScopedEntity {
 
     @Column(name = "received_quantity", nullable = false)
     private Integer receivedQuantity;
+
+    @Column(name = "unit_cost", precision = 15, scale = 2)
+    private BigDecimal unitCost;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
