@@ -93,7 +93,7 @@ public class OrganizationDtoConvertor {
         dto.setOrganizationLogo(organization.getOrganizationLogo());
         dto.setCreatedAt(organization.getCreatedAt());
         dto.setEmployees(organization.getEmployees().stream()
-                .map(OrganizationDtoConvertor::convertEmployeeToEmployeeDto)
+                .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
                 .collect(Collectors.toList()));
         dto.setProjects(organization.getProjects().stream()
                 .map(project -> ProjectDtoConvertor.convertProjectToDto(project,fileStorageService))
