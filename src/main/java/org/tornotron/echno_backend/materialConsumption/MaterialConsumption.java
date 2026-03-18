@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.materialConsumption.enums.MaterialConsumption
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.user.User;
+import org.tornotron.echno_backend.wbs.WbsElement;
 
 import java.time.LocalDateTime;
 
@@ -50,6 +51,10 @@ public class MaterialConsumption implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "storage_location_id")
     private StorageLocation storageLocation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "wbs_element_id")
+    private WbsElement wbsElement;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")

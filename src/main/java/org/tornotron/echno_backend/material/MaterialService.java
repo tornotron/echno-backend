@@ -14,11 +14,19 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryTransactionRepository;
+import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
 import org.tornotron.echno_backend.material.dto.MaterialCreationDto;
 import org.tornotron.echno_backend.material.dto.MaterialDto;
 import org.tornotron.echno_backend.material.dto.MaterialWithStockDto;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.storageLocation.StorageLocation;
+import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.user.UserContextService;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,19 +35,28 @@ public class MaterialService {
 
     private final MaterialRepository materialRepository;
     private final org.tornotron.echno_backend.inventoryTransaction.InventoryService inventoryService;
+    private final InventoryTransactionRepository inventoryTransactionRepository;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
+    private final ProjectRepository projectRepository;
+    private final StorageLocationRepository storageLocationRepository;
     private final FileStorageService fileStorageService;
     private final UserContextService userContextService;
 
 
     public MaterialService(MaterialRepository materialRepository,
                            org.tornotron.echno_backend.inventoryTransaction.InventoryService inventoryService,
-                           TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository, FileStorageService fileStorageService, UserContextService userContextService) {
+                           InventoryTransactionRepository inventoryTransactionRepository,
+                           TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository,
+                           ProjectRepository projectRepository, StorageLocationRepository storageLocationRepository,
+                           FileStorageService fileStorageService, UserContextService userContextService) {
         this.materialRepository = materialRepository;
         this.inventoryService = inventoryService;
+        this.inventoryTransactionRepository = inventoryTransactionRepository;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
+        this.projectRepository = projectRepository;
+        this.storageLocationRepository = storageLocationRepository;
         this.fileStorageService = fileStorageService;
         this.userContextService = userContextService;
     }
@@ -59,22 +76,70 @@ public class MaterialService {
         material.setUnit(creationDto.getUnit());
         material.setCreatedBy(createdBy);
         material.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
+        material.setDescription(creationDto.getDescription());
+        material.setHsn(creationDto.getHsn());
+        material.setMoq(creationDto.getMoq());
+        material.setOpeningStock(creationDto.getOpeningStock());
+        material.setMinStock(creationDto.getMinStock());
+        material.setMaxStock(creationDto.getMaxStock());
+        material.setSafetyStock(creationDto.getSafetyStock());
+        material.setReorderLevel(creationDto.getReorderLevel());
 
         material = materialRepository.save(material);
-        return MaterialDtoConvertor.convertToDto(material,fileStorageService);
+
+        // Seed CurrentStock and create InventoryTransaction for opening balance
+        if (creationDto.getOpeningStock() != null && creationDto.getOpeningStock() > 0) {
+            Project project = projectRepository.findByIdAndOrganization_Id(
+                            creationDto.getProjectId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Project not found with id: " + creationDto.getProjectId()));
+
+            StorageLocation storageLocation = null;
+            if (creationDto.getStorageLocationId() != null) {
+                storageLocation = storageLocationRepository.findByIdAndOrganization_Id(
+                                creationDto.getStorageLocationId(), TenantContext.getCurrentOrgId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Storage location not found with id: " + creationDto.getStorageLocationId()));
+            }
+
+            Double quantity = creationDto.getOpeningStock().doubleValue();
+            BigDecimal unitCost = creationDto.getUnitCost();
+
+            InventoryTransaction transaction = new InventoryTransaction();
+            transaction.setTransactionDate(java.time.LocalDateTime.now());
+            transaction.setMaterial(material);
+            transaction.setOpeningStock(0.0);
+            transaction.setQuantityChanged(quantity);
+            transaction.setClosingStock(quantity);
+            transaction.setTransactionType(InventoryTransactionType.OPENING_BALANCE);
+            transaction.setReferenceNumber("OB-" + material.getId());
+            transaction.setRemarks("Opening balance for material: " + material.getMaterialName());
+            transaction.setCreatedBy(createdBy);
+            transaction.setProject(project);
+            transaction.setStorageLocation(storageLocation);
+            transaction.setOrganization(material.getOrganization());
+            transaction.setUnitCost(unitCost);
+
+            inventoryTransactionRepository.save(transaction);
+
+            inventoryService.updateCurrentStock(material, project, storageLocation,
+                    material.getOrganization(), quantity, unitCost);
+        }
+
+        return MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService);
     }
 
     @Transactional(readOnly = true)
     public MaterialDto getMaterialById(Long id) {
         Material material = materialRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
-        return MaterialDtoConvertor.convertToDto(material,fileStorageService);
+        return MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService);
     }
 
     @Transactional(readOnly = true)
     public List<MaterialDto> getAllMaterials() {
         return materialRepository.findAll().stream()
-                .map(material -> MaterialDtoConvertor.convertToDto(material,fileStorageService))
+                .map(material -> MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService))
                 .collect(Collectors.toList());
     }
 
@@ -82,13 +147,13 @@ public class MaterialService {
     public Page<MaterialDto> getAllMaterials(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "materialName"));
         return materialRepository.findAll(pageable)
-                .map(material -> MaterialDtoConvertor.convertToDto(material,fileStorageService));
+                .map(material -> MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService));
     }
 
     @Transactional(readOnly = true)
     public List<MaterialDto> searchMaterialsByName(String name) {
         return materialRepository.findByMaterialNameContainingIgnoreCase(name).stream()
-                .map(material -> MaterialDtoConvertor.convertToDto(material,fileStorageService))
+                .map(material -> MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService))
                 .collect(Collectors.toList());
     }
 
@@ -109,7 +174,7 @@ public class MaterialService {
         material.setUnit(updateDto.getUnit());
 
         material = materialRepository.save(material);
-        return MaterialDtoConvertor.convertToDto(material,fileStorageService);
+        return MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService);
     }
 
     @Transactional
@@ -125,8 +190,9 @@ public class MaterialService {
         Material material = materialRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
 
-        Integer currentStock = inventoryService.getCurrentStock(id, projectId);
-        return MaterialDtoConvertor.convertToWithStockDto(material, currentStock);
+        Double currentStock = inventoryService.getCurrentStock(id, projectId);
+        BigDecimal stockValue = inventoryService.getStockValue(id, projectId);
+        return MaterialDtoConvertor.convertToWithStockDto(material, currentStock, stockValue);
     }
 
     @Transactional(readOnly = true)
@@ -134,8 +200,9 @@ public class MaterialService {
         Material material = materialRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
 
-        Integer currentStock = inventoryService.getAggregateStock(id);
-        return MaterialDtoConvertor.convertToWithStockDto(material, currentStock);
+        Double currentStock = inventoryService.getAggregateStock(id);
+        BigDecimal stockValue = inventoryService.getAggregateStockValue(id);
+        return MaterialDtoConvertor.convertToWithStockDto(material, currentStock, stockValue);
     }
 
     @Transactional(readOnly = true)
@@ -143,7 +210,8 @@ public class MaterialService {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
 
-        Integer currentStock = inventoryService.getStockAtLocation(id, projectId, storageLocationId);
-        return MaterialDtoConvertor.convertToWithStockDto(material, currentStock);
+        Double currentStock = inventoryService.getStockAtLocation(id, projectId, storageLocationId);
+        BigDecimal stockValue = inventoryService.getStockValueAtLocation(id, projectId, storageLocationId);
+        return MaterialDtoConvertor.convertToWithStockDto(material, currentStock, stockValue);
     }
 }
