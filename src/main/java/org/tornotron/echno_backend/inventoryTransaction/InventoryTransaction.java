@@ -12,8 +12,8 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
-import org.tornotron.echno_backend.user.User;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -33,13 +33,13 @@ public class InventoryTransaction implements TenantScopedEntity {
     private Material material;
 
     @Column(name = "opening_stock")
-    private Integer openingStock;
+    private Double openingStock;
 
     @Column(name = "quantity_changed")
-    private Integer quantityChanged;
+    private Double quantityChanged;
 
     @Column(name = "closing_stock")
-    private Integer closingStock;
+    private Double closingStock;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_type", nullable = false)
@@ -64,6 +64,9 @@ public class InventoryTransaction implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
     private Organization organization;
+
+    @Column(name = "unit_cost", precision = 15, scale = 2)
+    private BigDecimal unitCost;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

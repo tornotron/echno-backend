@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryMaterialStockDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryTransactionDto;
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
 
@@ -18,9 +19,12 @@ import java.util.List;
 public class InventoryTransactionController {
 
     private final InventoryTransactionService inventoryTransactionService;
+    private final InventoryService inventoryService;
 
-    public InventoryTransactionController(InventoryTransactionService inventoryTransactionService) {
+    public InventoryTransactionController(InventoryTransactionService inventoryTransactionService,
+                                          InventoryService inventoryService) {
         this.inventoryTransactionService = inventoryTransactionService;
+        this.inventoryService = inventoryService;
     }
 
     @GetMapping("/{id}")
@@ -84,5 +88,13 @@ public class InventoryTransactionController {
             @PathVariable Long storageLocationId) {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByStorageLocation(storageLocationId);
         return ResponseEntity.ok(transactions);
+    }
+
+    @GetMapping("/storage-location/{storageLocationId}/stock")
+    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    public ResponseEntity<InventoryMaterialStockDto> getStockByStorageLocation(
+            @PathVariable Long storageLocationId) {
+        InventoryMaterialStockDto stock = inventoryService.getStockByStorageLocation(storageLocationId);
+        return ResponseEntity.ok(stock);
     }
 }

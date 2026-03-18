@@ -3,7 +3,16 @@ package org.tornotron.echno_backend.inventoryTransaction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.InsufficientStockException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryMaterialStockDto;
+import org.tornotron.echno_backend.inventoryTransaction.dto.StockDto;
+import org.tornotron.echno_backend.material.Material;
+import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.storageLocation.StorageLocation;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,36 +21,49 @@ import java.util.Map;
 @Service
 public class InventoryService {
 
+    private final CurrentStockRepository currentStockRepository;
     private final InventoryTransactionRepository inventoryTransactionRepository;
 
-    public InventoryService(InventoryTransactionRepository inventoryTransactionRepository) {
+    public InventoryService(CurrentStockRepository currentStockRepository,
+                            InventoryTransactionRepository inventoryTransactionRepository) {
+        this.currentStockRepository = currentStockRepository;
         this.inventoryTransactionRepository = inventoryTransactionRepository;
     }
 
     /**
-     * Get current stock for a material at a specific project.
-     * Uses SUM(quantityChanged) for reliable calculation regardless of transaction ordering.
+     * Get current stock for a material at a specific project (across all storage locations).
+     * Reads from the CurrentStock table by summing all CurrentStock records for the material+project.
      */
     @Transactional(readOnly = true)
-    public Integer getCurrentStock(Long materialId, Long projectId) {
-        return inventoryTransactionRepository.sumQuantityChangedByMaterialAndProject(materialId, projectId);
+    public Double getCurrentStock(Long materialId, Long projectId) {
+        return currentStockRepository.sumCurrentQuantityByMaterialAndProject(materialId, projectId);
     }
 
     /**
      * Get aggregate stock for a material across all projects in the organization.
-     * Uses SUM(quantityChanged) across all transactions for the material.
      */
     @Transactional(readOnly = true)
-    public Integer getAggregateStock(Long materialId) {
-        return inventoryTransactionRepository.sumQuantityChangedByMaterial(materialId);
+    public Double getAggregateStock(Long materialId) {
+        return currentStockRepository.sumCurrentQuantityByMaterial(materialId);
     }
 
     /**
-     * Get current stock for multiple materials at a specific project in batch
+     * Get current stock for a material at a specific storage location within a project.
      */
     @Transactional(readOnly = true)
-    public Map<Long, Integer> getCurrentStockForMaterials(List<Long> materialIds, Long projectId) {
-        Map<Long, Integer> stockMap = new HashMap<>();
+    public Double getStockAtLocation(Long materialId, Long projectId, Long storageLocationId) {
+        return currentStockRepository
+                .findByMaterialIdAndProjectIdAndStorageLocationId(materialId, projectId, storageLocationId)
+                .map(CurrentStock::getCurrentQuantity)
+                .orElse(0.0);
+    }
+
+    /**
+     * Get current stock for multiple materials at a specific project in batch.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, Double> getCurrentStockForMaterials(List<Long> materialIds, Long projectId) {
+        Map<Long, Double> stockMap = new HashMap<>();
         for (Long materialId : materialIds) {
             stockMap.put(materialId, getCurrentStock(materialId, projectId));
         }
@@ -49,57 +71,44 @@ public class InventoryService {
     }
 
     /**
-     * Validate that sufficient stock exists for a single material at a specific project
-     * Throws InsufficientStockException if stock is insufficient
+     * Validate that sufficient stock exists for a single material at a specific project.
      */
-    public void validateSufficientStock(Long materialId, Long projectId, Integer requiredQuantity) {
-        Integer currentStock = getCurrentStock(materialId, projectId);
+    public void validateSufficientStock(Long materialId, Long projectId, Double requiredQuantity) {
+        Double currentStock = getCurrentStock(materialId, projectId);
         if (currentStock < requiredQuantity) {
             throw new InsufficientStockException(
-                String.format("Insufficient stock for material ID %d at project ID %d. Required: %d, Available: %d",
+                String.format("Insufficient stock for material ID %d at project ID %d. Required: %.2f, Available: %.2f",
                     materialId, projectId, requiredQuantity, currentStock)
             );
         }
     }
 
     /**
-     * Get current stock for a material at a specific storage location within a project.
-     * Calculated by summing all quantityChanged values for the (material, project, storageLocation) triple.
+     * Validate that sufficient stock exists for a single material at a specific storage location.
      */
-    @Transactional(readOnly = true)
-    public Integer getStockAtLocation(Long materialId, Long projectId, Long storageLocationId) {
-        return inventoryTransactionRepository.findCurrentStockByMaterialAndProjectAndStorageLocation(
-                materialId, projectId, storageLocationId);
-    }
-
-    /**
-     * Validate that sufficient stock exists for a single material at a specific storage location
-     * Throws InsufficientStockException if stock is insufficient
-     */
-    public void validateSufficientStockAtLocation(Long materialId, Long projectId, Long storageLocationId, Integer requiredQuantity) {
-        Integer currentStock = getStockAtLocation(materialId, projectId, storageLocationId);
+    public void validateSufficientStockAtLocation(Long materialId, Long projectId, Long storageLocationId, Double requiredQuantity) {
+        Double currentStock = getStockAtLocation(materialId, projectId, storageLocationId);
         if (currentStock < requiredQuantity) {
             throw new InsufficientStockException(
-                String.format("Insufficient stock for material ID %d at project ID %d, storage location ID %d. Required: %d, Available: %d",
+                String.format("Insufficient stock for material ID %d at project ID %d, storage location ID %d. Required: %.2f, Available: %.2f",
                     materialId, projectId, storageLocationId, requiredQuantity, currentStock)
             );
         }
     }
 
     /**
-     * Validate sufficient stock for multiple materials at a specific storage location
-     * Throws InsufficientStockException if any material has insufficient stock
+     * Validate sufficient stock for multiple materials at a specific storage location.
      */
-    public void validateSufficientStockForMultipleItemsAtLocation(Map<Long, Integer> requiredQuantities, Long projectId, Long storageLocationId) {
+    public void validateSufficientStockForMultipleItemsAtLocation(Map<Long, Double> requiredQuantities, Long projectId, Long storageLocationId) {
         List<String> insufficientItems = new ArrayList<>();
-        for (Map.Entry<Long, Integer> entry : requiredQuantities.entrySet()) {
+        for (Map.Entry<Long, Double> entry : requiredQuantities.entrySet()) {
             Long materialId = entry.getKey();
-            Integer required = entry.getValue();
-            Integer available = getStockAtLocation(materialId, projectId, storageLocationId);
+            Double required = entry.getValue();
+            Double available = getStockAtLocation(materialId, projectId, storageLocationId);
 
             if (available < required) {
                 insufficientItems.add(
-                    String.format("Material ID %d: Required %d, Available %d",
+                    String.format("Material ID %d: Required %.2f, Available %.2f",
                         materialId, required, available)
                 );
             }
@@ -114,22 +123,51 @@ public class InventoryService {
     }
 
     /**
-     * Validate sufficient stock for multiple materials at a specific project
-     * Throws InsufficientStockException if any material has insufficient stock
+     * Get stock for all materials at a specific storage location.
+     * Reads from CurrentStock table.
      */
-    public void validateSufficientStockForMultipleItems(Map<Long, Integer> requiredQuantities, Long projectId) {
-        Map<Long, Integer> currentStock = getCurrentStockForMaterials(
+    @Transactional(readOnly = true)
+    public InventoryMaterialStockDto getStockByStorageLocation(Long storageLocationId) {
+        List<CurrentStock> stockRecords = currentStockRepository.findByStorageLocationIdAndOrganization_Id(storageLocationId, TenantContext.getCurrentOrgId());
+
+        List<StockDto> stockDtos = new ArrayList<>();
+        double totalStock = 0.0;
+        BigDecimal totalStockValue = BigDecimal.ZERO;
+
+        for (CurrentStock cs : stockRecords) {
+            StockDto dto = new StockDto();
+            dto.setMaterialId(cs.getMaterial().getId());
+            dto.setMaterialName(cs.getMaterial().getMaterialName());
+            dto.setStock(cs.getCurrentQuantity());
+            dto.setStockValue(cs.getStockValue());
+            stockDtos.add(dto);
+            totalStock += cs.getCurrentQuantity();
+            totalStockValue = totalStockValue.add(cs.getStockValue());
+        }
+
+        InventoryMaterialStockDto result = new InventoryMaterialStockDto();
+        result.setMaterialStock(stockDtos);
+        result.setTotalStock(totalStock);
+        result.setTotalStockValue(totalStockValue);
+        return result;
+    }
+
+    /**
+     * Validate sufficient stock for multiple materials at a specific project.
+     */
+    public void validateSufficientStockForMultipleItems(Map<Long, Double> requiredQuantities, Long projectId) {
+        Map<Long, Double> currentStock = getCurrentStockForMaterials(
                 new ArrayList<>(requiredQuantities.keySet()), projectId);
 
         List<String> insufficientItems = new ArrayList<>();
-        for (Map.Entry<Long, Integer> entry : requiredQuantities.entrySet()) {
+        for (Map.Entry<Long, Double> entry : requiredQuantities.entrySet()) {
             Long materialId = entry.getKey();
-            Integer required = entry.getValue();
-            Integer available = currentStock.getOrDefault(materialId, 0);
+            Double required = entry.getValue();
+            Double available = currentStock.getOrDefault(materialId, 0.0);
 
             if (available < required) {
                 insufficientItems.add(
-                    String.format("Material ID %d: Required %d, Available %d",
+                    String.format("Material ID %d: Required %.2f, Available %.2f",
                         materialId, required, available)
                 );
             }
@@ -140,5 +178,119 @@ public class InventoryService {
                 "Insufficient stock at project ID " + projectId + " for items: " + String.join("; ", insufficientItems)
             );
         }
+    }
+
+    /**
+     * Update the CurrentStock record for a given material, project, and storage location.
+     * Creates the record if it doesn't exist (upsert).
+     * This must be called within the same transaction as the InventoryTransaction save.
+     *
+     * @param unitCost For inbound (positive qty): the cost per unit. For outbound (negative qty): pass null to use weighted average cost.
+     */
+    @Transactional
+    public CurrentStock updateCurrentStock(Material material, Project project, StorageLocation storageLocation,
+                                           Organization organization, Double quantityChanged, BigDecimal unitCost) {
+        CurrentStock stock;
+        if (storageLocation != null) {
+            stock = currentStockRepository
+                    .findByMaterialIdAndProjectIdAndStorageLocationId(
+                            material.getId(), project.getId(), storageLocation.getId())
+                    .orElseGet(() -> {
+                        CurrentStock newStock = new CurrentStock();
+                        newStock.setMaterial(material);
+                        newStock.setProject(project);
+                        newStock.setStorageLocation(storageLocation);
+                        newStock.setOrganization(organization);
+                        newStock.setCurrentQuantity(0.0);
+                        newStock.setStockValue(BigDecimal.ZERO);
+                        return newStock;
+                    });
+        } else {
+            stock = currentStockRepository
+                    .findByMaterialIdAndProjectIdAndStorageLocationIsNull(material.getId(), project.getId())
+                    .orElseGet(() -> {
+                        CurrentStock newStock = new CurrentStock();
+                        newStock.setMaterial(material);
+                        newStock.setProject(project);
+                        newStock.setOrganization(organization);
+                        newStock.setCurrentQuantity(0.0);
+                        newStock.setStockValue(BigDecimal.ZERO);
+                        return newStock;
+                    });
+        }
+
+        // Update stock value
+        if (quantityChanged > 0 && unitCost != null) {
+            // Inbound: add incoming value
+            BigDecimal incomingValue = unitCost.multiply(BigDecimal.valueOf(quantityChanged));
+            stock.setStockValue(stock.getStockValue().add(incomingValue));
+        } else if (quantityChanged < 0) {
+            // Outbound: reduce by weighted average cost
+            if (stock.getCurrentQuantity() > 0 && stock.getStockValue().compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal avgCost = stock.getStockValue()
+                        .divide(BigDecimal.valueOf(stock.getCurrentQuantity()), 2, RoundingMode.HALF_UP);
+                BigDecimal valueReduced = avgCost.multiply(BigDecimal.valueOf(Math.abs(quantityChanged)));
+                stock.setStockValue(stock.getStockValue().subtract(valueReduced));
+            }
+        }
+
+        stock.setCurrentQuantity(stock.getCurrentQuantity() + quantityChanged);
+        return currentStockRepository.save(stock);
+    }
+
+    /**
+     * Get the weighted average cost for a material at a specific CurrentStock record.
+     */
+    public BigDecimal getAverageCost(Long materialId, Long projectId, Long storageLocationId) {
+        CurrentStock stock;
+        if (storageLocationId != null) {
+            stock = currentStockRepository
+                    .findByMaterialIdAndProjectIdAndStorageLocationId(materialId, projectId, storageLocationId)
+                    .orElse(null);
+        } else {
+            stock = currentStockRepository
+                    .findByMaterialIdAndProjectIdAndStorageLocationIsNull(materialId, projectId)
+                    .orElse(null);
+        }
+        if (stock == null || stock.getCurrentQuantity() <= 0 || stock.getStockValue().compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return stock.getStockValue().divide(BigDecimal.valueOf(stock.getCurrentQuantity()), 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Get stock value for a material at a specific project (across all storage locations).
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal getStockValue(Long materialId, Long projectId) {
+        return currentStockRepository.sumStockValueByMaterialAndProject(materialId, projectId);
+    }
+
+    /**
+     * Get aggregate stock value for a material across all projects.
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal getAggregateStockValue(Long materialId) {
+        return currentStockRepository.sumStockValueByMaterial(materialId);
+    }
+
+    /**
+     * Get stock value for a material at a specific storage location.
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal getStockValueAtLocation(Long materialId, Long projectId, Long storageLocationId) {
+        return currentStockRepository
+                .findByMaterialIdAndProjectIdAndStorageLocationId(materialId, projectId, storageLocationId)
+                .map(CurrentStock::getStockValue)
+                .orElse(BigDecimal.ZERO);
+    }
+
+    /**
+     * Recalculate stock from transaction history (SUM of quantityChanged).
+     * Use this for auditing or correcting drift between CurrentStock and actual transactions.
+     */
+    @Transactional(readOnly = true)
+    public Double recalculateStockFromTransactions(Long materialId, Long projectId) {
+        return inventoryTransactionRepository.sumQuantityChangedByMaterialAndProject(materialId, projectId);
     }
 }

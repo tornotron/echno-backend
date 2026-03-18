@@ -46,6 +46,8 @@ public class InventoryTransactionDtoConvertor {
             dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(transaction.getCreatedBy(), fileStorageService));
         }
 
+        dto.setUnitCost(transaction.getUnitCost());
+
         return dto;
     }
 }
