@@ -23,4 +23,8 @@ public class StorageLocationCreationDto {
     private boolean isActive;
 
     private Long projectId;
+
+    private Float latitude;
+
+    private Float longitude;
 }

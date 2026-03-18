@@ -7,8 +7,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.storageLocation.dto.StorageLocationCreationDto;
 import org.tornotron.echno_backend.storageLocation.dto.StorageLocationDto;
+import org.tornotron.echno_backend.storageLocation.dto.StorageLocationUpdateDto;
 import org.tornotron.echno_backend.storageLocation.enums.StorageLocationType;
 
 import java.util.List;
@@ -68,5 +70,21 @@ public class StorageLocationControllerWeb {
             @PathVariable StorageLocationType locationType) {
         List<StorageLocationDto> storageLocations = storageLocationService.getStorageLocationsByType(locationType);
         return ResponseEntity.ok(storageLocations);
+    }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    public ResponseEntity<StorageLocationDto> updateStorageLocation(
+            @PathVariable Long id,
+            @Valid @RequestBody StorageLocationUpdateDto updateDto) {
+        StorageLocationDto storageLocation = storageLocationService.updateStorageLocation(id, updateDto);
+        return ResponseEntity.ok(storageLocation);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    public ResponseEntity<ApiResponse> deleteStorageLocation(@PathVariable Long id) {
+        storageLocationService.deleteStorageLocation(id);
+        return ResponseEntity.ok(new ApiResponse("Storage location with id: " + id + " deleted successfully"));
     }
 }
