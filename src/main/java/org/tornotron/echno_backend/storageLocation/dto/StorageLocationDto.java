@@ -14,4 +14,7 @@ public class StorageLocationDto {
     private String projectName;
     private String capacity;
     private boolean isActive;
+    private Long storageItemsCount;
+    private Float latitude;
+    private Float longitude;
 }
