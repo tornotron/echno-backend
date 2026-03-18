@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.task.Task;
+import org.tornotron.echno_backend.wbs.WbsElement;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -67,6 +68,9 @@ public class Project implements TenantScopedEntity {
     /** The list of tasks associated with this project. */
     @OneToMany(mappedBy = "project")
     private List<Task> tasks;
+
+    @OneToMany(mappedBy = "project")
+    private List<WbsElement> wbsElements = new ArrayList<>();
 
     /** The latitude coordinate of the project location. */
     @Column(name = "latitude")
