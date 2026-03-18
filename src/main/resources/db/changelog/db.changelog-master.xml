@@ -9,12 +9,25 @@
     <!-- VERSION-BASED MIGRATION STRATEGY                               -->
     <!--                                                                -->
     <!-- Set spring.liquibase.contexts in application.yml:             -->
-    <!--   contexts: v2   → runs only v2.0 (fresh install, recommended)-->
-    <!--   contexts: v1   → runs only v1.0 through v1.4 (legacy)       -->
+    <!--   contexts: v3   → runs v3.0 (recommended, fresh install)     -->
+    <!--   contexts: v2   → runs v2.0 + v2.1 migrations (legacy)       -->
+    <!--   contexts: v1   → runs v1.0 through v1.4 + v2.1 (legacy)    -->
     <!--                                                                -->
     <!-- FUTURE MIGRATIONS: add below with NO context so they run      -->
     <!-- regardless of which version was used for the base schema.     -->
     <!-- ============================================================== -->
+
+    <!-- ============================================================== -->
+    <!-- v3.0 - Consolidated baseline schema (context: v3)             -->
+    <!-- Squashes: v2.0 + all v2.1 migrations (076-091)                -->
+    <!-- ============================================================== -->
+    <include file="db/changelog/v3.0/baseline-001-level0-tables.xml" context="v3"/>
+    <include file="db/changelog/v3.0/baseline-002-level1-tables.xml" context="v3"/>
+    <include file="db/changelog/v3.0/baseline-003-level2-tables.xml" context="v3"/>
+    <include file="db/changelog/v3.0/baseline-004-level3-tables.xml" context="v3"/>
+    <include file="db/changelog/v3.0/baseline-005-level4-tables.xml" context="v3"/>
+    <include file="db/changelog/v3.0/baseline-006-level5-standalone.xml" context="v3"/>
+    <include file="db/changelog/v3.0/baseline-007-tag.xml" context="v3"/>
 
     <!-- ============================================================== -->
     <!-- v2.0 - Consolidated baseline schema (context: v2)             -->
@@ -122,31 +135,56 @@
     <include file="db/changelog/v1.4/075-tag-v1.4.xml" context="v1"/>
 
     <!-- ============================================================== -->
+    <!-- v2.1 MIGRATIONS (context: v1 or v2 only - already squashed    -->
+    <!-- into v3.0 baseline)                                            -->
+    <!-- ============================================================== -->
+
+    <!-- v2.1 - Vendor enhancements -->
+    <include file="db/changelog/v2.1/076-vendor-enhancements.xml" context="v1 or v2"/>
+    <include file="db/changelog/v2.1/077-add-org-id-to-vendor-child-entities.xml" context="v1 or v2"/>
+
+    <!-- v2.2 - Goods management: migrate created_by from User to Employee -->
+    <include file="db/changelog/v2.1/078-goods-management-created-by-employee.xml" context="v1 or v2"/>
+
+    <!-- v2.3 - site_transfer: migrate sending_person_id from User to Employee -->
+    <include file="db/changelog/v2.1/079-site-transfer-sending-person-employee.xml" context="v1 or v2"/>
+
+    <!-- v2.4 - Add project_id to goods management tables; add sending/receiving project to site_transfer -->
+    <include file="db/changelog/v2.1/080-add-project-id-to-goods-management.xml" context="v1 or v2"/>
+
+    <!-- v2.5 - Storage Location module -->
+    <include file="db/changelog/v2.1/081-create-storage-location.xml" context="v1 or v2"/>
+    <include file="db/changelog/v2.1/082-add-storage-location-to-entities.xml" context="v1 or v2"/>
+
+    <!-- v2.6 - Add created_at timestamp to inventory_transaction -->
+    <include file="db/changelog/v2.1/083-add-created-at-to-inventory-transaction.xml" context="v1 or v2"/>
+
+    <!-- v2.7 - Add isActive and capacity to storage_location -->
+    <include file="db/changelog/v2.1/084-add-is-active-capacity-to-storage-location.xml" context="v1 or v2"/>
+
+    <!-- v2.8 - Work Breakdown Structure (WBS) -->
+    <include file="db/changelog/v2.1/085-create-wbs-element.xml" context="v1 or v2"/>
+    <include file="db/changelog/v2.1/086-add-wbs-element-to-entities.xml" context="v1 or v2"/>
+
+    <!-- v2.9 - Current Stock tracking -->
+    <include file="db/changelog/v2.1/087-create-current-stock.xml" context="v1 or v2"/>
+    <include file="db/changelog/v2.1/088-change-inventory-transaction-stock-to-double.xml" context="v1 or v2"/>
+
+    <!-- v2.10 - Add latitude and longitude to storage_location -->
+    <include file="db/changelog/v2.1/089-add-lat-lng-to-storage-location.xml" context="v1 or v2"/>
+
+    <!-- v2.11 - Add description, hsn, opening_stock, moq, created_at, updated_at to material -->
+    <include file="db/changelog/v2.1/090-add-fields-to-material.xml" context="v1 or v2"/>
+
+    <!-- v2.12 - Change opening_stock and moq from INT to DOUBLE in material -->
+    <include file="db/changelog/v2.1/091-change-material-opening-stock-moq-to-double.xml" context="v1 or v2"/>
+
+    <!-- ============================================================== -->
     <!-- FUTURE MIGRATIONS go below this line                           -->
     <!-- Add WITHOUT any context so they run on all versions            -->
     <!-- ============================================================== -->
 
-    <!-- v2.1 - Vendor enhancements -->
-    <include file="db/changelog/v2.1/076-vendor-enhancements.xml"/>
-    <include file="db/changelog/v2.1/077-add-org-id-to-vendor-child-entities.xml"/>
-
-    <!-- v2.2 - Goods management: migrate created_by from User to Employee -->
-    <include file="db/changelog/v2.1/078-goods-management-created-by-employee.xml"/>
-
-    <!-- v2.3 - site_transfer: migrate sending_person_id from User to Employee -->
-    <include file="db/changelog/v2.1/079-site-transfer-sending-person-employee.xml"/>
-
-    <!-- v2.4 - Add project_id to goods management tables; add sending/receiving project to site_transfer -->
-    <include file="db/changelog/v2.1/080-add-project-id-to-goods-management.xml"/>
-
-    <!-- v2.5 - Storage Location module -->
-    <include file="db/changelog/v2.1/081-create-storage-location.xml"/>
-    <include file="db/changelog/v2.1/082-add-storage-location-to-entities.xml"/>
-
-    <!-- v2.6 - Add created_at timestamp to inventory_transaction -->
-    <include file="db/changelog/v2.1/083-add-created-at-to-inventory-transaction.xml"/>
-
-    <!-- v2.7 - Add isActive and capacity to storage_location -->
-    <include file="db/changelog/v2.1/084-add-is-active-capacity-to-storage-location.xml"/>
+    <include file="db/changelog/v3.0/008-add-stock-levels-to-material.xml"/>
+    <include file="db/changelog/v3.0/009-add-stock-value-tracking.xml"/>
 
 </databaseChangeLog>

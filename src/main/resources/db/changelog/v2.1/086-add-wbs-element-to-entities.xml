@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="086-add-wbs-element-to-entities" author="echno">
+        <!-- Add wbs_element_id to task -->
+        <addColumn tableName="task">
+            <column name="wbs_element_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="task"
+                baseColumnNames="wbs_element_id"
+                constraintName="fk_task_wbs_element"
+                referencedTableName="wbs_element"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <createIndex tableName="task" indexName="idx_task_wbs_element">
+            <column name="wbs_element_id"/>
+        </createIndex>
+
+        <!-- Add wbs_element_id to material_consumption -->
+        <addColumn tableName="material_consumption">
+            <column name="wbs_element_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="material_consumption"
+                baseColumnNames="wbs_element_id"
+                constraintName="fk_material_consumption_wbs_element"
+                referencedTableName="wbs_element"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <createIndex tableName="material_consumption" indexName="idx_material_consumption_wbs_element">
+            <column name="wbs_element_id"/>
+        </createIndex>
+
+        <!-- Add wbs_element_id to purchase_order -->
+        <addColumn tableName="purchase_order">
+            <column name="wbs_element_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="purchase_order"
+                baseColumnNames="wbs_element_id"
+                constraintName="fk_purchase_order_wbs_element"
+                referencedTableName="wbs_element"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <createIndex tableName="purchase_order" indexName="idx_purchase_order_wbs_element">
+            <column name="wbs_element_id"/>
+        </createIndex>
+
+        <!-- Add wbs_element_id to payable -->
+        <addColumn tableName="payable">
+            <column name="wbs_element_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="payable"
+                baseColumnNames="wbs_element_id"
+                constraintName="fk_payable_wbs_element"
+                referencedTableName="wbs_element"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <createIndex tableName="payable" indexName="idx_payable_wbs_element">
+            <column name="wbs_element_id"/>
+        </createIndex>
+
+        <!-- Add wbs_element_id to intend -->
+        <addColumn tableName="intend">
+            <column name="wbs_element_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="intend"
+                baseColumnNames="wbs_element_id"
+                constraintName="fk_intend_wbs_element"
+                referencedTableName="wbs_element"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+        <createIndex tableName="intend" indexName="idx_intend_wbs_element">
+            <column name="wbs_element_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
