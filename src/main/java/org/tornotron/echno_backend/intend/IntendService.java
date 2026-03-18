@@ -16,6 +16,7 @@ import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.intend.dto.IntendCreationDto;
 import org.tornotron.echno_backend.intend.dto.IntendDto;
 import org.tornotron.echno_backend.intend.enums.IntendStatus;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.User;
@@ -31,15 +32,17 @@ public class IntendService {
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
+    private final InventoryService inventoryService;
 
     public IntendService(IntendRepository intendRepository, FileStorageService fileStorageService,
                          TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository,
-                         ProjectRepository projectRepository) {
+                         ProjectRepository projectRepository, InventoryService inventoryService) {
         this.intendRepository = intendRepository;
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
+        this.inventoryService = inventoryService;
     }
 
 
@@ -59,7 +62,7 @@ public class IntendService {
         intend.setExpectedOn(intendCreationDto.getExpectedOn());
         intend.setRemarks(intendCreationDto.getRemarks());
         intend.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
-        return IntendDtoConvertor.convertIntendToDto(intendRepository.save(intend), fileStorageService);
+        return IntendDtoConvertor.convertIntendToDto(intendRepository.save(intend), fileStorageService,inventoryService);
     }
 
 
@@ -67,21 +70,21 @@ public class IntendService {
     public Page<IntendDto> getAllIntends(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return intendRepository.findAll(pageable)
-                .map(intend -> IntendDtoConvertor.convertIntendToDto(intend, fileStorageService));
+                .map(intend -> IntendDtoConvertor.convertIntendToDto(intend, fileStorageService,inventoryService));
     }
 
 
     @Transactional(readOnly = true)
     public List<IntendDto> getAllIntends() {
         return intendRepository.findAll().stream()
-                .map(intend -> IntendDtoConvertor.convertIntendToDto(intend, fileStorageService))
+                .map(intend -> IntendDtoConvertor.convertIntendToDto(intend, fileStorageService,inventoryService))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public IntendDto getAnIntend(Long id) {
         return intendRepository.findById(id)
-                .map(intend -> IntendDtoConvertor.convertIntendToDto(intend, fileStorageService))
+                .map(intend -> IntendDtoConvertor.convertIntendToDto(intend, fileStorageService,inventoryService))
                 .orElseThrow(() -> new ResourceNotFoundException("Intend not found with id: " + id));
     }
 

@@ -13,6 +13,7 @@ import org.tornotron.echno_backend.intend.enums.IntendStatus;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 import org.tornotron.echno_backend.user.User;
+import org.tornotron.echno_backend.wbs.WbsElement;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -60,6 +61,10 @@ public class Intend implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "wbs_element_id")
+    private WbsElement wbsElement;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
