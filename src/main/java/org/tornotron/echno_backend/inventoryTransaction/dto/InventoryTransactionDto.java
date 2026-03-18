@@ -3,8 +3,8 @@ package org.tornotron.echno_backend.inventoryTransaction.dto;
 import lombok.Data;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
-import org.tornotron.echno_backend.user.dto.UserDto;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -14,9 +14,9 @@ public class InventoryTransactionDto {
     private LocalDateTime transactionDate;
     private Long materialId;
     private String materialName;
-    private Integer openingStock;
-    private Integer quantityChanged;
-    private Integer closingStock;
+    private Double openingStock;
+    private Double quantityChanged;
+    private Double closingStock;
     private InventoryTransactionType transactionType;
     private String referenceNumber;
     private String remarks;
@@ -25,4 +25,5 @@ public class InventoryTransactionDto {
     private Long storageLocationId;
     private String storageLocationName;
     private EmployeeDto createdBy;
+    private BigDecimal unitCost;
 }
