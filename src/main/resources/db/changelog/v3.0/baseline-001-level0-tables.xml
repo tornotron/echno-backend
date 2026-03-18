@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================== -->
+    <!-- v3.0 Baseline Level 0: Tables with no foreign key dependencies -->
+    <!-- Consolidates: v2.0 baseline-001 + v2.1 (076, 090, 091)        -->
+    <!-- ============================================================== -->
+
+    <!-- users_table -->
+    <changeSet id="v3-001-create-users-table" author="echno-baseline">
+        <createTable tableName="users_table">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="keycloak_id" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_users_keycloak_id"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="gender" type="VARCHAR(50)"/>
+            <column name="address" type="TEXT"/>
+            <column name="blood_group" type="VARCHAR(10)"/>
+            <column name="email" type="VARCHAR(255)">
+                <constraints unique="true" uniqueConstraintName="uk_users_email"/>
+            </column>
+            <column name="phone" type="VARCHAR(50)">
+                <constraints unique="true" uniqueConstraintName="uk_users_phone"/>
+            </column>
+            <column name="accept_terms" type="BOOLEAN"/>
+            <column name="date_of_birth" type="TIMESTAMP"/>
+            <column name="qualification" type="VARCHAR(255)"/>
+            <column name="skills" type="STRING[]"/>
+            <column name="experience" type="INT"/>
+            <column name="cv_url" type="VARCHAR(1024)"/>
+            <column name="emergency_contact" type="VARCHAR(255)"/>
+            <column name="role" type="VARCHAR(50)"/>
+            <column name="profile_picture_url" type="VARCHAR(1024)"/>
+            <column name="default_organization_id" type="BIGINT"/>
+            <column name="certifications" type="STRING[]"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="users_table" indexName="idx_users_email">
+            <column name="email"/>
+        </createIndex>
+        <createIndex tableName="users_table" indexName="idx_users_keycloak_id">
+            <column name="keycloak_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- organization -->
+    <changeSet id="v3-001-create-organization" author="echno-baseline">
+        <createTable tableName="organization">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_address" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_email" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_phone" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_website" type="VARCHAR(1024)"/>
+            <column name="organization_logo" type="VARCHAR(1024)"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="creator_id" type="INT"/>
+            <column name="is_active" type="BOOLEAN"/>
+        </createTable>
+
+        <createIndex tableName="organization" indexName="idx_organization_name">
+            <column name="organization_name"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- category -->
+    <changeSet id="v3-001-create-category" author="echno-baseline">
+        <createTable tableName="category">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="category_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category_description" type="TEXT"/>
+            <column name="category_icon" type="VARCHAR(1024)"/>
+            <column name="category_image" type="VARCHAR(1024)"/>
+            <column name="organization_id" type="BIGINT"/>
+            <column name="normalized_name" type="VARCHAR(255)"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="category"
+                baseColumnNames="organization_id"
+                constraintName="fk_category_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="category" indexName="idx_category_organization">
+            <column name="organization_id"/>
+        </createIndex>
+        <addUniqueConstraint tableName="category"
+                             columnNames="category_name, organization_id"
+                             constraintName="uk_category_name_org"/>
+        <addUniqueConstraint tableName="category"
+                             columnNames="normalized_name"
+                             constraintName="uq_category_normalized_name"/>
+    </changeSet>
+
+    <!-- vendor (squashed: v2.0 + 076 enhancements + 077 org_id on child tables) -->
+    <changeSet id="v3-001-create-vendor" author="echno-baseline">
+        <createTable tableName="vendor">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="vendor_address" type="TEXT"/>
+            <column name="vendor_email" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT"/>
+            <!-- Added in v2.1 (076) -->
+            <column name="city" type="VARCHAR(255)"/>
+            <column name="state" type="VARCHAR(255)"/>
+            <column name="pin_code" type="VARCHAR(255)"/>
+            <column name="country" type="VARCHAR(255)"/>
+            <column name="website" type="VARCHAR(255)"/>
+            <column name="type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="VARCHAR(1000)"/>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="vendor"
+                baseColumnNames="organization_id"
+                constraintName="fk_vendor_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="vendor" indexName="idx_vendor_name">
+            <column name="vendor_name"/>
+        </createIndex>
+        <createIndex tableName="vendor" indexName="idx_vendor_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- material (squashed: v2.0 + 078 created_by + 090 new fields + 091 opening_stock/moq as DOUBLE) -->
+    <changeSet id="v3-001-create-material" author="echno-baseline">
+        <createTable tableName="material">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="sku" type="VARCHAR(100)"/>
+            <column name="material_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT"/>
+            <!-- Added in v2.1 (078) -->
+            <column name="created_by_id" type="BIGINT"/>
+            <!-- Added in v2.1 (090 + 091) -->
+            <column name="description" type="VARCHAR(1000)"/>
+            <column name="hsn" type="VARCHAR(50)"/>
+            <column name="opening_stock" type="DOUBLE"/>
+            <column name="moq" type="DOUBLE"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="material"
+                baseColumnNames="organization_id"
+                constraintName="fk_material_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+        <createIndex tableName="material" indexName="idx_material_sku">
+            <column name="sku"/>
+        </createIndex>
+        <createIndex tableName="material" indexName="idx_material_name">
+            <column name="material_name"/>
+        </createIndex>
+        <createIndex tableName="material" indexName="idx_material_organization">
+            <column name="organization_id"/>
+        </createIndex>
+        <createIndex tableName="material" indexName="idx_material_created_by">
+            <column name="created_by_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- feature -->
+    <changeSet id="v3-001-create-feature" author="echno-baseline">
+        <createTable tableName="feature">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_feature_code"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="feature_type" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category" type="VARCHAR(50)"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
+        </createTable>
+
+        <createIndex tableName="feature" indexName="idx_feature_code">
+            <column name="code"/>
+        </createIndex>
+        <createIndex tableName="feature" indexName="idx_feature_category">
+            <column name="category"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- plan -->
+    <changeSet id="v3-001-create-plan" author="echno-baseline">
+        <createTable tableName="plan">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_plan_code"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="version" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="monthly_price" type="DECIMAL(10,2)"/>
+            <column name="annual_price" type="DECIMAL(10,2)"/>
+            <column name="currency" type="VARCHAR(3)" defaultValue="INR"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="is_public" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="trial_days" type="INT" defaultValueNumeric="0"/>
+            <column name="max_users" type="INT"/>
+            <column name="sort_order" type="INT" defaultValueNumeric="0"/>
+        </createTable>
+
+        <createIndex tableName="plan" indexName="idx_plan_code">
+            <column name="code"/>
+        </createIndex>
+        <createIndex tableName="plan" indexName="idx_plan_active">
+            <column name="is_active"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- attachment -->
+    <changeSet id="v3-001-create-attachment" author="echno-baseline">
+        <createTable tableName="attachment">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="entity_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="storage_key" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="url" type="VARCHAR(1024)"/>
+            <column name="content_type" type="VARCHAR(100)"/>
+            <column name="file_size" type="BIGINT"/>
+            <column name="original_filename" type="VARCHAR(255)"/>
+            <column name="organization_id" type="BIGINT"/>
+            <column name="project_id" type="BIGINT"/>
+            <column name="task_id" type="BIGINT"/>
+            <column name="issue_id" type="BIGINT"/>
+            <column name="user_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="attachment" indexName="idx_attachment_entity">
+            <column name="entity_type"/>
+            <column name="entity_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

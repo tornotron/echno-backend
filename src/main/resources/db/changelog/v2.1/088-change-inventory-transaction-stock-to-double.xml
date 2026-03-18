@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="088-change-inventory-transaction-stock-to-double" author="echno">
+        <!-- CockroachDB does not support ALTER COLUMN TYPE from int to double directly.
+             Workaround: add new double columns, copy data, drop old columns, rename new columns. -->
+
+        <!-- Step 1: Add new double columns -->
+        <addColumn tableName="inventory_transaction">
+            <column name="opening_stock_new" type="DOUBLE"/>
+            <column name="quantity_changed_new" type="DOUBLE"/>
+            <column name="closing_stock_new" type="DOUBLE"/>
+        </addColumn>
+
+        <!-- Step 2: Copy data from old int columns to new double columns -->
+        <sql>
+            UPDATE inventory_transaction SET
+                opening_stock_new = opening_stock::DOUBLE PRECISION,
+                quantity_changed_new = quantity_changed::DOUBLE PRECISION,
+                closing_stock_new = closing_stock::DOUBLE PRECISION;
+        </sql>
+
+        <!-- Step 3: Drop old int columns -->
+        <dropColumn tableName="inventory_transaction" columnName="opening_stock"/>
+        <dropColumn tableName="inventory_transaction" columnName="quantity_changed"/>
+        <dropColumn tableName="inventory_transaction" columnName="closing_stock"/>
+
+        <!-- Step 4: Rename new columns to original names -->
+        <renameColumn tableName="inventory_transaction" oldColumnName="opening_stock_new" newColumnName="opening_stock" columnDataType="DOUBLE"/>
+        <renameColumn tableName="inventory_transaction" oldColumnName="quantity_changed_new" newColumnName="quantity_changed" columnDataType="DOUBLE"/>
+        <renameColumn tableName="inventory_transaction" oldColumnName="closing_stock_new" newColumnName="closing_stock" columnDataType="DOUBLE"/>
+    </changeSet>
+
+</databaseChangeLog>
