@@ -29,6 +29,13 @@ public class OpeningStockValidator implements ConstraintValidator<ValidOpeningSt
             valid = false;
         }
 
+        if (dto.getUnitCost() == null) {
+            context.buildConstraintViolationWithTemplate("unitCost is required when openingStock is greater than 0")
+                    .addPropertyNode("unitCost")
+                    .addConstraintViolation();
+            valid = false;
+        }
+
         return valid;
     }
 }
