@@ -128,6 +128,7 @@ public class GoodsReceivedNoteService {
             grnItem.setMaterial(material);
             grnItem.setOrderedQuantity(itemDto.getOrderedQuantity());
             grnItem.setReceivedQuantity(itemDto.getReceivedQuantity());
+            grnItem.setUnitCost(itemDto.getUnitCost());
             grnItem.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
             items.add(grnItem);
