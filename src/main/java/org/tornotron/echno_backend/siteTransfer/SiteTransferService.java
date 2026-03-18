@@ -98,9 +98,9 @@ public class SiteTransferService {
 
         // CRITICAL: Validate sufficient stock at the SENDING location for ALL items
         // Use storage-location-level validation when a sending storage location is specified
-        Map<Long, Integer> requiredQuantities = new HashMap<>();
+        Map<Long, Double> requiredQuantities = new HashMap<>();
         for (SiteTransferItemDto itemDto : creationDto.getItems()) {
-            requiredQuantities.merge(itemDto.getMaterialId(), itemDto.getSentQuantity(), Integer::sum);
+            requiredQuantities.merge(itemDto.getMaterialId(), itemDto.getSentQuantity().doubleValue(), Double::sum);
         }
         if (creationDto.getSendingStorageLocationId() != null) {
             inventoryService.validateSufficientStockForMultipleItemsAtLocation(

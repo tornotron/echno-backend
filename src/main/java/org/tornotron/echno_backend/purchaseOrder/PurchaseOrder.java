@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
 import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItem;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.vendor.Vendor;
+import org.tornotron.echno_backend.wbs.WbsElement;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -68,6 +69,10 @@ public class PurchaseOrder implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "wbs_element_id")
+    private WbsElement wbsElement;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
