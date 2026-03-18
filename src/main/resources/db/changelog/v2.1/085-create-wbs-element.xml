@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="085-create-wbs-element" author="echno">
+        <createTable tableName="wbs_element">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="wbs_code" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="level" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="NOT_STARTED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="start_date" type="DATE"/>
+            <column name="end_date" type="DATE"/>
+            <column name="actual_start_date" type="DATE"/>
+            <column name="actual_end_date" type="DATE"/>
+            <column name="budgeted_cost" type="DECIMAL(15,2)" defaultValueNumeric="0"/>
+            <column name="actual_cost" type="DECIMAL(15,2)" defaultValueNumeric="0"/>
+            <column name="progress" type="DOUBLE" defaultValueNumeric="0"/>
+            <column name="weight" type="DOUBLE" defaultValueNumeric="1.0"/>
+            <column name="is_leaf" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="parent_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMPTZ" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMPTZ" defaultValueComputed="NOW()"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="wbs_element"
+                baseColumnNames="project_id"
+                constraintName="fk_wbs_element_project"
+                referencedTableName="project"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="wbs_element"
+                baseColumnNames="parent_id"
+                constraintName="fk_wbs_element_parent"
+                referencedTableName="wbs_element"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+                baseTableName="wbs_element"
+                baseColumnNames="organization_id"
+                constraintName="fk_wbs_element_organization"
+                referencedTableName="organization"
+                referencedColumnNames="id"
+                onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint
+                baseTableName="wbs_element"
+                baseColumnNames="created_by"
+                constraintName="fk_wbs_element_created_by"
+                referencedTableName="employee"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <addUniqueConstraint
+                tableName="wbs_element"
+                columnNames="project_id, wbs_code"
+                constraintName="uq_wbs_element_project_code"/>
+
+        <createIndex tableName="wbs_element" indexName="idx_wbs_element_project_parent">
+            <column name="project_id"/>
+            <column name="parent_id"/>
+        </createIndex>
+
+        <createIndex tableName="wbs_element" indexName="idx_wbs_element_project_code">
+            <column name="project_id"/>
+            <column name="wbs_code"/>
+        </createIndex>
+
+        <createIndex tableName="wbs_element" indexName="idx_wbs_element_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="v3-008-add-stock-levels-to-material" author="echno">
+        <addColumn tableName="material">
+            <column name="min_stock" type="DOUBLE"/>
+            <column name="max_stock" type="DOUBLE"/>
+            <column name="safety_stock" type="DOUBLE"/>
+            <column name="reorder_level" type="DOUBLE"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

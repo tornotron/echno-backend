@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="087-create-current-stock" author="echno">
+        <createTable tableName="current_stock">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints foreignKeyName="fk_current_stock_organization"
+                             references="organization(id)"/>
+            </column>
+            <column name="material_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_current_stock_material"
+                             references="material(id)"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_current_stock_project"
+                             references="project(id)"/>
+            </column>
+            <column name="storage_location_id" type="BIGINT">
+                <constraints foreignKeyName="fk_current_stock_storage_location"
+                             references="storage_location(id)"/>
+            </column>
+            <column name="current_quantity" type="DOUBLE" defaultValueNumeric="0.0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP"/>
+        </createTable>
+
+        <addUniqueConstraint
+                tableName="current_stock"
+                columnNames="material_id, project_id, storage_location_id"
+                constraintName="uk_current_stock_material_project_location"/>
+
+        <createIndex tableName="current_stock" indexName="idx_current_stock_material_project">
+            <column name="material_id"/>
+            <column name="project_id"/>
+        </createIndex>
+
+        <createIndex tableName="current_stock" indexName="idx_current_stock_storage_location">
+            <column name="storage_location_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

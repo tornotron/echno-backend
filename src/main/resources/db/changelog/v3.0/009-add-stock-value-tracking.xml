@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="009-add-unit-cost-to-inventory-transaction" author="echno">
+        <addColumn tableName="inventory_transaction">
+            <column name="unit_cost" type="DECIMAL(15,2)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="009-add-stock-value-to-current-stock" author="echno">
+        <addColumn tableName="current_stock">
+            <column name="stock_value" type="DECIMAL(15,2)" defaultValueNumeric="0.00">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="009-add-unit-cost-to-grn-item" author="echno">
+        <addColumn tableName="grn_item">
+            <column name="unit_cost" type="DECIMAL(15,2)"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>
