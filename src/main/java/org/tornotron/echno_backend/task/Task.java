@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.task.enums.TaskStatus;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.wbs.WbsElement;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -98,6 +99,10 @@ public class Task implements TenantScopedEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private TaskStatus status;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "wbs_element_id")
+    private WbsElement wbsElement;
 
     @OneToMany(mappedBy = "task")
     private List<Issue> issues;
