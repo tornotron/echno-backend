@@ -7,6 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryMaterialStockDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryTransactionDto;
+import org.tornotron.echno_backend.inventoryTransaction.dto.MaterialLocationStockDto;
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
 
 import java.time.LocalDateTime;
@@ -87,6 +88,16 @@ public class InventoryTransactionControllerWeb {
         return ResponseEntity.ok(transactions);
     }
 
+    @GetMapping("/storage-location/{storageLocationId}/material/{materialId}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByStorageLocationAndMaterial(
+            @PathVariable Long storageLocationId,
+            @PathVariable Long materialId
+    ) {
+        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByStorageLocationAndMaterial(storageLocationId,materialId);
+        return ResponseEntity.ok(transactions);
+    }
+
     @GetMapping("/storage-location/{storageLocationId}/stock")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<InventoryMaterialStockDto> getStockByStorageLocation(
@@ -94,4 +105,13 @@ public class InventoryTransactionControllerWeb {
         InventoryMaterialStockDto stock = inventoryService.getStockByStorageLocation(storageLocationId);
         return ResponseEntity.ok(stock);
     }
+
+    @GetMapping("/material/{materialId}/stock")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    public ResponseEntity<MaterialLocationStockDto> getStockByMaterial(
+            @PathVariable Long materialId) {
+        MaterialLocationStockDto stock = inventoryService.getStockByMaterial(materialId);
+        return ResponseEntity.ok(stock);
+    }
+
 }
