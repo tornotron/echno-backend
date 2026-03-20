@@ -33,6 +33,8 @@ public interface CurrentStockRepository extends JpaRepository<CurrentStock, Long
     @Query("SELECT COALESCE(SUM(cs.stockValue), 0) FROM CurrentStock cs WHERE cs.material.id = :materialId")
     BigDecimal sumStockValueByMaterial(@Param("materialId") Long materialId);
 
+    List<CurrentStock> findByMaterialIdAndOrganization_Id(Long materialId, Long organizationId);
+
     List<CurrentStock> findByProjectId(Long projectId);
 
     @Query("SELECT COUNT(DISTINCT cs.material.id) FROM CurrentStock cs WHERE cs.storageLocation.id = :storageLocationId AND cs.organization.id = :organizationId")

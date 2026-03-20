@@ -5,8 +5,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.InsufficientStockException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryMaterialStockDto;
+import org.tornotron.echno_backend.inventoryTransaction.dto.LocationStockDto;
+import org.tornotron.echno_backend.inventoryTransaction.dto.MaterialLocationStockDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.StockDto;
 import org.tornotron.echno_backend.material.Material;
+import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
@@ -23,11 +26,14 @@ public class InventoryService {
 
     private final CurrentStockRepository currentStockRepository;
     private final InventoryTransactionRepository inventoryTransactionRepository;
+    private final MaterialRepository materialRepository;
 
     public InventoryService(CurrentStockRepository currentStockRepository,
-                            InventoryTransactionRepository inventoryTransactionRepository) {
+                            InventoryTransactionRepository inventoryTransactionRepository,
+                            MaterialRepository materialRepository) {
         this.currentStockRepository = currentStockRepository;
         this.inventoryTransactionRepository = inventoryTransactionRepository;
+        this.materialRepository = materialRepository;
     }
 
     /**
@@ -147,6 +153,46 @@ public class InventoryService {
 
         InventoryMaterialStockDto result = new InventoryMaterialStockDto();
         result.setMaterialStock(stockDtos);
+        result.setTotalStock(totalStock);
+        result.setTotalStockValue(totalStockValue);
+        return result;
+    }
+
+    /**
+     * Get stock for a specific material across all storage locations.
+     * Returns per-location breakdown with totals.
+     */
+    @Transactional(readOnly = true)
+    public MaterialLocationStockDto getStockByMaterial(Long materialId) {
+        Material material = materialRepository.findById(materialId)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Material not found with id: " + materialId));
+
+        List<CurrentStock> stockRecords = currentStockRepository.findByMaterialIdAndOrganization_Id(
+                materialId, TenantContext.getCurrentOrgId());
+
+        List<LocationStockDto> locationStockDtos = new ArrayList<>();
+        double totalStock = 0.0;
+        BigDecimal totalStockValue = BigDecimal.ZERO;
+
+        for (CurrentStock cs : stockRecords) {
+            LocationStockDto dto = new LocationStockDto();
+            if (cs.getStorageLocation() != null) {
+                dto.setStorageLocationId(cs.getStorageLocation().getId());
+                dto.setStorageLocationName(cs.getStorageLocation().getLocationName());
+            }
+            dto.setProjectId(cs.getProject().getId());
+            dto.setProjectName(cs.getProject().getProjectName());
+            dto.setStock(cs.getCurrentQuantity());
+            dto.setStockValue(cs.getStockValue());
+            locationStockDtos.add(dto);
+            totalStock += cs.getCurrentQuantity();
+            totalStockValue = totalStockValue.add(cs.getStockValue());
+        }
+
+        MaterialLocationStockDto result = new MaterialLocationStockDto();
+        result.setMaterialId(material.getId());
+        result.setMaterialName(material.getMaterialName());
+        result.setLocationStock(locationStockDtos);
         result.setTotalStock(totalStock);
         result.setTotalStockValue(totalStockValue);
         return result;
