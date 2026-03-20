@@ -140,6 +140,9 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.xml
     contexts: v3
 
+springdoc:
+  swagger-ui:
+    public-access: true
 
 server:
   tomcat:

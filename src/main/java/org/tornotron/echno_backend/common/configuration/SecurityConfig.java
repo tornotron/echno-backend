@@ -37,6 +37,10 @@ public class SecurityConfig {
     @Value("${keycloak.frontend.web-origin}")
     private List<String> allowedOrigins;
 
+    @Value("${springdoc.swagger-ui.public-access:false}")
+    private boolean swaggerPublicAccess;
+
+    private static final String[] SWAGGER_PATHS = {"/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**"};
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, RPTExchangeFilter rPTExchangeFilter, TenantFilter tenantFilter) throws Exception{
@@ -45,12 +49,14 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .addFilterBefore(rPTExchangeFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(tenantFilter, BearerTokenAuthenticationFilter.class)
-                        .authorizeHttpRequests(auth -> auth
-                                .requestMatchers(HttpMethod.POST, "/api/"+backend_version+"/auth/register").permitAll()
-                                .requestMatchers("/actuator/**").permitAll()
-                                .anyRequest()
-                                .authenticated()
-                        )
+                        .authorizeHttpRequests(auth -> {
+                                auth.requestMatchers(HttpMethod.POST, "/api/"+backend_version+"/auth/register").permitAll()
+                                .requestMatchers("/actuator/**").permitAll();
+                                if (swaggerPublicAccess) {
+                                    auth.requestMatchers(SWAGGER_PATHS).permitAll();
+                                }
+                                auth.anyRequest().authenticated();
+                        })
                         .oauth2ResourceServer(oauth2 -> oauth2
                                 .jwt(Customizer.withDefaults())
                                 .jwt(jwt -> jwt
