@@ -85,8 +85,8 @@ public class InventoryTransactionService {
     }
 
     @Transactional(readOnly = true)
-    public List<InventoryTransactionDto> getTransactionsByStorageLocationAndMaterial(Long storageLocationId, Long materialId) {
-        return inventoryTransactionRepository.findByStorageLocationIdAndMaterialId(storageLocationId,materialId).stream()
+    public List<InventoryTransactionDto> getTransactionsByStorageLocationMaterialAndProject(Long storageLocationId, Long materialId, Long projectId) {
+        return inventoryTransactionRepository.findByStorageLocationIdAndMaterialIdAndProjectId(storageLocationId,materialId,projectId).stream()
                 .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
                 .collect(Collectors.toList());
     }
