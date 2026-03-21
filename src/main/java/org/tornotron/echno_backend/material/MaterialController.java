@@ -80,11 +80,11 @@ public class MaterialController {
         return ResponseEntity.ok(material);
     }
 
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
     @PreAuthorize("hasAuthority('material:update') or hasAuthority('material:admin')")
     public ResponseEntity<MaterialDto> updateMaterial(
             @PathVariable Long id,
-            @Valid @RequestBody MaterialCreationDto updateDto
+            @Valid @RequestBody org.tornotron.echno_backend.material.dto.MaterialUpdateDto updateDto
     ) {
         MaterialDto updated = materialService.updateMaterial(id, updateDto);
         return ResponseEntity.ok(updated);
