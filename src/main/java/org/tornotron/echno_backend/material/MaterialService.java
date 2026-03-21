@@ -158,7 +158,7 @@ public class MaterialService {
     }
 
     @Transactional
-    public MaterialDto updateMaterial(Long id, MaterialCreationDto updateDto) {
+    public MaterialDto updateMaterial(Long id, org.tornotron.echno_backend.material.dto.MaterialUpdateDto updateDto) {
         Material material = materialRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
 
@@ -170,8 +170,41 @@ public class MaterialService {
             material.setSku(updateDto.getSku());
         }
 
-        material.setMaterialName(updateDto.getMaterialName());
-        material.setUnit(updateDto.getUnit());
+        if (updateDto.getMaterialName() != null) {
+            material.setMaterialName(updateDto.getMaterialName());
+        }
+
+        if (updateDto.getUnit() != null) {
+            material.setUnit(updateDto.getUnit());
+        }
+
+        if (updateDto.getDescription() != null) {
+            material.setDescription(updateDto.getDescription());
+        }
+
+        if (updateDto.getHsn() != null) {
+            material.setHsn(updateDto.getHsn());
+        }
+
+        if (updateDto.getMoq() != null) {
+            material.setMoq(updateDto.getMoq());
+        }
+
+        if (updateDto.getMinStock() != null) {
+            material.setMinStock(updateDto.getMinStock());
+        }
+
+        if (updateDto.getMaxStock() != null) {
+            material.setMaxStock(updateDto.getMaxStock());
+        }
+
+        if (updateDto.getSafetyStock() != null) {
+            material.setSafetyStock(updateDto.getSafetyStock());
+        }
+
+        if (updateDto.getReorderLevel() != null) {
+            material.setReorderLevel(updateDto.getReorderLevel());
+        }
 
         material = materialRepository.save(material);
         return MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService);
