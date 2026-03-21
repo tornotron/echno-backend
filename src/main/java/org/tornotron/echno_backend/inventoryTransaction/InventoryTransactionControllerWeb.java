@@ -88,13 +88,14 @@ public class InventoryTransactionControllerWeb {
         return ResponseEntity.ok(transactions);
     }
 
-    @GetMapping("/storage-location/{storageLocationId}/material/{materialId}")
+    @GetMapping("/storage-location/{storageLocationId}/material/{materialId}/project/{projectId}")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByStorageLocationAndMaterial(
+    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByStorageLocationMaterialAndProject(
             @PathVariable Long storageLocationId,
-            @PathVariable Long materialId
+            @PathVariable Long materialId,
+            @PathVariable Long projectId
     ) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByStorageLocationAndMaterial(storageLocationId,materialId);
+        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByStorageLocationMaterialAndProject(storageLocationId,materialId,projectId);
         return ResponseEntity.ok(transactions);
     }
 
