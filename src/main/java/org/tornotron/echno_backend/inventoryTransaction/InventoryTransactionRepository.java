@@ -31,7 +31,7 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
 
     List<InventoryTransaction> findByStorageLocationId(Long storageLocationId);
 
-    List<InventoryTransaction> findByStorageLocationIdAndMaterialId(Long storageLocationId, Long materialId);
+    List<InventoryTransaction> findByStorageLocationIdAndMaterialIdAndProjectId(Long storageLocationId, Long materialId,Long projectId);
 
     @Query("SELECT it.material.id, it.material.materialName, COALESCE(SUM(it.quantityChanged), 0.0) " +
            "FROM InventoryTransaction it WHERE it.storageLocation.id = :storageLocationId " +
