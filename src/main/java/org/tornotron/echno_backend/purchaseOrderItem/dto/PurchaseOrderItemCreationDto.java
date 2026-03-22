@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 @Data
 public class PurchaseOrderItemCreationDto {
 
-    @NotNull(message = "Purchase Order ID is required")
     private Long purchaseOrderId;
 
     @NotNull(message = "Material ID is required")
