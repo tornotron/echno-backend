@@ -16,13 +16,19 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.indent.Indent;
 import org.tornotron.echno_backend.indent.IndentRepository;
+import org.tornotron.echno_backend.indentItem.IndentItem;
+import org.tornotron.echno_backend.indentItem.IndentItemRepository;
+import org.tornotron.echno_backend.material.Material;
+import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderCreationDto;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderDto;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderUpdateDto;
 import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
+import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItem;
 import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItemRepository;
+import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemCreationDto;
 import org.tornotron.echno_backend.vendor.Vendor;
 import org.tornotron.echno_backend.vendor.VendorRepository;
 
@@ -41,6 +47,8 @@ public class PurchaseOrderService {
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
     private final PurchaseOrderItemRepository purchaseOrderItemRepository;
+    private final MaterialRepository materialRepository;
+    private final IndentItemRepository indentItemRepository;
 
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                                 VendorRepository vendorRepository,
@@ -49,7 +57,9 @@ public class PurchaseOrderService {
                                 TenantEntityHelper tenantEntityHelper,
                                 EmployeeRepository employeeRepository,
                                 ProjectRepository projectRepository,
-                                PurchaseOrderItemRepository purchaseOrderItemRepository) {
+                                PurchaseOrderItemRepository purchaseOrderItemRepository,
+                                MaterialRepository materialRepository,
+                                IndentItemRepository indentItemRepository) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.vendorRepository = vendorRepository;
         this.indentRepository = indentRepository;
@@ -58,6 +68,8 @@ public class PurchaseOrderService {
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.purchaseOrderItemRepository = purchaseOrderItemRepository;
+        this.materialRepository = materialRepository;
+        this.indentItemRepository = indentItemRepository;
     }
 
     @Transactional
@@ -77,7 +89,7 @@ public class PurchaseOrderService {
 
         Indent indent = null;
         if (creationDto.getIndentId() != null) {
-            indent = indentRepository.findById(creationDto.getIndentId())
+            indent = indentRepository.findByIdAndOrganization_Id(creationDto.getIndentId(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Indent not found with id: " + creationDto.getIndentId()));
         }
 
@@ -92,6 +104,20 @@ public class PurchaseOrderService {
         purchaseOrder.setRemarks(creationDto.getRemarks());
         purchaseOrder.setTotalAmount(BigDecimal.ZERO);
         purchaseOrder.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
+
+        // Add nested purchase order items if provided
+        if (creationDto.getItems() != null) {
+            BigDecimal totalAmount = BigDecimal.ZERO;
+            for (PurchaseOrderItemCreationDto itemDto : creationDto.getItems()) {
+                PurchaseOrderItem item = mapToPurchaseOrderItemEntity(itemDto);
+                item.setOrganization(purchaseOrder.getOrganization());
+                purchaseOrder.addItem(item);
+                if (item.getTotalPrice() != null) {
+                    totalAmount = totalAmount.add(item.getTotalPrice());
+                }
+            }
+            purchaseOrder.setTotalAmount(totalAmount);
+        }
 
         purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
         return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder, fileStorageService);
@@ -181,5 +207,34 @@ public class PurchaseOrderService {
 
         purchaseOrder.setStatus(status);
         purchaseOrderRepository.save(purchaseOrder);
+    }
+
+    // ==================== Helper Methods ====================
+
+    private PurchaseOrderItem mapToPurchaseOrderItemEntity(PurchaseOrderItemCreationDto dto) {
+        Material material = materialRepository.findById(dto.getMaterialId())
+                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + dto.getMaterialId()));
+
+        IndentItem indentItem = null;
+        if (dto.getIndentItemId() != null) {
+            indentItem = indentItemRepository.findById(dto.getIndentItemId())
+                    .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + dto.getIndentItemId()));
+            indentItem.setConvertedToPurchaseOrder(true);
+            indentItemRepository.save(indentItem);
+        }
+
+        PurchaseOrderItem item = new PurchaseOrderItem();
+        item.setMaterial(material);
+        item.setIndentItem(indentItem);
+        item.setOrderedQuantity(dto.getOrderedQuantity());
+        item.setReceivedQuantity(0);
+        item.setUnitPrice(dto.getUnitPrice());
+
+        BigDecimal unitPrice = dto.getUnitPrice() != null ? dto.getUnitPrice() : BigDecimal.ZERO;
+        BigDecimal totalPrice = unitPrice.multiply(new BigDecimal(dto.getOrderedQuantity()));
+        item.setTotalPrice(totalPrice);
+
+        item.setRemarks(dto.getRemarks());
+        return item;
     }
 }
