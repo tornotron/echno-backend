@@ -25,6 +25,8 @@ import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
+import org.tornotron.echno_backend.task.Task;
+import org.tornotron.echno_backend.task.TaskRepository;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
 
@@ -44,6 +46,7 @@ public class MaterialConsumptionService {
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
     private final StorageLocationRepository storageLocationRepository;
+    private final TaskRepository taskRepository;
 
     public MaterialConsumptionService(MaterialConsumptionRepository materialConsumptionRepository,
                                       MaterialRepository materialRepository,
@@ -53,7 +56,8 @@ public class MaterialConsumptionService {
                                       TenantEntityHelper tenantEntityHelper,
                                       EmployeeRepository employeeRepository,
                                       ProjectRepository projectRepository,
-                                      StorageLocationRepository storageLocationRepository) {
+                                      StorageLocationRepository storageLocationRepository,
+                                      TaskRepository taskRepository) {
         this.materialConsumptionRepository = materialConsumptionRepository;
         this.materialRepository = materialRepository;
         this.inventoryService = inventoryService;
@@ -63,6 +67,7 @@ public class MaterialConsumptionService {
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.storageLocationRepository = storageLocationRepository;
+        this.taskRepository = taskRepository;
     }
 
     @Transactional
@@ -105,6 +110,18 @@ public class MaterialConsumptionService {
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Storage location not found with id: " + creationDto.getStorageLocationId()));
             consumption.setStorageLocation(storageLocation);
+        }
+
+        // Validate and set task (optional)
+        if (creationDto.getTaskId() != null) {
+            Task task = taskRepository.findByIdAndOrganization_Id(creationDto.getTaskId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + creationDto.getTaskId()));
+            // Validate task belongs to the same project
+            if (!task.getProject().getId().equals(project.getId())) {
+                throw new IllegalArgumentException("Task with id " + task.getId() +
+                        " does not belong to project with id " + project.getId());
+            }
+            consumption.setTask(task);
         }
 
         consumption.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
@@ -155,6 +172,13 @@ public class MaterialConsumptionService {
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         return materialConsumptionRepository.findByConsumptionDateBetween(startDate, endDate).stream()
+                .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<MaterialConsumptionDto> getConsumptionsByTask(Long taskId) {
+        return materialConsumptionRepository.findByTaskId(taskId).stream()
                 .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService))
                 .collect(Collectors.toList());
     }
