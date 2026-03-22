@@ -108,6 +108,7 @@ public class TenantFilter extends OncePerRequestFilter {
                 || path.equals("/api/" + backendVersion + "/auth/register")
                 || path.startsWith("/api/" + backendVersion + "/organizations")
                 || path.startsWith("/api/" + backendVersion + "/users/profile")
+                || path.equals("/api/" + backendVersion + "/user/web")
                 || path.startsWith("/api/" + backendVersion + "/billing");
     }
 
