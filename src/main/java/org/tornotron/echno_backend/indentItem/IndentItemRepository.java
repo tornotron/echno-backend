@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface IndentItemRepository extends JpaRepository<IndentItem, Long> {
 
-    List<IndentItem> findByIntendId(Long intendId);
+    List<IndentItem> findByIndentId(Long indentId);
 
     List<IndentItem> findByMaterialId(Long materialId);
 

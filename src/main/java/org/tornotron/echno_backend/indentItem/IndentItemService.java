@@ -8,8 +8,8 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemCreationDto;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
-import org.tornotron.echno_backend.intend.Intend;
-import org.tornotron.echno_backend.intend.IntendRepository;
+import org.tornotron.echno_backend.indent.Indent;
+import org.tornotron.echno_backend.indent.IndentRepository;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
@@ -21,18 +21,18 @@ import java.util.stream.Collectors;
 public class IndentItemService {
 
     private final IndentItemRepository indentItemRepository;
-    private final IntendRepository intendRepository;
+    private final IndentRepository indentRepository;
     private final MaterialRepository materialRepository;
     private final TenantEntityHelper tenantEntityHelper;
     private final FileStorageService fileStorageService;
     private final InventoryService inventoryService;
 
     public IndentItemService(IndentItemRepository indentItemRepository,
-                             IntendRepository intendRepository,
+                             IndentRepository indentRepository,
                              MaterialRepository materialRepository,
                              TenantEntityHelper tenantEntityHelper, FileStorageService fileStorageService, InventoryService inventoryService) {
         this.indentItemRepository = indentItemRepository;
-        this.intendRepository = intendRepository;
+        this.indentRepository = indentRepository;
         this.materialRepository = materialRepository;
         this.tenantEntityHelper = tenantEntityHelper;
         this.fileStorageService = fileStorageService;
@@ -41,14 +41,14 @@ public class IndentItemService {
 
     @Transactional
     public IndentItemDto createIndentItem(IndentItemCreationDto creationDto) {
-        Intend intend = intendRepository.findById(creationDto.getIntendId())
-                .orElseThrow(() -> new ResourceNotFoundException("Intend not found with id: " + creationDto.getIntendId()));
+        Indent indent = indentRepository.findById(creationDto.getIndentId())
+                .orElseThrow(() -> new ResourceNotFoundException("Indent not found with id: " + creationDto.getIndentId()));
 
         Material material = materialRepository.findById(creationDto.getMaterialId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + creationDto.getMaterialId()));
 
         IndentItem indentItem = new IndentItem();
-        indentItem.setIntend(intend);
+        indentItem.setIndent(indent);
         indentItem.setMaterial(material);
         indentItem.setAdditionalSpecifications(creationDto.getAdditionalSpecifications());
         indentItem.setRequestedQuantity(creationDto.getRequestedQuantity());
@@ -76,8 +76,8 @@ public class IndentItemService {
     }
 
     @Transactional(readOnly = true)
-    public List<IndentItemDto> getIndentItemsByIntendId(Long intendId) {
-        return indentItemRepository.findByIntendId(intendId).stream()
+    public List<IndentItemDto> getIndentItemsByIndentId(Long indentId) {
+        return indentItemRepository.findByIndentId(indentId).stream()
                 .map(indentItem -> IndentItemDtoConvertor.convertIndentItemToDto(indentItem,fileStorageService,inventoryService))
                 .collect(Collectors.toList());
     }
@@ -101,13 +101,13 @@ public class IndentItemService {
         IndentItem indentItem = indentItemRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + id));
 
-        Intend intend = intendRepository.findById(updateDto.getIntendId())
-                .orElseThrow(() -> new ResourceNotFoundException("Intend not found with id: " + updateDto.getIntendId()));
+        Indent indent = indentRepository.findById(updateDto.getIndentId())
+                .orElseThrow(() -> new ResourceNotFoundException("Indent not found with id: " + updateDto.getIndentId()));
 
         Material material = materialRepository.findById(updateDto.getMaterialId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + updateDto.getMaterialId()));
 
-        indentItem.setIntend(intend);
+        indentItem.setIndent(indent);
         indentItem.setMaterial(material);
         indentItem.setAdditionalSpecifications(updateDto.getAdditionalSpecifications());
         indentItem.setRequestedQuantity(updateDto.getRequestedQuantity());

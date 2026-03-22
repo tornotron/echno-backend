@@ -16,8 +16,8 @@ public class PurchaseOrderDto {
     private String poNumber;
     private Long vendorId;
     private String vendorName;
-    private Long intendId;
-    private String intendNumber;
+    private Long indentId;
+    private String indentNumber;
     private Long projectId;
     private String projectName;
     private PurchaseOrderStatus status;

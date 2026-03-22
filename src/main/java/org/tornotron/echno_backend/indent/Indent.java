@@ -1,4 +1,4 @@
-package org.tornotron.echno_backend.intend;
+package org.tornotron.echno_backend.indent;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -9,7 +9,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.indentItem.IndentItem;
 import org.tornotron.echno_backend.organization.Organization;
-import org.tornotron.echno_backend.intend.enums.IntendStatus;
+import org.tornotron.echno_backend.indent.enums.IndentStatus;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 import org.tornotron.echno_backend.user.User;
@@ -23,28 +23,25 @@ import java.util.List;
 @NoArgsConstructor
 @Data
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
-public class Intend implements TenantScopedEntity {
+public class Indent implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "intend_number", nullable = false, unique = true)
-    private String intendNumber;
+    @Column(name = "indent_number", nullable = false, unique = true)
+    private String indentNumber;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
-
-//    @ManyToOne
-//    private User createdBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     private Employee createdBy;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private IntendStatus status;
+    private IndentStatus status;
 
     @Column(name = "expected_on")
     private LocalDateTime expectedOn;
@@ -52,10 +49,10 @@ public class Intend implements TenantScopedEntity {
     @Column(name = "remark")
     private String remarks;
 
-    @OneToMany(mappedBy = "intend")
-    private List<IndentItem> items;
+    @OneToMany(mappedBy = "indent", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<IndentItem> items = new ArrayList<>();
 
-    @OneToMany(mappedBy = "intend")
+    @OneToMany(mappedBy = "indent")
     private List<PurchaseOrder> purchaseOrders = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -69,4 +66,9 @@ public class Intend implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
     private Organization organization;
+
+    public void addItem(IndentItem item) {
+        items.add(item);
+        item.setIndent(this);
+    }
 }

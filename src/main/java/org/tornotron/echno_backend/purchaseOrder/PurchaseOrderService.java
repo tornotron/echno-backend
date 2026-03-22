@@ -14,8 +14,8 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
-import org.tornotron.echno_backend.intend.Intend;
-import org.tornotron.echno_backend.intend.IntendRepository;
+import org.tornotron.echno_backend.indent.Indent;
+import org.tornotron.echno_backend.indent.IndentRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderCreationDto;
@@ -35,7 +35,7 @@ public class PurchaseOrderService {
 
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final VendorRepository vendorRepository;
-    private final IntendRepository intendRepository;
+    private final IndentRepository indentRepository;
     private final FileStorageService fileStorageService;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
@@ -44,7 +44,7 @@ public class PurchaseOrderService {
 
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                                 VendorRepository vendorRepository,
-                                IntendRepository intendRepository,
+                                IndentRepository indentRepository,
                                 FileStorageService fileStorageService,
                                 TenantEntityHelper tenantEntityHelper,
                                 EmployeeRepository employeeRepository,
@@ -52,7 +52,7 @@ public class PurchaseOrderService {
                                 PurchaseOrderItemRepository purchaseOrderItemRepository) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.vendorRepository = vendorRepository;
-        this.intendRepository = intendRepository;
+        this.indentRepository = indentRepository;
         this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
@@ -75,16 +75,16 @@ public class PurchaseOrderService {
         Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + creationDto.getProjectId()));
 
-        Intend intend = null;
-        if (creationDto.getIntendId() != null) {
-            intend = intendRepository.findById(creationDto.getIntendId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Intend not found with id: " + creationDto.getIntendId()));
+        Indent indent = null;
+        if (creationDto.getIndentId() != null) {
+            indent = indentRepository.findById(creationDto.getIndentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Indent not found with id: " + creationDto.getIndentId()));
         }
 
         PurchaseOrder purchaseOrder = new PurchaseOrder();
         purchaseOrder.setPoNumber(creationDto.getPoNumber());
         purchaseOrder.setVendor(vendor);
-        purchaseOrder.setIntend(intend);
+        purchaseOrder.setIndent(indent);
         purchaseOrder.setStatus(PurchaseOrderStatus.valueOf(creationDto.getStatus()));
         purchaseOrder.setCreatedBy(createdBy);
         purchaseOrder.setProject(project);
@@ -140,8 +140,8 @@ public class PurchaseOrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<PurchaseOrderDto> getPurchaseOrdersByIntend(Long intendId) {
-        return purchaseOrderRepository.findByIntendId(intendId).stream()
+    public List<PurchaseOrderDto> getPurchaseOrdersByIndent(Long indentId) {
+        return purchaseOrderRepository.findByIndentId(indentId).stream()
                 .map(po -> PurchaseOrderDtoConvertor.convertToDto(po, fileStorageService))
                 .collect(Collectors.toList());
     }

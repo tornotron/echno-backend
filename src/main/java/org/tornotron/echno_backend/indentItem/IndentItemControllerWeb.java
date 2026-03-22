@@ -45,7 +45,7 @@ public class IndentItemControllerWeb {
     @GetMapping("/indent/{indentId}")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<IndentItemDto>> getIndentItemsByIndentId(@PathVariable Long indentId) {
-        List<IndentItemDto> indentItems = indentItemService.getIndentItemsByIntendId(indentId);
+        List<IndentItemDto> indentItems = indentItemService.getIndentItemsByIndentId(indentId);
         return ResponseEntity.ok(indentItems);
     }
 

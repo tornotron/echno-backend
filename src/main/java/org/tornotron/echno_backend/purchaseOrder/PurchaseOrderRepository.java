@@ -12,7 +12,7 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
 
     List<PurchaseOrder> findByVendorId(Long vendorId);
 
-    List<PurchaseOrder> findByIntendId(Long intendId);
+    List<PurchaseOrder> findByIndentId(Long indentId);
 
     List<PurchaseOrder> findByStatus(PurchaseOrderStatus status);
 
