@@ -113,6 +113,7 @@ public class InventoryEventListener {
         transaction.setProject(consumption.getProject());
         transaction.setStorageLocation(consumption.getStorageLocation());
         transaction.setOrganization(consumption.getOrganization());
+        transaction.setTask(consumption.getTask());
 
         inventoryTransactionRepository.save(transaction);
 
