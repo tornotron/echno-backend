@@ -7,8 +7,7 @@ import lombok.Data;
 @Data
 public class IndentItemCreationDto {
 
-    @NotNull(message = "Indent ID is required")
-    private Long intendId;
+    private Long indentId;
 
     @NotNull(message = "Material ID is required")
     private Long materialId;

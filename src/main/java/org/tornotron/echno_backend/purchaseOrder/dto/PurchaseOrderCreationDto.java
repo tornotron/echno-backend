@@ -18,7 +18,7 @@ public class PurchaseOrderCreationDto {
     @NotNull(message = "vendor ID is required")
     private Long vendorId;
 
-    private Long intendId;
+    private Long indentId;
 
     @NotBlank(message = "status is required")
     private String status;

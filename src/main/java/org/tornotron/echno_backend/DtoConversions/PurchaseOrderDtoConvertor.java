@@ -33,10 +33,10 @@ public class PurchaseOrderDtoConvertor {
             dto.setVendorName(purchaseOrder.getVendor().getVendorName());
         }
 
-        // Intend info
-        if (purchaseOrder.getIntend() != null) {
-            dto.setIntendId(purchaseOrder.getIntend().getId());
-            dto.setIntendNumber(purchaseOrder.getIntend().getIntendNumber());
+        // Indent info
+        if (purchaseOrder.getIndent() != null) {
+            dto.setIndentId(purchaseOrder.getIndent().getId());
+            dto.setIndentNumber(purchaseOrder.getIndent().getIndentNumber());
         }
 
         // Project info

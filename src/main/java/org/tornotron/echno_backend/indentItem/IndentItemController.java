@@ -44,10 +44,10 @@ public class IndentItemController {
         return ResponseEntity.ok(indentItems);
     }
 
-    @GetMapping("/intend/{intendId}")
+    @GetMapping("/indent/{indentId}")
     @PreAuthorize("hasAuthority('indent-item:read') or hasAuthority('indent-item:admin')")
-    public ResponseEntity<List<IndentItemDto>> getIndentItemsByIntendId(@PathVariable Long intendId) {
-        List<IndentItemDto> indentItems = indentItemService.getIndentItemsByIntendId(intendId);
+    public ResponseEntity<List<IndentItemDto>> getIndentItemsByIndentId(@PathVariable Long indentId) {
+        List<IndentItemDto> indentItems = indentItemService.getIndentItemsByIndentId(indentId);
         return ResponseEntity.ok(indentItems);
     }
 
