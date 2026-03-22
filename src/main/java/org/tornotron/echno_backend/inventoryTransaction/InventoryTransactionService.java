@@ -10,10 +10,15 @@ import org.tornotron.echno_backend.DtoConversions.InventoryTransactionDtoConvert
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryTransactionDto;
+import org.tornotron.echno_backend.inventoryTransaction.dto.TaskMaterialUsageDto;
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -89,5 +94,68 @@ public class InventoryTransactionService {
         return inventoryTransactionRepository.findByStorageLocationIdAndMaterialIdAndProjectId(storageLocationId,materialId,projectId).stream()
                 .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<InventoryTransactionDto> getTransactionsByTask(Long taskId) {
+        return inventoryTransactionRepository.findByTaskId(taskId).stream()
+                .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskMaterialUsageDto> getTaskMaterialUsageSummary(Long projectId) {
+        List<InventoryTransaction> transactions = inventoryTransactionRepository.findByProjectIdAndTaskIsNotNull(projectId);
+
+        // Group by task, then by material
+        Map<Long, TaskMaterialUsageDto> taskMap = new LinkedHashMap<>();
+
+        for (InventoryTransaction txn : transactions) {
+            Long taskId = txn.getTask().getId();
+            String taskTitle = txn.getTask().getTitle();
+            Long materialId = txn.getMaterial().getId();
+
+            TaskMaterialUsageDto taskDto = taskMap.computeIfAbsent(taskId, k -> {
+                TaskMaterialUsageDto dto = new TaskMaterialUsageDto();
+                dto.setTaskId(taskId);
+                dto.setTaskTitle(taskTitle);
+                dto.setMaterials(new ArrayList<>());
+                dto.setTotalQuantityUsed(0.0);
+                dto.setTotalCost(BigDecimal.ZERO);
+                return dto;
+            });
+
+            // Find or create material usage item
+            TaskMaterialUsageDto.MaterialUsageItem materialItem = taskDto.getMaterials().stream()
+                    .filter(m -> m.getMaterialId().equals(materialId))
+                    .findFirst()
+                    .orElseGet(() -> {
+                        TaskMaterialUsageDto.MaterialUsageItem item = new TaskMaterialUsageDto.MaterialUsageItem();
+                        item.setMaterialId(materialId);
+                        item.setMaterialName(txn.getMaterial().getMaterialName());
+                        item.setUnit(txn.getMaterial().getUnit());
+                        item.setTotalQuantityUsed(0.0);
+                        item.setTotalCost(BigDecimal.ZERO);
+                        taskDto.getMaterials().add(item);
+                        return item;
+                    });
+
+            // Accumulate quantities (USE transactions have negative quantityChanged, so we use abs)
+            Double absQuantity = Math.abs(txn.getQuantityChanged());
+            materialItem.setTotalQuantityUsed(materialItem.getTotalQuantityUsed() + absQuantity);
+            if (txn.getUnitCost() != null) {
+                BigDecimal cost = txn.getUnitCost().multiply(BigDecimal.valueOf(absQuantity));
+                materialItem.setTotalCost(materialItem.getTotalCost().add(cost));
+            }
+
+            // Update task totals
+            taskDto.setTotalQuantityUsed(taskDto.getTotalQuantityUsed() + absQuantity);
+            if (txn.getUnitCost() != null) {
+                BigDecimal cost = txn.getUnitCost().multiply(BigDecimal.valueOf(absQuantity));
+                taskDto.setTotalCost(taskDto.getTotalCost().add(cost));
+            }
+        }
+
+        return new ArrayList<>(taskMap.values());
     }
 }

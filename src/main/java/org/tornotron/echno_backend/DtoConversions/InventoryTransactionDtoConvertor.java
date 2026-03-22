@@ -41,6 +41,12 @@ public class InventoryTransactionDtoConvertor {
             dto.setStorageLocationName(transaction.getStorageLocation().getLocationName());
         }
 
+        // Task info
+        if (transaction.getTask() != null) {
+            dto.setTaskId(transaction.getTask().getId());
+            dto.setTaskTitle(transaction.getTask().getTitle());
+        }
+
         // Created by
         if (transaction.getCreatedBy() != null) {
             dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(transaction.getCreatedBy(), fileStorageService));

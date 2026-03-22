@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
+import org.tornotron.echno_backend.task.Task;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -64,6 +65,10 @@ public class InventoryTransaction implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
     private Organization organization;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "task_id")
+    private Task task;
 
     @Column(name = "unit_cost", precision = 15, scale = 2)
     private BigDecimal unitCost;
