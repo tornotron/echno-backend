@@ -81,4 +81,8 @@ public class PurchaseOrder implements TenantScopedEntity {
     @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL)
     private List<GoodsReceivedNote> goodsReceivedNotes = new ArrayList<>();
 
+    public void addItem(PurchaseOrderItem item) {
+        items.add(item);
+        item.setPurchaseOrder(this);
+    }
 }

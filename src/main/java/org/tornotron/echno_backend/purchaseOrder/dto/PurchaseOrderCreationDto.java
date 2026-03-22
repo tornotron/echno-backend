@@ -1,12 +1,15 @@
 package org.tornotron.echno_backend.purchaseOrder.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemCreationDto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class PurchaseOrderCreationDto {
@@ -34,4 +37,7 @@ public class PurchaseOrderCreationDto {
     private String remarks;
 
     private BigDecimal totalAmount;
+
+    @Valid
+    private List<PurchaseOrderItemCreationDto> items;
 }
