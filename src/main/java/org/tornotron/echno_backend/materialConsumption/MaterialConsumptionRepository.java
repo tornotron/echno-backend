@@ -15,4 +15,6 @@ public interface MaterialConsumptionRepository extends JpaRepository<MaterialCon
     List<MaterialConsumption> findByConsumptionDateBetween(LocalDateTime startDate, LocalDateTime endDate);
 
     List<MaterialConsumption> findByCreatedById(Long userId);
+
+    List<MaterialConsumption> findByTaskId(Long taskId);
 }
