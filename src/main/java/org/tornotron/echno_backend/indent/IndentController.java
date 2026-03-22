@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemCreationDto;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
+import org.tornotron.echno_backend.indentItem.dto.IndentItemUpdateDto;
 import org.tornotron.echno_backend.indent.dto.IndentCreationDto;
 import org.tornotron.echno_backend.indent.dto.IndentDto;
 
@@ -78,12 +79,12 @@ public class IndentController {
         return new ResponseEntity<>(indentService.addItem(indentId, dto), HttpStatus.CREATED);
     }
 
-    @PutMapping("/{indentId}/items/{itemId}")
+    @PatchMapping("/{indentId}/items/{itemId}")
     @PreAuthorize("hasAuthority('indent:update') or hasAuthority('indent:admin')")
     public ResponseEntity<IndentItemDto> updateItem(
             @PathVariable Long indentId,
             @PathVariable Long itemId,
-            @Valid @RequestBody IndentItemCreationDto dto
+            @Valid @RequestBody IndentItemUpdateDto dto
     ) {
         return ResponseEntity.ok(indentService.updateItem(indentId, itemId, dto));
     }

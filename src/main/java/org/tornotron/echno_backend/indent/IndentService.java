@@ -8,16 +8,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.IndentItemDtoConvertor;
 import org.tornotron.echno_backend.DtoConversions.IndentDtoConvertor;
+import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
+import org.tornotron.echno_backend.indent.dto.IndentUpdateDto;
 import org.tornotron.echno_backend.indentItem.IndentItem;
 import org.tornotron.echno_backend.indentItem.IndentItemRepository;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemCreationDto;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
+import org.tornotron.echno_backend.indentItem.dto.IndentItemUpdateDto;
 import org.tornotron.echno_backend.indent.dto.IndentCreationDto;
 import org.tornotron.echno_backend.indent.dto.IndentDto;
 import org.tornotron.echno_backend.indent.enums.IndentStatus;
@@ -57,6 +60,45 @@ public class IndentService {
     }
 
     // ==================== Indent CRUD ====================
+    @Transactional
+    public IndentDto updateIndent(Long id, IndentUpdateDto indentDto) {
+        Indent indent = indentRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId()).orElseThrow(() -> new ResourceNotFoundException("Indent not found with id: " + id));
+
+        if(indentDto.getIndentNumber() != null) {
+            if(!indentDto.getIndentNumber().equals(indent.getIndentNumber()) &&
+            indentRepository.existsByIndentNumberAndOrganization_Id(indentDto.getIndentNumber(), TenantContext.getCurrentOrgId())) {
+                throw new DuplicateResourceException(
+                        "Indent with number "+ indentDto.getIndentNumber() + " already exists");
+            }
+            indent.setIndentNumber(indentDto.getIndentNumber());
+        }
+
+        if(indentDto.getCreatedByemployeeId() != null) {
+            Employee employee = employeeRepository.findByIdAndOrganizationId(indentDto.getCreatedByemployeeId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + indentDto.getCreatedByemployeeId()));
+            indent.setCreatedBy(employee);
+        }
+
+        if(indentDto.getProjectId() != null) {
+            Project project = projectRepository.findByIdAndOrganization_Id(indentDto.getProjectId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + indentDto.getProjectId()));
+            indent.setProject(project);
+        }
+
+        if(indentDto.getStatus() != null) {
+            indent.setStatus(IndentStatus.valueOf(indentDto.getStatus()));
+        }
+
+        if(indentDto.getExpectedOn() != null) {
+            indent.setExpectedOn(indentDto.getExpectedOn());
+        }
+
+        if(indentDto.getRemarks() != null) {
+            indent.setRemarks(indentDto.getRemarks());
+        }
+
+        return IndentDtoConvertor.convertIndentToDto(indentRepository.save(indent), fileStorageService, inventoryService);
+    }
 
     @Transactional
     public IndentDto addIndent(IndentCreationDto indentCreationDto) {
@@ -137,7 +179,7 @@ public class IndentService {
     }
 
     @Transactional
-    public IndentItemDto updateItem(Long indentId, Long itemId, IndentItemCreationDto dto) {
+    public IndentItemDto updateItem(Long indentId, Long itemId, IndentItemUpdateDto dto) {
         findIndentById(indentId);
         IndentItem item = indentItemRepository.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + itemId));
@@ -145,14 +187,28 @@ public class IndentService {
             throw new ResourceNotFoundException("IndentItem not found with id: " + itemId + " for indent: " + indentId);
         }
 
-        Material material = materialRepository.findById(dto.getMaterialId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + dto.getMaterialId()));
+        if (dto.getMaterialId() != null) {
+            Material material = materialRepository.findById(dto.getMaterialId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + dto.getMaterialId()));
+            item.setMaterial(material);
+        }
 
-        item.setMaterial(material);
-        item.setAdditionalSpecifications(dto.getAdditionalSpecifications());
-        item.setRequestedQuantity(dto.getRequestedQuantity());
-        item.setOrderedQuantity(dto.getOrderedQuantity());
-        item.setRemarks(dto.getRemarks());
+        if (dto.getAdditionalSpecifications() != null) {
+            item.setAdditionalSpecifications(dto.getAdditionalSpecifications());
+        }
+
+        if (dto.getRequestedQuantity() != null) {
+            item.setRequestedQuantity(dto.getRequestedQuantity());
+        }
+
+        if (dto.getOrderedQuantity() != null) {
+            item.setOrderedQuantity(dto.getOrderedQuantity());
+        }
+
+        if (dto.getRemarks() != null) {
+            item.setRemarks(dto.getRemarks());
+        }
+
         item = indentItemRepository.save(item);
         return IndentItemDtoConvertor.convertIndentItemToDto(item, fileStorageService, inventoryService);
     }
