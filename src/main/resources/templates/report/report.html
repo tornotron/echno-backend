@@ -93,30 +93,30 @@
     <main>
         <section id="active-requests">
             <h2 class="text-2xl font-semibold mb-4">Active Resource Requests</h2>
-                <div th:each="intend : ${intends}" class="bg-white rounded-xl shadow-md overflow-hidden mb-6"
-                     th:classappend="${#strings.toLowerCase(intend.status) == 'on-site' ? 'status-on-site' :
-                                       (#strings.toLowerCase(intend.status) == 'delayed' ? 'status-delaayed' :
-                                       (#strings.toLowerCase(intend.status) == 'pending' ? 'status-pending' :
-                                       (#strings.toLowerCase(intend.status) == 'ordered' ? 'status-ordered' : '')))}">
-                    <div class="intend-header">
+                <div th:each="indent : ${indents}" class="bg-white rounded-xl shadow-md overflow-hidden mb-6"
+                     th:classappend="${#strings.toLowerCase(indent.status) == 'on-site' ? 'status-on-site' :
+                                       (#strings.toLowerCase(indent.status) == 'delayed' ? 'status-delaayed' :
+                                       (#strings.toLowerCase(indent.status) == 'pending' ? 'status-pending' :
+                                       (#strings.toLowerCase(indent.status) == 'ordered' ? 'status-ordered' : '')))}">
+                    <div class="indent-header">
                         <table style="width: 100%;">
                             <tr>
                                 <td style="vertical-align: top;">
-                                    <p class="text-sm text-gray-500">Intend Number</p>
-                                    <h3 class="text-lg font-semibold text-gray-900" th:text="${intend.intendNumber}">INT-0000</h3>
+                                    <p class="text-sm text-gray-500">Indent Number</p>
+                                    <h3 class="text-lg font-semibold text-gray-900" th:text="${indent.indentNumber}">INT-0000</h3>
                                 </td>
                                 <td style="text-align: right; vertical-align: top;">
                                     <span class="text-sm font-semibold px-3 py-1 rounded-full"
-                                          th:classappend="${#strings.toLowerCase(intend.status) == 'on-site' ? 'text-green-600 bg-green-100' :
-                                                           (#strings.toLowerCase(intend.status) == 'delayed' ? 'text-red-600 bg-red-100' :
-                                                           (#strings.toLowerCase(intend.status) == 'pending' ? 'text-yellow-600 bg-yellow-100' :
-                                                           (#strings.toLowerCase(intend.status) == 'ordered' ? 'text-blue-600 bg-blue-100' : '')))}">
+                                          th:classappend="${#strings.toLowerCase(indent.status) == 'on-site' ? 'text-green-600 bg-green-100' :
+                                                           (#strings.toLowerCase(indent.status) == 'delayed' ? 'text-red-600 bg-red-100' :
+                                                           (#strings.toLowerCase(indent.status) == 'pending' ? 'text-yellow-600 bg-yellow-100' :
+                                                           (#strings.toLowerCase(indent.status) == 'ordered' ? 'text-blue-600 bg-blue-100' : '')))}">
                                         <span class="status-dot"
-                                              th:classappend="${#strings.toLowerCase(intend.status) == 'on-site' ? 'bg-green-500' :
-                                                               (#strings.toLowerCase(intend.status) == 'delayed' ? 'bg-red-500' :
-                                                               (#strings.toLowerCase(intend.status) == 'pending' ? 'bg-yellow-500' :
-                                                               (#strings.toLowerCase(intend.status) == 'ordered' ? 'bg-blue-500' : '')))}"></span>
-                                        <span th:text="${intend.status}">Status</span>
+                                              th:classappend="${#strings.toLowerCase(indent.status) == 'on-site' ? 'bg-green-500' :
+                                                               (#strings.toLowerCase(indent.status) == 'delayed' ? 'bg-red-500' :
+                                                               (#strings.toLowerCase(indent.status) == 'pending' ? 'bg-yellow-500' :
+                                                               (#strings.toLowerCase(indent.status) == 'ordered' ? 'bg-blue-500' : '')))}"></span>
+                                        <span th:text="${indent.status}">Status</span>
                                     </span>
                                 </td>
                             </tr>
@@ -125,7 +125,7 @@
                                 <tr>
                                     <td>
                                         <p class="font-medium text-gray-500">Created By</p>
-                                        <p class="text-gray-800" th:text="${intend.createdBy.name}"></p>
+                                        <p class="text-gray-800" th:text="${indent.createdBy.name}"></p>
                                     </td>
                                 </tr>
                             </table>

@@ -7,7 +7,7 @@ import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
-import org.tornotron.echno_backend.intend.Intend;
+import org.tornotron.echno_backend.indent.Indent;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
 import org.tornotron.echno_backend.issue.Issue;
 import org.tornotron.echno_backend.material.Material;
@@ -148,7 +148,7 @@ public class Employee implements TenantScopedEntity {
     private List<GoodsReceivedNote> goodsReceivedNotes = new ArrayList<>();
 
     @OneToMany(mappedBy = "createdBy")
-    private List<Intend> intends = new ArrayList<>();
+    private List<Indent> indents = new ArrayList<>();
 
     @OneToMany(mappedBy = "createdBy")
     private List<PurchaseOrder> purchaseOrders = new ArrayList<>();

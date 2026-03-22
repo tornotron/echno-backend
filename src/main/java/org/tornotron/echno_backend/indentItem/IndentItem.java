@@ -5,7 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
-import org.tornotron.echno_backend.intend.Intend;
+import org.tornotron.echno_backend.indent.Indent;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.material.Material;
 
@@ -20,7 +20,7 @@ public class IndentItem implements TenantScopedEntity {
     private Long id;
 
     @ManyToOne
-    private Intend intend;
+    private Indent indent;
 
     @ManyToOne
     private Material material;

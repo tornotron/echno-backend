@@ -8,7 +8,7 @@ import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.Employee;
-import org.tornotron.echno_backend.intend.Intend;
+import org.tornotron.echno_backend.indent.Indent;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumption;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.payable.Payable;
@@ -115,7 +115,7 @@ public class WbsElement implements TenantScopedEntity {
     private List<Payable> payables = new ArrayList<>();
 
     @OneToMany(mappedBy = "wbsElement")
-    private List<Intend> intends = new ArrayList<>();
+    private List<Indent> indents = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

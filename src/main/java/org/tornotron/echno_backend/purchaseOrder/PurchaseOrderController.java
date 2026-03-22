@@ -58,9 +58,9 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrders);
     }
 
-    @GetMapping("/intend/{intendId}")
-    public ResponseEntity<List<PurchaseOrderDto>> getPurchaseOrdersByIntend(@PathVariable Long intendId) {
-        List<PurchaseOrderDto> purchaseOrders = purchaseOrderService.getPurchaseOrdersByIntend(intendId);
+    @GetMapping("/indent/{indentId}")
+    public ResponseEntity<List<PurchaseOrderDto>> getPurchaseOrdersByIndent(@PathVariable Long indentId) {
+        List<PurchaseOrderDto> purchaseOrders = purchaseOrderService.getPurchaseOrdersByIndent(indentId);
         return ResponseEntity.ok(purchaseOrders);
     }
 

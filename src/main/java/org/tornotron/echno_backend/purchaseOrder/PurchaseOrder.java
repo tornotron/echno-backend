@@ -8,7 +8,7 @@ import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
-import org.tornotron.echno_backend.intend.Intend;
+import org.tornotron.echno_backend.indent.Indent;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
@@ -40,8 +40,8 @@ public class PurchaseOrder implements TenantScopedEntity {
     private Vendor vendor;
 
     @ManyToOne
-    @JoinColumn(name = "intend_id")
-    private Intend intend;
+    @JoinColumn(name = "indent_id")
+    private Indent indent;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
