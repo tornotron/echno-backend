@@ -24,6 +24,8 @@ public class InventoryTransactionDto {
     private String projectName;
     private Long storageLocationId;
     private String storageLocationName;
+    private Long taskId;
+    private String taskTitle;
     private EmployeeDto createdBy;
     private BigDecimal unitCost;
 }

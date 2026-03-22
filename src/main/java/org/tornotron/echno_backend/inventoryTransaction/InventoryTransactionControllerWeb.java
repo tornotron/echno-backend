@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryMaterialStockDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryTransactionDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.MaterialLocationStockDto;
+import org.tornotron.echno_backend.inventoryTransaction.dto.TaskMaterialUsageDto;
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
 
 import java.time.LocalDateTime;
@@ -113,6 +114,20 @@ public class InventoryTransactionControllerWeb {
             @PathVariable Long materialId) {
         MaterialLocationStockDto stock = inventoryService.getStockByMaterial(materialId);
         return ResponseEntity.ok(stock);
+    }
+
+    @GetMapping("/task/{taskId}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByTask(@PathVariable Long taskId) {
+        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByTask(taskId);
+        return ResponseEntity.ok(transactions);
+    }
+
+    @GetMapping("/project/{projectId}/task-summary")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    public ResponseEntity<List<TaskMaterialUsageDto>> getTaskMaterialUsageSummary(@PathVariable Long projectId) {
+        List<TaskMaterialUsageDto> summary = inventoryTransactionService.getTaskMaterialUsageSummary(projectId);
+        return ResponseEntity.ok(summary);
     }
 
 }
