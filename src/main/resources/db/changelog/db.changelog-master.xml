@@ -9,13 +9,26 @@
     <!-- VERSION-BASED MIGRATION STRATEGY                               -->
     <!--                                                                -->
     <!-- Set spring.liquibase.contexts in application.yml:             -->
-    <!--   contexts: v3   → runs v3.0 (recommended, fresh install)     -->
+    <!--   contexts: v4   → runs v4.0 (recommended, fresh install)     -->
+    <!--   contexts: v3   → runs v3.0 (legacy)                         -->
     <!--   contexts: v2   → runs v2.0 + v2.1 migrations (legacy)       -->
     <!--   contexts: v1   → runs v1.0 through v1.4 + v2.1 (legacy)    -->
     <!--                                                                -->
     <!-- FUTURE MIGRATIONS: add below with NO context so they run      -->
     <!-- regardless of which version was used for the base schema.     -->
     <!-- ============================================================== -->
+
+    <!-- ============================================================== -->
+    <!-- v4.0 - Consolidated baseline schema (context: v4)             -->
+    <!-- Squashes: v3.0 + intend→indent rename fix                     -->
+    <!-- ============================================================== -->
+    <include file="db/changelog/v4.0/baseline-001-level0-tables.xml" context="v4"/>
+    <include file="db/changelog/v4.0/baseline-002-level1-tables.xml" context="v4"/>
+    <include file="db/changelog/v4.0/baseline-003-level2-tables.xml" context="v4"/>
+    <include file="db/changelog/v4.0/baseline-004-level3-tables.xml" context="v4"/>
+    <include file="db/changelog/v4.0/baseline-005-level4-tables.xml" context="v4"/>
+    <include file="db/changelog/v4.0/baseline-006-level5-standalone.xml" context="v4"/>
+    <include file="db/changelog/v4.0/baseline-007-tag.xml" context="v4"/>
 
     <!-- ============================================================== -->
     <!-- v3.0 - Consolidated baseline schema (context: v3)             -->
@@ -186,5 +199,7 @@
 
     <include file="db/changelog/v3.0/008-add-stock-levels-to-material.xml"/>
     <include file="db/changelog/v3.0/009-add-stock-value-tracking.xml"/>
+    <include file="db/changelog/v3.0/010-add-task-to-inventory-transaction-and-material-consumption.xml"/>
+    <include file="db/changelog/v3.0/011-rename-intend-to-indent.xml"/>
 
 </databaseChangeLog>

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- v4.0 Baseline Level 4 -->
+
+    <!-- issue_comments -->
+    <changeSet id="v4-005-create-issue-comments" author="echno-baseline">
+        <createTable tableName="issue_comments">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="author_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="comment" type="TEXT"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="issue_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="issue_comments" baseColumnNames="issue_id" constraintName="fk_issue_comments_issue" referencedTableName="issue" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="issue_comments" baseColumnNames="organization_id" constraintName="fk_issue_comments_organization" referencedTableName="organization" referencedColumnNames="id"/>
+        <createIndex tableName="issue_comments" indexName="idx_issue_comments_issue"><column name="issue_id"/></createIndex>
+    </changeSet>
+
+    <!-- grn_item -->
+    <changeSet id="v4-005-create-grn-item" author="echno-baseline">
+        <createTable tableName="grn_item">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="ordered_quantity" type="INT"><constraints nullable="false"/></column>
+            <column name="received_quantity" type="INT"><constraints nullable="false"/></column>
+            <column name="goods_received_note_id" type="BIGINT"/>
+            <column name="material_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="grn_item" baseColumnNames="goods_received_note_id" constraintName="fk_grn_item_grn" referencedTableName="goods_received_note" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="grn_item" baseColumnNames="material_id" constraintName="fk_grn_item_material" referencedTableName="material" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="grn_item" baseColumnNames="organization_id" constraintName="fk_grn_item_organization" referencedTableName="organization" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <createIndex tableName="grn_item" indexName="idx_grn_item_grn"><column name="goods_received_note_id"/></createIndex>
+        <createIndex tableName="grn_item" indexName="idx_grn_item_material"><column name="material_id"/></createIndex>
+        <createIndex tableName="grn_item" indexName="idx_grn_item_organization"><column name="organization_id"/></createIndex>
+    </changeSet>
+
+    <!-- payable -->
+    <changeSet id="v4-005-create-payable" author="echno-baseline">
+        <createTable tableName="payable">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="payable_number" type="VARCHAR(100)"><constraints nullable="false" unique="true" uniqueConstraintName="uk_payable_number"/></column>
+            <column name="contactor_name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="contract_type" type="VARCHAR(50)"/>
+            <column name="amount_recorded" type="DECIMAL(15,2)"/>
+            <column name="amount_paid" type="DECIMAL(15,2)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="vendor_id" type="BIGINT"/>
+            <column name="goods_received_note_id" type="BIGINT"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"/>
+            <column name="project_id" type="BIGINT"/>
+            <column name="wbs_element_id" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="payable" baseColumnNames="vendor_id" constraintName="fk_payable_vendor" referencedTableName="vendor" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="payable" baseColumnNames="goods_received_note_id" constraintName="fk_payable_grn" referencedTableName="goods_received_note" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="payable" baseColumnNames="created_by_id" constraintName="fk_payable_created_by_employee" referencedTableName="employee" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addForeignKeyConstraint baseTableName="payable" baseColumnNames="organization_id" constraintName="fk_payable_organization" referencedTableName="organization" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="payable" baseColumnNames="project_id" constraintName="fk_payable_project" referencedTableName="project" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="payable" baseColumnNames="wbs_element_id" constraintName="fk_payable_wbs_element" referencedTableName="wbs_element" referencedColumnNames="id" onDelete="SET NULL"/>
+        <createIndex tableName="payable" indexName="idx_payable_vendor"><column name="vendor_id"/></createIndex>
+        <createIndex tableName="payable" indexName="idx_payable_grn"><column name="goods_received_note_id"/></createIndex>
+        <createIndex tableName="payable" indexName="idx_payable_created_by"><column name="created_by_id"/></createIndex>
+        <createIndex tableName="payable" indexName="idx_payable_organization"><column name="organization_id"/></createIndex>
+        <createIndex tableName="payable" indexName="idx_payable_project_id"><column name="project_id"/></createIndex>
+        <createIndex tableName="payable" indexName="idx_payable_wbs_element"><column name="wbs_element_id"/></createIndex>
+    </changeSet>
+
+    <!-- clock_event -->
+    <changeSet id="v4-005-create-clock-event" author="echno-baseline">
+        <createTable tableName="clock_event">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="attendance_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="event_type" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="event_timestamp" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="latitude" type="DOUBLE PRECISION"/>
+            <column name="longitude" type="DOUBLE PRECISION"/>
+            <column name="gps_accuracy" type="DOUBLE PRECISION"/>
+            <column name="altitude" type="DOUBLE PRECISION"/>
+            <column name="photo_url" type="TEXT"/>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="project_name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="device_platform" type="VARCHAR(50)"/>
+            <column name="device_id" type="VARCHAR(255)"/>
+            <column name="ip_address" type="VARCHAR(45)"/>
+            <column name="is_within_geofence" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="distance_from_project" type="DOUBLE PRECISION" defaultValueNumeric="0"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="verified_by" type="VARCHAR(255)"/>
+            <column name="verified_at" type="TIMESTAMP"/>
+            <column name="is_regularized" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="regularization_reason" type="TEXT"/>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="clock_event" baseColumnNames="attendance_id" constraintName="fk_clock_event_attendance" referencedTableName="attendance" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="clock_event" baseColumnNames="organization_id" constraintName="fk_clock_event_organization" referencedTableName="organization" referencedColumnNames="id"/>
+        <createIndex tableName="clock_event" indexName="idx_clock_event_attendance"><column name="attendance_id"/></createIndex>
+        <createIndex tableName="clock_event" indexName="idx_clock_event_organization"><column name="organization_id"/></createIndex>
+    </changeSet>
+
+    <!-- movement_record -->
+    <changeSet id="v4-005-create-movement-record" author="echno-baseline">
+        <createTable tableName="movement_record">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="attendance_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="employee_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="employee_name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="movement_type" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="from_location" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="to_location" type="VARCHAR(500)"/>
+            <column name="start_time" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="end_time" type="TIMESTAMP"/>
+            <column name="duration_minutes" type="INT"/>
+            <column name="distance_km" type="DOUBLE PRECISION"/>
+            <column name="purpose" type="TEXT"><constraints nullable="false"/></column>
+            <column name="remarks" type="TEXT"/>
+            <column name="start_latitude" type="DOUBLE PRECISION"/>
+            <column name="start_longitude" type="DOUBLE PRECISION"/>
+            <column name="end_latitude" type="DOUBLE PRECISION"/>
+            <column name="end_longitude" type="DOUBLE PRECISION"/>
+            <column name="attachments" type="TEXT"/>
+            <column name="verified_by" type="VARCHAR(255)"/>
+            <column name="verified_at" type="TIMESTAMP"/>
+            <column name="is_verified" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="movement_record" baseColumnNames="attendance_id" constraintName="fk_movement_record_attendance" referencedTableName="attendance" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="movement_record" baseColumnNames="organization_id" constraintName="fk_movement_record_organization" referencedTableName="organization" referencedColumnNames="id"/>
+        <createIndex tableName="movement_record" indexName="idx_movement_record_attendance"><column name="attendance_id"/></createIndex>
+        <createIndex tableName="movement_record" indexName="idx_movement_record_organization"><column name="organization_id"/></createIndex>
+    </changeSet>
+
+    <!-- attendance_regularization -->
+    <changeSet id="v4-005-create-attendance-regularization" author="echno-baseline">
+        <createTable tableName="attendance_regularization">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="attendance_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="reason" type="TEXT"><constraints nullable="false"/></column>
+            <column name="requested_by" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="requested_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="approved_by" type="VARCHAR(255)"/>
+            <column name="approved_at" type="TIMESTAMP"/>
+            <column name="status" type="VARCHAR(20)" defaultValue="PENDING"><constraints nullable="false"/></column>
+            <column name="rejection_reason" type="TEXT"/>
+            <column name="missing_events" type="TEXT"/>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="attendance_regularization" baseColumnNames="attendance_id" constraintName="fk_attendance_regularization_attendance" referencedTableName="attendance" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="attendance_regularization" baseColumnNames="organization_id" constraintName="fk_attendance_regularization_organization" referencedTableName="organization" referencedColumnNames="id"/>
+        <createIndex tableName="attendance_regularization" indexName="idx_attendance_regularization_attendance"><column name="attendance_id"/></createIndex>
+        <createIndex tableName="attendance_regularization" indexName="idx_attendance_regularization_status"><column name="status"/></createIndex>
+        <createIndex tableName="attendance_regularization" indexName="idx_attendance_regularization_organization"><column name="organization_id"/></createIndex>
+    </changeSet>
+
+</databaseChangeLog>

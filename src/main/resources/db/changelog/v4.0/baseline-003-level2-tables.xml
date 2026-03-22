@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- v4.0 Baseline Level 2: Tables depending on Level 1 -->
+
+    <!-- team_member -->
+    <changeSet id="v4-003-create-team-member" author="echno-baseline">
+        <createTable tableName="team_member">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="member_name" type="VARCHAR(255)"><constraints unique="true" uniqueConstraintName="uk_team_member_name"/></column>
+            <column name="member_email" type="VARCHAR(255)"><constraints unique="true" uniqueConstraintName="uk_team_member_email"/></column>
+            <column name="member_phone" type="VARCHAR(50)"><constraints unique="true" uniqueConstraintName="uk_team_member_phone"/></column>
+            <column name="member_role" type="VARCHAR(100)"/>
+            <column name="member_image" type="VARCHAR(1024)"/>
+            <column name="project_id" type="BIGINT"/>
+            <column name="department" type="VARCHAR(255)"/>
+            <column name="designation" type="VARCHAR(255)"/>
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="team_member" baseColumnNames="project_id" constraintName="fk_team_member_project" referencedTableName="project" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="team_member" baseColumnNames="organization_id" constraintName="fk_team_member_organization" referencedTableName="organization" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <createIndex tableName="team_member" indexName="idx_team_member_project"><column name="project_id"/></createIndex>
+        <createIndex tableName="team_member" indexName="idx_team_member_organization"><column name="organization_id"/></createIndex>
+    </changeSet>
+
+    <!-- task -->
+    <changeSet id="v4-003-create-task" author="echno-baseline">
+        <createTable tableName="task">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="title" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="start_date" type="TIMESTAMP"/>
+            <column name="end_date" type="TIMESTAMP"/>
+            <column name="progress" type="DOUBLE PRECISION"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="creator_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="category_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"/>
+            <column name="description" type="TEXT"/>
+            <column name="wbs_element_id" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="task" baseColumnNames="creator_id" constraintName="fk_task_creator" referencedTableName="employee" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="task" baseColumnNames="project_id" constraintName="fk_task_project" referencedTableName="project" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="task" baseColumnNames="category_id" constraintName="fk_task_category" referencedTableName="category" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addForeignKeyConstraint baseTableName="task" baseColumnNames="organization_id" constraintName="fk_task_organization" referencedTableName="organization" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <createIndex tableName="task" indexName="idx_task_creator"><column name="creator_id"/></createIndex>
+        <createIndex tableName="task" indexName="idx_task_project"><column name="project_id"/></createIndex>
+        <createIndex tableName="task" indexName="idx_task_category"><column name="category_id"/></createIndex>
+        <createIndex tableName="task" indexName="idx_task_status"><column name="status"/></createIndex>
+        <createIndex tableName="task" indexName="idx_task_organization"><column name="organization_id"/></createIndex>
+        <createIndex tableName="task" indexName="idx_task_wbs_element"><column name="wbs_element_id"/></createIndex>
+    </changeSet>
+
+    <!-- indent_item (fixed: intend_id -> indent_id, FK references indent table) -->
+    <changeSet id="v4-003-create-indent-item" author="echno-baseline">
+        <createTable tableName="indent_item">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="additional_specifications" type="TEXT"/>
+            <column name="requested_quantity" type="INT"><constraints nullable="false"/></column>
+            <column name="ordered_quantity" type="INT"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="converted_to_purchase_order" type="BOOLEAN"><constraints nullable="false"/></column>
+            <column name="linked_purchase_order_number" type="VARCHAR(100)"/>
+            <column name="indent_id" type="BIGINT"/>
+            <column name="material_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="indent_item" baseColumnNames="indent_id" constraintName="fk_indent_item_indent" referencedTableName="indent" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="indent_item" baseColumnNames="material_id" constraintName="fk_indent_item_material" referencedTableName="material" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="indent_item" baseColumnNames="organization_id" constraintName="fk_indent_item_organization" referencedTableName="organization" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <createIndex tableName="indent_item" indexName="idx_indent_item_indent"><column name="indent_id"/></createIndex>
+        <createIndex tableName="indent_item" indexName="idx_indent_item_material"><column name="material_id"/></createIndex>
+        <createIndex tableName="indent_item" indexName="idx_indent_item_organization"><column name="organization_id"/></createIndex>
+    </changeSet>
+
+    <!-- purchase_order (fixed: intend_id -> indent_id, FK references indent table) -->
+    <changeSet id="v4-003-create-purchase-order" author="echno-baseline">
+        <createTable tableName="purchase_order">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="po_number" type="VARCHAR(100)"><constraints nullable="false" unique="true" uniqueConstraintName="uk_purchase_order_number"/></column>
+            <column name="status" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="expected_delivery_date" type="TIMESTAMP"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="total_amount" type="DECIMAL(15,2)"/>
+            <column name="vendor_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="indent_id" type="BIGINT"/>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"/>
+            <column name="project_id" type="BIGINT"/>
+            <column name="wbs_element_id" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="purchase_order" baseColumnNames="vendor_id" constraintName="fk_purchase_order_vendor" referencedTableName="vendor" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="purchase_order" baseColumnNames="indent_id" constraintName="fk_purchase_order_indent" referencedTableName="indent" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addForeignKeyConstraint baseTableName="purchase_order" baseColumnNames="created_by_id" constraintName="fk_purchase_order_created_by_employee" referencedTableName="employee" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addForeignKeyConstraint baseTableName="purchase_order" baseColumnNames="organization_id" constraintName="fk_purchase_order_organization" referencedTableName="organization" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="purchase_order" baseColumnNames="project_id" constraintName="fk_purchase_order_project" referencedTableName="project" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <createIndex tableName="purchase_order" indexName="idx_purchase_order_vendor"><column name="vendor_id"/></createIndex>
+        <createIndex tableName="purchase_order" indexName="idx_purchase_order_indent"><column name="indent_id"/></createIndex>
+        <createIndex tableName="purchase_order" indexName="idx_purchase_order_created_by"><column name="created_by_id"/></createIndex>
+        <createIndex tableName="purchase_order" indexName="idx_purchase_order_status"><column name="status"/></createIndex>
+        <createIndex tableName="purchase_order" indexName="idx_purchase_order_organization"><column name="organization_id"/></createIndex>
+        <createIndex tableName="purchase_order" indexName="idx_purchase_order_project_id"><column name="project_id"/></createIndex>
+        <createIndex tableName="purchase_order" indexName="idx_purchase_order_wbs_element"><column name="wbs_element_id"/></createIndex>
+    </changeSet>
+
+    <!-- subscription_item -->
+    <changeSet id="v4-003-create-subscription-item" author="echno-baseline">
+        <createTable tableName="subscription_item">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="quantity" type="INT" defaultValueNumeric="1"/>
+            <column name="unit_price" type="DECIMAL(10,2)"/>
+            <column name="override_quota_limit" type="BIGINT"/>
+            <column name="override_enabled" type="BOOLEAN"/>
+            <column name="subscription_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="feature_id" type="BIGINT"/>
+            <column name="plan_feature_id" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="subscription_item" baseColumnNames="subscription_id" constraintName="fk_subscription_item_subscription" referencedTableName="subscription" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="subscription_item" baseColumnNames="feature_id" constraintName="fk_subscription_item_feature" referencedTableName="feature" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addForeignKeyConstraint baseTableName="subscription_item" baseColumnNames="plan_feature_id" constraintName="fk_subscription_item_plan_feature" referencedTableName="plan_feature" referencedColumnNames="id" onDelete="SET NULL"/>
+        <createIndex tableName="subscription_item" indexName="idx_subscription_item_subscription"><column name="subscription_id"/></createIndex>
+        <createIndex tableName="subscription_item" indexName="idx_subscription_item_feature"><column name="feature_id"/></createIndex>
+        <createIndex tableName="subscription_item" indexName="idx_subscription_item_plan_feature"><column name="plan_feature_id"/></createIndex>
+    </changeSet>
+
+    <!-- site_transfer_item -->
+    <changeSet id="v4-003-create-site-transfer-item" author="echno-baseline">
+        <createTable tableName="site_transfer_item">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="sent_quantity" type="INT"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="site_transfer_id" type="BIGINT"/>
+            <column name="material_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="site_transfer_item" baseColumnNames="site_transfer_id" constraintName="fk_site_transfer_item_site_transfer" referencedTableName="site_transfer" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="site_transfer_item" baseColumnNames="material_id" constraintName="fk_site_transfer_item_material" referencedTableName="material" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="site_transfer_item" baseColumnNames="organization_id" constraintName="fk_site_transfer_item_organization" referencedTableName="organization" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <createIndex tableName="site_transfer_item" indexName="idx_site_transfer_item_transfer"><column name="site_transfer_id"/></createIndex>
+        <createIndex tableName="site_transfer_item" indexName="idx_site_transfer_item_material"><column name="material_id"/></createIndex>
+        <createIndex tableName="site_transfer_item" indexName="idx_site_transfer_item_organization"><column name="organization_id"/></createIndex>
+    </changeSet>
+
+    <!-- attendance_settings -->
+    <changeSet id="v4-003-create-attendance-settings" author="echno-baseline">
+        <createTable tableName="attendance_settings">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"/>
+            <column name="setting_name" type="VARCHAR(150)"><constraints nullable="false"/></column>
+            <column name="check_in_out_cycles" type="INT" defaultValueNumeric="2"><constraints nullable="false"/></column>
+            <column name="photo_required_on_check_in" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="photo_required_on_check_out" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="geolocation_required" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="geofence_radius_meters" type="INT" defaultValueNumeric="100"><constraints nullable="false"/></column>
+            <column name="movement_tracking_enabled" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="movement_photo_required" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="movement_geolocation_required" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="auto_mark_absent_after_hours" type="INT" defaultValueNumeric="4"><constraints nullable="false"/></column>
+            <column name="allow_self_regularization" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="regularization_approval_required" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="max_regularization_days_per_month" type="INT" defaultValueNumeric="3"><constraints nullable="false"/></column>
+            <column name="default_shift_timing_id" type="BIGINT"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="attendance_settings" baseColumnNames="organization_id" constraintName="fk_attendance_settings_organization" referencedTableName="organization" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="attendance_settings" baseColumnNames="project_id" constraintName="fk_attendance_settings_project" referencedTableName="project" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="attendance_settings" baseColumnNames="default_shift_timing_id" constraintName="fk_attendance_settings_shift_timing" referencedTableName="shift_timing" referencedColumnNames="id"/>
+        <createIndex tableName="attendance_settings" indexName="idx_attendance_settings_org"><column name="organization_id"/></createIndex>
+        <createIndex tableName="attendance_settings" indexName="idx_attendance_settings_project"><column name="project_id"/></createIndex>
+    </changeSet>
+
+    <!-- employee_org_roles -->
+    <changeSet id="v4-003-create-employee-org-roles" author="echno-baseline">
+        <createTable tableName="employee_org_roles">
+            <column name="employee_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="role" type="VARCHAR(50)"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="employee_org_roles" baseColumnNames="employee_id" constraintName="fk_employee_org_roles_employee" referencedTableName="employee" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="employee_org_roles" columnNames="employee_id, role" constraintName="uq_employee_org_roles"/>
+        <createIndex tableName="employee_org_roles" indexName="idx_employee_org_roles_employee_id"><column name="employee_id"/></createIndex>
+        <createIndex tableName="employee_org_roles" indexName="idx_employee_org_roles_role"><column name="role"/></createIndex>
+    </changeSet>
+
+    <!-- project_employees -->
+    <changeSet id="v4-003-create-project-employees" author="echno-baseline">
+        <createTable tableName="project_employees">
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="employee_id" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="project_employees" columnNames="project_id, employee_id" constraintName="pk_project_employees"/>
+        <addForeignKeyConstraint baseTableName="project_employees" baseColumnNames="project_id" constraintName="fk_project_employees_project" referencedTableName="project" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="project_employees" baseColumnNames="employee_id" constraintName="fk_project_employees_employee" referencedTableName="employee" referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex tableName="project_employees" indexName="idx_project_employees_project"><column name="project_id"/></createIndex>
+        <createIndex tableName="project_employees" indexName="idx_project_employees_employee"><column name="employee_id"/></createIndex>
+    </changeSet>
+
+    <!-- Add deferred FK constraints for attachment -->
+    <changeSet id="v4-003-add-attachment-fks" author="echno-baseline">
+        <addForeignKeyConstraint baseTableName="attachment" baseColumnNames="organization_id" constraintName="fk_attachment_organization" referencedTableName="organization" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="attachment" baseColumnNames="project_id" constraintName="fk_attachment_project" referencedTableName="project" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="attachment" baseColumnNames="task_id" constraintName="fk_attachment_task" referencedTableName="task" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="attachment" baseColumnNames="user_id" constraintName="fk_attachment_user" referencedTableName="users_table" referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex tableName="attachment" indexName="idx_attachment_organization"><column name="organization_id"/></createIndex>
+        <createIndex tableName="attachment" indexName="idx_attachment_project"><column name="project_id"/></createIndex>
+        <createIndex tableName="attachment" indexName="idx_attachment_task"><column name="task_id"/></createIndex>
+        <createIndex tableName="attachment" indexName="idx_attachment_user"><column name="user_id"/></createIndex>
+    </changeSet>
+
+    <!-- wbs_element -->
+    <changeSet id="v4-003-create-wbs-element" author="echno-baseline">
+        <createTable tableName="wbs_element">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="wbs_code" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="title" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="description" type="TEXT"/>
+            <column name="level" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="sort_order" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)" defaultValue="NOT_STARTED"><constraints nullable="false"/></column>
+            <column name="start_date" type="DATE"/>
+            <column name="end_date" type="DATE"/>
+            <column name="actual_start_date" type="DATE"/>
+            <column name="actual_end_date" type="DATE"/>
+            <column name="budgeted_cost" type="DECIMAL(15,2)" defaultValueNumeric="0"/>
+            <column name="actual_cost" type="DECIMAL(15,2)" defaultValueNumeric="0"/>
+            <column name="progress" type="DOUBLE" defaultValueNumeric="0"/>
+            <column name="weight" type="DOUBLE" defaultValueNumeric="1.0"/>
+            <column name="is_leaf" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="parent_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMPTZ" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMPTZ" defaultValueComputed="NOW()"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="wbs_element" baseColumnNames="project_id" constraintName="fk_wbs_element_project" referencedTableName="project" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="wbs_element" baseColumnNames="parent_id" constraintName="fk_wbs_element_parent" referencedTableName="wbs_element" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="wbs_element" baseColumnNames="organization_id" constraintName="fk_wbs_element_organization" referencedTableName="organization" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="wbs_element" baseColumnNames="created_by" constraintName="fk_wbs_element_created_by" referencedTableName="employee" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addUniqueConstraint tableName="wbs_element" columnNames="project_id, wbs_code" constraintName="uq_wbs_element_project_code"/>
+        <createIndex tableName="wbs_element" indexName="idx_wbs_element_project_parent"><column name="project_id"/><column name="parent_id"/></createIndex>
+        <createIndex tableName="wbs_element" indexName="idx_wbs_element_project_code"><column name="project_id"/><column name="wbs_code"/></createIndex>
+        <createIndex tableName="wbs_element" indexName="idx_wbs_element_organization"><column name="organization_id"/></createIndex>
+    </changeSet>
+
+    <!-- Add deferred FK for task.wbs_element_id and indent.wbs_element_id -->
+    <changeSet id="v4-003-add-wbs-element-fks" author="echno-baseline">
+        <addForeignKeyConstraint baseTableName="task" baseColumnNames="wbs_element_id" constraintName="fk_task_wbs_element" referencedTableName="wbs_element" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addForeignKeyConstraint baseTableName="indent" baseColumnNames="wbs_element_id" constraintName="fk_indent_wbs_element" referencedTableName="wbs_element" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addForeignKeyConstraint baseTableName="purchase_order" baseColumnNames="wbs_element_id" constraintName="fk_purchase_order_wbs_element" referencedTableName="wbs_element" referencedColumnNames="id" onDelete="SET NULL"/>
+    </changeSet>
+
+</databaseChangeLog>

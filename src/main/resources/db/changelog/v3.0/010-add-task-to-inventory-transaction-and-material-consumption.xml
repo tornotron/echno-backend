@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="010-add-task-to-inventory-transaction" author="echno">
+        <addColumn tableName="inventory_transaction">
+            <column name="task_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="fk_inventory_transaction_task"
+                             referencedTableName="task"
+                             referencedColumnNames="id"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="010-add-task-to-material-consumption" author="echno">
+        <addColumn tableName="material_consumption">
+            <column name="task_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="fk_material_consumption_task"
+                             referencedTableName="task"
+                             referencedColumnNames="id"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>
