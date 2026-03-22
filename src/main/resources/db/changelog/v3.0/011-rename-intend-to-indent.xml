@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Rename intend table and all related columns to indent (fixing naming typo) -->
+    <changeSet id="011-rename-intend-to-indent" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="intend"/>
+        </preConditions>
+
+        <!-- Rename the main table -->
+        <renameTable oldTableName="intend" newTableName="indent"/>
+
+        <!-- Rename intend_number column to indent_number -->
+        <renameColumn tableName="indent" oldColumnName="intend_number" newColumnName="indent_number" columnDataType="VARCHAR(100)"/>
+    </changeSet>
+
+    <changeSet id="011-rename-intend-id-in-indent-item" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="indent_item" columnName="intend_id"/>
+        </preConditions>
+
+        <!-- Rename FK column in indent_item -->
+        <renameColumn tableName="indent_item" oldColumnName="intend_id" newColumnName="indent_id" columnDataType="BIGINT"/>
+    </changeSet>
+
+    <changeSet id="011-rename-intend-id-in-purchase-order" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="purchase_order" columnName="intend_id"/>
+        </preConditions>
+
+        <!-- Rename FK column in purchase_order -->
+        <renameColumn tableName="purchase_order" oldColumnName="intend_id" newColumnName="indent_id" columnDataType="BIGINT"/>
+    </changeSet>
+
+</databaseChangeLog>
