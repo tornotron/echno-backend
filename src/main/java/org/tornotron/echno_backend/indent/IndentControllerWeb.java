@@ -6,8 +6,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.indent.dto.IndentUpdateDto;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemCreationDto;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
+import org.tornotron.echno_backend.indentItem.dto.IndentItemUpdateDto;
 import org.tornotron.echno_backend.indent.dto.IndentCreationDto;
 import org.tornotron.echno_backend.indent.dto.IndentDto;
 
@@ -52,6 +54,16 @@ public class IndentControllerWeb {
         return new ResponseEntity<>(indentService.getAnIndent(id), HttpStatus.OK);
     }
 
+    @PatchMapping("/{id}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    public ResponseEntity<IndentDto> UpdateAnIndent(
+            @PathVariable Long id,
+            @Valid @RequestBody IndentUpdateDto updateDto
+            ) {
+        IndentDto indentDto = indentService.updateIndent(id,updateDto);
+        return ResponseEntity.ok(indentDto);
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<ApiResponse> deleteIndent(@PathVariable Long id) {
@@ -76,12 +88,12 @@ public class IndentControllerWeb {
         return new ResponseEntity<>(indentService.addItem(indentId, dto), HttpStatus.CREATED);
     }
 
-    @PutMapping("/{indentId}/items/{itemId}")
+    @PatchMapping("/{indentId}/items/{itemId}")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<IndentItemDto> updateItem(
             @PathVariable Long indentId,
             @PathVariable Long itemId,
-            @Valid @RequestBody IndentItemCreationDto dto
+            @Valid @RequestBody IndentItemUpdateDto dto
     ) {
         return ResponseEntity.ok(indentService.updateItem(indentId, itemId, dto));
     }
