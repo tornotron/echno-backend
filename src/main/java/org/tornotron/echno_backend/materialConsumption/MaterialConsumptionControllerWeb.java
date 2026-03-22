@@ -81,4 +81,11 @@ public class MaterialConsumptionControllerWeb {
         List<MaterialConsumptionDto> consumptions = materialConsumptionService.getConsumptionsByDateRange(startDate, endDate);
         return ResponseEntity.ok(consumptions);
     }
+
+    @GetMapping("/task/{taskId}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    public ResponseEntity<List<MaterialConsumptionDto>> getConsumptionsByTask(@PathVariable Long taskId) {
+        List<MaterialConsumptionDto> consumptions = materialConsumptionService.getConsumptionsByTask(taskId);
+        return ResponseEntity.ok(consumptions);
+    }
 }

@@ -38,6 +38,12 @@ public class MaterialConsumptionDtoConvertor {
             dto.setStorageLocationName(consumption.getStorageLocation().getLocationName());
         }
 
+        // Task info
+        if (consumption.getTask() != null) {
+            dto.setTaskId(consumption.getTask().getId());
+            dto.setTaskTitle(consumption.getTask().getTitle());
+        }
+
         // Created by
         if (consumption.getCreatedBy() != null) {
             dto.setCreatedBy(EmployeeDtoConvertor.convertEmployeeToDto(consumption.getCreatedBy(), fileStorageService));

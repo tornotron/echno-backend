@@ -32,6 +32,8 @@ public class MaterialConsumptionCreationDto {
 
     private Long storageLocationId;
 
+    private Long taskId;
+
     @NotNull(message = "created by employee id is required")
     private Long createdBy;
 }

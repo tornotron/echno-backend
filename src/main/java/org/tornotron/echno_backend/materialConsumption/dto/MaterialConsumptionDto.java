@@ -21,5 +21,7 @@ public class MaterialConsumptionDto {
     private String projectName;
     private Long storageLocationId;
     private String storageLocationName;
+    private Long taskId;
+    private String taskTitle;
     private EmployeeDto createdBy;
 }

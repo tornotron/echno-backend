@@ -11,6 +11,7 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.materialConsumption.enums.MaterialConsumptionType;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
+import org.tornotron.echno_backend.task.Task;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.wbs.WbsElement;
 
@@ -51,6 +52,10 @@ public class MaterialConsumption implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "storage_location_id")
     private StorageLocation storageLocation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "task_id")
+    private Task task;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "wbs_element_id")
