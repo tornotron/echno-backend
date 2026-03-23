@@ -48,7 +48,7 @@ public class AttendanceRegularizationService {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        Attendance attendance = attendanceRepository.findById(dto.getAttendanceId())
+        Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(dto.getAttendanceId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance not found"));
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, attendance.getProjectId());
@@ -102,7 +102,7 @@ public class AttendanceRegularizationService {
     public AttendanceRegularizationDto processRegularization(Long regularizationId,
                                                               RegularizationActionDto dto,
                                                               String approvedBy) {
-        AttendanceRegularization regularization = regularizationRepository.findById(regularizationId)
+        AttendanceRegularization regularization = regularizationRepository.findByIdAndOrganization_Id(regularizationId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Regularization not found"));
 
         if (regularization.getStatus() != RegularizationStatus.PENDING) {
@@ -135,7 +135,7 @@ public class AttendanceRegularizationService {
 
     @Transactional(readOnly = true)
     public AttendanceRegularizationDto getRegularizationById(Long id) {
-        AttendanceRegularization regularization = regularizationRepository.findById(id)
+        AttendanceRegularization regularization = regularizationRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Regularization not found"));
         return regularizationMapper.toDto(regularization);
     }

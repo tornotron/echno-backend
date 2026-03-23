@@ -56,7 +56,7 @@ public class AttendanceSettingsService {
 
         ShiftTiming shift = null;
         if (dto.getDefaultShiftTimingId() != null) {
-            shift = shiftTimingRepository.findById(dto.getDefaultShiftTimingId())
+            shift = shiftTimingRepository.findByIdAndOrganization_Id(dto.getDefaultShiftTimingId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
         }
 
@@ -107,7 +107,7 @@ public class AttendanceSettingsService {
 
     @Transactional
     public AttendanceSettingsDto updateSettings(Long id, AttendanceSettingsPatchDto dto) {
-        AttendanceSettings settings = settingsRepository.findById(id)
+        AttendanceSettings settings = settingsRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance settings not found"));
 
         if (dto.getSettingName() != null) settings.setSettingName(dto.getSettingName());
@@ -125,7 +125,7 @@ public class AttendanceSettingsService {
         if (dto.getMaxRegularizationDaysPerMonth() != null) settings.setMaxRegularizationDaysPerMonth(dto.getMaxRegularizationDaysPerMonth());
 
         if (dto.getDefaultShiftTimingId() != null) {
-            ShiftTiming shift = shiftTimingRepository.findById(dto.getDefaultShiftTimingId())
+            ShiftTiming shift = shiftTimingRepository.findByIdAndOrganization_Id(dto.getDefaultShiftTimingId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
             settings.setDefaultShiftTiming(shift);
         }
@@ -135,7 +135,7 @@ public class AttendanceSettingsService {
 
     @Transactional
     public void deactivateSettings(Long id) {
-        AttendanceSettings settings = settingsRepository.findById(id)
+        AttendanceSettings settings = settingsRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance settings not found"));
         settings.setIsActive(false);
         settingsRepository.save(settings);
