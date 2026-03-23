@@ -13,5 +13,9 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
 
     Optional<Material> findByIdAndOrganization_Id(Long id, Long organizationId);
 
-    boolean existsBySku(String sku);
+    boolean existsBySkuAndOrganization_Id(String sku, Long organizationId);
+
+    boolean existsByIdAndOrganization_Id(Long id, Long organizationId);
+
+    void deleteByIdAndOrganization_Id(Long id, Long organizationId);
 }
