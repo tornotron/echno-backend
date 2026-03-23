@@ -7,6 +7,8 @@ import java.util.Optional;
 
 public interface IssueRepository extends JpaRepository<Issue, Long> {
 
+    void deleteByIdAndOrganization_Id(Long id, Long organizationId);
+
     Optional<Issue> findByIdAndOrganization_Id(Long id, Long organizationId);
 
     boolean existsByIdAndOrganization_Id(Long id, Long organizationId);

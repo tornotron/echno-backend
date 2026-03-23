@@ -160,7 +160,7 @@ public class IssueService {
         }
 
         attachmentService.deleteAllAttachments("ISSUE", id);
-        issueRepository.deleteById(id);
+        issueRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
     }
 
 }
