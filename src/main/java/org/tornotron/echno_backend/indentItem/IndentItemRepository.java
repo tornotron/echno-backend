@@ -14,4 +14,8 @@ public interface IndentItemRepository extends JpaRepository<IndentItem, Long> {
     List<IndentItem> findByMaterialId(Long materialId);
 
     List<IndentItem> findByConvertedToPurchaseOrder(Boolean converted);
+
+    boolean existsByIdAndOrganization_Id(Long id, Long organizationId);
+
+    void deleteByIdAndOrganization_Id(Long id, Long organizationId);
 }
