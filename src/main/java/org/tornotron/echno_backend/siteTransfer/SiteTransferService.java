@@ -81,7 +81,7 @@ public class SiteTransferService {
     @Transactional
     public SiteTransferDto createSiteTransfer(SiteTransferCreationDto creationDto) {
         // Check for duplicate transfer number
-        if (siteTransferRepository.existsByTransferNumber(creationDto.getTransferNumber())) {
+        if (siteTransferRepository.existsByTransferNumberAndOrganization_Id(creationDto.getTransferNumber(),TenantContext.getCurrentOrgId())) {
             throw new DuplicateResourceException("Site transfer with number " + creationDto.getTransferNumber() + " already exists");
         }
 
@@ -142,7 +142,7 @@ public class SiteTransferService {
         // Create transfer items
         List<SiteTransferItem> items = new ArrayList<>();
         for (SiteTransferItemDto itemDto : creationDto.getItems()) {
-            Material material = materialRepository.findById(itemDto.getMaterialId())
+            Material material = materialRepository.findByIdAndOrganization_Id(itemDto.getMaterialId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + itemDto.getMaterialId()));
 
             SiteTransferItem item = new SiteTransferItem();
@@ -166,7 +166,7 @@ public class SiteTransferService {
 
     @Transactional(readOnly = true)
     public SiteTransferDto getSiteTransferById(Long id) {
-        SiteTransfer transfer = siteTransferRepository.findById(id)
+        SiteTransfer transfer = siteTransferRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Site transfer not found with id: " + id));
         return SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService);
     }
@@ -208,7 +208,7 @@ public class SiteTransferService {
 
     @Transactional
     public void updateSiteTransferStatus(Long id, SiteTransferStatus status) {
-        SiteTransfer transfer = siteTransferRepository.findById(id)
+        SiteTransfer transfer = siteTransferRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Site transfer not found with id: " + id));
 
         transfer.setStatus(status);
