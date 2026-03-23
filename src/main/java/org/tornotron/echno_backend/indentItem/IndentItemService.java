@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.indentItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.IndentItemDtoConvertor;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
@@ -41,10 +42,10 @@ public class IndentItemService {
 
     @Transactional
     public IndentItemDto createIndentItem(IndentItemCreationDto creationDto) {
-        Indent indent = indentRepository.findById(creationDto.getIndentId())
+        Indent indent = indentRepository.findByIdAndOrganization_Id(creationDto.getIndentId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Indent not found with id: " + creationDto.getIndentId()));
 
-        Material material = materialRepository.findById(creationDto.getMaterialId())
+        Material material = materialRepository.findByIdAndOrganization_Id(creationDto.getMaterialId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + creationDto.getMaterialId()));
 
         IndentItem indentItem = new IndentItem();
@@ -63,7 +64,7 @@ public class IndentItemService {
 
     @Transactional(readOnly = true)
     public IndentItemDto getIndentItemById(Long id) {
-        IndentItem indentItem = indentItemRepository.findById(id)
+        IndentItem indentItem = indentItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + id));
         return IndentItemDtoConvertor.convertIndentItemToDto(indentItem,fileStorageService,inventoryService);
     }
@@ -98,13 +99,13 @@ public class IndentItemService {
 
     @Transactional
     public IndentItemDto updateIndentItem(Long id, IndentItemCreationDto updateDto) {
-        IndentItem indentItem = indentItemRepository.findById(id)
+        IndentItem indentItem = indentItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + id));
 
-        Indent indent = indentRepository.findById(updateDto.getIndentId())
+        Indent indent = indentRepository.findByIdAndOrganization_Id(updateDto.getIndentId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Indent not found with id: " + updateDto.getIndentId()));
 
-        Material material = materialRepository.findById(updateDto.getMaterialId())
+        Material material = materialRepository.findByIdAndOrganization_Id(updateDto.getMaterialId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + updateDto.getMaterialId()));
 
         indentItem.setIndent(indent);
@@ -120,15 +121,15 @@ public class IndentItemService {
 
     @Transactional
     public void deleteIndentItem(Long id) {
-        if (!indentItemRepository.existsById(id)) {
+        if (!indentItemRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
             throw new ResourceNotFoundException("IndentItem not found with id: " + id);
         }
-        indentItemRepository.deleteById(id);
+        indentItemRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
     }
 
     @Transactional
     public IndentItemDto markAsConverted(Long id, String purchaseOrderNumber) {
-        IndentItem indentItem = indentItemRepository.findById(id)
+        IndentItem indentItem = indentItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + id));
 
         indentItem.setConvertedToPurchaseOrder(true);
