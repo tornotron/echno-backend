@@ -49,10 +49,10 @@ public class MovementRecordService {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        Attendance attendance = attendanceRepository.findById(dto.getAttendanceId())
+        Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(dto.getAttendanceId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance not found"));
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, attendance.getProjectId());
@@ -97,7 +97,7 @@ public class MovementRecordService {
 
     @Transactional
     public MovementRecordDto verifyMovement(Long movementId, String verifiedBy) {
-        MovementRecord record = movementRecordRepository.findById(movementId)
+        MovementRecord record = movementRecordRepository.findByIdAndOrganization_Id(movementId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Movement record not found"));
 
         record.setIsVerified(true);
@@ -117,7 +117,7 @@ public class MovementRecordService {
 
     @Transactional(readOnly = true)
     public MovementRecordDto getMovementById(Long id) {
-        MovementRecord record = movementRecordRepository.findById(id)
+        MovementRecord record = movementRecordRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Movement record not found"));
         return movementRecordMapper.toDto(record);
     }

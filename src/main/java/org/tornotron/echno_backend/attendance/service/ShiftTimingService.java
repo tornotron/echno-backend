@@ -62,14 +62,14 @@ public class ShiftTimingService {
 
     @Transactional(readOnly = true)
     public ShiftTimingDto getShiftTimingById(Long id) {
-        ShiftTiming shiftTiming = shiftTimingRepository.findById(id)
+        ShiftTiming shiftTiming = shiftTimingRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
         return shiftTimingMapper.toDto(shiftTiming);
     }
 
     @Transactional
     public ShiftTimingDto updateShiftTiming(Long id, ShiftTimingPatchDto dto) {
-        ShiftTiming shiftTiming = shiftTimingRepository.findById(id)
+        ShiftTiming shiftTiming = shiftTimingRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
 
         if (dto.getShiftName() != null) shiftTiming.setShiftName(dto.getShiftName());
@@ -87,7 +87,7 @@ public class ShiftTimingService {
 
     @Transactional
     public void deleteShiftTiming(Long id) {
-        ShiftTiming shiftTiming = shiftTimingRepository.findById(id)
+        ShiftTiming shiftTiming = shiftTimingRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
         shiftTimingRepository.delete(shiftTiming);
     }

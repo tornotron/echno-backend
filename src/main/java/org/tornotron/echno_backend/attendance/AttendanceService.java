@@ -67,13 +67,13 @@ public class AttendanceService {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        Employee employee = employeeRepository.findById(dto.getEmployeeId())
+        Employee employee = employeeRepository.findByIdAndOrganizationId(dto.getEmployeeId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        Project project = projectRepository.findById(dto.getProjectId())
+        Project project = projectRepository.findByIdAndOrganization_Id(dto.getProjectId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found"));
 
-        ShiftTiming shift = shiftTimingRepository.findById(dto.getShiftTimingId())
+        ShiftTiming shift = shiftTimingRepository.findByIdAndOrganization_Id(dto.getShiftTimingId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, dto.getProjectId());
@@ -146,7 +146,7 @@ public class AttendanceService {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        Attendance attendance = attendanceRepository.findById(dto.getAttendanceId())
+        Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(dto.getAttendanceId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance record not found"));
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, attendance.getProjectId());
@@ -202,7 +202,7 @@ public class AttendanceService {
 
     @Transactional(readOnly = true)
     public AttendanceResponseDto getAttendanceById(Long id) {
-        Attendance attendance = attendanceRepository.findById(id)
+        Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance not found"));
         return attendanceMapper.toResponseDto(attendance);
     }
@@ -230,7 +230,7 @@ public class AttendanceService {
 
     @Transactional
     public AttendanceResponseDto approveAttendance(Long attendanceId, AttendanceApprovalDto dto, String approvedBy) {
-        Attendance attendance = attendanceRepository.findById(attendanceId)
+        Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(attendanceId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance not found"));
 
         attendance.setApprovalStatus(dto.getApprovalStatus());
@@ -249,10 +249,10 @@ public class AttendanceService {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        Project project = projectRepository.findById(projectId)
+        Project project = projectRepository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found"));
 
         Attendance attendance = attendanceRepository
@@ -287,10 +287,10 @@ public class AttendanceService {
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        Project project = projectRepository.findById(projectId)
+        Project project = projectRepository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found"));
 
         Attendance attendance = attendanceRepository
@@ -322,7 +322,7 @@ public class AttendanceService {
 
     @Transactional(readOnly = true)
     public AttendanceSummaryDto getMonthlySummary(Long employeeId, int month, int year) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         LocalDate from = LocalDate.of(year, month, 1);
@@ -337,7 +337,7 @@ public class AttendanceService {
 
     @Transactional
     public void deleteAttendance(Long attendanceId) {
-        Attendance attendance = attendanceRepository.findById(attendanceId)
+        Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(attendanceId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance record not found"));
         attendanceRepository.delete(attendance);
     }
