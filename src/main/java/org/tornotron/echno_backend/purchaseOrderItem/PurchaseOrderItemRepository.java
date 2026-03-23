@@ -7,8 +7,13 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 public interface PurchaseOrderItemRepository extends JpaRepository<PurchaseOrderItem, Long> {
+
+    void deleteByIdAndOrganization_Id(Long id, Long organizationId);
+
+    Optional<PurchaseOrderItem> findByIdAndOrganization_Id(Long id, Long organizationId);
 
     List<PurchaseOrderItem> findByPurchaseOrderId(Long purchaseOrderId);
 
