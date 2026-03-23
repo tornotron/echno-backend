@@ -145,17 +145,17 @@ public class IndentService {
 
     @Transactional(readOnly = true)
     public IndentDto getAnIndent(Long id) {
-        return indentRepository.findById(id)
+        return indentRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .map(indent -> IndentDtoConvertor.convertIndentToDto(indent, fileStorageService, inventoryService))
                 .orElseThrow(() -> new ResourceNotFoundException("Indent not found with id: " + id));
     }
 
     @Transactional
     public void deleteIndent(Long id) {
-        if (!indentRepository.existsById(id)) {
+        if (!indentRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
             throw new ResourceNotFoundException("Indent not found with id: " + id);
         }
-        indentRepository.deleteById(id);
+        indentRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
     }
 
     // ==================== IndentItem CRUD ====================
@@ -181,14 +181,14 @@ public class IndentService {
     @Transactional
     public IndentItemDto updateItem(Long indentId, Long itemId, IndentItemUpdateDto dto) {
         findIndentById(indentId);
-        IndentItem item = indentItemRepository.findById(itemId)
+        IndentItem item = indentItemRepository.findByIdAndOrganization_Id(itemId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + itemId));
         if (!item.getIndent().getId().equals(indentId)) {
             throw new ResourceNotFoundException("IndentItem not found with id: " + itemId + " for indent: " + indentId);
         }
 
         if (dto.getMaterialId() != null) {
-            Material material = materialRepository.findById(dto.getMaterialId())
+            Material material = materialRepository.findByIdAndOrganization_Id(dto.getMaterialId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + dto.getMaterialId()));
             item.setMaterial(material);
         }
@@ -216,7 +216,7 @@ public class IndentService {
     @Transactional
     public void deleteItem(Long indentId, Long itemId) {
         Indent indent = findIndentById(indentId);
-        IndentItem item = indentItemRepository.findById(itemId)
+        IndentItem item = indentItemRepository.findByIdAndOrganization_Id(itemId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + itemId));
         if (!item.getIndent().getId().equals(indentId)) {
             throw new ResourceNotFoundException("IndentItem not found with id: " + itemId + " for indent: " + indentId);
@@ -228,12 +228,12 @@ public class IndentService {
     // ==================== Helper Methods ====================
 
     private Indent findIndentById(Long id) {
-        return indentRepository.findById(id)
+        return indentRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Indent not found with id: " + id));
     }
 
     private IndentItem mapToIndentItemEntity(IndentItemCreationDto dto) {
-        Material material = materialRepository.findById(dto.getMaterialId())
+        Material material = materialRepository.findByIdAndOrganization_Id(dto.getMaterialId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + dto.getMaterialId()));
 
         IndentItem item = new IndentItem();
