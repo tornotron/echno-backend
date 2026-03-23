@@ -123,11 +123,11 @@ public class LeaveBalanceService {
 
     @Transactional
     public LeaveBalanceDto recalculateBalance(Long employeeId, Long policyId, Integer year) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee not found with id: " + employeeId));
 
-        LeavePolicy policy = policyRepository.findById(policyId)
+        LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy not found with id: " + policyId));
 

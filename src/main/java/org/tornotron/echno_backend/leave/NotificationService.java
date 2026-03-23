@@ -84,7 +84,7 @@ public class NotificationService {
 
     @Transactional
     public void sendDelegationNotification(LeaveRequest request, Employee delegatedTo, Long delegatedFromId) {
-        String delegatedFromName = employeeRepository.findById(delegatedFromId)
+        String delegatedFromName = employeeRepository.findByIdAndOrganizationId(delegatedFromId,TenantContext.getCurrentOrgId())
                 .map(Employee::getEmployeeName)
                 .orElse("Someone");
 
