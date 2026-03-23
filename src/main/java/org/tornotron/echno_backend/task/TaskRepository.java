@@ -14,6 +14,8 @@ import java.util.Optional;
  * Provides methods to perform database operations on tasks.
  */
 public interface TaskRepository extends JpaRepository<Task,Long> {
+
+    void deleteByIdAndOrganization_Id(Long id, Long organizationId);
     /**
      * Finds a task by its title.
      *

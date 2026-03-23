@@ -331,7 +331,7 @@ public class TaskService {
         Task task = taskRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
         Project project = task.getProject();
-        taskRepository.deleteById(id);
+        taskRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
         taskRepository.flush();
         updateProjectProgress(project);
     }
