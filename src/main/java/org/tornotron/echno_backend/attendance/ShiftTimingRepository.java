@@ -9,5 +9,7 @@ public interface ShiftTimingRepository extends JpaRepository<ShiftTiming, Long> 
 
     List<ShiftTiming> findByOrganizationId(Long organizationId);
 
+    Optional<ShiftTiming> findByIdAndOrganization_Id(Long id, Long organizationId);
+
     Optional<ShiftTiming> findByShiftNameAndOrganizationId(String shiftName, Long organizationId);
 }

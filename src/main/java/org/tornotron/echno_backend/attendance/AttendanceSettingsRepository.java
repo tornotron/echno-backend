@@ -9,6 +9,8 @@ public interface AttendanceSettingsRepository extends JpaRepository<AttendanceSe
 
     Optional<AttendanceSettings> findByOrganizationIdAndProjectIdIsNullAndIsActiveTrue(Long organizationId);
 
+    Optional<AttendanceSettings> findByIdAndOrganization_Id(Long id, Long organizationId);
+
     Optional<AttendanceSettings> findByOrganizationIdAndProjectIdAndIsActiveTrue(Long organizationId, Long projectId);
 
     List<AttendanceSettings> findByOrganizationIdAndIsActiveTrue(Long organizationId);
