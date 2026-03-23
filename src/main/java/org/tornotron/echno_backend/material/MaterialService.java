@@ -66,7 +66,7 @@ public class MaterialService {
         Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: "+ creationDto.getCreatedBy()));
         // Check for duplicate SKU if provided
-        if (creationDto.getSku() != null && materialRepository.existsBySku(creationDto.getSku())) {
+        if (creationDto.getSku() != null && materialRepository.existsBySkuAndOrganization_Id(creationDto.getSku(),TenantContext.getCurrentOrgId())) {
             throw new DuplicateResourceException("Material with SKU " + creationDto.getSku() + " already exists");
         }
 
@@ -131,7 +131,7 @@ public class MaterialService {
 
     @Transactional(readOnly = true)
     public MaterialDto getMaterialById(Long id) {
-        Material material = materialRepository.findById(id)
+        Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
         return MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService);
     }
@@ -159,12 +159,12 @@ public class MaterialService {
 
     @Transactional
     public MaterialDto updateMaterial(Long id, org.tornotron.echno_backend.material.dto.MaterialUpdateDto updateDto) {
-        Material material = materialRepository.findById(id)
+        Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
 
         // Check SKU uniqueness if changed
         if (updateDto.getSku() != null && !updateDto.getSku().equals(material.getSku())) {
-            if (materialRepository.existsBySku(updateDto.getSku())) {
+            if (materialRepository.existsBySkuAndOrganization_Id(updateDto.getSku(),TenantContext.getCurrentOrgId())) {
                 throw new DuplicateResourceException("Material with SKU " + updateDto.getSku() + " already exists");
             }
             material.setSku(updateDto.getSku());
@@ -212,15 +212,15 @@ public class MaterialService {
 
     @Transactional
     public void deleteMaterial(Long id) {
-        if (!materialRepository.existsById(id)) {
+        if (!materialRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
             throw new ResourceNotFoundException("Material not found with id: " + id);
         }
-        materialRepository.deleteById(id);
+        materialRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
     }
 
     @Transactional(readOnly = true)
     public MaterialWithStockDto getMaterialWithCurrentStock(Long id, Long projectId) {
-        Material material = materialRepository.findById(id)
+        Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
 
         Double currentStock = inventoryService.getCurrentStock(id, projectId);
@@ -230,7 +230,7 @@ public class MaterialService {
 
     @Transactional(readOnly = true)
     public MaterialWithStockDto getMaterialWithAggregateStock(Long id) {
-        Material material = materialRepository.findById(id)
+        Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
 
         Double currentStock = inventoryService.getAggregateStock(id);
