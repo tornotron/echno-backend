@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface StorageLocationRepository extends JpaRepository<StorageLocation, Long> {
 
+
     Optional<StorageLocation> findByIdAndOrganization_Id(Long id, Long organizationId);
 
     List<StorageLocation> findByProjectId(Long projectId);
