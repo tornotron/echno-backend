@@ -120,7 +120,7 @@ public class GoodsReceivedNoteService {
         // Create GRN items
         List<GrnItem> items = new ArrayList<>();
         for (GrnItemDto itemDto : creationDto.getItems()) {
-            Material material = materialRepository.findById(itemDto.getMaterialId())
+            Material material = materialRepository.findByIdAndOrganization_Id(itemDto.getMaterialId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + itemDto.getMaterialId()));
 
             GrnItem grnItem = new GrnItem();
@@ -145,7 +145,7 @@ public class GoodsReceivedNoteService {
 
     @Transactional(readOnly = true)
     public GoodsReceivedNoteDto getGrnById(Long id) {
-        GoodsReceivedNote grn = goodsReceivedNoteRepository.findById(id)
+        GoodsReceivedNote grn = goodsReceivedNoteRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("GRN not found with id: " + id));
         return GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService);
     }

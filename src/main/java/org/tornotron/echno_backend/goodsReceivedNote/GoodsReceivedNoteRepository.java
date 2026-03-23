@@ -8,6 +8,8 @@ import java.util.Optional;
 
 public interface GoodsReceivedNoteRepository extends JpaRepository<GoodsReceivedNote, Long> {
 
+    Optional<GoodsReceivedNote> findByIdAndOrganization_Id(Long id, Long organizationId);
+
     Optional<GoodsReceivedNote> findByGrnNumber(String grnNumber);
 
     List<GoodsReceivedNote> findByVendorId(Long vendorId);
