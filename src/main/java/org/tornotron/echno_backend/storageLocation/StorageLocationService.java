@@ -72,7 +72,7 @@ public class StorageLocationService {
 
     @Transactional(readOnly = true)
     public StorageLocationDto getStorageLocationById(Long id) {
-        StorageLocation storageLocation = storageLocationRepository.findById(id)
+        StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Storage location not found with id: " + id));
         return StorageLocationDtoConvertor.convertToDto(storageLocation,currentStockRepository,TenantContext.getCurrentOrgId());
     }
@@ -107,7 +107,7 @@ public class StorageLocationService {
 
     @Transactional
     public StorageLocationDto updateStorageLocation(Long id, StorageLocationUpdateDto updateDto) {
-        StorageLocation storageLocation = storageLocationRepository.findById(id)
+        StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Storage location not found with id: " + id));
 
         if (updateDto.getLocationName() != null) {
@@ -159,7 +159,7 @@ public class StorageLocationService {
 
     @Transactional
     public void deleteStorageLocation(Long id) {
-        StorageLocation storageLocation = storageLocationRepository.findById(id)
+        StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Storage location not found with id: " + id));
         storageLocationRepository.delete(storageLocation);
     }
