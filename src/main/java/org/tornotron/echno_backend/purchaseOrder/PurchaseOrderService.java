@@ -74,11 +74,11 @@ public class PurchaseOrderService {
 
     @Transactional
     public PurchaseOrderDto createPurchaseOrder(PurchaseOrderCreationDto creationDto) {
-        if (purchaseOrderRepository.existsByPoNumber(creationDto.getPoNumber())) {
+        if (purchaseOrderRepository.existsByPoNumberAndOrganization_Id(creationDto.getPoNumber(),TenantContext.getCurrentOrgId())) {
             throw new DuplicateResourceException("Purchase Order with PO number " + creationDto.getPoNumber() + " already exists");
         }
 
-        Vendor vendor = vendorRepository.findById(creationDto.getVendorId())
+        Vendor vendor = vendorRepository.findByIdAndOrganization_Id(creationDto.getVendorId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + creationDto.getVendorId()));
 
         Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
@@ -125,7 +125,7 @@ public class PurchaseOrderService {
 
     @Transactional
     public void recalculateTotalAmount(Long purchaseOrderId) {
-        PurchaseOrder purchaseOrder = purchaseOrderRepository.findById(purchaseOrderId)
+        PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(purchaseOrderId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase Order not found with id: " + purchaseOrderId));
 
         BigDecimal totalAmount = purchaseOrderItemRepository.sumTotalPriceByPurchaseOrderId(purchaseOrderId);
@@ -139,7 +139,7 @@ public class PurchaseOrderService {
 
     @Transactional(readOnly = true)
     public PurchaseOrderDto getPurchaseOrderById(Long id) {
-        PurchaseOrder purchaseOrder = purchaseOrderRepository.findById(id)
+        PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase Order not found with id: " + id));
         return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder, fileStorageService);
     }
@@ -181,7 +181,7 @@ public class PurchaseOrderService {
 
     @Transactional
     public PurchaseOrderDto updatePurchaseOrder(PurchaseOrderUpdateDto updateDto) {
-        PurchaseOrder purchaseOrder = purchaseOrderRepository.findById(updateDto.getId())
+        PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(updateDto.getId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase Order not found with id: " + updateDto.getId()));
 
         if (updateDto.getStatus() != null) {
@@ -202,7 +202,7 @@ public class PurchaseOrderService {
 
     @Transactional
     public void updatePurchaseOrderStatus(Long id, PurchaseOrderStatus status) {
-        PurchaseOrder purchaseOrder = purchaseOrderRepository.findById(id)
+        PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase Order not found with id: " + id));
 
         purchaseOrder.setStatus(status);
@@ -212,12 +212,12 @@ public class PurchaseOrderService {
     // ==================== Helper Methods ====================
 
     private PurchaseOrderItem mapToPurchaseOrderItemEntity(PurchaseOrderItemCreationDto dto) {
-        Material material = materialRepository.findById(dto.getMaterialId())
+        Material material = materialRepository.findByIdAndOrganization_Id(dto.getMaterialId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + dto.getMaterialId()));
 
         IndentItem indentItem = null;
         if (dto.getIndentItemId() != null) {
-            indentItem = indentItemRepository.findById(dto.getIndentItemId())
+            indentItem = indentItemRepository.findByIdAndOrganization_Id(dto.getIndentItemId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + dto.getIndentItemId()));
             indentItem.setConvertedToPurchaseOrder(true);
             indentItemRepository.save(indentItem);
