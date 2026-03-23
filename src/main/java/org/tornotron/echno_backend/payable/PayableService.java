@@ -63,7 +63,7 @@ public class PayableService {
     @Transactional
     public PayableDto createPayable(PayableCreationDto creationDto) {
         // Check for duplicate payable number
-        if (payableRepository.existsByPayableNumber(creationDto.getPayableNumber())) {
+        if (payableRepository.existsByPayableNumberAndOrganization_Id(creationDto.getPayableNumber(),TenantContext.getCurrentOrgId())) {
             throw new DuplicateResourceException("Payable with number " + creationDto.getPayableNumber() + " already exists");
         }
 
@@ -78,14 +78,14 @@ public class PayableService {
         // Validate vendor if provided
         Vendor vendor = null;
         if (creationDto.getVendorId() != null) {
-            vendor = vendorRepository.findById(creationDto.getVendorId())
+            vendor = vendorRepository.findByIdAndOrganization_Id(creationDto.getVendorId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + creationDto.getVendorId()));
         }
 
         // Validate GRN if provided
         GoodsReceivedNote grn = null;
         if (creationDto.getGoodsReceivedNoteId() != null) {
-            grn = goodsReceivedNoteRepository.findById(creationDto.getGoodsReceivedNoteId())
+            grn = goodsReceivedNoteRepository.findByIdAndOrganization_Id(creationDto.getGoodsReceivedNoteId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("GRN not found with id: " + creationDto.getGoodsReceivedNoteId()));
         }
 
@@ -107,7 +107,7 @@ public class PayableService {
 
     @Transactional
     public PayableDto recordPayment(Long id, BigDecimal paymentAmount) {
-        Payable payable = payableRepository.findById(id)
+        Payable payable = payableRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payable not found with id: " + id));
 
         BigDecimal currentPaid = payable.getAmountPaid() != null ? payable.getAmountPaid() : BigDecimal.ZERO;
@@ -119,7 +119,7 @@ public class PayableService {
 
     @Transactional(readOnly = true)
     public PayableDto getPayableById(Long id) {
-        Payable payable = payableRepository.findById(id)
+        Payable payable = payableRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payable not found with id: " + id));
         return PayableDtoConvertor.convertToDto(payable, fileStorageService);
     }
@@ -140,7 +140,7 @@ public class PayableService {
 
     @Transactional(readOnly = true)
     public List<PayableDto> getPayablesByVendor(Long vendorId) {
-        return payableRepository.findByVendorId(vendorId).stream()
+        return payableRepository.findByVendorIdAndOrganization_id(vendorId,TenantContext.getCurrentOrgId()).stream()
                 .map(payable -> PayableDtoConvertor.convertToDto(payable, fileStorageService))
                 .collect(Collectors.toList());
     }
