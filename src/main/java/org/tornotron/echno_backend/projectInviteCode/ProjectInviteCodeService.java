@@ -8,6 +8,7 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.EmployeeService;
@@ -119,7 +120,7 @@ public class ProjectInviteCodeService {
      */
     @Transactional
     public OrganizationDto validateAndUseInviteCode(InviteCodeValidationDto inviteCodeValidationDto,Long userId) {
-        ProjectInviteCode inviteCode = inviteCodeRepository.findByCode(Integer.parseInt(inviteCodeValidationDto.getCode()))
+        ProjectInviteCode inviteCode = inviteCodeRepository.findByCodeAndOrganization_Id(Integer.parseInt(inviteCodeValidationDto.getCode()), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Invite code not found: " + inviteCodeValidationDto.getCode()));
         if(inviteCode.getExpiryDate().isBefore(LocalDateTime.now())) {
             throw new InvalidInviteCodeException("Invite code has expired");
@@ -165,7 +166,7 @@ public class ProjectInviteCodeService {
      */
     @Transactional
     public ProjectInviteCodeDto patchInviteCode(Long inviteCodeId, InviteCodePatchDto patchDto) {
-        ProjectInviteCode inviteCode = inviteCodeRepository.findById(inviteCodeId)
+        ProjectInviteCode inviteCode = inviteCodeRepository.findByIdAndOrganization_Id(inviteCodeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Invite code not found with id: " + inviteCodeId));
 
         if (patchDto.getMaxUses() != null) {
