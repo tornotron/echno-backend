@@ -12,6 +12,8 @@ import java.util.Optional;
  * Provides methods to perform database operations on projects.
  */
 public interface ProjectRepository extends JpaRepository<Project,Long> {
+
+    void deleteByIdAndOrganization_Id(Long id, Long organizationId);
     /**
      * Finds a project by its name.
      *

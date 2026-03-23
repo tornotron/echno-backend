@@ -225,7 +225,7 @@ public class ProjectService {
         }
         // Delete all attachments associated with this project
         attachmentService.deleteAllAttachments("PROJECT", id);
-        repository.deleteById(id);
+        repository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
     }
 
     /**
@@ -237,7 +237,7 @@ public class ProjectService {
      */
     @Transactional(readOnly = true)
     public Long getOrganizationIdByProjectId(Long projectId) {
-        Project project = repository.findById(projectId)
+        Project project = repository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
         return project.getOrganization().getId();
     }
