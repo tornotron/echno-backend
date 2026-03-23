@@ -8,12 +8,14 @@ import java.util.Optional;
 
 public interface PayableRepository extends JpaRepository<Payable, Long> {
 
+    Optional<Payable> findByIdAndOrganization_Id(Long id, Long organizationId);
+
     Optional<Payable> findByPayableNumber(String payableNumber);
 
-    List<Payable> findByVendorId(Long vendorId);
+    List<Payable> findByVendorIdAndOrganization_id(Long vendorId, Long organizationId);
 
     @Query("SELECT p FROM Payable p WHERE p.amountRecorded > p.amountPaid")
     List<Payable> findOutstandingPayables();
 
-    boolean existsByPayableNumber(String payableNumber);
+    boolean existsByPayableNumberAndOrganization_Id(String payableNumber, Long organizationId);
 }
