@@ -52,7 +52,7 @@ public class VendorService {
 
     @Transactional
     public VendorDto createVendor(VendorCreationDto creationDto) {
-        if (vendorRepository.existsByVendorEmail(creationDto.getVendorEmail())) {
+        if (vendorRepository.existsByVendorEmailAndOrganization_Id(creationDto.getVendorEmail(),TenantContext.getCurrentOrgId())) {
             throw new DuplicateResourceException("Vendor with email " + creationDto.getVendorEmail() + " already exists");
         }
 
@@ -128,7 +128,7 @@ public class VendorService {
 
         // Check email uniqueness if changed
         if (!updateDto.getVendorEmail().equals(vendor.getVendorEmail())) {
-            if (vendorRepository.existsByVendorEmail(updateDto.getVendorEmail())) {
+            if (vendorRepository.existsByVendorEmailAndOrganization_Id(updateDto.getVendorEmail(),TenantContext.getCurrentOrgId())) {
                 throw new DuplicateResourceException("Vendor with email " + updateDto.getVendorEmail() + " already exists");
             }
         }
@@ -169,7 +169,7 @@ public class VendorService {
     @Transactional
     public VendorContactDto updateContact(Long vendorId, Long contactId, VendorContactCreationDto dto) {
         findVendorByIdAndOrg(vendorId);
-        VendorContact contact = vendorContactRepository.findById(contactId)
+        VendorContact contact = vendorContactRepository.findByIdAndOrganization_Id(contactId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Contact not found with id: " + contactId));
         if (!contact.getVendor().getId().equals(vendorId)) {
             throw new ResourceNotFoundException("Contact not found with id: " + contactId + " for vendor: " + vendorId);
@@ -186,7 +186,7 @@ public class VendorService {
     @Transactional
     public void deleteContact(Long vendorId, Long contactId) {
         Vendor vendor = findVendorByIdAndOrg(vendorId);
-        VendorContact contact = vendorContactRepository.findById(contactId)
+        VendorContact contact = vendorContactRepository.findByIdAndOrganization_Id(contactId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Contact not found with id: " + contactId));
         if (!contact.getVendor().getId().equals(vendorId)) {
             throw new ResourceNotFoundException("Contact not found with id: " + contactId + " for vendor: " + vendorId);
