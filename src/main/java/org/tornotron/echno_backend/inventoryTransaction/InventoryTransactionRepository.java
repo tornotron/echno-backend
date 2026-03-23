@@ -8,8 +8,11 @@ import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransacti
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface InventoryTransactionRepository extends JpaRepository<InventoryTransaction, Long> {
+
+    Optional<InventoryTransaction> findByIdAndOrganization_Id(Long id, Long organizationId);
 
     List<InventoryTransaction> findByMaterialId(Long materialId);
 

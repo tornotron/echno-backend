@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.InventoryTransactionDtoConvertor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryTransactionDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.TaskMaterialUsageDto;
@@ -35,7 +36,7 @@ public class InventoryTransactionService {
 
     @Transactional(readOnly = true)
     public InventoryTransactionDto getTransactionById(Long id) {
-        InventoryTransaction transaction = inventoryTransactionRepository.findById(id)
+        InventoryTransaction transaction = inventoryTransactionRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Inventory transaction not found with id: " + id));
         return InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService);
     }

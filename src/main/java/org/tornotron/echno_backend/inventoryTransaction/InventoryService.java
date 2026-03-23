@@ -164,7 +164,7 @@ public class InventoryService {
      */
     @Transactional(readOnly = true)
     public MaterialLocationStockDto getStockByMaterial(Long materialId) {
-        Material material = materialRepository.findById(materialId)
+        Material material = materialRepository.findByIdAndOrganization_Id(materialId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Material not found with id: " + materialId));
 
         List<CurrentStock> stockRecords = currentStockRepository.findByMaterialIdAndOrganization_Id(
