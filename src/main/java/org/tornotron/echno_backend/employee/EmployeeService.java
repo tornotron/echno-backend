@@ -79,7 +79,7 @@ public class EmployeeService {
         employee.setDateOfBirth(employeeCreationDto.getDateOfBirth());
         employee.setOrganization(organization);
         if (employeeCreationDto.getManagerId() != null) {
-            Employee manager = employeeRepository.findById(employeeCreationDto.getManagerId())
+            Employee manager = employeeRepository.findByIdAndOrganizationId(employeeCreationDto.getManagerId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Manager not found with id: " + employeeCreationDto.getManagerId()));
             // Validate manager is from the same organization
             if (!manager.getOrganization().getId().equals(organization.getId())) {
@@ -127,7 +127,7 @@ public class EmployeeService {
         employee.setEmployeeId(employeeJoinOrgDto.getEmployeeId());
 
         if (employeeJoinOrgDto.getManagerId() != null) {
-            Employee manager = employeeRepository.findById(employeeJoinOrgDto.getManagerId())
+            Employee manager = employeeRepository.findByIdAndOrganizationId(employeeJoinOrgDto.getManagerId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Manager not found with id: " + employeeJoinOrgDto.getManagerId()));
             // Validate manager is from the same organization
             if (!manager.getOrganization().getId().equals(org.getId())) {
@@ -232,7 +232,7 @@ public class EmployeeService {
      */
     @Transactional
     public void partialUpdateAnEmployee(Map<String,Object> updates, Long id) {
-        Employee employee = employeeRepository.findById(id)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: "+id));
         partialUpdateAnEmployee(updates, employee);
         employeeRepository.save(employee);
@@ -273,7 +273,7 @@ public class EmployeeService {
                     break;
                 case "managerId":
                     Long managerId = ((Number) value).longValue();
-                    Employee manager = employeeRepository.findById(managerId)
+                    Employee manager = employeeRepository.findByIdAndOrganizationId(managerId,TenantContext.getCurrentOrgId())
                             .orElseThrow(() -> new ResourceNotFoundException("Manager not found with id: " + managerId));
                     validateManager(employee, manager);
                     employee.setManager(manager);
@@ -337,9 +337,9 @@ public class EmployeeService {
      */
     @Transactional
     public EmployeeDto assignManager(Long employeeId, Long managerId) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
-        Employee manager = employeeRepository.findById(managerId)
+        Employee manager = employeeRepository.findByIdAndOrganizationId(managerId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Manager not found with id: " + managerId));
 
         validateManager(employee, manager);
@@ -358,7 +358,7 @@ public class EmployeeService {
      */
     @Transactional
     public EmployeeDto removeManager(Long employeeId) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
 
         employee.setManager(null);
@@ -375,7 +375,7 @@ public class EmployeeService {
      */
     @Transactional(readOnly = true)
     public List<EmployeeDto> getDirectSubordinates(Long managerId) {
-        if (!employeeRepository.existsById(managerId)) {
+        if (!employeeRepository.existsByIdAndOrganization_Id(managerId,TenantContext.getCurrentOrgId())) {
             throw new ResourceNotFoundException("Manager not found with id: " + managerId);
         }
         return employeeRepository.findByManager_Id(managerId).stream()
@@ -413,7 +413,7 @@ public class EmployeeService {
      */
     @Transactional
     public void deleteAnEmployee(Long id) {
-        Employee employee = employeeRepository.findById(id)
+        Employee employee = employeeRepository.findByIdAndOrganizationId(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
 
         if (employee.getUser() != null && employee.getUser().getKeycloakId() != null) {
