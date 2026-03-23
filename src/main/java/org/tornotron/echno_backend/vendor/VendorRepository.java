@@ -13,7 +13,7 @@ public interface VendorRepository extends JpaRepository<Vendor, Long> {
 
     List<Vendor> findByVendorNameContainingIgnoreCase(String vendorName);
 
-    boolean existsByVendorEmail(String vendorEmail);
+    boolean existsByVendorEmailAndOrganization_Id(String vendorEmail, Long organizationId);
 
     Optional<Vendor> findByIdAndOrganization_Id(Long id, Long organizationId);
     
