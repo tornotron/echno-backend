@@ -73,7 +73,7 @@ public class MaterialConsumptionService {
     @Transactional
     public MaterialConsumptionDto createMaterialConsumption(MaterialConsumptionCreationDto creationDto) {
         // Validate material exists
-        Material material = materialRepository.findById(creationDto.getMaterialId())
+        Material material = materialRepository.findByIdAndOrganization_Id(creationDto.getMaterialId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + creationDto.getMaterialId()));
 
         Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
@@ -136,7 +136,7 @@ public class MaterialConsumptionService {
 
     @Transactional(readOnly = true)
     public MaterialConsumptionDto getMaterialConsumptionById(Long id) {
-        MaterialConsumption consumption = materialConsumptionRepository.findById(id)
+        MaterialConsumption consumption = materialConsumptionRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material consumption not found with id: " + id));
         return MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService);
     }
