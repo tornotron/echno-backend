@@ -8,6 +8,8 @@ import java.util.Optional;
 
 public interface IssueCommentRepository extends JpaRepository<IssueComment, Long> {
 
+    void deleteByIdAndOrganization_Id(Long id, Long organizationId);
+
     boolean existsByIdAndOrganization_Id(Long id, Long organizationId);
 
     Optional<IssueComment> findByIdAndOrganization_Id(Long id, Long organizationId);

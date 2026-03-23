@@ -75,7 +75,7 @@ public class IssueCommentService {
         if(!issueCommentRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())){
             throw new ResourceNotFoundException("IsseComment not found with id: " + id);
         } else {
-            issueCommentRepository.deleteById(id);
+            issueCommentRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
         }
     }
 }
