@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.purchaseOrderItem;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.indentItem.IndentItem;
@@ -45,15 +46,15 @@ public class PurchaseOrderItemService {
 
     @Transactional
     public PurchaseOrderItemResponseDto createPurchaseOrderItem(PurchaseOrderItemCreationDto creationDto) {
-        PurchaseOrder purchaseOrder = purchaseOrderRepository.findById(creationDto.getPurchaseOrderId())
+        PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(creationDto.getPurchaseOrderId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase Order not found with id: " + creationDto.getPurchaseOrderId()));
 
-        Material material = materialRepository.findById(creationDto.getMaterialId())
+        Material material = materialRepository.findByIdAndOrganization_Id(creationDto.getMaterialId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + creationDto.getMaterialId()));
 
         IndentItem indentItem = null;
         if (creationDto.getIndentItemId() != null) {
-            indentItem = indentItemRepository.findById(creationDto.getIndentItemId())
+            indentItem = indentItemRepository.findByIdAndOrganization_Id(creationDto.getIndentItemId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + creationDto.getIndentItemId()));
 
             indentItem.setConvertedToPurchaseOrder(true);
@@ -87,7 +88,7 @@ public class PurchaseOrderItemService {
 
     @Transactional(readOnly = true)
     public PurchaseOrderItemResponseDto getPurchaseOrderItemById(Long id) {
-        PurchaseOrderItem item = purchaseOrderItemRepository.findById(id)
+        PurchaseOrderItem item = purchaseOrderItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("PurchaseOrderItem not found with id: " + id));
         return convertToResponseDto(item);
     }
@@ -115,7 +116,7 @@ public class PurchaseOrderItemService {
 
     @Transactional
     public PurchaseOrderItemResponseDto updatePurchaseOrderItem(PurchaseOrderItemUpdateDto updateDto) {
-        PurchaseOrderItem item = purchaseOrderItemRepository.findById(updateDto.getId())
+        PurchaseOrderItem item = purchaseOrderItemRepository.findByIdAndOrganization_Id(updateDto.getId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("PurchaseOrderItem not found with id: " + updateDto.getId()));
 
         if (updateDto.getOrderedQuantity() != null) {
@@ -145,11 +146,11 @@ public class PurchaseOrderItemService {
 
     @Transactional
     public void deletePurchaseOrderItem(Long id) {
-        PurchaseOrderItem item = purchaseOrderItemRepository.findById(id)
+        PurchaseOrderItem item = purchaseOrderItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("PurchaseOrderItem not found with id: " + id));
         
         Long purchaseOrderId = item.getPurchaseOrder().getId();
-        purchaseOrderItemRepository.deleteById(id);
+        purchaseOrderItemRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
         
         // Recalculate PurchaseOrder total amount after deletion
         purchaseOrderService.recalculateTotalAmount(purchaseOrderId);
