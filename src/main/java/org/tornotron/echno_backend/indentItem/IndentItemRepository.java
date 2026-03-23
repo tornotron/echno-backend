@@ -3,8 +3,11 @@ package org.tornotron.echno_backend.indentItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface IndentItemRepository extends JpaRepository<IndentItem, Long> {
+
+    Optional<IndentItem> findByIdAndOrganization_Id(Long id, Long organizationId);
 
     List<IndentItem> findByIndentId(Long indentId);
 
