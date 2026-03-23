@@ -15,7 +15,9 @@ public interface ProjectInviteCodeRepository extends JpaRepository<ProjectInvite
      * @param code The five-digit invite code.
      * @return An {@link Optional} containing the found {@link ProjectInviteCode}, or {@link Optional#empty()} if no code matches.
      */
-    Optional<ProjectInviteCode> findByCode(int code);
+    Optional<ProjectInviteCode> findByCodeAndOrganization_Id(int code, Long organizationId);
 
     List<ProjectInviteCode> findByOrganization_Id(Long organizationId);
+
+    Optional<ProjectInviteCode> findByIdAndOrganization_Id(Long id, Long organizationId);
 }
