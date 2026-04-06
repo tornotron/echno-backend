@@ -25,6 +25,8 @@ import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
+import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.user.User;
@@ -50,6 +52,7 @@ public class GoodsReceivedNoteService {
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
     private final StorageLocationRepository storageLocationRepository;
+    private final PurchaseOrderRepository purchaseOrderRepository;
 
     public GoodsReceivedNoteService(GoodsReceivedNoteRepository goodsReceivedNoteRepository,
                                     GrnItemRepository grnItemRepository,
@@ -61,7 +64,7 @@ public class GoodsReceivedNoteService {
                                     TenantEntityHelper tenantEntityHelper,
                                     EmployeeRepository employeeRepository,
                                     ProjectRepository projectRepository,
-                                    StorageLocationRepository storageLocationRepository) {
+                                    StorageLocationRepository storageLocationRepository, PurchaseOrderRepository purchaseOrderRepository) {
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.grnItemRepository = grnItemRepository;
         this.vendorRepository = vendorRepository;
@@ -72,6 +75,7 @@ public class GoodsReceivedNoteService {
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.storageLocationRepository = storageLocationRepository;
+        this.purchaseOrderRepository = purchaseOrderRepository;
     }
 
     @Transactional
@@ -80,6 +84,7 @@ public class GoodsReceivedNoteService {
         if (goodsReceivedNoteRepository.existsByGrnNumber(creationDto.getGrnNumber())) {
             throw new DuplicateResourceException("GRN with number " + creationDto.getGrnNumber() + " already exists");
         }
+
 
         // Validate vendor
         Vendor vendor = vendorRepository.findByIdAndOrganization_Id(creationDto.getVendorId(), TenantContext.getCurrentOrgId())
@@ -92,6 +97,9 @@ public class GoodsReceivedNoteService {
         Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + creationDto.getProjectId()));
 
+        PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(creationDto.getPurchaseOrderId(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Purchase order not found with id: " + creationDto.getPurchaseOrderId()));
+
         // Create GRN
         GoodsReceivedNote grn = new GoodsReceivedNote();
         grn.setGrnNumber(creationDto.getGrnNumber());
@@ -102,6 +110,8 @@ public class GoodsReceivedNoteService {
         grn.setInvoiceNumber(creationDto.getInvoiceNumber());
         grn.setInvoiceAmount(creationDto.getInvoiceAmount());
         grn.setProject(project);
+        grn.setPurchaseOrder(purchaseOrder);
+
 
         // Validate and set storage location (optional)
         if (creationDto.getStorageLocationId() != null) {
