@@ -78,7 +78,7 @@ public class PurchaseOrderControllerWeb {
         return ResponseEntity.ok(purchaseOrders);
     }
 
-    @PutMapping
+    @PatchMapping
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<PurchaseOrderDto> updatePurchaseOrder(@Valid @RequestBody PurchaseOrderUpdateDto updateDto) {
         PurchaseOrderDto updated = purchaseOrderService.updatePurchaseOrder(updateDto);
