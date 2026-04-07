@@ -70,7 +70,7 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrders);
     }
 
-    @PutMapping
+    @PatchMapping
     public ResponseEntity<PurchaseOrderDto> updatePurchaseOrder(@Valid @RequestBody PurchaseOrderUpdateDto updateDto) {
         PurchaseOrderDto updated = purchaseOrderService.updatePurchaseOrder(updateDto);
         return ResponseEntity.ok(updated);
