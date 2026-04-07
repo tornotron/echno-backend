@@ -39,7 +39,7 @@ public class GoodsReceivedNoteDtoConvertor {
 
         if (grn.getPurchaseOrder() != null) {
             dto.setPurchaseOrderId(grn.getPurchaseOrder().getId());
-            dto.setPurchaseOrderNumber(grn.getGrnNumber());
+            dto.setPurchaseOrderNumber(grn.getPurchaseOrder().getPoNumber());
         }
         // Project info
         if (grn.getProject() != null) {
