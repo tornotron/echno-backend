@@ -10,6 +10,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteCreationDto;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteDto;
+import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteUpdateDto;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -61,6 +62,13 @@ public class GoodsReceivedNoteController {
     public ResponseEntity<List<GoodsReceivedNoteDto>> getGrnsByVendor(@PathVariable Long vendorId) {
         List<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getGrnsByVendor(vendorId);
         return ResponseEntity.ok(grns);
+    }
+
+    @PatchMapping
+    @PreAuthorize("hasAuthority('grn:update') or hasAuthority('grn:admin')")
+    public ResponseEntity<GoodsReceivedNoteDto> updateGrn(@Valid @RequestBody GoodsReceivedNoteUpdateDto updateDto) {
+        GoodsReceivedNoteDto updated = goodsReceivedNoteService.updateGoodsReceivedNote(updateDto);
+        return ResponseEntity.ok(updated);
     }
 
     @GetMapping("/date-range")

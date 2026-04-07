@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteCreationDto;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteDto;
+import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteUpdateDto;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GrnItemDto;
 import org.tornotron.echno_backend.grnItem.GrnItem;
 import org.tornotron.echno_backend.grnItem.GrnItemRepository;
@@ -150,6 +151,45 @@ public class GoodsReceivedNoteService {
         // Publish GrnCreatedEvent for automatic inventory update
         eventPublisher.publishEvent(new GrnCreatedEvent(this, grn));
 
+        return GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService);
+    }
+
+    @Transactional
+    public GoodsReceivedNoteDto updateGoodsReceivedNote(GoodsReceivedNoteUpdateDto updateDto) {
+        GoodsReceivedNote grn = goodsReceivedNoteRepository.findByIdAndOrganization_Id(updateDto.getId(), TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("GRN not found with id: " + updateDto.getId()));
+
+        if (updateDto.getReceivedOn() != null) {
+            grn.setReceivedOn(updateDto.getReceivedOn());
+        }
+
+        if (updateDto.getReceivedByEmployeeId() != null) {
+            Employee receivedBy = employeeRepository.findByIdAndOrganizationId(updateDto.getReceivedByEmployeeId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + updateDto.getReceivedByEmployeeId()));
+            grn.setReceivedBy(receivedBy);
+        }
+
+        if (updateDto.getDeliveryChallanNumber() != null) {
+            grn.setDeliveryChallanNumber(updateDto.getDeliveryChallanNumber());
+        }
+
+        if (updateDto.getInvoiceNumber() != null) {
+            grn.setInvoiceNumber(updateDto.getInvoiceNumber());
+        }
+
+        if (updateDto.getInvoiceAmount() != null) {
+            grn.setInvoiceAmount(updateDto.getInvoiceAmount());
+        }
+
+        if (updateDto.getStorageLocationId() != null) {
+            StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(
+                            updateDto.getStorageLocationId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Storage location not found with id: " + updateDto.getStorageLocationId()));
+            grn.setStorageLocation(storageLocation);
+        }
+
+        grn = goodsReceivedNoteRepository.save(grn);
         return GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService);
     }
 
