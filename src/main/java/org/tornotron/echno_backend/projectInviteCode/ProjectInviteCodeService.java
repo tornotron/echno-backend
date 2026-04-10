@@ -120,7 +120,7 @@ public class ProjectInviteCodeService {
      */
     @Transactional
     public OrganizationDto validateAndUseInviteCode(InviteCodeValidationDto inviteCodeValidationDto,Long userId) {
-        ProjectInviteCode inviteCode = inviteCodeRepository.findByCodeAndOrganization_Id(Integer.parseInt(inviteCodeValidationDto.getCode()), TenantContext.getCurrentOrgId())
+        ProjectInviteCode inviteCode = inviteCodeRepository.findByCode(Integer.parseInt(inviteCodeValidationDto.getCode()))
                 .orElseThrow(() -> new ResourceNotFoundException("Invite code not found: " + inviteCodeValidationDto.getCode()));
         if(inviteCode.getExpiryDate().isBefore(LocalDateTime.now())) {
             throw new InvalidInviteCodeException("Invite code has expired");
