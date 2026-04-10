@@ -171,7 +171,7 @@ public class ProjectService {
                     project.setStatus(ProjectCreationStatus.valueOf((String) value));
                     break;
                 case "projectLongitude":
-                    float longitude = Float.parseFloat((String) value);
+                    float longitude = ((Number) value).floatValue();
                     if(longitude >= -180 && longitude <= 180) {
                         project.setProjectLongitude(longitude);
                     } else {
@@ -179,7 +179,7 @@ public class ProjectService {
                     }
                     break;
                 case "projectLatitude":
-                    float latitude = Float.parseFloat((String) value);
+                    float latitude = ((Number) value).floatValue();
                     if (latitude >= -90 && latitude <= 90) {
                         project.setProjectLatitude(latitude);
                     } else {
