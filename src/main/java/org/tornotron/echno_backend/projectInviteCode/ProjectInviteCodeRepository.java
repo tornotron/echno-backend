@@ -17,6 +17,8 @@ public interface ProjectInviteCodeRepository extends JpaRepository<ProjectInvite
      */
     Optional<ProjectInviteCode> findByCodeAndOrganization_Id(int code, Long organizationId);
 
+    Optional<ProjectInviteCode> findByCode(int code);
+
     List<ProjectInviteCode> findByOrganization_Id(Long organizationId);
 
     Optional<ProjectInviteCode> findByIdAndOrganization_Id(Long id, Long organizationId);
