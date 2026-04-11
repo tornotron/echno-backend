@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.inventoryTransaction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.InsufficientStockException;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryMaterialStockDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.LocationStockDto;
@@ -13,13 +14,12 @@ import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
+import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
+import org.tornotron.echno_backend.storageLocation.dto.StorageLocationDto;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class InventoryService {
@@ -27,13 +27,15 @@ public class InventoryService {
     private final CurrentStockRepository currentStockRepository;
     private final InventoryTransactionRepository inventoryTransactionRepository;
     private final MaterialRepository materialRepository;
+    private final StorageLocationRepository storageLocationRepository;
 
     public InventoryService(CurrentStockRepository currentStockRepository,
                             InventoryTransactionRepository inventoryTransactionRepository,
-                            MaterialRepository materialRepository) {
+                            MaterialRepository materialRepository, StorageLocationRepository storageLocationRepository) {
         this.currentStockRepository = currentStockRepository;
         this.inventoryTransactionRepository = inventoryTransactionRepository;
         this.materialRepository = materialRepository;
+        this.storageLocationRepository = storageLocationRepository;
     }
 
     /**
@@ -134,6 +136,8 @@ public class InventoryService {
      */
     @Transactional(readOnly = true)
     public InventoryMaterialStockDto getStockByStorageLocation(Long storageLocationId) {
+        StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(storageLocationId,TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Storage location not found with id: " + storageLocationId));
         List<CurrentStock> stockRecords = currentStockRepository.findByStorageLocationIdAndOrganization_Id(storageLocationId, TenantContext.getCurrentOrgId());
 
         List<StockDto> stockDtos = new ArrayList<>();
@@ -144,6 +148,7 @@ public class InventoryService {
             StockDto dto = new StockDto();
             dto.setMaterialId(cs.getMaterial().getId());
             dto.setMaterialName(cs.getMaterial().getMaterialName());
+            dto.setUnit(cs.getMaterial().getUnit());
             dto.setStock(cs.getCurrentQuantity());
             dto.setStockValue(cs.getStockValue());
             stockDtos.add(dto);
@@ -152,6 +157,9 @@ public class InventoryService {
         }
 
         InventoryMaterialStockDto result = new InventoryMaterialStockDto();
+        result.setStorageLocationId(storageLocation.getId());
+        result.setStorageLocationName(storageLocation.getLocationName());
+        result.setProjectId(storageLocation.getProject().getId());
         result.setMaterialStock(stockDtos);
         result.setTotalStock(totalStock);
         result.setTotalStockValue(totalStockValue);
