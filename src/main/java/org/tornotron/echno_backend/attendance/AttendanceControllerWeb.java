@@ -51,7 +51,7 @@ public class AttendanceControllerWeb {
     }
 
     @GetMapping("/project/{projectId}")
-    public ResponseEntity<Page<AttendanceResponseDto>> getByProject(
+    public ResponseEntity<List<AttendanceResponseDto>> getByProject(
             @PathVariable Long projectId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) AttendanceStatus status,
