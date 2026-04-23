@@ -218,14 +218,17 @@ public class AttendanceService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AttendanceResponseDto> getAttendanceByProject(Long projectId,
+    public List<AttendanceResponseDto> getAttendanceByProject(Long projectId,
                                                                LocalDate date,
                                                                AttendanceStatus status,
                                                                String search,
                                                                Pageable pageable) {
+        String searchPattern = (search == null || search.isBlank())
+                ? null
+                : "%" + search.toLowerCase() + "%";
         return attendanceRepository
-                .findWithFilters(projectId, date, status, search, pageable)
-                .map(attendanceMapper::toResponseDto);
+                .findWithFilters(projectId, date, status, searchPattern, pageable)
+                .map(attendanceMapper::toResponseDto).getContent();
     }
 
     @Transactional
