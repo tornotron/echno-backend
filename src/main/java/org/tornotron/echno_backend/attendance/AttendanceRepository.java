@@ -35,7 +35,7 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         WHERE a.projectId = :projectId
           AND a.attendanceDate = :date
           AND (:status IS NULL OR a.status = :status)
-          AND (:search IS NULL OR LOWER(a.employeeName) LIKE LOWER(CONCAT('%', :search, '%')))
+          AND (:search IS NULL OR LOWER(a.employeeName) LIKE :search)
         """)
     Page<Attendance> findWithFilters(
             @Param("projectId") Long projectId,
