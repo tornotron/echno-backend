@@ -8,10 +8,13 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.attendance.enums.ClockEventType;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "clock_event")
@@ -48,9 +51,6 @@ public class ClockEvent implements TenantScopedEntity {
 
     @Column(name = "altitude")
     private Double altitude;
-
-    @Column(name = "photo_url")
-    private String photoUrl;
 
     @Column(name = "project_id", nullable = false)
     private Long projectId;
@@ -98,4 +98,14 @@ public class ClockEvent implements TenantScopedEntity {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "clockEvent")
+    private List<Attachment> attachments = new ArrayList<>();
+
+    public void addAttachment(Attachment attachment) {
+        attachments.add(attachment);
+        attachment.setClockEvent(this);
+    }
 }
+

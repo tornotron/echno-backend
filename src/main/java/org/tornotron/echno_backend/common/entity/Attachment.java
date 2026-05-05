@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.tornotron.echno_backend.attendance.Attendance;
+import org.tornotron.echno_backend.attendance.ClockEvent;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.issue.Issue;
 import org.tornotron.echno_backend.organization.Organization;
@@ -106,6 +108,14 @@ public class Attachment implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attendance_id")
+    private Attendance attendance;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "clock_event_id")
+    private ClockEvent clockEvent;
 
     @PrePersist
     protected void onCreate() {

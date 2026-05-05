@@ -10,6 +10,7 @@ import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.attendance.enums.ApprovalStatus;
 import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
@@ -130,4 +131,12 @@ public class Attendance implements TenantScopedEntity {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "attendance")
+    private List<Attachment> attachments = new ArrayList<>();
+
+    public void addAttachment(Attachment attachment) {
+        attachments.add(attachment);
+        attachment.setAttendance(this);
+    }
 }
