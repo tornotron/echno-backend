@@ -57,7 +57,7 @@ public class LeaveRequestService {
     public LeaveRequestDto createRequest(LeaveRequestCreationDto dto,Long employeeId) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Employee not found with id: " + dto.getEmployeeId()));
+                        "Employee not found with id: " + employeeId));
 
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(dto.getLeavePolicyId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -72,7 +72,7 @@ public class LeaveRequestService {
                 dto.getEndHalfDayType());
 
         Organization organization = employee.getOrganization();
-        String requestNumber = generateRequestNumber(organization.getId());
+        String requestNumber = generateRequestNumber(organization);
 
         LeaveRequest request = new LeaveRequest();
         request.setRequestNumber(requestNumber);
@@ -382,17 +382,14 @@ public class LeaveRequestService {
         }
     }
 
-    private String generateRequestNumber(Long organizationId) {
+    private String generateRequestNumber(Organization organization) {
         int year = LocalDate.now().getYear();
 
         LeaveRequestSequence sequence = sequenceRepository
-                .findByOrganizationIdAndYearWithLock(organizationId, year)
+                .findByOrganizationIdAndYearWithLock(organization.getId(), year)
                 .orElseGet(() -> {
                     LeaveRequestSequence newSeq = new LeaveRequestSequence();
-                    newSeq.setOrganization(
-                            employeeRepository.findById(organizationId)
-                                    .map(Employee::getOrganization)
-                                    .orElseThrow());
+                    newSeq.setOrganization(organization);
                     newSeq.setYear(year);
                     newSeq.setLastSequence(0L);
                     return newSeq;
@@ -436,7 +433,6 @@ public class LeaveRequestService {
 
     private LeaveRequestCreationDto createDtoFromRequest(LeaveRequest request) {
         LeaveRequestCreationDto dto = new LeaveRequestCreationDto();
-        dto.setEmployeeId(request.getEmployee().getId());
         dto.setLeavePolicyId(request.getLeavePolicy().getId());
         dto.setStartDate(request.getStartDate());
         dto.setStartHalfDayType(request.getStartHalfDayType());

@@ -61,6 +61,10 @@ public class LeaveBalanceService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy not found with id: " + policyId));
 
+        if (isBeforeJoiningYear(employee, year)) {
+            return LeaveBalanceDtoConvertor.convertToDto(zeroBalance(employee, policy, year));
+        }
+
         LeaveBalance balance = balanceRepository
                 .findByEmployeeIdAndLeavePolicyIdAndYear(employeeId, policyId, year)
                 .orElseGet(() -> initializeBalance(employee, policy, year));
@@ -100,9 +104,13 @@ public class LeaveBalanceService {
                 employee.getGender(),
                 calculateServiceMonths(employee));
 
-        // Initialize balances for all applicable policies (creates if not exists)
+        // Initialize balances for all applicable policies (creates if not exists).
+        // Pre-joining years return a transient zero balance — no row is persisted.
         List<LeaveBalance> balances = policies.stream()
                 .map(policy -> {
+                    if (isBeforeJoiningYear(employee, year)) {
+                        return zeroBalance(employee, policy, year);
+                    }
                     LeaveBalance balance = balanceRepository
                             .findByEmployeeIdAndLeavePolicyIdAndYear(employeeId, policy.getId(), year)
                             .orElseGet(() -> initializeBalance(employee, policy, year));
@@ -195,6 +203,25 @@ public class LeaveBalanceService {
                 .stream()
                 .map(LeaveTransactionDtoConvertor::convertToDto)
                 .collect(Collectors.toList());
+    }
+
+    private boolean isBeforeJoiningYear(Employee employee, Integer year) {
+        LocalDateTime joining = employee.getJoiningDate();
+        return joining != null && year < joining.getYear();
+    }
+
+    private LeaveBalance zeroBalance(Employee employee, LeavePolicy policy, Integer year) {
+        LeaveBalance balance = new LeaveBalance();
+        balance.setEmployee(employee);
+        balance.setOrganization(employee.getOrganization());
+        balance.setLeavePolicy(policy);
+        balance.setYear(year);
+        balance.setOpeningBalance(0.0);
+        balance.setAccrued(0.0);
+        balance.setUsed(0.0);
+        balance.setPending(0.0);
+        balance.setCarryForwardFromPrevious(0.0);
+        return balance;
     }
 
     private LeaveBalance initializeBalance(Employee employee, LeavePolicy policy, Integer year) {
