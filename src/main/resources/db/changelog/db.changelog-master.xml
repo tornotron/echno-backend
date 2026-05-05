@@ -201,5 +201,6 @@
     <include file="db/changelog/v3.0/009-add-stock-value-tracking.xml"/>
     <include file="db/changelog/v3.0/010-add-task-to-inventory-transaction-and-material-consumption.xml"/>
     <include file="db/changelog/v3.0/011-rename-intend-to-indent.xml"/>
+    <include file="db/changelog/v3.0/012-add-attendance-clockevent-to-attachment.xml"/>
 
 </databaseChangeLog>
