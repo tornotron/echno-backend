@@ -1,10 +1,12 @@
 package org.tornotron.echno_backend.attendance;
 
 import jakarta.validation.ValidationException;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.attendance.dto.*;
 import org.tornotron.echno_backend.attendance.enums.ApprovalStatus;
 import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
@@ -13,8 +15,11 @@ import org.tornotron.echno_backend.attendance.mapper.AttendanceMapper;
 import org.tornotron.echno_backend.attendance.service.AttendanceCalculationService;
 import org.tornotron.echno_backend.attendance.service.AttendanceSettingsService;
 import org.tornotron.echno_backend.attendance.validator.ClockEventSequenceValidator;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.organization.Organization;
@@ -31,6 +36,8 @@ import java.util.stream.Collectors;
 @Service
 public class AttendanceService {
 
+    private static final String ATTENDANCE_FOLDER = "attendance";
+
     private final AttendanceRepository attendanceRepository;
     private final ShiftTimingRepository shiftTimingRepository;
     private final EmployeeRepository employeeRepository;
@@ -40,6 +47,8 @@ public class AttendanceService {
     private final AttendanceCalculationService calculationService;
     private final ClockEventSequenceValidator sequenceValidator;
     private final AttendanceMapper attendanceMapper;
+    private final AttachmentService attachmentService;
+    private final FileStorageService fileStorageService;
 
     public AttendanceService(AttendanceRepository attendanceRepository,
                              ShiftTimingRepository shiftTimingRepository,
@@ -49,7 +58,9 @@ public class AttendanceService {
                              AttendanceSettingsService settingsService,
                              AttendanceCalculationService calculationService,
                              ClockEventSequenceValidator sequenceValidator,
-                             AttendanceMapper attendanceMapper) {
+                             AttendanceMapper attendanceMapper,
+                             AttachmentService attachmentService,
+                             FileStorageService fileStorageService) {
         this.attendanceRepository = attendanceRepository;
         this.shiftTimingRepository = shiftTimingRepository;
         this.employeeRepository = employeeRepository;
@@ -59,40 +70,44 @@ public class AttendanceService {
         this.calculationService = calculationService;
         this.sequenceValidator = sequenceValidator;
         this.attendanceMapper = attendanceMapper;
+        this.attachmentService = attachmentService;
+        this.fileStorageService = fileStorageService;
     }
 
     @Transactional
-    public AttendanceResponseDto checkIn(AttendanceCheckInDto dto) {
+    public AttendanceResponseDto checkIn(AttendanceCheckInDto dto, MultipartFile photo) {
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        Employee employee = employeeRepository.findByIdAndOrganizationId(dto.getEmployeeId(),TenantContext.getCurrentOrgId())
+        Employee employee = employeeRepository.findByIdAndOrganizationId(dto.getEmployeeId(), orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
-        Project project = projectRepository.findByIdAndOrganization_Id(dto.getProjectId(),TenantContext.getCurrentOrgId())
+        Project project = projectRepository.findByIdAndOrganization_Id(dto.getProjectId(), orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found"));
 
-        ShiftTiming shift = shiftTimingRepository.findByIdAndOrganization_Id(dto.getShiftTimingId(),TenantContext.getCurrentOrgId())
+        ShiftTiming shift = shiftTimingRepository.findByIdAndOrganization_Id(dto.getShiftTimingId(), orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, dto.getProjectId());
 
-        // Validate geolocation
+        boolean photoProvided = photo != null && !photo.isEmpty();
+
+        if (settings.getPhotoRequiredOnCheckIn() && !photoProvided) {
+            throw new ValidationException("Photo is required for check-in in this project");
+        }
+
+        if (photoProvided && isImage(photo)) {
+            throw new ValidationException("Check-in photo must be an image");
+        }
+
         if (settings.getGeolocationRequired()
                 && (dto.getLatitude() == null || dto.getLongitude() == null)) {
             throw new ValidationException("Geolocation is required for attendance in this project");
         }
 
-        // Validate photo
-        if (settings.getPhotoRequiredOnCheckIn()
-                && (dto.getPhotoUrl() == null || dto.getPhotoUrl().isBlank())) {
-            throw new ValidationException("Photo is required for check-in");
-        }
-
         LocalDate attendanceDate = dto.getEventTimestamp().toLocalDate();
 
-        // Check if attendance already exists
         if (attendanceRepository.findByEmployeeIdAndAttendanceDateAndProjectId(
                 employee.getId(), attendanceDate, project.getId()).isPresent()) {
             throw new ValidationException("Attendance record already exists for this employee/date/project");
@@ -121,7 +136,6 @@ public class AttendanceService {
                 .longitude(dto.getLongitude())
                 .gpsAccuracy(dto.getGpsAccuracy())
                 .altitude(dto.getAltitude())
-                .photoUrl(dto.getPhotoUrl())
                 .projectId(project.getId())
                 .projectName(project.getProjectName())
                 .devicePlatform(dto.getDevicePlatform())
@@ -137,11 +151,40 @@ public class AttendanceService {
         attendance.getClockEvents().add(clockEvent);
         calculationService.recalculate(attendance, shift);
 
-        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance));
+        Attendance savedAttendance = attendanceRepository.save(attendance);
+
+        if (photoProvided) {
+            Attachment clockEventAttachment = attachmentService.uploadAttachment(
+                    photo, "CLOCK_EVENT_CHECK_IN", clockEvent.getId(), ATTENDANCE_FOLDER);
+            registerStorageCleanupOnRollback(clockEventAttachment.getStorageKey());
+            clockEventAttachment.setOrganization(org);
+            clockEvent.addAttachment(clockEventAttachment);
+        }
+
+        return attendanceMapper.toResponseDto(savedAttendance,fileStorageService);
+    }
+
+    private void registerStorageCleanupOnRollback(String storageKey) {
+        if (storageKey == null || !TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) {
+                    fileStorageService.deleteFile(storageKey);
+                }
+            }
+        });
+    }
+
+    private boolean isImage(MultipartFile file) {
+        String contentType = file.getContentType();
+        return contentType == null || !contentType.startsWith("image/");
     }
 
     @Transactional
-    public AttendanceResponseDto recordClockEvent(AttendanceClockEventDto dto) {
+    public AttendanceResponseDto recordClockEvent(AttendanceClockEventDto dto, MultipartFile photo) {
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
@@ -151,22 +194,25 @@ public class AttendanceService {
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, attendance.getProjectId());
 
-        // Validate geolocation
         if (settings.getGeolocationRequired()
                 && (dto.getLatitude() == null || dto.getLongitude() == null)) {
             throw new ValidationException("Geolocation is required for attendance in this project");
         }
 
-        // Validate photo based on event type
+        boolean photoProvided = photo != null && !photo.isEmpty();
+
         boolean photoRequired =
                 (dto.getEventType() == ClockEventType.MORNING_CLOCK_IN && settings.getPhotoRequiredOnCheckIn()) ||
                 (dto.getEventType() == ClockEventType.EVENING_CLOCK_OUT && settings.getPhotoRequiredOnCheckOut());
 
-        if (photoRequired && (dto.getPhotoUrl() == null || dto.getPhotoUrl().isBlank())) {
+        if (photoRequired && !photoProvided) {
             throw new ValidationException("Photo is required for this clock event");
         }
 
-        // Validate sequence
+        if (photoProvided && isImage(photo)) {
+            throw new ValidationException("Clock event photo must be an image");
+        }
+
         sequenceValidator.validate(dto.getEventType(), attendance, settings);
 
         ClockEvent clockEvent = ClockEvent.builder()
@@ -177,7 +223,6 @@ public class AttendanceService {
                 .longitude(dto.getLongitude())
                 .gpsAccuracy(dto.getGpsAccuracy())
                 .altitude(dto.getAltitude())
-                .photoUrl(dto.getPhotoUrl())
                 .projectId(attendance.getProjectId())
                 .projectName(attendance.getProjectName())
                 .devicePlatform(dto.getDevicePlatform())
@@ -197,14 +242,27 @@ public class AttendanceService {
             calculationService.recalculate(attendance, shift);
         }
 
-        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance));
+        Attendance savedAttendance = attendanceRepository.save(attendance);
+
+        if (photoProvided) {
+            String attachmentType = dto.getEventType() == ClockEventType.EVENING_CLOCK_OUT
+                    ? "CLOCK_EVENT_CHECK_OUT"
+                    : "CLOCK_EVENT_CHECK_IN";
+            Attachment clockEventAttachment = attachmentService.uploadAttachment(
+                    photo, attachmentType, clockEvent.getId(), ATTENDANCE_FOLDER);
+            registerStorageCleanupOnRollback(clockEventAttachment.getStorageKey());
+            clockEventAttachment.setOrganization(org);
+            clockEvent.addAttachment(clockEventAttachment);
+        }
+
+        return attendanceMapper.toResponseDto(savedAttendance,fileStorageService);
     }
 
     @Transactional(readOnly = true)
     public AttendanceResponseDto getAttendanceById(Long id) {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance not found"));
-        return attendanceMapper.toResponseDto(attendance);
+        return attendanceMapper.toResponseDto(attendance,fileStorageService);
     }
 
     @Transactional(readOnly = true)
@@ -213,7 +271,7 @@ public class AttendanceService {
                                                                 LocalDate endDate) {
         return attendanceRepository.findByEmployeeIdAndAttendanceDateBetween(employeeId, startDate, endDate)
                 .stream()
-                .map(attendanceMapper::toResponseDto)
+                .map(attendance -> attendanceMapper.toResponseDto(attendance,fileStorageService))
                 .collect(Collectors.toList());
     }
 
@@ -228,7 +286,7 @@ public class AttendanceService {
                 : "%" + search.toLowerCase() + "%";
         return attendanceRepository
                 .findWithFilters(projectId, date, status, searchPattern, pageable)
-                .map(attendanceMapper::toResponseDto).getContent();
+                .map(attendance -> attendanceMapper.toResponseDto(attendance,fileStorageService)).getContent();
     }
 
     @Transactional
@@ -243,7 +301,7 @@ public class AttendanceService {
             attendance.setRemarks(dto.getRemarks());
         }
 
-        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance));
+        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance),fileStorageService);
     }
 
     @Transactional
@@ -280,7 +338,7 @@ public class AttendanceService {
         attendance.setStatus(AttendanceStatus.ABSENT);
         attendance.setApprovalStatus(ApprovalStatus.APPROVED);
 
-        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance));
+        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance),fileStorageService);
     }
 
     @Transactional
@@ -320,7 +378,7 @@ public class AttendanceService {
         attendance.setLeaveType(leaveType);
         attendance.setApprovalStatus(ApprovalStatus.APPROVED);
 
-        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance));
+        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance),fileStorageService);
     }
 
     @Transactional(readOnly = true)

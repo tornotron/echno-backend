@@ -28,7 +28,6 @@ public class AttendanceCheckInDto {
     private Double longitude;
     private Double gpsAccuracy;
     private Double altitude;
-    private String photoUrl;
     private String devicePlatform;
     private String deviceId;
     private String ipAddress;

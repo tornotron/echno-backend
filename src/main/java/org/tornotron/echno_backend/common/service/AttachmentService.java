@@ -8,6 +8,7 @@ import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
+import org.tornotron.echno_backend.attendance.AttendanceRepository;
 import org.tornotron.echno_backend.issue.IssueRepository;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.ProjectRepository;
@@ -34,8 +35,9 @@ public class AttachmentService {
     private final TaskRepository taskRepository;
     private final IssueRepository issueRepository;
     private final UserRepository userRepository;
+    private final AttendanceRepository attendanceRepository;
 
-    public AttachmentService(AttachmentRepository attachmentRepository, FileStorageService fileStorageService, OrganizationRepository organizationRepository, ProjectRepository projectRepository, TaskRepository taskRepository, IssueRepository issueRepository, UserRepository userRepository) {
+    public AttachmentService(AttachmentRepository attachmentRepository, FileStorageService fileStorageService, OrganizationRepository organizationRepository, ProjectRepository projectRepository, TaskRepository taskRepository, IssueRepository issueRepository, UserRepository userRepository, AttendanceRepository attendanceRepository) {
         this.attachmentRepository = attachmentRepository;
         this.fileStorageService = fileStorageService;
         this.organizationRepository = organizationRepository;
@@ -43,6 +45,7 @@ public class AttachmentService {
         this.taskRepository = taskRepository;
         this.issueRepository = issueRepository;
         this.userRepository = userRepository;
+        this.attendanceRepository = attendanceRepository;
     }
 
     /**
@@ -97,6 +100,10 @@ public class AttachmentService {
 
                 case "user":
                     attachment.setUser(userRepository.findById(entityId).orElse(null));
+                    break;
+
+                case "attendance":
+                    attachment.setAttendance(attendanceRepository.findById(entityId).orElse(null));
                     break;
             }
             attachments.add(attachmentRepository.save(attachment));

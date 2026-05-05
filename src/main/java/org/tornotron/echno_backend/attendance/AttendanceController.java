@@ -1,14 +1,18 @@
 package org.tornotron.echno_backend.attendance;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.attendance.dto.*;
 import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
 import org.tornotron.echno_backend.common.response.ApiResponse;
@@ -22,19 +26,27 @@ import java.util.List;
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
+    private final ObjectMapper objectMapper;
 
-    public AttendanceController(AttendanceService attendanceService) {
+    public AttendanceController(AttendanceService attendanceService, ObjectMapper objectMapper) {
         this.attendanceService = attendanceService;
+        this.objectMapper = objectMapper;
     }
 
-    @PostMapping("/check-in")
-    public ResponseEntity<AttendanceResponseDto> checkIn(@Valid @RequestBody AttendanceCheckInDto dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(attendanceService.checkIn(dto));
+    @PostMapping(value = "/check-in",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<AttendanceResponseDto> checkIn(@RequestParam("data") @Valid String data,
+                                                         @RequestParam(value = "photoUrl", required = false) MultipartFile photoUrl) throws JsonProcessingException {
+        AttendanceCheckInDto dto = objectMapper.readValue(data, AttendanceCheckInDto.class);
+        return ResponseEntity.status(HttpStatus.CREATED).body(attendanceService.checkIn(dto,photoUrl));
     }
 
-    @PostMapping("/clock-event")
-    public ResponseEntity<AttendanceResponseDto> recordClockEvent(@Valid @RequestBody AttendanceClockEventDto dto) {
-        return ResponseEntity.ok(attendanceService.recordClockEvent(dto));
+
+
+    @PostMapping(value = "/clock-event",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<AttendanceResponseDto> recordClockEvent(@RequestParam("data") @Valid String data,
+                                                                  @RequestParam(value = "photo", required = false) MultipartFile photo) throws JsonProcessingException {
+        AttendanceClockEventDto dto = objectMapper.readValue(data, AttendanceClockEventDto.class);
+        return ResponseEntity.ok(attendanceService.recordClockEvent(dto,photo));
     }
 
     @GetMapping("/{id}")

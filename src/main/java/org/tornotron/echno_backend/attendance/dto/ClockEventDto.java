@@ -5,8 +5,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.tornotron.echno_backend.attendance.enums.ClockEventType;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -30,4 +32,5 @@ public class ClockEventDto {
     private LocalDateTime verifiedAt;
     private Boolean isRegularized;
     private String regularizationReason;
+    private List<AttachmentDto> attachments;
 }
