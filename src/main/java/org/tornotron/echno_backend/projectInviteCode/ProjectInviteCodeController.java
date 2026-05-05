@@ -60,6 +60,7 @@ public class ProjectInviteCodeController {
      * @return A {@link ResponseEntity} with the organization DTO that was joined and HTTP status 200 (OK).
      */
     @PostMapping("/validate/userId/{userId}")
+    @PreAuthorize("@orgSecurity.isSelfUser(#userId) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<OrganizationDto> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto,
                                                               @PathVariable Long userId) {
         return ResponseEntity.status(HttpStatus.OK).body(projectInviteCodeService.validateAndUseInviteCode(inviteCodeValidationDto,userId));
