@@ -244,6 +244,8 @@ public class EmployeeService {
                 case "employeeId":
                     employee.setEmployeeId((String) value);
                     break;
+                case "status":
+                    employee.setStatus(EmployeeStatus.valueOf((String) value));
                 case "employeeName":
                     employee.setEmployeeName((String) value);
                     break;
