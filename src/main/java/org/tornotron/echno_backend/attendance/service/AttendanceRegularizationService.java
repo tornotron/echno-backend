@@ -150,7 +150,6 @@ public class AttendanceRegularizationService {
                     .eventTimestamp(req.getEventTimestamp())
                     .latitude(req.getLatitude())
                     .longitude(req.getLongitude())
-                    .photoUrl(req.getPhotoUrl())
                     .projectId(attendance.getProjectId())
                     .projectName(attendance.getProjectName())
                     .isRegularized(true)

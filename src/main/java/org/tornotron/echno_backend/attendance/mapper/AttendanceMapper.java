@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.attendance.mapper;
 import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.attendance.Attendance;
 import org.tornotron.echno_backend.attendance.dto.AttendanceResponseDto;
+import org.tornotron.echno_backend.common.service.FileStorageService;
 
 import java.util.stream.Collectors;
 
@@ -24,7 +25,7 @@ public class AttendanceMapper {
         this.regularizationMapper = regularizationMapper;
     }
 
-    public AttendanceResponseDto toResponseDto(Attendance attendance) {
+    public AttendanceResponseDto toResponseDto(Attendance attendance, FileStorageService fileStorageService) {
         if (attendance == null) return null;
         return AttendanceResponseDto.builder()
                 .id(attendance.getId())
@@ -37,7 +38,7 @@ public class AttendanceMapper {
                 .shiftTiming(shiftTimingMapper.toDto(attendance.getShiftTiming()))
                 .clockEvents(attendance.getClockEvents() != null
                         ? attendance.getClockEvents().stream()
-                            .map(clockEventMapper::toDto)
+                            .map(clockEvent -> ClockEventMapper.toDto(clockEvent,fileStorageService))
                             .collect(Collectors.toList())
                         : null)
                 .totalWorkMinutes(attendance.getTotalWorkMinutes())
