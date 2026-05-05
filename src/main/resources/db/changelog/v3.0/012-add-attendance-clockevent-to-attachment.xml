@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Add attendance_id FK column to attachment -->
+    <changeSet id="012-add-attendance-id-to-attachment" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="attachment" columnName="attendance_id"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="attachment">
+            <column name="attendance_id" type="BIGINT"/>
+        </addColumn>
+
+        <addForeignKeyConstraint baseTableName="attachment"
+                                 baseColumnNames="attendance_id"
+                                 constraintName="fk_attachment_attendance"
+                                 referencedTableName="attendance"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <createIndex tableName="attachment" indexName="idx_attachment_attendance">
+            <column name="attendance_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Add clock_event_id FK column to attachment -->
+    <changeSet id="012-add-clock-event-id-to-attachment" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="attachment" columnName="clock_event_id"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="attachment">
+            <column name="clock_event_id" type="BIGINT"/>
+        </addColumn>
+
+        <addForeignKeyConstraint baseTableName="attachment"
+                                 baseColumnNames="clock_event_id"
+                                 constraintName="fk_attachment_clock_event"
+                                 referencedTableName="clock_event"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <createIndex tableName="attachment" indexName="idx_attachment_clock_event">
+            <column name="clock_event_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
