@@ -11,9 +11,6 @@ import java.time.LocalDate;
 @Data
 public class LeaveRequestCreationDto {
 
-    @NotNull(message = "Employee ID is required")
-    private Long employeeId;
-
     @NotNull(message = "Leave policy ID is required")
     private Long leavePolicyId;
 
