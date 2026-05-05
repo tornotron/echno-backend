@@ -177,6 +177,18 @@ public class OrganizationSecurityService {
         return result;
     }
 
+    /**
+     * Checks if the given userId matches the currently-authenticated user.
+     * Tenant-independent — use for endpoints (e.g. invite validation) where
+     * the user may not yet belong to any organization.
+     *
+     * Usage in @PreAuthorize: @orgSecurity.isSelfUser(#userId)
+     */
+    public boolean isSelfUser(Long userId) {
+        Long currentUserId = userContextService.getCurrentUserId();
+        return currentUserId != null && currentUserId.equals(userId);
+    }
+
     public boolean isMemberOfCurrentTenant() {
         Long orgId = TenantContext.getCurrentOrgId();
         if (orgId == null) {
