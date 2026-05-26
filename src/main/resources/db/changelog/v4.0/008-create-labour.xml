@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="008-create-labour" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="labour"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="labour">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="labour_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT"/>
+            <column name="full_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR(255)"/>
+            <column name="address" type="VARCHAR(255)"/>
+            <column name="phone_number" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="emergency_contact_name" type="VARCHAR(255)"/>
+            <column name="emergency_contact_number" type="VARCHAR(50)"/>
+            <column name="specialization" type="VARCHAR(255)"/>
+            <column name="employment_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="skill_level" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="joining_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT"/>
+            <column name="daily_rate" type="DECIMAL(15,2)"/>
+            <column name="over_time_rate" type="DECIMAL(15,2)"/>
+            <column name="bank_account_number" type="VARCHAR(100)"/>
+            <column name="bank_name" type="VARCHAR(255)"/>
+            <column name="ifsc_code" type="VARCHAR(50)"/>
+            <column name="additional_notes" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="labour"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_labour_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint baseTableName="labour"
+                                 baseColumnNames="project_id"
+                                 constraintName="fk_labour_project"
+                                 referencedTableName="project"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <createIndex tableName="labour" indexName="idx_labour_organization">
+            <column name="organization_id"/>
+        </createIndex>
+        <createIndex tableName="labour" indexName="idx_labour_project">
+            <column name="project_id"/>
+        </createIndex>
+        <createIndex tableName="labour" indexName="idx_labour_labour_id">
+            <column name="labour_id"/>
+        </createIndex>
+        <createIndex tableName="labour" indexName="idx_labour_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="labour" indexName="idx_labour_phone_number">
+            <column name="phone_number"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
