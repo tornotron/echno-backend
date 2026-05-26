@@ -203,4 +203,7 @@
     <include file="db/changelog/v3.0/011-rename-intend-to-indent.xml"/>
     <include file="db/changelog/v3.0/012-add-attendance-clockevent-to-attachment.xml"/>
 
+    <!-- v4.0 - Labour module -->
+    <include file="db/changelog/v4.0/008-create-labour.xml"/>
+
 </databaseChangeLog>
