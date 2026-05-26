@@ -32,13 +32,13 @@ public class Labour extends BaseEntity implements TenantScopedEntity {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @Column(name = "email", nullable = true)
+    @Column(name = "email", nullable = true,unique = true)
     private String email;
 
     @Column(name = "address", nullable = true)
     private String address;
 
-    @Column(name = "phone_number", nullable = false)
+    @Column(name = "phone_number", nullable = false,unique = true)
     private String phoneNumber;
 
     @Column(name = "emergency_contact_name", nullable = true)
@@ -78,7 +78,7 @@ public class Labour extends BaseEntity implements TenantScopedEntity {
     @Column(name = "over_time_rate")
     private BigDecimal overTimeRate;
 
-    @Column(name = "bank_account_number")
+    @Column(name = "bank_account_number",unique = true)
     private String bankAccountNumber;
 
     @Column(name = "bank_name")
