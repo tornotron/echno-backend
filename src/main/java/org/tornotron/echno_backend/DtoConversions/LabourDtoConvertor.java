@@ -4,7 +4,6 @@ import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.labour.Labour;
 import org.tornotron.echno_backend.labour.dto.LabourDto;
 import org.tornotron.echno_backend.labour.dto.LabourSimpleDto;
-import org.tornotron.echno_backend.labour.enums.EmploymentType;
 
 @Component
 public class LabourDtoConvertor {
