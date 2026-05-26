@@ -1,6 +1,5 @@
 package org.tornotron.echno_backend.labour.dto;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.*;
