@@ -205,5 +205,6 @@
 
     <!-- v4.0 - Labour module -->
     <include file="db/changelog/v4.0/008-create-labour.xml"/>
+    <include file="db/changelog/v4.0/009-alter-labour-unique-constraints.xml"/>
 
 </databaseChangeLog>
