@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="011-create-finance-journal-entries" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="journal_entries"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="journal_entries">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="entry_number" type="VARCHAR(30)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_je_number"/>
+            </column>
+            <column name="entry_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reference" type="VARCHAR(100)"/>
+            <column name="status" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reversed_by_entry_id" type="UUID"/>
+            <column name="reverses_entry_id" type="UUID"/>
+            <column name="source_type" type="VARCHAR(30)"/>
+            <column name="source_id" type="UUID"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="journal_entries" indexName="idx_je_entry_date">
+            <column name="entry_date"/>
+        </createIndex>
+        <createIndex tableName="journal_entries" indexName="idx_je_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="journal_entries" indexName="idx_je_reference">
+            <column name="reference"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
