@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.common.exception;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,67 @@ public class GlobalExceptionHandler {
         logger.error("Resource not found exception: ", ex);
         return new CustomErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(UnbalancedEntryException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public CustomErrorResponse handleUnbalancedEntryException(UnbalancedEntryException ex, WebRequest request) {
+        logger.error("Unbalanced entry exception: ", ex);
+        return new CustomErrorResponse(
+                HttpStatus.UNPROCESSABLE_ENTITY.value(),
+                ex.getMessage(),
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+
+    }
+
+    @ExceptionHandler(InvalidJournalException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public CustomErrorResponse handleInvalidJournalException(InvalidJournalException ex, WebRequest request) {
+        logger.error("Invalid journal exception: ", ex);
+        return new CustomErrorResponse(
+                HttpStatus.UNPROCESSABLE_ENTITY.value(),
+                ex.getMessage(),
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler({AccountNotFoundException.class, EntityNotFoundException.class})
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public CustomErrorResponse handleAccountNotFoundException(AccountNotFoundException ex, WebRequest request) {
+        logger.error("Account not found exception: ", ex);
+        return new CustomErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(PeriodClosedException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public CustomErrorResponse handlePeriodClosedException(PeriodClosedException ex, WebRequest request) {
+        logger.error("Period closed exception: ", ex);
+        return new CustomErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+    }
+
+    @ExceptionHandler(DuplicateIdempotencyKeyException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public CustomErrorResponse handleDuplicateIdempotencyKeyException(DuplicateIdempotencyKeyException ex, WebRequest request) {
+        logger.error("Duplicate idempotency key exception: ", ex);
+        return new CustomErrorResponse(
+                HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
                 request.getDescription(false),
                 LocalDateTime.now()
