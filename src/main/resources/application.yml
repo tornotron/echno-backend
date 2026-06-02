@@ -37,6 +37,19 @@ API:
   VERSION: ${BACKEND_API_VERSION}
 
 
+# Chart-of-accounts auto numbering. level-steps is the gap between sibling codes
+# at each depth (0 = roots); root-blocks is the first code per account type.
+finance:
+  account-numbering:
+    level-steps: [1000, 100, 10, 1]
+    root-blocks:
+      ASSET: 1000
+      LIABILITY: 2000
+      EQUITY: 3000
+      INCOME: 4000
+      EXPENSE: 5000
+
+
 keycloak-initializer:
   initialize-on-startup: true
   master-realm: ${KEYCLOAK_INITIALIZER_MASTER_REALM}
