@@ -55,6 +55,7 @@ public class StorageLocationService {
         storageLocation.setAddress(creationDto.getAddress());
         storageLocation.setLatitude(creationDto.getLatitude());
         storageLocation.setLongitude(creationDto.getLongitude());
+        storageLocation.setActive(creationDto.isActive());
         storageLocation.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         // Project is optional - central warehouses/godowns may serve multiple projects
