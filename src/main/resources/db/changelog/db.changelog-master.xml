@@ -207,4 +207,10 @@
     <include file="db/changelog/v4.0/008-create-labour.xml"/>
     <include file="db/changelog/v4.0/009-alter-labour-unique-constraints.xml"/>
 
+    <!-- v4.0 - Finance Ledger module -->
+    <include file="db/changelog/v4.0/010-create-finance-accounts.xml"/>
+    <include file="db/changelog/v4.0/011-create-finance-journal-entries.xml"/>
+    <include file="db/changelog/v4.0/012-create-finance-journal-entry-lines.xml"/>
+    <include file="db/changelog/v4.0/013-create-document-sequence.xml"/>
+
 </databaseChangeLog>

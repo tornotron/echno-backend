@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="012-create-finance-journal-entry-lines" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="journal_entry_lines"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="journal_entry_lines">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="journal_entry_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="account_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="debit" type="DECIMAL(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="credit" type="DECIMAL(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="narration" type="VARCHAR(500)"/>
+            <column name="line_order" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="journal_entry_lines"
+                                 baseColumnNames="journal_entry_id"
+                                 constraintName="fk_jel_journal_entry"
+                                 referencedTableName="journal_entries"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="journal_entry_lines"
+                                 baseColumnNames="account_id"
+                                 constraintName="fk_jel_account"
+                                 referencedTableName="accounts"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="journal_entry_lines" indexName="idx_jel_account">
+            <column name="account_id"/>
+        </createIndex>
+        <createIndex tableName="journal_entry_lines" indexName="idx_jel_journal">
+            <column name="journal_entry_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
