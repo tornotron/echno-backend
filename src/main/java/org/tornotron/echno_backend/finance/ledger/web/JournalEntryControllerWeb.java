@@ -24,14 +24,14 @@ public class JournalEntryControllerWeb {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.post(req));
     }
 
-    @GetMapping("/{id}")
-    public JournalEntryDto get(@PathVariable UUID id) {
+    @GetMapping()
+    public JournalEntryDto get(@RequestParam UUID id) {
         return service.findById(id);
     }
 
-    @PostMapping("/{id}/reverse")
+    @PostMapping("/reverse")
     public ResponseEntity<JournalEntryDto> reverse(
-            @PathVariable UUID id,
+            @RequestParam UUID id,
             @Valid @RequestBody ReverseJournalRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.reverse(id, req));
     }
