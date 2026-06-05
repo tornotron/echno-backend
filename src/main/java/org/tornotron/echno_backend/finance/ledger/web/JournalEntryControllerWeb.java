@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.finance.ledger.web;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,6 +11,7 @@ import org.tornotron.echno_backend.finance.ledger.dtos.PostJournalRequest;
 import org.tornotron.echno_backend.finance.ledger.dtos.ReverseJournalRequest;
 import org.tornotron.echno_backend.finance.ledger.service.JournalPostingService;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -27,6 +29,13 @@ public class JournalEntryControllerWeb {
     @GetMapping()
     public JournalEntryDto get(@RequestParam UUID id) {
         return service.findById(id);
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<JournalEntryDto>> getAll(@RequestParam(defaultValue = "0") int pageNo,
+                                        @RequestParam(defaultValue = "10") int pageSize) {
+        Page<JournalEntryDto> journalEntries = service.findAll(pageNo,pageSize);
+        return ResponseEntity.status(HttpStatus.OK).body(journalEntries.getContent());
     }
 
     @PostMapping("/reverse")
