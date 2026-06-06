@@ -1,0 +1,330 @@
+Goods and Material Management Module - Architecture Overview
+
+  Your Spring Boot application implements a complete procurement and inventory management system with event-driven inventory tracking. Here's how it works:
+
+  Core Entities and Their Relationships
+
+  1. Material (Master Data)
+  - The foundation of the system - represents inventory items
+  - Contains: SKU, material name, unit of measurement
+  - Tracks all inventory movements through relationships
+
+  2. Vendor (Master Data)
+  - Supplier information
+  - Linked to: Purchase Orders, GRNs, and Payables
+
+  3. Intend (Indent) - Material Requisition
+  - Employee creates a request for materials
+  - Contains multiple IndentItems
+  - Status flow: PENDING → ORDERED → ON_SITE/DELAYED/CANCELLED
+  - Acts as the starting point of the procurement workflow
+
+  4. Purchase Order
+  - Created from an Indent or standalone
+  - Links to: Vendor, Indent (optional), multiple PurchaseOrderItems
+  - Status flow: DRAFT → APPROVED → SENT_TO_VENDOR → PARTIALLY_RECEIVED → FULLY_RECEIVED
+  - Tracks ordered vs received quantities per item
+
+  5. Goods Received Note (GRN)
+  - Records actual receipt of materials from vendor
+  - Links to: PurchaseOrder, Vendor, multiple GrnItems
+  - Captures: delivery challan, invoice details
+  - Triggers automatic inventory increase via events
+
+  6. InventoryTransaction (Auto-generated)
+  - Ledger of all inventory movements
+  - Records: opening stock, quantity changed, closing stock
+  - Types: GRN (increase), USE (decrease), TRANSFER (decrease), ADJUST
+  - Created automatically by event listeners
+
+  7. MaterialConsumption
+  - Records materials used from stock
+  - Types: USED_FROM_STOCK, TRANSFERRED
+  - Triggers automatic inventory decrease via events
+
+  8. SiteTransfer
+  - Transfer materials between sites
+  - Reduces inventory at source site
+  - Status: PENDING → PARTIALLY_TRANSFERRED → COMPLETED
+  - Triggers automatic inventory decrease via events
+
+  9. Payable
+  - Financial obligations to vendors
+  - Linked to: Vendor, GRN
+  - Tracks: amount recorded vs amount paid
+  - Contract types available
+
+  Event-Driven Inventory System
+
+  The system uses Spring Application Events to automatically maintain inventory:
+
+  InventoryEventListener listens for:
+  1. GrnCreatedEvent → Creates INBOUND transactions
+  2. MaterialConsumedEvent → Creates OUTBOUND (USE) transactions
+  3. SiteTransferCreatedEvent → Creates OUTBOUND (TRANSFER) transactions
+
+  This ensures inventory is always automatically updated when goods are received, consumed, or transferred.
+
+  Complete Workflow - How to Use the System
+
+  Step 1: Set Up Master Data
+
+  Create Materials:
+  POST /api/v1/materials
+  {
+    "sku": "MAT001",
+    "materialName": "Portland Cement",
+    "unit": "bag"
+  }
+
+  Create Vendors:
+  POST /api/v1/vendors
+  {
+    "vendorName": "ABC Suppliers",
+    "vendorEmail": "abc@suppliers.com",
+    "vendorAddress": "123 Industrial Area"
+  }
+
+  Step 2: Requisition Process (Indent)
+
+  Create an Indent:
+  POST /api/v1/intends
+  {
+    "expectedOn": "2025-12-20T00:00:00",
+    "remarks": "Materials for Block A construction",
+    "items": [
+      {
+        "materialId": 1,
+        "requestedQuantity": 100,
+        "additionalSpecifications": "Grade 53",
+        "remarks": "Urgent"
+      }
+    ]
+  }
+
+  View all indents:
+  GET /api/v1/intends
+  GET /api/v1/intends/{id}
+
+  Step 3: Create Purchase Order
+
+  From Indent or Standalone:
+  POST /api/v1/purchase-orders
+  {
+    "vendorId": 1,
+    "intendId": 1,  // Optional - links to indent
+    "expectedDeliveryDate": "2025-12-18T00:00:00",
+    "remarks": "Rush order",
+    "items": [
+      {
+        "materialId": 1,
+        "indentItemId": 1,  // Optional - links to indent item
+        "orderedQuantity": 100,
+        "unitPrice": 450.00,
+        "remarks": "Grade 53 cement"
+      }
+    ]
+  }
+
+  Update PO Status:
+  PATCH /api/v1/purchase-orders/{id}/status?status=APPROVED
+  PATCH /api/v1/purchase-orders/{id}/status?status=SENT_TO_VENDOR
+
+  Query Purchase Orders:
+  GET /api/v1/purchase-orders                  # All POs
+  GET /api/v1/purchase-orders/{id}            # Specific PO
+  GET /api/v1/purchase-orders/vendor/{vendorId}
+  GET /api/v1/purchase-orders/intend/{intendId}
+  GET /api/v1/purchase-orders/status/APPROVED
+
+  Step 4: Receive Goods (GRN)
+
+  Create GRN when goods arrive:
+  POST /api/v1/grns
+  {
+    "receivedOn": "2025-12-18T10:30:00",
+    "vendorId": 1,
+    "purchaseOrderId": 1,
+    "deliveryChallanNumber": "DC-2025-001",
+    "invoiceNumber": "INV-2025-001",
+    "invoiceAmount": 45000.00,
+    "items": [
+      {
+        "materialId": 1,
+        "orderedQuantity": 100,
+        "receivedQuantity": 95  // Partial delivery
+      }
+    ]
+  }
+
+  What happens automatically:
+  - GrnCreatedEvent is published
+  - InventoryEventListener creates InventoryTransaction records
+  - Stock increases for each material
+  - PurchaseOrderItem.receivedQuantity is updated
+  - PO status updates to PARTIALLY_RECEIVED or FULLY_RECEIVED
+
+  Query GRNs:
+  GET /api/v1/grns                            # All GRNs
+  GET /api/v1/grns/{id}
+  GET /api/v1/grns/vendor/{vendorId}
+  GET /api/v1/grns/date-range?startDate=2025-12-01T00:00:00&endDate=2025-12-31T23:59:59
+
+  Step 5: Check Inventory
+
+  View material with current stock:
+  GET /api/v1/materials/{id}/stock
+  Returns:
+  {
+    "id": 1,
+    "sku": "MAT001",
+    "materialName": "Portland Cement",
+    "unit": "bag",
+    "currentStock": 95
+  }
+
+  View inventory transactions:
+  GET /api/v1/inventory-transactions/material/{materialId}
+  GET /api/v1/inventory-transactions/type/GRN
+  GET /api/v1/inventory-transactions/date-range?startDate=...&endDate=...
+
+  Each transaction shows: opening stock → quantity changed → closing stock
+
+  Step 6: Consume Materials
+
+  Record material usage:
+  POST /api/v1/material-consumptions
+  {
+    "consumptionDate": "2025-12-19T14:00:00",
+    "materialId": 1,
+    "quantity": 20,
+    "consumptionType": "USED_FROM_STOCK",
+    "details": "Used for Block A foundation work"
+  }
+
+  What happens automatically:
+  - Stock validation occurs (throws InsufficientStockException if not enough)
+  - MaterialConsumedEvent is published
+  - InventoryTransaction created (negative quantity)
+  - Stock decreases automatically
+
+  Query consumptions:
+  GET /api/v1/material-consumptions/material/{materialId}
+  GET /api/v1/material-consumptions/type/USED_FROM_STOCK
+  GET /api/v1/material-consumptions/date-range?startDate=...&endDate=...
+
+  Step 7: Transfer Between Sites
+
+  Create site transfer:
+  POST /api/v1/site-transfers
+  {
+    "issueDate": "2025-12-20T09:00:00",
+    "receivingSite": "Site B - Project Phase 2",
+    "items": [
+      {
+        "materialId": 1,
+        "sentQuantity": 30,
+        "remarks": "Transfer for Site B requirements"
+      }
+    ]
+  }
+
+  What happens automatically:
+  - Stock validation occurs
+  - SiteTransferCreatedEvent published
+  - InventoryTransaction created (negative quantity)
+  - Stock decreases at source site
+
+  Update transfer status:
+  PATCH /api/v1/site-transfers/{id}/status?status=COMPLETED
+
+  Query transfers:
+  GET /api/v1/site-transfers/status/PENDING
+  GET /api/v1/site-transfers/receiving-site/{siteName}
+
+  Step 8: Manage Payables
+
+  Create payable (financial obligation):
+  POST /api/v1/payables
+  {
+    "contractorName": "ABC Suppliers",
+    "contractType": "MATERIAL",
+    "amountRecorded": 45000.00,
+    "amountPaid": 20000.00,
+    "vendorId": 1,
+    "goodsReceivedNoteId": 1
+  }
+
+  Query payables:
+  GET /api/v1/payables                        # All payables
+  GET /api/v1/payables/vendor/{vendorId}
+  GET /api/v1/payables/grn/{grnId}
+
+  Key Features
+
+  1. Automatic Inventory Management
+
+  - No manual stock updates needed
+  - Event-driven architecture ensures consistency
+  - Complete audit trail via InventoryTransaction records
+
+  2. Stock Validation
+
+  - InventoryService validates sufficient stock before consumption/transfer
+  - Throws InsufficientStockException with detailed error messages
+  - Prevents negative inventory
+
+  3. Traceability
+
+  - Every inventory change links to source document (GRN number, transfer number, etc.)
+  - Complete chain from Indent → PO → GRN → Inventory → Consumption
+  - IndentItem tracks conversion to PO and links to PO number
+
+  4. Purchase Order Tracking
+
+  - Tracks ordered vs received quantities per item
+  - Automatic status updates (PARTIALLY_RECEIVED/FULLY_RECEIVED)
+  - Links back to Indent for requisition tracking
+
+  5. Financial Integration
+
+  - Payables link GRN to vendor payments
+  - Tracks amount due calculation: amountRecorded - amountPaid
+  - Supports different contract types
+
+  System Architecture Highlights
+
+  Event-Driven Design:
+  - Services publish events (GrnCreatedEvent, MaterialConsumedEvent, etc.)
+  - InventoryEventListener handles inventory updates asynchronously
+  - Ensures loose coupling and transaction safety (AFTER_COMMIT phase)
+
+  Data Integrity:
+  - Transaction management ensures atomicity
+  - Validation before stock movements
+  - Unique constraints on document numbers
+
+  Query Flexibility:
+  - Filter by date range, vendor, status, material
+  - Pagination support for large datasets
+  - Search capabilities for materials
+
+  File Structure
+
+  goodsReceivedNote/     - GRN management
+  grnItem/               - GRN line items
+  indentItem/            - Indent line items
+  intend/                - Material requisitions
+  inventoryTransaction/  - Inventory ledger (auto-generated)
+  material/              - Material master
+  materialConsumption/   - Usage records
+  payable/               - Financial obligations
+  purchaseOrder/         - PO management
+  purchaseOrderItem/     - PO line items
+  siteTransfer/          - Inter-site transfers
+  siteTransferItem/      - Transfer line items
+  vendor/                - Vendor master
+
+  Each module follows standard structure: Entity, Repository, Service, Controller, DTOs, and Enums.
+
+  The system provides a complete, traceable procurement-to-consumption workflow with automated inventory management and strong data integrity.
