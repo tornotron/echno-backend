@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="014-create-finance-customers" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="customers"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="customers">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(30)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_customers_code"/>
+            </column>
+            <column name="name" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="gstin" type="VARCHAR(15)"/>
+            <column name="pan" type="VARCHAR(10)"/>
+            <column name="email" type="VARCHAR(200)"/>
+            <column name="phone" type="VARCHAR(20)"/>
+
+            <!-- Embedded billing address -->
+            <column name="address_line1" type="VARCHAR(200)"/>
+            <column name="address_line2" type="VARCHAR(200)"/>
+            <column name="address_city" type="VARCHAR(100)"/>
+            <column name="address_state" type="VARCHAR(100)"/>
+            <column name="address_state_code" type="VARCHAR(2)"/>
+            <column name="address_postal_code" type="VARCHAR(20)"/>
+            <column name="address_country" type="VARCHAR(2)"/>
+
+            <column name="credit_limit" type="NUMERIC(19, 4)"/>
+            <column name="payment_terms_days" type="INT"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="customers" indexName="idx_customer_name">
+            <column name="name"/>
+        </createIndex>
+        <createIndex tableName="customers" indexName="idx_customer_gstin">
+            <column name="gstin"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
