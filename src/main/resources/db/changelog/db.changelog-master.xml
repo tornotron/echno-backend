@@ -212,5 +212,10 @@
     <include file="db/changelog/v4.0/011-create-finance-journal-entries.xml"/>
     <include file="db/changelog/v4.0/012-create-finance-journal-entry-lines.xml"/>
     <include file="db/changelog/v4.0/013-create-document-sequence.xml"/>
+    <include file="db/changelog/v4.0/014-create-finance-customers.xml"/>
+
+    <!-- v4.0 - Finance Invoice module -->
+    <include file="db/changelog/v4.0/015-create-finance-invoices.xml"/>
+    <include file="db/changelog/v4.0/016-create-finance-invoice-lines.xml"/>
 
 </databaseChangeLog>
