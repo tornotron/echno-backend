@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="015-create-finance-invoices" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="invoices"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="invoices">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="invoice_number" type="VARCHAR(30)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_invoice_number"/>
+            </column>
+            <column name="customer_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="invoice_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="due_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="DRAFT">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="subtotal" type="NUMERIC(19, 4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_total" type="NUMERIC(19, 4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total" type="NUMERIC(19, 4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount_paid" type="NUMERIC(19, 4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="journal_entry_id" type="UUID"/>
+            <column name="reversal_je_id" type="UUID"/>
+            <column name="notes" type="VARCHAR(500)"/>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="invoices"
+                                 baseColumnNames="customer_id"
+                                 constraintName="fk_invoice_customer"
+                                 referencedTableName="customers"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="invoices" indexName="idx_invoice_customer">
+            <column name="customer_id"/>
+        </createIndex>
+        <createIndex tableName="invoices" indexName="idx_invoice_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="invoices" indexName="idx_invoice_date">
+            <column name="invoice_date"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
