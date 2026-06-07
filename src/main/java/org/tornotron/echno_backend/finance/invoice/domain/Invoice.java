@@ -70,11 +70,12 @@ public class Invoice extends BaseEntity {
 
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true,
             fetch = FetchType.LAZY)
-    @OrderColumn(name = "line_order")
+    @OrderBy("lineOrder ASC")
     private List<InvoiceLine> lines = new ArrayList<>();
 
     public void addLine(InvoiceLine line) {
         line.setInvoice(this);
+        line.setLineOrder(this.lines.size());
         this.lines.add(line);
     }
 
