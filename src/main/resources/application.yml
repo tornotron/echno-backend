@@ -48,6 +48,9 @@ finance:
       EQUITY: 3000
       INCOME: 4000
       EXPENSE: 5000
+  invoice:
+    ar-account-code: "1200"   # Accounts Receivable (postable leaf)
+    gst-output-code: "2210"   # GST Output Payable (postable leaf)
 
 
 keycloak-initializer:

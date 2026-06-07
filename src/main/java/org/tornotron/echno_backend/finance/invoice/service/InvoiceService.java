@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.common.exception.AccountNotFoundException;
 import org.tornotron.echno_backend.common.exception.InvalidJournalException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
+import org.tornotron.echno_backend.finance.invoice.InvoicePostingProperties;
 import org.tornotron.echno_backend.finance.invoice.InvoiceStatus;
 import org.tornotron.echno_backend.finance.invoice.domain.Invoice;
 import org.tornotron.echno_backend.finance.invoice.domain.InvoiceLine;
@@ -43,10 +44,7 @@ public class InvoiceService {
     private final JournalPostingService postingService;
     private final EntryNumberGenerator numberGen;
     private final InvoiceMapper mapper;
-
-    // Hardcoded control-account codes. In v2, make these configurable per-company.
-    private static final String AR_ACCOUNT_CODE  = "1100";   // Accounts Receivable
-    private static final String GST_OUT_CODE     = "2200";   // GST Output Payable
+    private final InvoicePostingProperties postingProps;
 
     @Transactional(readOnly = true)
     public InvoiceDto findById(UUID id) {
@@ -141,8 +139,8 @@ public class InvoiceService {
                     "Only DRAFT invoices can be issued. Current: " + inv.getStatus());
         }
 
-        Account ar = accountRepo.findByCode(AR_ACCOUNT_CODE)
-                .orElseThrow(() -> new AccountNotFoundException(AR_ACCOUNT_CODE));
+        Account ar = accountRepo.findByCode(postingProps.getArAccountCode())
+                .orElseThrow(() -> new AccountNotFoundException(postingProps.getArAccountCode()));
 
         List<PostJournalRequest.LineRequest> jeLines = new ArrayList<>();
 
@@ -164,8 +162,8 @@ public class InvoiceService {
 
         // CR GST Output Payable (if applicable)
         if (MoneyUtils.isPositive(inv.getTaxTotal())) {
-            Account gstOut = accountRepo.findByCode(GST_OUT_CODE)
-                    .orElseThrow(() -> new AccountNotFoundException(GST_OUT_CODE));
+            Account gstOut = accountRepo.findByCode(postingProps.getGstOutputCode())
+                    .orElseThrow(() -> new AccountNotFoundException(postingProps.getGstOutputCode()));
             jeLines.add(new PostJournalRequest.LineRequest(gstOut.getId(), BigDecimal.ZERO, inv.getTaxTotal(),
                     "GST output - " + inv.getInvoiceNumber()));
         }
