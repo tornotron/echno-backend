@@ -46,6 +46,9 @@ public class InvoiceLine {
     @Column(name = "line_total", nullable = false, precision = 19, scale = 4)
     private BigDecimal lineTotal;         // lineSubtotal + taxAmount
 
+    @Column(name = "line_order", nullable = false)
+    private int lineOrder;                // zero-based position within the invoice
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "revenue_account_id", nullable = false)
     private Account revenueAccount;       // which INCOME account to credit
