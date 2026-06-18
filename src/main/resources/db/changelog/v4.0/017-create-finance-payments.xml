@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="017-create-finance-payments" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="payments"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="payments">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="payment_number" type="VARCHAR(30)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_payment_number"/>
+            </column>
+            <column name="customer_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payment_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount" type="NUMERIC(19, 4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="bank_account_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="external_reference" type="VARCHAR(100)"/>
+            <column name="idempotency_key" type="VARCHAR(100)">
+                <constraints unique="true" uniqueConstraintName="uk_payment_idem"/>
+            </column>
+            <column name="journal_entry_id" type="UUID"/>
+            <column name="notes" type="VARCHAR(500)"/>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="payments"
+                                 baseColumnNames="customer_id"
+                                 constraintName="fk_payment_customer"
+                                 referencedTableName="customers"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint baseTableName="payments"
+                                 baseColumnNames="bank_account_id"
+                                 constraintName="fk_payment_bank_account"
+                                 referencedTableName="accounts"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="payments" indexName="idx_payment_customer">
+            <column name="customer_id"/>
+        </createIndex>
+        <createIndex tableName="payments" indexName="idx_payment_date">
+            <column name="payment_date"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
