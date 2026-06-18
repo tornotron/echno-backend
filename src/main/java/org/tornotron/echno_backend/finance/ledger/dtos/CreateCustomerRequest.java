@@ -2,37 +2,43 @@ package org.tornotron.echno_backend.finance.ledger.dtos;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-public record CreateCustomerRequest(
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class CreateCustomerRequest {
 
         @NotBlank @Size(max = 30)
-        String code,
+        private String code;
 
         @NotBlank @Size(max = 200)
-        String name,
+        private String name;
 
         @Size(max = 15)
-        String gstin,
+        private String gstin;
 
         @Size(max = 10)
-        String pan,
+        private String pan;
 
         @Email @Size(max = 200)
-        String email,
+        private String email;
 
         @Size(max = 20)
-        String phone,
+        private String phone;
 
         @Valid
-        AddressDto billingAddress,
+        private AddressDto billingAddress;
 
         @DecimalMin("0.0")
-        BigDecimal creditLimit,
+        private BigDecimal creditLimit;
 
         @Min(0)
         @Max(365)
-        Integer paymentTermsDays
+        private Integer paymentTermsDays;
 
-) {}
+}

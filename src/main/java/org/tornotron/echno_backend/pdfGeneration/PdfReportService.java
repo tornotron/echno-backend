@@ -8,11 +8,11 @@ import java.util.stream.Collectors;
 
 
 @Service
-public class ReportService {
+public class PdfReportService {
 
     private final TaskService taskService;
 
-    public ReportService(TaskService taskService) {
+    public PdfReportService(TaskService taskService) {
         this.taskService = taskService;
     }
 
