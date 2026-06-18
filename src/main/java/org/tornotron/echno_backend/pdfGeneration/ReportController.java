@@ -26,7 +26,7 @@ public class ReportController {
 
     private final OrganizationService organizationService;
     private final TaskService taskService;
-    private final ReportService reportService;
+    private final PdfReportService pdfReportService;
     private final SpringTemplateEngine pdfTemplateEngine;
     private final CategoryService categoryService;
     private final DateConversion dateConversion;
@@ -34,7 +34,7 @@ public class ReportController {
     private final IndentService indentService;
 
     public ReportController(TaskService taskService,
-                            ReportService reportService,
+                            PdfReportService pdfReportService,
                             CategoryService categoryService,
                             DateConversion dateConversion,
                             @Qualifier("pdfTemplateEngine") SpringTemplateEngine pdfTemplateEngine,
@@ -44,7 +44,7 @@ public class ReportController {
         this.organizationService = organizationService;
         this.projectService = projectService;
         this.dateConversion = dateConversion;
-        this.reportService = reportService;
+        this.pdfReportService = pdfReportService;
         this.categoryService = categoryService;
         this.taskService = taskService;
         this.pdfTemplateEngine = pdfTemplateEngine;
@@ -54,8 +54,8 @@ public class ReportController {
     private Context populateContext() {
         Context ctx = new Context();
         ctx.setVariable("tasks", taskService.getAllTasks());
-        ctx.setVariable("counts", reportService.statusCount());
-        ctx.setVariable("delayedCounts", reportService.statusCount());
+        ctx.setVariable("counts", pdfReportService.statusCount());
+        ctx.setVariable("delayedCounts", pdfReportService.statusCount());
         ctx.setVariable("category", categoryService);
         ctx.setVariable("dateConverter", dateConversion);
         ctx.setVariable("project",projectService);

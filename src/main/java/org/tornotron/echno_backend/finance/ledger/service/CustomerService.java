@@ -37,19 +37,19 @@ public class CustomerService {
 
     @Transactional
     public CustomerDto create(CreateCustomerRequest req) {
-        if(repo.existsByCode(req.code())) {
-            throw new InvalidJournalException("Customer code already exists: "+ req.code());
+        if(repo.existsByCode(req.getCode())) {
+            throw new InvalidJournalException("Customer code already exists: "+ req.getCode());
         }
         Customer customer = new Customer();
-        customer.setCode(req.code());
-        customer.setName(req.name());
-        customer.setGstin(req.gstin());
-        customer.setPan(req.pan());
-        customer.setEmail(req.email());
-        customer.setPhone(req.phone());
-        if (req.billingAddress() != null) customer.setBillingAddress(mapper.toAddress(req.billingAddress()));
-        customer.setCreditLimit(req.creditLimit());
-        customer.setPaymentTermsDays(req.paymentTermsDays() == null ? 30 : req.paymentTermsDays());
+        customer.setCode(req.getCode());
+        customer.setName(req.getName());
+        customer.setGstin(req.getGstin());
+        customer.setPan(req.getPan());
+        customer.setEmail(req.getEmail());
+        customer.setPhone(req.getPhone());
+        if (req.getBillingAddress() != null) customer.setBillingAddress(mapper.toAddress(req.getBillingAddress()));
+        customer.setCreditLimit(req.getCreditLimit());
+        customer.setPaymentTermsDays(req.getPaymentTermsDays() == null ? 30 : req.getPaymentTermsDays());
         customer.setActive(true);
         return mapper.toDto(repo.save(customer));
     }
@@ -57,14 +57,14 @@ public class CustomerService {
     @Transactional
     public CustomerDto update(UUID id, UpdateCustomerRequest req) {
         Customer customer = getEntity(id);
-        customer.setName(req.name());
-        customer.setGstin(req.gstin());
-        customer.setPan(req.pan());
-        customer.setEmail(req.email());
-        customer.setPhone(req.phone());
-        if(req.billingAddress() != null) customer.setBillingAddress(mapper.toAddress(req.billingAddress()));
-        customer.setCreditLimit(req.creditLimit());
-        if(req.paymentTermsDays() != null) customer.setPaymentTermsDays(req.paymentTermsDays());
+        customer.setName(req.getName());
+        customer.setGstin(req.getGstin());
+        customer.setPan(req.getPan());
+        customer.setEmail(req.getEmail());
+        customer.setPhone(req.getPhone());
+        if(req.getBillingAddress() != null) customer.setBillingAddress(mapper.toAddress(req.getBillingAddress()));
+        customer.setCreditLimit(req.getCreditLimit());
+        if(req.getPaymentTermsDays() != null) customer.setPaymentTermsDays(req.getPaymentTermsDays());
         return mapper.toDto(customer);
     }
 
