@@ -13,7 +13,7 @@ import org.tornotron.echno_backend.finance.invoice.service.InvoiceService;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/finance/invoices")
+@RequestMapping("/api/v1/finance/invoices/web")
 @RequiredArgsConstructor
 public class InvoiceControllerWeb {
 
