@@ -218,4 +218,9 @@
     <include file="db/changelog/v4.0/015-create-finance-invoices.xml"/>
     <include file="db/changelog/v4.0/016-create-finance-invoice-lines.xml"/>
 
+    <!-- v4.0 - Finance Payment module -->
+    <include file="db/changelog/v4.0/017-create-finance-payments.xml"/>
+    <include file="db/changelog/v4.0/018-create-finance-payment-allocations.xml"/>
+    <include file="db/changelog/v4.0/019-create-company-bank-accounts.xml"/>
+
 </databaseChangeLog>

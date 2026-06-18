@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="019-create-company-bank-accounts" author="echno">
+        <createTable tableName="company_bank_accounts">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="bank_name" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="account_number" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="account_holder_name" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ifsc_code" type="VARCHAR(20)"/>
+            <column name="swift_code" type="VARCHAR(20)"/>
+            <column name="is_default" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ledger_account_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="company_bank_accounts"
+                                 baseColumnNames="ledger_account_id"
+                                 constraintName="fk_cba_ledger_account"
+                                 referencedTableName="accounts"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+    </changeSet>
+
+    <changeSet id="020-alter-payments-to-use-company-bank-account" author="echno">
+        <dropForeignKeyConstraint baseTableName="payments" constraintName="fk_payment_bank_account"/>
+        <dropColumn tableName="payments" columnName="bank_account_id"/>
+        <addColumn tableName="payments">
+            <column name="company_bank_account_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="payments"
+                                 baseColumnNames="company_bank_account_id"
+                                 constraintName="fk_payment_company_bank_account"
+                                 referencedTableName="company_bank_accounts"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="018-create-finance-payment-allocations" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="payment_allocations"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="payment_allocations">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="payment_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="invoice_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="allocated_amount" type="NUMERIC(19, 4)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="payment_allocations"
+                                 baseColumnNames="payment_id"
+                                 constraintName="fk_palloc_payment"
+                                 referencedTableName="payments"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="payment_allocations"
+                                 baseColumnNames="invoice_id"
+                                 constraintName="fk_palloc_invoice"
+                                 referencedTableName="invoices"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="payment_allocations" indexName="idx_palloc_payment">
+            <column name="payment_id"/>
+        </createIndex>
+        <createIndex tableName="payment_allocations" indexName="idx_palloc_invoice">
+            <column name="invoice_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
