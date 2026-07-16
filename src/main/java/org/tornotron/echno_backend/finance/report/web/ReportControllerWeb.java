@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.finance.report.web;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,6 +22,7 @@ public class ReportControllerWeb {
     private final ReportService service;
 
     @GetMapping("/trial-balance")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
     public TrialBalanceReport trialBalance(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)LocalDate asOfDate
             ) {
@@ -28,6 +30,7 @@ public class ReportControllerWeb {
     }
 
     @GetMapping("/profit-and-loss")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
     public ProfitAndLossReport profitAndLoss(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
@@ -35,6 +38,7 @@ public class ReportControllerWeb {
     }
 
     @GetMapping("/balance-sheet")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
     public BalanceSheetReport balanceSheet(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate) {
         return service.balanceSheet(asOfDate);
