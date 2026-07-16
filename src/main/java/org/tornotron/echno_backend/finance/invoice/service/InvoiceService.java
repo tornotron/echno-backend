@@ -9,6 +9,7 @@ import org.tornotron.echno_backend.common.configuration.MoneyUtils;
 import org.tornotron.echno_backend.common.exception.AccountNotFoundException;
 import org.tornotron.echno_backend.common.exception.InvalidJournalException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.finance.invoice.InvoicePostingProperties;
 import org.tornotron.echno_backend.finance.invoice.InvoiceStatus;
@@ -45,6 +46,7 @@ public class InvoiceService {
     private final EntryNumberGenerator numberGen;
     private final InvoiceMapper mapper;
     private final InvoicePostingProperties postingProps;
+    private final TenantEntityHelper tenantEntityHelper;
 
     @Transactional(readOnly = true)
     public InvoiceDto findById(UUID id) {
@@ -58,7 +60,7 @@ public class InvoiceService {
             throw new InvalidJournalException("Due date cannot be before invoice date");
         }
 
-        Customer customer = customerRepo.findById(req.customerId())
+        Customer customer = customerRepo.findScopedById(req.customerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found: " + req.customerId()));
         if (!customer.isActive()) {
             throw new InvalidJournalException("Customer is inactive: " + customer.getCode());
@@ -76,6 +78,7 @@ public class InvoiceService {
         inv.setDueDate(req.dueDate());
         inv.setStatus(InvoiceStatus.DRAFT);
         inv.setNotes(req.notes());
+        inv.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         BigDecimal subtotal = BigDecimal.ZERO;
         BigDecimal taxTotal = BigDecimal.ZERO;
@@ -204,7 +207,7 @@ public class InvoiceService {
                 JournalEntry reversal = journalRepo.findByIdWithLines(inv.getJournalEntryId())
                         .map(je -> postingService.reverse(je.getId(),
                                 new ReverseJournalRequest(reason)).id())
-                        .map(id -> journalRepo.findById(id).orElseThrow())
+                        .map(id -> journalRepo.findScopedById(id).orElseThrow())
                         .orElseThrow(() -> new InvalidJournalException("Original JE not found"));
                 inv.setReversalJournalEntryId(reversal.getId());
                 inv.setStatus(InvoiceStatus.CANCELLED);
