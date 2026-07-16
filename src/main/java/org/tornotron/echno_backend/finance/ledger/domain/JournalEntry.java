@@ -4,7 +4,10 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.finance.ledger.JournalStatus;
+import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -18,10 +21,11 @@ import java.util.UUID;
             @Index(name = "idx_je_status", columnList = "status"),
             @Index(name = "idx_je_reference", columnList = "reference")
        },
-       uniqueConstraints = @UniqueConstraint(name = "uk_je_number",columnNames = "entry_number"))
+       uniqueConstraints = @UniqueConstraint(name = "uk_je_number", columnNames = {"organization_id", "entry_number"}))
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Getter @Setter
 @NoArgsConstructor
-public class JournalEntry extends BaseEntity{
+public class JournalEntry extends BaseEntity implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -54,6 +58,10 @@ public class JournalEntry extends BaseEntity{
 
     @Column(name = "source_id")
     private UUID sourceId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
     @OneToMany(mappedBy = "journalEntry", cascade = CascadeType.ALL, orphanRemoval = true,
             fetch = FetchType.LAZY)
