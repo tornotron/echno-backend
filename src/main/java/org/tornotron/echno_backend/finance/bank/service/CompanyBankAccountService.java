@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.AccountNotFoundException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.finance.bank.domain.CompanyBankAccount;
 import org.tornotron.echno_backend.finance.bank.dtos.CompanyBankAccountDto;
 import org.tornotron.echno_backend.finance.bank.dtos.CreateCompanyBankAccountRequest;
@@ -23,6 +24,7 @@ public class CompanyBankAccountService {
     private final CompanyBankAccountRepository repository;
     private final AccountRepository accountRepository;
     private final CompanyBankAccountMapper mapper;
+    private final TenantEntityHelper tenantEntityHelper;
 
     @Transactional(readOnly = true)
     public List<CompanyBankAccountDto> findAll() {
@@ -36,14 +38,14 @@ public class CompanyBankAccountService {
 
     @Transactional(readOnly = true)
     public CompanyBankAccountDto findById(UUID id) {
-        return repository.findById(id)
+        return repository.findScopedById(id)
                 .map(mapper::toDto)
                 .orElseThrow(() -> new ResourceNotFoundException("Company Bank Account not found: " + id));
     }
 
     @Transactional
     public CompanyBankAccountDto create(CreateCompanyBankAccountRequest req) {
-        Account ledgerAccount = accountRepository.findById(req.ledgerAccountId())
+        Account ledgerAccount = accountRepository.findScopedById(req.ledgerAccountId())
                 .orElseThrow(() -> new AccountNotFoundException(req.ledgerAccountId()));
 
         CompanyBankAccount account = new CompanyBankAccount();
@@ -54,13 +56,14 @@ public class CompanyBankAccountService {
         account.setSwiftCode(req.swiftCode());
         account.setDefault(req.isDefault());
         account.setLedgerAccount(ledgerAccount);
+        account.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         return mapper.toDto(repository.save(account));
     }
 
     @Transactional
     public CompanyBankAccountDto deactivate(UUID id) {
-        CompanyBankAccount account = repository.findById(id)
+        CompanyBankAccount account = repository.findScopedById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Company Bank Account not found: " + id));
         account.setActive(false);
         return mapper.toDto(account);

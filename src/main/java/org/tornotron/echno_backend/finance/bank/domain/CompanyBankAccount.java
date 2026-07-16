@@ -4,16 +4,20 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.finance.ledger.domain.Account;
 import org.tornotron.echno_backend.finance.ledger.domain.BaseEntity;
+import org.tornotron.echno_backend.organization.Organization;
 
 import java.util.UUID;
 
 @Entity
 @Table(name = "company_bank_accounts")
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Getter @Setter
 @NoArgsConstructor
-public class CompanyBankAccount extends BaseEntity {
+public class CompanyBankAccount extends BaseEntity implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -43,4 +47,8 @@ public class CompanyBankAccount extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ledger_account_id", nullable = false)
     private Account ledgerAccount;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 }
