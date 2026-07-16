@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.configuration.MoneyUtils;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.finance.ledger.AccountType;
 import org.tornotron.echno_backend.finance.report.dtos.BalanceSheetReport;
 import org.tornotron.echno_backend.finance.report.dtos.ProfitAndLossReport;
@@ -27,6 +28,8 @@ public class ReportService {
 
     @Transactional(readOnly = true)
     public TrialBalanceReport trailBalanceReport(LocalDate asOfDate) {
+        // Native SQL bypasses the Hibernate orgFilter, so scope by organization explicitly.
+        Long orgId = TenantContext.getCurrentOrgId();
         String sql = """
                 SELECT a.code, a.name, a.type,
                                    COALESCE(SUM(l.debit), 0)  AS total_debit,
@@ -36,16 +39,21 @@ public class ReportService {
                             LEFT JOIN journal_entries je    ON je.id = l.journal_entry_id
                                   AND je.status = 'POSTED'
                                   AND je.entry_date <= :asOf
+                """
+                + jeOrgJoin(orgId)
+                + acctOrgWhere(orgId)
+                + """
                             GROUP BY a.code, a.name, a.type
                             HAVING COALESCE(SUM(l.debit), 0) <> 0
                                 OR COALESCE(SUM(l.credit), 0) <> 0
                             ORDER BY a.code
                 """;
 
+        var query = em.createNativeQuery(sql).setParameter("asOf", asOfDate);
+        if (orgId != null) query.setParameter("orgId", orgId);
+
         @SuppressWarnings("unchecked")
-        List<Object[]> raw = em.createNativeQuery(sql)
-                .setParameter("asOf", asOfDate)
-                .getResultList();
+        List<Object[]> raw = query.getResultList();
 
         List<TrialBalanceRow> rows = new ArrayList<>();
         BigDecimal totalDebit = BigDecimal.ZERO;
@@ -93,6 +101,8 @@ public class ReportService {
             throw new IllegalArgumentException("toDate cannot be before fromDate");
         }
 
+        // Native SQL bypasses the Hibernate orgFilter, so scope by organization explicitly.
+        Long orgId = TenantContext.getCurrentOrgId();
         String sql = """
                 SELECT a.code, a.name, a.type,
                                    COALESCE(SUM(l.debit), 0)  AS total_debit,
@@ -102,16 +112,24 @@ public class ReportService {
                             LEFT JOIN journal_entries je    ON je.id = l.journal_entry_id
                                   AND je.status = 'POSTED'
                                   AND je.entry_date BETWEEN :from AND :to
+                """
+                + jeOrgJoin(orgId)
+                + """
                             WHERE a.type IN ('INCOME', 'EXPENSE')
+                """
+                + acctOrgAnd(orgId)
+                + """
                             GROUP BY a.code, a.name, a.type
                             ORDER BY a.code
               """;
 
-        @SuppressWarnings("unchecked")
-        List<Object[]> raw = em.createNativeQuery(sql)
+        var query = em.createNativeQuery(sql)
                 .setParameter("from", fromDate)
-                .setParameter("to", toDate)
-                .getResultList();
+                .setParameter("to", toDate);
+        if (orgId != null) query.setParameter("orgId", orgId);
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> raw = query.getResultList();
 
         List<ProfitAndLossReport.AccountLine> income = new ArrayList<>();
         List<ProfitAndLossReport.AccountLine> expense = new ArrayList<>();
@@ -157,6 +175,8 @@ public class ReportService {
 
     @Transactional(readOnly = true)
     public BalanceSheetReport balanceSheet(LocalDate asOfDate) {
+        // Native SQL bypasses the Hibernate orgFilter, so scope by organization explicitly.
+        Long orgId = TenantContext.getCurrentOrgId();
         String sql = """
             SELECT a.code, a.name, a.type,
                    COALESCE(SUM(l.debit), 0)  AS total_debit,
@@ -166,15 +186,22 @@ public class ReportService {
             LEFT JOIN journal_entries je    ON je.id = l.journal_entry_id
                   AND je.status = 'POSTED'
                   AND je.entry_date <= :asOf
+            """
+                + jeOrgJoin(orgId)
+                + """
             WHERE a.type IN ('ASSET', 'LIABILITY', 'EQUITY')
+            """
+                + acctOrgAnd(orgId)
+                + """
             GROUP BY a.code, a.name, a.type
             ORDER BY a.code
             """;
 
+        var query = em.createNativeQuery(sql).setParameter("asOf", asOfDate);
+        if (orgId != null) query.setParameter("orgId", orgId);
+
         @SuppressWarnings("unchecked")
-        List<Object[]> raw = em.createNativeQuery(sql)
-                .setParameter("asOf", asOfDate)
-                .getResultList();
+        List<Object[]> raw = query.getResultList();
 
         List<BalanceSheetReport.AccountLine> assets = new ArrayList<>();
         List<BalanceSheetReport.AccountLine> liabilities = new ArrayList<>();
@@ -259,6 +286,25 @@ public class ReportService {
 
 
 
+
+    /**
+     * Org predicate for the {@code journal_entries} table, emitted inside the LEFT JOIN ON
+     * clause so outer-join semantics are preserved (accounts with no activity still appear).
+     * Empty when there is no tenant context (e.g. a global admin viewing all organizations).
+     */
+    private static String jeOrgJoin(Long orgId) {
+        return orgId != null ? "      AND je.organization_id = :orgId\n" : "";
+    }
+
+    /** Org predicate for the {@code accounts} table as a fresh WHERE (query has none of its own). */
+    private static String acctOrgWhere(Long orgId) {
+        return orgId != null ? "            WHERE a.organization_id = :orgId\n" : "";
+    }
+
+    /** Org predicate for the {@code accounts} table appended to an existing WHERE clause. */
+    private static String acctOrgAnd(Long orgId) {
+        return orgId != null ? "            AND a.organization_id = :orgId\n" : "";
+    }
 
     private static BigDecimal toBig(Object o) {
         return switch (o) {
