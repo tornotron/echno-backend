@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.InvalidJournalException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.finance.ledger.domain.Customer;
 import org.tornotron.echno_backend.finance.ledger.dtos.CreateCustomerRequest;
 import org.tornotron.echno_backend.finance.ledger.dtos.CustomerDto;
@@ -22,6 +23,7 @@ public class CustomerService {
 
     private final CustomerRepository repo;
     private final CustomerMapper mapper;
+    private final TenantEntityHelper tenantEntityHelper;
 
     @Transactional(readOnly = true)
     public Page<CustomerDto> search(String name, Pageable pageable) {
@@ -51,6 +53,7 @@ public class CustomerService {
         customer.setCreditLimit(req.getCreditLimit());
         customer.setPaymentTermsDays(req.getPaymentTermsDays() == null ? 30 : req.getPaymentTermsDays());
         customer.setActive(true);
+        customer.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
         return mapper.toDto(repo.save(customer));
     }
 
@@ -74,7 +77,7 @@ public class CustomerService {
     }
 
     Customer getEntity(UUID id) {
-        return repo.findById(id)
+        return repo.findScopedById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found: "+ id));
     }
 }
