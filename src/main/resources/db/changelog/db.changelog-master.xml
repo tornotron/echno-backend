@@ -223,4 +223,7 @@
     <include file="db/changelog/v4.0/018-create-finance-payment-allocations.xml"/>
     <include file="db/changelog/v4.0/019-create-company-bank-accounts.xml"/>
 
+    <!-- v4.0 - Finance multi-tenancy (organization scoping) -->
+    <include file="db/changelog/v4.0/021-add-org-scope-to-finance.xml"/>
+
 </databaseChangeLog>

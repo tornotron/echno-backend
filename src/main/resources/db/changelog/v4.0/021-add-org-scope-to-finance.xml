@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ==============================================================
+         Adds organization scoping (multi-tenancy) to the finance module.
+         Each tenant-scoped table gets a nullable organization_id FK + index,
+         and its global unique constraints become composite (organization_id, ...)
+         so the same code/number can be reused across organizations.
+
+         The column add (+FK+index) and the unique-constraint swap are kept in
+         separate changeSets: CockroachDB runs each changeSet in its own
+         transaction, so the new column is committed before a unique constraint
+         references it.
+         ============================================================== -->
+
+    <!-- ===================== accounts ===================== -->
+    <changeSet id="org-scope-001-accounts-column" author="echno">
+        <addColumn tableName="accounts">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="accounts"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_accounts_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+        <createIndex tableName="accounts" indexName="idx_accounts_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+    <changeSet id="org-scope-001-accounts-unique" author="echno">
+        <dropUniqueConstraint tableName="accounts" constraintName="uk_accounts_code"/>
+        <addUniqueConstraint tableName="accounts"
+                             columnNames="organization_id, code"
+                             constraintName="uk_accounts_code"/>
+    </changeSet>
+
+    <!-- ===================== customers ===================== -->
+    <changeSet id="org-scope-002-customers-column" author="echno">
+        <addColumn tableName="customers">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="customers"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_customers_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+        <createIndex tableName="customers" indexName="idx_customers_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+    <changeSet id="org-scope-002-customers-unique" author="echno">
+        <dropUniqueConstraint tableName="customers" constraintName="uk_customers_code"/>
+        <addUniqueConstraint tableName="customers"
+                             columnNames="organization_id, code"
+                             constraintName="uk_customers_code"/>
+    </changeSet>
+
+    <!-- ===================== journal_entries ===================== -->
+    <changeSet id="org-scope-003-journal-entries-column" author="echno">
+        <addColumn tableName="journal_entries">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="journal_entries"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_journal_entries_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+        <createIndex tableName="journal_entries" indexName="idx_journal_entries_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+    <changeSet id="org-scope-003-journal-entries-unique" author="echno">
+        <dropUniqueConstraint tableName="journal_entries" constraintName="uk_je_number"/>
+        <addUniqueConstraint tableName="journal_entries"
+                             columnNames="organization_id, entry_number"
+                             constraintName="uk_je_number"/>
+    </changeSet>
+
+    <!-- ===================== invoices ===================== -->
+    <changeSet id="org-scope-004-invoices-column" author="echno">
+        <addColumn tableName="invoices">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="invoices"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_invoices_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+        <createIndex tableName="invoices" indexName="idx_invoices_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+    <changeSet id="org-scope-004-invoices-unique" author="echno">
+        <dropUniqueConstraint tableName="invoices" constraintName="uk_invoice_number"/>
+        <addUniqueConstraint tableName="invoices"
+                             columnNames="organization_id, invoice_number"
+                             constraintName="uk_invoice_number"/>
+    </changeSet>
+
+    <!-- ===================== payments ===================== -->
+    <changeSet id="org-scope-005-payments-column" author="echno">
+        <addColumn tableName="payments">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="payments"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_payments_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+        <createIndex tableName="payments" indexName="idx_payments_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+    <changeSet id="org-scope-005-payments-unique" author="echno">
+        <dropUniqueConstraint tableName="payments" constraintName="uk_payment_number"/>
+        <addUniqueConstraint tableName="payments"
+                             columnNames="organization_id, payment_number"
+                             constraintName="uk_payment_number"/>
+        <dropUniqueConstraint tableName="payments" constraintName="uk_payment_idem"/>
+        <addUniqueConstraint tableName="payments"
+                             columnNames="organization_id, idempotency_key"
+                             constraintName="uk_payment_idem"/>
+    </changeSet>
+
+    <!-- ===================== company_bank_accounts (no unique to swap) ===================== -->
+    <changeSet id="org-scope-006-company-bank-accounts-column" author="echno">
+        <addColumn tableName="company_bank_accounts">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="company_bank_accounts"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_company_bank_accounts_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+        <createIndex tableName="company_bank_accounts" indexName="idx_company_bank_accounts_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- ===================== document_sequence ===================== -->
+    <changeSet id="org-scope-007-document-sequence-column" author="echno">
+        <addColumn tableName="document_sequence">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="document_sequence"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_document_sequence_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+        <createIndex tableName="document_sequence" indexName="idx_document_sequence_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+    <changeSet id="org-scope-007-document-sequence-unique" author="echno">
+        <dropUniqueConstraint tableName="document_sequence" constraintName="uk_document_sequence_type_year"/>
+        <addUniqueConstraint tableName="document_sequence"
+                             columnNames="organization_id, doc_type, fiscal_year"
+                             constraintName="uk_document_sequence_org_type_year"/>
+    </changeSet>
+
+</databaseChangeLog>
