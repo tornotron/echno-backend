@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 
 import java.time.LocalDate;
 import java.time.Month;
@@ -13,13 +15,16 @@ import java.time.Month;
 public class EntryNumberGenerator {
 
     private final DocumentSequenceRepository repo;
+    private final TenantEntityHelper tenantEntityHelper;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String next(String docType) {
         int fy = currentFiscalYear(LocalDate.now());
-        DocumentSequence seq = repo.findByDocTypeAndFiscalYearForUpdate(docType, fy)
+        Long orgId = TenantContext.getCurrentOrgId();
+        DocumentSequence seq = repo.findByOrgAndDocTypeAndFiscalYearForUpdate(orgId, docType, fy)
                 .orElseGet(() -> {
                     DocumentSequence s = new DocumentSequence();
+                    s.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
                     s.setDocType(docType);
                     s.setFiscalYear(fy);
                     s.setNextValue(1L);
