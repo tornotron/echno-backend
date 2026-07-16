@@ -21,21 +21,25 @@ public class CompanyBankAccountControllerWeb {
     private final CompanyBankAccountService service;
 
     @GetMapping
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
     public List<CompanyBankAccountDto> list(@RequestParam(defaultValue = "true") boolean activeOnly) {
         return activeOnly ? service.findAllActive() : service.findAll();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
     public CompanyBankAccountDto get(@PathVariable UUID id) {
         return service.findById(id);
     }
 
     @PostMapping
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
     public ResponseEntity<CompanyBankAccountDto> create(@Valid @RequestBody CreateCompanyBankAccountRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(req));
     }
 
     @PostMapping("/{id}/deactivate")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
     public CompanyBankAccountDto deactivate(@PathVariable UUID id) {
         return service.deactivate(id);
     }
