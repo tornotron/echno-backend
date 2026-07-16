@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.common.exception.AccountNotFoundException;
 import org.tornotron.echno_backend.common.exception.DuplicateIdempotencyKeyException;
 import org.tornotron.echno_backend.common.exception.InvalidJournalException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.finance.invoice.InvoicePostingProperties;
 import org.tornotron.echno_backend.finance.invoice.InvoiceStatus;
@@ -49,6 +50,7 @@ public class PaymentService {
     private final EntryNumberGenerator numberGen;
     private final PaymentMapper mapper;
     private final InvoicePostingProperties postingProps;
+    private final TenantEntityHelper tenantEntityHelper;
 
     @Transactional(readOnly = true)
     public PaymentDto findById(UUID id) {
@@ -79,9 +81,9 @@ public class PaymentService {
         }
 
         // 3. Load customer + company bank account
-        Customer customer = customerRepo.findById(req.customerId())
+        Customer customer = customerRepo.findScopedById(req.customerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found: " + req.customerId()));
-        CompanyBankAccount companyBank = companyBankRepo.findById(req.companyBankAccountId())
+        CompanyBankAccount companyBank = companyBankRepo.findScopedById(req.companyBankAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Company Bank Account not found: " + req.companyBankAccountId()));
 
         Account bankLedger = companyBank.getLedgerAccount();
@@ -133,6 +135,7 @@ public class PaymentService {
         payment.setExternalReference(req.externalReference());
         payment.setIdempotencyKey(idempotencyKey);
         payment.setNotes(req.notes());
+        payment.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         for (Invoice inv : lockedInvoices) {
             BigDecimal alloc = allocByInvoice.get(inv.getId());
