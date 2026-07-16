@@ -12,6 +12,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface AccountRepository extends JpaRepository<Account, UUID> {
+
+    /**
+     * Org-scoped lookup by id. Uses JPQL (not {@code find()} by primary key) so the
+     * Hibernate {@code orgFilter} is applied, preventing cross-tenant reads.
+     */
+    @Query("SELECT a FROM Account a WHERE a.id = :id")
+    Optional<Account> findScopedById(@Param("id") UUID id);
+
     Optional<Account> findByCode(String code);
     List<Account> findByType(AccountType type);
     List<Account> findByActiveTrue();
