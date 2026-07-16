@@ -5,20 +5,24 @@ import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.organization.Organization;
 
 import java.util.UUID;
 
 @Entity
 @Table(name = "customers",
-        uniqueConstraints = @UniqueConstraint(name = "uk_customers_code", columnNames = "code"),
+        uniqueConstraints = @UniqueConstraint(name = "uk_customers_code", columnNames = {"organization_id", "code"}),
         indexes = {
             @Index(name = "idx_customer_name", columnList = "name"),
             @Index(name = "idx_customer_gstin", columnList = "gstin")
         })
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Customer extends BaseEntity {
+public class Customer extends BaseEntity implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -55,4 +59,8 @@ public class Customer extends BaseEntity {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 }
