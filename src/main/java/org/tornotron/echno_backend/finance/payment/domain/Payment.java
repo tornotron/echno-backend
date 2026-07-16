@@ -4,10 +4,13 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.finance.bank.domain.CompanyBankAccount;
 import org.tornotron.echno_backend.finance.ledger.domain.Account;
 import org.tornotron.echno_backend.finance.ledger.domain.BaseEntity;
 import org.tornotron.echno_backend.finance.ledger.domain.Customer;
+import org.tornotron.echno_backend.organization.Organization;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,16 +21,17 @@ import java.util.UUID;
 @Entity
 @Table(name = "payments",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_payment_number", columnNames = "payment_number"),
-                @UniqueConstraint(name = "uk_payment_idem",   columnNames = "idempotency_key")
+                @UniqueConstraint(name = "uk_payment_number", columnNames = {"organization_id", "payment_number"}),
+                @UniqueConstraint(name = "uk_payment_idem",   columnNames = {"organization_id", "idempotency_key"})
         },
         indexes = {
                 @Index(name = "idx_payment_customer", columnList = "customer_id"),
                 @Index(name = "idx_payment_date",     columnList = "payment_date")
         })
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Getter @Setter
 @NoArgsConstructor
-public class Payment extends BaseEntity {
+public class Payment extends BaseEntity implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -61,6 +65,10 @@ public class Payment extends BaseEntity {
 
     @Column(length = 500)
     private String notes;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
     @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL, orphanRemoval = true,
         fetch = FetchType.LAZY)
