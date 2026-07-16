@@ -4,9 +4,12 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.finance.invoice.InvoiceStatus;
 import org.tornotron.echno_backend.finance.ledger.domain.BaseEntity;
 import org.tornotron.echno_backend.finance.ledger.domain.Customer;
+import org.tornotron.echno_backend.organization.Organization;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,15 +19,16 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "invoices",
-        uniqueConstraints = @UniqueConstraint(name = "uk_invoice_number", columnNames = "invoice_number"),
+        uniqueConstraints = @UniqueConstraint(name = "uk_invoice_number", columnNames = {"organization_id", "invoice_number"}),
         indexes = {
                 @Index(name = "idx_invoice_customer", columnList = "customer_id"),
                 @Index(name = "idx_invoice_status", columnList = "status"),
                 @Index(name = "idx_invoice_date", columnList = "invoice_date")
         })
+@Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Getter @Setter
 @NoArgsConstructor
-public class Invoice extends BaseEntity {
+public class Invoice extends BaseEntity implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -67,6 +71,10 @@ public class Invoice extends BaseEntity {
 
     @Column(length = 500)
     private String notes;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true,
             fetch = FetchType.LAZY)
