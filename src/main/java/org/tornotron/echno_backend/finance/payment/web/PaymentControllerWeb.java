@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.finance.payment.dtos.PaymentDto;
 import org.tornotron.echno_backend.finance.payment.dtos.RecordPaymentRequest;
@@ -19,6 +20,7 @@ public class PaymentControllerWeb {
     private final PaymentService service;
 
     @PostMapping
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
     public ResponseEntity<PaymentDto> record(
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody RecordPaymentRequest req
@@ -27,6 +29,7 @@ public class PaymentControllerWeb {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
     public PaymentDto get(@PathVariable UUID id) {
         return service.findById(id);
     }
