@@ -13,6 +13,7 @@ import org.tornotron.echno_backend.common.configuration.MoneyUtils;
 import org.tornotron.echno_backend.common.exception.AccountNotFoundException;
 import org.tornotron.echno_backend.common.exception.InvalidJournalException;
 import org.tornotron.echno_backend.common.exception.UnbalancedEntryException;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.finance.ledger.JournalStatus;
 import org.tornotron.echno_backend.finance.ledger.domain.Account;
@@ -44,6 +45,7 @@ public class JournalPostingService {
     private final AccountRepository accountRepo;
     private final EntryNumberGenerator numberGen;
     private final JournalEntryMapper mapper;
+    private final TenantEntityHelper tenantEntityHelper;
 
     // ============================================================
     // Public API
@@ -71,6 +73,7 @@ public class JournalPostingService {
         entry.setStatus(JournalStatus.POSTED);
         entry.setSourceType(sourceType);
         entry.setSourceId(sourceId);
+        entry.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         // Pre-fetch all accounts in one query to avoid N+1
         List<UUID> accountIds = req.lines().stream()
