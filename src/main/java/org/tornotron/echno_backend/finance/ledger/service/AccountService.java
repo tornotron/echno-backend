@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.AccountNotFoundException;
 import org.tornotron.echno_backend.common.exception.InvalidJournalException;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.finance.ledger.AccountType;
 import org.tornotron.echno_backend.finance.ledger.domain.Account;
 import org.tornotron.echno_backend.finance.ledger.dtos.AccountDto;
@@ -26,6 +27,7 @@ public class AccountService {
     private final AccountRepository repo;
     private final AccountMapper mapper;
     private final AccountCodeGenerator codeGenerator;
+    private final TenantEntityHelper tenantEntityHelper;
 
     @Transactional(readOnly = true)
     public List<AccountDto> findAllAccounts() {
@@ -79,7 +81,7 @@ public class AccountService {
 
     @Transactional(readOnly = true)
     public AccountDto findAccountById(UUID id) {
-        return mapper.toDto(repo.findById(id)
+        return mapper.toDto(repo.findScopedById(id)
                 .orElseThrow(() -> new AccountNotFoundException(id)));
     }
 
@@ -93,7 +95,7 @@ public class AccountService {
     public AccountDto create(CreateAccountRequest req) {
         Account parent = null;
         if(req.parentId() != null) {
-            parent = repo.findById(req.parentId())
+            parent = repo.findScopedById(req.parentId())
                     .orElseThrow(() -> new AccountNotFoundException(req.parentId()));
         }
 
@@ -126,6 +128,7 @@ public class AccountService {
         account.setDescription(req.description());
         account.setActive(true);
         account.setParent(parent);
+        account.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
         return mapper.toDto(repo.save(account));
     }
 
@@ -138,7 +141,7 @@ public class AccountService {
 
     @Transactional
     public AccountDto deactivate(UUID id) {
-        Account account = repo.findById(id)
+        Account account = repo.findScopedById(id)
                 .orElseThrow(() -> new AccountNotFoundException(id));
         account.setActive(false);
         return mapper.toDto(account);
