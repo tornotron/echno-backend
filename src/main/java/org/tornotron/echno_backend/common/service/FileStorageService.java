@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.common.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.common.dto.PresignedUpload;
 import org.tornotron.echno_backend.common.dto.StoredFile;
 import org.tornotron.echno_backend.common.exception.FileUploadException;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -10,9 +11,12 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -72,6 +76,56 @@ public class FileStorageService {
 
 
         return new StoredFile(key,file.getContentType(), file.getSize());
+    }
+
+    /**
+     * Whether an object is present in storage. Used to confirm a client has
+     * actually completed a pre-signed upload before it is recorded, rather than
+     * trusting the client's word.
+     */
+    public boolean objectExists(String key) {
+        try {
+            s3Client.headObject(HeadObjectRequest.builder().bucket(bucketName).key(key).build());
+            return true;
+        } catch (NoSuchKeyException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Builds a key and a pre-signed PUT URL so a client can upload straight to
+     * object storage.
+     *
+     * <p>The alternative, streaming the file through this service, puts every
+     * upload through the CDN in front of it, which caps request bodies at 100 MB
+     * and times out at 100 seconds. Site media routinely exceeds both. Uploading
+     * direct to storage removes that ceiling and takes the traffic off the
+     * application entirely.
+     *
+     * <p>The URL is write-only, limited to the single key it names, and expires.
+     * The caller registers the object afterwards using the returned key.
+     */
+    public PresignedUpload generateUploadUrl(String folder, String filename, String contentType, Duration expiry) {
+        if (filename == null || filename.isBlank()) {
+            throw new FileUploadException("Filename is required to presign an upload");
+        }
+
+        String key = buildKey(folder, filename);
+
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .contentType(contentType)
+                .acl(ObjectCannedACL.PRIVATE)
+                .build();
+
+        PresignedPutObjectRequest presignedRequest =
+                s3Presigner.presignPutObject(r -> r
+                        .signatureDuration(expiry)
+                        .putObjectRequest(putObjectRequest)
+                );
+
+        return new PresignedUpload(key, presignedRequest.url().toString(), contentType, expiry.toSeconds());
     }
 
     public String generateDownloadUrl(String key, Duration expiry) {
