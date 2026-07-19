@@ -120,13 +120,26 @@ jobs:
         working-directory: deployment/ansible
         run: ansible-galaxy collection install -r requirements.yml -p collections
 
-      # A runner that joins the tailnet does not get MagicDNS, so neither the
-      # short name nor the fully qualified one resolves. The Tailscale CLI reads
-      # the peer address straight from the network map, which needs no DNS at
-      # all, and that address is handed to Ansible directly.
+      # A runner that joins the tailnet does not receive tailnet DNS, so no
+      # hostname resolves. The address is read from the network map instead.
+      #
+      # Matched on DNSName, which is unique, rather than HostName, which is not:
+      # the retired droplet still reports HostName "echno-staging" while its
+      # DNSName is "echno-legacy". Matching on the hostname returns both and
+      # could deploy to the machine being replaced.
       - name: Resolve the host on the tailnet
         id: host
-        run: echo "ip=$(tailscale ip -4 echno-staging)" >> "$GITHUB_OUTPUT"
+        run: |
+          ip=$(tailscale status --json \
+            | jq -r '.Peer[] | select(.DNSName | startswith("echno-staging.")) | .TailscaleIPs[0]')
+          count=$(printf '%s\n' "$ip" | grep -c . || true)
+          if [ "$count" -ne 1 ]; then
+            echo "Expected exactly one host, matched $count:"
+            printf '%s\n' "$ip"
+            exit 1
+          fi
+          echo "Deploying to $ip"
+          echo "ip=$ip" >> "$GITHUB_OUTPUT"
 
       - name: Deploy
         working-directory: deployment/ansible
