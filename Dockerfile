@@ -37,6 +37,10 @@ RUN groupadd --system --gid 1001 echno \
  && useradd --system --uid 1001 --gid echno --home /app --shell /usr/sbin/nologin echno
 
 WORKDIR /app
+
+# Owned by the runtime user, which runs unprivileged.
+RUN chown -R echno:echno /app
+
 COPY --from=builder --chown=echno:echno /build/build/libs/*.jar /app/echno-backend.jar
 
 USER echno
