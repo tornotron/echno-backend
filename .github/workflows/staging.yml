@@ -120,6 +120,14 @@ jobs:
         working-directory: deployment/ansible
         run: ansible-galaxy collection install -r requirements.yml -p collections
 
+      # A runner that joins the tailnet does not get MagicDNS, so neither the
+      # short name nor the fully qualified one resolves. The Tailscale CLI reads
+      # the peer address straight from the network map, which needs no DNS at
+      # all, and that address is handed to Ansible directly.
+      - name: Resolve the host on the tailnet
+        id: host
+        run: echo "ip=$(tailscale ip -4 echno-staging)" >> "$GITHUB_OUTPUT"
+
       - name: Deploy
         working-directory: deployment/ansible
         run: |
@@ -128,6 +136,7 @@ jobs:
           # A job-scoped registry token, so no standing credential for pulling
           # private images is left behind on the host.
           ansible-playbook -i inventory/staging-do.yml playbooks/deploy-apps.yml \
+            -e "ansible_host=${{ steps.host.outputs.ip }}" \
             -e "echno_backend_image_digest=${{ needs.build.outputs.digest }}" \
             -e "vault_ghcr_pull_token=${{ secrets.GITHUB_TOKEN }}"
 
