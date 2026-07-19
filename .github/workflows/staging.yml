@@ -1,55 +1,66 @@
-name: Build, Push, and Deploy to Staging
+name: Staging
+
+# Promotion to staging.
+#
+# Triggered by a pull request merging into `staging`, not by a push. Previously
+# a bare `git push` reached a live server with nothing in between, so a mistake
+# went straight to a running environment.
+#
+# The image is published to the GitHub Container Registry, private, and the
+# server pulls it by digest. Deployment runs the Ansible playbook from
+# tornotron/echno-deployment rather than shell written here, so the same code
+# path serves CI, an operator's laptop, and the IIT Madras host.
 
 on:
-  push:
-    branches:
-      - staging
+  pull_request:
+    types: [closed]
+    branches: [staging]
+  workflow_dispatch:
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
 
 env:
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  IMAGE_NAME: echno-backend
-  SERVICE_NAME: app
+  IMAGE: ghcr.io/${{ github.repository_owner }}/echno-backend
 
 jobs:
-  # ------------ Job 1: Build and Push Docker Image ------------
-  build_and_push:
-    name: Build App and Push Docker Image
-    runs-on: ubuntu-latest # Correct for GitHub runner environment
-
+  build:
+    # workflow_dispatch carries no pull request, so let it through explicitly.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4 # Latest version, good
+      - name: Check out
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Authenticate to the registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
-          java-version: "21" # Correct if your project uses Java 21
-          distribution: "temurin" # Good choice
-          cache: "gradle" # Correct for a Gradle project
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build with Gradle
-        run: ./gradlew build -DskipTests
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Derive image metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
         with:
-          images: ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.IMAGE }}
           tags: |
-            type=sha,prefix=staging-,suffix=,format=short
-            type=raw,value=staging-latest,enable=${{ github.ref == 'refs/heads/staging' }}
+            type=sha,format=long,prefix=staging-
+            type=raw,value=staging-latest
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:
           context: .
           push: true
@@ -58,26 +69,69 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ------------ Job 2: Deploy to Server ------------
-  deploy:
-    name: Deploy to Staging Server
-    needs: build_and_push
+  scan:
+    needs: build
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      packages: read
     steps:
-      - name: Deploy to Server via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Authenticate to the registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
-          host: ${{ secrets.REMOTE_HOST }}
-          username: ${{ secrets.REMOTE_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /opt/echno-backend
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-            source .env
+      # Reported, not blocking. Making this a gate before anyone has looked at
+      # the current backlog would block every deployment on day one.
+      - name: Scan the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ needs.build.outputs.digest }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: "0"
 
-            docker compose stop ${{ env.SERVICE_NAME }}
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the deployment repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: tornotron/echno-deployment
+          ssh-key: ${{ secrets.ECHNO_DEPLOYMENT_SSH_KEY }}
+          path: deployment
 
-            docker compose pull ${{ env.SERVICE_NAME }}
+      # The host publishes no SSH port; access is over the tailnet. The runner
+      # joins as an ephemeral node that disappears when the job ends.
+      - name: Join the tailnet
+        uses: tailscale/github-action@780049a30b6ff5c378a9e7b389d15ece7a204888 # v4.1.3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:cloud-staging
 
-            docker compose up --force-recreate ${{ env.SERVICE_NAME }} -d
+      - name: Install Ansible
+        run: python3 -m pip install --quiet ansible-core docker
+
+      - name: Install collections
+        working-directory: deployment/ansible
+        run: ansible-galaxy collection install -r requirements.yml -p collections
+
+      - name: Deploy
+        working-directory: deployment/ansible
+        run: |
+          printf '%s' "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
+          chmod 600 .vault_pass
+          # A job-scoped registry token, so no standing credential for pulling
+          # private images is left behind on the host.
+          ansible-playbook -i inventory/staging-do.yml playbooks/deploy-apps.yml \
+            -e "echno_backend_image_digest=${{ needs.build.outputs.digest }}" \
+            -e "vault_ghcr_pull_token=${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Remove the vault password
+        if: always()
+        working-directory: deployment/ansible
+        run: rm -f .vault_pass
