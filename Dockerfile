@@ -38,15 +38,8 @@ RUN groupadd --system --gid 1001 echno \
 
 WORKDIR /app
 
-# The application's logback configuration writes to /app/logs. Running as a
-# non-root user in a root-owned directory, it cannot create that, and the
-# container exits on startup.
-#
-# Worth revisiting in the application itself: a container writing logs to a file
-# traps them inside its own filesystem, where the log collector never sees them
-# and they vanish with the container. Logging to stdout would let the platform
-# handle collection, retention and rotation.
-RUN mkdir -p /app/logs && chown -R echno:echno /app
+# Owned by the runtime user, which runs unprivileged.
+RUN chown -R echno:echno /app
 
 COPY --from=builder --chown=echno:echno /build/build/libs/*.jar /app/echno-backend.jar
 
