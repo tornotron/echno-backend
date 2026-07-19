@@ -1,0 +1,13 @@
+# Extends the default rules; only adds exclusions for verified example data.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Documentation showing example curl invocations such as -u approver:approver. Placeholder role names, not credentials."
+paths = ['''docs/finance-module-mvp-guide\.md''']
+
+[[allowlists]]
+description = "JDBC connection strings of the form host:5432/database, matched as user:pass by the generic rule."
+paths = ['''docker-compose\.yml''']
+regexTarget = "match"
+regexes = ['''keycloak-db:5432/keycloak''']
