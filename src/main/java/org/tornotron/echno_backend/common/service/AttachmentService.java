@@ -4,6 +4,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.common.dto.StoredFile;
+import org.tornotron.echno_backend.common.dto.PresignedUpload;
+import org.tornotron.echno_backend.common.dto.RegisterUploadRequest;
+import org.tornotron.echno_backend.common.dto.UploadRequest;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -27,6 +30,10 @@ import java.util.Set;
  */
 @Service
 public class AttachmentService {
+
+    // Pre-signed upload URLs are single-purpose and short-lived; long enough for
+    // a large file on a slow site connection, not long enough to be worth reusing.
+    private static final java.time.Duration UPLOAD_URL_EXPIRY = java.time.Duration.ofMinutes(15);
 
     private final AttachmentRepository attachmentRepository;
     private final FileStorageService fileStorageService;
@@ -80,32 +87,7 @@ public class AttachmentService {
             attachment.setContentType(storedFile.contentType());
             attachment.setFileSize(storedFile.size());
             attachment.setOriginalFilename(originalFile.getOriginalFilename());
-            switch (folder) {
-                case "organization":
-                    attachment.setOrganization(organizationRepository.findById(entityId).orElse(null));
-                    break;
-
-                case "project":
-                case "projects":
-                    attachment.setProject(projectRepository.findById(entityId).orElse(null));
-                    break;
-
-                case "task":
-                    attachment.setTask(taskRepository.findById(entityId).orElse(null));
-                    break;
-
-                case "issue":
-                    attachment.setIssue(issueRepository.findById(entityId).orElse(null));
-                    break;
-
-                case "user":
-                    attachment.setUser(userRepository.findById(entityId).orElse(null));
-                    break;
-
-                case "attendance":
-                    attachment.setAttendance(attendanceRepository.findById(entityId).orElse(null));
-                    break;
-            }
+            linkToEntity(attachment, folder, entityId);
             attachments.add(attachmentRepository.save(attachment));
         }
 
@@ -226,6 +208,91 @@ public class AttachmentService {
      * @param files The list of files to validate
      * @throws IllegalArgumentException if duplicate files are found
      */
+    /**
+     * Associates an attachment with its owning entity. Extracted so both the
+     * streaming upload and the pre-signed upload paths record the association
+     * the same way.
+     */
+    private void linkToEntity(Attachment attachment, String folder, Long entityId) {
+        switch (folder) {
+            case "organization" -> attachment.setOrganization(organizationRepository.findById(entityId).orElse(null));
+            case "project", "projects" -> attachment.setProject(projectRepository.findById(entityId).orElse(null));
+            case "task" -> attachment.setTask(taskRepository.findById(entityId).orElse(null));
+            case "issue" -> attachment.setIssue(issueRepository.findById(entityId).orElse(null));
+            case "user" -> attachment.setUser(userRepository.findById(entityId).orElse(null));
+            case "attendance" -> attachment.setAttendance(attendanceRepository.findById(entityId).orElse(null));
+            default -> { }
+        }
+    }
+
+    /**
+     * Issues pre-signed upload URLs so a client uploads directly to storage.
+     *
+     * <p>The streaming path puts every byte through the API and the CDN in front
+     * of it, which caps request bodies at 100 MB and times out at 100 seconds.
+     * Site media routinely exceeds both. This path takes the file off the API
+     * entirely; the client uploads to storage and then calls registerUploads.
+     */
+    public List<PresignedUpload> presignUploads(List<UploadRequest> requests, String entityType, Long entityId, String folder) {
+        if (requests == null || requests.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> signatures = new ArrayList<>();
+        List<PresignedUpload> presigned = new ArrayList<>();
+        for (UploadRequest request : requests) {
+            if (request.filename() == null || request.filename().isBlank()) {
+                throw new IllegalArgumentException("Each upload request must name a file");
+            }
+            String signature = request.filename() + "_" + request.fileSize();
+            if (!signatures.add(signature)) {
+                throw new IllegalArgumentException("Duplicate file in request: " + request.filename());
+            }
+            if (attachmentRepository.existsByEntityTypeAndEntityIdAndOriginalFilenameAndFileSize(
+                    entityType, entityId, request.filename(), request.fileSize())) {
+                throw new IllegalArgumentException("Attachment already exists: " + request.filename());
+            }
+            presigned.add(fileStorageService.generateUploadUrl(
+                    folder, request.filename(), request.contentType(), UPLOAD_URL_EXPIRY));
+        }
+        return presigned;
+    }
+
+    /**
+     * Records attachments the client has finished uploading directly to storage.
+     *
+     * <p>Each key must be one this service issued, and the object must actually
+     * be present: the client's claim is verified against storage rather than
+     * trusted, so a caller cannot register a row for an object that was never
+     * uploaded.
+     */
+    public List<Attachment> registerUploads(List<RegisterUploadRequest> requests, String entityType, Long entityId, String folder) {
+        if (requests == null || requests.isEmpty()) {
+            return List.of();
+        }
+
+        List<Attachment> attachments = new ArrayList<>();
+        for (RegisterUploadRequest request : requests) {
+            if (request.key() == null || request.key().isBlank()) {
+                throw new IllegalArgumentException("Each registration must reference a storage key");
+            }
+            if (!fileStorageService.objectExists(request.key())) {
+                throw new IllegalArgumentException("No uploaded object found for key: " + request.key());
+            }
+
+            Attachment attachment = new Attachment();
+            attachment.setEntityType(entityType);
+            attachment.setEntityId(entityId);
+            attachment.setStorageKey(request.key());
+            attachment.setContentType(request.contentType());
+            attachment.setFileSize(request.fileSize());
+            attachment.setOriginalFilename(request.filename());
+            linkToEntity(attachment, folder, entityId);
+            attachments.add(attachmentRepository.save(attachment));
+        }
+        return attachments;
+    }
+
     private void validateNoExistingAttachments(List<MultipartFile> files, String entityType, Long entityId) {
         List<String> existing = new ArrayList<>();
         for (MultipartFile file : files) {
