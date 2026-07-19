@@ -1,0 +1,11 @@
+.git
+.github
+.gradle
+build
+*.md
+.env
+.env.*
+!.env.template
+prometheus.yml
+loki-config.yml
+grafana-provisioning
