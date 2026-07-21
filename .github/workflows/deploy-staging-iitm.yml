@@ -132,9 +132,9 @@ jobs:
           install -d -m 700 ~/.ssh
           printf '%s' "${{ secrets.LAB_NODE_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          # The fereydon sudo password comes from the vault (ansible.cfg reads
+          # .vault_pass), so no separate become secret is needed here.
           ansible-playbook -i inventory/staging-iitm.yml playbooks/deploy-apps.yml \
-            --vault-password-file .vault_pass \
-            -e "ansible_become_pass=${{ secrets.LAB_NODE_BECOME_PASS }}" \
             -e "echno_backend_image_digest=${{ needs.build.outputs.digest }}" \
             -e "vault_ghcr_pull_token=${{ secrets.GITHUB_TOKEN }}"
 
