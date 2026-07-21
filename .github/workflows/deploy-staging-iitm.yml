@@ -105,14 +105,15 @@ jobs:
           path: deployment
 
       # The lab node is not a tailnet device: it sits on 10.24.6.0/24 behind the
-      # hp-z / OptiPlex subnet routers. The runner joins as tag:cloud-staging,
-      # which the ACL grants the lab route.
+      # hp-z / OptiPlex subnet routers. The runner joins as tag:ci-deploy (a
+      # dedicated deployer tag, not a host tag), which the ACL grants the lab
+      # route. Its OAuth client is scoped to exactly that one tag.
       - name: Join the tailnet
         uses: tailscale/github-action@780049a30b6ff5c378a9e7b389d15ece7a204888 # v4.1.3
         with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:cloud-staging
+          oauth-client-id: ${{ secrets.TS_CI_DEPLOY_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_CI_DEPLOY_SECRET }}
+          tags: tag:ci-deploy
 
       # The action's own `tailscale up` already sets --accept-routes, so passing
       # it again through args fails ("flag provided multiple times"). Enable the
