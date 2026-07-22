@@ -11,7 +11,9 @@ import org.tornotron.echno_backend.billing.dto.PlanCreateDto;
 import org.tornotron.echno_backend.billing.dto.PlanFeatureAssignDto;
 import org.tornotron.echno_backend.billing.repositories.FeatureRepository;
 import org.tornotron.echno_backend.billing.repositories.PlanRepository;
+import jakarta.validation.ValidationException;
 import org.tornotron.echno_backend.common.exception.PlanNotFoundException;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 
 import java.util.List;
 
@@ -33,12 +35,12 @@ public class PlanService {
 
     public Plan getPlanById(Long id) {
         return planRepository.findByIdWithFeatures(id)
-                .orElseThrow(() -> new PlanNotFoundException("Plan not found with id: " + id));
+                .orElseThrow(() -> new PlanNotFoundException("Plan with ID " + id + " was not found"));
     }
 
     public Plan getPlanByCode(String code) {
         return planRepository.findByCodeWithFeatures(code)
-                .orElseThrow(() -> new PlanNotFoundException("Plan not found with code: " + code));
+                .orElseThrow(() -> new PlanNotFoundException("Plan with code '" + code + "' was not found"));
     }
 
     @Transactional
@@ -92,7 +94,7 @@ public class PlanService {
     @Transactional
     public void activatePlan(Long id) {
         Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new PlanNotFoundException("Plan not found with id: " + id));
+                .orElseThrow(() -> new PlanNotFoundException("Plan with ID " + id + " was not found"));
         plan.setIsActive(true);
         planRepository.save(plan);
         log.info("Activated plan: {}", plan.getCode());
@@ -103,13 +105,15 @@ public class PlanService {
         Plan plan = getPlanById(planId);
 
         Feature feature = featureRepository.findByCodeAndIsActiveTrue(dto.getFeatureCode())
-                .orElseThrow(() -> new IllegalArgumentException("Feature not found: " + dto.getFeatureCode()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Active feature with code '" + dto.getFeatureCode() + "' was not found"));
 
         boolean alreadyAssigned = plan.getPlanFeatures().stream()
                 .anyMatch(pf -> pf.getFeature().getCode().equals(dto.getFeatureCode()));
 
         if (alreadyAssigned) {
-            throw new IllegalArgumentException("Feature already assigned to this plan: " + dto.getFeatureCode());
+            throw new ValidationException(
+                    "Feature '" + dto.getFeatureCode() + "' is already assigned to plan '" + plan.getCode() + "'");
         }
 
         PlanFeature planFeature = PlanFeature.builder()
@@ -131,10 +135,12 @@ public class PlanService {
     public Plan removeFeatureFromPlan(Long planId, String featureCode) {
         Plan plan = getPlanById(planId);
 
+        Plan finalPlan = plan;
         PlanFeature planFeature = plan.getPlanFeatures().stream()
                 .filter(pf -> pf.getFeature().getCode().equals(featureCode))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Feature not assigned to plan: " + featureCode));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Feature '" + featureCode + "' is not assigned to plan '" + finalPlan.getCode() + "'"));
 
         plan.removeFeature(planFeature);
         plan = planRepository.save(plan);
