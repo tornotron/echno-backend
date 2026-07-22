@@ -141,7 +141,7 @@ public class SubscriptionService {
                 };
 
             default:
-                throw new IllegalArgumentException("Unsupported quota period: " + period);
+                throw new IllegalArgumentException("Unsupported quota period '" + period + "'");
         }
 
     }
@@ -193,11 +193,12 @@ public class SubscriptionService {
     @Transactional
     public Subscription createSubscription(Long userId, String planCode, BillingPeriod billingPeriod) {
         if (getActiveSubscription(userId).isPresent()) {
-            throw new DuplicateResourceException("User already has an active subscription. Please upgrade/change plan instead.");
+            throw new DuplicateResourceException(
+                    "User " + userId + " already has an active subscription; use change-plan to switch plans instead");
         }
 
         Plan plan = planRepository.findByCodeWithFeatures(planCode)
-                .orElseThrow(() -> new PlanNotFoundException("Plan not found: " + planCode));
+                .orElseThrow(() -> new PlanNotFoundException("Plan with code '" + planCode + "' was not found"));
 
         Instant now = Instant.now();
         Instant periodEnd;
@@ -230,10 +231,10 @@ public class SubscriptionService {
     @Transactional
     public Subscription changeSubscription(Long userId,String newPlanCode) {
         Subscription currentSubscription = getActiveSubscription(userId)
-                .orElseThrow(() -> new NoActiveSubscriptionException("No active subscription for the user"));
+                .orElseThrow(() -> new NoActiveSubscriptionException("User " + userId + " has no active subscription"));
 
         Plan newPlan = planRepository.findByCodeAndIsActiveTrue(newPlanCode)
-                .orElseThrow(() -> new PlanNotFoundException("Plan not Found: {}" + newPlanCode));
+                .orElseThrow(() -> new PlanNotFoundException("Active plan with code '" + newPlanCode + "' was not found"));
 
         currentSubscription.setPlan(newPlan);
         currentSubscription = subscriptionRepository.save(currentSubscription);
@@ -251,7 +252,7 @@ public class SubscriptionService {
     public void cancelSubscription(Long userId, boolean immediate) {
 
        Subscription subscription = getActiveSubscription(userId)
-               .orElseThrow(() -> new NoActiveSubscriptionException("No active subscription for the user"));
+               .orElseThrow(() -> new NoActiveSubscriptionException("User " + userId + " has no active subscription"));
 
        if(immediate) {
            subscription.setStatus(SubscriptionStatus.CANCELED);
