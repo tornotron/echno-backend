@@ -14,11 +14,14 @@ name: Staging (IITM)
 #   * it authenticates to the fereydon account with a key and a become password
 #     rather than as deploy over Tailscale SSH.
 #
-# workflow_dispatch, not merge-triggered: while the DO box still exists a merge
-# to staging deploys there. Switch the trigger to pull_request closed on staging
-# once DO staging is retired and this is the only staging.
+# IITM is now the staging environment: a merge into `staging` deploys here (the
+# DO staging box was retired to save cost). workflow_dispatch stays for manual
+# runs.
 
 on:
+  pull_request:
+    types: [closed]
+    branches: [staging]
   workflow_dispatch:
 
 concurrency:
@@ -34,6 +37,8 @@ env:
 
 jobs:
   build:
+    # workflow_dispatch carries no pull request, so let it through explicitly.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.build.outputs.digest }}
