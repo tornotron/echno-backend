@@ -78,39 +78,44 @@ public class AttendanceService {
     public AttendanceResponseDto checkIn(AttendanceCheckInDto dto, MultipartFile photo) {
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
 
         Employee employee = employeeRepository.findByIdAndOrganizationId(dto.getEmployeeId(), orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Employee with ID " + dto.getEmployeeId() + " was not found in this organization"));
 
         Project project = projectRepository.findByIdAndOrganization_Id(dto.getProjectId(), orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Project with ID " + dto.getProjectId() + " was not found in this organization"));
 
         ShiftTiming shift = shiftTimingRepository.findByIdAndOrganization_Id(dto.getShiftTimingId(), orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Shift timing with ID " + dto.getShiftTimingId() + " was not found in this organization"));
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, dto.getProjectId());
 
         boolean photoProvided = photo != null && !photo.isEmpty();
 
         if (settings.getPhotoRequiredOnCheckIn() && !photoProvided) {
-            throw new ValidationException("Photo is required for check-in in this project");
+            throw new ValidationException("A photo is required to check in for this project");
         }
 
-        if (photoProvided && isImage(photo)) {
-            throw new ValidationException("Check-in photo must be an image");
+        if (photoProvided && isNotImage(photo)) {
+            throw new ValidationException("The check-in photo must be a valid image file");
         }
 
         if (settings.getGeolocationRequired()
                 && (dto.getLatitude() == null || dto.getLongitude() == null)) {
-            throw new ValidationException("Geolocation is required for attendance in this project");
+            throw new ValidationException("Latitude and longitude are required to record attendance for this project");
         }
 
         LocalDate attendanceDate = dto.getEventTimestamp().toLocalDate();
 
         if (attendanceRepository.findByEmployeeIdAndAttendanceDateAndProjectId(
                 employee.getId(), attendanceDate, project.getId()).isPresent()) {
-            throw new ValidationException("Attendance record already exists for this employee/date/project");
+            throw new ValidationException(
+                    "An attendance record already exists for employee " + employee.getId()
+                            + " on " + attendanceDate + " for project " + project.getId());
         }
 
         Attendance attendance = Attendance.builder()
@@ -178,7 +183,7 @@ public class AttendanceService {
         });
     }
 
-    private boolean isImage(MultipartFile file) {
+    private boolean isNotImage(MultipartFile file) {
         String contentType = file.getContentType();
         return contentType == null || !contentType.startsWith("image/");
     }
@@ -190,13 +195,14 @@ public class AttendanceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(dto.getAttendanceId(),TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance record not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attendance record with ID " + dto.getAttendanceId() + " was not found"));
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, attendance.getProjectId());
 
         if (settings.getGeolocationRequired()
                 && (dto.getLatitude() == null || dto.getLongitude() == null)) {
-            throw new ValidationException("Geolocation is required for attendance in this project");
+            throw new ValidationException("Latitude and longitude are required to record attendance for this project");
         }
 
         boolean photoProvided = photo != null && !photo.isEmpty();
@@ -206,11 +212,11 @@ public class AttendanceService {
                 (dto.getEventType() == ClockEventType.EVENING_CLOCK_OUT && settings.getPhotoRequiredOnCheckOut());
 
         if (photoRequired && !photoProvided) {
-            throw new ValidationException("Photo is required for this clock event");
+            throw new ValidationException("A photo is required for this " + dto.getEventType() + " event");
         }
 
-        if (photoProvided && isImage(photo)) {
-            throw new ValidationException("Clock event photo must be an image");
+        if (photoProvided && isNotImage(photo)) {
+            throw new ValidationException("The clock event photo must be a valid image file");
         }
 
         sequenceValidator.validate(dto.getEventType(), attendance, settings);
@@ -261,7 +267,7 @@ public class AttendanceService {
     @Transactional(readOnly = true)
     public AttendanceResponseDto getAttendanceById(Long id) {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance record with ID " + id + " was not found"));
         return attendanceMapper.toResponseDto(attendance,fileStorageService);
     }
 
@@ -292,7 +298,7 @@ public class AttendanceService {
     @Transactional
     public AttendanceResponseDto approveAttendance(Long attendanceId, AttendanceApprovalDto dto, String approvedBy) {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(attendanceId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance record with ID " + attendanceId + " was not found"));
 
         attendance.setApprovalStatus(dto.getApprovalStatus());
         attendance.setApprovedBy(approvedBy);
@@ -308,13 +314,15 @@ public class AttendanceService {
     public AttendanceResponseDto markAbsent(Long employeeId, Long projectId, LocalDate date) {
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
 
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Employee with ID " + employeeId + " was not found in this organization"));
 
         Project project = projectRepository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Project with ID " + projectId + " was not found in this organization"));
 
         Attendance attendance = attendanceRepository
                 .findByEmployeeIdAndAttendanceDateAndProjectId(employeeId, date, projectId)
@@ -346,13 +354,15 @@ public class AttendanceService {
                                             Long leaveId, String leaveType) {
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
 
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Employee with ID " + employeeId + " was not found in this organization"));
 
         Project project = projectRepository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Project with ID " + projectId + " was not found in this organization"));
 
         Attendance attendance = attendanceRepository
                 .findByEmployeeIdAndAttendanceDateAndProjectId(employeeId, date, projectId)
@@ -384,7 +394,8 @@ public class AttendanceService {
     @Transactional(readOnly = true)
     public AttendanceSummaryDto getMonthlySummary(Long employeeId, int month, int year) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Employee with ID " + employeeId + " was not found in this organization"));
 
         LocalDate from = LocalDate.of(year, month, 1);
         LocalDate to = from.withDayOfMonth(from.lengthOfMonth());
@@ -399,7 +410,7 @@ public class AttendanceService {
     @Transactional
     public void deleteAttendance(Long attendanceId) {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(attendanceId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance record not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance record with ID " + attendanceId + " was not found"));
         attendanceRepository.delete(attendance);
     }
 }
