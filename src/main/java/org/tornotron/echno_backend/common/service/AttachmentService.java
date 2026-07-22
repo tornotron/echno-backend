@@ -242,15 +242,17 @@ public class AttachmentService {
         List<PresignedUpload> presigned = new ArrayList<>();
         for (UploadRequest request : requests) {
             if (request.filename() == null || request.filename().isBlank()) {
-                throw new IllegalArgumentException("Each upload request must name a file");
+                throw new IllegalArgumentException("Each upload request must specify a filename");
             }
             String signature = request.filename() + "_" + request.fileSize();
             if (!signatures.add(signature)) {
-                throw new IllegalArgumentException("Duplicate file in request: " + request.filename());
+                throw new IllegalArgumentException(
+                        "Upload request contains a duplicate file: '" + request.filename() + "'");
             }
             if (attachmentRepository.existsByEntityTypeAndEntityIdAndOriginalFilenameAndFileSize(
                     entityType, entityId, request.filename(), request.fileSize())) {
-                throw new IllegalArgumentException("Attachment already exists: " + request.filename());
+                throw new IllegalArgumentException(
+                        "An attachment named '" + request.filename() + "' already exists for this " + entityType.toLowerCase());
             }
             presigned.add(fileStorageService.generateUploadUrl(
                     folder, request.filename(), request.contentType(), UPLOAD_URL_EXPIRY));
@@ -274,10 +276,12 @@ public class AttachmentService {
         List<Attachment> attachments = new ArrayList<>();
         for (RegisterUploadRequest request : requests) {
             if (request.key() == null || request.key().isBlank()) {
-                throw new IllegalArgumentException("Each registration must reference a storage key");
+                throw new IllegalArgumentException("Each registration request must reference a storage key");
             }
             if (!fileStorageService.objectExists(request.key())) {
-                throw new IllegalArgumentException("No uploaded object found for key: " + request.key());
+                throw new IllegalArgumentException(
+                        "No uploaded object was found in storage for key '" + request.key()
+                                + "'; the upload may not have completed");
             }
 
             Attachment attachment = new Attachment();
@@ -302,7 +306,8 @@ public class AttachmentService {
             }
         }
         if (!existing.isEmpty()) {
-            throw new IllegalArgumentException("Attachments already exist: " + String.join(", ", existing));
+            throw new IllegalArgumentException(
+                    "An attachment already exists for the following file(s): " + String.join(", ", existing));
         }
     }
 
@@ -318,7 +323,8 @@ public class AttachmentService {
         }
 
         if (!duplicates.isEmpty()) {
-            throw new IllegalArgumentException("Duplicate files detected: " + String.join(", ", duplicates));
+            throw new IllegalArgumentException(
+                    "Upload request contains duplicate file(s): " + String.join(", ", duplicates));
         }
     }
 }
