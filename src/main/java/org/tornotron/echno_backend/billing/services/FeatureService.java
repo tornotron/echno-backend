@@ -8,6 +8,7 @@ import org.tornotron.echno_backend.billing.Feature;
 import org.tornotron.echno_backend.billing.dto.FeatureCreateDto;
 import org.tornotron.echno_backend.billing.enums.FeatureType;
 import org.tornotron.echno_backend.billing.repositories.FeatureRepository;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 
 import java.util.List;
 
@@ -28,12 +29,12 @@ public class FeatureService {
 
     public Feature getFeatureById(Long id) {
         return featureRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Feature not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Feature with ID " + id + " was not found"));
     }
 
     public Feature getFeatureByCode(String code) {
         return featureRepository.findByCodeAndIsActiveTrue(code)
-                .orElseThrow(() -> new IllegalArgumentException("Feature not found with code: " + code));
+                .orElseThrow(() -> new ResourceNotFoundException("Active feature with code '" + code + "' was not found"));
     }
 
     @Transactional
@@ -77,7 +78,7 @@ public class FeatureService {
     @Transactional
     public void activateFeature(Long id) {
         Feature feature = featureRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Feature not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Feature with ID " + id + " was not found"));
         feature.setIsActive(true);
         featureRepository.save(feature);
         log.info("Activated feature: {}", feature.getCode());
