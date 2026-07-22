@@ -71,7 +71,7 @@ public class FileStorageService {
                     RequestBody.fromInputStream(file.getInputStream(), file.getSize())
             );
         } catch (IOException e) {
-            throw new FileUploadException("Failed to upload file: " + file.getOriginalFilename(), e);
+            throw new FileUploadException("Failed to upload file '" + file.getOriginalFilename() + "' to object storage", e);
         }
 
 
@@ -169,7 +169,8 @@ public class FileStorageService {
         } catch (FileUploadException e) {
             // Rollback: delete any files that were successfully uploaded
             rollbackUploadedFiles(uploadedKeys);
-            throw new FileUploadException("Batch upload failed. Rolled back " + uploadedKeys.size() + " uploaded files.", e);
+            throw new FileUploadException(
+                    "Batch upload failed; rolled back " + uploadedKeys.size() + " previously uploaded file(s)", e);
         }
 
         return storedFiles;
@@ -227,7 +228,7 @@ public class FileStorageService {
      */
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new FileUploadException("File cannot be null or empty");
+            throw new FileUploadException("No file was provided, or the file is empty");
         }
     }
 
