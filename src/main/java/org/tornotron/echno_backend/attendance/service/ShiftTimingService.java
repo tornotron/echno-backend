@@ -33,8 +33,9 @@ public class ShiftTimingService {
 
     @Transactional
     public ShiftTimingDto createShiftTiming(ShiftTimingCreationDto dto) {
-        Organization org = organizationRepository.findById(TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+        Long orgId = TenantContext.getCurrentOrgId();
+        Organization org = organizationRepository.findById(orgId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
 
         ShiftTiming shiftTiming = ShiftTiming.builder()
                 .shiftName(dto.getShiftName())
@@ -63,14 +64,14 @@ public class ShiftTimingService {
     @Transactional(readOnly = true)
     public ShiftTimingDto getShiftTimingById(Long id) {
         ShiftTiming shiftTiming = shiftTimingRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Shift timing with ID " + id + " was not found in this organization"));
         return shiftTimingMapper.toDto(shiftTiming);
     }
 
     @Transactional
     public ShiftTimingDto updateShiftTiming(Long id, ShiftTimingPatchDto dto) {
         ShiftTiming shiftTiming = shiftTimingRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Shift timing with ID " + id + " was not found in this organization"));
 
         if (dto.getShiftName() != null) shiftTiming.setShiftName(dto.getShiftName());
         if (dto.getStartTime() != null) shiftTiming.setStartTime(dto.getStartTime());
@@ -88,7 +89,7 @@ public class ShiftTimingService {
     @Transactional
     public void deleteShiftTiming(Long id) {
         ShiftTiming shiftTiming = shiftTimingRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Shift timing with ID " + id + " was not found in this organization"));
         shiftTimingRepository.delete(shiftTiming);
     }
 }
