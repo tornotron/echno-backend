@@ -80,7 +80,8 @@ public class EmployeeService {
         employee.setOrganization(organization);
         if (employeeCreationDto.getManagerId() != null) {
             Employee manager = employeeRepository.findByIdAndOrganizationId(employeeCreationDto.getManagerId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Manager not found with id: " + employeeCreationDto.getManagerId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Manager with ID " + employeeCreationDto.getManagerId() + " was not found in this organization"));
             // Validate manager is from the same organization
             if (!manager.getOrganization().getId().equals(organization.getId())) {
                 throw new IllegalArgumentException("Manager must be from the same organization");
@@ -106,13 +107,13 @@ public class EmployeeService {
     public EmployeeDto joinOrganization(Long userId, Long orgId, @Valid EmployeeJoinOrgDto employeeJoinOrgDto) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("User with ID " + userId + " was not found"));
 
         Organization org = organizationRepository.findById(orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + orgId));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
 
         if (employeeRepository.existsByUserAndOrganization(user, org)) {
-            throw new IllegalStateException("User already employed in this organization");
+            throw new IllegalStateException("User " + userId + " is already an employee of organization " + orgId);
         }
 
         Employee employee = new Employee();
@@ -128,7 +129,8 @@ public class EmployeeService {
 
         if (employeeJoinOrgDto.getManagerId() != null) {
             Employee manager = employeeRepository.findByIdAndOrganizationId(employeeJoinOrgDto.getManagerId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Manager not found with id: " + employeeJoinOrgDto.getManagerId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Manager with ID " + employeeJoinOrgDto.getManagerId() + " was not found in this organization"));
             // Validate manager is from the same organization
             if (!manager.getOrganization().getId().equals(org.getId())) {
                 throw new IllegalArgumentException("Manager must be from the same organization");
@@ -157,7 +159,8 @@ public class EmployeeService {
         } catch (Exception e) {
             log.error("Failed to add user {} to Keycloak group for organization {}: {}",
                     user.getKeycloakId(), org.getId(), e.getMessage());
-            throw new RuntimeException("Failed to add user to organization in Keycloak: " + e.getMessage(), e);
+            throw new RuntimeException(
+                    "Failed to add user " + userId + " to organization " + orgId + " in Keycloak: " + e.getMessage(), e);
         }
 
         return EmployeeDtoConvertor.convertEmployeeToDto(savedEmployee,fileStorageService);
@@ -174,7 +177,8 @@ public class EmployeeService {
     public EmployeeDto addEmployee(EmployeeCreationDto employeeCreationDto) {
         Employee employee = new Employee();
         Organization organization = organizationRepository.findOrganizationByOrganizationName(employeeCreationDto.getOrganizationName())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with name: " + employeeCreationDto.getOrganizationName()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Organization with name '" + employeeCreationDto.getOrganizationName() + "' was not found"));
         return EmployeeObjectMapper(employeeCreationDto, employee, organization);
     }
 
@@ -204,7 +208,7 @@ public class EmployeeService {
                 .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
                 .orElse(null);
         if(employeeDto == null) {
-            throw new ResourceNotFoundException("Employee not found with id: "+id);
+            throw new ResourceNotFoundException("Employee with ID " + id + " was not found in this organization");
         } else {
             return employeeDto;
         }
@@ -233,7 +237,7 @@ public class EmployeeService {
     @Transactional
     public void partialUpdateAnEmployee(Map<String,Object> updates, Long id) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: "+id));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + id + " was not found in this organization"));
         partialUpdateAnEmployee(updates, employee);
         employeeRepository.save(employee);
     }
@@ -246,6 +250,7 @@ public class EmployeeService {
                     break;
                 case "status":
                     employee.setStatus(EmployeeStatus.valueOf((String) value));
+                    break;
                 case "employeeName":
                     employee.setEmployeeName((String) value);
                     break;
@@ -276,7 +281,8 @@ public class EmployeeService {
                 case "managerId":
                     Long managerId = ((Number) value).longValue();
                     Employee manager = employeeRepository.findByIdAndOrganizationId(managerId,TenantContext.getCurrentOrgId())
-                            .orElseThrow(() -> new ResourceNotFoundException("Manager not found with id: " + managerId));
+                            .orElseThrow(() -> new ResourceNotFoundException(
+                                    "Manager with ID " + managerId + " was not found in this organization"));
                     validateManager(employee, manager);
                     employee.setManager(manager);
                     break;
@@ -340,9 +346,9 @@ public class EmployeeService {
     @Transactional
     public EmployeeDto assignManager(Long employeeId, Long managerId) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
         Employee manager = employeeRepository.findByIdAndOrganizationId(managerId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Manager not found with id: " + managerId));
+                .orElseThrow(() -> new ResourceNotFoundException("Manager with ID " + managerId + " was not found in this organization"));
 
         validateManager(employee, manager);
         employee.setManager(manager);
@@ -361,7 +367,7 @@ public class EmployeeService {
     @Transactional
     public EmployeeDto removeManager(Long employeeId) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
 
         employee.setManager(null);
 
@@ -378,7 +384,7 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public List<EmployeeDto> getDirectSubordinates(Long managerId) {
         if (!employeeRepository.existsByIdAndOrganization_Id(managerId,TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("Manager not found with id: " + managerId);
+            throw new ResourceNotFoundException("Manager with ID " + managerId + " was not found in this organization");
         }
         return employeeRepository.findByManager_Id(managerId).stream()
                 .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
@@ -416,7 +422,7 @@ public class EmployeeService {
     @Transactional
     public void deleteAnEmployee(Long id) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + id + " was not found in this organization"));
 
         if (employee.getUser() != null && employee.getUser().getKeycloakId() != null) {
             try {
@@ -454,7 +460,7 @@ public class EmployeeService {
     @Transactional
     public EmployeeDto assignOrgRole(Long employeeId, OrgRole role) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
 
         employee.getOrgRoles().add(role);
         Employee savedEmployee = employeeRepository.save(employee);
@@ -468,7 +474,8 @@ public class EmployeeService {
         } catch (Exception e) {
             log.error("Failed to assign role {} to employee {} in Keycloak: {}",
                     role, employeeId, e.getMessage());
-            throw new RuntimeException("Failed to assign role in Keycloak: " + e.getMessage(), e);
+            throw new RuntimeException(
+                    "Failed to assign role '" + role + "' to employee " + employeeId + " in Keycloak: " + e.getMessage(), e);
         }
 
         return EmployeeDtoConvertor.convertEmployeeToDto(savedEmployee,fileStorageService);
@@ -477,7 +484,7 @@ public class EmployeeService {
     @Transactional
     public EmployeeDto removeOrgRole(Long employeeId, OrgRole role) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
 
         employee.getOrgRoles().remove(role);
         Employee savedEmployee = employeeRepository.save(employee);
@@ -491,7 +498,8 @@ public class EmployeeService {
         } catch (Exception e) {
             log.error("Failed to remove role {} from employee {} in Keycloak: {}",
                     role, employeeId, e.getMessage());
-            throw new RuntimeException("Failed to remove role in Keycloak: " + e.getMessage(), e);
+            throw new RuntimeException(
+                    "Failed to remove role '" + role + "' from employee " + employeeId + " in Keycloak: " + e.getMessage(), e);
         }
 
         return EmployeeDtoConvertor.convertEmployeeToDto(savedEmployee,fileStorageService);
@@ -500,7 +508,7 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public Set<OrgRole> getOrgRoles(Long employeeId) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
         return employee.getOrgRoles();
     }
 
