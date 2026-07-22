@@ -12,9 +12,10 @@ name: Staging
 # path serves CI, an operator's laptop, and the IIT Madras host.
 
 on:
-  pull_request:
-    types: [closed]
-    branches: [staging]
+  # The DO staging box was destroyed to save cost, so this no longer fires on a
+  # merge; the merge-to-staging deploy now targets IITM (deploy-staging-iitm.yml).
+  # It remains here, dispatch-only, to rebuild and redeploy the DO box from the
+  # IaC if it is ever brought back.
   workflow_dispatch:
 
 concurrency:
