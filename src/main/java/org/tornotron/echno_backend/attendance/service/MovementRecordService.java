@@ -47,13 +47,15 @@ public class MovementRecordService {
     public MovementRecordDto addMovement(MovementRecordCreationDto dto, Long employeeId) {
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
 
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Employee with ID " + employeeId + " was not found in this organization"));
 
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(dto.getAttendanceId(),TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attendance record with ID " + dto.getAttendanceId() + " was not found"));
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, attendance.getProjectId());
 
@@ -63,7 +65,7 @@ public class MovementRecordService {
 
         if (settings.getMovementGeolocationRequired()
                 && (dto.getStartLatitude() == null || dto.getStartLongitude() == null)) {
-            throw new ValidationException("Geolocation is required for movement records in this project");
+            throw new ValidationException("Latitude and longitude are required for movement records in this project");
         }
 
         MovementRecord record = MovementRecord.builder()
@@ -98,7 +100,7 @@ public class MovementRecordService {
     @Transactional
     public MovementRecordDto verifyMovement(Long movementId, String verifiedBy) {
         MovementRecord record = movementRecordRepository.findByIdAndOrganization_Id(movementId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Movement record not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Movement record with ID " + movementId + " was not found"));
 
         record.setIsVerified(true);
         record.setVerifiedBy(verifiedBy);
@@ -118,7 +120,7 @@ public class MovementRecordService {
     @Transactional(readOnly = true)
     public MovementRecordDto getMovementById(Long id) {
         MovementRecord record = movementRecordRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Movement record not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Movement record with ID " + id + " was not found"));
         return movementRecordMapper.toDto(record);
     }
 }
