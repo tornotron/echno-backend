@@ -46,16 +46,17 @@ public class AttendanceRegularizationService {
     public AttendanceRegularizationDto submitRequest(RegularizationRequestDto dto, String requestedBy) {
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
 
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(dto.getAttendanceId(),TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attendance record with ID " + dto.getAttendanceId() + " was not found"));
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, attendance.getProjectId());
 
         if (!settings.getAllowSelfRegularization()) {
             throw new ValidationException(
-                    "Self regularization is not allowed for this project. Contact your manager.");
+                    "Self-service regularization is not enabled for this project. Please contact your manager.");
         }
 
         // Check monthly limit
@@ -68,7 +69,8 @@ public class AttendanceRegularizationService {
 
         if (usedThisMonth >= settings.getMaxRegularizationDaysPerMonth()) {
             throw new ValidationException(
-                    "Monthly regularization limit of " + settings.getMaxRegularizationDaysPerMonth() + " has been reached");
+                    "The monthly regularization limit of " + settings.getMaxRegularizationDaysPerMonth()
+                            + " requests has been reached");
         }
 
         // Check for existing pending request
@@ -76,7 +78,8 @@ public class AttendanceRegularizationService {
                 .ifPresent(existing -> {
                     if (existing.getStatus() == RegularizationStatus.PENDING) {
                         throw new ValidationException(
-                                "A regularization request is already pending for this attendance");
+                                "A regularization request is already pending for attendance record "
+                                        + dto.getAttendanceId());
                     }
                 });
 
@@ -103,10 +106,14 @@ public class AttendanceRegularizationService {
                                                               RegularizationActionDto dto,
                                                               String approvedBy) {
         AttendanceRegularization regularization = regularizationRepository.findByIdAndOrganization_Id(regularizationId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Regularization not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Regularization request with ID " + regularizationId + " was not found"));
 
         if (regularization.getStatus() != RegularizationStatus.PENDING) {
-            throw new ValidationException("Regularization is not in pending state");
+            throw new ValidationException(
+                    "Regularization request " + regularizationId + " has already been "
+                            + regularization.getStatus().toString().toLowerCase()
+                            + " and can no longer be actioned");
         }
 
         regularization.setStatus(dto.getStatus());
@@ -136,7 +143,8 @@ public class AttendanceRegularizationService {
     @Transactional(readOnly = true)
     public AttendanceRegularizationDto getRegularizationById(Long id) {
         AttendanceRegularization regularization = regularizationRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Regularization not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Regularization request with ID " + id + " was not found"));
         return regularizationMapper.toDto(regularization);
     }
 
