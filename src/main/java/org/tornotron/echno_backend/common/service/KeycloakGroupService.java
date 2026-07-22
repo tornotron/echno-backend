@@ -75,7 +75,9 @@ public class KeycloakGroupService {
             if (response.getStatus() != 201) {
                 String error = response.readEntity(String.class);
                 response.close();
-                throw new RuntimeException("Failed to create organization group in Keycloak. Status: " + response.getStatus() + ", Error: " + error);
+                throw new RuntimeException(
+                        "Failed to create organization group 'org-" + organizationId + "' in Keycloak (status "
+                                + response.getStatus() + "): " + error);
             }
 
             String locationHeader = response.getHeaderString("Location");
@@ -99,7 +101,8 @@ public class KeycloakGroupService {
         try {
             String groupId = findOrgGroupId(keycloak, organizationId);
             if (groupId == null) {
-                throw new RuntimeException("Cannot add user to organization: organization group 'org-" + organizationId + "' not found in Keycloak");
+                throw new RuntimeException(
+                        "Cannot add user to organization: group 'org-" + organizationId + "' was not found in Keycloak");
             }
             keycloak.realm(realm).users().get(userId).joinGroup(groupId);
             log.info("Added user {} to organization group 'org-{}'", userId, organizationId);
@@ -182,12 +185,15 @@ public class KeycloakGroupService {
         try {
             String orgGroupId = findOrgGroupId(keycloak, organizationId);
             if (orgGroupId == null) {
-                throw new RuntimeException("Cannot assign role: organization group 'org-" + organizationId + "' not found in Keycloak");
+                throw new RuntimeException(
+                        "Cannot assign role: group 'org-" + organizationId + "' was not found in Keycloak");
             }
 
             String subgroupId = findRoleSubgroupId(keycloak, orgGroupId, role.getGroupName());
             if (subgroupId == null) {
-                throw new RuntimeException("Cannot assign role: subgroup '" + role.getGroupName() + "' not found under org-" + organizationId);
+                throw new RuntimeException(
+                        "Cannot assign role: subgroup '" + role.getGroupName() + "' was not found under 'org-"
+                                + organizationId + "'");
             }
 
             keycloak.realm(realm).users().get(userId).joinGroup(subgroupId);
@@ -210,12 +216,15 @@ public class KeycloakGroupService {
         try {
             String orgGroupId = findOrgGroupId(keycloak, organizationId);
             if (orgGroupId == null) {
-                throw new RuntimeException("Cannot remove role: organization group 'org-" + organizationId + "' not found in Keycloak");
+                throw new RuntimeException(
+                        "Cannot remove role: group 'org-" + organizationId + "' was not found in Keycloak");
             }
 
             String subgroupId = findRoleSubgroupId(keycloak, orgGroupId, role.getGroupName());
             if (subgroupId == null) {
-                throw new RuntimeException("Cannot remove role: subgroup '" + role.getGroupName() + "' not found under org-" + organizationId);
+                throw new RuntimeException(
+                        "Cannot remove role: subgroup '" + role.getGroupName() + "' was not found under 'org-"
+                                + organizationId + "'");
             }
 
             keycloak.realm(realm).users().get(userId).leaveGroup(subgroupId);
@@ -279,7 +288,9 @@ public class KeycloakGroupService {
             if (response.getStatus() != 201) {
                 String error = response.readEntity(String.class);
                 response.close();
-                throw new RuntimeException("Failed to create role subgroup '" + role.getGroupName() + "'. Status: " + response.getStatus() + ", Error: " + error);
+                throw new RuntimeException(
+                        "Failed to create role subgroup '" + role.getGroupName() + "' under 'org-" + organizationId
+                                + "' in Keycloak (status " + response.getStatus() + "): " + error);
             }
 
             response.close();
