@@ -46,18 +46,21 @@ public class AttendanceSettingsService {
                 .orElseGet(() -> settingsRepository
                         .findByOrganizationIdAndProjectIdIsNullAndIsActiveTrue(orgId)
                         .orElseThrow(() -> new ResourceNotFoundException(
-                                "No attendance settings configured for organization: " + orgId)));
+                                "No attendance settings are configured for organization " + orgId
+                                        + " and no org-wide default exists")));
     }
 
     @Transactional
     public AttendanceSettingsDto createSettings(AttendanceSettingsCreationDto dto) {
-        Organization org = organizationRepository.findById(TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+        Long orgId = TenantContext.getCurrentOrgId();
+        Organization org = organizationRepository.findById(orgId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
 
         ShiftTiming shift = null;
         if (dto.getDefaultShiftTimingId() != null) {
             shift = shiftTimingRepository.findByIdAndOrganization_Id(dto.getDefaultShiftTimingId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Shift timing with ID " + dto.getDefaultShiftTimingId() + " was not found in this organization"));
         }
 
         AttendanceSettings settings = AttendanceSettings.builder()
@@ -87,7 +90,8 @@ public class AttendanceSettingsService {
     public AttendanceSettingsDto getOrgSettings() {
         AttendanceSettings settings = settingsRepository
                 .findByOrganizationIdAndProjectIdIsNullAndIsActiveTrue(TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Org-wide attendance settings not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No org-wide attendance settings are configured for this organization"));
         return settingsMapper.toDto(settings);
     }
 
@@ -108,7 +112,7 @@ public class AttendanceSettingsService {
     @Transactional
     public AttendanceSettingsDto updateSettings(Long id, AttendanceSettingsPatchDto dto) {
         AttendanceSettings settings = settingsRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance settings not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance settings with ID " + id + " were not found"));
 
         if (dto.getSettingName() != null) settings.setSettingName(dto.getSettingName());
         if (dto.getCheckInOutCycles() != null) settings.setCheckInOutCycles(dto.getCheckInOutCycles());
@@ -126,7 +130,8 @@ public class AttendanceSettingsService {
 
         if (dto.getDefaultShiftTimingId() != null) {
             ShiftTiming shift = shiftTimingRepository.findByIdAndOrganization_Id(dto.getDefaultShiftTimingId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Shift timing not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Shift timing with ID " + dto.getDefaultShiftTimingId() + " was not found in this organization"));
             settings.setDefaultShiftTiming(shift);
         }
 
@@ -136,7 +141,7 @@ public class AttendanceSettingsService {
     @Transactional
     public void deactivateSettings(Long id) {
         AttendanceSettings settings = settingsRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance settings not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance settings with ID " + id + " were not found"));
         settings.setIsActive(false);
         settingsRepository.save(settings);
     }
