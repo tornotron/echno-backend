@@ -56,7 +56,9 @@ public class KeycloakManagementService {
                 return id;
             } else {
                 log.error("Failed to create client. Status: {}", response.getStatus());
-                throw new RuntimeException("Failed to create client: " + response.getStatusInfo().getReasonPhrase());
+                throw new RuntimeException(
+                        "Failed to create client '" + dto.getClientId() + "' in Keycloak (status "
+                                + response.getStatus() + "): " + response.getStatusInfo().getReasonPhrase());
             }
         }
     }
@@ -101,14 +103,14 @@ public class KeycloakManagementService {
         try {
             userResource.toRepresentation();
         } catch (NotFoundException e) {
-            throw new RuntimeException("User not found: " + userId);
+            throw new RuntimeException("User '" + userId + "' was not found in Keycloak");
         }
 
         RoleRepresentation role;
         try {
             role = keycloak.realm(realm).roles().get(roleName).toRepresentation();
         } catch (NotFoundException e) {
-            throw new RuntimeException("Realm role '" + roleName + "' not found");
+            throw new RuntimeException("Realm role '" + roleName + "' was not found in Keycloak");
         }
 
         userResource.roles().realmLevel().add(Collections.singletonList(role));
@@ -120,7 +122,7 @@ public class KeycloakManagementService {
         try {
             userResource.toRepresentation();
         } catch (NotFoundException e) {
-            throw new RuntimeException("User not found: " + userId);
+            throw new RuntimeException("User '" + userId + "' was not found in Keycloak");
         }
 
         ClientResource clientResource = getClientResource(clientId);
@@ -129,7 +131,7 @@ public class KeycloakManagementService {
         try {
             role = clientResource.roles().get(roleName).toRepresentation();
         } catch (NotFoundException e) {
-            throw new RuntimeException("Role '" + roleName + "' not found in client '" + clientId + "'");
+            throw new RuntimeException("Role '" + roleName + "' was not found in client '" + clientId + "'");
         }
 
         String clientUuid = clientResource.toRepresentation().getId();
@@ -145,7 +147,7 @@ public class KeycloakManagementService {
         ClientsResource clientsResource = keycloak.realm(realm).clients();
         List<ClientRepresentation> clients = clientsResource.findByClientId(clientId);
         if (clients.isEmpty()) {
-            throw new RuntimeException("Client not found: " + clientId);
+            throw new RuntimeException("Client '" + clientId + "' was not found in Keycloak");
         }
         return clientsResource.get(clients.getFirst().getId());
     }
@@ -179,7 +181,9 @@ public class KeycloakManagementService {
         try (Response response = authz.resources().create(resource)) {
             if (response.getStatus() != 201 && response.getStatus() != 409) { // 409 = Conflict (already exists)
                 log.error("Failed to create resource {}. Status: {}", dto.getName(), response.getStatus());
-                throw new RuntimeException("Failed to create resource: " + dto.getName());
+                throw new RuntimeException(
+                        "Failed to create resource '" + dto.getName() + "' for client '" + clientId
+                                + "' in Keycloak (status " + response.getStatus() + ")");
             } else if (response.getStatus() == 409) {
                 log.info("Resource {} already exists for client {}", dto.getName(), clientId);
             } else {
@@ -255,7 +259,9 @@ public class KeycloakManagementService {
         try (Response response = creator.get()) {
             if (response.getStatus() != 201 && response.getStatus() != 409) {
                 log.error("Failed to create {} {}. Status: {}", type, name, response.getStatus());
-                throw new RuntimeException("Failed to create " + type + ": " + name);
+                throw new RuntimeException(
+                        "Failed to create " + type + " '" + name + "' for client '" + clientId
+                                + "' in Keycloak (status " + response.getStatus() + ")");
             } else if (response.getStatus() == 409) {
                 log.info("{} {} already exists for client {}", type, name, clientId);
             } else {

@@ -63,7 +63,7 @@ public class StorageLocationService {
             Project project = projectRepository.findByIdAndOrganization_Id(
                             creationDto.getProjectId(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Project not found with id: " + creationDto.getProjectId()));
+                            "Project with ID " + creationDto.getProjectId() + " was not found in this organization"));
             storageLocation.setProject(project);
         }
 
@@ -74,7 +74,7 @@ public class StorageLocationService {
     @Transactional(readOnly = true)
     public StorageLocationDto getStorageLocationById(Long id) {
         StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Storage location not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Storage location with ID " + id + " was not found in this organization"));
         return StorageLocationDtoConvertor.convertToDto(storageLocation,currentStockRepository,TenantContext.getCurrentOrgId());
     }
 
@@ -109,7 +109,7 @@ public class StorageLocationService {
     @Transactional
     public StorageLocationDto updateStorageLocation(Long id, StorageLocationUpdateDto updateDto) {
         StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Storage location not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Storage location with ID " + id + " was not found in this organization"));
 
         if (updateDto.getLocationName() != null) {
             // Check for duplicate name only if name is changing
@@ -150,7 +150,7 @@ public class StorageLocationService {
             Project project = projectRepository.findByIdAndOrganization_Id(
                             updateDto.getProjectId(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Project not found with id: " + updateDto.getProjectId()));
+                            "Project with ID " + updateDto.getProjectId() + " was not found in this organization"));
             storageLocation.setProject(project);
         }
 
@@ -161,7 +161,7 @@ public class StorageLocationService {
     @Transactional
     public void deleteStorageLocation(Long id) {
         StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Storage location not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Storage location with ID " + id + " was not found in this organization"));
         storageLocationRepository.delete(storageLocation);
     }
 }

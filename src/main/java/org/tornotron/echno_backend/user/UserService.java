@@ -80,7 +80,7 @@ public class UserService {
     @Transactional
     public UserDto registerUser(UserRegistrationDto userRegistrationDto) {
         if (userRepository.existsUserByEmail(userRegistrationDto.getEmail())) {
-            throw new DuplicateResourceException("User with email " + userRegistrationDto.getEmail() + " already exists.");
+            throw new DuplicateResourceException("User with email '" + userRegistrationDto.getEmail() + "' already exists");
         }
 
         String keycloakId = createKeycloakUser(userRegistrationDto.getUserName(), userRegistrationDto.getEmail(), userRegistrationDto.getPassword());
@@ -95,7 +95,7 @@ public class UserService {
             try {
                 user.setRole(UserRole.valueOf(userRegistrationDto.getRole()));
             } catch (IllegalArgumentException | NullPointerException e) {
-                throw new IllegalArgumentException("Invalid user role: " + userRegistrationDto.getRole());
+                throw new IllegalArgumentException("'" + userRegistrationDto.getRole() + "' is not a valid user role");
             }
             user.setKeycloakId(keycloakId);
             return UserDtoConvertor.convertUserToDto(userRepository.save(user), fileStorageService);
@@ -107,7 +107,7 @@ public class UserService {
 
     private String createKeycloakUser(String username, String email, String password) {
         if (keycloakUserExists(email)) {
-            throw new DuplicateResourceException("User with email " + email + " already exists in Keycloak.");
+            throw new DuplicateResourceException("User with email '" + email + "' already exists in Keycloak");
         }
 
         UsersResource usersResource = keycloak.realm(realm).users();
@@ -121,7 +121,7 @@ public class UserService {
         String keycloakId;
         try (Response response = usersResource.create(userRepresentation)) {
             if (response.getStatus() != 201) {
-                throw new RuntimeException("Failed to create user in Keycloak, status: " + response.getStatus());
+                throw new RuntimeException("Failed to create user '" + username + "' in Keycloak (status " + response.getStatus() + ")");
             }
             String location = response.getLocation().toString();
             keycloakId = location.substring(location.lastIndexOf('/') + 1);
@@ -198,7 +198,7 @@ public class UserService {
     public UserDto getCurrentUserDto(String keycloakId) {
         return userRepository.findUserWithAttachmentsByKeycloakId(keycloakId)
                 .map(user -> UserDtoConvertor.convertUserToDto(user, fileStorageService))
-                .orElseThrow(() -> new ResourceNotFoundException("User not found for keycloak ID: " + keycloakId));
+                .orElseThrow(() -> new ResourceNotFoundException("User with Keycloak ID '" + keycloakId + "' was not found"));
     }
 
     /**
@@ -225,7 +225,7 @@ public class UserService {
     public UserDto getAnUser(String sub) {
         return userRepository.findUserByKeycloakId(sub)
                 .map(usr -> UserDtoConvertor.convertUserToDto(usr,fileStorageService))
-                .orElseThrow(() -> new ResourceNotFoundException("No user found for the provided subject identifier"));
+                .orElseThrow(() -> new ResourceNotFoundException("User with subject identifier '" + sub + "' was not found"));
     }
 
     /**
@@ -254,7 +254,7 @@ public class UserService {
     @Transactional
     public UserDto partialUpdateAnUser(Map<String, Object> updates, Long id, MultipartFile profilePicture, MultipartFile cv) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("User with ID " + id + " was not found"));
         applyUpdates(updates, user);
 
         handleProfilePictureUpload(user, profilePicture, id);
@@ -411,7 +411,7 @@ public class UserService {
     @Transactional
     public void deleteAnUser(Long id) {
         if(!userRepository.existsById(id)) {
-            throw new ResourceNotFoundException("User not found with id: " + id);
+            throw new ResourceNotFoundException("User with ID " + id + " was not found");
         } else {
             userRepository.deleteById(id);
         }
@@ -423,7 +423,7 @@ public class UserService {
             List<UserRepresentation> users = usersResource.search(email, true);
             return !users.isEmpty();
         } catch (Exception ex) {
-            throw new DatabaseOperationException("Keycloak database user check failed");
+            throw new DatabaseOperationException("Failed to check whether user with email '" + email + "' exists in Keycloak: " + ex.getMessage());
         }
     }
 

@@ -44,7 +44,7 @@ public class LeavePolicyService {
     public LeavePolicyDto createPolicy(LeavePolicyCreationDto dto) {
         Organization organization = organizationRepository.findByIdAndUserEmail(TenantContext.getCurrentOrgId(), userContextService.getCurrentUserEmail())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Organization not found with id: " + dto.getOrganizationId()));
+                        "Organization with ID " + dto.getOrganizationId() + " was not found"));
 
         if (policyRepository.existsByOrganizationIdAndLeaveTypeCode(
                 dto.getOrganizationId(), dto.getLeaveTypeCode())) {
@@ -82,7 +82,7 @@ public class LeavePolicyService {
     public LeavePolicyDto getPolicy(Long policyId) {
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave policy not found with id: " + policyId));
+                        "Leave policy with ID " + policyId + " was not found in this organization"));
         return LeavePolicyDtoConvertor.convertToDto(policy);
     }
 
@@ -97,7 +97,7 @@ public class LeavePolicyService {
     public List<LeavePolicyDto> getPoliciesByOrganization(Long organizationId) {
         if (!organizationRepository.existsById(organizationId)) {
             throw new ResourceNotFoundException(
-                    "Organization not found with id: " + organizationId);
+                    "Organization with ID " + organizationId + " was not found");
         }
 
         return policyRepository.findByOrganizationIdAndIsActiveTrueOrderByDisplayOrderAsc(organizationId)
@@ -110,7 +110,7 @@ public class LeavePolicyService {
     public List<LeavePolicyDto> getAllPoliciesByOrganization(Long organizationId) {
         if (!organizationRepository.existsById(organizationId)) {
             throw new ResourceNotFoundException(
-                    "Organization not found with id: " + organizationId);
+                    "Organization with ID " + organizationId + " was not found");
         }
 
         return policyRepository.findByOrganizationId(organizationId)
@@ -123,7 +123,7 @@ public class LeavePolicyService {
     public List<LeavePolicyDto> getApplicablePoliciesForEmployee(Long employeeId) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Employee not found with id: " + employeeId));
+                        "Employee with ID " + employeeId + " was not found in this organization"));
 
         LocalDateTime joiningDate = employee.getJoiningDate();
         int serviceMonths = 0;
@@ -144,7 +144,7 @@ public class LeavePolicyService {
     public LeavePolicyDto updatePolicy(Long policyId, Map<String, Object> updates) {
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave policy not found with id: " + policyId));
+                        "Leave policy with ID " + policyId + " was not found in this organization"));
 
         updates.forEach((key, value) -> {
             switch (key) {
@@ -185,7 +185,7 @@ public class LeavePolicyService {
     public void deactivatePolicy(Long policyId) {
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave policy not found with id: " + policyId));
+                        "Leave policy with ID " + policyId + " was not found in this organization"));
 
         policy.setIsActive(false);
         policyRepository.save(policy);
@@ -195,7 +195,7 @@ public class LeavePolicyService {
     public void activatePolicy(Long policyId) {
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave policy not found with id: " + policyId));
+                        "Leave policy with ID " + policyId + " was not found in this organization"));
 
         policy.setIsActive(true);
         policyRepository.save(policy);
@@ -205,11 +205,11 @@ public class LeavePolicyService {
     public LeavePolicyDto duplicatePolicy(Long policyId, Long targetOrganizationId) {
         LeavePolicy source = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave policy not found with id: " + policyId));
+                        "Leave policy with ID " + policyId + " was not found in this organization"));
 
         Organization targetOrg = organizationRepository.findByIdAndUserEmail(targetOrganizationId,userContextService.getCurrentUserEmail())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Organization not found with id: " + targetOrganizationId));
+                        "Target organization with ID " + targetOrganizationId + " was not found"));
 
         if (policyRepository.existsByOrganizationIdAndLeaveTypeCode(
                 targetOrganizationId, source.getLeaveTypeCode())) {

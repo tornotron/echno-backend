@@ -73,9 +73,9 @@ public class ProjectService {
     public ProjectSimpleDto addProject(ProjectCreationDto projectDto,List<MultipartFile> attachments) {
             Long orgId = TenantContext.getCurrentOrgId();
             Organization organization = organizationRepository.findById(orgId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: " + orgId));
+                    .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
             if(repository.existsProjectByProjectName(projectDto.getProjectName())){
-                throw new DuplicateResourceException("Project with the same name already exists");
+                throw new DuplicateResourceException("Project with name '" + projectDto.getProjectName() + "' already exists");
             }
             Project project = new Project();
             project.setProjectName(projectDto.getProjectName());
@@ -129,7 +129,7 @@ public class ProjectService {
                 .map(project -> ProjectDtoConvertor.convertProjectToDto(project,fileStorageService))
                 .orElse(null);
         if(projectDto==null) {
-            throw new ResourceNotFoundException("Project not found with id: "+id);
+            throw new ResourceNotFoundException("Project with ID " + id + " was not found in this organization");
         } else {
             return projectDto;
         }
@@ -146,7 +146,7 @@ public class ProjectService {
     @Transactional
     public ProjectSimpleDto partialUpdateAProject(Map<String,Object> updates, Long id, List<MultipartFile> attachments, String entityType) {
         Project project = repository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: "+id));
+                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + id + " was not found in this organization"));
         partialUpdateAProject(updates, project);
 
         if (attachments != null) {
@@ -221,7 +221,7 @@ public class ProjectService {
     @Transactional
     public void deleteAProject(Long id) {
         if(!repository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("Project not found with id: "+id);
+            throw new ResourceNotFoundException("Project with ID " + id + " was not found in this organization");
         }
         // Delete all attachments associated with this project
         attachmentService.deleteAllAttachments("PROJECT", id);
@@ -238,7 +238,7 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public Long getOrganizationIdByProjectId(Long projectId) {
         Project project = repository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization"));
         return project.getOrganization().getId();
     }
 
@@ -252,12 +252,12 @@ public class ProjectService {
     @Transactional
     public List<EmployeeDto> addEmployeeToProject(Long projectId, Long employeeId) {
         Project project = repository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization"));
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
 
         if (project.getEmployees().contains(employee)) {
-            throw new DuplicateResourceException("Employee is already assigned to this project");
+            throw new DuplicateResourceException("Employee with ID " + employeeId + " is already assigned to project with ID " + projectId);
         }
 
         project.getEmployees().add(employee);
@@ -277,12 +277,12 @@ public class ProjectService {
     @Transactional
     public void removeEmployeeFromProject(Long projectId, Long employeeId) {
         Project project = repository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization"));
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
 
         if (!project.getEmployees().remove(employee)) {
-            throw new ResourceNotFoundException("Employee with id: " + employeeId + " is not assigned to project with id: " + projectId);
+            throw new ResourceNotFoundException("Employee with ID " + employeeId + " is not assigned to project with ID " + projectId);
         }
 
         repository.save(project);
@@ -296,7 +296,7 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public List<ProjectDto> getProjectsByEmployeeId(Long employeeId) {
         employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
         return repository.findByEmployees_IdAndOrganization_Id(employeeId, TenantContext.getCurrentOrgId())
                 .stream()
                 .map(project -> ProjectDtoConvertor.convertProjectToDto(project, fileStorageService))
@@ -306,7 +306,7 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public List<EmployeeDto> getEmployeesByProjectId(Long projectId) {
         Project project = repository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization"));
 
         return project.getEmployees().stream()
                 .map(e -> EmployeeDtoConvertor.convertEmployeeToDto(e, fileStorageService))

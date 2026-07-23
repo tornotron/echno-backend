@@ -76,10 +76,10 @@ public class ProjectInviteCodeService {
     @Transactional
     public ProjectInviteCodeDto generateInviteCode(InviteCodeGenerationDto inviteCodeGenerationDto,Long organizationId) {
         Organization organization = organizationRepository.findById(organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+ organizationId));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + organizationId + " was not found"));
         if (inviteCodeGenerationDto.getManagerId() != null) {
             if (!employeeRepository.existsByIdAndOrgRolesIn(inviteCodeGenerationDto.getManagerId(), OrgRole.getManagerRoles())) {
-                throw new ResourceNotFoundException("Manager with id: " + inviteCodeGenerationDto.getManagerId() + " does not exist");
+                throw new ResourceNotFoundException("Manager with ID " + inviteCodeGenerationDto.getManagerId() + " was not found with a manager role in this organization");
             }
         }
         int inviteCode = generateSecureFiveDigitNumber();
@@ -105,7 +105,7 @@ public class ProjectInviteCodeService {
         projectInviteCode.setEmployeeDetails(employeeDetails);
         ProjectInviteCode savedProjectInviteCode = inviteCodeRepository.save(projectInviteCode);
         if(savedProjectInviteCode.getId() == null) {
-            throw new DatabaseOperationException("Invite code could not be created");
+            throw new DatabaseOperationException("Invite code for organization " + organizationId + " could not be persisted");
         }
         return ProjectInviteCodeDtoConvertor.convertToDto(savedProjectInviteCode);
     }
@@ -121,15 +121,15 @@ public class ProjectInviteCodeService {
     @Transactional
     public OrganizationDto validateAndUseInviteCode(InviteCodeValidationDto inviteCodeValidationDto,Long userId) {
         ProjectInviteCode inviteCode = inviteCodeRepository.findByCode(Integer.parseInt(inviteCodeValidationDto.getCode()))
-                .orElseThrow(() -> new ResourceNotFoundException("Invite code not found: " + inviteCodeValidationDto.getCode()));
+                .orElseThrow(() -> new ResourceNotFoundException("Invite code '" + inviteCodeValidationDto.getCode() + "' was not found"));
         if(inviteCode.getExpiryDate().isBefore(LocalDateTime.now())) {
-            throw new InvalidInviteCodeException("Invite code has expired");
+            throw new InvalidInviteCodeException("Invite code '" + inviteCodeValidationDto.getCode() + "' expired on " + inviteCode.getExpiryDate());
         }
         if(!inviteCode.isActive()) {
-            throw new InvalidInviteCodeException("Invite code is not active");
+            throw new InvalidInviteCodeException("Invite code '" + inviteCodeValidationDto.getCode() + "' is no longer active");
         }
         if(inviteCode.getCurrentUses() >= inviteCode.getMaxUses()) {
-            throw new InvalidInviteCodeException("Invite code has reached maximum usage limit");
+            throw new InvalidInviteCodeException("Invite code '" + inviteCodeValidationDto.getCode() + "' has reached its maximum usage limit of " + inviteCode.getMaxUses());
         }
         inviteCodeRepository.save(inviteCode);
         Organization organization = inviteCode.getOrganization();
@@ -167,7 +167,7 @@ public class ProjectInviteCodeService {
     @Transactional
     public ProjectInviteCodeDto patchInviteCode(Long inviteCodeId, InviteCodePatchDto patchDto) {
         ProjectInviteCode inviteCode = inviteCodeRepository.findByIdAndOrganization_Id(inviteCodeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Invite code not found with id: " + inviteCodeId));
+                .orElseThrow(() -> new ResourceNotFoundException("Invite code with ID " + inviteCodeId + " was not found in this organization"));
 
         if (patchDto.getMaxUses() != null) {
             inviteCode.setMaxUses(patchDto.getMaxUses());

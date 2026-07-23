@@ -69,24 +69,24 @@ public class PayableService {
 
 
         Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: "+ creationDto.getCreatedBy()));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + creationDto.getCreatedBy() + " was not found in this organization"));
 
         // Validate project
         Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + creationDto.getProjectId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + creationDto.getProjectId() + " was not found in this organization"));
 
         // Validate vendor if provided
         Vendor vendor = null;
         if (creationDto.getVendorId() != null) {
             vendor = vendorRepository.findByIdAndOrganization_Id(creationDto.getVendorId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + creationDto.getVendorId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Vendor with ID " + creationDto.getVendorId() + " was not found in this organization"));
         }
 
         // Validate GRN if provided
         GoodsReceivedNote grn = null;
         if (creationDto.getGoodsReceivedNoteId() != null) {
             grn = goodsReceivedNoteRepository.findByIdAndOrganization_Id(creationDto.getGoodsReceivedNoteId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("GRN not found with id: " + creationDto.getGoodsReceivedNoteId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Goods received note with ID " + creationDto.getGoodsReceivedNoteId() + " was not found in this organization"));
         }
 
         Payable payable = new Payable();
@@ -108,7 +108,7 @@ public class PayableService {
     @Transactional
     public PayableDto recordPayment(Long id, BigDecimal paymentAmount) {
         Payable payable = payableRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Payable not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Payable with ID " + id + " was not found in this organization"));
 
         BigDecimal currentPaid = payable.getAmountPaid() != null ? payable.getAmountPaid() : BigDecimal.ZERO;
         payable.setAmountPaid(currentPaid.add(paymentAmount));
@@ -120,7 +120,7 @@ public class PayableService {
     @Transactional(readOnly = true)
     public PayableDto getPayableById(Long id) {
         Payable payable = payableRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Payable not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Payable with ID " + id + " was not found in this organization"));
         return PayableDtoConvertor.convertToDto(payable, fileStorageService);
     }
 

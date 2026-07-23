@@ -98,7 +98,7 @@ public class ReportService {
     @Transactional(readOnly = true)
     public ProfitAndLossReport profitAndLoss(LocalDate fromDate, LocalDate toDate) {
         if(toDate.isBefore(fromDate)) {
-            throw new IllegalArgumentException("toDate cannot be before fromDate");
+            throw new IllegalArgumentException("The end date (" + toDate + ") cannot be before the start date (" + fromDate + ")");
         }
 
         // Native SQL bypasses the Hibernate orgFilter, so scope by organization explicitly.

@@ -86,15 +86,15 @@ public class SiteTransferService {
         }
 
         Employee sendingPerson = employeeRepository.findByIdAndOrganizationId(creationDto.getSendingPerson(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + creationDto.getSendingPerson()));
+                .orElseThrow(() -> new ResourceNotFoundException("Sending person (employee) with ID " + creationDto.getSendingPerson() + " was not found in this organization"));
 
         // Validate sending project
         Project sendingProject = projectRepository.findByIdAndOrganization_Id(creationDto.getSendingProjectId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Sending project not found with id: " + creationDto.getSendingProjectId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Sending project with ID " + creationDto.getSendingProjectId() + " was not found in this organization"));
 
         // Validate receiving project
         Project receivingProject = projectRepository.findByIdAndOrganization_Id(creationDto.getReceivingProjectId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Receiving project not found with id: " + creationDto.getReceivingProjectId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Receiving project with ID " + creationDto.getReceivingProjectId() + " was not found in this organization"));
 
         // CRITICAL: Validate sufficient stock at the SENDING location for ALL items
         // Use storage-location-level validation when a sending storage location is specified
@@ -122,14 +122,14 @@ public class SiteTransferService {
             StorageLocation sendingLocation = storageLocationRepository.findByIdAndOrganization_Id(
                             creationDto.getSendingStorageLocationId(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Sending storage location not found with id: " + creationDto.getSendingStorageLocationId()));
+                            "Sending storage location with ID " + creationDto.getSendingStorageLocationId() + " was not found in this organization"));
             transfer.setSendingStorageLocation(sendingLocation);
         }
         if (creationDto.getReceivingStorageLocationId() != null) {
             StorageLocation receivingLocation = storageLocationRepository.findByIdAndOrganization_Id(
                             creationDto.getReceivingStorageLocationId(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Receiving storage location not found with id: " + creationDto.getReceivingStorageLocationId()));
+                            "Receiving storage location with ID " + creationDto.getReceivingStorageLocationId() + " was not found in this organization"));
             transfer.setReceivingStorageLocation(receivingLocation);
         }
 
@@ -143,7 +143,7 @@ public class SiteTransferService {
         List<SiteTransferItem> items = new ArrayList<>();
         for (SiteTransferItemDto itemDto : creationDto.getItems()) {
             Material material = materialRepository.findByIdAndOrganization_Id(itemDto.getMaterialId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + itemDto.getMaterialId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + itemDto.getMaterialId() + " was not found in this organization"));
 
             SiteTransferItem item = new SiteTransferItem();
             item.setSiteTransfer(transfer);
@@ -167,7 +167,7 @@ public class SiteTransferService {
     @Transactional(readOnly = true)
     public SiteTransferDto getSiteTransferById(Long id) {
         SiteTransfer transfer = siteTransferRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Site transfer not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Site transfer with ID " + id + " was not found in this organization"));
         return SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService);
     }
 
@@ -209,7 +209,7 @@ public class SiteTransferService {
     @Transactional
     public void updateSiteTransferStatus(Long id, SiteTransferStatus status) {
         SiteTransfer transfer = siteTransferRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Site transfer not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Site transfer with ID " + id + " was not found in this organization"));
 
         transfer.setStatus(status);
         siteTransferRepository.save(transfer);

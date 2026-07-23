@@ -83,23 +83,23 @@ public class GoodsReceivedNoteService {
     public GoodsReceivedNoteDto createGoodsReceivedNote(GoodsReceivedNoteCreationDto creationDto) {
         // Check for duplicate GRN number
         if (goodsReceivedNoteRepository.existsByGrnNumber(creationDto.getGrnNumber())) {
-            throw new DuplicateResourceException("GRN with number " + creationDto.getGrnNumber() + " already exists");
+            throw new DuplicateResourceException("GRN number '" + creationDto.getGrnNumber() + "' is already in use in this organization");
         }
 
 
         // Validate vendor
         Vendor vendor = vendorRepository.findByIdAndOrganization_Id(creationDto.getVendorId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + creationDto.getVendorId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Vendor with ID " + creationDto.getVendorId() + " was not found in this organization"));
 
         Employee receivedBy = employeeRepository.findByIdAndOrganizationId(creationDto.getReceivedByEmployeeId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + creationDto.getReceivedByEmployeeId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + creationDto.getReceivedByEmployeeId() + " was not found in this organization"));
 
         // Validate project
         Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + creationDto.getProjectId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + creationDto.getProjectId() + " was not found in this organization"));
 
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(creationDto.getPurchaseOrderId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase order not found with id: " + creationDto.getPurchaseOrderId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + creationDto.getPurchaseOrderId() + " was not found in this organization"));
 
         // Create GRN
         GoodsReceivedNote grn = new GoodsReceivedNote();
@@ -119,7 +119,7 @@ public class GoodsReceivedNoteService {
             StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(
                             creationDto.getStorageLocationId(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Storage location not found with id: " + creationDto.getStorageLocationId()));
+                            "Storage location with ID " + creationDto.getStorageLocationId() + " was not found in this organization"));
             grn.setStorageLocation(storageLocation);
         }
 
@@ -132,7 +132,7 @@ public class GoodsReceivedNoteService {
         List<GrnItem> items = new ArrayList<>();
         for (GrnItemDto itemDto : creationDto.getItems()) {
             Material material = materialRepository.findByIdAndOrganization_Id(itemDto.getMaterialId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + itemDto.getMaterialId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + itemDto.getMaterialId() + " was not found in this organization"));
 
             GrnItem grnItem = new GrnItem();
             grnItem.setGoodsReceivedNote(grn);
@@ -157,7 +157,7 @@ public class GoodsReceivedNoteService {
     @Transactional
     public GoodsReceivedNoteDto updateGoodsReceivedNote(GoodsReceivedNoteUpdateDto updateDto) {
         GoodsReceivedNote grn = goodsReceivedNoteRepository.findByIdAndOrganization_Id(updateDto.getId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("GRN not found with id: " + updateDto.getId()));
+                .orElseThrow(() -> new ResourceNotFoundException("GRN with ID " + updateDto.getId() + " was not found in this organization"));
 
         if (updateDto.getReceivedOn() != null) {
             grn.setReceivedOn(updateDto.getReceivedOn());
@@ -165,7 +165,7 @@ public class GoodsReceivedNoteService {
 
         if (updateDto.getReceivedByEmployeeId() != null) {
             Employee receivedBy = employeeRepository.findByIdAndOrganizationId(updateDto.getReceivedByEmployeeId(), TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + updateDto.getReceivedByEmployeeId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + updateDto.getReceivedByEmployeeId() + " was not found in this organization"));
             grn.setReceivedBy(receivedBy);
         }
 
@@ -185,7 +185,7 @@ public class GoodsReceivedNoteService {
             StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(
                             updateDto.getStorageLocationId(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Storage location not found with id: " + updateDto.getStorageLocationId()));
+                            "Storage location with ID " + updateDto.getStorageLocationId() + " was not found in this organization"));
             grn.setStorageLocation(storageLocation);
         }
 
@@ -196,7 +196,7 @@ public class GoodsReceivedNoteService {
     @Transactional(readOnly = true)
     public GoodsReceivedNoteDto getGrnById(Long id) {
         GoodsReceivedNote grn = goodsReceivedNoteRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("GRN not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("GRN with ID " + id + " was not found in this organization"));
         return GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService);
     }
 

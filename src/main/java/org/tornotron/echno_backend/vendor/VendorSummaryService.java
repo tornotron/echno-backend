@@ -25,7 +25,7 @@ public class VendorSummaryService {
     @Transactional(readOnly = true)
     public VendorSummaryDto getVendorSummary(Long vendorId) {
         Vendor vendor = vendorRepository.findByIdAndOrganization_Id(vendorId, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + vendorId));
+                .orElseThrow(() -> new ResourceNotFoundException("Vendor with ID " + vendorId + " was not found in this organization"));
 
         VendorSummaryDto summary = new VendorSummaryDto();
         summary.setVendorId(vendorId);

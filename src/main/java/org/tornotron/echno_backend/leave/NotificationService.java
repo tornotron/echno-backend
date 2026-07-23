@@ -171,7 +171,7 @@ public class NotificationService {
     public void markAsRead(Long notificationId) {
         Notification notification = notificationRepository.findByIdAndOrganization_Id(notificationId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Notification not found with id: " + notificationId));
+                        "Notification with ID " + notificationId + " was not found in this organization"));
 
         notification.setIsRead(true);
         notification.setReadAt(LocalDateTime.now());

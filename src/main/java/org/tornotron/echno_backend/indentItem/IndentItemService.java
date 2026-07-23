@@ -43,10 +43,10 @@ public class IndentItemService {
     @Transactional
     public IndentItemDto createIndentItem(IndentItemCreationDto creationDto) {
         Indent indent = indentRepository.findByIdAndOrganization_Id(creationDto.getIndentId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Indent not found with id: " + creationDto.getIndentId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Indent with ID " + creationDto.getIndentId() + " was not found in this organization"));
 
         Material material = materialRepository.findByIdAndOrganization_Id(creationDto.getMaterialId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + creationDto.getMaterialId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + creationDto.getMaterialId() + " was not found in this organization"));
 
         IndentItem indentItem = new IndentItem();
         indentItem.setIndent(indent);
@@ -65,7 +65,7 @@ public class IndentItemService {
     @Transactional(readOnly = true)
     public IndentItemDto getIndentItemById(Long id) {
         IndentItem indentItem = indentItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Indent item with ID " + id + " was not found in this organization"));
         return IndentItemDtoConvertor.convertIndentItemToDto(indentItem,fileStorageService,inventoryService);
     }
 
@@ -100,13 +100,13 @@ public class IndentItemService {
     @Transactional
     public IndentItemDto updateIndentItem(Long id, IndentItemCreationDto updateDto) {
         IndentItem indentItem = indentItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Indent item with ID " + id + " was not found in this organization"));
 
         Indent indent = indentRepository.findByIdAndOrganization_Id(updateDto.getIndentId(),TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Indent not found with id: " + updateDto.getIndentId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Indent with ID " + updateDto.getIndentId() + " was not found in this organization"));
 
         Material material = materialRepository.findByIdAndOrganization_Id(updateDto.getMaterialId(),TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + updateDto.getMaterialId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + updateDto.getMaterialId() + " was not found in this organization"));
 
         indentItem.setIndent(indent);
         indentItem.setMaterial(material);
@@ -122,7 +122,7 @@ public class IndentItemService {
     @Transactional
     public void deleteIndentItem(Long id) {
         if (!indentItemRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("IndentItem not found with id: " + id);
+            throw new ResourceNotFoundException("Indent item with ID " + id + " was not found in this organization");
         }
         indentItemRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
     }
@@ -130,7 +130,7 @@ public class IndentItemService {
     @Transactional
     public IndentItemDto markAsConverted(Long id, String purchaseOrderNumber) {
         IndentItem indentItem = indentItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Indent item with ID " + id + " was not found in this organization"));
 
         indentItem.setConvertedToPurchaseOrder(true);
         indentItem.setLinkedPurchaseOrderNumber(purchaseOrderNumber);
