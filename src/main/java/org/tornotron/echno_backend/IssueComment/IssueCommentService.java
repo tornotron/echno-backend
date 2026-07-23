@@ -36,13 +36,13 @@ public class IssueCommentService {
     public IssueCommentSimpleDto addIssueComment(IssueCommentCreationDto issueCommentCreationDto) {
         IssueComment issueComment = new IssueComment();
         if(!employeeRepository.existsByIdAndOrganization_Id(issueCommentCreationDto.getAuthorId(), TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("Employee not found with id: " + issueCommentCreationDto.getAuthorId());
+            throw new ResourceNotFoundException("Author (employee) with ID " + issueCommentCreationDto.getAuthorId() + " was not found in this organization");
         }
         issueComment.setAuthorId(issueCommentCreationDto.getAuthorId());
         issueComment.setComment(issueCommentCreationDto.getComment());
         if(issueCommentCreationDto.getIssueId() != null) {
             var issue = issueRepository.findByIdAndOrganization_Id(issueCommentCreationDto.getIssueId(), TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Issue not found with id: " + issueCommentCreationDto.getIssueId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Issue with ID " + issueCommentCreationDto.getIssueId() + " was not found in this organization"));
             issueComment.setIssue(issue);
             issueComment.setOrganization(issue.getOrganization());
         }
@@ -59,7 +59,7 @@ public class IssueCommentService {
     @Transactional(readOnly = true)
     public IssueCommentDto getAnIssueComment(Long id) {
         IssueComment issueComment = issueCommentRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("IssueComment not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Issue comment with ID " + id + " was not found in this organization"));
         return IssueCommentDtoConvertor.convertIssueCommentToDto(issueComment);
     }
 
@@ -73,7 +73,7 @@ public class IssueCommentService {
     @Transactional
     public void deleteAnIssueComment(Long id) {
         if(!issueCommentRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())){
-            throw new ResourceNotFoundException("IsseComment not found with id: " + id);
+            throw new ResourceNotFoundException("Issue comment with ID " + id + " was not found in this organization");
         } else {
             issueCommentRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
         }

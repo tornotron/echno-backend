@@ -40,7 +40,7 @@ public class CustomerService {
     @Transactional
     public CustomerDto create(CreateCustomerRequest req) {
         if(repo.existsByCode(req.getCode())) {
-            throw new InvalidJournalException("Customer code already exists: "+ req.getCode());
+            throw new InvalidJournalException("Customer code '" + req.getCode() + "' is already in use in this organization");
         }
         Customer customer = new Customer();
         customer.setCode(req.getCode());
@@ -78,6 +78,6 @@ public class CustomerService {
 
     Customer getEntity(UUID id) {
         return repo.findScopedById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Customer not found: "+ id));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer with ID " + id + " was not found in this organization"));
     }
 }

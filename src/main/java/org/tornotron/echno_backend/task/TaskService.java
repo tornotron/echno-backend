@@ -94,17 +94,17 @@ public class TaskService {
 
         if (taskCreationDto.getCreatorId() != null) {
             task.setCreator(employeeRepository.findByIdAndOrganizationId(taskCreationDto.getCreatorId(), TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + taskCreationDto.getCreatorId())));
+                    .orElseThrow(() -> new ResourceNotFoundException("Creator (employee) with ID " + taskCreationDto.getCreatorId() + " was not found in this organization")));
         } else {
-            throw new InvalidRequestException("Creator ID must be provided");
+            throw new InvalidRequestException("A creatorId is required to create a task");
         }
         if (taskCreationDto.getProjectId() != null) {
             var project = projectRepository.findByIdAndOrganization_Id(taskCreationDto.getProjectId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + taskCreationDto.getProjectId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + taskCreationDto.getProjectId() + " was not found in this organization"));
             task.setProject(project);
             task.setOrganization(project.getOrganization());
         } else {
-            throw new InvalidRequestException("Project ID must be provided");
+            throw new InvalidRequestException("A projectId is required to create a task");
         }
 
         if(taskCreationDto.getAssigneeIds() != null && !taskCreationDto.getAssigneeIds().isEmpty()) {
@@ -120,7 +120,7 @@ public class TaskService {
             nonExistentEmployeeIds.removeAll(validEmployeeIdsInOrg);
 
             if (!nonExistentEmployeeIds.isEmpty()) {
-                throw new InvalidRequestException("The following employee IDs which are being assigned are not part of "+organization.getOrganizationName()+" organization: " + nonExistentEmployeeIds);
+                throw new InvalidRequestException("Employee IDs " + nonExistentEmployeeIds + " are not members of organization '" + organization.getOrganizationName() + "' and cannot be assigned to this task");
             }
 
             Set<Employee> assignees = new HashSet<>(employeeRepository.findAllById(employeeIdsInTaskDto));
@@ -130,9 +130,9 @@ public class TaskService {
 
         if(taskCreationDto.getCategoryId() != null) {
             task.setCategory(categoryRepository.findByIdAndOrganization_Id(taskCreationDto.getCategoryId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + taskCreationDto.getCategoryId())));
+                    .orElseThrow(() -> new ResourceNotFoundException("Category with ID " + taskCreationDto.getCategoryId() + " was not found in this organization")));
         } else {
-            throw new InvalidRequestException("Category must be provided");
+            throw new InvalidRequestException("A categoryId is required to create a task");
         }
 
         if(taskCreationDto.getTags() != null && !taskCreationDto.getTags().isEmpty()) {
@@ -198,7 +198,7 @@ public class TaskService {
                 .map(task -> TaskDtoConvertor.convertTaskToDto(task,fileStorageService))
                 .orElse(null);
         if(taskDto == null) {
-            throw new ResourceNotFoundException("Task not found with id: " + id);
+            throw new ResourceNotFoundException("Task with ID " + id + " was not found in this organization");
         } else {
             return taskDto;
         }
@@ -221,7 +221,7 @@ public class TaskService {
     @Transactional
     public TaskSimpleDto partialUpdateATask(Map<String,Object> updates,Long id,List<MultipartFile> attachments, String entityType) {
         Task task = taskRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Task with ID " + id + " was not found in this organization"));
         partialUpdateATask(updates, task);
 
         if (attachments != null) {
@@ -329,7 +329,7 @@ public class TaskService {
     @Transactional
     public void deleteATask(Long id) {
         Task task = taskRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Task with ID " + id + " was not found in this organization"));
         Project project = task.getProject();
         taskRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
         taskRepository.flush();

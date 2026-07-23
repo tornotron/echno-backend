@@ -55,7 +55,7 @@ public class PaymentService {
     @Transactional(readOnly = true)
     public PaymentDto findById(UUID id) {
         return mapper.toDto(paymentRepo.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Payment not found: " + id)));
+                .orElseThrow(() -> new ResourceNotFoundException("Payment with ID " + id + " was not found")));
     }
 
     @Transactional
@@ -77,22 +77,24 @@ public class PaymentService {
 
         if (sumAlloc.compareTo(amount) != 0) {
             throw new InvalidJournalException(
-                    "Sum of allocations (" + sumAlloc + ") does not equal payment amount (" + amount + ")");
+                    "Sum of allocations (" + sumAlloc + ") does not equal the payment amount (" + amount + ")");
         }
 
         // 3. Load customer + company bank account
         Customer customer = customerRepo.findScopedById(req.customerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Customer not found: " + req.customerId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer with ID " + req.customerId() + " was not found"));
         CompanyBankAccount companyBank = companyBankRepo.findScopedById(req.companyBankAccountId())
-                .orElseThrow(() -> new ResourceNotFoundException("Company Bank Account not found: " + req.companyBankAccountId()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Company bank account with ID " + req.companyBankAccountId() + " was not found"));
 
         Account bankLedger = companyBank.getLedgerAccount();
         if (bankLedger.getType() != AccountType.ASSET) {
             throw new InvalidJournalException(
-                    "Payment account must be ASSET type: " + bankLedger.getCode());
+                    "Payment account '" + bankLedger.getCode() + "' must be of type ASSET");
         }
         if (!companyBank.isActive()) {
-            throw new InvalidJournalException("Company Bank account is inactive: " + companyBank.getBankName());
+            throw new InvalidJournalException(
+                    "Company bank account '" + companyBank.getBankName() + "' is inactive and cannot be used");
         }
 
         // 4. Lock and validate each invoice (pessimistic write lock)
@@ -105,7 +107,7 @@ public class PaymentService {
 
         for (var e : allocByInvoice.entrySet()) {
             Invoice inv = invoiceRepo.findByIdForUpdate(e.getKey())
-                    .orElseThrow(() -> new ResourceNotFoundException("Invoice not found: " + e.getKey()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Invoice with ID " + e.getKey() + " was not found"));
             if (!inv.getCustomer().getId().equals(customer.getId())) {
                 throw new InvalidJournalException(
                         "Invoice " + inv.getInvoiceNumber() + " does not belong to customer " + customer.getCode());
@@ -113,14 +115,14 @@ public class PaymentService {
             if (inv.getStatus() != InvoiceStatus.ISSUED &&
                     inv.getStatus() != InvoiceStatus.PARTIALLY_PAID) {
                 throw new InvalidJournalException(
-                        "Invoice " + inv.getInvoiceNumber() + " is not open (status: " + inv.getStatus() + ")");
+                        "Invoice " + inv.getInvoiceNumber() + " is not open for payment (status: " + inv.getStatus() + ")");
             }
             BigDecimal allocation = e.getValue();
             BigDecimal balance = inv.balanceDue();
             if (allocation.compareTo(balance) > 0) {
                 throw new InvalidJournalException(
-                        "Allocation " + allocation + " exceeds balance " + balance +
-                                " for invoice " + inv.getInvoiceNumber());
+                        "Allocation of " + allocation + " exceeds the outstanding balance of " + balance
+                                + " for invoice " + inv.getInvoiceNumber());
             }
             lockedInvoices.add(inv);
         }

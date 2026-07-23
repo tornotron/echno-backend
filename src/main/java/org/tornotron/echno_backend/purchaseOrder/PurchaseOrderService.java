@@ -79,18 +79,18 @@ public class PurchaseOrderService {
         }
 
         Vendor vendor = vendorRepository.findByIdAndOrganization_Id(creationDto.getVendorId(),TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + creationDto.getVendorId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Vendor with ID " + creationDto.getVendorId() + " was not found in this organization"));
 
         Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + creationDto.getCreatedBy()));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + creationDto.getCreatedBy() + " was not found in this organization"));
 
         Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + creationDto.getProjectId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + creationDto.getProjectId() + " was not found in this organization"));
 
         Indent indent = null;
         if (creationDto.getIndentId() != null) {
             indent = indentRepository.findByIdAndOrganization_Id(creationDto.getIndentId(), TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Indent not found with id: " + creationDto.getIndentId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Indent with ID " + creationDto.getIndentId() + " was not found in this organization"));
         }
 
         PurchaseOrder purchaseOrder = new PurchaseOrder();
@@ -126,7 +126,7 @@ public class PurchaseOrderService {
     @Transactional
     public void recalculateTotalAmount(Long purchaseOrderId) {
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(purchaseOrderId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase Order not found with id: " + purchaseOrderId));
+                .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + purchaseOrderId + " was not found in this organization"));
 
         BigDecimal totalAmount = purchaseOrderItemRepository.sumTotalPriceByPurchaseOrderId(purchaseOrderId);
         if (totalAmount == null) {
@@ -140,7 +140,7 @@ public class PurchaseOrderService {
     @Transactional(readOnly = true)
     public PurchaseOrderDto getPurchaseOrderById(Long id) {
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase Order not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + id + " was not found in this organization"));
         return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder, fileStorageService);
     }
 
@@ -182,7 +182,7 @@ public class PurchaseOrderService {
     @Transactional
     public PurchaseOrderDto updatePurchaseOrder(PurchaseOrderUpdateDto updateDto) {
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(updateDto.getId(),TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase Order not found with id: " + updateDto.getId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + updateDto.getId() + " was not found in this organization"));
 
         if (updateDto.getStatus() != null) {
             purchaseOrder.setStatus(PurchaseOrderStatus.valueOf(updateDto.getStatus()));
@@ -203,7 +203,7 @@ public class PurchaseOrderService {
     @Transactional
     public void updatePurchaseOrderStatus(Long id, PurchaseOrderStatus status) {
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase Order not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + id + " was not found in this organization"));
 
         purchaseOrder.setStatus(status);
         purchaseOrderRepository.save(purchaseOrder);
@@ -213,12 +213,12 @@ public class PurchaseOrderService {
 
     private PurchaseOrderItem mapToPurchaseOrderItemEntity(PurchaseOrderItemCreationDto dto) {
         Material material = materialRepository.findByIdAndOrganization_Id(dto.getMaterialId(),TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + dto.getMaterialId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + dto.getMaterialId() + " was not found in this organization"));
 
         IndentItem indentItem = null;
         if (dto.getIndentItemId() != null) {
             indentItem = indentItemRepository.findByIdAndOrganization_Id(dto.getIndentItemId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + dto.getIndentItemId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Indent item with ID " + dto.getIndentItemId() + " was not found in this organization"));
             indentItem.setConvertedToPurchaseOrder(true);
             indentItemRepository.save(indentItem);
         }

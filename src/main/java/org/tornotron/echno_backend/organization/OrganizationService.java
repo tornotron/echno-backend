@@ -80,7 +80,7 @@ public class OrganizationService {
     @Transactional
     public OrganizationSimpleDto addOrganization(OrganizationCreationDto organizationCreationDto, List<MultipartFile> attachments) {
         if(repository.existsByOrganizationEmail(organizationCreationDto.getOrganizationEmail())){
-            throw new DuplicateResourceException("Organization already exists");
+            throw new DuplicateResourceException("Organization with email '" + organizationCreationDto.getOrganizationEmail() + "' already exists");
         }
         User currentUser = userContextService.getCurrentUser();
         Organization organization = new Organization();
@@ -150,7 +150,7 @@ public class OrganizationService {
                 .map(org -> OrganizationDtoConvertor.convertOrganizationToDto(org, fileStorageService))
                 .orElse(null);
         if(organizationDto == null) {
-            throw new ResourceNotFoundException("Organization not found with id: "+id);
+            throw new ResourceNotFoundException("Organization with ID " + id + " was not found");
         } else {
             return organizationDto;
         }
@@ -167,7 +167,7 @@ public class OrganizationService {
     @Transactional
     public OrganizationSimpleDto partialUpdateAnOrganization(Map<String, Object> updates, Long id,List<MultipartFile> attachments,String entityType) {
        Organization organization = repository.findById(id)
-               .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+id));
+               .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + id + " was not found"));
        partialUpdateAnOrganization(updates,organization);
 
        for (MultipartFile att:attachments) {
@@ -232,7 +232,7 @@ public class OrganizationService {
     @Transactional
     public void deleteAnOrganization(Long id) {
         Organization organization = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with id: "+id));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + id + " was not found"));
 
         try {
             keycloakGroupService.deleteOrganizationGroup(id.toString());

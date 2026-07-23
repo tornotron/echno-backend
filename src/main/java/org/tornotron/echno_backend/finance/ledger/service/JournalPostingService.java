@@ -92,12 +92,12 @@ public class JournalPostingService {
             Account account = accountMap.get(id);
             if (!account.isActive()) {
                 throw new InvalidJournalException(
-                        "Account is inactive: " + account.getCode());
+                        "Account '" + account.getCode() + "' is inactive and cannot be posted to");
             }
             if (headerIds.contains(id)) {
                 throw new InvalidJournalException(
-                        "Cannot post to header account " + account.getCode()
-                        + " (" + account.getName() + "); post to a leaf account instead");
+                        "Account '" + account.getCode() + "' (" + account.getName()
+                        + ") is a header account and cannot be posted to directly; post to one of its leaf accounts instead");
             }
         }
 
@@ -121,14 +121,16 @@ public class JournalPostingService {
     @Transactional
     public JournalEntryDto reverse(UUID entryId, ReverseJournalRequest req) {
         JournalEntry original = journalRepo.findByIdWithLines(entryId)
-                .orElseThrow(() -> new InvalidJournalException("Journal entry not found: " + entryId));
+                .orElseThrow(() -> new InvalidJournalException("Journal entry with ID " + entryId + " was not found"));
 
         if (original.getStatus() != JournalStatus.POSTED) {
             throw new InvalidJournalException(
-                    "Only POSTED entries can be reversed; current status: " + original.getStatus());
+                    "Journal entry " + original.getEntryNumber() + " cannot be reversed because its status is "
+                    + original.getStatus() + "; only POSTED entries can be reversed");
         }
         if (original.getReversedByEntryId() != null) {
-            throw new InvalidJournalException("Entry already reversed");
+            throw new InvalidJournalException(
+                    "Journal entry " + original.getEntryNumber() + " has already been reversed");
         }
 
         // Build reversal lines: swap debit and credit on each line
@@ -160,7 +162,7 @@ public class JournalPostingService {
     @Transactional(readOnly = true)
     public JournalEntryDto findById(UUID id) {
         JournalEntry entry = journalRepo.findByIdWithLines(id)
-                .orElseThrow(() -> new InvalidJournalException("Journal entry not found: " + id));
+                .orElseThrow(() -> new InvalidJournalException("Journal entry with ID " + id + " was not found"));
         return mapper.toDto(entry);
     }
 
@@ -179,10 +181,11 @@ public class JournalPostingService {
 
     private void validateRequest(PostJournalRequest req) {
         if (req.lines() == null || req.lines().size() < 2) {
-            throw new InvalidJournalException("At least 2 lines required");
+            throw new InvalidJournalException("Journal entry must contain at least 2 lines");
         }
         if (req.entryDate().isAfter(LocalDate.now())) {
-            throw new InvalidJournalException("Entry date cannot be in the future");
+            throw new InvalidJournalException(
+                    "Entry date " + req.entryDate() + " cannot be in the future");
         }
 
         BigDecimal totalDebit = BigDecimal.ZERO;
@@ -198,15 +201,15 @@ public class JournalPostingService {
 
             if (MoneyUtils.isNegative(dr) || MoneyUtils.isNegative(cr)) {
                 throw new InvalidJournalException(
-                        "Line " + (i + 1) + ": amounts must be non-negative");
+                        "Line " + (i + 1) + ": debit and credit amounts must be non-negative");
             }
             if (hasDebit && hasCredit) {
                 throw new InvalidJournalException(
-                        "Line " + (i + 1) + ": cannot have both debit and credit");
+                        "Line " + (i + 1) + ": cannot have both a debit and a credit amount");
             }
             if (!hasDebit && !hasCredit) {
                 throw new InvalidJournalException(
-                        "Line " + (i + 1) + ": must have either debit or credit");
+                        "Line " + (i + 1) + ": must have either a debit or a credit amount");
             }
 
             totalDebit  = totalDebit.add(dr);
@@ -220,7 +223,7 @@ public class JournalPostingService {
             throw new UnbalancedEntryException(totalDebit, totalCredit);
         }
         if (MoneyUtils.isZero(totalDebit)) {
-            throw new InvalidJournalException("Journal entry total cannot be zero");
+            throw new InvalidJournalException("Journal entry total amount cannot be zero");
         }
     }
 }

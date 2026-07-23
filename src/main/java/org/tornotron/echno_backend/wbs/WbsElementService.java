@@ -43,7 +43,7 @@ public class WbsElementService {
         Long orgId = TenantContext.getCurrentOrgId();
 
         Project project = projectRepository.findByIdAndOrganization_Id(projectId, orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization"));
 
         if (wbsElementRepository.existsByProjectIdAndWbsCode(projectId, dto.getWbsCode())) {
             throw new DuplicateResourceException("WBS code '" + dto.getWbsCode() + "' already exists in this project");
@@ -58,10 +58,10 @@ public class WbsElementService {
 
         if (dto.getParentId() != null) {
             WbsElement parent = wbsElementRepository.findByIdAndOrganization_Id(dto.getParentId(), orgId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Parent WBS element not found with id: " + dto.getParentId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Parent WBS element with ID " + dto.getParentId() + " was not found in this organization"));
 
             if (!parent.getProject().getId().equals(projectId)) {
-                throw new InvalidRequestException("Parent WBS element does not belong to the same project");
+                throw new InvalidRequestException("Parent WBS element with ID " + dto.getParentId() + " does not belong to project with ID " + projectId);
             }
 
             element.setParent(parent);
@@ -94,7 +94,7 @@ public class WbsElementService {
 
         if (dto.getCreatedBy() != null) {
             Employee creator = employeeRepository.findByIdAndOrganizationId(dto.getCreatedBy(), orgId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + dto.getCreatedBy()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Creator (employee) with ID " + dto.getCreatedBy() + " was not found in this organization"));
             element.setCreatedBy(creator);
         }
 
@@ -114,7 +114,7 @@ public class WbsElementService {
         Long orgId = TenantContext.getCurrentOrgId();
 
         if (!projectRepository.existsByIdAndOrganization_Id(projectId, orgId)) {
-            throw new ResourceNotFoundException("Project not found with id: " + projectId);
+            throw new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization");
         }
 
         List<WbsElement> rootElements = wbsElementRepository
@@ -130,7 +130,7 @@ public class WbsElementService {
         Long orgId = TenantContext.getCurrentOrgId();
 
         if (!projectRepository.existsByIdAndOrganization_Id(projectId, orgId)) {
-            throw new ResourceNotFoundException("Project not found with id: " + projectId);
+            throw new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization");
         }
 
         List<WbsElement> elements = wbsElementRepository
@@ -146,7 +146,7 @@ public class WbsElementService {
         Long orgId = TenantContext.getCurrentOrgId();
 
         WbsElement element = wbsElementRepository.findByIdAndOrganization_Id(elementId, orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("WBS element not found with id: " + elementId));
+                .orElseThrow(() -> new ResourceNotFoundException("WBS element with ID " + elementId + " was not found in this organization"));
 
         return WbsElementDtoConvertor.convertToTreeDto(element, fileStorageService);
     }
@@ -156,7 +156,7 @@ public class WbsElementService {
         Long orgId = TenantContext.getCurrentOrgId();
 
         WbsElement element = wbsElementRepository.findByIdAndOrganization_Id(elementId, orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("WBS element not found with id: " + elementId));
+                .orElseThrow(() -> new ResourceNotFoundException("WBS element with ID " + elementId + " was not found in this organization"));
 
         if (dto.getTitle() != null) {
             element.setTitle(dto.getTitle());
@@ -190,7 +190,7 @@ public class WbsElementService {
         }
         if (dto.getProgress() != null) {
             if (!element.getIsLeaf()) {
-                throw new InvalidRequestException("Progress can only be set directly on leaf WBS elements");
+                throw new InvalidRequestException("WBS element " + elementId + " is not a leaf element; progress can only be set directly on leaf WBS elements");
             }
             element.setProgress(dto.getProgress());
             recalculateParentProgress(element.getParent());
@@ -205,7 +205,7 @@ public class WbsElementService {
         Long orgId = TenantContext.getCurrentOrgId();
 
         WbsElement element = wbsElementRepository.findByIdAndOrganization_Id(elementId, orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("WBS element not found with id: " + elementId));
+                .orElseThrow(() -> new ResourceNotFoundException("WBS element with ID " + elementId + " was not found in this organization"));
 
         WbsElement parent = element.getParent();
 
@@ -228,20 +228,20 @@ public class WbsElementService {
         Long orgId = TenantContext.getCurrentOrgId();
 
         WbsElement element = wbsElementRepository.findByIdAndOrganization_Id(elementId, orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("WBS element not found with id: " + elementId));
+                .orElseThrow(() -> new ResourceNotFoundException("WBS element with ID " + elementId + " was not found in this organization"));
 
         WbsElement oldParent = element.getParent();
 
         if (dto.getNewParentId() != null) {
             WbsElement newParent = wbsElementRepository.findByIdAndOrganization_Id(dto.getNewParentId(), orgId)
-                    .orElseThrow(() -> new ResourceNotFoundException("New parent WBS element not found with id: " + dto.getNewParentId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("New parent WBS element with ID " + dto.getNewParentId() + " was not found in this organization"));
 
             if (!newParent.getProject().getId().equals(element.getProject().getId())) {
-                throw new InvalidRequestException("Cannot move WBS element to a parent in a different project");
+                throw new InvalidRequestException("Cannot move WBS element " + elementId + " to parent " + dto.getNewParentId() + " because it belongs to a different project");
             }
 
             if (isDescendantOf(newParent, element)) {
-                throw new InvalidRequestException("Cannot move WBS element under its own descendant");
+                throw new InvalidRequestException("Cannot move WBS element " + elementId + " under its own descendant " + dto.getNewParentId());
             }
 
             element.setParent(newParent);
@@ -292,7 +292,7 @@ public class WbsElementService {
         Long orgId = TenantContext.getCurrentOrgId();
 
         if (!projectRepository.existsByIdAndOrganization_Id(projectId, orgId)) {
-            throw new ResourceNotFoundException("Project not found with id: " + projectId);
+            throw new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization");
         }
 
         return wbsElementRepository.findByProjectIdAndIsLeafTrueAndOrganization_IdOrderByWbsCodeAsc(projectId, orgId)
@@ -306,7 +306,7 @@ public class WbsElementService {
         Long orgId = TenantContext.getCurrentOrgId();
 
         WbsElement element = wbsElementRepository.findByIdAndOrganization_Id(elementId, orgId)
-                .orElseThrow(() -> new ResourceNotFoundException("WBS element not found with id: " + elementId));
+                .orElseThrow(() -> new ResourceNotFoundException("WBS element with ID " + elementId + " was not found in this organization"));
 
         recalculateCosts(element);
         recalculateProgressFromChildren(element);

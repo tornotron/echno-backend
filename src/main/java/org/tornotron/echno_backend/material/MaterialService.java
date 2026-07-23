@@ -64,7 +64,7 @@ public class MaterialService {
     @Transactional
     public MaterialDto createMaterial(MaterialCreationDto creationDto) {
         Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: "+ creationDto.getCreatedBy()));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + creationDto.getCreatedBy() + " was not found in this organization"));
         // Check for duplicate SKU if provided
         if (creationDto.getSku() != null && materialRepository.existsBySkuAndOrganization_Id(creationDto.getSku(),TenantContext.getCurrentOrgId())) {
             throw new DuplicateResourceException("Material with SKU " + creationDto.getSku() + " already exists");
@@ -92,14 +92,14 @@ public class MaterialService {
             Project project = projectRepository.findByIdAndOrganization_Id(
                             creationDto.getProjectId(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Project not found with id: " + creationDto.getProjectId()));
+                            "Project with ID " + creationDto.getProjectId() + " was not found in this organization"));
 
             StorageLocation storageLocation = null;
             if (creationDto.getStorageLocationId() != null) {
                 storageLocation = storageLocationRepository.findByIdAndOrganization_Id(
                                 creationDto.getStorageLocationId(), TenantContext.getCurrentOrgId())
                         .orElseThrow(() -> new ResourceNotFoundException(
-                                "Storage location not found with id: " + creationDto.getStorageLocationId()));
+                                "Storage location with ID " + creationDto.getStorageLocationId() + " was not found in this organization"));
             }
 
             Double quantity = creationDto.getOpeningStock().doubleValue();
@@ -132,7 +132,7 @@ public class MaterialService {
     @Transactional(readOnly = true)
     public MaterialDto getMaterialById(Long id) {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + id + " was not found in this organization"));
         return MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService);
     }
 
@@ -160,7 +160,7 @@ public class MaterialService {
     @Transactional
     public MaterialDto updateMaterial(Long id, org.tornotron.echno_backend.material.dto.MaterialUpdateDto updateDto) {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + id + " was not found in this organization"));
 
         // Check SKU uniqueness if changed
         if (updateDto.getSku() != null && !updateDto.getSku().equals(material.getSku())) {
@@ -213,7 +213,7 @@ public class MaterialService {
     @Transactional
     public void deleteMaterial(Long id) {
         if (!materialRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("Material not found with id: " + id);
+            throw new ResourceNotFoundException("Material with ID " + id + " was not found in this organization");
         }
         materialRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
     }
@@ -221,7 +221,7 @@ public class MaterialService {
     @Transactional(readOnly = true)
     public MaterialWithStockDto getMaterialWithCurrentStock(Long id, Long projectId) {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + id + " was not found in this organization"));
 
         Double currentStock = inventoryService.getCurrentStock(id, projectId);
         BigDecimal stockValue = inventoryService.getStockValue(id, projectId);
@@ -231,7 +231,7 @@ public class MaterialService {
     @Transactional(readOnly = true)
     public MaterialWithStockDto getMaterialWithAggregateStock(Long id) {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + id + " was not found in this organization"));
 
         Double currentStock = inventoryService.getAggregateStock(id);
         BigDecimal stockValue = inventoryService.getAggregateStockValue(id);
@@ -241,7 +241,7 @@ public class MaterialService {
     @Transactional(readOnly = true)
     public MaterialWithStockDto getMaterialStockAtLocation(Long id, Long projectId, Long storageLocationId) {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + id + " was not found in this organization"));
 
         Double currentStock = inventoryService.getStockAtLocation(id, projectId, storageLocationId);
         BigDecimal stockValue = inventoryService.getStockValueAtLocation(id, projectId, storageLocationId);

@@ -50,9 +50,9 @@ public class IssueService {
     @Transactional
     public IssueSimpleDto addIssue(IssueCreationDto issueCreationDto, List<MultipartFile> attachments) {
         Task task = taskRepository.findByIdAndOrganization_Id(issueCreationDto.getTaskId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + issueCreationDto.getTaskId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Task with ID " + issueCreationDto.getTaskId() + " was not found in this organization"));
         Employee creator = employeeRepository.findByIdAndOrganizationId(issueCreationDto.getCreatedById(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee/creator not found with id: " + issueCreationDto.getCreatedById()));
+                .orElseThrow(() -> new ResourceNotFoundException("Creator (employee) with ID " + issueCreationDto.getCreatedById() + " was not found in this organization"));
         Issue issue = new Issue();
         issue.setTitle(issueCreationDto.getTitle());
         issue.setDescription(issueCreationDto.getDescription());
@@ -64,7 +64,7 @@ public class IssueService {
 
         if (issueCreationDto.getAssignedToId() != null) {
             Employee assignee = employeeRepository.findByIdAndOrganizationId(issueCreationDto.getAssignedToId(), TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Employee/assignee not found with id: " + issueCreationDto.getAssignedToId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Assignee (employee) with ID " + issueCreationDto.getAssignedToId() + " was not found in this organization"));
             issue.setAssignedTo(assignee);
         }
 
@@ -108,7 +108,7 @@ public class IssueService {
                 .map(issue -> IssueDtoConvertor.convertIssueToDto(issue, fileStorageService))
                 .orElse(null);
         if (issueDto == null) {
-            throw new ResourceNotFoundException("Issue not found with id: " + id);
+            throw new ResourceNotFoundException("Issue with ID " + id + " was not found in this organization");
         }
         return issueDto;
     }
@@ -116,7 +116,7 @@ public class IssueService {
     @Transactional
     public IssueSimpleDto partialUpdateAnIssue(Map<String, Object> updates, Long id, List<MultipartFile> attachments, String entityType) {
         Issue issue = issueRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Issue not found with id: "+id));
+                .orElseThrow(() -> new ResourceNotFoundException("Issue with ID " + id + " was not found in this organization"));
         partialUpdateAnIssue(updates, issue);
 
         if (attachments != null) {
@@ -146,7 +146,7 @@ public class IssueService {
                 case "assignedToId":
                     Long assigneeId = ((Number) value).longValue();
                     Employee assignee = employeeRepository.findByIdAndOrganizationId(assigneeId, TenantContext.getCurrentOrgId())
-                            .orElseThrow(() -> new ResourceNotFoundException("Employee/assignee not found with id: " + assigneeId));
+                            .orElseThrow(() -> new ResourceNotFoundException("Assignee (employee) with ID " + assigneeId + " was not found in this organization"));
                     issue.setAssignedTo(assignee);
                     break;
             }
@@ -156,7 +156,7 @@ public class IssueService {
     @Transactional
     public void deleteAnIssue(Long id) {
         if(!issueRepository.existsByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("Issue not found with id: " + id);
+            throw new ResourceNotFoundException("Issue with ID " + id + " was not found in this organization");
         }
 
         attachmentService.deleteAllAttachments("ISSUE", id);

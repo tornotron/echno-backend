@@ -51,7 +51,7 @@ public class LabourService {
         labour.setStatus(Status.valueOf(labourCreationDto.getStatus()));
         labour.setJoiningDate(labourCreationDto.getJoiningDate());
         labour.setCurrentProject(projectRepository.findByIdAndOrganization_Id(labourCreationDto.getCurrentProjectId(), org.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id " + labourCreationDto.getCurrentProjectId())));
+                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + labourCreationDto.getCurrentProjectId() + " was not found in this organization")));
 
         labour.setDailyRate(labourCreationDto.getDailyRate());
         labour.setOverTimeRate(labourCreationDto.getOverTimeRate());
@@ -73,14 +73,14 @@ public class LabourService {
     public LabourDto getALabour(Long id) {
         return labourRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
                 .map(LabourDtoConvertor::convertLabourToDto).
-                orElseThrow(() -> new ResourceNotFoundException("Labour not found with id " + id));
+                orElseThrow(() -> new ResourceNotFoundException("Labour with ID " + id + " was not found in this organization"));
     }
 
     @Transactional
     public void partialUpdateALabour(LabourUpdateDto updates, Long id) {
         Organization org = tenantEntityHelper.resolveCurrentOrganization();
         Labour labour = labourRepository.findByIdAndOrganization_Id(id, org.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Labour not found with id " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Labour with ID " + id + " was not found in this organization"));
         applyUpdates(updates, labour, org);
         labourRepository.save(labour);
     }
@@ -107,14 +107,14 @@ public class LabourService {
         if (updates.getCurrentProjectId() != null) {
             Long projectId = updates.getCurrentProjectId();
             labour.setCurrentProject(projectRepository.findByIdAndOrganization_Id(projectId, org.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Project not found with id " + projectId)));
+                    .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization")));
         }
     }
 
     @Transactional
     public void deleteALabour(Long id) {
         Labour labour = labourRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Labour not found with id " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Labour with ID " + id + " was not found in this organization"));
         labourRepository.delete(labour);
     }
 

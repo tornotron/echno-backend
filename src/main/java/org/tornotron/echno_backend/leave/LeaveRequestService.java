@@ -57,11 +57,11 @@ public class LeaveRequestService {
     public LeaveRequestDto createRequest(LeaveRequestCreationDto dto,Long employeeId) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Employee not found with id: " + employeeId));
+                        "Employee with ID " + employeeId + " was not found in this organization"));
 
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(dto.getLeavePolicyId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave policy not found with id: " + dto.getLeavePolicyId()));
+                        "Leave policy with ID " + dto.getLeavePolicyId() + " was not found in this organization"));
 
         validateRequest(employee, policy, dto, null);
 
@@ -111,7 +111,7 @@ public class LeaveRequestService {
     public LeaveRequestDto getRequest(Long requestId) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave request not found with id: " + requestId));
+                        "Leave request with ID " + requestId + " was not found in this organization"));
         return LeaveRequestDtoConvertor.convertToDtoWithHandover(request, employeeRepository);
     }
 
@@ -163,10 +163,11 @@ public class LeaveRequestService {
     public LeaveRequestDto updateRequest(Long requestId, Map<String, Object> updates) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave request not found with id: " + requestId));
+                        "Leave request with ID " + requestId + " was not found in this organization"));
 
         if (request.getStatus() != LeaveStatus.DRAFT) {
-            throw new InvalidRequestException("Only draft requests can be updated");
+            throw new InvalidRequestException(
+                    "Leave request " + requestId + " cannot be updated (current status: " + request.getStatus() + "); only draft requests can be updated");
         }
 
         updates.forEach((key, value) -> {
@@ -200,10 +201,11 @@ public class LeaveRequestService {
     public LeaveRequestDto submitRequest(Long requestId) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave request not found with id: " + requestId));
+                        "Leave request with ID " + requestId + " was not found in this organization"));
 
         if (request.getStatus() != LeaveStatus.DRAFT) {
-            throw new InvalidRequestException("Only draft requests can be submitted");
+            throw new InvalidRequestException(
+                    "Leave request " + requestId + " cannot be submitted (current status: " + request.getStatus() + "); only draft requests can be submitted");
         }
 
         validateRequest(
@@ -227,11 +229,12 @@ public class LeaveRequestService {
     public LeaveRequestDto cancelRequest(Long requestId, String reason) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave request not found with id: " + requestId));
+                        "Leave request with ID " + requestId + " was not found in this organization"));
 
         if (request.getStatus() == LeaveStatus.CANCELLED ||
             request.getStatus() == LeaveStatus.REJECTED) {
-            throw new InvalidRequestException("Request is already cancelled or rejected");
+            throw new InvalidRequestException(
+                    "Leave request " + requestId + " is already " + request.getStatus().toString().toLowerCase() + " and cannot be cancelled again");
         }
 
         LeaveStatus previousStatus = request.getStatus();
@@ -255,11 +258,12 @@ public class LeaveRequestService {
     public LeaveRequestDto withdrawRequest(Long requestId) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave request not found with id: " + requestId));
+                        "Leave request with ID " + requestId + " was not found in this organization"));
 
         if (request.getStatus() != LeaveStatus.DRAFT &&
             request.getStatus() != LeaveStatus.PENDING_APPROVAL) {
-            throw new InvalidRequestException("Only draft or pending requests can be withdrawn");
+            throw new InvalidRequestException(
+                    "Leave request " + requestId + " cannot be withdrawn (current status: " + request.getStatus() + "); only draft or pending requests can be withdrawn");
         }
 
         if (request.getStatus() == LeaveStatus.PENDING_APPROVAL) {
@@ -298,7 +302,8 @@ public class LeaveRequestService {
             HalfDayType endType) {
 
         if (startDate.isAfter(endDate)) {
-            throw new InvalidRequestException("Start date cannot be after end date");
+            throw new InvalidRequestException(
+                    "Start date " + startDate + " cannot be after end date " + endDate);
         }
 
         if (startDate.equals(endDate)) {
@@ -324,19 +329,22 @@ public class LeaveRequestService {
 
     private void validateRequest(Employee employee, LeavePolicy policy, LeaveRequestCreationDto dto, Long excludeRequestId) {
         if (dto.getStartDate().isAfter(dto.getEndDate())) {
-            throw new InvalidRequestException("Start date cannot be after end date");
+            throw new InvalidRequestException(
+                    "Start date " + dto.getStartDate() + " cannot be after end date " + dto.getEndDate());
         }
 
         if (dto.getStartDate().isBefore(LocalDate.now())) {
-            throw new InvalidRequestException("Cannot apply for leave in the past");
+            throw new InvalidRequestException(
+                    "Cannot apply for leave starting " + dto.getStartDate() + "; leave cannot be requested in the past");
         }
 
         if (policy.getAdvanceNoticeDays() != null && policy.getAdvanceNoticeDays() > 0) {
             long daysUntilStart = ChronoUnit.DAYS.between(LocalDate.now(), dto.getStartDate());
             if (daysUntilStart < policy.getAdvanceNoticeDays()) {
                 throw new InvalidRequestException(
-                        "Leave must be requested at least " + policy.getAdvanceNoticeDays() +
-                        " days in advance");
+                        "Leave policy '" + policy.getLeaveTypeName() + "' requires at least " +
+                        policy.getAdvanceNoticeDays() + " days advance notice, but only " +
+                        daysUntilStart + " days remain before " + dto.getStartDate());
             }
         }
 
@@ -348,12 +356,14 @@ public class LeaveRequestService {
 
         if (policy.getMinDaysPerRequest() != null && totalDays < policy.getMinDaysPerRequest()) {
             throw new InvalidRequestException(
-                    "Minimum " + policy.getMinDaysPerRequest() + " days required for this leave type");
+                    "Leave policy '" + policy.getLeaveTypeName() + "' requires a minimum of " +
+                    policy.getMinDaysPerRequest() + " days per request, but " + totalDays + " days were requested");
         }
 
         if (policy.getMaxDaysPerRequest() != null && totalDays > policy.getMaxDaysPerRequest()) {
             throw new InvalidRequestException(
-                    "Maximum " + policy.getMaxDaysPerRequest() + " days allowed per request");
+                    "Leave policy '" + policy.getLeaveTypeName() + "' allows a maximum of " +
+                    policy.getMaxDaysPerRequest() + " days per request, but " + totalDays + " days were requested");
         }
 
         if ((dto.getStartHalfDayType() == HalfDayType.FIRST_HALF ||
@@ -361,7 +371,8 @@ public class LeaveRequestService {
              dto.getEndHalfDayType() == HalfDayType.FIRST_HALF ||
              dto.getEndHalfDayType() == HalfDayType.SECOND_HALF) &&
             !Boolean.TRUE.equals(policy.getAllowHalfDay())) {
-            throw new InvalidRequestException("Half-day leave is not allowed for this leave type");
+            throw new InvalidRequestException(
+                    "Leave policy '" + policy.getLeaveTypeName() + "' does not allow half-day leave");
         }
 
         int year = dto.getStartDate().getYear();
@@ -370,15 +381,16 @@ public class LeaveRequestService {
 
         if (balanceDto.getBookable() < totalDays) {
             throw new InvalidRequestException(
-                    "Insufficient leave balance. Available: " + balanceDto.getBookable() +
-                    " days, Requested: " + totalDays + " days");
+                    "Employee with ID " + employee.getId() + " has insufficient leave balance for policy '" +
+                    policy.getLeaveTypeName() + "': " + balanceDto.getBookable() +
+                    " days available, " + totalDays + " days requested");
         }
 
         List<LocalDate> conflicts = getConflictingDates(
                 employee.getId(), dto.getStartDate(), dto.getEndDate(), excludeRequestId);
         if (!conflicts.isEmpty()) {
             throw new InvalidRequestException(
-                    "Leave already exists for dates: " + conflicts);
+                    "Employee with ID " + employee.getId() + " already has leave requests overlapping these dates: " + conflicts);
         }
     }
 

@@ -53,7 +53,7 @@ public class VendorService {
     @Transactional
     public VendorDto createVendor(VendorCreationDto creationDto) {
         if (vendorRepository.existsByVendorEmailAndOrganization_Id(creationDto.getVendorEmail(),TenantContext.getCurrentOrgId())) {
-            throw new DuplicateResourceException("Vendor with email " + creationDto.getVendorEmail() + " already exists");
+            throw new DuplicateResourceException("Vendor with email '" + creationDto.getVendorEmail() + "' already exists in this organization");
         }
 
         Vendor vendor = new Vendor();
@@ -129,7 +129,7 @@ public class VendorService {
         // Check email uniqueness if changed
         if (!updateDto.getVendorEmail().equals(vendor.getVendorEmail())) {
             if (vendorRepository.existsByVendorEmailAndOrganization_Id(updateDto.getVendorEmail(),TenantContext.getCurrentOrgId())) {
-                throw new DuplicateResourceException("Vendor with email " + updateDto.getVendorEmail() + " already exists");
+                throw new DuplicateResourceException("Vendor with email '" + updateDto.getVendorEmail() + "' already exists in this organization");
             }
         }
 
@@ -141,7 +141,7 @@ public class VendorService {
     @Transactional
     public void deleteVendor(Long id) {
         if (!vendorRepository.existsByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("Vendor not found with id: " + id);
+            throw new ResourceNotFoundException("Vendor with ID " + id + " was not found in this organization");
         }
         vendorRepository.deleteByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId());
     }
@@ -170,9 +170,9 @@ public class VendorService {
     public VendorContactDto updateContact(Long vendorId, Long contactId, VendorContactCreationDto dto) {
         findVendorByIdAndOrg(vendorId);
         VendorContact contact = vendorContactRepository.findByIdAndOrganization_Id(contactId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Contact not found with id: " + contactId));
+                .orElseThrow(() -> new ResourceNotFoundException("Contact with ID " + contactId + " was not found in this organization"));
         if (!contact.getVendor().getId().equals(vendorId)) {
-            throw new ResourceNotFoundException("Contact not found with id: " + contactId + " for vendor: " + vendorId);
+            throw new ResourceNotFoundException("Contact with ID " + contactId + " does not belong to vendor with ID " + vendorId);
         }
         contact.setContactPerson(dto.getContactPerson());
         contact.setEmail(dto.getEmail());
@@ -187,9 +187,9 @@ public class VendorService {
     public void deleteContact(Long vendorId, Long contactId) {
         Vendor vendor = findVendorByIdAndOrg(vendorId);
         VendorContact contact = vendorContactRepository.findByIdAndOrganization_Id(contactId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Contact not found with id: " + contactId));
+                .orElseThrow(() -> new ResourceNotFoundException("Contact with ID " + contactId + " was not found in this organization"));
         if (!contact.getVendor().getId().equals(vendorId)) {
-            throw new ResourceNotFoundException("Contact not found with id: " + contactId + " for vendor: " + vendorId);
+            throw new ResourceNotFoundException("Contact with ID " + contactId + " does not belong to vendor with ID " + vendorId);
         }
         vendor.getContacts().remove(contact);
         vendorContactRepository.delete(contact);
@@ -219,9 +219,9 @@ public class VendorService {
     public VendorTaxIdentifierDto updateTaxIdentifier(Long vendorId, Long taxIdId, VendorTaxIdentifierCreationDto dto) {
         findVendorByIdAndOrg(vendorId);
         VendorTaxIdentifier taxId = vendorTaxIdentifierRepository.findById(taxIdId)
-                .orElseThrow(() -> new ResourceNotFoundException("Tax identifier not found with id: " + taxIdId));
+                .orElseThrow(() -> new ResourceNotFoundException("Tax identifier with ID " + taxIdId + " was not found"));
         if (!taxId.getVendor().getId().equals(vendorId)) {
-            throw new ResourceNotFoundException("Tax identifier not found with id: " + taxIdId + " for vendor: " + vendorId);
+            throw new ResourceNotFoundException("Tax identifier with ID " + taxIdId + " does not belong to vendor with ID " + vendorId);
         }
         taxId.setType(TaxIdentifierType.valueOf(dto.getType()));
         taxId.setValue(dto.getValue());
@@ -233,9 +233,9 @@ public class VendorService {
     public void deleteTaxIdentifier(Long vendorId, Long taxIdId) {
         Vendor vendor = findVendorByIdAndOrg(vendorId);
         VendorTaxIdentifier taxId = vendorTaxIdentifierRepository.findById(taxIdId)
-                .orElseThrow(() -> new ResourceNotFoundException("Tax identifier not found with id: " + taxIdId));
+                .orElseThrow(() -> new ResourceNotFoundException("Tax identifier with ID " + taxIdId + " was not found"));
         if (!taxId.getVendor().getId().equals(vendorId)) {
-            throw new ResourceNotFoundException("Tax identifier not found with id: " + taxIdId + " for vendor: " + vendorId);
+            throw new ResourceNotFoundException("Tax identifier with ID " + taxIdId + " does not belong to vendor with ID " + vendorId);
         }
         vendor.getTaxIdentifiers().remove(taxId);
         vendorTaxIdentifierRepository.delete(taxId);
@@ -265,9 +265,9 @@ public class VendorService {
     public VendorBankAccountDto updateBankAccount(Long vendorId, Long accountId, VendorBankAccountCreationDto dto) {
         findVendorByIdAndOrg(vendorId);
         VendorBankAccount account = vendorBankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Bank account not found with id: " + accountId));
+                .orElseThrow(() -> new ResourceNotFoundException("Bank account with ID " + accountId + " was not found"));
         if (!account.getVendor().getId().equals(vendorId)) {
-            throw new ResourceNotFoundException("Bank account not found with id: " + accountId + " for vendor: " + vendorId);
+            throw new ResourceNotFoundException("Bank account with ID " + accountId + " does not belong to vendor with ID " + vendorId);
         }
         account.setBankName(dto.getBankName());
         account.setAccountNumber(dto.getAccountNumber());
@@ -283,9 +283,9 @@ public class VendorService {
     public void deleteBankAccount(Long vendorId, Long accountId) {
         Vendor vendor = findVendorByIdAndOrg(vendorId);
         VendorBankAccount account = vendorBankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Bank account not found with id: " + accountId));
+                .orElseThrow(() -> new ResourceNotFoundException("Bank account with ID " + accountId + " was not found"));
         if (!account.getVendor().getId().equals(vendorId)) {
-            throw new ResourceNotFoundException("Bank account not found with id: " + accountId + " for vendor: " + vendorId);
+            throw new ResourceNotFoundException("Bank account with ID " + accountId + " does not belong to vendor with ID " + vendorId);
         }
         vendor.getBankAccounts().remove(account);
         vendorBankAccountRepository.delete(account);
@@ -326,7 +326,7 @@ public class VendorService {
     public void deletePaymentTerms(Long vendorId) {
         Vendor vendor = findVendorByIdAndOrg(vendorId);
         VendorPaymentTerms terms = vendorPaymentTermsRepository.findByVendor_Id(vendorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Payment terms not found for vendor: " + vendorId));
+                .orElseThrow(() -> new ResourceNotFoundException("No payment terms are configured for vendor with ID " + vendorId));
         vendor.setPaymentTerms(null);
         vendorPaymentTermsRepository.delete(terms);
     }
@@ -335,7 +335,7 @@ public class VendorService {
 
     private Vendor findVendorByIdAndOrg(Long id) {
         return vendorRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Vendor with ID " + id + " was not found in this organization"));
     }
 
     private void mapVendorFields(Vendor vendor, VendorCreationDto dto) {

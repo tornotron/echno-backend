@@ -51,7 +51,7 @@ public class InvoiceService {
     @Transactional(readOnly = true)
     public InvoiceDto findById(UUID id) {
         return mapper.toDto(invoiceRepo.findByIdWithLines(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found: " + id)));
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice with ID " + id + " was not found")));
     }
 
     @Transactional
@@ -61,9 +61,9 @@ public class InvoiceService {
         }
 
         Customer customer = customerRepo.findScopedById(req.customerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Customer not found: " + req.customerId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer with ID " + req.customerId() + " was not found"));
         if (!customer.isActive()) {
-            throw new InvalidJournalException("Customer is inactive: " + customer.getCode());
+            throw new InvalidJournalException("Customer '" + customer.getCode() + "' is inactive and cannot be invoiced");
         }
 
         // Pre-fetch revenue accounts
@@ -88,10 +88,10 @@ public class InvoiceService {
             if (acc == null) throw new AccountNotFoundException(lr.revenueAccountId());
             if (acc.getType() != AccountType.INCOME) {
                 throw new InvalidJournalException(
-                        "Revenue account must be of type INCOME: " + acc.getCode());
+                        "Account '" + acc.getCode() + "' must be of type INCOME to be used as a revenue account");
             }
             if (!acc.isActive()) {
-                throw new InvalidJournalException("Account is inactive: " + acc.getCode());
+                throw new InvalidJournalException("Account '" + acc.getCode() + "' is inactive and cannot be used");
             }
 
             BigDecimal qty   = MoneyUtils.normalize(lr.quantity());
@@ -136,10 +136,11 @@ public class InvoiceService {
     @Transactional
     public InvoiceDto issue(UUID invoiceId) {
         Invoice inv = invoiceRepo.findByIdWithLines(invoiceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found: " + invoiceId));
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice with ID " + invoiceId + " was not found"));
         if (inv.getStatus() != InvoiceStatus.DRAFT) {
             throw new InvalidJournalException(
-                    "Only DRAFT invoices can be issued. Current: " + inv.getStatus());
+                    "Only DRAFT invoices can be issued; invoice " + inv.getInvoiceNumber()
+                            + " is currently " + inv.getStatus());
         }
 
         Account ar = accountRepo.findByCode(postingProps.getArAccountCode())
@@ -195,26 +196,28 @@ public class InvoiceService {
     @Transactional
     public InvoiceDto cancel(UUID invoiceId, String reason) {
         Invoice inv = invoiceRepo.findByIdWithLines(invoiceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found: " + invoiceId));
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice with ID " + invoiceId + " was not found"));
 
         switch (inv.getStatus()) {
             case DRAFT -> inv.setStatus(InvoiceStatus.CANCELLED);
             case ISSUED -> {
                 if (MoneyUtils.isPositive(inv.getAmountPaid())) {
                     throw new InvalidJournalException(
-                            "Cannot cancel a paid invoice; issue a credit note instead");
+                            "Cannot cancel invoice " + inv.getInvoiceNumber() + "; it has payments applied. Issue a credit note instead");
                 }
                 JournalEntry reversal = journalRepo.findByIdWithLines(inv.getJournalEntryId())
                         .map(je -> postingService.reverse(je.getId(),
                                 new ReverseJournalRequest(reason)).id())
                         .map(id -> journalRepo.findScopedById(id).orElseThrow())
-                        .orElseThrow(() -> new InvalidJournalException("Original JE not found"));
+                        .orElseThrow(() -> new InvalidJournalException(
+                                "The original journal entry for invoice " + inv.getInvoiceNumber() + " was not found"));
                 inv.setReversalJournalEntryId(reversal.getId());
                 inv.setStatus(InvoiceStatus.CANCELLED);
             }
             case PARTIALLY_PAID, PAID -> throw new InvalidJournalException(
-                    "Cannot cancel a paid invoice; issue a credit note instead");
-            case CANCELLED -> throw new InvalidJournalException("Invoice already cancelled");
+                    "Cannot cancel invoice " + inv.getInvoiceNumber() + "; it has payments applied. Issue a credit note instead");
+            case CANCELLED -> throw new InvalidJournalException(
+                    "Invoice " + inv.getInvoiceNumber() + " is already cancelled");
         }
 
         log.info("Cancelled invoice {}: {}", inv.getInvoiceNumber(), reason);

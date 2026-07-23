@@ -74,14 +74,14 @@ public class MaterialConsumptionService {
     public MaterialConsumptionDto createMaterialConsumption(MaterialConsumptionCreationDto creationDto) {
         // Validate material exists
         Material material = materialRepository.findByIdAndOrganization_Id(creationDto.getMaterialId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + creationDto.getMaterialId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + creationDto.getMaterialId() + " was not found in this organization"));
 
         Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + creationDto.getCreatedBy()));
+                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + creationDto.getCreatedBy() + " was not found in this organization"));
 
         // Validate project
         Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + creationDto.getProjectId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + creationDto.getProjectId() + " was not found in this organization"));
 
         // CRITICAL: Validate sufficient stock before consumption
         // Use storage-location-level validation when a storage location is specified
@@ -108,18 +108,18 @@ public class MaterialConsumptionService {
             StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(
                             creationDto.getStorageLocationId(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Storage location not found with id: " + creationDto.getStorageLocationId()));
+                            "Storage location with ID " + creationDto.getStorageLocationId() + " was not found in this organization"));
             consumption.setStorageLocation(storageLocation);
         }
 
         // Validate and set task (optional)
         if (creationDto.getTaskId() != null) {
             Task task = taskRepository.findByIdAndOrganization_Id(creationDto.getTaskId(), TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + creationDto.getTaskId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Task with ID " + creationDto.getTaskId() + " was not found in this organization"));
             // Validate task belongs to the same project
             if (!task.getProject().getId().equals(project.getId())) {
-                throw new IllegalArgumentException("Task with id " + task.getId() +
-                        " does not belong to project with id " + project.getId());
+                throw new IllegalArgumentException("Task with ID " + task.getId() +
+                        " does not belong to project with ID " + project.getId());
             }
             consumption.setTask(task);
         }
@@ -137,7 +137,7 @@ public class MaterialConsumptionService {
     @Transactional(readOnly = true)
     public MaterialConsumptionDto getMaterialConsumptionById(Long id) {
         MaterialConsumption consumption = materialConsumptionRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material consumption not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Material consumption with ID " + id + " was not found in this organization"));
         return MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService);
     }
 

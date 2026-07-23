@@ -111,7 +111,7 @@ public class LeaveApprovalService {
     public LeaveRequestDto approve(Long requestId, LeaveApprovalActionDto dto) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave request not found with id: " + requestId));
+                        "Leave request with ID " + requestId + " was not found in this organization"));
 
         validateApprover(request, dto.getApproverId());
 
@@ -135,7 +135,7 @@ public class LeaveApprovalService {
     public LeaveRequestDto reject(Long requestId, LeaveApprovalActionDto dto) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave request not found with id: " + requestId));
+                        "Leave request with ID " + requestId + " was not found in this organization"));
 
         validateApprover(request, dto.getApproverId());
 
@@ -160,18 +160,18 @@ public class LeaveApprovalService {
     @Transactional
     public LeaveRequestDto delegate(Long requestId, LeaveApprovalActionDto dto) {
         if (dto.getDelegateToId() == null) {
-            throw new InvalidRequestException("Delegate to ID is required");
+            throw new InvalidRequestException("A delegateToId is required to delegate a leave request");
         }
 
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave request not found with id: " + requestId));
+                        "Leave request with ID " + requestId + " was not found in this organization"));
 
         validateApprover(request, dto.getApproverId());
 
         Employee delegateTo = employeeRepository.findByIdAndOrganizationId(dto.getDelegateToId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Employee not found with id: " + dto.getDelegateToId()));
+                        "Delegate (employee) with ID " + dto.getDelegateToId() + " was not found in this organization"));
 
         LeaveApproval currentApproval = getPendingApproval(request.getId(), request.getCurrentApprovalLevel());
 
@@ -209,7 +209,7 @@ public class LeaveApprovalService {
     public List<LeaveApprovalDto> getApprovalChain(Long requestId) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave request not found with id: " + requestId));
+                        "Leave request with ID " + requestId + " was not found in this organization"));
 
         return approvalRepository.findByLeaveRequestIdOrderByApprovalLevelAsc(requestId)
                 .stream()
@@ -228,12 +228,14 @@ public class LeaveApprovalService {
 
     private void validateApprover(LeaveRequest request, Long approverId) {
         if (request.getStatus() != LeaveStatus.PENDING_APPROVAL) {
-            throw new InvalidRequestException("Request is not pending approval");
+            throw new InvalidRequestException(
+                    "Leave request with ID " + request.getId() + " is not pending approval (current status: " + request.getStatus() + ")");
         }
 
         if (request.getCurrentApprover() == null ||
             !request.getCurrentApprover().getId().equals(approverId)) {
-            throw new InvalidRequestException("You are not the current approver for this request");
+            throw new InvalidRequestException(
+                    "Employee with ID " + approverId + " is not the current approver for leave request " + request.getId());
         }
     }
 
@@ -324,7 +326,7 @@ public class LeaveApprovalService {
                         approvalLevel,
                         ApprovalAction.PENDING)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Pending approval record not found for request " + requestId +
-                        " at level " + approvalLevel));
+                        "No pending approval record was found for leave request " + requestId +
+                        " at approval level " + approvalLevel));
     }
 }

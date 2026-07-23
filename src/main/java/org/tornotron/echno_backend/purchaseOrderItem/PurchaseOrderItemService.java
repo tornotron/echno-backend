@@ -47,15 +47,15 @@ public class PurchaseOrderItemService {
     @Transactional
     public PurchaseOrderItemResponseDto createPurchaseOrderItem(PurchaseOrderItemCreationDto creationDto) {
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(creationDto.getPurchaseOrderId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase Order not found with id: " + creationDto.getPurchaseOrderId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + creationDto.getPurchaseOrderId() + " was not found in this organization"));
 
         Material material = materialRepository.findByIdAndOrganization_Id(creationDto.getMaterialId(),TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + creationDto.getMaterialId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + creationDto.getMaterialId() + " was not found in this organization"));
 
         IndentItem indentItem = null;
         if (creationDto.getIndentItemId() != null) {
             indentItem = indentItemRepository.findByIdAndOrganization_Id(creationDto.getIndentItemId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("IndentItem not found with id: " + creationDto.getIndentItemId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Indent item with ID " + creationDto.getIndentItemId() + " was not found in this organization"));
 
             indentItem.setConvertedToPurchaseOrder(true);
             indentItem.setLinkedPurchaseOrderNumber(purchaseOrder.getPoNumber());
@@ -89,7 +89,7 @@ public class PurchaseOrderItemService {
     @Transactional(readOnly = true)
     public PurchaseOrderItemResponseDto getPurchaseOrderItemById(Long id) {
         PurchaseOrderItem item = purchaseOrderItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("PurchaseOrderItem not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Purchase order item with ID " + id + " was not found in this organization"));
         return convertToResponseDto(item);
     }
 
@@ -117,7 +117,7 @@ public class PurchaseOrderItemService {
     @Transactional
     public PurchaseOrderItemResponseDto updatePurchaseOrderItem(PurchaseOrderItemUpdateDto updateDto) {
         PurchaseOrderItem item = purchaseOrderItemRepository.findByIdAndOrganization_Id(updateDto.getId(),TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("PurchaseOrderItem not found with id: " + updateDto.getId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Purchase order item with ID " + updateDto.getId() + " was not found in this organization"));
 
         if (updateDto.getOrderedQuantity() != null) {
             item.setOrderedQuantity(updateDto.getOrderedQuantity());
@@ -147,7 +147,7 @@ public class PurchaseOrderItemService {
     @Transactional
     public void deletePurchaseOrderItem(Long id) {
         PurchaseOrderItem item = purchaseOrderItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("PurchaseOrderItem not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Purchase order item with ID " + id + " was not found in this organization"));
         
         Long purchaseOrderId = item.getPurchaseOrder().getId();
         purchaseOrderItemRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());

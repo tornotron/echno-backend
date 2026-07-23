@@ -55,11 +55,11 @@ public class LeaveBalanceService {
     public LeaveBalanceDto getOrCalculateBalance(Long employeeId, Long policyId, Integer year) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Employee not found with id: " + employeeId));
+                        "Employee with ID " + employeeId + " was not found in this organization"));
 
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave policy not found with id: " + policyId));
+                        "Leave policy with ID " + policyId + " was not found in this organization"));
 
         if (isBeforeJoiningYear(employee, year)) {
             return LeaveBalanceDtoConvertor.convertToDto(zeroBalance(employee, policy, year));
@@ -80,7 +80,7 @@ public class LeaveBalanceService {
     public List<LeaveBalanceDto> getAllBalancesForEmployee(Long employeeId, Integer year) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Employee not found with id: " + employeeId));
+                        "Employee with ID " + employeeId + " was not found in this organization"));
 
         List<LeavePolicy> policies = policyRepository.findApplicablePolicies(
                 employee.getOrganization().getId(),
@@ -96,7 +96,7 @@ public class LeaveBalanceService {
     public LeaveBalanceSummaryDto getBalanceSummary(Long employeeId, Integer year) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Employee not found with id: " + employeeId));
+                        "Employee with ID " + employeeId + " was not found in this organization"));
 
         // Get applicable policies and ensure balances are initialized
         List<LeavePolicy> policies = policyRepository.findApplicablePolicies(
@@ -133,11 +133,11 @@ public class LeaveBalanceService {
     public LeaveBalanceDto recalculateBalance(Long employeeId, Long policyId, Integer year) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Employee not found with id: " + employeeId));
+                        "Employee with ID " + employeeId + " was not found in this organization"));
 
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave policy not found with id: " + policyId));
+                        "Leave policy with ID " + policyId + " was not found in this organization"));
 
         LeaveBalance balance = balanceRepository
                 .findByEmployeeIdAndLeavePolicyIdAndYear(employeeId, policyId, year)
@@ -151,11 +151,11 @@ public class LeaveBalanceService {
     public LeaveTransactionDto adjustBalance(LeaveBalanceAdjustmentDto dto) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(dto.getEmployeeId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Employee not found with id: " + dto.getEmployeeId()));
+                        "Employee with ID " + dto.getEmployeeId() + " was not found in this organization"));
 
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(dto.getLeavePolicyId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Leave policy not found with id: " + dto.getLeavePolicyId()));
+                        "Leave policy with ID " + dto.getLeavePolicyId() + " was not found in this organization"));
 
         int year = LocalDate.now().getYear();
         LeaveBalance balance = balanceRepository
