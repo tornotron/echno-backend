@@ -63,3 +63,6 @@ serviceAccountKey.json
 
 # Miscellaneous
 .DS_Store
+
+# Local dev compose file (has been accidentally committed with secrets before)
+docker-compose.yml
