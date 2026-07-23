@@ -106,7 +106,8 @@ public class AccountService {
         if(parent != null) {
             type = parent.getType();
             if(req.type() != null && !req.type().isBlank() && AccountType.valueOf(req.type()) != type) {
-                throw new InvalidJournalException("Child account type must match parent type");
+                throw new InvalidJournalException("Account type '" + req.type() + "' does not match parent account '"
+                        + parent.getCode() + "' type '" + type + "'");
             }
         } else {
             type = AccountType.valueOf(req.type());
@@ -118,7 +119,7 @@ public class AccountService {
                 : req.code().trim();
 
         if(repo.existsByCode(code)) {
-            throw new InvalidJournalException("Account code already exists: " + code);
+            throw new InvalidJournalException("Account code '" + code + "' is already in use in this organization");
         }
 
         Account account = new Account();
