@@ -370,14 +370,46 @@ public class KeycloakInitializer {
         try (Response response = clientResource.authorization().policies().role().create(policy)) {
             String body = response.hasEntity() ? response.readEntity(String.class) : "(no body)";
             if (response.getStatus() == 201) {
-                String location = response.getHeaderString("Location");
-                String id = location.substring(location.lastIndexOf('/') + 1);
+                String id = extractCreatedId(response, body);
+                if (id == null) {
+                    // Fall back to looking the policy up by name
+                    List<PolicyRepresentation> policies = clientResource.authorization().policies().policies();
+                    id = policies == null ? null : policies.stream()
+                            .filter(p -> policyName.equals(p.getName()))
+                            .map(PolicyRepresentation::getId)
+                            .findFirst().orElse(null);
+                }
                 log.info("Default Policy created successfully (id={})", id);
                 return id;
             } else {
                 log.error("Failed to create Default Policy. Status: {}, Body: {}", response.getStatus(), body);
                 return null;
             }
+        }
+    }
+
+    /**
+     * Keycloak's authorization endpoints answer a 201 with the created representation in the body and
+     * no Location header, unlike the users/clients endpoints. Handle both shapes.
+     */
+    private String extractCreatedId(Response response, String body) {
+        String location = response.getHeaderString("Location");
+        if (location != null && !location.isBlank()) {
+            return location.substring(location.lastIndexOf('/') + 1);
+        }
+
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+
+        try {
+            var node = mapper.readTree(body);
+            // resources are keyed by '_id', policies and permissions by 'id'
+            var id = node.hasNonNull("_id") ? node.get("_id") : node.get("id");
+            return id == null || id.isNull() ? null : id.asText();
+        } catch (IOException e) {
+            log.warn("Could not parse created id from response body: {}", e.getMessage());
+            return null;
         }
     }
 
@@ -400,8 +432,14 @@ public class KeycloakInitializer {
         try (Response response = clientResource.authorization().resources().create(resource)) {
             String body = response.hasEntity() ? response.readEntity(String.class) : "(no body)";
             if (response.getStatus() == 201) {
-                String location = response.getHeaderString("Location");
-                String id = location.substring(location.lastIndexOf('/') + 1);
+                String id = extractCreatedId(response, body);
+                if (id == null) {
+                    // Fall back to looking the resource up by name
+                    id = clientResource.authorization().resources().resources().stream()
+                            .filter(r -> resourceName.equals(r.getName()))
+                            .map(ResourceRepresentation::getId)
+                            .findFirst().orElse(null);
+                }
                 log.info("Resource '{}' created successfully (id={})", resourceName, id);
                 return id;
             } else {
