@@ -1,0 +1,91 @@
+name: Deploy to Kubernetes
+
+# Continuous deployment to the Kubernetes flavors, which run Argo CD (GitOps).
+# This builds the image, pushes it to GHCR under an immutable per-commit tag,
+# then writes that tag into tornotron/echno-deployment; the Argo CD running in
+# the target cluster reconciles the change and rolls the new image out. GitHub
+# never needs to reach the cluster, so the in-cluster (IITM) flavor works the
+# same as DOKS.
+#
+# Two selectable flavors via the dispatch input:
+#   self-managed -> k3s at IITM / on-prem  (values-iitm.yaml)
+#   doks         -> DigitalOcean Kubernetes (values-doks.yaml)
+#
+# Dispatch-only, so it never collides with the compose merge-to-staging deploy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flavor:
+        description: Kubernetes flavor to deploy
+        type: choice
+        options: [self-managed, doks]
+        default: self-managed
+
+concurrency:
+  group: deploy-k8s-${{ github.event.inputs.flavor }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/echno-backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve flavor, values file and image tag
+        id: f
+        run: |
+          case "${{ github.event.inputs.flavor }}" in
+            self-managed) echo "values=values-iitm.yaml" >> "$GITHUB_OUTPUT" ;;
+            doks)         echo "values=values-doks.yaml" >> "$GITHUB_OUTPUT" ;;
+            *) echo "unknown flavor" >&2; exit 1 ;;
+          esac
+          echo "tag=staging-${{ github.event.inputs.flavor }}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the app
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Authenticate to GHCR
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (immutable per-commit tag)
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}:${{ steps.f.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # A fine-grained PAT (or deploy key) with contents:write on echno-deployment.
+      - name: Check out the deployment repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: tornotron/echno-deployment
+          ref: main
+          token: ${{ secrets.ECHNO_DEPLOYMENT_TOKEN }}
+          path: deployment
+
+      - name: Pin the new backend image tag for Argo CD
+        run: |
+          cd deployment
+          curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq
+          chmod +x /usr/local/bin/yq
+          yq -i '.backend.tag = "${{ steps.f.outputs.tag }}"' "k8s/helm/echno/${{ steps.f.outputs.values }}"
+          git config user.name "echno-ci"
+          git config user.email "ci@echno.xyz"
+          git add "k8s/helm/echno/${{ steps.f.outputs.values }}"
+          git commit -m "ci(echno-backend): ${{ github.event.inputs.flavor }} -> ${{ steps.f.outputs.tag }}" || { echo "no change"; exit 0; }
+          git push
