@@ -12,6 +12,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -210,8 +212,16 @@ public class UserService {
      */
     @Transactional(readOnly = true)
     public Page<UserDto> getAllUsers(int pageNo, int pageSize) {
+        // Scope the directory to the caller's tenant. User is not a tenant-scoped
+        // entity, so the Hibernate org filter does not apply here; without this a
+        // findAll returns every tenant's users. Fail closed if there is no org
+        // context (the controller guard should already prevent that).
+        Long organizationId = TenantContext.getCurrentOrgId();
+        if (organizationId == null) {
+            throw new AccessDeniedException("No organization context; cannot list users.");
+        }
         Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
-        return userRepository.findAll(pageable)
+        return userRepository.findUsersByOrganizationId(organizationId, pageable)
                 .map(usr -> UserDtoConvertor.convertUserToDto(usr,fileStorageService));
     }
 
