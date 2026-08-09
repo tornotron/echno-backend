@@ -247,7 +247,7 @@ public class InventoryService {
         CurrentStock stock;
         if (storageLocation != null) {
             stock = currentStockRepository
-                    .findByMaterialIdAndProjectIdAndStorageLocationId(
+                    .lockByMaterialProjectAndLocation(
                             material.getId(), project.getId(), storageLocation.getId())
                     .orElseGet(() -> {
                         CurrentStock newStock = new CurrentStock();
@@ -261,7 +261,7 @@ public class InventoryService {
                     });
         } else {
             stock = currentStockRepository
-                    .findByMaterialIdAndProjectIdAndStorageLocationIsNull(material.getId(), project.getId())
+                    .lockByMaterialProjectAndNoLocation(material.getId(), project.getId())
                     .orElseGet(() -> {
                         CurrentStock newStock = new CurrentStock();
                         newStock.setMaterial(material);
