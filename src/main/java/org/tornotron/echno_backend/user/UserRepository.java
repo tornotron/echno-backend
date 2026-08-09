@@ -2,6 +2,8 @@ package org.tornotron.echno_backend.user;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,6 +26,18 @@ public interface UserRepository extends JpaRepository<User,Long> {
      */
     @Query("SELECT DISTINCT e.organization FROM Employee  e WHERE e.user.id = :userId")
     List<Organization> findOrganizationsByUserId(@Param("userId") Long userId);
+
+    /**
+     * Finds the distinct users who have an employment in the given organization.
+     * Used to scope the user directory to the caller's tenant (User is not itself
+     * a tenant-scoped entity, so it must be scoped via Employee).
+     *
+     * @param organizationId The organization to scope by.
+     * @param pageable       Pagination.
+     * @return A page of {@link User}s belonging to that organization.
+     */
+    @Query("SELECT DISTINCT e.user FROM Employee e WHERE e.organization.id = :organizationId")
+    Page<User> findUsersByOrganizationId(@Param("organizationId") Long organizationId, Pageable pageable);
 
     /**
      * Finds a user by their name.
