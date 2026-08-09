@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -59,6 +60,7 @@ public class UserControllerWeb {
      * @param pageSize The number of users per page (default is 10).
      * @return A {@link ResponseEntity} containing the list of user DTOs and HTTP status 200 (OK).
      */
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'hr-admin')")
     @GetMapping("/all")
     public ResponseEntity<List<UserDto>> readAllUsers(@RequestParam(defaultValue = "0") int pageNo,
                                                       @RequestParam(defaultValue = "10") int pageSize) {
@@ -72,6 +74,7 @@ public class UserControllerWeb {
      * @param userId The ID of the user.
      * @return A {@link ResponseEntity} containing a list of organization DTOs and HTTP status 200 (OK).
      */
+    @PreAuthorize("@orgSecurity.isSelfUser(#userId) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @GetMapping("/{userId}/organizations")
     public ResponseEntity<List<OrganizationDto>> readAllOrganizationsForCurrentUser(@PathVariable Long userId) {
         return ResponseEntity.status(HttpStatus.OK).body(userService.getOrganizationsForCurrentUser(userId));
@@ -87,12 +90,14 @@ public class UserControllerWeb {
 //        return ResponseEntity.status(HttpStatus.OK).body(userService.getAnUser(authenticationToken.getToken().getClaimAsString("sub")));
 //    }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping
     public ResponseEntity<UserDto> getCurrentUser() {
         String keycloakId = userContextService.getCurrentKeycloakId();
         return ResponseEntity.ok(userService.getCurrentUserDto(keycloakId));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/employees")
     public ResponseEntity<List<EmployeeDto>> getEmployeesForCurrentUser() {
         String keycloakId = userContextService.getCurrentKeycloakId();
@@ -101,7 +106,7 @@ public class UserControllerWeb {
     }
 
     /**
-     * Partially updates an existing user.
+     * Partially updates an existing user. A user may update their own record; org admins may update any.
      *
      * @param data    JSON string containing the fields to update.
      * @param id      The ID of the user to update.
@@ -109,6 +114,7 @@ public class UserControllerWeb {
      * @param cv      Optional CV/resume file.
      * @return A {@link ResponseEntity} with the updated user's DTO and HTTP status 200 (OK).
      */
+    @PreAuthorize("@orgSecurity.isSelfUser(#id) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PatchMapping(value = "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UserDto> partialUpdateAUser(
             @RequestPart(value = "data", required = false) String data,
@@ -127,6 +133,7 @@ public class UserControllerWeb {
      * @param updates A list of DTOs containing the updates for each user.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PatchMapping("/batch")
     public ResponseEntity<ApiResponse> batchUpdateUsers(@Valid @RequestBody List<UserPatchDto> updates) {
         userService.batchUpdateUser(updates);
@@ -139,6 +146,7 @@ public class UserControllerWeb {
      * @param id The ID of the user to delete.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @DeleteMapping("{id}")
     public ResponseEntity<ApiResponse> deleteAnUser(@PathVariable Long id) {
         userService.deleteAnUser(id);
