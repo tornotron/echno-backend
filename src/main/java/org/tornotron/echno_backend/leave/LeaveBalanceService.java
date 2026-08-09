@@ -158,8 +158,10 @@ public class LeaveBalanceService {
                         "Leave policy with ID " + dto.getLeavePolicyId() + " was not found in this organization"));
 
         int year = LocalDate.now().getYear();
+        // Lock the balance row so concurrent adjustments serialize (read-modify-write
+        // on accrued/used would otherwise lose updates and could overdraw).
         LeaveBalance balance = balanceRepository
-                .findByEmployeeIdAndLeavePolicyIdAndYear(dto.getEmployeeId(), dto.getLeavePolicyId(), year)
+                .lockByEmployeeIdAndLeavePolicyIdAndYear(dto.getEmployeeId(), dto.getLeavePolicyId(), year)
                 .orElseGet(() -> initializeBalance(employee, policy, year));
 
         double balanceBefore = balance.getAvailableBalance();
