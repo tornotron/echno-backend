@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.common.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,6 +18,12 @@ import org.tornotron.echno_backend.common.service.FileStorageService;
 import java.time.Duration;
 import java.util.List;
 
+// NOTE (phase0 authz lockdown): the @PreAuthorize guards below require the caller
+// to be a member of the current tenant, which closes the "any authenticated user"
+// hole. They do NOT yet verify that the target entity/attachment belongs to the
+// caller's organization; a follow-up in AttachmentService must resolve the
+// attachment/entity to its org and reject cross-tenant ids (org-scoped finder),
+// so a member of org A cannot act on org B's attachment by numeric id.
 @RestController
 @RequestMapping("/api/v1/attachment/web")
 @Validated
@@ -30,6 +37,7 @@ public class AttachmentControllerWeb {
         this.fileStorageService = fileStorageService;
     }
 
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE,value = "/entityId/{entityId}/entityType/{entityType}")
     public ResponseEntity<List<AttachmentDto>> creatAttachment(@RequestParam(value = "attachments",required = true)List<MultipartFile> attachments,
                                                          @PathVariable String entityType,
@@ -56,6 +64,7 @@ public class AttachmentControllerWeb {
     //    URL for each. The client PUTs each file straight to storage.
     // 2. register: the client confirms the keys, and the server records them
     //    after verifying each object is actually present in storage.
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @PostMapping("/presign/entityId/{entityId}/entityType/{entityType}")
     public ResponseEntity<List<PresignedUpload>> presignUploads(
             @RequestBody List<UploadRequest> uploads,
@@ -65,6 +74,7 @@ public class AttachmentControllerWeb {
                 uploads, entityType, entityId, entityType.split("_", 2)[0].toLowerCase()));
     }
 
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @PostMapping("/register/entityId/{entityId}/entityType/{entityType}")
     public ResponseEntity<List<AttachmentDto>> registerUploads(
             @RequestBody List<RegisterUploadRequest> uploads,
@@ -87,12 +97,14 @@ public class AttachmentControllerWeb {
                         }).toList());
     }
 
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @GetMapping("/entityId/{entityId}/entityType/{entityType}")
     public ResponseEntity<List<AttachmentDto>> readAttachments(@PathVariable String entityType,
                                                                @PathVariable Long entityId) {
         return ResponseEntity.status(HttpStatus.OK).body(attachmentService.getAttachments(entityType,entityId));
     }
 
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @DeleteMapping("/attachmentId/{attachmentId}")
     public ResponseEntity<ApiResponse> deleteAttachment(@PathVariable Long attachmentId) {
         attachmentService.deleteAttachment(attachmentId);
