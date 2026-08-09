@@ -37,6 +37,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -397,8 +398,21 @@ public class UserService {
      */
     @Transactional
     public void batchUpdateUser(List<UserPatchDto> updates) {
+        Long organizationId = TenantContext.getCurrentOrgId();
+        if (organizationId == null) {
+            throw new AccessDeniedException("No organization context; cannot batch update users");
+        }
+
         List<Long> userIds = updates.stream().map(UserPatchDto::getId).collect(Collectors.toList());
-        List<User> users = userRepository.findAllById(userIds);
+        // Scope the load to the caller's organization (findAllById would load users
+        // from any tenant by primary key, which the org filter never covers).
+        List<User> users = userRepository.findUsersByOrganizationIdAndIdIn(organizationId, userIds);
+
+        Set<Long> foundIds = users.stream().map(User::getId).collect(Collectors.toSet());
+        List<Long> outsideOrg = userIds.stream().filter(id -> !foundIds.contains(id)).collect(Collectors.toList());
+        if (!outsideOrg.isEmpty()) {
+            throw new AccessDeniedException("Cannot update users outside your organization: " + outsideOrg);
+        }
 
         Map<Long, User> userMap = users.stream().collect(Collectors.toMap(User::getId, user -> user));
 

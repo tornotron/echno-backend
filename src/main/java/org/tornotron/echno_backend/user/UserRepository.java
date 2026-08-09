@@ -40,6 +40,21 @@ public interface UserRepository extends JpaRepository<User,Long> {
     Page<User> findUsersByOrganizationId(@Param("organizationId") Long organizationId, Pageable pageable);
 
     /**
+     * Finds the users among the given ids that belong to the organization (via an
+     * Employee record). Used to scope batch operations so a caller can only touch
+     * users in their own tenant: ids outside the organization simply do not come
+     * back, letting the caller reject them.
+     *
+     * @param organizationId The organization to scope by.
+     * @param userIds        The candidate user ids.
+     * @return The subset of those users that are members of the organization.
+     */
+    @Query("SELECT DISTINCT e.user FROM Employee e "
+            + "WHERE e.organization.id = :organizationId AND e.user.id IN :userIds")
+    List<User> findUsersByOrganizationIdAndIdIn(@Param("organizationId") Long organizationId,
+                                                @Param("userIds") List<Long> userIds);
+
+    /**
      * Finds a user by their name.
      *
      * @param name The name of the user to find. Must not be blank and must be between 3 and 50 characters.
