@@ -37,18 +37,30 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # The dispatch input is read through the environment (never interpolated
+      # into the shell source) and validated before anything downstream uses it.
       - name: Resolve flavor, values file and image tag
         id: f
+        env:
+          FLAVOR: ${{ github.event.inputs.flavor }}
         run: |
-          case "${{ github.event.inputs.flavor }}" in
-            self-managed) echo "values=values-iitm.yaml" >> "$GITHUB_OUTPUT" ;;
-            doks)         echo "values=values-doks.yaml" >> "$GITHUB_OUTPUT" ;;
-            *) echo "unknown flavor" >&2; exit 1 ;;
+          case "$FLAVOR" in
+            self-managed) values=values-iitm.yaml ;;
+            doks)         values=values-doks.yaml ;;
+            *) echo "unknown flavor: $FLAVOR" >&2; exit 1 ;;
           esac
-          echo "tag=staging-${{ github.event.inputs.flavor }}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          {
+            echo "values=$values"
+            echo "tag=staging-${FLAVOR}-${GITHUB_SHA}"
+            echo "flavor=$FLAVOR"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Check out the app
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # This job builds `context: .`, so keep the workflow token out of the
+          # checked-out git config and away from the build context.
+          persist-credentials: false
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
@@ -69,23 +81,38 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # A fine-grained PAT (or deploy key) with contents:write on echno-deployment.
+      # Fine-grained PAT with contents:write on echno-deployment. persist-credentials
+      # is off so the cross-repo write token is not left in the checkout's git config
+      # while the pinned yq binary runs; the token is handed only to the final push.
       - name: Check out the deployment repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: tornotron/echno-deployment
           ref: main
           token: ${{ secrets.ECHNO_DEPLOYMENT_TOKEN }}
+          persist-credentials: false
           path: deployment
 
       - name: Pin the new backend image tag for Argo CD
+        working-directory: deployment
+        env:
+          FLAVOR: ${{ steps.f.outputs.flavor }}
+          TAG: ${{ steps.f.outputs.tag }}
+          VALUES: ${{ steps.f.outputs.values }}
+          DEPLOY_TOKEN: ${{ secrets.ECHNO_DEPLOYMENT_TOKEN }}
+          YQ_VERSION: v4.53.3
+          YQ_SHA256: fa52a4e758c63d38299163fbdd1edfb4c4963247918bf9c1c5d31d84789eded4
         run: |
-          cd deployment
-          curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq
-          chmod +x /usr/local/bin/yq
-          yq -i '.backend.tag = "${{ steps.f.outputs.tag }}"' "k8s/helm/echno/${{ steps.f.outputs.values }}"
+          curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" -o /tmp/yq
+          echo "${YQ_SHA256}  /tmp/yq" | sha256sum -c -
+          chmod +x /tmp/yq
+          /tmp/yq -i ".backend.tag = strenv(TAG)" "k8s/helm/echno/${VALUES}"
           git config user.name "echno-ci"
           git config user.email "ci@echno.xyz"
-          git add "k8s/helm/echno/${{ steps.f.outputs.values }}"
-          git commit -m "ci(echno-backend): ${{ github.event.inputs.flavor }} -> ${{ steps.f.outputs.tag }}" || { echo "no change"; exit 0; }
-          git push
+          git add "k8s/helm/echno/${VALUES}"
+          if git diff --cached --quiet; then
+            echo "image tag unchanged; nothing to deploy"
+            exit 0
+          fi
+          git commit -m "ci(echno-backend): ${FLAVOR} -> ${TAG}"
+          git push "https://x-access-token:${DEPLOY_TOKEN}@github.com/tornotron/echno-deployment.git" HEAD:main
