@@ -6,11 +6,13 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
 import java.util.Map;
 
 
@@ -24,7 +26,16 @@ public class KeycloakAuthorizationService {
     @Value("${jwt.auth.converter.resource-id}")
     private String clientId;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    // Bounded timeouts so a slow or hung Keycloak cannot pin Tomcat worker threads
+    // indefinitely (this exchange runs on every authenticated request).
+    private final RestTemplate restTemplate;
+
+    public KeycloakAuthorizationService() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(3));
+        factory.setReadTimeout(Duration.ofSeconds(5));
+        this.restTemplate = new RestTemplate(factory);
+    }
 
     public String exchangeForRPT(String accessToken) {
         String tokenEndpoint = issuerUri + "/protocol/openid-connect/token";
