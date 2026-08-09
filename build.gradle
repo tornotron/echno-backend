@@ -48,6 +48,9 @@ dependencies {
     annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
     annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:cockroachdb'
     runtimeOnly 'org.postgresql:postgresql'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
@@ -74,4 +77,9 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // Testcontainers' bundled docker-java pings the daemon with API 1.32, which
+    // modern Docker Engines reject (they require >= 1.40). docker-java reads the
+    // pinned version from the 'api.version' system property (not DOCKER_API_VERSION,
+    // which is a docker-CLI variable). 1.44 is accepted by both CI and the lab host.
+    systemProperty 'api.version', '1.44'
 }
