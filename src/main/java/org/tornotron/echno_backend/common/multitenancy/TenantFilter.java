@@ -34,27 +34,27 @@ public class TenantFilter extends OncePerRequestFilter {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-            log.info("[TenantFilter] path={}, auth={}, authorities={}",
+            log.debug("[TenantFilter] path={}, auth={}, authorities={}",
                     request.getRequestURI(),
                     authentication != null ? authentication.getName() : "null",
                     authentication != null ? authentication.getAuthorities() : "N/A");
 
             if (authentication == null || !authentication.isAuthenticated()) {
-                log.info("[TenantFilter] No authentication, skipping");
+                log.debug("[TenantFilter] No authentication, skipping");
                 filterChain.doFilter(request, response);
                 return;
             }
 
             // Check if user is a global admin — bypass tenant context
             if (hasAuthority(authentication, ORG_ADMIN_AUTHORITY)) {
-                log.info("[TenantFilter] Global admin detected, bypassing tenant filter");
+                log.debug("[TenantFilter] Global admin detected, bypassing tenant filter");
                 TenantContext.setBypass(true);
                 filterChain.doFilter(request, response);
                 return;
             }
 
             String orgHeader = request.getHeader(ORG_HEADER);
-            log.info("[TenantFilter] X-Organization-Id header={}", orgHeader);
+            log.debug("[TenantFilter] X-Organization-Id header={}", orgHeader);
 
             if (orgHeader != null && !orgHeader.isBlank()) {
                 Long orgId;
@@ -72,7 +72,7 @@ public class TenantFilter extends OncePerRequestFilter {
                 }
 
                 TenantContext.setCurrentOrgId(orgId);
-                log.info("[TenantFilter] Tenant context set to organization {}", orgId);
+                log.debug("[TenantFilter] Tenant context set to organization {}", orgId);
 
             } else {
                 // No header — try to infer from single membership
