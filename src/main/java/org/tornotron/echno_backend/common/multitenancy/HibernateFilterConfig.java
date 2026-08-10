@@ -24,14 +24,14 @@ public class HibernateFilterConfig {
     @Around("within(org.tornotron.echno_backend..*) && @annotation(transactional)")
     public Object enableOrgFilter(ProceedingJoinPoint joinPoint, Transactional transactional) throws Throwable {
         Long orgId = TenantContext.getCurrentOrgId();
-        log.info("[HibernateFilter] Aspect triggered for {}, orgId={}, bypassed={}",
+        log.debug("[HibernateFilter] Aspect triggered for {}, orgId={}, bypassed={}",
                 joinPoint.getSignature().toShortString(), orgId, TenantContext.isBypassed());
         if (orgId != null && !TenantContext.isBypassed()) {
             Session session = entityManager.unwrap(Session.class);
             session.enableFilter("orgFilter").setParameter("organizationId", orgId);
-            log.info("[HibernateFilter] orgFilter ENABLED for organization {}", orgId);
+            log.debug("[HibernateFilter] orgFilter ENABLED for organization {}", orgId);
         } else {
-            log.info("[HibernateFilter] orgFilter NOT enabled (orgId={}, bypassed={})", orgId, TenantContext.isBypassed());
+            log.debug("[HibernateFilter] orgFilter NOT enabled (orgId={}, bypassed={})", orgId, TenantContext.isBypassed());
         }
         return joinPoint.proceed();
     }
