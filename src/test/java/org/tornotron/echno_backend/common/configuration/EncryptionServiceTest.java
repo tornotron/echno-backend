@@ -2,6 +2,8 @@ package org.tornotron.echno_backend.common.configuration;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Base64;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -50,11 +52,13 @@ class EncryptionServiceTest {
     @Test
     void tamperedCiphertextFailsAuthentication() {
         String encrypted = encryptionService.encrypt("secret");
-        char[] chars = encrypted.toCharArray();
-        int i = chars.length - 3; // flip a character inside the ciphertext/tag
-        chars[i] = (chars[i] == 'A') ? 'B' : 'A';
+        // Decode to the raw IV+ciphertext+tag bytes and flip a bit in the last
+        // byte (the GCM tag). Corrupting a base64 character instead is unreliable:
+        // near the padding it can decode to the same bytes and decrypt succeeds.
+        byte[] bytes = Base64.getDecoder().decode(encrypted);
+        bytes[bytes.length - 1] ^= 0x01;
+        String tampered = Base64.getEncoder().encodeToString(bytes);
 
-        assertThrows(RuntimeException.class,
-                () -> encryptionService.decrypt(new String(chars)));
+        assertThrows(RuntimeException.class, () -> encryptionService.decrypt(tampered));
     }
 }
