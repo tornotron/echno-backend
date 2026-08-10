@@ -48,6 +48,18 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(TenantAccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public CustomErrorResponse handleTenantAccessDeniedException(TenantAccessDeniedException ex, WebRequest request) {
+        logger.warn("Tenant access denied: {}", ex.getMessage());
+        return new CustomErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                "Access to this resource is not permitted for your organization",
+                request.getDescription(false),
+                LocalDateTime.now()
+        );
+    }
+
     @ExceptionHandler(UnbalancedEntryException.class)
     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
     public CustomErrorResponse handleUnbalancedEntryException(UnbalancedEntryException ex, WebRequest request) {
