@@ -64,6 +64,7 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} containing the list of employee DTOs and HTTP status 200 (OK).
      */
     @GetMapping
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<EmployeeDto>> readAllEmployees() {
         return new ResponseEntity<>(employeeService.displayAllEmployees(),HttpStatus.OK);
     }
@@ -75,6 +76,7 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} containing the employee DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<EmployeeDto> readAnEmployee(@PathVariable Long id) {
         EmployeeDto employee = employeeService.displayAnEmployee(id);
         return ResponseEntity.status(HttpStatus.OK).body(employee);
@@ -164,16 +166,19 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} containing a list of employee DTOs who report to the manager and HTTP status 200 (OK).
      */
     @GetMapping("/managerId/{managerId}/subordinates")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<EmployeeDto>> getDirectSubordinates(@PathVariable Long managerId) {
         return ResponseEntity.status(HttpStatus.OK).body(employeeService.getDirectSubordinates(managerId));
     }
 
     @GetMapping("/managers")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<EmployeeDto>> getAllTheManagers() {
         return ResponseEntity.status(HttpStatus.OK).body(employeeService.readAllTheManagers());
     }
 
     @GetMapping("/managers/organizationId/{organizationId}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<EmployeeDto>> getAllManagersForAnOrganization(@PathVariable Long organizationId) {
         return ResponseEntity.status(HttpStatus.OK).body(employeeService.readAllTheManagersByOrganizationId(organizationId));
     }
@@ -191,6 +196,7 @@ public class EmployeeControllerWeb {
     }
 
     @GetMapping("/{employeeId}/roles")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<Set<OrgRole>> getOrgRoles(@PathVariable Long employeeId) {
         return ResponseEntity.status(HttpStatus.OK).body(employeeService.getOrgRoles(employeeId));
     }

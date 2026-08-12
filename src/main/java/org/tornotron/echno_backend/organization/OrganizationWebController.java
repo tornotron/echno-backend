@@ -40,6 +40,7 @@ public class OrganizationWebController {
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @RequireSubscription(feature = "CREATE_ORGANIZATION",recordUsage = true)
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") @Valid String data,
                                                                     @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
         OrganizationCreationDto dto = objectMapper.readValue(data, OrganizationCreationDto.class);
@@ -53,6 +54,7 @@ public class OrganizationWebController {
      * @return A {@link ResponseEntity} containing the list of organization DTOs and HTTP status 200 (OK).
      */
     @GetMapping
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<List<OrganizationDto>> readAllOrganizations() {
         return ResponseEntity.status(HttpStatus.OK).body(service.getAllOrganization());
     }
