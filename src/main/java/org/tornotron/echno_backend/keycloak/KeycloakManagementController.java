@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.keycloak;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import io.prometheus.metrics.shaded.com_google_protobuf_4_28_3.Api;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,7 @@ public class KeycloakManagementController {
         this.keycloakManagementService = keycloakManagementService;
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/clients")
     public ResponseEntity<ApiResponse> createClient(@Valid @RequestBody ClientCreationDto dto) {
         String id = keycloakManagementService.createClient(dto);
@@ -29,6 +31,7 @@ public class KeycloakManagementController {
                 .body(new ApiResponse("Client created with ID: " + id));
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/clients/{clientId}/roles")
     public ResponseEntity<ApiResponse> addClientRole(@PathVariable String clientId, @Valid @RequestBody RoleCreationDto dto) {
         keycloakManagementService.addClientRole(clientId, dto);
@@ -36,6 +39,7 @@ public class KeycloakManagementController {
                 .body(new ApiResponse("Role added successfully"));
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/clients/{clientId}/authorization")
     public ResponseEntity<ApiResponse> enableAuthorization(@PathVariable String clientId, @RequestParam boolean enabled) {
         keycloakManagementService.enableAuthorizationServices(clientId, enabled);
@@ -43,6 +47,7 @@ public class KeycloakManagementController {
                 .body(new ApiResponse("Authorization services updated"));
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/clients/{clientId}/users/{userId}/roles")
     public ResponseEntity<ApiResponse> assignRoleToUser(@PathVariable String userId,@PathVariable String clientId, @RequestParam String roleName) {
         keycloakManagementService.assignClientRoleToUser(userId, clientId, roleName);
@@ -51,6 +56,7 @@ public class KeycloakManagementController {
 
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/clients/{clientId}/resources")
     public ResponseEntity<ApiResponse> addResource(@PathVariable String clientId,@Valid @RequestBody ResourceDefinitionDto dto) {
         keycloakManagementService.createResource(clientId,dto);
@@ -58,6 +64,7 @@ public class KeycloakManagementController {
                 .body(new ApiResponse("Resource created successfully"));
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/clients/{clientId}/policies")
     public ResponseEntity<ApiResponse> addPolicy(@PathVariable String clientId,@Valid @RequestBody RolePolicyDefinitionDto dto) {
         keycloakManagementService.createRolePolicy(clientId,dto);
@@ -65,6 +72,7 @@ public class KeycloakManagementController {
                 .body(new ApiResponse("Policy created successfully"));
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/clients/{clientId}/policies/js")
     public ResponseEntity<ApiResponse> addJsPolicy(@PathVariable String clientId, @Valid @RequestBody JsPolicyDefinitionDto dto) {
         keycloakManagementService.createJsPolicy(clientId, dto);
@@ -72,6 +80,7 @@ public class KeycloakManagementController {
                 .body(new ApiResponse("JS policy created successfully"));
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/clients/{clientId}/permissions")
     public ResponseEntity<ApiResponse> addPermission(@PathVariable String clientId, @Valid @RequestBody PermissionDefinitionDto dto) {
         keycloakManagementService.createPermission(clientId,dto);
@@ -79,6 +88,7 @@ public class KeycloakManagementController {
                 .body(new ApiResponse("Permission created successfully"));
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/clients/{clientId}/authorization-setup")
     public ResponseEntity<ApiResponse> createWholeAuthorizationSetup(@PathVariable String clientId,@Valid @RequestBody AuthorizationSetupDto dto) {
         keycloakManagementService.configureAuthorization(clientId,dto);
@@ -86,6 +96,7 @@ public class KeycloakManagementController {
                 .body(new ApiResponse("Authorization setup created successfully"));
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/roles")
     public ResponseEntity<ApiResponse> addRealmRoles(@RequestBody Map<String, String> roles) {
         keycloakManagementService.addRealmRoles(roles);
