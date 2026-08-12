@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.common.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -32,6 +33,7 @@ public class KeycloakGroupController {
         this.employeeRepository = employeeRepository;
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/assign")
     public ResponseEntity<ApiResponse> assignUserToKeycloakOrg(
             @RequestParam Long userId
@@ -48,6 +50,7 @@ public class KeycloakGroupController {
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("User added to keycloak Org"));
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/assignRole")
     public ResponseEntity<ApiResponse> assignOrgRole(
             @RequestParam Long employeeId,
@@ -65,6 +68,7 @@ public class KeycloakGroupController {
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("User assigned a role"));
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/unassignRole")
     public ResponseEntity<ApiResponse> unassignOrgRole(
             @RequestParam Long employeeId,
