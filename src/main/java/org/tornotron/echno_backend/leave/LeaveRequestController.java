@@ -30,6 +30,7 @@ public class LeaveRequestController {
 
     @PostMapping
 //    @PreAuthorize("hasAuthority('leave:create') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<LeaveRequestDto> createRequest(
             @RequestParam Long employeeId,
             @Valid @RequestBody LeaveRequestCreationDto dto) {
@@ -39,12 +40,14 @@ public class LeaveRequestController {
 
     @GetMapping("/requestId/{requestId}")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveRequestDto> getRequest(@PathVariable Long requestId) {
         return ResponseEntity.ok(requestService.getRequest(requestId));
     }
 
     @GetMapping("/employeeId/{employeeId}")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<Page<LeaveRequestDto>> getEmployeeRequests(
             @PathVariable Long employeeId,
             Pageable pageable) {
@@ -53,6 +56,7 @@ public class LeaveRequestController {
 
     @GetMapping("/employeeId/{employeeId}/status/{status}")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveRequestDto>> getEmployeeRequestsByStatus(
             @PathVariable Long employeeId,
             @PathVariable LeaveStatus status) {
@@ -61,12 +65,14 @@ public class LeaveRequestController {
 
     @GetMapping("/organizationId/{organizationId}")
 //    @PreAuthorize("hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveRequestDto>> getOrganizationRequests() {
         return ResponseEntity.ok(requestService.getRequestsByOrganization());
     }
 
     @GetMapping("/pending-approvals")
 //    @PreAuthorize("hasAuthority('leave:approve') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveRequestDto>> getPendingApprovals(
             @RequestParam Long approverId) {
         return ResponseEntity.ok(requestService.getPendingApprovals(approverId));
@@ -74,6 +80,7 @@ public class LeaveRequestController {
 
     @GetMapping("/pending-approvals/count")
 //    @PreAuthorize("hasAuthority('leave:approve') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<Map<String, Long>> getPendingApprovalCount(
             @RequestParam Long approverId) {
         long count = requestService.getPendingApprovalCount(approverId);
@@ -82,6 +89,7 @@ public class LeaveRequestController {
 
     @PatchMapping("requestId/{requestId}")
 //    @PreAuthorize("hasAuthority('leave:update') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<LeaveRequestDto> updateRequest(
             @PathVariable Long requestId,
             @RequestBody Map<String, Object> updates) {
@@ -90,12 +98,14 @@ public class LeaveRequestController {
 
     @PostMapping("/requestId/{requestId}/submit")
 //    @PreAuthorize("hasAuthority('leave:create') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<LeaveRequestDto> submitRequest(@PathVariable Long requestId) {
         return ResponseEntity.ok(requestService.submitRequest(requestId));
     }
 
     @PostMapping("/requestId/{requestId}/cancel")
 //    @PreAuthorize("hasAuthority('leave:update') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<LeaveRequestDto> cancelRequest(
             @PathVariable Long requestId,
             @RequestBody Map<String, String> body) {
@@ -105,12 +115,14 @@ public class LeaveRequestController {
 
     @PostMapping("/requestId/{requestId}/withdraw")
 //    @PreAuthorize("hasAuthority('leave:update') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<LeaveRequestDto> withdrawRequest(@PathVariable Long requestId) {
         return ResponseEntity.ok(requestService.withdrawRequest(requestId));
     }
 
     @GetMapping("/conflicts")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<List<LocalDate>> getConflictingDates(
             @RequestParam Long employeeId,
             @RequestParam LocalDate startDate,
@@ -120,6 +132,7 @@ public class LeaveRequestController {
 
     @PostMapping("/calculate-days")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<Map<String, Double>> calculateDays(
             @RequestBody Map<String, String> body) {
         LocalDate startDate = LocalDate.parse(body.get("startDate"));
