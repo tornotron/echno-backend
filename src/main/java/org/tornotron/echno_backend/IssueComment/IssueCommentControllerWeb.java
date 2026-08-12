@@ -26,12 +26,14 @@ public class IssueCommentControllerWeb {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('issue-comment:create') or hasAuthority('issue-comment:admin')")
     public ResponseEntity<IssueCommentSimpleDto> createIssueComment(@Valid @RequestBody IssueCommentCreationDto issueCommentCreationDto) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(issueCommentService.addIssueComment(issueCommentCreationDto));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('issue-comment:read') or hasAuthority('issue-comment:admin')")
     public ResponseEntity<List<IssueCommentDto>> readAllIssueComments(@RequestParam(defaultValue = "0") int pageNo,
                                                                       @RequestParam(defaultValue = "10") int pageSize) {
         Page<IssueCommentDto> issueComments = issueCommentService.getAllIssueComments(pageNo,pageSize);
@@ -39,16 +41,19 @@ public class IssueCommentControllerWeb {
     }
 
     @GetMapping("{id}")
+    @PreAuthorize("hasAuthority('issue-comment:read') or hasAuthority('issue-comment:admin')")
     public ResponseEntity<IssueCommentDto> getAnIssueComment(@PathVariable Long id) {
         return ResponseEntity.status(HttpStatus.OK).body(issueCommentService.getAnIssueComment(id));
     }
 
     @GetMapping("/issueId/{issueId}")
+    @PreAuthorize("hasAuthority('issue-comment:read') or hasAuthority('issue-comment:admin')")
     public ResponseEntity<List<IssueCommentDto>> getAllIssueCommentsByIssueId(@PathVariable Long issueId) {
         return ResponseEntity.status(HttpStatus.OK).body(issueCommentService.getAllIssueCommentsByIssueId(issueId));
     }
 
     @DeleteMapping("{id}")
+    @PreAuthorize("hasAuthority('issue-comment:delete') or hasAuthority('issue-comment:admin')")
     public ResponseEntity<ApiResponse> deleteAnIssueComment(@PathVariable Long id) {
         issueCommentService.deleteAnIssueComment(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("IssueComment with id: "+id+" deleted successfully with"));

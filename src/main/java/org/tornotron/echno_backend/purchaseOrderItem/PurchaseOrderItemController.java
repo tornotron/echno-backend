@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.purchaseOrderItem;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,7 @@ public class PurchaseOrderItemController {
         this.purchaseOrderItemService = purchaseOrderItemService;
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping
     public ResponseEntity<PurchaseOrderItemResponseDto> createPurchaseOrderItem(
             @Valid @RequestBody PurchaseOrderItemCreationDto creationDto) {
@@ -30,18 +32,21 @@ public class PurchaseOrderItemController {
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @GetMapping("/{id}")
     public ResponseEntity<PurchaseOrderItemResponseDto> getPurchaseOrderItemById(@PathVariable Long id) {
         PurchaseOrderItemResponseDto item = purchaseOrderItemService.getPurchaseOrderItemById(id);
         return ResponseEntity.ok(item);
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @GetMapping
     public ResponseEntity<List<PurchaseOrderItemResponseDto>> getAllPurchaseOrderItems() {
         List<PurchaseOrderItemResponseDto> items = purchaseOrderItemService.getAllPurchaseOrderItems();
         return ResponseEntity.ok(items);
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @GetMapping("/purchase-order/{purchaseOrderId}")
     public ResponseEntity<List<PurchaseOrderItemResponseDto>> getItemsByPurchaseOrderId(
             @PathVariable Long purchaseOrderId) {
@@ -49,12 +54,14 @@ public class PurchaseOrderItemController {
         return ResponseEntity.ok(items);
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @GetMapping("/material/{materialId}")
     public ResponseEntity<List<PurchaseOrderItemResponseDto>> getItemsByMaterialId(@PathVariable Long materialId) {
         List<PurchaseOrderItemResponseDto> items = purchaseOrderItemService.getItemsByMaterialId(materialId);
         return ResponseEntity.ok(items);
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PutMapping
     public ResponseEntity<PurchaseOrderItemResponseDto> updatePurchaseOrderItem(
             @Valid @RequestBody PurchaseOrderItemUpdateDto updateDto) {
@@ -62,6 +69,7 @@ public class PurchaseOrderItemController {
         return ResponseEntity.ok(updated);
     }
 
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse> deletePurchaseOrderItem(@PathVariable Long id) {
         purchaseOrderItemService.deletePurchaseOrderItem(id);
