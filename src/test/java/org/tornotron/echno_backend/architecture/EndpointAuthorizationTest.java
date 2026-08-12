@@ -41,8 +41,6 @@ class EndpointAuthorizationTest {
             "AuthController",
             "FeatureController", "PlanController", "SubscriptionController",
             "EmployeeControllerWeb",
-            "LeaveApprovalController", "LeaveBalanceController",
-            "LeavePolicyController", "LeaveRequestController",
             "OrganizationWebController",
             "ReportController",
             "TaskControllerWeb");

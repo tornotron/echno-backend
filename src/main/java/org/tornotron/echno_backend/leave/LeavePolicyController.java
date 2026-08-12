@@ -26,6 +26,7 @@ public class LeavePolicyController {
 
     @PostMapping
 //    @PreAuthorize("hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     public ResponseEntity<LeavePolicyDto> createPolicy(
             @Valid @RequestBody LeavePolicyCreationDto dto) {
         LeavePolicyDto created = policyService.createPolicy(dto);
@@ -34,17 +35,19 @@ public class LeavePolicyController {
 
     @GetMapping("/{policyId}")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeavePolicyDto> getPolicy(@PathVariable Long policyId) {
         return ResponseEntity.ok(policyService.getPolicy(policyId));
     }
 
     @GetMapping
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeavePolicyDto>> getAllPolicies() {
         return ResponseEntity.status(HttpStatus.OK).body(policyService.getAllPolicies());
     }
 
     @GetMapping("/organization/{organizationId}")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeavePolicyDto>> getPoliciesByOrganization(
             @PathVariable Long organizationId,
             @RequestParam(required = false, defaultValue = "false") Boolean includeInactive) {
@@ -56,6 +59,7 @@ public class LeavePolicyController {
 
     @GetMapping("/employee/{employeeId}")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<List<LeavePolicyDto>> getApplicablePoliciesForEmployee(
             @PathVariable Long employeeId) {
         return ResponseEntity.ok(policyService.getApplicablePoliciesForEmployee(employeeId));
@@ -63,6 +67,7 @@ public class LeavePolicyController {
 
     @PatchMapping("/{policyId}")
 //    @PreAuthorize("hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeavePolicyDto> updatePolicy(
             @PathVariable Long policyId,
             @RequestBody Map<String, Object> updates) {
@@ -71,6 +76,7 @@ public class LeavePolicyController {
 
     @DeleteMapping("/{policyId}")
 //    @PreAuthorize("hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<ApiResponse> deactivatePolicy(@PathVariable Long policyId) {
         policyService.deactivatePolicy(policyId);
         return ResponseEntity.ok(new ApiResponse("Leave policy deactivated successfully"));
@@ -78,6 +84,7 @@ public class LeavePolicyController {
 
     @PostMapping("/{policyId}/activate")
 //    @PreAuthorize("hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<ApiResponse> activatePolicy(@PathVariable Long policyId) {
         policyService.activatePolicy(policyId);
         return ResponseEntity.ok(new ApiResponse("Leave policy activated successfully"));
@@ -85,6 +92,7 @@ public class LeavePolicyController {
 
     @PostMapping("/{policyId}/duplicate")
 //    @PreAuthorize("hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeavePolicyDto> duplicatePolicy(
             @PathVariable Long policyId,
             @RequestParam Long targetOrganizationId) {

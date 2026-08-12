@@ -25,6 +25,7 @@ public class LeaveApprovalController {
 
     @PostMapping("/requests/{requestId}/approve")
 //    @PreAuthorize("hasAuthority('leave:approve') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveRequestDto> approve(
             @PathVariable Long requestId,
             @Valid @RequestBody LeaveApprovalActionDto dto) {

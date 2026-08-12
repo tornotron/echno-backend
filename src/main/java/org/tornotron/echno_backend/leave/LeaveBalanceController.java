@@ -26,6 +26,7 @@ public class LeaveBalanceController {
 
     @GetMapping("/employee/{employeeId}")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveBalanceDto>> getEmployeeBalances(
             @PathVariable Long employeeId,
             @RequestParam(required = false) Integer year) {
@@ -35,6 +36,7 @@ public class LeaveBalanceController {
 
     @GetMapping("/employee/{employeeId}/policy/{policyId}")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveBalanceDto> getSpecificBalance(
             @PathVariable Long employeeId,
             @PathVariable Long policyId,
@@ -45,6 +47,7 @@ public class LeaveBalanceController {
 
     @GetMapping("/employee/{employeeId}/summary")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<LeaveBalanceSummaryDto> getBalanceSummary(
             @PathVariable Long employeeId,
             @RequestParam(required = false) Integer year) {
@@ -54,6 +57,7 @@ public class LeaveBalanceController {
 
     @PostMapping("/employee/{employeeId}/recalculate")
 //    @PreAuthorize("hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveBalanceDto>> recalculateBalances(
             @PathVariable Long employeeId,
             @RequestParam(required = false) Integer year) {
@@ -63,6 +67,7 @@ public class LeaveBalanceController {
 
     @PostMapping("/adjust")
 //    @PreAuthorize("hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<LeaveTransactionDto> adjustBalance(
             @Valid @RequestBody LeaveBalanceAdjustmentDto dto) {
         return ResponseEntity.ok(balanceService.adjustBalance(dto));
@@ -70,6 +75,7 @@ public class LeaveBalanceController {
 
     @GetMapping("/employee/{employeeId}/transactions")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     public ResponseEntity<List<LeaveTransactionDto>> getTransactionHistory(
             @PathVariable Long employeeId) {
         return ResponseEntity.ok(balanceService.getTransactionHistory(employeeId));
@@ -77,6 +83,7 @@ public class LeaveBalanceController {
 
     @GetMapping("/{balanceId}/transactions")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     public ResponseEntity<List<LeaveTransactionDto>> getTransactionsByBalance(
             @PathVariable Long balanceId) {
         return ResponseEntity.ok(balanceService.getTransactionsByBalance(balanceId));
