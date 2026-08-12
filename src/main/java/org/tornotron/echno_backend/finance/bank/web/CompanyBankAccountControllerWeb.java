@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/finance/company-bank-accounts/web")
+@RequestMapping("/api/v1/finance/company-bank-accounts/web")
 @RequiredArgsConstructor
 public class CompanyBankAccountControllerWeb {
 
