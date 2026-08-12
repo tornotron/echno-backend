@@ -30,6 +30,7 @@ public class FeatureController {
      *
      * @return List of active features
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping
 //    @PreAuthorize("hasAuthority('billing:read') or hasAuthority('billing:admin')")
     public ResponseEntity<List<FeatureDto>> getActiveFeatures() {
@@ -43,6 +44,7 @@ public class FeatureController {
      *
      * @return List of all features
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping("/all")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<List<FeatureDto>> getAllFeatures() {
@@ -56,6 +58,7 @@ public class FeatureController {
      * @param id Feature ID
      * @return Feature details
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping("/{id}")
 //    @PreAuthorize("hasAuthority('billing:read') or hasAuthority('billing:admin')")
     public ResponseEntity<FeatureDto> getFeatureById(@PathVariable Long id) {
@@ -69,6 +72,7 @@ public class FeatureController {
      * @param code Feature code
      * @return Feature details
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping("/code/{code}")
 //    @PreAuthorize("hasAuthority('billing:read') or hasAuthority('billing:admin')")
     public ResponseEntity<FeatureDto> getFeatureByCode(@PathVariable String code) {
@@ -83,6 +87,7 @@ public class FeatureController {
      * @param dto Feature creation data
      * @return Created feature
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @PostMapping
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<FeatureDto> createFeature(@Valid @RequestBody FeatureCreateDto dto) {
@@ -98,6 +103,7 @@ public class FeatureController {
      * @param dto Feature update data
      * @return Updated feature
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @PutMapping("/{id}")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<FeatureDto> updateFeature(@PathVariable Long id, @Valid @RequestBody FeatureCreateDto dto) {
@@ -112,6 +118,7 @@ public class FeatureController {
      * @param id Feature ID
      * @return Success message
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @DeleteMapping("/{id}")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<ApiResponse> deactivateFeature(@PathVariable Long id) {
@@ -126,6 +133,7 @@ public class FeatureController {
      * @param id Feature ID
      * @return Success message
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @PostMapping("/{id}/activate")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<ApiResponse> activateFeature(@PathVariable Long id) {

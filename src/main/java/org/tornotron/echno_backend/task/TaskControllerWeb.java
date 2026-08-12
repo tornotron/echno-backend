@@ -75,6 +75,7 @@ public class TaskControllerWeb {
     }
 
     @GetMapping("/projectId/{projectId}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<TaskDto>> readAllTasksForProject(@PathVariable Long projectId) {
         return ResponseEntity.status(HttpStatus.OK).body(service.getTasksByProjectId(projectId));
     }

@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.pdfGeneration;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
@@ -64,6 +65,7 @@ public class ReportController {
         return ctx;
     }
 
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @GetMapping("/pdf")
     public ResponseEntity<byte[]> pdfReport() {
         Context ctx = populateContext();

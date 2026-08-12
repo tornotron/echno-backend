@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.auth;
 
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,6 +23,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @PreAuthorize("permitAll()")
     public ResponseEntity<UserDto> registerUser(@Valid @RequestBody UserRegistrationDto userRegistrationDto) {
         UserDto createdUser = userService.registerUser(userRegistrationDto);
         return new ResponseEntity<>(createdUser, HttpStatus.CREATED);

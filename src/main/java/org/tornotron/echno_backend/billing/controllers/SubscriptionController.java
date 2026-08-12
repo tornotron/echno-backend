@@ -33,6 +33,7 @@ public class SubscriptionController {
      *
      * @return Active subscription or empty if none
      */
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @GetMapping("/current")
     public ResponseEntity<SubscriptionDto> getCurrentSubscription() throws AuthenticationException {
         Long userId = userContextService.getCurrentUserIdOrThrow();
@@ -47,6 +48,7 @@ public class SubscriptionController {
      *
      * @return List of all subscriptions
      */
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @GetMapping("/history")
     public ResponseEntity<List<SubscriptionDto>> getSubscriptionHistory() throws AuthenticationException {
         Long userId = userContextService.getCurrentUserIdOrThrow();
@@ -60,6 +62,7 @@ public class SubscriptionController {
      * @param dto Subscription creation data with plan code
      * @return Created subscription
      */
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @PostMapping
     public ResponseEntity<SubscriptionDto> createSubscription(@Valid @RequestBody SubscriptionCreateDto dto)
             throws AuthenticationException {
@@ -74,6 +77,7 @@ public class SubscriptionController {
      * @param dto Plan change data
      * @return Updated subscription
      */
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @PutMapping("/change-plan")
     public ResponseEntity<SubscriptionDto> changeSubscription(@Valid @RequestBody SubscriptionChangeDto dto)
             throws AuthenticationException {
@@ -88,6 +92,7 @@ public class SubscriptionController {
      * @param dto Cancellation options
      * @return Success message
      */
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @PostMapping("/cancel")
     public ResponseEntity<ApiResponse> cancelSubscription(@RequestBody(required = false) SubscriptionCancelDto dto)
             throws AuthenticationException {
@@ -106,6 +111,7 @@ public class SubscriptionController {
      * @param featureCode The feature code to check
      * @return Feature access result
      */
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @GetMapping("/features/{featureCode}/access")
     public ResponseEntity<FeatureAccessResultDto> checkFeatureAccess(@PathVariable String featureCode)
             throws AuthenticationException {
@@ -120,6 +126,7 @@ public class SubscriptionController {
      * @param dto Usage record data
      * @return Success message
      */
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @PostMapping("/usage")
     public ResponseEntity<ApiResponse> recordUsage(@Valid @RequestBody UsageRecordDto dto)
             throws AuthenticationException {
@@ -137,6 +144,7 @@ public class SubscriptionController {
      * @param userId User ID
      * @return Active subscription or empty
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping("/user/{userId}")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<SubscriptionDto> getUserSubscription(@PathVariable Long userId) {
@@ -153,6 +161,7 @@ public class SubscriptionController {
      * @param userId User ID
      * @return List of subscriptions
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping("/user/{userId}/history")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<List<SubscriptionDto>> getUserSubscriptionHistory(@PathVariable Long userId) {
@@ -168,6 +177,7 @@ public class SubscriptionController {
      * @param dto    Subscription creation data
      * @return Created subscription
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @PostMapping("/user/{userId}")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<SubscriptionDto> createSubscriptionForUser(
@@ -185,6 +195,7 @@ public class SubscriptionController {
      * @param dto    Plan change data
      * @return Updated subscription
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @PutMapping("/user/{userId}/change-plan")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<SubscriptionDto> changeSubscriptionForUser(
@@ -202,6 +213,7 @@ public class SubscriptionController {
      * @param dto    Cancellation options
      * @return Success message
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @PostMapping("/user/{userId}/cancel")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<ApiResponse> cancelSubscriptionForUser(

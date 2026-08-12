@@ -28,6 +28,7 @@ public class PlanController {
      *
      * @return List of public plans
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping("/public")
     public ResponseEntity<List<PlanDto>> getPublicPlans() {
         List<Plan> plans = planService.getAllPublicPlans();
@@ -40,6 +41,7 @@ public class PlanController {
      *
      * @return List of all plans
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<List<PlanDto>> getAllPlans() {
@@ -53,6 +55,7 @@ public class PlanController {
      * @param id Plan ID
      * @return Plan details
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping("/{id}")
 //    @PreAuthorize("hasAuthority('billing:read') or hasAuthority('billing:admin')")
     public ResponseEntity<PlanDto> getPlanById(@PathVariable Long id) {
@@ -66,6 +69,7 @@ public class PlanController {
      * @param code Plan code
      * @return Plan details
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping("/code/{code}")
 //    @PreAuthorize("hasAuthority('billing:read') or hasAuthority('billing:admin')")
     public ResponseEntity<PlanDto> getPlanByCode(@PathVariable String code) {
@@ -80,6 +84,7 @@ public class PlanController {
      * @param dto Plan creation data
      * @return Created plan
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @PostMapping
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<PlanDto> createPlan(@Valid @RequestBody PlanCreateDto dto) {
@@ -95,6 +100,7 @@ public class PlanController {
      * @param dto Plan update data
      * @return Updated plan
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @PutMapping("/{id}")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<PlanDto> updatePlan(@PathVariable Long id, @Valid @RequestBody PlanCreateDto dto) {
@@ -109,6 +115,7 @@ public class PlanController {
      * @param id Plan ID
      * @return Success message
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @DeleteMapping("/{id}")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<ApiResponse> deactivatePlan(@PathVariable Long id) {
@@ -123,6 +130,7 @@ public class PlanController {
      * @param id Plan ID
      * @return Success message
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @PostMapping("/{id}/activate")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<ApiResponse> activatePlan(@PathVariable Long id) {
@@ -138,6 +146,7 @@ public class PlanController {
      * @param dto    Feature assignment data
      * @return Updated plan
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @PostMapping("/{planId}/features")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<PlanDto> assignFeatureToPlan(
@@ -155,6 +164,7 @@ public class PlanController {
      * @param featureCode Feature code to remove
      * @return Updated plan
      */
+    @PreAuthorize("hasAuthority('billing:admin')")
     @DeleteMapping("/{planId}/features/{featureCode}")
 //    @PreAuthorize("hasAuthority('billing:admin')")
     public ResponseEntity<PlanDto> removeFeatureFromPlan(
