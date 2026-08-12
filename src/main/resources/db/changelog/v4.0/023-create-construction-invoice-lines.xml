@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="023-create-construction-invoice-lines" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="construction_invoice_lines"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="construction_invoice_lines">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="invoice_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantity" type="NUMERIC(19, 4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_price" type="NUMERIC(19, 4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_rate" type="NUMERIC(7, 4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_amount" type="NUMERIC(19, 4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="discount_rate" type="NUMERIC(7, 4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="discount_amount" type="NUMERIC(19, 4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subtotal" type="NUMERIC(19, 4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total" type="NUMERIC(19, 4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="inventory_item_id" type="BIGINT"/>
+            <column name="asset_id" type="BIGINT"/>
+            <column name="task_id" type="BIGINT"/>
+            <column name="line_order" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="construction_invoice_lines"
+                                 baseColumnNames="invoice_id"
+                                 constraintName="fk_cinvl_invoice"
+                                 referencedTableName="construction_invoices"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <createIndex tableName="construction_invoice_lines" indexName="idx_cinvl_invoice">
+            <column name="invoice_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

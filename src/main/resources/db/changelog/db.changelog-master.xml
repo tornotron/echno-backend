@@ -226,4 +226,8 @@
     <!-- v4.0 - Finance multi-tenancy (organization scoping) -->
     <include file="db/changelog/v4.0/021-add-org-scope-to-finance.xml"/>
 
+    <!-- v4.0 - Construction invoice module -->
+    <include file="db/changelog/v4.0/022-create-construction-invoices.xml"/>
+    <include file="db/changelog/v4.0/023-create-construction-invoice-lines.xml"/>
+
 </databaseChangeLog>
