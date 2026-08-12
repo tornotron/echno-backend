@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/finance/journal-entries/web")
+@RequestMapping("/api/v1/finance/journal-entries/web")
 @RequiredArgsConstructor
 public class JournalEntryControllerWeb {
 
