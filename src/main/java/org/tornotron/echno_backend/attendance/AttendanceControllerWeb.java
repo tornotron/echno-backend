@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.attendance;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -34,6 +35,7 @@ public class AttendanceControllerWeb {
     }
 
     @PostMapping(value = "/check-in",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<AttendanceResponseDto> checkIn(@RequestParam("data") @Valid String data,
                                                          @RequestParam(value = "photo", required = false)MultipartFile photo) throws JsonProcessingException {
         AttendanceCheckInDto dto = objectMapper.readValue(data, AttendanceCheckInDto.class);
@@ -41,6 +43,7 @@ public class AttendanceControllerWeb {
     }
 
     @PostMapping(value = "/clock-event",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<AttendanceResponseDto> recordClockEvent(@RequestParam("data") @Valid String data,
                                                                     @RequestParam(value = "photo", required = false) MultipartFile photo) throws JsonProcessingException {
         AttendanceClockEventDto dto = objectMapper.readValue(data, AttendanceClockEventDto.class);
@@ -48,11 +51,13 @@ public class AttendanceControllerWeb {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<AttendanceResponseDto> getById(@PathVariable Long id) {
         return ResponseEntity.ok(attendanceService.getAttendanceById(id));
     }
 
     @GetMapping("/employee/{employeeId}")
+    @PreAuthorize("@attendanceSecurity.canViewEmployeeRecords(#employeeId)")
     public ResponseEntity<List<AttendanceResponseDto>> getByEmployee(
             @PathVariable Long employeeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -61,6 +66,7 @@ public class AttendanceControllerWeb {
     }
 
     @GetMapping("/project/{projectId}")
+    @PreAuthorize("@attendanceSecurity.canManageRecords()")
     public ResponseEntity<List<AttendanceResponseDto>> getByProject(
             @PathVariable Long projectId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
@@ -74,6 +80,7 @@ public class AttendanceControllerWeb {
     }
 
     @PostMapping("/{id}/approve")
+    @PreAuthorize("@attendanceSecurity.canManageRecords()")
     public ResponseEntity<AttendanceResponseDto> approve(
             @PathVariable Long id,
             @Valid @RequestBody AttendanceApprovalDto dto) {
@@ -81,6 +88,7 @@ public class AttendanceControllerWeb {
     }
 
     @PostMapping("/mark-absent")
+    @PreAuthorize("@attendanceSecurity.canManageRecords()")
     public ResponseEntity<AttendanceResponseDto> markAbsent(
             @RequestParam Long employeeId,
             @RequestParam Long projectId,
@@ -89,6 +97,7 @@ public class AttendanceControllerWeb {
     }
 
     @GetMapping("/summary/{employeeId}")
+    @PreAuthorize("@attendanceSecurity.canViewEmployeeRecords(#employeeId)")
     public ResponseEntity<AttendanceSummaryDto> getMonthlySummary(
             @PathVariable Long employeeId,
             @RequestParam int month,
@@ -97,6 +106,7 @@ public class AttendanceControllerWeb {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@attendanceSecurity.canManageRecords()")
     public ResponseEntity<ApiResponse> delete(@PathVariable Long id) {
         attendanceService.deleteAttendance(id);
         return ResponseEntity.ok(new ApiResponse("Attendance record deleted successfully"));

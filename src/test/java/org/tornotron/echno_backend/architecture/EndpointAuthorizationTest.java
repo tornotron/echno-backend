@@ -29,18 +29,12 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 class EndpointAuthorizationTest {
 
     /**
-     * Controllers still to be guarded (see the audit's endpoint-authorization
-     * sweep). Shrinks to empty as each is migrated. Do NOT add to this set.
+     * Controllers exempt from the guard rule. The endpoint-authorization sweep is
+     * complete, so this is empty: every controller endpoint must be guarded. Do NOT
+     * add to this set - guard the endpoint instead (use {@code permitAll()} for a
+     * deliberately public one).
      */
-    private static final Set<String> GRANDFATHERED = Set.of(
-            // Only the attendance family remains: it carries no `attendance:*` authority
-            // and has real self-vs-others privacy, so it needs an explicit role model
-            // rather than a membership floor. Held for a follow-up with that model.
-            "AttendanceController", "AttendanceControllerWeb",
-            "AttendanceRegularizationController", "AttendanceRegularizationControllerWeb",
-            "AttendanceSettingsController", "AttendanceSettingsControllerWeb",
-            "MovementRecordController", "MovementRecordControllerWeb",
-            "ShiftTimingController", "ShiftTimingControllerWeb");
+    private static final Set<String> GRANDFATHERED = Set.of();
 
     private static final DescribedPredicate<JavaClass> NOT_GRANDFATHERED =
             new DescribedPredicate<>("not a grandfathered controller") {

@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.attendance;
 
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -24,6 +25,7 @@ public class AttendanceRegularizationController {
     }
 
     @PostMapping("/request")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<AttendanceRegularizationDto> submitRequest(
             @Valid @RequestBody RegularizationRequestDto dto,
             @RequestParam String requestedBy) {
@@ -32,6 +34,7 @@ public class AttendanceRegularizationController {
     }
 
     @PostMapping("/{id}/process")
+    @PreAuthorize("@attendanceSecurity.canManageRecords()")
     public ResponseEntity<AttendanceRegularizationDto> process(
             @PathVariable Long id,
             @Valid @RequestBody RegularizationActionDto dto,
@@ -40,11 +43,13 @@ public class AttendanceRegularizationController {
     }
 
     @GetMapping("/pending")
+    @PreAuthorize("@attendanceSecurity.canManageRecords()")
     public ResponseEntity<List<AttendanceRegularizationDto>> getPending() {
         return ResponseEntity.ok(regularizationService.getPendingRegularizations());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<AttendanceRegularizationDto> getById(@PathVariable Long id) {
         return ResponseEntity.ok(regularizationService.getRegularizationById(id));
     }

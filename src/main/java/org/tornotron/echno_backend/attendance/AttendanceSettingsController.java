@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.attendance;
 
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -24,32 +25,38 @@ public class AttendanceSettingsController {
     }
 
     @PostMapping
+    @PreAuthorize("@attendanceSecurity.canConfigureAttendance()")
     public ResponseEntity<AttendanceSettingsDto> create(@Valid @RequestBody AttendanceSettingsCreationDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(settingsService.createSettings(dto));
     }
 
     @GetMapping
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<AttendanceSettingsDto>> getAll() {
         return ResponseEntity.ok(settingsService.getAllSettings());
     }
 
     @GetMapping("/org")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<AttendanceSettingsDto> getOrgSettings() {
         return ResponseEntity.ok(settingsService.getOrgSettings());
     }
 
     @GetMapping("/project/{projectId}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<AttendanceSettingsDto> getProjectSettings(@PathVariable Long projectId) {
         return ResponseEntity.ok(settingsService.getProjectSettings(projectId));
     }
 
     @PatchMapping("/{id}")
+    @PreAuthorize("@attendanceSecurity.canConfigureAttendance()")
     public ResponseEntity<AttendanceSettingsDto> update(@PathVariable Long id,
                                                          @RequestBody AttendanceSettingsPatchDto dto) {
         return ResponseEntity.ok(settingsService.updateSettings(id, dto));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@attendanceSecurity.canConfigureAttendance()")
     public ResponseEntity<Void> deactivate(@PathVariable Long id) {
         settingsService.deactivateSettings(id);
         return ResponseEntity.noContent().build();

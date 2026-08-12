@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.attendance;
 
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -23,6 +24,7 @@ public class MovementRecordControllerWeb {
     }
 
     @PostMapping
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<MovementRecordDto> create(
             @Valid @RequestBody MovementRecordCreationDto dto,
             @RequestParam Long employeeId) {
@@ -31,16 +33,19 @@ public class MovementRecordControllerWeb {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<MovementRecordDto> getById(@PathVariable Long id) {
         return ResponseEntity.ok(movementRecordService.getMovementById(id));
     }
 
     @GetMapping("/attendance/{attendanceId}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<MovementRecordDto>> getByAttendance(@PathVariable Long attendanceId) {
         return ResponseEntity.ok(movementRecordService.getMovementsByAttendance(attendanceId));
     }
 
     @PostMapping("/{id}/verify")
+    @PreAuthorize("@attendanceSecurity.canManageRecords()")
     public ResponseEntity<MovementRecordDto> verify(@PathVariable Long id,
                                                      @RequestParam String verifiedBy) {
         return ResponseEntity.ok(movementRecordService.verifyMovement(id, verifiedBy));

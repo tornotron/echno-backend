@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.attendance;
 
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -24,27 +25,32 @@ public class ShiftTimingController {
     }
 
     @PostMapping
+    @PreAuthorize("@attendanceSecurity.canConfigureAttendance()")
     public ResponseEntity<ShiftTimingDto> create(@Valid @RequestBody ShiftTimingCreationDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(shiftTimingService.createShiftTiming(dto));
     }
 
     @GetMapping
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<ShiftTimingDto>> getAll() {
         return ResponseEntity.ok(shiftTimingService.getAllShiftTimings());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<ShiftTimingDto> getById(@PathVariable Long id) {
         return ResponseEntity.ok(shiftTimingService.getShiftTimingById(id));
     }
 
     @PatchMapping("/{id}")
+    @PreAuthorize("@attendanceSecurity.canConfigureAttendance()")
     public ResponseEntity<ShiftTimingDto> update(@PathVariable Long id,
                                                   @RequestBody ShiftTimingPatchDto dto) {
         return ResponseEntity.ok(shiftTimingService.updateShiftTiming(id, dto));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@attendanceSecurity.canConfigureAttendance()")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         shiftTimingService.deleteShiftTiming(id);
         return ResponseEntity.noContent().build();
