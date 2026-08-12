@@ -1,0 +1,45 @@
+package org.tornotron.echno_backend.finance.construction.dtos;
+
+import jakarta.validation.constraints.*;
+import org.tornotron.echno_backend.finance.construction.ConstructionPayeeType;
+import org.tornotron.echno_backend.finance.construction.ConstructionPaymentMethod;
+import org.tornotron.echno_backend.finance.construction.ConstructionPaymentType;
+import org.tornotron.echno_backend.finance.construction.ConstructionPaymentVoucherStatus;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.UUID;
+
+/**
+ * Full replacement of an editable construction payment voucher. The status is set
+ * directly (no ledger posting in this increment); no JournalEntry is created on any
+ * status transition.
+ */
+public record UpdateConstructionPaymentRequest(
+        @NotNull ConstructionPaymentType type,
+        @NotNull ConstructionPaymentVoucherStatus status,
+        @NotNull ConstructionPaymentMethod method,
+        ConstructionPayeeType payeeType,
+        @NotNull Long projectId,
+        UUID invoiceId,
+        Long purchaseOrderId,
+        Long vendorId,
+        Long employeeId,
+        Long subContractId,
+        Long labourId,
+        @Size(max = 200) String payeeName,
+        @Size(max = 500) String payeeDetails,
+        @NotNull @Positive BigDecimal amount,
+        @Size(max = 10) String currency,
+        @NotNull LocalDate paymentDate,
+        @Size(max = 100) String transactionId,
+        @Size(max = 100) String referenceNumber,
+        @Size(max = 100) String bankName,
+        @Size(max = 50) String accountNumber,
+        @Size(max = 20) String ifscCode,
+        Long verifiedBy,
+        Instant verifiedAt,
+        @Size(max = 1000) String description,
+        @Size(max = 1000) String notes
+) {}
