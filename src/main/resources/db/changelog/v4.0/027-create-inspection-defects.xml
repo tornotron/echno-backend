@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="027-create-inspection-defects" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="inspection_defects"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="inspection_defects">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="inspection_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category" type="VARCHAR(200)"/>
+            <column name="description" type="VARCHAR(1000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="severity" type="VARCHAR(20)"/>
+            <column name="location" type="VARCHAR(300)"/>
+            <column name="corrective_action" type="VARCHAR(1000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="responsible_party" type="VARCHAR(200)"/>
+            <column name="target_date" type="DATE"/>
+            <column name="status" type="VARCHAR(20)" defaultValue="open"/>
+            <column name="resolved_date" type="DATE"/>
+            <column name="line_order" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="inspection_defects"
+                                 baseColumnNames="inspection_id"
+                                 constraintName="fk_insp_defects_inspection"
+                                 referencedTableName="inspections"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <createIndex tableName="inspection_defects" indexName="idx_insp_defect_inspection">
+            <column name="inspection_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="027-create-inspection-defect-photos" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="inspection_defect_photos"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="inspection_defect_photos">
+            <column name="defect_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="photo" type="VARCHAR(500)"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="inspection_defect_photos"
+                                 baseColumnNames="defect_id"
+                                 constraintName="fk_insp_defect_photos_defect"
+                                 referencedTableName="inspection_defects"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <createIndex tableName="inspection_defect_photos" indexName="idx_insp_defect_photos_defect">
+            <column name="defect_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

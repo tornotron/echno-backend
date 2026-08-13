@@ -233,4 +233,9 @@
     <!-- v4.0 - Construction payment module -->
     <include file="db/changelog/v4.0/024-create-construction-payments.xml"/>
 
+    <!-- v4.0 - Inspection module -->
+    <include file="db/changelog/v4.0/025-create-inspections.xml"/>
+    <include file="db/changelog/v4.0/026-create-inspection-check-items.xml"/>
+    <include file="db/changelog/v4.0/027-create-inspection-defects.xml"/>
+
 </databaseChangeLog>
