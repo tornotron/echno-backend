@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="025-create-inspections" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="inspections"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="inspections">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="inspection_number" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(30)" defaultValue="SCHEDULED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="result" type="VARCHAR(30)"/>
+
+            <column name="project_id" type="BIGINT"/>
+
+            <column name="location" type="VARCHAR(300)"/>
+            <column name="area_inspected" type="VARCHAR(300)"/>
+            <column name="drawing_reference" type="VARCHAR(200)"/>
+
+            <column name="scheduled_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="scheduled_time" type="VARCHAR(20)"/>
+            <column name="actual_start_time" type="TIMESTAMP"/>
+            <column name="actual_end_time" type="TIMESTAMP"/>
+            <column name="duration" type="INT"/>
+
+            <column name="inspector_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="contractor_id" type="BIGINT"/>
+            <column name="client_representative" type="VARCHAR(200)"/>
+
+            <column name="weather_conditions" type="VARCHAR(200)"/>
+            <column name="temperature" type="VARCHAR(50)"/>
+
+            <column name="total_check_points" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="passed_check_points" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="failed_check_points" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="defects_found" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="organization_id" type="BIGINT"/>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="inspections"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_inspections_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addUniqueConstraint tableName="inspections"
+                             columnNames="organization_id, inspection_number"
+                             constraintName="uk_inspection_number"/>
+
+        <createIndex tableName="inspections" indexName="idx_insp_project">
+            <column name="project_id"/>
+        </createIndex>
+        <createIndex tableName="inspections" indexName="idx_insp_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="inspections" indexName="idx_insp_type">
+            <column name="type"/>
+        </createIndex>
+        <createIndex tableName="inspections" indexName="idx_insp_result">
+            <column name="result"/>
+        </createIndex>
+        <createIndex tableName="inspections" indexName="idx_insp_scheduled_date">
+            <column name="scheduled_date"/>
+        </createIndex>
+        <createIndex tableName="inspections" indexName="idx_insp_inspector">
+            <column name="inspector_id"/>
+        </createIndex>
+        <createIndex tableName="inspections" indexName="idx_inspections_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="025-create-inspection-attendees" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="inspection_attendees"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="inspection_attendees">
+            <column name="inspection_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attendee" type="VARCHAR(200)"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="inspection_attendees"
+                                 baseColumnNames="inspection_id"
+                                 constraintName="fk_insp_attendees_inspection"
+                                 referencedTableName="inspections"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <createIndex tableName="inspection_attendees" indexName="idx_insp_attendees_inspection">
+            <column name="inspection_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
