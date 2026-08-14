@@ -8,13 +8,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
-import org.tornotron.echno_backend.DtoConversions.ProjectDtoConvertor;
+import org.tornotron.echno_backend.project.mapper.ProjectMapper;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -41,7 +40,7 @@ public class ProjectService {
     private final OrganizationRepository organizationRepository;
     private final EmployeeRepository employeeRepository;
     private final AttachmentService attachmentService;
-    private final FileStorageService fileStorageService;
+    private final ProjectMapper projectMapper;
     private final EmployeeMapper employeeMapper;
 
     /**
@@ -55,13 +54,13 @@ public class ProjectService {
     public ProjectService(ProjectRepository repository,
                           OrganizationRepository organizationRepository,
                           EmployeeRepository employeeRepository,
-                          AttachmentService attachmentService, FileStorageService fileStorageService,
+                          AttachmentService attachmentService, ProjectMapper projectMapper,
                           EmployeeMapper employeeMapper) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
         this.employeeRepository = employeeRepository;
         this.attachmentService = attachmentService;
-        this.fileStorageService = fileStorageService;
+        this.projectMapper = projectMapper;
         this.employeeMapper = employeeMapper;
     }
 
@@ -102,7 +101,7 @@ public class ProjectService {
                 savedProject = repository.save(savedProject);
             }
 
-            return ProjectDtoConvertor.convertProjectToSimpleDto(savedProject);
+            return projectMapper.toSimpleDto(savedProject);
     }
 
     /**
@@ -116,7 +115,7 @@ public class ProjectService {
     public Page<ProjectDto> getAllProjects(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return repository.findAll(pageable)
-                .map(project -> ProjectDtoConvertor.convertProjectToDto(project,fileStorageService));
+                .map(project -> projectMapper.toDto(project));
     }
 
     /**
@@ -129,7 +128,7 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public ProjectDto getAProject(Long id) {
         ProjectDto projectDto =repository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .map(project -> ProjectDtoConvertor.convertProjectToDto(project,fileStorageService))
+                .map(project -> projectMapper.toDto(project))
                 .orElse(null);
         if(projectDto==null) {
             throw new ResourceNotFoundException("Project with ID " + id + " was not found in this organization");
@@ -158,7 +157,7 @@ public class ProjectService {
                 project.addAttachment(attachment);
             }
         }
-        return ProjectDtoConvertor.convertProjectToSimpleDto(repository.save(project));
+        return projectMapper.toSimpleDto(repository.save(project));
     }
 
     private void partialUpdateAProject(Map<String, Object> updates, Project project) {
@@ -302,7 +301,7 @@ public class ProjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
         return repository.findByEmployees_IdAndOrganization_Id(employeeId, TenantContext.getCurrentOrgId())
                 .stream()
-                .map(project -> ProjectDtoConvertor.convertProjectToDto(project, fileStorageService))
+                .map(project -> projectMapper.toDto(project))
                 .collect(Collectors.toList());
     }
 

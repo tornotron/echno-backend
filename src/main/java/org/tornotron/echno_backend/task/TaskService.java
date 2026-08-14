@@ -7,7 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.tornotron.echno_backend.DtoConversions.TaskDtoConvertor;
+import org.tornotron.echno_backend.task.mapper.TaskMapper;
 import org.tornotron.echno_backend.category.CategoryRepository;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
@@ -15,8 +15,7 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
-import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.DtoConversions.ProjectDtoConvertor;
+import org.tornotron.echno_backend.project.ProjectProgressCalculator;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.organization.Organization;
@@ -47,7 +46,7 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final CategoryRepository categoryRepository;
     private final AttachmentService attachmentService;
-    private final FileStorageService fileStorageService;
+    private final TaskMapper taskMapper;
 
 
     /**
@@ -63,13 +62,13 @@ public class TaskService {
                        ProjectRepository projectRepository,
                        CategoryRepository categoryRepository,
                        AttachmentService attachmentService,
-                       FileStorageService fileStorageService) {
+                       TaskMapper taskMapper) {
         this.taskRepository = taskRepository;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.categoryRepository = categoryRepository;
         this.attachmentService = attachmentService;
-        this.fileStorageService = fileStorageService;
+        this.taskMapper = taskMapper;
     }
 
 
@@ -156,7 +155,7 @@ public class TaskService {
 
         updateProjectProgress(savedTask.getProject());
 
-        return TaskDtoConvertor.convertTaskToSimpleDto(savedTask);
+        return taskMapper.toSimpleDto(savedTask);
     }
 
     /**
@@ -170,7 +169,7 @@ public class TaskService {
     public Page<TaskDto> getAllTasks(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
         return taskRepository.findAll(pageable)
-                .map(task -> TaskDtoConvertor.convertTaskToDto(task,fileStorageService));
+                .map(task -> taskMapper.toDto(task));
     }
 
     /**
@@ -181,7 +180,7 @@ public class TaskService {
     @Transactional(readOnly = true)
     public List<TaskDto> getAllTasks() {
         return taskRepository.findAll().stream()
-                .map(task -> TaskDtoConvertor.convertTaskToDto(task,fileStorageService))
+                .map(task -> taskMapper.toDto(task))
                 .toList();
     }
 
@@ -195,7 +194,7 @@ public class TaskService {
     @Transactional(readOnly = true)
     public TaskDto getATask(Long id) {
         TaskDto taskDto = taskRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .map(task -> TaskDtoConvertor.convertTaskToDto(task,fileStorageService))
+                .map(task -> taskMapper.toDto(task))
                 .orElse(null);
         if(taskDto == null) {
             throw new ResourceNotFoundException("Task with ID " + id + " was not found in this organization");
@@ -207,7 +206,7 @@ public class TaskService {
     @Transactional(readOnly = true)
     public List<TaskDto> getTasksByProjectId(Long projectId) {
         return taskRepository.findAllByProject_IdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId()).stream()
-                .map(task -> TaskDtoConvertor.convertTaskToDto(task,fileStorageService))
+                .map(task -> taskMapper.toDto(task))
                 .collect(Collectors.toList());
     }
 
@@ -233,7 +232,7 @@ public class TaskService {
 
        Task savedTask = taskRepository.save(task);
        updateProjectProgress(savedTask.getProject());
-       return TaskDtoConvertor.convertTaskToSimpleDto(savedTask);
+       return taskMapper.toSimpleDto(savedTask);
     }
 
     private void partialUpdateATask(Map<String, Object> updates, Task task) {
@@ -338,7 +337,7 @@ public class TaskService {
 
     private void updateProjectProgress(Project project) {
         List<Task> tasks = taskRepository.findByProject_Id(project.getId());
-        Double progress = ProjectDtoConvertor.calculateProjectProgress(tasks);
+        Double progress = ProjectProgressCalculator.calculate(tasks);
         project.setProgress(progress);
         projectRepository.save(project);
     }
