@@ -3,7 +3,7 @@ package org.tornotron.echno_backend.projectInviteCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
-import org.tornotron.echno_backend.DtoConversions.ProjectInviteCodeDtoConvertor;
+import org.tornotron.echno_backend.projectInviteCode.mapper.ProjectInviteCodeMapper;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
@@ -39,6 +39,7 @@ public class ProjectInviteCodeService {
     private final OrganizationRepository organizationRepository;
     private final FileStorageService fileStorageService;
     private final EmployeeRepository employeeRepository;
+    private final ProjectInviteCodeMapper projectInviteCodeMapper;
 
     /**
      * Constructs a ProjectInviteCodeService with the necessary repositories and services.
@@ -47,12 +48,13 @@ public class ProjectInviteCodeService {
      * @param employeeService        The service for employee-related operations.
      * @param organizationRepository The repository for organization data access.
      */
-    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository, FileStorageService fileStorageService, EmployeeRepository employeeRepository) {
+    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository, FileStorageService fileStorageService, EmployeeRepository employeeRepository, ProjectInviteCodeMapper projectInviteCodeMapper) {
         this.inviteCodeRepository = inviteCodeRepository;
         this.employeeService = employeeService;
         this.organizationRepository = organizationRepository;
         this.fileStorageService = fileStorageService;
         this.employeeRepository = employeeRepository;
+        this.projectInviteCodeMapper = projectInviteCodeMapper;
     }
 
     /**
@@ -107,7 +109,7 @@ public class ProjectInviteCodeService {
         if(savedProjectInviteCode.getId() == null) {
             throw new DatabaseOperationException("Invite code for organization " + organizationId + " could not be persisted");
         }
-        return ProjectInviteCodeDtoConvertor.convertToDto(savedProjectInviteCode);
+        return projectInviteCodeMapper.toDto(savedProjectInviteCode);
     }
 
     /**
@@ -180,14 +182,14 @@ public class ProjectInviteCodeService {
         }
 
         ProjectInviteCode updatedInviteCode = inviteCodeRepository.save(inviteCode);
-        return ProjectInviteCodeDtoConvertor.convertToDto(updatedInviteCode);
+        return projectInviteCodeMapper.toDto(updatedInviteCode);
     }
 
     @Transactional(readOnly = true)
     public List<ProjectInviteCodeDto> readAllProjectInviteCodes(Long organizationId) {
         return inviteCodeRepository.findByOrganization_Id(organizationId)
                 .stream()
-                .map(ProjectInviteCodeDtoConvertor::convertToDto)
+                .map(projectInviteCodeMapper::toDto)
                 .toList();
     }
 }

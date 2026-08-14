@@ -3,7 +3,7 @@ package org.tornotron.echno_backend.leave;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
-import org.tornotron.echno_backend.DtoConversions.LeaveCalendarDtoConvertor;
+import org.tornotron.echno_backend.leave.mapper.LeaveCalendarMapper;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveCalendarDto;
@@ -21,12 +21,15 @@ public class LeaveCalendarService {
 
     private final LeaveCalendarRepository calendarRepository;
     private final EmployeeRepository employeeRepository;
+    private final LeaveCalendarMapper leaveCalendarMapper;
 
     public LeaveCalendarService(
             LeaveCalendarRepository calendarRepository,
-            EmployeeRepository employeeRepository) {
+            EmployeeRepository employeeRepository,
+            LeaveCalendarMapper leaveCalendarMapper) {
         this.calendarRepository = calendarRepository;
         this.employeeRepository = employeeRepository;
+        this.leaveCalendarMapper = leaveCalendarMapper;
     }
 
     @Transactional
@@ -69,7 +72,7 @@ public class LeaveCalendarService {
             LocalDate endDate) {
         return calendarRepository.findByOrganizationAndDateRange(organizationId, startDate, endDate)
                 .stream()
-                .map(LeaveCalendarDtoConvertor::convertToDto)
+                .map(leaveCalendarMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -82,7 +85,7 @@ public class LeaveCalendarService {
         return calendarRepository.findByOrganizationAndDepartmentAndDateRange(
                         organizationId, department, startDate, endDate)
                 .stream()
-                .map(LeaveCalendarDtoConvertor::convertToDto)
+                .map(leaveCalendarMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -93,7 +96,7 @@ public class LeaveCalendarService {
             LocalDate endDate) {
         return calendarRepository.findByEmployeeAndDateRange(employeeId, startDate, endDate)
                 .stream()
-                .map(LeaveCalendarDtoConvertor::convertToDto)
+                .map(leaveCalendarMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -115,7 +118,7 @@ public class LeaveCalendarService {
 
         return calendarRepository.findByEmployeeIdsAndDateRange(employeeIds, startDate, endDate)
                 .stream()
-                .map(LeaveCalendarDtoConvertor::convertToDto)
+                .map(leaveCalendarMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -126,7 +129,7 @@ public class LeaveCalendarService {
             LocalDate endDate) {
         return calendarRepository.findByOrganizationAndDateRange(organizationId, startDate, endDate)
                 .stream()
-                .map(LeaveCalendarDtoConvertor::convertToDto)
+                .map(leaveCalendarMapper::toDto)
                 .collect(Collectors.groupingBy(LeaveCalendarDto::getLeaveDate));
     }
 
