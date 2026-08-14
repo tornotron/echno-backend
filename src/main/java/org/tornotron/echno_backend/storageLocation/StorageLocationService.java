@@ -6,12 +6,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.StorageLocationDtoConvertor;
+import org.tornotron.echno_backend.storageLocation.mapper.StorageLocationMapper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
-import org.tornotron.echno_backend.inventoryTransaction.CurrentStockRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.storageLocation.dto.StorageLocationCreationDto;
@@ -28,15 +27,15 @@ public class StorageLocationService {
     private final StorageLocationRepository storageLocationRepository;
     private final ProjectRepository projectRepository;
     private final TenantEntityHelper tenantEntityHelper;
-    private final CurrentStockRepository currentStockRepository;
+    private final StorageLocationMapper storageLocationMapper;
 
     public StorageLocationService(StorageLocationRepository storageLocationRepository,
                                   ProjectRepository projectRepository,
-                                  TenantEntityHelper tenantEntityHelper, CurrentStockRepository currentStockRepository) {
+                                  TenantEntityHelper tenantEntityHelper, StorageLocationMapper storageLocationMapper) {
         this.storageLocationRepository = storageLocationRepository;
         this.projectRepository = projectRepository;
         this.tenantEntityHelper = tenantEntityHelper;
-        this.currentStockRepository = currentStockRepository;
+        this.storageLocationMapper = storageLocationMapper;
     }
 
     @Transactional
@@ -68,20 +67,20 @@ public class StorageLocationService {
         }
 
         storageLocation = storageLocationRepository.save(storageLocation);
-        return StorageLocationDtoConvertor.convertToDto(storageLocation,currentStockRepository,TenantContext.getCurrentOrgId());
+        return storageLocationMapper.toDto(storageLocation);
     }
 
     @Transactional(readOnly = true)
     public StorageLocationDto getStorageLocationById(Long id) {
         StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Storage location with ID " + id + " was not found in this organization"));
-        return StorageLocationDtoConvertor.convertToDto(storageLocation,currentStockRepository,TenantContext.getCurrentOrgId());
+        return storageLocationMapper.toDto(storageLocation);
     }
 
     @Transactional(readOnly = true)
     public List<StorageLocationDto> getAllStorageLocations() {
         return storageLocationRepository.findAll().stream()
-                .map(storageLocation -> StorageLocationDtoConvertor.convertToDto(storageLocation,currentStockRepository,TenantContext.getCurrentOrgId()))
+                .map(storageLocation -> storageLocationMapper.toDto(storageLocation))
                 .collect(Collectors.toList());
     }
 
@@ -89,20 +88,20 @@ public class StorageLocationService {
     public Page<StorageLocationDto> getAllStorageLocations(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "locationName"));
         return storageLocationRepository.findAll(pageable)
-                .map(storageLocation -> StorageLocationDtoConvertor.convertToDto(storageLocation,currentStockRepository,TenantContext.getCurrentOrgId()));
+                .map(storageLocation -> storageLocationMapper.toDto(storageLocation));
     }
 
     @Transactional(readOnly = true)
     public List<StorageLocationDto> getStorageLocationsByProject(Long projectId) {
         return storageLocationRepository.findByProjectId(projectId).stream()
-                .map(storageLocation -> StorageLocationDtoConvertor.convertToDto(storageLocation,currentStockRepository,TenantContext.getCurrentOrgId()))
+                .map(storageLocation -> storageLocationMapper.toDto(storageLocation))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<StorageLocationDto> getStorageLocationsByType(StorageLocationType locationType) {
         return storageLocationRepository.findByLocationType(locationType).stream()
-                .map(storageLocation -> StorageLocationDtoConvertor.convertToDto(storageLocation,currentStockRepository,TenantContext.getCurrentOrgId()))
+                .map(storageLocation -> storageLocationMapper.toDto(storageLocation))
                 .collect(Collectors.toList());
     }
 
@@ -155,7 +154,7 @@ public class StorageLocationService {
         }
 
         storageLocation = storageLocationRepository.save(storageLocation);
-        return StorageLocationDtoConvertor.convertToDto(storageLocation,currentStockRepository,TenantContext.getCurrentOrgId());
+        return storageLocationMapper.toDto(storageLocation);
     }
 
     @Transactional

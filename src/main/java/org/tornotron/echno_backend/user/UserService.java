@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
-import org.tornotron.echno_backend.DtoConversions.UserDtoConvertor;
+import org.tornotron.echno_backend.user.mapper.UserMapper;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.service.AttachmentService;
@@ -57,6 +57,7 @@ public class UserService {
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
     private final EmployeeMapper employeeMapper;
+    private final UserMapper userMapper;
 
     @Value("${keycloak-initializer.application-realm}")
     private String realm;
@@ -68,12 +69,13 @@ public class UserService {
      * @param keycloak       The Keycloak client.
      * @param attachmentService The service for attachment operations.
      */
-    public UserService(UserRepository userRepository, Keycloak keycloak, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper) {
+    public UserService(UserRepository userRepository, Keycloak keycloak, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper) {
         this.userRepository = userRepository;
         this.keycloak = keycloak;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
         this.employeeMapper = employeeMapper;
+        this.userMapper = userMapper;
     }
 
     /**
@@ -103,7 +105,7 @@ public class UserService {
                 throw new IllegalArgumentException("'" + userRegistrationDto.getRole() + "' is not a valid user role");
             }
             user.setKeycloakId(keycloakId);
-            return UserDtoConvertor.convertUserToDto(userRepository.save(user), fileStorageService);
+            return userMapper.toDto(userRepository.save(user));
         } catch (Exception e) {
             deleteKeycloakUser(keycloakId);
             throw e;
@@ -202,7 +204,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserDto getCurrentUserDto(String keycloakId) {
         return userRepository.findUserWithAttachmentsByKeycloakId(keycloakId)
-                .map(user -> UserDtoConvertor.convertUserToDto(user, fileStorageService))
+                .map(user -> userMapper.toDto(user))
                 .orElseThrow(() -> new ResourceNotFoundException("User with Keycloak ID '" + keycloakId + "' was not found"));
     }
 
@@ -225,7 +227,7 @@ public class UserService {
         }
         Pageable pageable = PageRequest.of(pageNo,pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return userRepository.findUsersByOrganizationId(organizationId, pageable)
-                .map(usr -> UserDtoConvertor.convertUserToDto(usr,fileStorageService));
+                .map(usr -> userMapper.toDto(usr));
     }
 
     /**
@@ -237,7 +239,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserDto getAnUser(String sub) {
         return userRepository.findUserByKeycloakId(sub)
-                .map(usr -> UserDtoConvertor.convertUserToDto(usr,fileStorageService))
+                .map(usr -> userMapper.toDto(usr))
                 .orElseThrow(() -> new ResourceNotFoundException("User with subject identifier '" + sub + "' was not found"));
     }
 
@@ -273,7 +275,7 @@ public class UserService {
         handleProfilePictureUpload(user, profilePicture, id);
         handleCvUpload(user, cv, id);
 
-        return UserDtoConvertor.convertUserToDto(userRepository.save(user), fileStorageService);
+        return userMapper.toDto(userRepository.save(user));
     }
 
     private void applyUpdates(Map<String, Object> updates, User user) {

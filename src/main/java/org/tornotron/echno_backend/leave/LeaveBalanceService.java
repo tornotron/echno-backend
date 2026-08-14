@@ -4,7 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.tornotron.echno_backend.DtoConversions.LeaveBalanceDtoConvertor;
-import org.tornotron.echno_backend.DtoConversions.LeaveTransactionDtoConvertor;
+import org.tornotron.echno_backend.leave.mapper.LeaveTransactionMapper;
 import org.tornotron.echno_backend.attendance.Attendance;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
 import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
@@ -35,6 +35,7 @@ public class LeaveBalanceService {
     private final LeaveRequestRepository requestRepository;
     private final EmployeeRepository employeeRepository;
     private final AttendanceRepository attendanceRepository;
+    private final LeaveTransactionMapper leaveTransactionMapper;
 
     public LeaveBalanceService(
             LeaveBalanceRepository balanceRepository,
@@ -42,13 +43,15 @@ public class LeaveBalanceService {
             LeaveTransactionRepository transactionRepository,
             LeaveRequestRepository requestRepository,
             EmployeeRepository employeeRepository,
-            AttendanceRepository attendanceRepository) {
+            AttendanceRepository attendanceRepository,
+            LeaveTransactionMapper leaveTransactionMapper) {
         this.balanceRepository = balanceRepository;
         this.policyRepository = policyRepository;
         this.transactionRepository = transactionRepository;
         this.requestRepository = requestRepository;
         this.employeeRepository = employeeRepository;
         this.attendanceRepository = attendanceRepository;
+        this.leaveTransactionMapper = leaveTransactionMapper;
     }
 
     @Transactional
@@ -188,14 +191,14 @@ public class LeaveBalanceService {
         transaction.setCreatedById(dto.getAdjustedById());
 
         LeaveTransaction saved = transactionRepository.save(transaction);
-        return LeaveTransactionDtoConvertor.convertToDto(saved);
+        return leaveTransactionMapper.toDto(saved);
     }
 
     @Transactional(readOnly = true)
     public List<LeaveTransactionDto> getTransactionHistory(Long employeeId) {
         return transactionRepository.findByEmployeeIdOrderByCreatedAtDesc(employeeId)
                 .stream()
-                .map(LeaveTransactionDtoConvertor::convertToDto)
+                .map(leaveTransactionMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -203,7 +206,7 @@ public class LeaveBalanceService {
     public List<LeaveTransactionDto> getTransactionsByBalance(Long balanceId) {
         return transactionRepository.findByLeaveBalanceIdOrderByCreatedAtDesc(balanceId)
                 .stream()
-                .map(LeaveTransactionDtoConvertor::convertToDto)
+                .map(leaveTransactionMapper::toDto)
                 .collect(Collectors.toList());
     }
 
