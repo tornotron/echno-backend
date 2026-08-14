@@ -3,7 +3,7 @@ package org.tornotron.echno_backend.leave;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
-import org.tornotron.echno_backend.DtoConversions.LeavePolicyDtoConvertor;
+import org.tornotron.echno_backend.leave.mapper.LeavePolicyMapper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -29,15 +29,18 @@ public class LeavePolicyService {
     private final OrganizationRepository organizationRepository;
     private final EmployeeRepository employeeRepository;
     private final UserContextService userContextService;
+    private final LeavePolicyMapper leavePolicyMapper;
 
     public LeavePolicyService(
             LeavePolicyRepository policyRepository,
             OrganizationRepository organizationRepository,
-            EmployeeRepository employeeRepository, UserContextService userContextService) {
+            EmployeeRepository employeeRepository, UserContextService userContextService,
+            LeavePolicyMapper leavePolicyMapper) {
         this.policyRepository = policyRepository;
         this.organizationRepository = organizationRepository;
         this.employeeRepository = employeeRepository;
         this.userContextService = userContextService;
+        this.leavePolicyMapper = leavePolicyMapper;
     }
 
     @Transactional
@@ -75,7 +78,7 @@ public class LeavePolicyService {
         policy.setDisplayOrder(dto.getDisplayOrder());
 
         LeavePolicy saved = policyRepository.save(policy);
-        return LeavePolicyDtoConvertor.convertToDto(saved);
+        return leavePolicyMapper.toDto(saved);
     }
 
     @Transactional(readOnly = true)
@@ -83,13 +86,13 @@ public class LeavePolicyService {
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy with ID " + policyId + " was not found in this organization"));
-        return LeavePolicyDtoConvertor.convertToDto(policy);
+        return leavePolicyMapper.toDto(policy);
     }
 
     @Transactional(readOnly = true)
     public List<LeavePolicyDto> getAllPolicies() {
         return policyRepository.findAll().stream()
-                .map(LeavePolicyDtoConvertor::convertToDto)
+                .map(leavePolicyMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -102,7 +105,7 @@ public class LeavePolicyService {
 
         return policyRepository.findByOrganizationIdAndIsActiveTrueOrderByDisplayOrderAsc(organizationId)
                 .stream()
-                .map(LeavePolicyDtoConvertor::convertToDto)
+                .map(leavePolicyMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -115,7 +118,7 @@ public class LeavePolicyService {
 
         return policyRepository.findByOrganizationId(organizationId)
                 .stream()
-                .map(LeavePolicyDtoConvertor::convertToDto)
+                .map(leavePolicyMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -136,7 +139,7 @@ public class LeavePolicyService {
                         employee.getGender(),
                         serviceMonths)
                 .stream()
-                .map(LeavePolicyDtoConvertor::convertToDto)
+                .map(leavePolicyMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -178,7 +181,7 @@ public class LeavePolicyService {
         });
 
         LeavePolicy saved = policyRepository.save(policy);
-        return LeavePolicyDtoConvertor.convertToDto(saved);
+        return leavePolicyMapper.toDto(saved);
     }
 
     @Transactional
@@ -240,6 +243,6 @@ public class LeavePolicyService {
         duplicate.setDisplayOrder(source.getDisplayOrder());
 
         LeavePolicy saved = policyRepository.save(duplicate);
-        return LeavePolicyDtoConvertor.convertToDto(saved);
+        return leavePolicyMapper.toDto(saved);
     }
 }
