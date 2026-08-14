@@ -6,10 +6,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.InventoryTransactionDtoConvertor;
+import org.tornotron.echno_backend.inventoryTransaction.mapper.InventoryTransactionMapper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryTransactionDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.TaskMaterialUsageDto;
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
@@ -26,25 +25,25 @@ import java.util.stream.Collectors;
 public class InventoryTransactionService {
 
     private final InventoryTransactionRepository inventoryTransactionRepository;
-    private final FileStorageService fileStorageService;
+    private final InventoryTransactionMapper inventoryTransactionMapper;
 
     public InventoryTransactionService(InventoryTransactionRepository inventoryTransactionRepository,
-                                       FileStorageService fileStorageService) {
+                                       InventoryTransactionMapper inventoryTransactionMapper) {
         this.inventoryTransactionRepository = inventoryTransactionRepository;
-        this.fileStorageService = fileStorageService;
+        this.inventoryTransactionMapper = inventoryTransactionMapper;
     }
 
     @Transactional(readOnly = true)
     public InventoryTransactionDto getTransactionById(Long id) {
         InventoryTransaction transaction = inventoryTransactionRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Inventory transaction not found with id: " + id));
-        return InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService);
+        return inventoryTransactionMapper.toDto(transaction);
     }
 
     @Transactional(readOnly = true)
     public List<InventoryTransactionDto> getAllTransactions() {
         return inventoryTransactionRepository.findAll().stream()
-                .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction))
                 .collect(Collectors.toList());
     }
 
@@ -52,55 +51,55 @@ public class InventoryTransactionService {
     public Page<InventoryTransactionDto> getAllTransactions(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "transactionDate"));
         return inventoryTransactionRepository.findAll(pageable)
-                .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService));
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction));
     }
 
     @Transactional(readOnly = true)
     public List<InventoryTransactionDto> getTransactionsByMaterial(Long materialId) {
         return inventoryTransactionRepository.findByMaterialId(materialId).stream()
-                .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<InventoryTransactionDto> getTransactionsByProject(Long projectId) {
         return inventoryTransactionRepository.findByProjectId(projectId).stream()
-                .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<InventoryTransactionDto> getTransactionsByType(InventoryTransactionType transactionType) {
         return inventoryTransactionRepository.findByTransactionType(transactionType).stream()
-                .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<InventoryTransactionDto> getTransactionsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         return inventoryTransactionRepository.findByTransactionDateBetween(startDate, endDate).stream()
-                .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<InventoryTransactionDto> getTransactionsByStorageLocation(Long storageLocationId) {
         return inventoryTransactionRepository.findByStorageLocationId(storageLocationId).stream()
-                .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<InventoryTransactionDto> getTransactionsByStorageLocationMaterialAndProject(Long storageLocationId, Long materialId, Long projectId) {
         return inventoryTransactionRepository.findByStorageLocationIdAndMaterialIdAndProjectId(storageLocationId,materialId,projectId).stream()
-                .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<InventoryTransactionDto> getTransactionsByTask(Long taskId) {
         return inventoryTransactionRepository.findByTaskId(taskId).stream()
-                .map(transaction -> InventoryTransactionDtoConvertor.convertToDto(transaction, fileStorageService))
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction))
                 .collect(Collectors.toList());
     }
 
