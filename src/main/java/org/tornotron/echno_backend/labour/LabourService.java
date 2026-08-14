@@ -6,7 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.LabourDtoConvertor;
+import org.tornotron.echno_backend.labour.mapper.LabourMapper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
@@ -26,11 +26,13 @@ public class LabourService {
     private final LabourRepository labourRepository;
     private final TenantEntityHelper tenantEntityHelper;
     private final ProjectRepository projectRepository;
+    private final LabourMapper labourMapper;
 
-    public LabourService(LabourRepository labourRepository, TenantEntityHelper tenantEntityHelper, ProjectRepository projectRepository) {
+    public LabourService(LabourRepository labourRepository, TenantEntityHelper tenantEntityHelper, ProjectRepository projectRepository, LabourMapper labourMapper) {
         this.labourRepository = labourRepository;
         this.tenantEntityHelper = tenantEntityHelper;
         this.projectRepository = projectRepository;
+        this.labourMapper = labourMapper;
     }
 
     @Transactional
@@ -59,20 +61,20 @@ public class LabourService {
         labour.setBankName(labourCreationDto.getBankName());
         labour.setIfscCode(labourCreationDto.getIfscCode());
         labour.setAdditionalNotes(labourCreationDto.getAdditionalNotes());
-        return LabourDtoConvertor.convertLabourToSimpleDto(labourRepository.save(labour));
+        return labourMapper.toSimpleDto(labourRepository.save(labour));
     }
 
     @Transactional(readOnly = true)
     public Page<LabourDto> getAllLabours(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
         return labourRepository.findAll(pageable)
-                .map(LabourDtoConvertor::convertLabourToDto);
+                .map(labourMapper::toDto);
     }
 
     @Transactional(readOnly = true)
     public LabourDto getALabour(Long id) {
         return labourRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .map(LabourDtoConvertor::convertLabourToDto).
+                .map(labourMapper::toDto).
                 orElseThrow(() -> new ResourceNotFoundException("Labour with ID " + id + " was not found in this organization"));
     }
 
