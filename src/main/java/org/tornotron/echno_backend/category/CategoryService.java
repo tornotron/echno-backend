@@ -6,7 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.CategoryDtoConvertor;
+import org.tornotron.echno_backend.category.mapper.CategoryMapper;
 import org.tornotron.echno_backend.category.dto.CategoryCreationDto;
 import org.tornotron.echno_backend.category.dto.CategoryDto;
 import org.tornotron.echno_backend.category.dto.CategorySimpleDto;
@@ -25,6 +25,7 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final TenantEntityHelper tenantEntityHelper;
+    private final CategoryMapper categoryMapper;
 
     /**
      * Constructs a CategoryService with the given CategoryRepository.
@@ -32,9 +33,10 @@ public class CategoryService {
      * @param categoryRepository The repository for category data access.
      * @param tenantEntityHelper The helper for resolving the current organization.
      */
-    public CategoryService(CategoryRepository categoryRepository, TenantEntityHelper tenantEntityHelper) {
+    public CategoryService(CategoryRepository categoryRepository, TenantEntityHelper tenantEntityHelper, CategoryMapper categoryMapper) {
         this.categoryRepository = categoryRepository;
         this.tenantEntityHelper = tenantEntityHelper;
+        this.categoryMapper = categoryMapper;
     }
 
     /**
@@ -56,7 +58,7 @@ public class CategoryService {
         category.setDescription(categoryCreationDto.getDescription());
         category.setIcon(categoryCreationDto.getIcon());
         category.setImage(categoryCreationDto.getImage());
-        return CategoryDtoConvertor.convertCategoryToSimpleDto(categoryRepository.save(category));
+        return categoryMapper.toSimpleDto(categoryRepository.save(category));
     }
 
     /**
@@ -70,7 +72,7 @@ public class CategoryService {
     public Page<CategoryDto> getAllCategories(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
         return categoryRepository.findAll(pageable)
-                .map(CategoryDtoConvertor::convertCategoryToDto);
+                .map(categoryMapper::toDto);
     }
 
     /**
@@ -83,7 +85,7 @@ public class CategoryService {
     @Transactional(readOnly = true)
     public CategoryDto getACategory(Long id) {
         CategoryDto categoryDto = categoryRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .map(CategoryDtoConvertor::convertCategoryToDto)
+                .map(categoryMapper::toDto)
                 .orElse(null);
 
         if(categoryDto == null) {
