@@ -17,7 +17,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.tornotron.echno_backend.DtoConversions.EmployeeDtoConvertor;
+import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.DtoConversions.UserDtoConvertor;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -56,6 +56,7 @@ public class UserService {
     private final Keycloak keycloak;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
+    private final EmployeeMapper employeeMapper;
 
     @Value("${keycloak-initializer.application-realm}")
     private String realm;
@@ -67,11 +68,12 @@ public class UserService {
      * @param keycloak       The Keycloak client.
      * @param attachmentService The service for attachment operations.
      */
-    public UserService(UserRepository userRepository, Keycloak keycloak, AttachmentService attachmentService,FileStorageService fileStorageService) {
+    public UserService(UserRepository userRepository, Keycloak keycloak, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper) {
         this.userRepository = userRepository;
         this.keycloak = keycloak;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
+        this.employeeMapper = employeeMapper;
     }
 
     /**
@@ -185,7 +187,7 @@ public class UserService {
     public List<EmployeeDto> getEmployeesForUser(String keycloakId) {
         return userRepository.findUserWithEmployeesByKeycloakId(keycloakId)
                 .map(user -> user.getEmployees().stream()
-                        .map(emp -> EmployeeDtoConvertor.convertEmployeeToDto(emp, fileStorageService))
+                        .map(emp -> employeeMapper.toDto(emp))
                         .collect(Collectors.toList()))
                 .orElse(List.of());
     }

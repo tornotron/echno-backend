@@ -5,10 +5,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import lombok.extern.slf4j.Slf4j;
-import org.tornotron.echno_backend.DtoConversions.EmployeeDtoConvertor;
+import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -44,7 +43,7 @@ public class EmployeeService {
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final KeycloakGroupService keycloakGroupService;
-    private final FileStorageService fileStorageService;
+    private final EmployeeMapper employeeMapper;
 
     /**
      * Constructs an EmployeeService with the necessary repositories.
@@ -54,12 +53,12 @@ public class EmployeeService {
      * @param userRepository         The repository for user data access.
      * @param keycloakGroupService   The service for managing Keycloak groups.
      */
-    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, KeycloakGroupService keycloakGroupService, FileStorageService fileStorageService) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, KeycloakGroupService keycloakGroupService, EmployeeMapper employeeMapper) {
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.keycloakGroupService = keycloakGroupService;
-        this.fileStorageService = fileStorageService;
+        this.employeeMapper = employeeMapper;
     }
 
     /**
@@ -89,7 +88,7 @@ public class EmployeeService {
             employee.setManager(manager);
         }
 
-        return EmployeeDtoConvertor.convertEmployeeToDto(employeeRepository.save(employee),fileStorageService);
+        return employeeMapper.toDto(employeeRepository.save(employee));
     }
 
 
@@ -163,7 +162,7 @@ public class EmployeeService {
                     "Failed to add user " + userId + " to organization " + orgId + " in Keycloak: " + e.getMessage(), e);
         }
 
-        return EmployeeDtoConvertor.convertEmployeeToDto(savedEmployee,fileStorageService);
+        return employeeMapper.toDto(savedEmployee);
     }
 
     /**
@@ -191,7 +190,7 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public List<EmployeeDto> displayAllEmployees() {
         return employeeRepository.findAll().stream()
-                .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
+                .map(employee -> employeeMapper.toDto(employee))
                 .collect(Collectors.toList());
     }
 
@@ -205,7 +204,7 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public EmployeeDto displayAnEmployee(Long id) {
         EmployeeDto employeeDto = employeeRepository.findByIdAndOrganizationId(id,TenantContext.getCurrentOrgId())
-                .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
+                .map(employee -> employeeMapper.toDto(employee))
                 .orElse(null);
         if(employeeDto == null) {
             throw new ResourceNotFoundException("Employee with ID " + id + " was not found in this organization");
@@ -223,7 +222,7 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public List<EmployeeDto> displayEmployeesByOrganization(Long organizationId) {
         return employeeRepository.findEmployeesByOrganization_Id(organizationId).stream()
-                .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
+                .map(employee -> employeeMapper.toDto(employee))
                 .collect(Collectors.toList());
     }
 
@@ -353,8 +352,7 @@ public class EmployeeService {
         validateManager(employee, manager);
         employee.setManager(manager);
 
-        return EmployeeDtoConvertor.convertEmployeeToDto(employeeRepository.save(employee),fileStorageService
-        );
+        return employeeMapper.toDto(employeeRepository.save(employee));
     }
 
     /**
@@ -371,7 +369,7 @@ public class EmployeeService {
 
         employee.setManager(null);
 
-        return EmployeeDtoConvertor.convertEmployeeToDto(employeeRepository.save(employee),fileStorageService);
+        return employeeMapper.toDto(employeeRepository.save(employee));
     }
 
     /**
@@ -387,7 +385,7 @@ public class EmployeeService {
             throw new ResourceNotFoundException("Manager with ID " + managerId + " was not found in this organization");
         }
         return employeeRepository.findByManager_Id(managerId).stream()
-                .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
+                .map(employee -> employeeMapper.toDto(employee))
                 .collect(Collectors.toList());
     }
 
@@ -445,7 +443,7 @@ public class EmployeeService {
     public List<EmployeeDto> readAllTheManagers() {
         return employeeRepository.findEmployeesByOrgRoles(OrgRole.getManagerRoles())
                 .stream()
-                .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
+                .map(employee -> employeeMapper.toDto(employee))
                 .collect(Collectors.toList());
     }
 
@@ -453,7 +451,7 @@ public class EmployeeService {
     public List<EmployeeDto> readAllTheManagersByOrganizationId(Long organizationId) {
         return employeeRepository.findEmployeesByOrganization_IdAndIsManager(organizationId,true)
                 .stream()
-                .map(employee -> EmployeeDtoConvertor.convertEmployeeToDto(employee,fileStorageService))
+                .map(employee -> employeeMapper.toDto(employee))
                 .collect(Collectors.toList());
     }
 
@@ -478,7 +476,7 @@ public class EmployeeService {
                     "Failed to assign role '" + role + "' to employee " + employeeId + " in Keycloak: " + e.getMessage(), e);
         }
 
-        return EmployeeDtoConvertor.convertEmployeeToDto(savedEmployee,fileStorageService);
+        return employeeMapper.toDto(savedEmployee);
     }
 
     @Transactional
@@ -502,7 +500,7 @@ public class EmployeeService {
                     "Failed to remove role '" + role + "' from employee " + employeeId + " in Keycloak: " + e.getMessage(), e);
         }
 
-        return EmployeeDtoConvertor.convertEmployeeToDto(savedEmployee,fileStorageService);
+        return employeeMapper.toDto(savedEmployee);
     }
 
     @Transactional(readOnly = true)

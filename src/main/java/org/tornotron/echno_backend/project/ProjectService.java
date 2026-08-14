@@ -7,7 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.tornotron.echno_backend.DtoConversions.EmployeeDtoConvertor;
+import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.DtoConversions.ProjectDtoConvertor;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
@@ -42,6 +42,7 @@ public class ProjectService {
     private final EmployeeRepository employeeRepository;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
+    private final EmployeeMapper employeeMapper;
 
     /**
      * Constructs a ProjectService with the necessary repositories.
@@ -54,12 +55,14 @@ public class ProjectService {
     public ProjectService(ProjectRepository repository,
                           OrganizationRepository organizationRepository,
                           EmployeeRepository employeeRepository,
-                          AttachmentService attachmentService, FileStorageService fileStorageService) {
+                          AttachmentService attachmentService, FileStorageService fileStorageService,
+                          EmployeeMapper employeeMapper) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
         this.employeeRepository = employeeRepository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
+        this.employeeMapper = employeeMapper;
     }
 
     /**
@@ -264,7 +267,7 @@ public class ProjectService {
         repository.save(project);
 
         return project.getEmployees().stream()
-                .map(e -> EmployeeDtoConvertor.convertEmployeeToDto(e, fileStorageService))
+                .map(e -> employeeMapper.toDto(e))
                 .collect(Collectors.toList());
     }
 
@@ -309,7 +312,7 @@ public class ProjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization"));
 
         return project.getEmployees().stream()
-                .map(e -> EmployeeDtoConvertor.convertEmployeeToDto(e, fileStorageService))
+                .map(e -> employeeMapper.toDto(e))
                 .collect(Collectors.toList());
     }
 }
