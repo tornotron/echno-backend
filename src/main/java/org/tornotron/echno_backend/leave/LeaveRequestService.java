@@ -5,7 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
-import org.tornotron.echno_backend.DtoConversions.LeaveRequestDtoConvertor;
+import org.tornotron.echno_backend.leave.mapper.LeaveRequestMapper;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -35,6 +35,7 @@ public class LeaveRequestService {
     private final EmployeeRepository employeeRepository;
     private final LeaveApprovalService approvalService;
     private final LeaveBalanceService balanceService;
+    private final LeaveRequestMapper leaveRequestMapper;
 
     public LeaveRequestService(
             LeaveRequestRepository requestRepository,
@@ -43,7 +44,8 @@ public class LeaveRequestService {
             LeaveBalanceRepository balanceRepository,
             EmployeeRepository employeeRepository,
             LeaveApprovalService approvalService,
-            LeaveBalanceService balanceService) {
+            LeaveBalanceService balanceService,
+            LeaveRequestMapper leaveRequestMapper) {
         this.requestRepository = requestRepository;
         this.sequenceRepository = sequenceRepository;
         this.policyRepository = policyRepository;
@@ -51,6 +53,7 @@ public class LeaveRequestService {
         this.employeeRepository = employeeRepository;
         this.approvalService = approvalService;
         this.balanceService = balanceService;
+        this.leaveRequestMapper = leaveRequestMapper;
     }
 
     @Transactional
@@ -104,7 +107,7 @@ public class LeaveRequestService {
             }
         }
 
-        return LeaveRequestDtoConvertor.convertToDto(saved);
+        return leaveRequestMapper.toDto(saved);
     }
 
     @Transactional(readOnly = true)
@@ -112,20 +115,25 @@ public class LeaveRequestService {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
-        return LeaveRequestDtoConvertor.convertToDtoWithHandover(request, employeeRepository);
+        LeaveRequestDto dto = leaveRequestMapper.toDto(request);
+        if (request.getHandoverToId() != null) {
+            employeeRepository.findById(request.getHandoverToId())
+                    .ifPresent(emp -> dto.setHandoverToName(emp.getEmployeeName()));
+        }
+        return dto;
     }
 
     @Transactional(readOnly = true)
     public Page<LeaveRequestDto> getRequestsByEmployee(Long employeeId, Pageable pageable) {
         return requestRepository.findByEmployeeId(employeeId, pageable)
-                .map(LeaveRequestDtoConvertor::convertToDto);
+                .map(leaveRequestMapper::toDto);
     }
 
     @Transactional(readOnly = true)
     public List<LeaveRequestDto> getRequestsByEmployeeAndStatus(Long employeeId, LeaveStatus status) {
         return requestRepository.findByEmployeeIdAndStatus(employeeId, status)
                 .stream()
-                .map(LeaveRequestDtoConvertor::convertToDto)
+                .map(leaveRequestMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -133,7 +141,7 @@ public class LeaveRequestService {
     public List<LeaveRequestDto> getRequestsByOrganization() {
         return requestRepository.findByOrganizationId(TenantContext.getCurrentOrgId())
                 .stream()
-                .map(LeaveRequestDtoConvertor::convertToDto)
+                .map(leaveRequestMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -141,7 +149,7 @@ public class LeaveRequestService {
     public List<LeaveRequestDto> getPendingApprovals(Long approverId) {
         return requestRepository.findByCurrentApproverIdAndStatus(approverId, LeaveStatus.PENDING_APPROVAL)
                 .stream()
-                .map(LeaveRequestDtoConvertor::convertToDto)
+                .map(leaveRequestMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -149,7 +157,7 @@ public class LeaveRequestService {
     public List<LeaveRequestDto> getRequestsByApprover(Long approverId) {
         return requestRepository.findDistinctByApproverParticipation(approverId)
                 .stream()
-                .map(LeaveRequestDtoConvertor::convertToDto)
+                .map(leaveRequestMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -194,7 +202,7 @@ public class LeaveRequestService {
         request.setTotalDays(totalDays);
 
         LeaveRequest saved = requestRepository.save(request);
-        return LeaveRequestDtoConvertor.convertToDto(saved);
+        return leaveRequestMapper.toDto(saved);
     }
 
     @Transactional
@@ -222,7 +230,7 @@ public class LeaveRequestService {
             updatePendingBalance(saved, true);
         }
 
-        return LeaveRequestDtoConvertor.convertToDto(saved);
+        return leaveRequestMapper.toDto(saved);
     }
 
     @Transactional
@@ -251,7 +259,7 @@ public class LeaveRequestService {
             restoreUsedBalance(saved);
         }
 
-        return LeaveRequestDtoConvertor.convertToDto(saved);
+        return leaveRequestMapper.toDto(saved);
     }
 
     @Transactional
@@ -274,7 +282,7 @@ public class LeaveRequestService {
         request.setCurrentApprover(null);
 
         LeaveRequest saved = requestRepository.save(request);
-        return LeaveRequestDtoConvertor.convertToDto(saved);
+        return leaveRequestMapper.toDto(saved);
     }
 
     @Transactional(readOnly = true)
