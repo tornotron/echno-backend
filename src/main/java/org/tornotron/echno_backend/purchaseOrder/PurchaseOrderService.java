@@ -6,12 +6,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.PurchaseOrderDtoConvertor;
+import org.tornotron.echno_backend.purchaseOrder.mapper.PurchaseOrderMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.indent.Indent;
@@ -42,7 +41,7 @@ public class PurchaseOrderService {
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final VendorRepository vendorRepository;
     private final IndentRepository indentRepository;
-    private final FileStorageService fileStorageService;
+    private final PurchaseOrderMapper purchaseOrderMapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
@@ -53,7 +52,7 @@ public class PurchaseOrderService {
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                                 VendorRepository vendorRepository,
                                 IndentRepository indentRepository,
-                                FileStorageService fileStorageService,
+                                PurchaseOrderMapper purchaseOrderMapper,
                                 TenantEntityHelper tenantEntityHelper,
                                 EmployeeRepository employeeRepository,
                                 ProjectRepository projectRepository,
@@ -63,7 +62,7 @@ public class PurchaseOrderService {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.vendorRepository = vendorRepository;
         this.indentRepository = indentRepository;
-        this.fileStorageService = fileStorageService;
+        this.purchaseOrderMapper = purchaseOrderMapper;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
@@ -120,7 +119,7 @@ public class PurchaseOrderService {
         }
 
         purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
-        return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder, fileStorageService);
+        return purchaseOrderMapper.toDto(purchaseOrder);
     }
 
     @Transactional
@@ -141,13 +140,13 @@ public class PurchaseOrderService {
     public PurchaseOrderDto getPurchaseOrderById(Long id) {
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + id + " was not found in this organization"));
-        return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder, fileStorageService);
+        return purchaseOrderMapper.toDto(purchaseOrder);
     }
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderDto> getAllPurchaseOrders() {
         return purchaseOrderRepository.findAll().stream()
-                .map(po -> PurchaseOrderDtoConvertor.convertToDto(po, fileStorageService))
+                .map(po -> purchaseOrderMapper.toDto(po))
                 .collect(Collectors.toList());
     }
 
@@ -155,27 +154,27 @@ public class PurchaseOrderService {
     public Page<PurchaseOrderDto> getAllPurchaseOrders(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         return purchaseOrderRepository.findAll(pageable)
-                .map(po -> PurchaseOrderDtoConvertor.convertToDto(po, fileStorageService));
+                .map(po -> purchaseOrderMapper.toDto(po));
     }
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderDto> getPurchaseOrdersByVendor(Long vendorId) {
         return purchaseOrderRepository.findByVendorId(vendorId).stream()
-                .map(po -> PurchaseOrderDtoConvertor.convertToDto(po, fileStorageService))
+                .map(po -> purchaseOrderMapper.toDto(po))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderDto> getPurchaseOrdersByIndent(Long indentId) {
         return purchaseOrderRepository.findByIndentId(indentId).stream()
-                .map(po -> PurchaseOrderDtoConvertor.convertToDto(po, fileStorageService))
+                .map(po -> purchaseOrderMapper.toDto(po))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderDto> getPurchaseOrdersByStatus(PurchaseOrderStatus status) {
         return purchaseOrderRepository.findByStatus(status).stream()
-                .map(po -> PurchaseOrderDtoConvertor.convertToDto(po, fileStorageService))
+                .map(po -> purchaseOrderMapper.toDto(po))
                 .collect(Collectors.toList());
     }
 
@@ -197,7 +196,7 @@ public class PurchaseOrderService {
         }
 
         purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
-        return PurchaseOrderDtoConvertor.convertToDto(purchaseOrder, fileStorageService);
+        return purchaseOrderMapper.toDto(purchaseOrder);
     }
 
     @Transactional

@@ -6,12 +6,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.PayableDtoConvertor;
+import org.tornotron.echno_backend.payable.mapper.PayableMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
@@ -37,7 +36,7 @@ public class PayableService {
     private final VendorRepository vendorRepository;
     private final GoodsReceivedNoteRepository goodsReceivedNoteRepository;
     private final UserRepository userRepository;
-    private final FileStorageService fileStorageService;
+    private final PayableMapper payableMapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
@@ -46,7 +45,7 @@ public class PayableService {
                           VendorRepository vendorRepository,
                           GoodsReceivedNoteRepository goodsReceivedNoteRepository,
                           UserRepository userRepository,
-                          FileStorageService fileStorageService,
+                          PayableMapper payableMapper,
                           TenantEntityHelper tenantEntityHelper,
                           EmployeeRepository employeeRepository,
                           ProjectRepository projectRepository) {
@@ -54,7 +53,7 @@ public class PayableService {
         this.vendorRepository = vendorRepository;
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.userRepository = userRepository;
-        this.fileStorageService = fileStorageService;
+        this.payableMapper = payableMapper;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
@@ -102,7 +101,7 @@ public class PayableService {
         payable.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         payable = payableRepository.save(payable);
-        return PayableDtoConvertor.convertToDto(payable, fileStorageService);
+        return payableMapper.toDto(payable);
     }
 
     @Transactional
@@ -114,20 +113,20 @@ public class PayableService {
         payable.setAmountPaid(currentPaid.add(paymentAmount));
 
         payable = payableRepository.save(payable);
-        return PayableDtoConvertor.convertToDto(payable, fileStorageService);
+        return payableMapper.toDto(payable);
     }
 
     @Transactional(readOnly = true)
     public PayableDto getPayableById(Long id) {
         Payable payable = payableRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payable with ID " + id + " was not found in this organization"));
-        return PayableDtoConvertor.convertToDto(payable, fileStorageService);
+        return payableMapper.toDto(payable);
     }
 
     @Transactional(readOnly = true)
     public List<PayableDto> getAllPayables() {
         return payableRepository.findAll().stream()
-                .map(payable -> PayableDtoConvertor.convertToDto(payable, fileStorageService))
+                .map(payable -> payableMapper.toDto(payable))
                 .collect(Collectors.toList());
     }
 
@@ -135,20 +134,20 @@ public class PayableService {
     public Page<PayableDto> getAllPayables(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         return payableRepository.findAll(pageable)
-                .map(payable -> PayableDtoConvertor.convertToDto(payable, fileStorageService));
+                .map(payable -> payableMapper.toDto(payable));
     }
 
     @Transactional(readOnly = true)
     public List<PayableDto> getPayablesByVendor(Long vendorId) {
         return payableRepository.findByVendorIdAndOrganization_id(vendorId,TenantContext.getCurrentOrgId()).stream()
-                .map(payable -> PayableDtoConvertor.convertToDto(payable, fileStorageService))
+                .map(payable -> payableMapper.toDto(payable))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<PayableDto> getOutstandingPayables() {
         return payableRepository.findOutstandingPayables().stream()
-                .map(payable -> PayableDtoConvertor.convertToDto(payable, fileStorageService))
+                .map(payable -> payableMapper.toDto(payable))
                 .collect(Collectors.toList());
     }
 }
