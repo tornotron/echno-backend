@@ -134,8 +134,9 @@ public class ConstructionInvoiceService {
         inv.getLines().clear();
         applyLinesAndTotals(inv, req.lines());
 
-        log.info("Updated construction invoice {}", inv.getInvoiceNumber());
-        return mapper.toDto(inv);
+        ConstructionInvoice saved = invoiceRepo.saveAndFlush(inv);
+        log.info("Updated construction invoice {}", saved.getInvoiceNumber());
+        return mapper.toDto(saved);
     }
 
     /**

@@ -201,6 +201,9 @@ class ConstructionInvoiceServiceIT extends AbstractIntegrationTest {
         ConstructionInvoiceDto updated = service.update(id, updateReq);
         assertThat(updated.status()).isEqualTo(ConstructionInvoiceStatus.SENT);
         assertThat(updated.lines()).hasSize(1);
+        // The replaced line must be flushed so it carries a generated id; otherwise
+        // the client-side parser rejects the null id and the update looks failed.
+        assertThat(updated.lines().getFirst().id()).isNotNull();
         assertThat(updated.subtotal()).isEqualByComparingTo(bd("300"));
         assertThat(updated.taxAmount()).isEqualByComparingTo(bd("54"));
         assertThat(updated.discountAmount()).isEqualByComparingTo(BigDecimal.ZERO);
