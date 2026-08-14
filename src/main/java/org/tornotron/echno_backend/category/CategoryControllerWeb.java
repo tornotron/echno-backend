@@ -39,7 +39,7 @@ public class CategoryControllerWeb {
      * @return A {@link ResponseEntity} with a success message and HTTP status 201 (Created).
      */
     @PostMapping
-    @PreAuthorize("hasAuthority('category:create') or hasAuthority('category:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     public ResponseEntity<CategorySimpleDto> createCategory(@Valid @RequestBody CategoryCreationDto categoryCreationDto) {
         logger.info("Category Added Successfully");
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -54,7 +54,7 @@ public class CategoryControllerWeb {
      * @return A {@link ResponseEntity} containing the list of category DTOs and HTTP status 200 (OK).
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('category:read') or hasAuthority('category:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<CategoryDto>> readAllCategories(@RequestParam(defaultValue = "0") int pageNo,
                                                           @RequestParam(defaultValue = "10") int pageSize) {
         Page<CategoryDto> categories = categoryService.getAllCategories(pageNo, pageSize);
@@ -70,7 +70,7 @@ public class CategoryControllerWeb {
      * @return A {@link ResponseEntity} containing the category DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("hasAuthority('category:read') or hasAuthority('category:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<?> readACategory(@PathVariable Long id) {
         CategoryDto categoryDto = categoryService.getACategory(id);
         return new ResponseEntity<>(categoryDto, HttpStatus.OK);
@@ -83,7 +83,7 @@ public class CategoryControllerWeb {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("hasAuthority('category:delete') or hasAuthority('category:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     public ResponseEntity<ApiResponse> deleteACategory(@PathVariable Long id) {
         categoryService.deleteACategory(id);
         return ResponseEntity.status(HttpStatus.OK)
