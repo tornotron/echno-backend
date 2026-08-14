@@ -5,13 +5,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
-import org.tornotron.echno_backend.DtoConversions.NotificationDtoConvertor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.NotificationDto;
 import org.tornotron.echno_backend.leave.enums.ApprovalAction;
+import org.tornotron.echno_backend.leave.mapper.NotificationMapper;
 import org.tornotron.echno_backend.leave.enums.NotificationType;
 
 import java.time.LocalDateTime;
@@ -24,12 +24,15 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final EmployeeRepository employeeRepository;
+    private final NotificationMapper notificationMapper;
 
     public NotificationService(
             NotificationRepository notificationRepository,
-            EmployeeRepository employeeRepository) {
+            EmployeeRepository employeeRepository,
+            NotificationMapper notificationMapper) {
         this.notificationRepository = notificationRepository;
         this.employeeRepository = employeeRepository;
+        this.notificationMapper = notificationMapper;
     }
 
     @Transactional
@@ -151,14 +154,14 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public Page<NotificationDto> getNotifications(Long employeeId, Pageable pageable) {
         return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(employeeId, pageable)
-                .map(NotificationDtoConvertor::convertToDto);
+                .map(notificationMapper::toDto);
     }
 
     @Transactional(readOnly = true)
     public List<NotificationDto> getUnreadNotifications(Long employeeId) {
         return notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(employeeId)
                 .stream()
-                .map(NotificationDtoConvertor::convertToDto)
+                .map(notificationMapper::toDto)
                 .collect(Collectors.toList());
     }
 
