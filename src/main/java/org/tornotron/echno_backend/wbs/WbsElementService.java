@@ -2,12 +2,11 @@ package org.tornotron.echno_backend.wbs;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.WbsElementDtoConvertor;
+import org.tornotron.echno_backend.wbs.mapper.WbsElementMapper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.project.Project;
@@ -26,16 +25,16 @@ public class WbsElementService {
     private final WbsElementRepository wbsElementRepository;
     private final ProjectRepository projectRepository;
     private final EmployeeRepository employeeRepository;
-    private final FileStorageService fileStorageService;
+    private final WbsElementMapper wbsElementMapper;
 
     public WbsElementService(WbsElementRepository wbsElementRepository,
                              ProjectRepository projectRepository,
                              EmployeeRepository employeeRepository,
-                             FileStorageService fileStorageService) {
+                             WbsElementMapper wbsElementMapper) {
         this.wbsElementRepository = wbsElementRepository;
         this.projectRepository = projectRepository;
         this.employeeRepository = employeeRepository;
-        this.fileStorageService = fileStorageService;
+        this.wbsElementMapper = wbsElementMapper;
     }
 
     @Transactional
@@ -99,7 +98,7 @@ public class WbsElementService {
         }
 
         WbsElement savedElement = wbsElementRepository.save(element);
-        return WbsElementDtoConvertor.convertToDto(savedElement, fileStorageService);
+        return wbsElementMapper.toDto(savedElement);
     }
 
     @Transactional
@@ -121,7 +120,7 @@ public class WbsElementService {
                 .findByProjectIdAndParentIsNullAndOrganization_IdOrderBySortOrderAsc(projectId, orgId);
 
         return rootElements.stream()
-                .map(element -> WbsElementDtoConvertor.convertToTreeDto(element, fileStorageService))
+                .map(element -> wbsElementMapper.toTreeDto(element))
                 .collect(Collectors.toList());
     }
 
@@ -137,7 +136,7 @@ public class WbsElementService {
                 .findByProjectIdAndOrganization_IdOrderByWbsCodeAsc(projectId, orgId);
 
         return elements.stream()
-                .map(WbsElementDtoConvertor::convertToFlatDto)
+                .map(wbsElementMapper::toFlatDto)
                 .collect(Collectors.toList());
     }
 
@@ -148,7 +147,7 @@ public class WbsElementService {
         WbsElement element = wbsElementRepository.findByIdAndOrganization_Id(elementId, orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("WBS element with ID " + elementId + " was not found in this organization"));
 
-        return WbsElementDtoConvertor.convertToTreeDto(element, fileStorageService);
+        return wbsElementMapper.toTreeDto(element);
     }
 
     @Transactional
@@ -197,7 +196,7 @@ public class WbsElementService {
         }
 
         WbsElement savedElement = wbsElementRepository.save(element);
-        return WbsElementDtoConvertor.convertToDto(savedElement, fileStorageService);
+        return wbsElementMapper.toDto(savedElement);
     }
 
     @Transactional
@@ -284,7 +283,7 @@ public class WbsElementService {
             recalculateParentProgress(oldParent);
         }
 
-        return WbsElementDtoConvertor.convertToDto(savedElement, fileStorageService);
+        return wbsElementMapper.toDto(savedElement);
     }
 
     @Transactional(readOnly = true)
@@ -297,7 +296,7 @@ public class WbsElementService {
 
         return wbsElementRepository.findByProjectIdAndIsLeafTrueAndOrganization_IdOrderByWbsCodeAsc(projectId, orgId)
                 .stream()
-                .map(WbsElementDtoConvertor::convertToFlatDto)
+                .map(wbsElementMapper::toFlatDto)
                 .collect(Collectors.toList());
     }
 
@@ -312,7 +311,7 @@ public class WbsElementService {
         recalculateProgressFromChildren(element);
         WbsElement saved = wbsElementRepository.save(element);
 
-        return WbsElementDtoConvertor.convertToDto(saved, fileStorageService);
+        return wbsElementMapper.toDto(saved);
     }
 
     private void recalculateParentProgress(WbsElement parent) {
