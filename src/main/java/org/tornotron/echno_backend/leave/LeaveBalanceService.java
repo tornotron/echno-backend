@@ -3,7 +3,7 @@ package org.tornotron.echno_backend.leave;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
-import org.tornotron.echno_backend.DtoConversions.LeaveBalanceDtoConvertor;
+import org.tornotron.echno_backend.leave.mapper.LeaveBalanceMapper;
 import org.tornotron.echno_backend.leave.mapper.LeaveTransactionMapper;
 import org.tornotron.echno_backend.attendance.Attendance;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
@@ -36,6 +36,7 @@ public class LeaveBalanceService {
     private final EmployeeRepository employeeRepository;
     private final AttendanceRepository attendanceRepository;
     private final LeaveTransactionMapper leaveTransactionMapper;
+    private final LeaveBalanceMapper leaveBalanceMapper;
 
     public LeaveBalanceService(
             LeaveBalanceRepository balanceRepository,
@@ -44,7 +45,8 @@ public class LeaveBalanceService {
             LeaveRequestRepository requestRepository,
             EmployeeRepository employeeRepository,
             AttendanceRepository attendanceRepository,
-            LeaveTransactionMapper leaveTransactionMapper) {
+            LeaveTransactionMapper leaveTransactionMapper,
+            LeaveBalanceMapper leaveBalanceMapper) {
         this.balanceRepository = balanceRepository;
         this.policyRepository = policyRepository;
         this.transactionRepository = transactionRepository;
@@ -52,6 +54,7 @@ public class LeaveBalanceService {
         this.employeeRepository = employeeRepository;
         this.attendanceRepository = attendanceRepository;
         this.leaveTransactionMapper = leaveTransactionMapper;
+        this.leaveBalanceMapper = leaveBalanceMapper;
     }
 
     @Transactional
@@ -65,7 +68,7 @@ public class LeaveBalanceService {
                         "Leave policy with ID " + policyId + " was not found in this organization"));
 
         if (isBeforeJoiningYear(employee, year)) {
-            return LeaveBalanceDtoConvertor.convertToDto(zeroBalance(employee, policy, year));
+            return leaveBalanceMapper.toDto(zeroBalance(employee, policy, year));
         }
 
         LeaveBalance balance = balanceRepository
@@ -76,7 +79,7 @@ public class LeaveBalanceService {
             recalculateBalance(balance);
         }
 
-        return LeaveBalanceDtoConvertor.convertToDto(balance);
+        return leaveBalanceMapper.toDto(balance);
     }
 
     @Transactional
@@ -125,11 +128,15 @@ public class LeaveBalanceService {
                 })
                 .collect(java.util.stream.Collectors.toList());
 
-        return LeaveBalanceDtoConvertor.convertToSummaryDto(
-                employeeId,
-                employee.getEmployeeName(),
-                year,
-                balances);
+        LeaveBalanceSummaryDto summary = new LeaveBalanceSummaryDto();
+        summary.setEmployeeId(employeeId);
+        summary.setEmployeeName(employee.getEmployeeName());
+        summary.setYear(year);
+        summary.setBalances(balances.stream().map(leaveBalanceMapper::toDto).collect(Collectors.toList()));
+        summary.setTotalAvailable(balances.stream().mapToDouble(LeaveBalance::getAvailableBalance).sum());
+        summary.setTotalUsed(balances.stream().mapToDouble(LeaveBalance::getUsed).sum());
+        summary.setTotalPending(balances.stream().mapToDouble(LeaveBalance::getPending).sum());
+        return summary;
     }
 
     @Transactional
@@ -147,7 +154,7 @@ public class LeaveBalanceService {
                 .orElseGet(() -> initializeBalance(employee, policy, year));
 
         recalculateBalance(balance);
-        return LeaveBalanceDtoConvertor.convertToDto(balance);
+        return leaveBalanceMapper.toDto(balance);
     }
 
     @Transactional
