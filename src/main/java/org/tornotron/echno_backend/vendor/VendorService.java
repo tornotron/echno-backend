@@ -6,12 +6,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.*;
+import org.tornotron.echno_backend.vendor.mapper.VendorMapper;
+import org.tornotron.echno_backend.vendor.mapper.VendorContactMapper;
+import org.tornotron.echno_backend.vendor.mapper.VendorTaxIdentifierMapper;
+import org.tornotron.echno_backend.vendor.mapper.VendorBankAccountMapper;
+import org.tornotron.echno_backend.vendor.mapper.VendorPaymentTermsMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.vendor.dto.*;
 import org.tornotron.echno_backend.vendor.enums.PaymentTermsType;
 import org.tornotron.echno_backend.vendor.enums.TaxIdentifierType;
@@ -30,7 +33,11 @@ public class VendorService {
     private final VendorTaxIdentifierRepository vendorTaxIdentifierRepository;
     private final VendorPaymentTermsRepository vendorPaymentTermsRepository;
     private final TenantEntityHelper tenantEntityHelper;
-    private final FileStorageService fileStorageService;
+    private final VendorMapper vendorMapper;
+    private final VendorContactMapper vendorContactMapper;
+    private final VendorTaxIdentifierMapper vendorTaxIdentifierMapper;
+    private final VendorBankAccountMapper vendorBankAccountMapper;
+    private final VendorPaymentTermsMapper vendorPaymentTermsMapper;
 
     public VendorService(VendorRepository vendorRepository,
                          VendorContactRepository vendorContactRepository,
@@ -38,14 +45,22 @@ public class VendorService {
                          VendorTaxIdentifierRepository vendorTaxIdentifierRepository,
                          VendorPaymentTermsRepository vendorPaymentTermsRepository,
                          TenantEntityHelper tenantEntityHelper,
-                         FileStorageService fileStorageService) {
+                         VendorMapper vendorMapper,
+                         VendorContactMapper vendorContactMapper,
+                         VendorTaxIdentifierMapper vendorTaxIdentifierMapper,
+                         VendorBankAccountMapper vendorBankAccountMapper,
+                         VendorPaymentTermsMapper vendorPaymentTermsMapper) {
         this.vendorRepository = vendorRepository;
         this.vendorContactRepository = vendorContactRepository;
         this.vendorBankAccountRepository = vendorBankAccountRepository;
         this.vendorTaxIdentifierRepository = vendorTaxIdentifierRepository;
         this.vendorPaymentTermsRepository = vendorPaymentTermsRepository;
         this.tenantEntityHelper = tenantEntityHelper;
-        this.fileStorageService = fileStorageService;
+        this.vendorMapper = vendorMapper;
+        this.vendorContactMapper = vendorContactMapper;
+        this.vendorTaxIdentifierMapper = vendorTaxIdentifierMapper;
+        this.vendorBankAccountMapper = vendorBankAccountMapper;
+        this.vendorPaymentTermsMapper = vendorPaymentTermsMapper;
     }
 
     // ==================== Vendor CRUD ====================
@@ -92,19 +107,19 @@ public class VendorService {
         }
 
         vendor = vendorRepository.save(vendor);
-        return VendorDtoConvertor.convertToDto(vendor, fileStorageService);
+        return vendorMapper.toDto(vendor);
     }
 
     @Transactional(readOnly = true)
     public VendorDto getVendorById(Long id) {
         Vendor vendor = findVendorByIdAndOrg(id);
-        return VendorDtoConvertor.convertToDto(vendor, fileStorageService);
+        return vendorMapper.toDto(vendor);
     }
 
     @Transactional(readOnly = true)
     public List<VendorDto> getAllVendors() {
         return vendorRepository.findAll().stream()
-                .map(vendor -> VendorDtoConvertor.convertToDto(vendor, fileStorageService))
+                .map(vendor -> vendorMapper.toDto(vendor))
                 .collect(Collectors.toList());
     }
 
@@ -112,13 +127,13 @@ public class VendorService {
     public Page<VendorDto> getAllVendors(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "vendorName"));
         return vendorRepository.findAll(pageable)
-                .map(vendor -> VendorDtoConvertor.convertToDto(vendor, fileStorageService));
+                .map(vendor -> vendorMapper.toDto(vendor));
     }
 
     @Transactional(readOnly = true)
     public List<VendorDto> searchVendorsByName(String name) {
         return vendorRepository.findByVendorNameContainingIgnoreCase(name).stream()
-                .map(vendor -> VendorDtoConvertor.convertToDto(vendor, fileStorageService))
+                .map(vendor -> vendorMapper.toDto(vendor))
                 .collect(Collectors.toList());
     }
 
@@ -135,7 +150,7 @@ public class VendorService {
 
         mapVendorFields(vendor, updateDto);
         vendor = vendorRepository.save(vendor);
-        return VendorDtoConvertor.convertToDto(vendor, fileStorageService);
+        return vendorMapper.toDto(vendor);
     }
 
     @Transactional
@@ -152,7 +167,7 @@ public class VendorService {
     public List<VendorContactDto> getContactsByVendorId(Long vendorId) {
         findVendorByIdAndOrg(vendorId);
         return vendorContactRepository.findByVendor_Id(vendorId).stream()
-                .map(VendorContactDtoConvertor::convertToDto)
+                .map(vendorContactMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -163,7 +178,7 @@ public class VendorService {
         contact.setOrganization(vendor.getOrganization());
         vendor.addContact(contact);
         vendorRepository.save(vendor);
-        return VendorContactDtoConvertor.convertToDto(contact);
+        return vendorContactMapper.toDto(contact);
     }
 
     @Transactional
@@ -180,7 +195,7 @@ public class VendorService {
         contact.setAlternatePhone(dto.getAlternatePhone());
         contact.setPrimary(dto.isPrimary());
         contact = vendorContactRepository.save(contact);
-        return VendorContactDtoConvertor.convertToDto(contact);
+        return vendorContactMapper.toDto(contact);
     }
 
     @Transactional
@@ -201,7 +216,7 @@ public class VendorService {
     public List<VendorTaxIdentifierDto> getTaxIdentifiersByVendorId(Long vendorId) {
         findVendorByIdAndOrg(vendorId);
         return vendorTaxIdentifierRepository.findByVendor_Id(vendorId).stream()
-                .map(VendorTaxIdentifierDtoConvertor::convertToDto)
+                .map(vendorTaxIdentifierMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -212,7 +227,7 @@ public class VendorService {
         taxId.setOrganization(vendor.getOrganization());
         vendor.addTaxIdentifier(taxId);
         vendorRepository.save(vendor);
-        return VendorTaxIdentifierDtoConvertor.convertToDto(taxId);
+        return vendorTaxIdentifierMapper.toDto(taxId);
     }
 
     @Transactional
@@ -226,7 +241,7 @@ public class VendorService {
         taxId.setType(TaxIdentifierType.valueOf(dto.getType()));
         taxId.setValue(dto.getValue());
         taxId = vendorTaxIdentifierRepository.save(taxId);
-        return VendorTaxIdentifierDtoConvertor.convertToDto(taxId);
+        return vendorTaxIdentifierMapper.toDto(taxId);
     }
 
     @Transactional
@@ -247,7 +262,7 @@ public class VendorService {
     public List<VendorBankAccountDto> getBankAccountsByVendorId(Long vendorId) {
         findVendorByIdAndOrg(vendorId);
         return vendorBankAccountRepository.findByVendor_Id(vendorId).stream()
-                .map(VendorBankAccountsDtoConvertor::convertToDto)
+                .map(vendorBankAccountMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -258,7 +273,7 @@ public class VendorService {
         account.setOrganization(vendor.getOrganization());
         vendor.addBankAccount(account);
         vendorRepository.save(vendor);
-        return VendorBankAccountsDtoConvertor.convertToDto(account);
+        return vendorBankAccountMapper.toDto(account);
     }
 
     @Transactional
@@ -276,7 +291,7 @@ public class VendorService {
         account.setSwift(dto.getSwift());
         account.setDefault(dto.isDefault());
         account = vendorBankAccountRepository.save(account);
-        return VendorBankAccountsDtoConvertor.convertToDto(account);
+        return vendorBankAccountMapper.toDto(account);
     }
 
     @Transactional
@@ -298,7 +313,7 @@ public class VendorService {
         findVendorByIdAndOrg(vendorId);
         VendorPaymentTerms terms = vendorPaymentTermsRepository.findByVendor_Id(vendorId)
                 .orElse(null);
-        return VendorPaymentTermsDtoConvertor.convertToDto(terms);
+        return vendorPaymentTermsMapper.toDto(terms);
     }
 
     @Transactional
@@ -319,7 +334,7 @@ public class VendorService {
             terms.setCreditDays(dto.getCreditDays());
             vendorPaymentTermsRepository.save(terms);
         }
-        return VendorPaymentTermsDtoConvertor.convertToDto(terms);
+        return vendorPaymentTermsMapper.toDto(terms);
     }
 
     @Transactional
