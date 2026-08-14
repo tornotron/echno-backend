@@ -6,12 +6,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.MaterialDtoConvertor;
+import org.tornotron.echno_backend.material.mapper.MaterialMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
@@ -40,7 +39,7 @@ public class MaterialService {
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
     private final StorageLocationRepository storageLocationRepository;
-    private final FileStorageService fileStorageService;
+    private final MaterialMapper materialMapper;
     private final UserContextService userContextService;
 
 
@@ -49,7 +48,7 @@ public class MaterialService {
                            InventoryTransactionRepository inventoryTransactionRepository,
                            TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository,
                            ProjectRepository projectRepository, StorageLocationRepository storageLocationRepository,
-                           FileStorageService fileStorageService, UserContextService userContextService) {
+                           MaterialMapper materialMapper, UserContextService userContextService) {
         this.materialRepository = materialRepository;
         this.inventoryService = inventoryService;
         this.inventoryTransactionRepository = inventoryTransactionRepository;
@@ -57,7 +56,7 @@ public class MaterialService {
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.storageLocationRepository = storageLocationRepository;
-        this.fileStorageService = fileStorageService;
+        this.materialMapper = materialMapper;
         this.userContextService = userContextService;
     }
 
@@ -126,20 +125,20 @@ public class MaterialService {
                     material.getOrganization(), quantity, unitCost);
         }
 
-        return MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService);
+        return materialMapper.toDto(material);
     }
 
     @Transactional(readOnly = true)
     public MaterialDto getMaterialById(Long id) {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + id + " was not found in this organization"));
-        return MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService);
+        return materialMapper.toDto(material);
     }
 
     @Transactional(readOnly = true)
     public List<MaterialDto> getAllMaterials() {
         return materialRepository.findAll().stream()
-                .map(material -> MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService))
+                .map(material -> materialMapper.toDto(material))
                 .collect(Collectors.toList());
     }
 
@@ -147,13 +146,13 @@ public class MaterialService {
     public Page<MaterialDto> getAllMaterials(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "materialName"));
         return materialRepository.findAll(pageable)
-                .map(material -> MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService));
+                .map(material -> materialMapper.toDto(material));
     }
 
     @Transactional(readOnly = true)
     public List<MaterialDto> searchMaterialsByName(String name) {
         return materialRepository.findByMaterialNameContainingIgnoreCase(name).stream()
-                .map(material -> MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService))
+                .map(material -> materialMapper.toDto(material))
                 .collect(Collectors.toList());
     }
 
@@ -207,7 +206,7 @@ public class MaterialService {
         }
 
         material = materialRepository.save(material);
-        return MaterialDtoConvertor.convertToDto(material,fileStorageService,inventoryService);
+        return materialMapper.toDto(material);
     }
 
     @Transactional
@@ -225,7 +224,7 @@ public class MaterialService {
 
         Double currentStock = inventoryService.getCurrentStock(id, projectId);
         BigDecimal stockValue = inventoryService.getStockValue(id, projectId);
-        return MaterialDtoConvertor.convertToWithStockDto(material, currentStock, stockValue);
+        return materialMapper.toWithStockDto(material, currentStock, stockValue);
     }
 
     @Transactional(readOnly = true)
@@ -235,7 +234,7 @@ public class MaterialService {
 
         Double currentStock = inventoryService.getAggregateStock(id);
         BigDecimal stockValue = inventoryService.getAggregateStockValue(id);
-        return MaterialDtoConvertor.convertToWithStockDto(material, currentStock, stockValue);
+        return materialMapper.toWithStockDto(material, currentStock, stockValue);
     }
 
     @Transactional(readOnly = true)
@@ -245,6 +244,6 @@ public class MaterialService {
 
         Double currentStock = inventoryService.getStockAtLocation(id, projectId, storageLocationId);
         BigDecimal stockValue = inventoryService.getStockValueAtLocation(id, projectId, storageLocationId);
-        return MaterialDtoConvertor.convertToWithStockDto(material, currentStock, stockValue);
+        return materialMapper.toWithStockDto(material, currentStock, stockValue);
     }
 }

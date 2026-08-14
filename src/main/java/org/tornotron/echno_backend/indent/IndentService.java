@@ -6,13 +6,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.IndentItemDtoConvertor;
-import org.tornotron.echno_backend.DtoConversions.IndentDtoConvertor;
+import org.tornotron.echno_backend.indentItem.mapper.IndentItemMapper;
+import org.tornotron.echno_backend.indent.mapper.IndentMapper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.indent.dto.IndentUpdateDto;
@@ -24,7 +23,6 @@ import org.tornotron.echno_backend.indentItem.dto.IndentItemUpdateDto;
 import org.tornotron.echno_backend.indent.dto.IndentCreationDto;
 import org.tornotron.echno_backend.indent.dto.IndentDto;
 import org.tornotron.echno_backend.indent.enums.IndentStatus;
-import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.project.Project;
@@ -39,24 +37,24 @@ public class IndentService {
     private final IndentRepository indentRepository;
     private final IndentItemRepository indentItemRepository;
     private final MaterialRepository materialRepository;
-    private final FileStorageService fileStorageService;
+    private final IndentMapper indentMapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
-    private final InventoryService inventoryService;
+    private final IndentItemMapper indentItemMapper;
 
     public IndentService(IndentRepository indentRepository, IndentItemRepository indentItemRepository,
-                         MaterialRepository materialRepository, FileStorageService fileStorageService,
+                         MaterialRepository materialRepository, IndentMapper indentMapper,
                          TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository,
-                         ProjectRepository projectRepository, InventoryService inventoryService) {
+                         ProjectRepository projectRepository, IndentItemMapper indentItemMapper) {
         this.indentRepository = indentRepository;
         this.indentItemRepository = indentItemRepository;
         this.materialRepository = materialRepository;
-        this.fileStorageService = fileStorageService;
+        this.indentMapper = indentMapper;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
-        this.inventoryService = inventoryService;
+        this.indentItemMapper = indentItemMapper;
     }
 
     // ==================== Indent CRUD ====================
@@ -97,7 +95,7 @@ public class IndentService {
             indent.setRemarks(indentDto.getRemarks());
         }
 
-        return IndentDtoConvertor.convertIndentToDto(indentRepository.save(indent), fileStorageService, inventoryService);
+        return indentMapper.toDto(indentRepository.save(indent));
     }
 
     @Transactional
@@ -126,27 +124,27 @@ public class IndentService {
             }
         }
 
-        return IndentDtoConvertor.convertIndentToDto(indentRepository.save(indent), fileStorageService, inventoryService);
+        return indentMapper.toDto(indentRepository.save(indent));
     }
 
     @Transactional(readOnly = true)
     public Page<IndentDto> getAllIndents(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
         return indentRepository.findAll(pageable)
-                .map(indent -> IndentDtoConvertor.convertIndentToDto(indent, fileStorageService, inventoryService));
+                .map(indent -> indentMapper.toDto(indent));
     }
 
     @Transactional(readOnly = true)
     public List<IndentDto> getAllIndents() {
         return indentRepository.findAll().stream()
-                .map(indent -> IndentDtoConvertor.convertIndentToDto(indent, fileStorageService, inventoryService))
+                .map(indent -> indentMapper.toDto(indent))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public IndentDto getAnIndent(Long id) {
         return indentRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .map(indent -> IndentDtoConvertor.convertIndentToDto(indent, fileStorageService, inventoryService))
+                .map(indent -> indentMapper.toDto(indent))
                 .orElseThrow(() -> new ResourceNotFoundException("Indent with ID " + id + " was not found in this organization"));
     }
 
@@ -164,7 +162,7 @@ public class IndentService {
     public List<IndentItemDto> getItemsByIndentId(Long indentId) {
         findIndentById(indentId);
         return indentItemRepository.findByIndentId(indentId).stream()
-                .map(item -> IndentItemDtoConvertor.convertIndentItemToDto(item, fileStorageService, inventoryService))
+                .map(item -> indentItemMapper.toDto(item))
                 .collect(Collectors.toList());
     }
 
@@ -175,7 +173,7 @@ public class IndentService {
         item.setOrganization(indent.getOrganization());
         indent.addItem(item);
         indentRepository.save(indent);
-        return IndentItemDtoConvertor.convertIndentItemToDto(item, fileStorageService, inventoryService);
+        return indentItemMapper.toDto(item);
     }
 
     @Transactional
@@ -210,7 +208,7 @@ public class IndentService {
         }
 
         item = indentItemRepository.save(item);
-        return IndentItemDtoConvertor.convertIndentItemToDto(item, fileStorageService, inventoryService);
+        return indentItemMapper.toDto(item);
     }
 
     @Transactional
