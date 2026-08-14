@@ -7,7 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.SiteTransferDtoConvertor;
+import org.tornotron.echno_backend.siteTransfer.mapper.SiteTransferMapper;
 import org.tornotron.echno_backend.common.events.SiteTransferCreatedEvent;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
@@ -28,7 +28,6 @@ import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItemRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
 
@@ -48,7 +47,7 @@ public class SiteTransferService {
     private final MaterialRepository materialRepository;
     private final InventoryService inventoryService;
     private final ApplicationEventPublisher eventPublisher;
-    private final FileStorageService fileStorageService;
+    private final SiteTransferMapper siteTransferMapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
@@ -60,7 +59,7 @@ public class SiteTransferService {
                                MaterialRepository materialRepository,
                                InventoryService inventoryService,
                                ApplicationEventPublisher eventPublisher,
-                               FileStorageService fileStorageService,
+                               SiteTransferMapper siteTransferMapper,
                                TenantEntityHelper tenantEntityHelper,
                                EmployeeRepository employeeRepository,
                                ProjectRepository projectRepository,
@@ -70,8 +69,8 @@ public class SiteTransferService {
         this.userRepository = userRepository;
         this.materialRepository = materialRepository;
         this.inventoryService = inventoryService;
+        this.siteTransferMapper = siteTransferMapper;
         this.eventPublisher = eventPublisher;
-        this.fileStorageService = fileStorageService;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
@@ -161,20 +160,20 @@ public class SiteTransferService {
         // Publish SiteTransferCreatedEvent for automatic inventory update
         eventPublisher.publishEvent(new SiteTransferCreatedEvent(this, transfer));
 
-        return SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService);
+        return siteTransferMapper.toDto(transfer);
     }
 
     @Transactional(readOnly = true)
     public SiteTransferDto getSiteTransferById(Long id) {
         SiteTransfer transfer = siteTransferRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Site transfer with ID " + id + " was not found in this organization"));
-        return SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService);
+        return siteTransferMapper.toDto(transfer);
     }
 
     @Transactional(readOnly = true)
     public List<SiteTransferDto> getAllSiteTransfers() {
         return siteTransferRepository.findAll().stream()
-                .map(transfer -> SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService))
+                .map(transfer -> siteTransferMapper.toDto(transfer))
                 .collect(Collectors.toList());
     }
 
@@ -182,27 +181,27 @@ public class SiteTransferService {
     public Page<SiteTransferDto> getAllSiteTransfers(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "issueDate"));
         return siteTransferRepository.findAll(pageable)
-                .map(transfer -> SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService));
+                .map(transfer -> siteTransferMapper.toDto(transfer));
     }
 
     @Transactional(readOnly = true)
     public List<SiteTransferDto> getSiteTransfersByStatus(SiteTransferStatus status) {
         return siteTransferRepository.findByStatus(status).stream()
-                .map(transfer -> SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService))
+                .map(transfer -> siteTransferMapper.toDto(transfer))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<SiteTransferDto> getSiteTransfersBySendingProject(Long projectId) {
         return siteTransferRepository.findBySendingProjectId(projectId).stream()
-                .map(transfer -> SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService))
+                .map(transfer -> siteTransferMapper.toDto(transfer))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<SiteTransferDto> getSiteTransfersByReceivingProject(Long projectId) {
         return siteTransferRepository.findByReceivingProjectId(projectId).stream()
-                .map(transfer -> SiteTransferDtoConvertor.convertToDto(transfer, fileStorageService))
+                .map(transfer -> siteTransferMapper.toDto(transfer))
                 .collect(Collectors.toList());
     }
 
