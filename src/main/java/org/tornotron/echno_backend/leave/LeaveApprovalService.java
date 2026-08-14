@@ -4,7 +4,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
-import org.tornotron.echno_backend.DtoConversions.LeaveRequestDtoConvertor;
+import org.tornotron.echno_backend.leave.mapper.LeaveRequestMapper;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -36,6 +36,7 @@ public class LeaveApprovalService {
     private final EmployeeRepository employeeRepository;
     private final LeaveCalendarService calendarService;
     private final NotificationService notificationService;
+    private final LeaveRequestMapper leaveRequestMapper;
 
     public LeaveApprovalService(
             LeaveApprovalRepository approvalRepository,
@@ -44,7 +45,8 @@ public class LeaveApprovalService {
             LeaveTransactionRepository transactionRepository,
             EmployeeRepository employeeRepository,
             @Lazy LeaveCalendarService calendarService,
-            @Lazy NotificationService notificationService) {
+            @Lazy NotificationService notificationService,
+            LeaveRequestMapper leaveRequestMapper) {
         this.approvalRepository = approvalRepository;
         this.requestRepository = requestRepository;
         this.balanceRepository = balanceRepository;
@@ -52,6 +54,7 @@ public class LeaveApprovalService {
         this.employeeRepository = employeeRepository;
         this.calendarService = calendarService;
         this.notificationService = notificationService;
+        this.leaveRequestMapper = leaveRequestMapper;
     }
 
     @Transactional
@@ -128,7 +131,7 @@ public class LeaveApprovalService {
             finalizeApproval(request);
         }
 
-        return LeaveRequestDtoConvertor.convertToDto(request);
+        return leaveRequestMapper.toDto(request);
     }
 
     @Transactional
@@ -154,7 +157,7 @@ public class LeaveApprovalService {
 
         notificationService.sendLeaveDecisionNotification(request, ApprovalAction.REJECTED);
 
-        return LeaveRequestDtoConvertor.convertToDto(request);
+        return leaveRequestMapper.toDto(request);
     }
 
     @Transactional
@@ -194,14 +197,14 @@ public class LeaveApprovalService {
 
         notificationService.sendDelegationNotification(request, delegateTo, dto.getApproverId());
 
-        return LeaveRequestDtoConvertor.convertToDto(request);
+        return leaveRequestMapper.toDto(request);
     }
 
     @Transactional(readOnly = true)
     public List<LeaveApprovalDto> getApprovalHistory(Long requestId) {
         return approvalRepository.findByLeaveRequestIdOrderByApprovalLevelAsc(requestId)
                 .stream()
-                .map(LeaveRequestDtoConvertor::convertApprovalToDto)
+                .map(leaveRequestMapper::toApprovalDto)
                 .collect(Collectors.toList());
     }
 
@@ -213,7 +216,7 @@ public class LeaveApprovalService {
 
         return approvalRepository.findByLeaveRequestIdOrderByApprovalLevelAsc(requestId)
                 .stream()
-                .map(LeaveRequestDtoConvertor::convertApprovalToDto)
+                .map(leaveRequestMapper::toApprovalDto)
                 .collect(Collectors.toList());
     }
 
