@@ -7,13 +7,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.GoodsReceivedNoteDtoConvertor;
+import org.tornotron.echno_backend.goodsReceivedNote.mapper.GoodsReceivedNoteMapper;
 import org.tornotron.echno_backend.common.events.GrnCreatedEvent;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteCreationDto;
@@ -48,7 +47,7 @@ public class GoodsReceivedNoteService {
     private final VendorRepository vendorRepository;
     private final MaterialRepository materialRepository;
     private final ApplicationEventPublisher eventPublisher;
-    private final FileStorageService fileStorageService;
+    private final GoodsReceivedNoteMapper goodsReceivedNoteMapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
@@ -61,7 +60,7 @@ public class GoodsReceivedNoteService {
                                     UserRepository userRepository,
                                     MaterialRepository materialRepository,
                                     ApplicationEventPublisher eventPublisher,
-                                    FileStorageService fileStorageService,
+                                    GoodsReceivedNoteMapper goodsReceivedNoteMapper,
                                     TenantEntityHelper tenantEntityHelper,
                                     EmployeeRepository employeeRepository,
                                     ProjectRepository projectRepository,
@@ -71,7 +70,7 @@ public class GoodsReceivedNoteService {
         this.vendorRepository = vendorRepository;
         this.materialRepository = materialRepository;
         this.eventPublisher = eventPublisher;
-        this.fileStorageService = fileStorageService;
+        this.goodsReceivedNoteMapper = goodsReceivedNoteMapper;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
@@ -151,7 +150,7 @@ public class GoodsReceivedNoteService {
         // Publish GrnCreatedEvent for automatic inventory update
         eventPublisher.publishEvent(new GrnCreatedEvent(this, grn));
 
-        return GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService);
+        return goodsReceivedNoteMapper.toDto(grn);
     }
 
     @Transactional
@@ -190,20 +189,20 @@ public class GoodsReceivedNoteService {
         }
 
         grn = goodsReceivedNoteRepository.save(grn);
-        return GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService);
+        return goodsReceivedNoteMapper.toDto(grn);
     }
 
     @Transactional(readOnly = true)
     public GoodsReceivedNoteDto getGrnById(Long id) {
         GoodsReceivedNote grn = goodsReceivedNoteRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("GRN with ID " + id + " was not found in this organization"));
-        return GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService);
+        return goodsReceivedNoteMapper.toDto(grn);
     }
 
     @Transactional(readOnly = true)
     public List<GoodsReceivedNoteDto> getAllGrns() {
         return goodsReceivedNoteRepository.findAll().stream()
-                .map(grn -> GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService))
+                .map(grn -> goodsReceivedNoteMapper.toDto(grn))
                 .collect(Collectors.toList());
     }
 
@@ -211,20 +210,20 @@ public class GoodsReceivedNoteService {
     public Page<GoodsReceivedNoteDto> getAllGrns(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "receivedOn"));
         return goodsReceivedNoteRepository.findAll(pageable)
-                .map(grn -> GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService));
+                .map(grn -> goodsReceivedNoteMapper.toDto(grn));
     }
 
     @Transactional(readOnly = true)
     public List<GoodsReceivedNoteDto> getGrnsByVendor(Long vendorId) {
         return goodsReceivedNoteRepository.findByVendorId(vendorId).stream()
-                .map(grn -> GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService))
+                .map(grn -> goodsReceivedNoteMapper.toDto(grn))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<GoodsReceivedNoteDto> getGrnsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         return goodsReceivedNoteRepository.findByReceivedOnBetween(startDate, endDate).stream()
-                .map(grn -> GoodsReceivedNoteDtoConvertor.convertToDto(grn, fileStorageService))
+                .map(grn -> goodsReceivedNoteMapper.toDto(grn))
                 .collect(Collectors.toList());
     }
 }
