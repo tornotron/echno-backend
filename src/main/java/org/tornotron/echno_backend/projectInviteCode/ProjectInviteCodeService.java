@@ -2,7 +2,6 @@ package org.tornotron.echno_backend.projectInviteCode;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.projectInviteCode.mapper.ProjectInviteCodeMapper;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
@@ -40,6 +39,7 @@ public class ProjectInviteCodeService {
     private final FileStorageService fileStorageService;
     private final EmployeeRepository employeeRepository;
     private final ProjectInviteCodeMapper projectInviteCodeMapper;
+    private final org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper;
 
     /**
      * Constructs a ProjectInviteCodeService with the necessary repositories and services.
@@ -48,13 +48,14 @@ public class ProjectInviteCodeService {
      * @param employeeService        The service for employee-related operations.
      * @param organizationRepository The repository for organization data access.
      */
-    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository, FileStorageService fileStorageService, EmployeeRepository employeeRepository, ProjectInviteCodeMapper projectInviteCodeMapper) {
+    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository, FileStorageService fileStorageService, EmployeeRepository employeeRepository, ProjectInviteCodeMapper projectInviteCodeMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
         this.inviteCodeRepository = inviteCodeRepository;
         this.employeeService = employeeService;
         this.organizationRepository = organizationRepository;
         this.fileStorageService = fileStorageService;
         this.employeeRepository = employeeRepository;
         this.projectInviteCodeMapper = projectInviteCodeMapper;
+        this.organizationMapper = organizationMapper;
     }
 
     /**
@@ -154,7 +155,7 @@ public class ProjectInviteCodeService {
         employeeJoinOrgDto.setPhone((String) employeeDetails.get("phone"));
         employeeService.joinOrganization(userId, organization.getId(), employeeJoinOrgDto);
         inviteCode.setCurrentUses(inviteCode.getCurrentUses() + 1);
-        return OrganizationDtoConvertor.convertOrganizationToDto(organization,fileStorageService);
+        return organizationMapper.toDto(organization);
     }
 
     /**

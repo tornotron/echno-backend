@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
-import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.user.mapper.UserMapper;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.common.entity.Attachment;
@@ -58,6 +57,7 @@ public class UserService {
     private final FileStorageService fileStorageService;
     private final EmployeeMapper employeeMapper;
     private final UserMapper userMapper;
+    private final org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper;
 
     @Value("${keycloak-initializer.application-realm}")
     private String realm;
@@ -69,13 +69,14 @@ public class UserService {
      * @param keycloak       The Keycloak client.
      * @param attachmentService The service for attachment operations.
      */
-    public UserService(UserRepository userRepository, Keycloak keycloak, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper) {
+    public UserService(UserRepository userRepository, Keycloak keycloak, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
         this.userRepository = userRepository;
         this.keycloak = keycloak;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
         this.employeeMapper = employeeMapper;
         this.userMapper = userMapper;
+        this.organizationMapper = organizationMapper;
     }
 
     /**
@@ -173,7 +174,7 @@ public class UserService {
         return userRepository.findOrganizationsByUserId(userId)
                 .stream()
                 .map(org ->
-                    OrganizationDtoConvertor.convertOrganizationToDto(org,fileStorageService)
+                    organizationMapper.toDto(org)
                 )
                 .collect(Collectors.toList());
 

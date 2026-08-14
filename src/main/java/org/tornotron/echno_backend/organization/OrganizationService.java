@@ -7,7 +7,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.tornotron.echno_backend.DtoConversions.OrganizationDtoConvertor;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -38,7 +37,7 @@ import java.util.stream.Collectors;
  * Service layer for managing organizations. This class encapsulates the business logic
  * for creating, retrieving, updating, and deleting organizations. It interacts with the
  * {@link OrganizationRepository} to perform database operations and uses
- * {@link OrganizationDtoConvertor} to map entities to DTOs.
+ * the organization mapper to map entities to DTOs.
  */
 @Slf4j
 @Service
@@ -53,6 +52,7 @@ public class OrganizationService {
     private final SubscriptionService subscriptionService;
     private final UserContextService userContextService;
     private final EmployeeService employeeService;
+    private final org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper;
 
     /**
      * Constructs an {@code OrganizationService} with the necessary dependencies.
@@ -62,7 +62,7 @@ public class OrganizationService {
      * @param keycloakGroupService The service for managing Keycloak groups.
      * @param subscriptionService The service for handling subscription billing.
      */
-    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService) {
+    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
         this.repository = repository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
@@ -70,6 +70,7 @@ public class OrganizationService {
         this.subscriptionService = subscriptionService;
         this.userContextService = userContextService;
         this.employeeService = employeeService;
+        this.organizationMapper = organizationMapper;
     }
 
     /**
@@ -110,7 +111,7 @@ public class OrganizationService {
             attachmentService.uploadAttachments(attachments, "ORGANIZATION", savedOrganization.getId(), ORGANIZATION_FOLDER);
         }
 
-        return OrganizationDtoConvertor.convertOrganizationToSimpleDto(savedOrganization);
+        return organizationMapper.toSimpleDto(savedOrganization);
     }
 
     /**
@@ -121,7 +122,7 @@ public class OrganizationService {
     public List<OrganizationDto> getAllOrganization() {
         User user = userContextService.getCurrentUser();
         return repository.findAllByUserEmail(user.getEmail()).stream()
-                .map(org -> OrganizationDtoConvertor.convertOrganizationToDto(org, fileStorageService))
+                .map(org -> organizationMapper.toDto(org))
                 .collect(Collectors.toList());
     }
 
@@ -134,7 +135,7 @@ public class OrganizationService {
     public List<OrganizationDto> getAllOrganizationsByCreatorId(Integer creatorId) {
         return repository.findOrganizationsByCreatorId(creatorId)
                 .stream()
-                .map(org -> OrganizationDtoConvertor.convertOrganizationToDto(org, fileStorageService))
+                .map(org -> organizationMapper.toDto(org))
                 .collect(Collectors.toList());
     }
 
@@ -147,7 +148,7 @@ public class OrganizationService {
     @Transactional(readOnly = true)
     public OrganizationDto getAnOrganization(Long id) {
         OrganizationDto organizationDto = repository.findById(id)
-                .map(org -> OrganizationDtoConvertor.convertOrganizationToDto(org, fileStorageService))
+                .map(org -> organizationMapper.toDto(org))
                 .orElse(null);
         if(organizationDto == null) {
             throw new ResourceNotFoundException("Organization with ID " + id + " was not found");
@@ -174,7 +175,7 @@ public class OrganizationService {
            Attachment attachment = attachmentService.uploadAttachment(att,entityType,id,ORGANIZATION_FOLDER);
            organization.addAttachment(attachment);
        }
-        return OrganizationDtoConvertor.convertOrganizationToSimpleDto(repository.save(organization));
+        return organizationMapper.toSimpleDto(repository.save(organization));
     }
 
     private void partialUpdateAnOrganization(Map<String, Object> updates, Organization organization) {
