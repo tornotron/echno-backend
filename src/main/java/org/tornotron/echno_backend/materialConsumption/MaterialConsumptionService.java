@@ -7,12 +7,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.DtoConversions.MaterialConsumptionDtoConvertor;
+import org.tornotron.echno_backend.materialConsumption.mapper.MaterialConsumptionMapper;
 import org.tornotron.echno_backend.common.events.MaterialConsumedEvent;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
@@ -41,7 +40,7 @@ public class MaterialConsumptionService {
     private final MaterialRepository materialRepository;
     private final InventoryService inventoryService;
     private final ApplicationEventPublisher eventPublisher;
-    private final FileStorageService fileStorageService;
+    private final MaterialConsumptionMapper materialConsumptionMapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
@@ -52,7 +51,7 @@ public class MaterialConsumptionService {
                                       MaterialRepository materialRepository,
                                       InventoryService inventoryService,
                                       ApplicationEventPublisher eventPublisher,
-                                      FileStorageService fileStorageService,
+                                      MaterialConsumptionMapper materialConsumptionMapper,
                                       TenantEntityHelper tenantEntityHelper,
                                       EmployeeRepository employeeRepository,
                                       ProjectRepository projectRepository,
@@ -62,7 +61,7 @@ public class MaterialConsumptionService {
         this.materialRepository = materialRepository;
         this.inventoryService = inventoryService;
         this.eventPublisher = eventPublisher;
-        this.fileStorageService = fileStorageService;
+        this.materialConsumptionMapper = materialConsumptionMapper;
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
@@ -131,20 +130,20 @@ public class MaterialConsumptionService {
         // Publish MaterialConsumedEvent for automatic inventory update
         eventPublisher.publishEvent(new MaterialConsumedEvent(this, consumption));
 
-        return MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService);
+        return materialConsumptionMapper.toDto(consumption);
     }
 
     @Transactional(readOnly = true)
     public MaterialConsumptionDto getMaterialConsumptionById(Long id) {
         MaterialConsumption consumption = materialConsumptionRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material consumption with ID " + id + " was not found in this organization"));
-        return MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService);
+        return materialConsumptionMapper.toDto(consumption);
     }
 
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getAllMaterialConsumptions() {
         return materialConsumptionRepository.findAll().stream()
-                .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService))
+                .map(consumption -> materialConsumptionMapper.toDto(consumption))
                 .collect(Collectors.toList());
     }
 
@@ -152,34 +151,34 @@ public class MaterialConsumptionService {
     public Page<MaterialConsumptionDto> getAllMaterialConsumptions(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "consumptionDate"));
         return materialConsumptionRepository.findAll(pageable)
-                .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService));
+                .map(consumption -> materialConsumptionMapper.toDto(consumption));
     }
 
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByMaterial(Long materialId) {
         return materialConsumptionRepository.findByMaterialId(materialId).stream()
-                .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService))
+                .map(consumption -> materialConsumptionMapper.toDto(consumption))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByType(MaterialConsumptionType consumptionType) {
         return materialConsumptionRepository.findByConsumptionType(consumptionType).stream()
-                .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService))
+                .map(consumption -> materialConsumptionMapper.toDto(consumption))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         return materialConsumptionRepository.findByConsumptionDateBetween(startDate, endDate).stream()
-                .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService))
+                .map(consumption -> materialConsumptionMapper.toDto(consumption))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByTask(Long taskId) {
         return materialConsumptionRepository.findByTaskId(taskId).stream()
-                .map(consumption -> MaterialConsumptionDtoConvertor.convertToDto(consumption, fileStorageService))
+                .map(consumption -> materialConsumptionMapper.toDto(consumption))
                 .collect(Collectors.toList());
     }
 }
