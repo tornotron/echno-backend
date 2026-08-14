@@ -7,12 +7,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.tornotron.echno_backend.DtoConversions.IssueDtoConvertor;
+import org.tornotron.echno_backend.issue.mapper.IssueMapper;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
-import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.issue.dto.IssueCreationDto;
@@ -36,14 +35,14 @@ public class IssueService {
     private final IssueRepository issueRepository;
     private final TaskRepository taskRepository;
     private final AttachmentService attachmentService;
-    private final FileStorageService fileStorageService;
+    private final IssueMapper issueMapper;
     private final EmployeeRepository employeeRepository;
 
-    public IssueService(IssueRepository issueRepository, TaskRepository taskRepository, AttachmentService attachmentService, FileStorageService fileStorageService, EmployeeRepository employeeRepository) {
+    public IssueService(IssueRepository issueRepository, TaskRepository taskRepository, AttachmentService attachmentService, IssueMapper issueMapper, EmployeeRepository employeeRepository) {
         this.issueRepository = issueRepository;
         this.taskRepository = taskRepository;
         this.attachmentService = attachmentService;
-        this.fileStorageService = fileStorageService;
+        this.issueMapper = issueMapper;
         this.employeeRepository = employeeRepository;
     }
 
@@ -78,34 +77,34 @@ public class IssueService {
             savedIssue = issueRepository.save(savedIssue);
         }
 
-        return IssueDtoConvertor.convertIssueToSimpleDto(savedIssue);
+        return issueMapper.toSimpleDto(savedIssue);
     }
 
     @Transactional(readOnly = true)
     public List<IssueDto> getAllIssues() {
         return issueRepository.findAll().stream()
-                .map(issue -> IssueDtoConvertor.convertIssueToDto(issue,fileStorageService))
+                .map(issue -> issueMapper.toDto(issue))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<IssueDto> getAllIssuesByTaskId(Long taskId) {
         return issueRepository.findAllByTask_IdAndOrganization_Id(taskId,TenantContext.getCurrentOrgId()).stream()
-                .map(issue -> IssueDtoConvertor.convertIssueToDto(issue,fileStorageService))
+                .map(issue -> issueMapper.toDto(issue))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<IssueDto> getAllIssuesByProjectId(Long projectId) {
         return issueRepository.findAllByTask_Project_IdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId()).stream()
-                .map(issue -> IssueDtoConvertor.convertIssueToDto(issue,fileStorageService))
+                .map(issue -> issueMapper.toDto(issue))
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public IssueDto getAnIssue(Long id) {
         IssueDto issueDto = issueRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .map(issue -> IssueDtoConvertor.convertIssueToDto(issue, fileStorageService))
+                .map(issue -> issueMapper.toDto(issue))
                 .orElse(null);
         if (issueDto == null) {
             throw new ResourceNotFoundException("Issue with ID " + id + " was not found in this organization");
@@ -125,7 +124,7 @@ public class IssueService {
                 issue.addAttachment(attachment);
             }
         }
-        return IssueDtoConvertor.convertIssueToSimpleDto(issueRepository.save(issue));
+        return issueMapper.toSimpleDto(issueRepository.save(issue));
     }
 
     private void partialUpdateAnIssue(Map<String, Object> updates, Issue issue) {
