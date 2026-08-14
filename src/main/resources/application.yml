@@ -147,6 +147,13 @@ spring:
     show-sql: false
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        # Batch-load lazy associations and collections in IN-clause groups instead of
+        # one query per parent row. Turns the N+1 on list endpoints (each row pulling
+        # its own to-one/to-many) into a handful of batched queries. No effect on the
+        # response shape, and unlike a collection JOIN FETCH it composes with pagination.
+        default_batch_fetch_size: 100
   servlet:
     multipart:
       enabled: true
