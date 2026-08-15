@@ -88,6 +88,13 @@ public class IssueService {
     }
 
     @Transactional(readOnly = true)
+    public Page<IssueDto> getAllIssuesPaginated(int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return issueRepository.findAll(pageable)
+                .map(issue -> issueMapper.toDto(issue));
+    }
+
+    @Transactional(readOnly = true)
     public List<IssueDto> getAllIssuesByTaskId(Long taskId) {
         return issueRepository.findAllByTask_IdAndOrganization_Id(taskId,TenantContext.getCurrentOrgId()).stream()
                 .map(issue -> issueMapper.toDto(issue))
