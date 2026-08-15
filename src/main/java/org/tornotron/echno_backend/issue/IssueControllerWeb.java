@@ -39,6 +39,15 @@ public class IssueControllerWeb {
         return new ResponseEntity<>(issues, HttpStatus.OK);
     }
 
+    @GetMapping("/paginated")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    public ResponseEntity<Page<IssueDto>> readAllIssuesPaginated(
+            @RequestParam(defaultValue = "0") int pageNo,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        Page<IssueDto> issues = issueService.getAllIssuesPaginated(pageNo, pageSize);
+        return new ResponseEntity<>(issues, HttpStatus.OK);
+    }
+
     @GetMapping("/project/{projectId}")
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<List<IssueDto>> readAllIssuesOfProject(@PathVariable Long projectId){

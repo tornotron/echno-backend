@@ -1,6 +1,10 @@
 package org.tornotron.echno_backend.employee;
 
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -192,6 +196,20 @@ public class EmployeeService {
         return employeeRepository.findAll().stream()
                 .map(employee -> employeeMapper.toDto(employee))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieves a page of employees, ordered alphabetically by name.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Number of employees per page.
+     * @return A page of employee DTOs.
+     */
+    @Transactional(readOnly = true)
+    public Page<EmployeeDto> displayAllEmployees(int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "employeeName"));
+        return employeeRepository.findAll(pageable)
+                .map(employee -> employeeMapper.toDto(employee));
     }
 
     /**
