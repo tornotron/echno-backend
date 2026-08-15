@@ -17,9 +17,7 @@ import org.tornotron.echno_backend.leave.enums.HalfDayType;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
 import org.tornotron.echno_backend.organization.Organization;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -34,7 +32,7 @@ public class LeaveRequestService {
     private final LeaveBalanceRepository balanceRepository;
     private final EmployeeRepository employeeRepository;
     private final LeaveApprovalService approvalService;
-    private final LeaveBalanceService balanceService;
+    private final LeaveRequestValidator leaveRequestValidator;
     private final LeaveRequestMapper leaveRequestMapper;
 
     public LeaveRequestService(
@@ -44,7 +42,7 @@ public class LeaveRequestService {
             LeaveBalanceRepository balanceRepository,
             EmployeeRepository employeeRepository,
             LeaveApprovalService approvalService,
-            LeaveBalanceService balanceService,
+            LeaveRequestValidator leaveRequestValidator,
             LeaveRequestMapper leaveRequestMapper) {
         this.requestRepository = requestRepository;
         this.sequenceRepository = sequenceRepository;
@@ -52,7 +50,7 @@ public class LeaveRequestService {
         this.balanceRepository = balanceRepository;
         this.employeeRepository = employeeRepository;
         this.approvalService = approvalService;
-        this.balanceService = balanceService;
+        this.leaveRequestValidator = leaveRequestValidator;
         this.leaveRequestMapper = leaveRequestMapper;
     }
 
@@ -66,7 +64,7 @@ public class LeaveRequestService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy with ID " + dto.getLeavePolicyId() + " was not found in this organization"));
 
-        validateRequest(employee, policy, dto, null);
+        leaveRequestValidator.validate(employee, policy, dto, null);
 
         double totalDays = calculateTotalDays(
                 dto.getStartDate(),
@@ -216,7 +214,7 @@ public class LeaveRequestService {
                     "Leave request " + requestId + " cannot be submitted (current status: " + request.getStatus() + "); only draft requests can be submitted");
         }
 
-        validateRequest(
+        leaveRequestValidator.validate(
                 request.getEmployee(),
                 request.getLeavePolicy(),
                 createDtoFromRequest(request),
@@ -285,121 +283,23 @@ public class LeaveRequestService {
         return leaveRequestMapper.toDto(saved);
     }
 
-    @Transactional(readOnly = true)
+    /** Overlapping leave dates for an employee. Delegates to {@link LeaveRequestValidator}. */
     public List<LocalDate> getConflictingDates(Long employeeId, LocalDate startDate, LocalDate endDate) {
-        return getConflictingDates(employeeId, startDate, endDate, null);
+        return leaveRequestValidator.getConflictingDates(employeeId, startDate, endDate);
     }
 
-    @Transactional(readOnly = true)
+    /** Overlapping leave dates, excluding one request. Delegates to {@link LeaveRequestValidator}. */
     public List<LocalDate> getConflictingDates(Long employeeId, LocalDate startDate, LocalDate endDate, Long excludeRequestId) {
-        List<LeaveRequest> overlapping = requestRepository.findOverlappingRequests(
-                employeeId, startDate, endDate, excludeRequestId);
-
-        return overlapping.stream()
-                .flatMap(req -> req.getStartDate().datesUntil(req.getEndDate().plusDays(1)))
-                .filter(date -> !date.isBefore(startDate) && !date.isAfter(endDate))
-                .distinct()
-                .sorted()
-                .collect(Collectors.toList());
+        return leaveRequestValidator.getConflictingDates(employeeId, startDate, endDate, excludeRequestId);
     }
 
+    /** Number of leave days in the range. Delegates to {@link LeaveRequestValidator}. */
     public double calculateTotalDays(
             LocalDate startDate,
             HalfDayType startType,
             LocalDate endDate,
             HalfDayType endType) {
-
-        if (startDate.isAfter(endDate)) {
-            throw new InvalidRequestException(
-                    "Start date " + startDate + " cannot be after end date " + endDate);
-        }
-
-        if (startDate.equals(endDate)) {
-            if (startType == HalfDayType.FIRST_HALF || startType == HalfDayType.SECOND_HALF ||
-                endType == HalfDayType.FIRST_HALF || endType == HalfDayType.SECOND_HALF) {
-                return 0.5;
-            }
-            return 1.0;
-        }
-
-        long daysBetween = ChronoUnit.DAYS.between(startDate, endDate) + 1;
-        double total = daysBetween;
-
-        if (startType == HalfDayType.SECOND_HALF) {
-            total -= 0.5;
-        }
-        if (endType == HalfDayType.FIRST_HALF) {
-            total -= 0.5;
-        }
-
-        return total;
-    }
-
-    private void validateRequest(Employee employee, LeavePolicy policy, LeaveRequestCreationDto dto, Long excludeRequestId) {
-        if (dto.getStartDate().isAfter(dto.getEndDate())) {
-            throw new InvalidRequestException(
-                    "Start date " + dto.getStartDate() + " cannot be after end date " + dto.getEndDate());
-        }
-
-        if (dto.getStartDate().isBefore(LocalDate.now())) {
-            throw new InvalidRequestException(
-                    "Cannot apply for leave starting " + dto.getStartDate() + "; leave cannot be requested in the past");
-        }
-
-        if (policy.getAdvanceNoticeDays() != null && policy.getAdvanceNoticeDays() > 0) {
-            long daysUntilStart = ChronoUnit.DAYS.between(LocalDate.now(), dto.getStartDate());
-            if (daysUntilStart < policy.getAdvanceNoticeDays()) {
-                throw new InvalidRequestException(
-                        "Leave policy '" + policy.getLeaveTypeName() + "' requires at least " +
-                        policy.getAdvanceNoticeDays() + " days advance notice, but only " +
-                        daysUntilStart + " days remain before " + dto.getStartDate());
-            }
-        }
-
-        double totalDays = calculateTotalDays(
-                dto.getStartDate(),
-                dto.getStartHalfDayType(),
-                dto.getEndDate(),
-                dto.getEndHalfDayType());
-
-        if (policy.getMinDaysPerRequest() != null && totalDays < policy.getMinDaysPerRequest()) {
-            throw new InvalidRequestException(
-                    "Leave policy '" + policy.getLeaveTypeName() + "' requires a minimum of " +
-                    policy.getMinDaysPerRequest() + " days per request, but " + totalDays + " days were requested");
-        }
-
-        if (policy.getMaxDaysPerRequest() != null && totalDays > policy.getMaxDaysPerRequest()) {
-            throw new InvalidRequestException(
-                    "Leave policy '" + policy.getLeaveTypeName() + "' allows a maximum of " +
-                    policy.getMaxDaysPerRequest() + " days per request, but " + totalDays + " days were requested");
-        }
-
-        if ((dto.getStartHalfDayType() == HalfDayType.FIRST_HALF ||
-             dto.getStartHalfDayType() == HalfDayType.SECOND_HALF ||
-             dto.getEndHalfDayType() == HalfDayType.FIRST_HALF ||
-             dto.getEndHalfDayType() == HalfDayType.SECOND_HALF) &&
-            !Boolean.TRUE.equals(policy.getAllowHalfDay())) {
-            throw new InvalidRequestException(
-                    "Leave policy '" + policy.getLeaveTypeName() + "' does not allow half-day leave");
-        }
-
-        int year = dto.getStartDate().getYear();
-        var balanceDto = balanceService.getOrCalculateBalance(
-                employee.getId(), policy.getId(), year);
-
-        if (balanceDto.getBookable() < totalDays) {
-            throw new InvalidRequestException(
-                    "Employee with ID " + employee.getId() + " has insufficient leave balance for policy '" +
-                    policy.getLeaveTypeName() + "': " + balanceDto.getBookable() +
-                    " days available, " + totalDays + " days requested");
-        }
-
-        List<LocalDate> conflicts = getConflictingDates(
-                employee.getId(), dto.getStartDate(), dto.getEndDate(), excludeRequestId);
-        if (!conflicts.isEmpty()) {
-            throw new InvalidRequestException(
-                    "Employee with ID " + employee.getId() + " already has leave requests overlapping these dates: " + conflicts);
-        }
+        return leaveRequestValidator.calculateTotalDays(startDate, startType, endDate, endType);
     }
 
     private String generateRequestNumber(Organization organization) {
