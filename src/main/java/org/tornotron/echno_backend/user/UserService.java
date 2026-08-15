@@ -1,13 +1,7 @@
 package org.tornotron.echno_backend.user;
 
-import jakarta.ws.rs.core.Response;
-import org.keycloak.admin.client.Keycloak;
-import org.keycloak.admin.client.resource.UsersResource;
-import org.keycloak.representations.idm.CredentialRepresentation;
-import org.keycloak.representations.idm.UserRepresentation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,7 +16,6 @@ import org.tornotron.echno_backend.user.mapper.UserMapper;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.service.AttachmentService;
-import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
@@ -33,7 +26,6 @@ import org.tornotron.echno_backend.user.dto.UserRegistrationDto;
 import org.tornotron.echno_backend.user.enums.UserRole;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,26 +44,23 @@ public class UserService {
     private static final String ATTACHMENT_TYPE_CV = "USER_CV";
 
     private final UserRepository userRepository;
-    private final Keycloak keycloak;
+    private final KeycloakUserProvisioningService keycloakUserProvisioningService;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
     private final EmployeeMapper employeeMapper;
     private final UserMapper userMapper;
     private final org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper;
 
-    @Value("${keycloak-initializer.application-realm}")
-    private String realm;
-
     /**
      * Constructs a UserService with the given UserRepository.
      *
      * @param userRepository The repository for user data access.
-     * @param keycloak       The Keycloak client.
+     * @param keycloakUserProvisioningService The service that provisions the Keycloak identity.
      * @param attachmentService The service for attachment operations.
      */
-    public UserService(UserRepository userRepository, Keycloak keycloak, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
+    public UserService(UserRepository userRepository, KeycloakUserProvisioningService keycloakUserProvisioningService, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
         this.userRepository = userRepository;
-        this.keycloak = keycloak;
+        this.keycloakUserProvisioningService = keycloakUserProvisioningService;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
         this.employeeMapper = employeeMapper;
@@ -91,7 +80,7 @@ public class UserService {
             throw new DuplicateResourceException("User with email '" + userRegistrationDto.getEmail() + "' already exists");
         }
 
-        String keycloakId = createKeycloakUser(userRegistrationDto.getUserName(), userRegistrationDto.getEmail(), userRegistrationDto.getPassword());
+        String keycloakId = keycloakUserProvisioningService.createUser(userRegistrationDto.getUserName(), userRegistrationDto.getEmail(), userRegistrationDto.getPassword());
 
         try {
             User user = new User();
@@ -108,58 +97,8 @@ public class UserService {
             user.setKeycloakId(keycloakId);
             return userMapper.toDto(userRepository.save(user));
         } catch (Exception e) {
-            deleteKeycloakUser(keycloakId);
+            keycloakUserProvisioningService.deleteUser(keycloakId);
             throw e;
-        }
-    }
-
-    private String createKeycloakUser(String username, String email, String password) {
-        if (keycloakUserExists(email)) {
-            throw new DuplicateResourceException("User with email '" + email + "' already exists in Keycloak");
-        }
-
-        UsersResource usersResource = keycloak.realm(realm).users();
-
-        UserRepresentation userRepresentation = new UserRepresentation();
-        userRepresentation.setUsername(username);
-        userRepresentation.setEmail(email);
-        userRepresentation.setEnabled(true);
-        userRepresentation.setEmailVerified(true);
-
-        String keycloakId;
-        try (Response response = usersResource.create(userRepresentation)) {
-            if (response.getStatus() != 201) {
-                throw new RuntimeException("Failed to create user '" + username + "' in Keycloak (status " + response.getStatus() + ")");
-            }
-            String location = response.getLocation().toString();
-            keycloakId = location.substring(location.lastIndexOf('/') + 1);
-        }
-
-        CredentialRepresentation credentialRepresentation = new CredentialRepresentation();
-        credentialRepresentation.setType(CredentialRepresentation.PASSWORD);
-        credentialRepresentation.setValue(password);
-        credentialRepresentation.setTemporary(false);
-
-        usersResource.get(keycloakId).resetPassword(credentialRepresentation);
-
-        try {
-            var userRole = keycloak.realm(realm).roles().get("user").toRepresentation();
-            usersResource.get(keycloakId).roles().realmLevel().add(Collections.singletonList(userRole));
-        } catch (Exception e) {
-            logger.warn("Failed to assign 'user' realm role to new user {}: {}", keycloakId, e.getMessage());
-        }
-
-        return keycloakId;
-    }
-
-    private void deleteKeycloakUser(String keycloakId) {
-        try {
-            if (keycloakId != null) {
-                keycloak.realm(realm).users().get(keycloakId).remove();
-                logger.info("Rolled back Keycloak user creation for ID: {}", keycloakId);
-            }
-        } catch (Exception e) {
-            logger.error("Failed to rollback Keycloak user creation for ID: {}. Manual intervention required.", keycloakId, e);
         }
     }
 
@@ -443,16 +382,6 @@ public class UserService {
             throw new ResourceNotFoundException("User with ID " + id + " was not found");
         } else {
             userRepository.deleteById(id);
-        }
-    }
-
-    private boolean keycloakUserExists(String email) {
-        try {
-            UsersResource usersResource = keycloak.realm(realm).users();
-            List<UserRepresentation> users = usersResource.search(email, true);
-            return !users.isEmpty();
-        } catch (Exception ex) {
-            throw new DatabaseOperationException("Failed to check whether user with email '" + email + "' exists in Keycloak: " + ex.getMessage());
         }
     }
 
