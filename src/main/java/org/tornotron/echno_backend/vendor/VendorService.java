@@ -7,10 +7,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.vendor.mapper.VendorMapper;
-import org.tornotron.echno_backend.vendor.mapper.VendorContactMapper;
-import org.tornotron.echno_backend.vendor.mapper.VendorTaxIdentifierMapper;
-import org.tornotron.echno_backend.vendor.mapper.VendorBankAccountMapper;
-import org.tornotron.echno_backend.vendor.mapper.VendorPaymentTermsMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
@@ -28,39 +24,18 @@ import java.util.stream.Collectors;
 public class VendorService {
 
     private final VendorRepository vendorRepository;
-    private final VendorContactRepository vendorContactRepository;
-    private final VendorBankAccountRepository vendorBankAccountRepository;
-    private final VendorTaxIdentifierRepository vendorTaxIdentifierRepository;
-    private final VendorPaymentTermsRepository vendorPaymentTermsRepository;
     private final TenantEntityHelper tenantEntityHelper;
     private final VendorMapper vendorMapper;
-    private final VendorContactMapper vendorContactMapper;
-    private final VendorTaxIdentifierMapper vendorTaxIdentifierMapper;
-    private final VendorBankAccountMapper vendorBankAccountMapper;
-    private final VendorPaymentTermsMapper vendorPaymentTermsMapper;
+    private final VendorSubEntityService vendorSubEntityService;
 
     public VendorService(VendorRepository vendorRepository,
-                         VendorContactRepository vendorContactRepository,
-                         VendorBankAccountRepository vendorBankAccountRepository,
-                         VendorTaxIdentifierRepository vendorTaxIdentifierRepository,
-                         VendorPaymentTermsRepository vendorPaymentTermsRepository,
                          TenantEntityHelper tenantEntityHelper,
                          VendorMapper vendorMapper,
-                         VendorContactMapper vendorContactMapper,
-                         VendorTaxIdentifierMapper vendorTaxIdentifierMapper,
-                         VendorBankAccountMapper vendorBankAccountMapper,
-                         VendorPaymentTermsMapper vendorPaymentTermsMapper) {
+                         VendorSubEntityService vendorSubEntityService) {
         this.vendorRepository = vendorRepository;
-        this.vendorContactRepository = vendorContactRepository;
-        this.vendorBankAccountRepository = vendorBankAccountRepository;
-        this.vendorTaxIdentifierRepository = vendorTaxIdentifierRepository;
-        this.vendorPaymentTermsRepository = vendorPaymentTermsRepository;
         this.tenantEntityHelper = tenantEntityHelper;
         this.vendorMapper = vendorMapper;
-        this.vendorContactMapper = vendorContactMapper;
-        this.vendorTaxIdentifierMapper = vendorTaxIdentifierMapper;
-        this.vendorBankAccountMapper = vendorBankAccountMapper;
-        this.vendorPaymentTermsMapper = vendorPaymentTermsMapper;
+        this.vendorSubEntityService = vendorSubEntityService;
     }
 
     // ==================== Vendor CRUD ====================
@@ -161,189 +136,69 @@ public class VendorService {
         vendorRepository.deleteByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId());
     }
 
-    // ==================== Contact CRUD ====================
+    // ========== Vendor child entities — delegated to VendorSubEntityService ==========
+    // The contact / tax-identifier / bank-account / payment-terms CRUD lives in
+    // VendorSubEntityService; these forwarders keep the controllers talking to a
+    // single VendorService.
 
-    @Transactional(readOnly = true)
     public List<VendorContactDto> getContactsByVendorId(Long vendorId) {
-        findVendorByIdAndOrg(vendorId);
-        return vendorContactRepository.findByVendor_Id(vendorId).stream()
-                .map(vendorContactMapper::toDto)
-                .collect(Collectors.toList());
+        return vendorSubEntityService.getContactsByVendorId(vendorId);
     }
 
-    @Transactional
     public VendorContactDto addContact(Long vendorId, VendorContactCreationDto dto) {
-        Vendor vendor = findVendorByIdAndOrg(vendorId);
-        VendorContact contact = mapToContactEntity(dto);
-        contact.setOrganization(vendor.getOrganization());
-        vendor.addContact(contact);
-        vendorRepository.save(vendor);
-        return vendorContactMapper.toDto(contact);
+        return vendorSubEntityService.addContact(vendorId, dto);
     }
 
-    @Transactional
     public VendorContactDto updateContact(Long vendorId, Long contactId, VendorContactCreationDto dto) {
-        findVendorByIdAndOrg(vendorId);
-        VendorContact contact = vendorContactRepository.findByIdAndOrganization_Id(contactId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Contact with ID " + contactId + " was not found in this organization"));
-        if (!contact.getVendor().getId().equals(vendorId)) {
-            throw new ResourceNotFoundException("Contact with ID " + contactId + " does not belong to vendor with ID " + vendorId);
-        }
-        contact.setContactPerson(dto.getContactPerson());
-        contact.setEmail(dto.getEmail());
-        contact.setPhone(dto.getPhone());
-        contact.setAlternatePhone(dto.getAlternatePhone());
-        contact.setPrimary(dto.isPrimary());
-        contact = vendorContactRepository.save(contact);
-        return vendorContactMapper.toDto(contact);
+        return vendorSubEntityService.updateContact(vendorId, contactId, dto);
     }
 
-    @Transactional
     public void deleteContact(Long vendorId, Long contactId) {
-        Vendor vendor = findVendorByIdAndOrg(vendorId);
-        VendorContact contact = vendorContactRepository.findByIdAndOrganization_Id(contactId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Contact with ID " + contactId + " was not found in this organization"));
-        if (!contact.getVendor().getId().equals(vendorId)) {
-            throw new ResourceNotFoundException("Contact with ID " + contactId + " does not belong to vendor with ID " + vendorId);
-        }
-        vendor.getContacts().remove(contact);
-        vendorContactRepository.delete(contact);
+        vendorSubEntityService.deleteContact(vendorId, contactId);
     }
 
-    // ==================== Tax Identifier CRUD ====================
-
-    @Transactional(readOnly = true)
     public List<VendorTaxIdentifierDto> getTaxIdentifiersByVendorId(Long vendorId) {
-        findVendorByIdAndOrg(vendorId);
-        return vendorTaxIdentifierRepository.findByVendor_Id(vendorId).stream()
-                .map(vendorTaxIdentifierMapper::toDto)
-                .collect(Collectors.toList());
+        return vendorSubEntityService.getTaxIdentifiersByVendorId(vendorId);
     }
 
-    @Transactional
     public VendorTaxIdentifierDto addTaxIdentifier(Long vendorId, VendorTaxIdentifierCreationDto dto) {
-        Vendor vendor = findVendorByIdAndOrg(vendorId);
-        VendorTaxIdentifier taxId = mapToTaxIdentifierEntity(dto);
-        taxId.setOrganization(vendor.getOrganization());
-        vendor.addTaxIdentifier(taxId);
-        vendorRepository.save(vendor);
-        return vendorTaxIdentifierMapper.toDto(taxId);
+        return vendorSubEntityService.addTaxIdentifier(vendorId, dto);
     }
 
-    @Transactional
     public VendorTaxIdentifierDto updateTaxIdentifier(Long vendorId, Long taxIdId, VendorTaxIdentifierCreationDto dto) {
-        findVendorByIdAndOrg(vendorId);
-        VendorTaxIdentifier taxId = vendorTaxIdentifierRepository.findById(taxIdId)
-                .orElseThrow(() -> new ResourceNotFoundException("Tax identifier with ID " + taxIdId + " was not found"));
-        if (!taxId.getVendor().getId().equals(vendorId)) {
-            throw new ResourceNotFoundException("Tax identifier with ID " + taxIdId + " does not belong to vendor with ID " + vendorId);
-        }
-        taxId.setType(TaxIdentifierType.valueOf(dto.getType()));
-        taxId.setValue(dto.getValue());
-        taxId = vendorTaxIdentifierRepository.save(taxId);
-        return vendorTaxIdentifierMapper.toDto(taxId);
+        return vendorSubEntityService.updateTaxIdentifier(vendorId, taxIdId, dto);
     }
 
-    @Transactional
     public void deleteTaxIdentifier(Long vendorId, Long taxIdId) {
-        Vendor vendor = findVendorByIdAndOrg(vendorId);
-        VendorTaxIdentifier taxId = vendorTaxIdentifierRepository.findById(taxIdId)
-                .orElseThrow(() -> new ResourceNotFoundException("Tax identifier with ID " + taxIdId + " was not found"));
-        if (!taxId.getVendor().getId().equals(vendorId)) {
-            throw new ResourceNotFoundException("Tax identifier with ID " + taxIdId + " does not belong to vendor with ID " + vendorId);
-        }
-        vendor.getTaxIdentifiers().remove(taxId);
-        vendorTaxIdentifierRepository.delete(taxId);
+        vendorSubEntityService.deleteTaxIdentifier(vendorId, taxIdId);
     }
 
-    // ==================== Bank Account CRUD ====================
-
-    @Transactional(readOnly = true)
     public List<VendorBankAccountDto> getBankAccountsByVendorId(Long vendorId) {
-        findVendorByIdAndOrg(vendorId);
-        return vendorBankAccountRepository.findByVendor_Id(vendorId).stream()
-                .map(vendorBankAccountMapper::toDto)
-                .collect(Collectors.toList());
+        return vendorSubEntityService.getBankAccountsByVendorId(vendorId);
     }
 
-    @Transactional
     public VendorBankAccountDto addBankAccount(Long vendorId, VendorBankAccountCreationDto dto) {
-        Vendor vendor = findVendorByIdAndOrg(vendorId);
-        VendorBankAccount account = mapToBankAccountEntity(dto);
-        account.setOrganization(vendor.getOrganization());
-        vendor.addBankAccount(account);
-        vendorRepository.save(vendor);
-        return vendorBankAccountMapper.toDto(account);
+        return vendorSubEntityService.addBankAccount(vendorId, dto);
     }
 
-    @Transactional
     public VendorBankAccountDto updateBankAccount(Long vendorId, Long accountId, VendorBankAccountCreationDto dto) {
-        findVendorByIdAndOrg(vendorId);
-        VendorBankAccount account = vendorBankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Bank account with ID " + accountId + " was not found"));
-        if (!account.getVendor().getId().equals(vendorId)) {
-            throw new ResourceNotFoundException("Bank account with ID " + accountId + " does not belong to vendor with ID " + vendorId);
-        }
-        account.setBankName(dto.getBankName());
-        account.setAccountNumber(dto.getAccountNumber());
-        account.setIfscCode(dto.getIfscCode());
-        account.setAccountHolderName(dto.getAccountHolderName());
-        account.setSwift(dto.getSwift());
-        account.setDefault(dto.isDefault());
-        account = vendorBankAccountRepository.save(account);
-        return vendorBankAccountMapper.toDto(account);
+        return vendorSubEntityService.updateBankAccount(vendorId, accountId, dto);
     }
 
-    @Transactional
     public void deleteBankAccount(Long vendorId, Long accountId) {
-        Vendor vendor = findVendorByIdAndOrg(vendorId);
-        VendorBankAccount account = vendorBankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Bank account with ID " + accountId + " was not found"));
-        if (!account.getVendor().getId().equals(vendorId)) {
-            throw new ResourceNotFoundException("Bank account with ID " + accountId + " does not belong to vendor with ID " + vendorId);
-        }
-        vendor.getBankAccounts().remove(account);
-        vendorBankAccountRepository.delete(account);
+        vendorSubEntityService.deleteBankAccount(vendorId, accountId);
     }
 
-    // ==================== Payment Terms CRUD ====================
-
-    @Transactional(readOnly = true)
     public VendorPaymentTermsDto getPaymentTermsByVendorId(Long vendorId) {
-        findVendorByIdAndOrg(vendorId);
-        VendorPaymentTerms terms = vendorPaymentTermsRepository.findByVendor_Id(vendorId)
-                .orElse(null);
-        return vendorPaymentTermsMapper.toDto(terms);
+        return vendorSubEntityService.getPaymentTermsByVendorId(vendorId);
     }
 
-    @Transactional
     public VendorPaymentTermsDto setPaymentTerms(Long vendorId, VendorPaymentTermsCreationDto dto) {
-        Vendor vendor = findVendorByIdAndOrg(vendorId);
-
-        VendorPaymentTerms terms = vendorPaymentTermsRepository.findByVendor_Id(vendorId)
-                .orElse(null);
-
-        if (terms == null) {
-            terms = mapToPaymentTermsEntity(dto);
-            terms.setOrganization(vendor.getOrganization());
-            vendor.setPaymentTerms(terms);
-            vendorRepository.save(vendor);
-        } else {
-            terms.setPaymentTerms(PaymentTermsType.valueOf(dto.getPaymentTerms()));
-            terms.setCreditLimit(dto.getCreditLimit());
-            terms.setCreditDays(dto.getCreditDays());
-            vendorPaymentTermsRepository.save(terms);
-        }
-        return vendorPaymentTermsMapper.toDto(terms);
+        return vendorSubEntityService.setPaymentTerms(vendorId, dto);
     }
 
-    @Transactional
     public void deletePaymentTerms(Long vendorId) {
-        Vendor vendor = findVendorByIdAndOrg(vendorId);
-        VendorPaymentTerms terms = vendorPaymentTermsRepository.findByVendor_Id(vendorId)
-                .orElseThrow(() -> new ResourceNotFoundException("No payment terms are configured for vendor with ID " + vendorId));
-        vendor.setPaymentTerms(null);
-        vendorPaymentTermsRepository.delete(terms);
+        vendorSubEntityService.deletePaymentTerms(vendorId);
     }
 
     // ==================== Helper Methods ====================
