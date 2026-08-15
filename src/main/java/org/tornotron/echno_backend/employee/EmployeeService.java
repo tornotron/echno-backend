@@ -48,6 +48,7 @@ public class EmployeeService {
     private final UserRepository userRepository;
     private final KeycloakGroupService keycloakGroupService;
     private final EmployeeMapper employeeMapper;
+    private final EmployeeHierarchyService employeeHierarchyService;
 
     /**
      * Constructs an EmployeeService with the necessary repositories.
@@ -56,13 +57,15 @@ public class EmployeeService {
      * @param organizationRepository The repository for organization data access.
      * @param userRepository         The repository for user data access.
      * @param keycloakGroupService   The service for managing Keycloak groups.
+     * @param employeeHierarchyService The service owning the reporting hierarchy.
      */
-    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, KeycloakGroupService keycloakGroupService, EmployeeMapper employeeMapper) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, KeycloakGroupService keycloakGroupService, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService) {
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.keycloakGroupService = keycloakGroupService;
         this.employeeMapper = employeeMapper;
+        this.employeeHierarchyService = employeeHierarchyService;
     }
 
     /**
@@ -303,7 +306,7 @@ public class EmployeeService {
                     Employee manager = employeeRepository.findByIdAndOrganizationId(managerId,TenantContext.getCurrentOrgId())
                             .orElseThrow(() -> new ResourceNotFoundException(
                                     "Manager with ID " + managerId + " was not found in this organization"));
-                    validateManager(employee, manager);
+                    employeeHierarchyService.validateManager(employee, manager);
                     employee.setManager(manager);
                     break;
             }
@@ -311,103 +314,26 @@ public class EmployeeService {
     }
 
     /**
-     * Validates that a manager assignment is valid.
-     * Checks that:
-     * - The employee is not being assigned as their own manager
-     * - The manager belongs to the same organization as the employee
-     * - No circular reference is created in the management hierarchy
-     *
-     * @param employee The employee to assign a manager to.
-     * @param manager  The proposed manager.
-     * @throws IllegalArgumentException if validation fails.
+     * Assigns a manager to an employee. Delegates to {@link EmployeeHierarchyService}.
      */
-    private void validateManager(Employee employee, Employee manager) {
-        if (employee.getId() != null && manager.getId().equals(employee.getId())) {
-            throw new IllegalArgumentException("Employee cannot be their own manager");
-        }
-        if (!manager.getOrganization().getId().equals(employee.getOrganization().getId())) {
-            throw new IllegalArgumentException("Manager must be from the same organization");
-        }
-        // Check for circular reference in management chain
-        if (employee.getId() != null && wouldCreateCircularReference(employee, manager)) {
-            throw new IllegalArgumentException("This assignment would create a circular reference in the management hierarchy");
-        }
-    }
-
-    /**
-     * Checks if assigning the given manager to the employee would create a circular reference.
-     * A circular reference occurs when the proposed manager (or any manager up the chain)
-     * reports to the employee being updated.
-     *
-     * @param employee The employee to assign a manager to.
-     * @param manager  The proposed manager.
-     * @return true if a circular reference would be created, false otherwise.
-     */
-    private boolean wouldCreateCircularReference(Employee employee, Employee manager) {
-        Employee current = manager;
-        while (current.getManager() != null) {
-            if (current.getManager().getId().equals(employee.getId())) {
-                return true;
-            }
-            current = current.getManager();
-        }
-        return false;
-    }
-
-    /**
-     * Assigns a manager to an employee.
-     *
-     * @param employeeId The ID of the employee.
-     * @param managerId  The ID of the manager to assign.
-     * @return The updated employee DTO.
-     * @throws ResourceNotFoundException if the employee or manager is not found.
-     * @throws IllegalArgumentException  if validation fails.
-     */
-    @Transactional
     public EmployeeDto assignManager(Long employeeId, Long managerId) {
-        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
-        Employee manager = employeeRepository.findByIdAndOrganizationId(managerId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Manager with ID " + managerId + " was not found in this organization"));
-
-        validateManager(employee, manager);
-        employee.setManager(manager);
-
-        return employeeMapper.toDto(employeeRepository.save(employee));
+        return employeeHierarchyService.assignManager(employeeId, managerId);
     }
 
     /**
-     * Removes the manager assignment from an employee.
-     *
-     * @param employeeId The ID of the employee.
-     * @return The updated employee DTO.
-     * @throws ResourceNotFoundException if the employee is not found.
+     * Removes the manager assignment from an employee. Delegates to
+     * {@link EmployeeHierarchyService}.
      */
-    @Transactional
     public EmployeeDto removeManager(Long employeeId) {
-        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
-
-        employee.setManager(null);
-
-        return employeeMapper.toDto(employeeRepository.save(employee));
+        return employeeHierarchyService.removeManager(employeeId);
     }
 
     /**
-     * Retrieves all direct subordinates of a manager.
-     *
-     * @param managerId The ID of the manager.
-     * @return A list of employee DTOs who report to the specified manager.
-     * @throws ResourceNotFoundException if the manager is not found.
+     * Retrieves all direct subordinates of a manager. Delegates to
+     * {@link EmployeeHierarchyService}.
      */
-    @Transactional(readOnly = true)
     public List<EmployeeDto> getDirectSubordinates(Long managerId) {
-        if (!employeeRepository.existsByIdAndOrganization_Id(managerId,TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("Manager with ID " + managerId + " was not found in this organization");
-        }
-        return employeeRepository.findByManager_Id(managerId).stream()
-                .map(employee -> employeeMapper.toDto(employee))
-                .collect(Collectors.toList());
+        return employeeHierarchyService.getDirectSubordinates(managerId);
     }
 
     /**
@@ -460,20 +386,14 @@ public class EmployeeService {
         employeeRepository.deleteById(id);
     }
 
-    @Transactional(readOnly = true)
+    /** Lists every employee that acts as a manager. Delegates to {@link EmployeeHierarchyService}. */
     public List<EmployeeDto> readAllTheManagers() {
-        return employeeRepository.findEmployeesByOrgRoles(OrgRole.getManagerRoles())
-                .stream()
-                .map(employee -> employeeMapper.toDto(employee))
-                .collect(Collectors.toList());
+        return employeeHierarchyService.readAllTheManagers();
     }
 
-    @Transactional(readOnly = true)
+    /** Lists managers scoped to one organization. Delegates to {@link EmployeeHierarchyService}. */
     public List<EmployeeDto> readAllTheManagersByOrganizationId(Long organizationId) {
-        return employeeRepository.findEmployeesByOrganization_IdAndIsManager(organizationId,true)
-                .stream()
-                .map(employee -> employeeMapper.toDto(employee))
-                .collect(Collectors.toList());
+        return employeeHierarchyService.readAllTheManagersByOrganizationId(organizationId);
     }
 
     @Transactional
