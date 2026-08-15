@@ -1,9 +1,12 @@
 package org.tornotron.echno_backend.employee;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.tornotron.echno_backend.common.enums.OrgRole;
+import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.user.User;
 
@@ -81,4 +84,26 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
     boolean existsByIdAndOrgRolesIn(@Param("employeeId") Long employeeId, @Param("roles") Set<OrgRole> roles);
 
     boolean existsByIdAndOrganization_Id(Long id, Long organizationId);
+
+    /**
+     * Paginated employee search. Every filter is optional (a null argument
+     * disables that clause); the tenant orgFilter still applies. {@code search}
+     * matches name, email, phone, or the human-facing employee id,
+     * case-insensitively.
+     */
+    @Query("""
+            SELECT e FROM Employee e WHERE
+              (:search IS NULL
+                 OR LOWER(e.employeeName) LIKE LOWER(CONCAT('%', :search, '%'))
+                 OR LOWER(e.emailAddress) LIKE LOWER(CONCAT('%', :search, '%'))
+                 OR LOWER(e.phoneNumber) LIKE LOWER(CONCAT('%', :search, '%'))
+                 OR LOWER(e.employeeId) LIKE LOWER(CONCAT('%', :search, '%'))) AND
+              (:status IS NULL OR e.status = :status) AND
+              (:department IS NULL OR e.department = :department)
+            """)
+    Page<Employee> search(
+            @Param("search") String search,
+            @Param("status") EmployeeStatus status,
+            @Param("department") String department,
+            Pageable pageable);
 }

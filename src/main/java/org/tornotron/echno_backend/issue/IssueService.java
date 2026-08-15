@@ -17,11 +17,13 @@ import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.issue.dto.IssueCreationDto;
 import org.tornotron.echno_backend.issue.dto.IssueDto;
 import org.tornotron.echno_backend.issue.dto.IssueSimpleDto;
+import org.tornotron.echno_backend.issue.dto.IssueStatsDto;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
 import org.tornotron.echno_backend.task.Task;
 import org.tornotron.echno_backend.task.TaskRepository;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -88,10 +90,35 @@ public class IssueService {
     }
 
     @Transactional(readOnly = true)
-    public Page<IssueDto> getAllIssuesPaginated(int pageNo, int pageSize) {
+    public Page<IssueDto> getAllIssuesPaginated(int pageNo, int pageSize, Long projectId, String search, String status, String type) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return issueRepository.findAll(pageable)
+        return issueRepository.search(projectId, blankToNull(search), parseStatus(status), parseType(type), pageable)
                 .map(issue -> issueMapper.toDto(issue));
+    }
+
+    @Transactional(readOnly = true)
+    public IssueStatsDto getIssueStats(Long projectId, String search, String type) {
+        Map<String, Long> byStatus = new LinkedHashMap<>();
+        long total = 0;
+        for (Object[] row : issueRepository.countByStatus(projectId, blankToNull(search), parseType(type))) {
+            IssueStatus status = (IssueStatus) row[0];
+            long count = (Long) row[1];
+            byStatus.put(status.name(), count);
+            total += count;
+        }
+        return new IssueStatsDto(total, byStatus);
+    }
+
+    private static String blankToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value;
+    }
+
+    private static IssueStatus parseStatus(String status) {
+        return (status == null || status.isBlank()) ? null : IssueStatus.valueOf(status);
+    }
+
+    private static IssueType parseType(String type) {
+        return (type == null || type.isBlank()) ? null : IssueType.valueOf(type);
     }
 
     @Transactional(readOnly = true)
