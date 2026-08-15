@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.issue.dto.IssueCreationDto;
 import org.tornotron.echno_backend.issue.dto.IssueDto;
 import org.tornotron.echno_backend.issue.dto.IssueSimpleDto;
+import org.tornotron.echno_backend.issue.dto.IssueStatsDto;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 
 import java.util.List;
@@ -43,9 +44,22 @@ public class IssueControllerWeb {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<Page<IssueDto>> readAllIssuesPaginated(
             @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        Page<IssueDto> issues = issueService.getAllIssuesPaginated(pageNo, pageSize);
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String type) {
+        Page<IssueDto> issues = issueService.getAllIssuesPaginated(pageNo, pageSize, projectId, search, status, type);
         return new ResponseEntity<>(issues, HttpStatus.OK);
+    }
+
+    @GetMapping("/stats")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    public ResponseEntity<IssueStatsDto> readIssueStats(
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String type) {
+        return new ResponseEntity<>(issueService.getIssueStats(projectId, search, type), HttpStatus.OK);
     }
 
     @GetMapping("/project/{projectId}")

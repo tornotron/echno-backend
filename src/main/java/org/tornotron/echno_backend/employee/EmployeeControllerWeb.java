@@ -74,8 +74,11 @@ public class EmployeeControllerWeb {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     public ResponseEntity<Page<EmployeeDto>> readAllEmployeesPaginated(
             @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        return new ResponseEntity<>(employeeService.displayAllEmployees(pageNo, pageSize), HttpStatus.OK);
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String department) {
+        return new ResponseEntity<>(employeeService.displayAllEmployees(pageNo, pageSize, search, status, department), HttpStatus.OK);
     }
 
     /**

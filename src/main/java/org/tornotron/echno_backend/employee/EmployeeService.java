@@ -206,9 +206,12 @@ public class EmployeeService {
      * @return A page of employee DTOs.
      */
     @Transactional(readOnly = true)
-    public Page<EmployeeDto> displayAllEmployees(int pageNo, int pageSize) {
+    public Page<EmployeeDto> displayAllEmployees(int pageNo, int pageSize, String search, String status, String department) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "employeeName"));
-        return employeeRepository.findAll(pageable)
+        String searchTerm = (search == null || search.isBlank()) ? null : search;
+        String departmentTerm = (department == null || department.isBlank()) ? null : department;
+        EmployeeStatus statusTerm = (status == null || status.isBlank()) ? null : EmployeeStatus.valueOf(status);
+        return employeeRepository.search(searchTerm, statusTerm, departmentTerm, pageable)
                 .map(employee -> employeeMapper.toDto(employee));
     }
 
