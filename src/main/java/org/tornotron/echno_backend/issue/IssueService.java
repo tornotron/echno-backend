@@ -92,7 +92,7 @@ public class IssueService {
     @Transactional(readOnly = true)
     public Page<IssueDto> getAllIssuesPaginated(int pageNo, int pageSize, Long projectId, String search, String status, String type) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return issueRepository.search(projectId, blankToNull(search), parseStatus(status), parseType(type), pageable)
+        return issueRepository.search(projectId, searchPattern(search), parseStatus(status), parseType(type), pageable)
                 .map(issue -> issueMapper.toDto(issue));
     }
 
@@ -100,7 +100,7 @@ public class IssueService {
     public IssueStatsDto getIssueStats(Long projectId, String search, String type) {
         Map<String, Long> byStatus = new LinkedHashMap<>();
         long total = 0;
-        for (Object[] row : issueRepository.countByStatus(projectId, blankToNull(search), parseType(type))) {
+        for (Object[] row : issueRepository.countByStatus(projectId, searchPattern(search), parseType(type))) {
             IssueStatus status = (IssueStatus) row[0];
             long count = (Long) row[1];
             byStatus.put(status.name(), count);
@@ -109,8 +109,13 @@ public class IssueService {
         return new IssueStatsDto(total, byStatus);
     }
 
-    private static String blankToNull(String value) {
-        return (value == null || value.isBlank()) ? null : value;
+    /**
+     * Builds a lower-cased {@code %...%} LIKE pattern for the search term, or null
+     * when blank. The pattern is assembled here rather than with SQL {@code CONCAT}
+     * so no null bind lands inside a {@code ||}, which CockroachDB mistypes as bytes.
+     */
+    private static String searchPattern(String value) {
+        return (value == null || value.isBlank()) ? null : "%" + value.trim().toLowerCase() + "%";
     }
 
     private static IssueStatus parseStatus(String status) {

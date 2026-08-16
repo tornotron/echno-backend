@@ -211,7 +211,7 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public Page<EmployeeDto> displayAllEmployees(int pageNo, int pageSize, String search, String status, String department) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "employeeName"));
-        String searchTerm = (search == null || search.isBlank()) ? null : search;
+        String searchTerm = (search == null || search.isBlank()) ? null : "%" + search.trim().toLowerCase() + "%";
         String departmentTerm = (department == null || department.isBlank()) ? null : department;
         EmployeeStatus statusTerm = (status == null || status.isBlank()) ? null : EmployeeStatus.valueOf(status);
         return employeeRepository.search(searchTerm, statusTerm, departmentTerm, pageable)
