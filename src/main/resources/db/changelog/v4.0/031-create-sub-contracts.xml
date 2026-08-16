@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="031-create-sub-contracts" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="sub_contract"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="sub_contract">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="contract_id" type="VARCHAR(100)"/>
+            <column name="contract_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="work_description" type="TEXT"/>
+            <column name="scope_of_work" type="TEXT"/>
+
+            <column name="contractor_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="contractor_contact_person" type="VARCHAR(200)"/>
+            <column name="contractor_phone" type="VARCHAR(50)"/>
+            <column name="contractor_email" type="VARCHAR(200)"/>
+            <column name="contractor_address" type="TEXT"/>
+            <column name="contractor_gst" type="VARCHAR(50)"/>
+            <column name="contractor_pan" type="VARCHAR(50)"/>
+            <column name="contractor_license" type="VARCHAR(100)"/>
+
+            <column name="type" type="VARCHAR(50)"/>
+            <column name="status" type="VARCHAR(50)"/>
+
+            <column name="contract_value" type="NUMERIC(15, 2)"/>
+            <column name="currency" type="VARCHAR(10)"/>
+            <column name="mobilization_advance" type="NUMERIC(15, 2)"/>
+            <column name="retention_percentage" type="NUMERIC(15, 2)"/>
+            <column name="total_paid" type="NUMERIC(15, 2)"/>
+            <column name="total_due" type="NUMERIC(15, 2)"/>
+            <column name="payment_terms" type="TEXT"/>
+
+            <column name="start_date" type="DATE"/>
+            <column name="end_date" type="DATE"/>
+            <column name="actual_completion_date" type="DATE"/>
+            <column name="completion_percentage" type="NUMERIC(15, 2)"/>
+
+            <column name="project_id" type="BIGINT"/>
+            <column name="project_name" type="VARCHAR(255)"/>
+
+            <column name="quality_rating" type="NUMERIC(15, 2)"/>
+            <column name="timeliness_rating" type="NUMERIC(15, 2)"/>
+            <column name="safety_rating" type="NUMERIC(15, 2)"/>
+            <column name="overall_rating" type="NUMERIC(15, 2)"/>
+
+            <column name="insurance_provider" type="VARCHAR(200)"/>
+            <column name="insurance_policy_number" type="VARCHAR(100)"/>
+            <column name="insurance_expiry" type="DATE"/>
+
+            <column name="bank_name" type="VARCHAR(200)"/>
+            <column name="bank_account_number" type="VARCHAR(100)"/>
+            <column name="bank_ifsc" type="VARCHAR(50)"/>
+
+            <column name="supervisor_id" type="BIGINT"/>
+            <column name="account_manager_id" type="BIGINT"/>
+
+            <column name="penalty_clause" type="TEXT"/>
+            <column name="warranty_period" type="VARCHAR(200)"/>
+            <column name="notes" type="TEXT"/>
+
+            <column name="organization_id" type="BIGINT"/>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="sub_contract"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_sub_contract_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="sub_contract" indexName="idx_sub_contract_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="sub_contract" indexName="idx_sub_contract_type">
+            <column name="type"/>
+        </createIndex>
+        <createIndex tableName="sub_contract" indexName="idx_sub_contract_project">
+            <column name="project_id"/>
+        </createIndex>
+        <createIndex tableName="sub_contract" indexName="idx_sub_contract_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="032-create-contract-milestones" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="contract_milestone"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="contract_milestone">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="sub_contract_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+
+            <column name="target_date" type="DATE"/>
+            <column name="completion_date" type="DATE"/>
+
+            <column name="payment_percentage" type="NUMERIC(15, 2)"/>
+            <column name="amount" type="NUMERIC(15, 2)"/>
+
+            <column name="status" type="VARCHAR(50)"/>
+
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="contract_milestone"
+                                 baseColumnNames="sub_contract_id"
+                                 constraintName="fk_contract_milestone_sub_contract"
+                                 referencedTableName="sub_contract"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="contract_milestone"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_contract_milestone_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="contract_milestone" indexName="idx_contract_milestone_sub_contract">
+            <column name="sub_contract_id"/>
+        </createIndex>
+        <createIndex tableName="contract_milestone" indexName="idx_contract_milestone_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
