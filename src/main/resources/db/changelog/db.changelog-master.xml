@@ -237,5 +237,6 @@
     <include file="db/changelog/v4.0/025-create-inspections.xml"/>
     <include file="db/changelog/v4.0/026-create-inspection-check-items.xml"/>
     <include file="db/changelog/v4.0/027-create-inspection-defects.xml"/>
+    <include file="db/changelog/v4.0/028-create-assets.xml"/>
 
 </databaseChangeLog>

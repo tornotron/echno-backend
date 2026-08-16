@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="028-create-assets" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="asset"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="asset">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="asset_id" type="VARCHAR(100)"/>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="type" type="VARCHAR(50)"/>
+            <column name="category" type="VARCHAR(100)"/>
+            <column name="status" type="VARCHAR(50)"/>
+            <column name="asset_condition" type="VARCHAR(50)"/>
+
+            <column name="purchase_date" type="DATE"/>
+            <column name="purchase_price" type="NUMERIC(15, 2)"/>
+            <column name="current_value" type="NUMERIC(15, 2)"/>
+            <column name="depreciation_rate" type="DOUBLE"/>
+
+            <column name="assigned_to" type="VARCHAR(200)"/>
+            <column name="assigned_project" type="VARCHAR(200)"/>
+
+            <column name="manufacturer" type="VARCHAR(200)"/>
+            <column name="model" type="VARCHAR(200)"/>
+            <column name="serial_number" type="VARCHAR(200)"/>
+            <column name="registration_number" type="VARCHAR(200)"/>
+
+            <column name="warranty_expiry" type="DATE"/>
+            <column name="last_maintenance_date" type="DATE"/>
+            <column name="next_maintenance_date" type="DATE"/>
+            <column name="insurance_expiry" type="DATE"/>
+            <column name="maintenance_schedule" type="VARCHAR(200)"/>
+
+            <column name="usage_hours" type="DOUBLE"/>
+            <column name="max_usage_hours" type="DOUBLE"/>
+
+            <column name="fuel_type" type="VARCHAR(50)"/>
+            <column name="insurance_provider" type="VARCHAR(200)"/>
+            <column name="policy_number" type="VARCHAR(100)"/>
+
+            <column name="notes" type="TEXT"/>
+
+            <column name="vendor_id" type="BIGINT"/>
+            <column name="location_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"/>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="asset"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_asset_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint baseTableName="asset"
+                                 baseColumnNames="vendor_id"
+                                 constraintName="fk_asset_vendor"
+                                 referencedTableName="vendor"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint baseTableName="asset"
+                                 baseColumnNames="location_id"
+                                 constraintName="fk_asset_location"
+                                 referencedTableName="storage_location"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <createIndex tableName="asset" indexName="idx_asset_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="asset" indexName="idx_asset_type">
+            <column name="type"/>
+        </createIndex>
+        <createIndex tableName="asset" indexName="idx_asset_vendor">
+            <column name="vendor_id"/>
+        </createIndex>
+        <createIndex tableName="asset" indexName="idx_asset_location">
+            <column name="location_id"/>
+        </createIndex>
+        <createIndex tableName="asset" indexName="idx_asset_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
