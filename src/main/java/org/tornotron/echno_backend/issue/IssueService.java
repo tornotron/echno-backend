@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.issue.mapper.IssueMapper;
 import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
@@ -57,8 +58,8 @@ public class IssueService {
         Issue issue = new Issue();
         issue.setTitle(issueCreationDto.getTitle());
         issue.setDescription(issueCreationDto.getDescription());
-        issue.setType(IssueType.valueOf(issueCreationDto.getType()));
-        issue.setStatus(IssueStatus.valueOf(issueCreationDto.getStatus()));
+        issue.setType(parseIssueType(issueCreationDto.getType()));
+        issue.setStatus(parseIssueStatus(issueCreationDto.getStatus()));
         issue.setCreatedBy(creator);
         issue.setTask(task);
         issue.setOrganization(task.getOrganization());
@@ -118,12 +119,42 @@ public class IssueService {
         return (value == null || value.isBlank()) ? null : "%" + value.trim().toLowerCase() + "%";
     }
 
+    // Optional filter parsers: a blank value means "no filter".
     private static IssueStatus parseStatus(String status) {
-        return (status == null || status.isBlank()) ? null : IssueStatus.valueOf(status);
+        return (status == null || status.isBlank()) ? null : parseIssueStatus(status);
     }
 
     private static IssueType parseType(String type) {
-        return (type == null || type.isBlank()) ? null : IssueType.valueOf(type);
+        return (type == null || type.isBlank()) ? null : parseIssueType(type);
+    }
+
+    /**
+     * Parses a required issue type. A missing or unknown value is a client error
+     * (400) rather than the {@code NullPointerException}/500 that a bare
+     * {@code IssueType.valueOf} would raise — the create/update DTOs are parsed
+     * from a multipart string part, so their {@code @NotNull} is not enforced.
+     */
+    private static IssueType parseIssueType(String type) {
+        if (type == null || type.isBlank()) {
+            throw new InvalidRequestException("Issue type is required");
+        }
+        try {
+            return IssueType.valueOf(type);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidRequestException("'" + type + "' is not a valid issue type");
+        }
+    }
+
+    /** Parses a required issue status; see {@link #parseIssueType}. */
+    private static IssueStatus parseIssueStatus(String status) {
+        if (status == null || status.isBlank()) {
+            throw new InvalidRequestException("Issue status is required");
+        }
+        try {
+            return IssueStatus.valueOf(status);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidRequestException("'" + status + "' is not a valid issue status");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -176,10 +207,10 @@ public class IssueService {
                     issue.setDescription((String) value);
                     break;
                 case "type":
-                    issue.setType(IssueType.valueOf((String) value));
+                    issue.setType(parseIssueType((String) value));
                     break;
                 case "status":
-                    issue.setStatus(IssueStatus.valueOf((String) value));
+                    issue.setStatus(parseIssueStatus((String) value));
                     break;
                 case "assignedToId":
                     Long assigneeId = ((Number) value).longValue();
