@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.payable.mapper.PayableMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -106,11 +107,26 @@ public class PayableService {
 
     @Transactional
     public PayableDto recordPayment(Long id, BigDecimal paymentAmount) {
-        Payable payable = payableRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
+        if (paymentAmount == null || paymentAmount.signum() <= 0) {
+            throw new InvalidRequestException("Payment amount must be greater than zero");
+        }
+
+        // Pessimistic lock so concurrent payments against the same payable
+        // serialize their read-modify-write on amountPaid (no lost updates).
+        Payable payable = payableRepository.lockByIdAndOrganizationId(id, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payable with ID " + id + " was not found in this organization"));
 
         BigDecimal currentPaid = payable.getAmountPaid() != null ? payable.getAmountPaid() : BigDecimal.ZERO;
-        payable.setAmountPaid(currentPaid.add(paymentAmount));
+        BigDecimal newPaid = currentPaid.add(paymentAmount);
+
+        BigDecimal total = payable.getAmountRecorded();
+        if (total != null && newPaid.compareTo(total) > 0) {
+            throw new InvalidRequestException(
+                    "Payment of " + paymentAmount + " would overpay payable " + id +
+                    " (recorded " + total + ", already paid " + currentPaid + ")");
+        }
+
+        payable.setAmountPaid(newPaid);
 
         payable = payableRepository.save(payable);
         return payableMapper.toDto(payable);
