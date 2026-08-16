@@ -32,9 +32,9 @@ public interface IssueRepository extends JpaRepository<Issue, Long> {
             SELECT i FROM Issue i WHERE
               (:projectId IS NULL OR i.task.project.id = :projectId) AND
               (:search IS NULL
-                 OR LOWER(i.title) LIKE LOWER(CONCAT('%', :search, '%'))
-                 OR LOWER(i.description) LIKE LOWER(CONCAT('%', :search, '%'))
-                 OR LOWER(i.createdBy.employeeName) LIKE LOWER(CONCAT('%', :search, '%'))) AND
+                 OR LOWER(i.title) LIKE :search
+                 OR LOWER(i.description) LIKE :search
+                 OR LOWER(i.createdBy.employeeName) LIKE :search) AND
               (:status IS NULL OR i.status = :status) AND
               (:type IS NULL OR i.type = :type)
             """)
@@ -54,9 +54,9 @@ public interface IssueRepository extends JpaRepository<Issue, Long> {
             SELECT i.status, COUNT(i) FROM Issue i WHERE
               (:projectId IS NULL OR i.task.project.id = :projectId) AND
               (:search IS NULL
-                 OR LOWER(i.title) LIKE LOWER(CONCAT('%', :search, '%'))
-                 OR LOWER(i.description) LIKE LOWER(CONCAT('%', :search, '%'))
-                 OR LOWER(i.createdBy.employeeName) LIKE LOWER(CONCAT('%', :search, '%'))) AND
+                 OR LOWER(i.title) LIKE :search
+                 OR LOWER(i.description) LIKE :search
+                 OR LOWER(i.createdBy.employeeName) LIKE :search) AND
               (:type IS NULL OR i.type = :type)
             GROUP BY i.status
             """)

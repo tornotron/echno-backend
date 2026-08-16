@@ -89,15 +89,18 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
      * Paginated employee search. Every filter is optional (a null argument
      * disables that clause); the tenant orgFilter still applies. {@code search}
      * matches name, email, phone, or the human-facing employee id,
-     * case-insensitively.
+     * case-insensitively. The caller passes {@code search} already lower-cased
+     * and wrapped in {@code %} wildcards (or null) — building the pattern in
+     * Java rather than with SQL {@code CONCAT} avoids a CockroachDB type error
+     * where a null bind inside {@code ||} is inferred as bytes.
      */
     @Query("""
             SELECT e FROM Employee e WHERE
               (:search IS NULL
-                 OR LOWER(e.employeeName) LIKE LOWER(CONCAT('%', :search, '%'))
-                 OR LOWER(e.emailAddress) LIKE LOWER(CONCAT('%', :search, '%'))
-                 OR LOWER(e.phoneNumber) LIKE LOWER(CONCAT('%', :search, '%'))
-                 OR LOWER(e.employeeId) LIKE LOWER(CONCAT('%', :search, '%'))) AND
+                 OR LOWER(e.employeeName) LIKE :search
+                 OR LOWER(e.emailAddress) LIKE :search
+                 OR LOWER(e.phoneNumber) LIKE :search
+                 OR LOWER(e.employeeId) LIKE :search) AND
               (:status IS NULL OR e.status = :status) AND
               (:department IS NULL OR e.department = :department)
             """)
