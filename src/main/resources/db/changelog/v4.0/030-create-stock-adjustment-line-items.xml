@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="030-create-stock-adjustment-line-items" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="stock_adjustment_line_item"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="stock_adjustment_line_item">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="stock_adjustment_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="material_id" type="BIGINT"/>
+
+            <column name="description" type="VARCHAR(500)"/>
+
+            <column name="system_quantity" type="DOUBLE"/>
+            <column name="physical_quantity" type="DOUBLE"/>
+            <column name="adjustment_quantity" type="DOUBLE"/>
+
+            <column name="unit" type="VARCHAR(50)"/>
+
+            <column name="unit_value" type="NUMERIC(15, 2)"/>
+            <column name="total_adjustment_value" type="NUMERIC(15, 2)"/>
+
+            <column name="reason" type="VARCHAR(100)"/>
+            <column name="reason_details" type="VARCHAR(500)"/>
+
+            <column name="location_id" type="BIGINT"/>
+            <column name="bin_location" type="VARCHAR(100)"/>
+            <column name="notes" type="VARCHAR(500)"/>
+
+            <column name="organization_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="stock_adjustment_line_item"
+                                 baseColumnNames="stock_adjustment_id"
+                                 constraintName="fk_sa_line_item_stock_adjustment"
+                                 referencedTableName="stock_adjustment"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="stock_adjustment_line_item"
+                                 baseColumnNames="material_id"
+                                 constraintName="fk_sa_line_item_material"
+                                 referencedTableName="material"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint baseTableName="stock_adjustment_line_item"
+                                 baseColumnNames="location_id"
+                                 constraintName="fk_sa_line_item_location"
+                                 referencedTableName="storage_location"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint baseTableName="stock_adjustment_line_item"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_sa_line_item_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="stock_adjustment_line_item" indexName="idx_sa_line_item_stock_adjustment">
+            <column name="stock_adjustment_id"/>
+        </createIndex>
+        <createIndex tableName="stock_adjustment_line_item" indexName="idx_sa_line_item_material">
+            <column name="material_id"/>
+        </createIndex>
+        <createIndex tableName="stock_adjustment_line_item" indexName="idx_sa_line_item_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

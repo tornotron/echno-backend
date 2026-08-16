@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="029-create-stock-adjustments" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="stock_adjustment"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="stock_adjustment">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="adjustment_number" type="VARCHAR(100)"/>
+            <column name="type" type="VARCHAR(50)"/>
+            <column name="status" type="VARCHAR(50)"/>
+
+            <column name="location_id" type="BIGINT"/>
+            <column name="project_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"/>
+
+            <column name="adjustment_date" type="DATE"/>
+            <column name="effective_date" type="DATE"/>
+
+            <column name="total_adjustment_value" type="NUMERIC(15, 2)"/>
+
+            <column name="primary_reason" type="VARCHAR(100)"/>
+            <column name="justification" type="TEXT"/>
+
+            <column name="physical_count_date" type="DATE"/>
+            <column name="physical_count_by" type="BIGINT"/>
+            <column name="count_method" type="VARCHAR(50)"/>
+
+            <column name="submitted_by" type="BIGINT"/>
+            <column name="submitted_at" type="TIMESTAMP"/>
+            <column name="approved_by" type="BIGINT"/>
+            <column name="approved_at" type="TIMESTAMP"/>
+            <column name="rejected_by" type="BIGINT"/>
+            <column name="rejected_at" type="TIMESTAMP"/>
+            <column name="rejection_reason" type="VARCHAR(500)"/>
+            <column name="processed_by" type="BIGINT"/>
+            <column name="processed_at" type="TIMESTAMP"/>
+
+            <column name="total_variance_quantity" type="DOUBLE"/>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="stock_adjustment"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_stock_adjustment_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint baseTableName="stock_adjustment"
+                                 baseColumnNames="location_id"
+                                 constraintName="fk_stock_adjustment_location"
+                                 referencedTableName="storage_location"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint baseTableName="stock_adjustment"
+                                 baseColumnNames="project_id"
+                                 constraintName="fk_stock_adjustment_project"
+                                 referencedTableName="project"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <createIndex tableName="stock_adjustment" indexName="idx_stock_adjustment_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="stock_adjustment" indexName="idx_stock_adjustment_type">
+            <column name="type"/>
+        </createIndex>
+        <createIndex tableName="stock_adjustment" indexName="idx_stock_adjustment_location">
+            <column name="location_id"/>
+        </createIndex>
+        <createIndex tableName="stock_adjustment" indexName="idx_stock_adjustment_project">
+            <column name="project_id"/>
+        </createIndex>
+        <createIndex tableName="stock_adjustment" indexName="idx_stock_adjustment_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
