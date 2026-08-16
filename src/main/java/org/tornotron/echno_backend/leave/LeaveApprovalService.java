@@ -112,7 +112,10 @@ public class LeaveApprovalService {
 
     @Transactional
     public LeaveRequestDto approve(Long requestId, LeaveApprovalActionDto dto) {
-        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId, TenantContext.getCurrentOrgId())
+        // Pessimistic lock: concurrent approve/reject on the same request must
+        // serialize, or both read a stale PENDING_APPROVAL status and finalize
+        // twice (double balance deduction / advancing the chain twice).
+        LeaveRequest request = requestRepository.lockByIdAndOrganizationId(requestId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
 
@@ -136,7 +139,7 @@ public class LeaveApprovalService {
 
     @Transactional
     public LeaveRequestDto reject(Long requestId, LeaveApprovalActionDto dto) {
-        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
+        LeaveRequest request = requestRepository.lockByIdAndOrganizationId(requestId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
 

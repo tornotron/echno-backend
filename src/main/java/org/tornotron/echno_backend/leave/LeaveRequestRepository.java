@@ -1,8 +1,10 @@
 package org.tornotron.echno_backend.leave;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
@@ -17,6 +19,17 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
 
 
     Optional<LeaveRequest> findByIdAndOrganization_Id(Long id, Long organizationId);
+
+    /**
+     * Loads a leave request under a pessimistic write lock so concurrent
+     * approve/reject actions on the same request serialize: the second waits for
+     * the first to commit, then sees the updated status and is rejected by the
+     * pending-approval guard instead of double-processing (double balance
+     * deduction / advancing the chain twice).
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM LeaveRequest r WHERE r.id = :id AND r.organization.id = :orgId")
+    Optional<LeaveRequest> lockByIdAndOrganizationId(@Param("id") Long id, @Param("orgId") Long orgId);
 
     Page<LeaveRequest> findByEmployeeId(Long employeeId, Pageable pageable);
 
