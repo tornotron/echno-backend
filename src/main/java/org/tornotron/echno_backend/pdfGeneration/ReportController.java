@@ -65,7 +65,7 @@ public class ReportController {
         return ctx;
     }
 
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     @GetMapping("/pdf")
     public ResponseEntity<byte[]> pdfReport() {
         Context ctx = populateContext();
