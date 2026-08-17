@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
+import org.tornotron.echno_backend.employee.dto.EmployeeLookupDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.employee.dto.EmployeePatchDto;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
@@ -198,6 +199,23 @@ public class EmployeeService {
     public List<EmployeeDto> displayAllEmployees() {
         return employeeRepository.findAll().stream()
                 .map(employee -> employeeMapper.toDto(employee))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieves every employee as a minimal, non-sensitive lookup projection for
+     * dropdowns. Unlike {@link #displayAllEmployees()} this exposes no contact
+     * details, salary or personal data, so it can be read by any tenant member.
+     */
+    @Transactional(readOnly = true)
+    public List<EmployeeLookupDto> lookupEmployees() {
+        return employeeRepository.findAll().stream()
+                .map(employee -> new EmployeeLookupDto(
+                        employee.getId(),
+                        employee.getEmployeeId(),
+                        employee.getEmployeeName(),
+                        employee.getDesignation(),
+                        employee.getOrganization() != null ? employee.getOrganization().getId() : null))
                 .collect(Collectors.toList());
     }
 

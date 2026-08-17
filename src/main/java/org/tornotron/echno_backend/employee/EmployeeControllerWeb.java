@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
+import org.tornotron.echno_backend.employee.dto.EmployeeLookupDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.employee.dto.EmployeePatchDto;
 import org.tornotron.echno_backend.employee.dto.OrgRoleAssignmentDto;
@@ -64,14 +65,24 @@ public class EmployeeControllerWeb {
      *
      * @return A {@link ResponseEntity} containing the list of employee DTOs and HTTP status 200 (OK).
      */
-    @GetMapping
+    /**
+     * Minimal, non-sensitive employee list for populating pickers. Readable by any
+     * tenant member; the full employee reads below are restricted to management roles.
+     */
+    @GetMapping("/lookup")
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    public ResponseEntity<List<EmployeeLookupDto>> lookupEmployees() {
+        return new ResponseEntity<>(employeeService.lookupEmployees(), HttpStatus.OK);
+    }
+
+    @GetMapping
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     public ResponseEntity<List<EmployeeDto>> readAllEmployees() {
         return new ResponseEntity<>(employeeService.displayAllEmployees(), HttpStatus.OK);
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     public ResponseEntity<Page<EmployeeDto>> readAllEmployeesPaginated(
             @RequestParam(defaultValue = "0") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize,
@@ -88,7 +99,7 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} containing the employee DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     public ResponseEntity<EmployeeDto> readAnEmployee(@PathVariable Long id) {
         EmployeeDto employee = employeeService.displayAnEmployee(id);
         return ResponseEntity.status(HttpStatus.OK).body(employee);
