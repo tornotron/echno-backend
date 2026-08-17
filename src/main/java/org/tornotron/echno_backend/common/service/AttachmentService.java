@@ -11,6 +11,7 @@ import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
 import org.tornotron.echno_backend.issue.IssueRepository;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
@@ -43,8 +44,9 @@ public class AttachmentService {
     private final IssueRepository issueRepository;
     private final UserRepository userRepository;
     private final AttendanceRepository attendanceRepository;
+    private final TenantEntityHelper tenantEntityHelper;
 
-    public AttachmentService(AttachmentRepository attachmentRepository, FileStorageService fileStorageService, OrganizationRepository organizationRepository, ProjectRepository projectRepository, TaskRepository taskRepository, IssueRepository issueRepository, UserRepository userRepository, AttendanceRepository attendanceRepository) {
+    public AttachmentService(AttachmentRepository attachmentRepository, FileStorageService fileStorageService, OrganizationRepository organizationRepository, ProjectRepository projectRepository, TaskRepository taskRepository, IssueRepository issueRepository, UserRepository userRepository, AttendanceRepository attendanceRepository, TenantEntityHelper tenantEntityHelper) {
         this.attachmentRepository = attachmentRepository;
         this.fileStorageService = fileStorageService;
         this.organizationRepository = organizationRepository;
@@ -53,6 +55,7 @@ public class AttachmentService {
         this.issueRepository = issueRepository;
         this.userRepository = userRepository;
         this.attendanceRepository = attendanceRepository;
+        this.tenantEntityHelper = tenantEntityHelper;
     }
 
     /**
@@ -88,6 +91,7 @@ public class AttachmentService {
             attachment.setFileSize(storedFile.size());
             attachment.setOriginalFilename(originalFile.getOriginalFilename());
             linkToEntity(attachment, folder, entityId);
+            attachment.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
             attachments.add(attachmentRepository.save(attachment));
         }
 
@@ -116,6 +120,8 @@ public class AttachmentService {
         attachment.setContentType(storedFile.contentType());
         attachment.setFileSize(storedFile.size());
         attachment.setOriginalFilename(file.getOriginalFilename());
+        linkToEntity(attachment, folder, entityId);
+        attachment.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         return attachmentRepository.save(attachment);
     }
@@ -292,6 +298,7 @@ public class AttachmentService {
             attachment.setFileSize(request.fileSize());
             attachment.setOriginalFilename(request.filename());
             linkToEntity(attachment, folder, entityId);
+            attachment.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
             attachments.add(attachmentRepository.save(attachment));
         }
         return attachments;
