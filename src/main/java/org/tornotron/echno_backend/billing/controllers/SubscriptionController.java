@@ -33,7 +33,7 @@ public class SubscriptionController {
      *
      * @return Active subscription or empty if none
      */
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @GetMapping("/current")
     public ResponseEntity<SubscriptionDto> getCurrentSubscription() throws AuthenticationException {
         Long userId = userContextService.getCurrentUserIdOrThrow();
@@ -48,7 +48,7 @@ public class SubscriptionController {
      *
      * @return List of all subscriptions
      */
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @GetMapping("/history")
     public ResponseEntity<List<SubscriptionDto>> getSubscriptionHistory() throws AuthenticationException {
         Long userId = userContextService.getCurrentUserIdOrThrow();
@@ -62,7 +62,7 @@ public class SubscriptionController {
      * @param dto Subscription creation data with plan code
      * @return Created subscription
      */
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping
     public ResponseEntity<SubscriptionDto> createSubscription(@Valid @RequestBody SubscriptionCreateDto dto)
             throws AuthenticationException {
@@ -77,7 +77,7 @@ public class SubscriptionController {
      * @param dto Plan change data
      * @return Updated subscription
      */
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PutMapping("/change-plan")
     public ResponseEntity<SubscriptionDto> changeSubscription(@Valid @RequestBody SubscriptionChangeDto dto)
             throws AuthenticationException {
@@ -92,7 +92,7 @@ public class SubscriptionController {
      * @param dto Cancellation options
      * @return Success message
      */
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @PostMapping("/cancel")
     public ResponseEntity<ApiResponse> cancelSubscription(@RequestBody(required = false) SubscriptionCancelDto dto)
             throws AuthenticationException {
