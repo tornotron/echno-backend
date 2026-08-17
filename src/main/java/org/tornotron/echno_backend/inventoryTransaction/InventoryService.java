@@ -244,34 +244,25 @@ public class InventoryService {
     @Transactional
     public CurrentStock updateCurrentStock(Material material, Project project, StorageLocation storageLocation,
                                            Organization organization, Double quantityChanged, BigDecimal unitCost) {
-        CurrentStock stock;
-        if (storageLocation != null) {
-            stock = currentStockRepository
-                    .lockByMaterialProjectAndLocation(
-                            material.getId(), project.getId(), storageLocation.getId())
-                    .orElseGet(() -> {
-                        CurrentStock newStock = new CurrentStock();
-                        newStock.setMaterial(material);
-                        newStock.setProject(project);
-                        newStock.setStorageLocation(storageLocation);
-                        newStock.setOrganization(organization);
-                        newStock.setCurrentQuantity(0.0);
-                        newStock.setStockValue(BigDecimal.ZERO);
-                        return newStock;
-                    });
-        } else {
-            stock = currentStockRepository
-                    .lockByMaterialProjectAndNoLocation(material.getId(), project.getId())
-                    .orElseGet(() -> {
-                        CurrentStock newStock = new CurrentStock();
-                        newStock.setMaterial(material);
-                        newStock.setProject(project);
-                        newStock.setOrganization(organization);
-                        newStock.setCurrentQuantity(0.0);
-                        newStock.setStockValue(BigDecimal.ZERO);
-                        return newStock;
-                    });
-        }
+        Long storageLocationId = storageLocation != null ? storageLocation.getId() : null;
+
+        // Guarantee the row exists before locking. A plain "lock or else create" loses the
+        // race when two events create the first record for the same key at once: both find
+        // no row to lock and both insert. For a located row the composite unique constraint
+        // rejects the second insert, but for a no-location row NULLs are distinct so both
+        // would succeed and split the stock across duplicate rows. Seeding a zero row (a
+        // no-op on conflict) means the lock below always finds exactly one row to serialize on.
+        currentStockRepository.seedZeroStockRow(material.getId(), project.getId(),
+                storageLocationId, organization != null ? organization.getId() : null);
+
+        CurrentStock stock = (storageLocation != null
+                ? currentStockRepository.lockByMaterialProjectAndLocation(
+                        material.getId(), project.getId(), storageLocationId)
+                : currentStockRepository.lockByMaterialProjectAndNoLocation(
+                        material.getId(), project.getId()))
+                .orElseThrow(() -> new IllegalStateException(
+                        "Current stock row missing after seed for material " + material.getId()
+                                + " project " + project.getId()));
 
         // Update stock value
         if (quantityChanged > 0 && unitCost != null) {

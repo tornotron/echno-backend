@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="033-current-stock-null-location-unique" author="echno">
+        <comment>
+            The composite unique constraint on (material_id, project_id, storage_location_id)
+            does not stop duplicate no-location stock rows: SQL treats each NULL as distinct,
+            so two rows with the same material and project and a NULL storage location satisfy
+            it. Add a partial unique index so at most one no-location row can exist per
+            material and project, matching the guarantee already in force for located rows.
+            Auditing confirmed no such duplicates exist, so the index applies cleanly.
+        </comment>
+        <sql>
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_current_stock_material_project_no_location
+            ON current_stock (material_id, project_id)
+            WHERE storage_location_id IS NULL;
+        </sql>
+        <rollback>
+            DROP INDEX IF EXISTS current_stock@uk_current_stock_material_project_no_location;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

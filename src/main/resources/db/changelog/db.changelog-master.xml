@@ -244,5 +244,6 @@
     <!-- v4.0 - Subcontract module -->
     <include file="db/changelog/v4.0/031-create-sub-contracts.xml"/>
     <include file="db/changelog/v4.0/032-create-contract-milestones.xml"/>
+    <include file="db/changelog/v4.0/033-current-stock-null-location-unique.xml"/>
 
 </databaseChangeLog>

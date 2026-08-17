@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.inventoryTransaction;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,6 +15,28 @@ public interface CurrentStockRepository extends JpaRepository<CurrentStock, Long
 
     Optional<CurrentStock> findByMaterialIdAndProjectIdAndStorageLocationId(
             Long materialId, Long projectId, Long storageLocationId);
+
+    /**
+     * Inserts a zero-quantity stock row if one does not already exist for this
+     * material/project/location, doing nothing on conflict. Called before taking the
+     * pessimistic lock so the lock always has a row to hold: two events racing to
+     * create the first record for the same key cannot both insert (which for a null
+     * location the composite unique constraint would not catch, since NULLs are
+     * distinct). Native because {@code ON CONFLICT DO NOTHING} has no JPQL form.
+     */
+    @Modifying(flushAutomatically = true)
+    @Query(value = """
+            INSERT INTO current_stock
+                (material_id, project_id, storage_location_id, organization_id,
+                 current_quantity, stock_value, created_at, updated_at)
+            VALUES (:materialId, :projectId, :storageLocationId, :organizationId,
+                    0.0, 0, current_timestamp, current_timestamp)
+            ON CONFLICT DO NOTHING
+            """, nativeQuery = true)
+    void seedZeroStockRow(@Param("materialId") Long materialId,
+                          @Param("projectId") Long projectId,
+                          @Param("storageLocationId") Long storageLocationId,
+                          @Param("organizationId") Long organizationId);
 
     @Query("SELECT cs FROM CurrentStock cs WHERE cs.material.id = :materialId AND cs.project.id = :projectId AND cs.storageLocation IS NULL")
     Optional<CurrentStock> findByMaterialIdAndProjectIdAndStorageLocationIsNull(
