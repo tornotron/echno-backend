@@ -215,6 +215,7 @@ public class EmployeeService {
                         employee.getEmployeeId(),
                         employee.getEmployeeName(),
                         employee.getDesignation(),
+                        employee.getStatus(),
                         employee.getOrganization() != null ? employee.getOrganization().getId() : null))
                 .collect(Collectors.toList());
     }
