@@ -107,6 +107,19 @@ keycloak:
     output-path: src/main/resources/config
 
 
+echno:
+  security:
+    jwt:
+      # Reject any access token whose audience does not include the backend client
+      # (the RPT is minted for exactly this client, so legitimate tokens always match).
+      require-audience: ${ECHNO_JWT_REQUIRE_AUDIENCE:true}
+      # Comma-separated list of issuers the token's `iss` claim must match. Empty
+      # disables the check. Keycloak stamps the realm's canonical (frontend) issuer,
+      # which can differ from the internal URL the backend dials, so list every URL
+      # the same realm may present.
+      accepted-issuers: ${ECHNO_JWT_ACCEPTED_ISSUERS:}
+
+
 spring:
   cache:
     cache-names:
