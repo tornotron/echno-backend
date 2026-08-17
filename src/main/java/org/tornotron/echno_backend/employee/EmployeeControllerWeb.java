@@ -189,19 +189,19 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} containing a list of employee DTOs who report to the manager and HTTP status 200 (OK).
      */
     @GetMapping("/managerId/{managerId}/subordinates")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     public ResponseEntity<List<EmployeeDto>> getDirectSubordinates(@PathVariable Long managerId) {
         return ResponseEntity.status(HttpStatus.OK).body(employeeService.getDirectSubordinates(managerId));
     }
 
     @GetMapping("/managers")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     public ResponseEntity<List<EmployeeDto>> getAllTheManagers() {
         return ResponseEntity.status(HttpStatus.OK).body(employeeService.readAllTheManagers());
     }
 
     @GetMapping("/managers/organizationId/{organizationId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     public ResponseEntity<List<EmployeeDto>> getAllManagersForAnOrganization(@PathVariable Long organizationId) {
         return ResponseEntity.status(HttpStatus.OK).body(employeeService.readAllTheManagersByOrganizationId(organizationId));
     }
