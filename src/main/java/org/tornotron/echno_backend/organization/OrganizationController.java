@@ -78,8 +78,13 @@ public class OrganizationController {
      * @param creatorId The ID of the user who created the organizations.
      * @return A {@link ResponseEntity} containing a list of organization DTOs and HTTP status 200 (OK).
      */
+    // Platform-admin only: this returns organizations created by an arbitrary
+    // user id, with no tie between the caller and the returned records, so a
+    // plain member must not be able to enumerate another user's organizations.
+    // A member's own organizations come from the tenant-scoped /web listing,
+    // which is filtered to their memberships.
     @GetMapping("/creator/{creatorId}")
-    @PreAuthorize("hasAuthority('organization:read') or hasAuthority('organization:admin')")
+    @PreAuthorize("hasAuthority('organization:admin')")
     public ResponseEntity<List<OrganizationDto>> readAllOrganizationsByCreatorId(@PathVariable Integer creatorId) {
         return ResponseEntity.status(HttpStatus.OK).body(service.getAllOrganizationsByCreatorId(creatorId));
     }

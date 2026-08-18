@@ -23,10 +23,14 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     long countByRecipientIdAndIsReadFalse(Long recipientId);
 
+    // Bulk DML does not honor the Hibernate orgFilter, so scope by organization
+    // explicitly for defence in depth (the recipient predicate already limits it
+    // to the caller's own notifications).
     @Modifying
     @Query("UPDATE Notification n SET n.isRead = true, n.readAt = CURRENT_TIMESTAMP " +
-           "WHERE n.recipient.id = :recipientId AND n.isRead = false")
-    int markAllAsReadByRecipientId(@Param("recipientId") Long recipientId);
+           "WHERE n.recipient.id = :recipientId AND n.organization.id = :organizationId AND n.isRead = false")
+    int markAllAsReadByRecipientId(@Param("recipientId") Long recipientId,
+                                   @Param("organizationId") Long organizationId);
 
     List<Notification> findByEntityTypeAndEntityId(String entityType, Long entityId);
 
