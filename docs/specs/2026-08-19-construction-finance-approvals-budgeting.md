@@ -92,15 +92,15 @@ the invoice, and the audit-trail fields from section 2. The rest are already pre
 
 ## 5. Sequencing and what needs a decision
 
-1. **Web view refinements (section 4)** — safe, no financial logic. Ship first; the audit-trail and due-date
+1. **Web view refinements (section 4)**: safe, no financial logic. Ship first; the audit-trail and due-date
    columns render once the backend fields below exist.
 2. **Backend fields**: add `due_date`, `payment_terms`, and the section-2 audit-trail columns to the construction
    invoice/payment (migration + DTOs + core types). Mechanical, low risk.
-3. **Approval workflow + ledger posting (sections 1 and 2)** — the financially sensitive increment 3 of the base
+3. **Approval workflow + ledger posting (sections 1 and 2)**: the financially sensitive increment 3 of the base
    spec, now gated on Approved. Build carefully, with the `1210` GST-input code confirmed first, and a
    concurrency-safe posting path (mirror the tested `JournalPostingService` and `InvoicePostingProperties`
    patterns). This is the item that should not ship without a review.
-4. **Budgeting (section 3)** — its own phase, starts with a design round with Anand.
+4. **Budgeting (section 3)**: its own phase, starts with a design round with Anand.
 
 Items 1 and 2 are buildable now. Item 3 is a money path and should be greenlit and reviewed, not merged blind.
 Item 4 is a product design round first. The one open confirmation is the GST Input Credit code (`1210` proposed).
