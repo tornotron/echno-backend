@@ -53,7 +53,7 @@ Sales/service reuses the exact posting `InvoiceService.issue` already performs (
 needs a **new posting-properties bean** carrying the AP control-account code and GST-input code, mirroring
 `InvoicePostingProperties` (AR=1200, GST-out=2210).
 
-## 4. Sales/service ledger path — RESOLVED: option A
+## 4. Sales/service ledger path (RESOLVED: option A)
 
 For **sales/service** construction invoices, two ways to reach the ledger were considered; **A is chosen**:
 
