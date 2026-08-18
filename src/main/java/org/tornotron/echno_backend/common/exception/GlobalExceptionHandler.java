@@ -6,18 +6,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.http.ProblemDetail;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
-import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
-import org.tornotron.echno_backend.common.response.CustomErrorResponse;
-import org.tornotron.echno_backend.common.response.ErrorResponseValidation;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.tornotron.echno_backend.common.response.SubscriptionErrorResponse;
 
 import java.nio.file.AccessDeniedException;
@@ -31,98 +28,88 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
+/**
+ * Translates exceptions into RFC 7807 {@link ProblemDetail} responses.
+ *
+ * <p>Each problem carries the standard {@code type}/{@code title}/{@code status}/
+ * {@code detail} fields. For backward compatibility with the echno-core API client
+ * (which reads {@code message}, {@code details} and, on validation errors,
+ * {@code errors}) those keys are preserved as problem properties with their existing
+ * values: {@code message} mirrors {@code detail}, {@code details} is the request
+ * description, and {@code timestamp} the moment of failure.
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    /**
+     * Builds a problem carrying both the RFC 7807 fields and the legacy keys the
+     * existing clients read. The HTTP status still comes from each handler's
+     * {@code @ResponseStatus}; the same status is echoed in the body.
+     */
+    private ProblemDetail problem(HttpStatus status, String title, String detail, WebRequest request) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(status, detail);
+        pd.setTitle(title);
+        pd.setProperty("message", detail);
+        pd.setProperty("details", request.getDescription(false));
+        pd.setProperty("timestamp", LocalDateTime.now());
+        return pd;
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public CustomErrorResponse handleResourceNotFoundException(ResourceNotFoundException ex, WebRequest request) {
+    public ProblemDetail handleResourceNotFoundException(ResourceNotFoundException ex, WebRequest request) {
         logger.error("Resource not found exception: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.NOT_FOUND, "Resource Not Found", ex.getMessage(), request);
     }
 
     @ExceptionHandler(TenantAccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public CustomErrorResponse handleTenantAccessDeniedException(TenantAccessDeniedException ex, WebRequest request) {
+    public ProblemDetail handleTenantAccessDeniedException(TenantAccessDeniedException ex, WebRequest request) {
         logger.warn("Tenant access denied: {}", ex.getMessage());
-        return new CustomErrorResponse(
-                HttpStatus.FORBIDDEN.value(),
-                "Access to this resource is not permitted for your organization",
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.FORBIDDEN, "Access Denied",
+                "Access to this resource is not permitted for your organization", request);
     }
 
     @ExceptionHandler(UnbalancedEntryException.class)
     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
-    public CustomErrorResponse handleUnbalancedEntryException(UnbalancedEntryException ex, WebRequest request) {
+    public ProblemDetail handleUnbalancedEntryException(UnbalancedEntryException ex, WebRequest request) {
         logger.error("Unbalanced entry exception: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.UNPROCESSABLE_ENTITY.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
-
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, "Unbalanced Journal Entry", ex.getMessage(), request);
     }
 
     @ExceptionHandler(InvalidJournalException.class)
     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
-    public CustomErrorResponse handleInvalidJournalException(InvalidJournalException ex, WebRequest request) {
+    public ProblemDetail handleInvalidJournalException(InvalidJournalException ex, WebRequest request) {
         logger.error("Invalid journal exception: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.UNPROCESSABLE_ENTITY.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, "Invalid Journal", ex.getMessage(), request);
     }
 
     @ExceptionHandler({AccountNotFoundException.class, EntityNotFoundException.class})
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public CustomErrorResponse handleAccountNotFoundException(AccountNotFoundException ex, WebRequest request) {
+    public ProblemDetail handleAccountNotFoundException(RuntimeException ex, WebRequest request) {
         logger.error("Account not found exception: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.NOT_FOUND, "Account Not Found", ex.getMessage(), request);
     }
 
     @ExceptionHandler(PeriodClosedException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public CustomErrorResponse handlePeriodClosedException(PeriodClosedException ex, WebRequest request) {
+    public ProblemDetail handlePeriodClosedException(PeriodClosedException ex, WebRequest request) {
         logger.error("Period closed exception: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.CONFLICT.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.CONFLICT, "Period Closed", ex.getMessage(), request);
     }
 
     @ExceptionHandler(DuplicateIdempotencyKeyException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public CustomErrorResponse handleDuplicateIdempotencyKeyException(DuplicateIdempotencyKeyException ex, WebRequest request) {
+    public ProblemDetail handleDuplicateIdempotencyKeyException(DuplicateIdempotencyKeyException ex, WebRequest request) {
         logger.error("Duplicate idempotency key exception: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.CONFLICT.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.CONFLICT, "Duplicate Idempotency Key", ex.getMessage(), request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException exception, WebRequest request) {
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ProblemDetail handleValidationException(MethodArgumentNotValidException exception, WebRequest request) {
         Map<String, String> errors = new HashMap<>();
         exception.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
@@ -130,182 +117,111 @@ public class GlobalExceptionHandler {
             errors.put(fieldName, errorMessage);
         });
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponseValidation(HttpStatus.BAD_REQUEST.value(),
-                        "Validation Failed",
-                        errors,
-                        request.getDescription(false),
-                        LocalDateTime.now()
-                ));
+        ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "Validation Failed", "Validation Failed", request);
+        pd.setProperty("errors", errors);
+        return pd;
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public CustomErrorResponse handleDataIntegrityViolationException(DataIntegrityViolationException ex, WebRequest request) {
+    public ProblemDetail handleDataIntegrityViolationException(DataIntegrityViolationException ex, WebRequest request) {
         logger.error("Data integrity violation: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.CONFLICT.value(),
-                "Database operation failed, Data Integrity violation",
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.CONFLICT, "Data Integrity Violation",
+                "Database operation failed, Data Integrity violation", request);
     }
 
     @ExceptionHandler(DuplicateResourceException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public CustomErrorResponse handleDuplicateResourceException(DuplicateResourceException ex, WebRequest request) {
+    public ProblemDetail handleDuplicateResourceException(DuplicateResourceException ex, WebRequest request) {
         logger.error("Duplicate resource: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.CONFLICT.value(),
-                "Database operation failed, Data already exists",
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.CONFLICT, "Duplicate Resource",
+                "Database operation failed, Data already exists", request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public CustomErrorResponse handleAccessDeniedException(AccessDeniedException ex, WebRequest request) {
+    public ProblemDetail handleAccessDeniedException(AccessDeniedException ex, WebRequest request) {
         logger.error("Access denied: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.FORBIDDEN.value(),
-                "Access denied",
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.FORBIDDEN, "Access Denied", "Access denied", request);
     }
 
     @ExceptionHandler(com.fasterxml.jackson.core.JsonProcessingException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public CustomErrorResponse handleJsonProcessingException(com.fasterxml.jackson.core.JsonProcessingException ex, WebRequest request) {
+    public ProblemDetail handleJsonProcessingException(com.fasterxml.jackson.core.JsonProcessingException ex, WebRequest request) {
         logger.error("JSON processing error: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                "Invalid JSON format: " + ex.getOriginalMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.BAD_REQUEST, "Malformed JSON",
+                "Invalid JSON format: " + ex.getOriginalMessage(), request);
     }
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public CustomErrorResponse handleAllUncaughtException(Exception ex, WebRequest request) {
+    public ProblemDetail handleAllUncaughtException(Exception ex, WebRequest request) {
         logger.error("Unknown error occurred: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "An unexpected error occurred: " + ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error",
+                "An unexpected error occurred: " + ex.getMessage(), request);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public CustomErrorResponse handleMissingRequestBody(HttpMessageNotReadableException ex, WebRequest request) {
+    public ProblemDetail handleMissingRequestBody(HttpMessageNotReadableException ex, WebRequest request) {
         logger.error("Missing request body: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                "Required request body is missing",
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.BAD_REQUEST, "Malformed Request", "Required request body is missing", request);
     }
 
     @ExceptionHandler(InvalidInviteCodeException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public CustomErrorResponse handleInvalidInviteCodeException(InvalidInviteCodeException ex, WebRequest request) {
+    public ProblemDetail handleInvalidInviteCodeException(InvalidInviteCodeException ex, WebRequest request) {
         logger.error("Invalid Invite Code: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.BAD_REQUEST, "Invalid Invite Code", ex.getMessage(), request);
     }
 
     @ExceptionHandler(AuthorizationDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public CustomErrorResponse handleAuthorizationDeniedException(AuthorizationDeniedException ex, WebRequest request) {
+    public ProblemDetail handleAuthorizationDeniedException(AuthorizationDeniedException ex, WebRequest request) {
         logger.error("Access denied: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.FORBIDDEN.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.FORBIDDEN, "Access Denied", ex.getMessage(), request);
     }
 
     @ExceptionHandler(DatabaseOperationException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public CustomErrorResponse handleDatabaseOperationException(DatabaseOperationException ex, WebRequest request) {
+    public ProblemDetail handleDatabaseOperationException(DatabaseOperationException ex, WebRequest request) {
         logger.error("Database operation failed: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
-
+        return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Database Operation Failed", ex.getMessage(), request);
     }
 
     @ExceptionHandler(InvalidAttendanceSequenceException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public CustomErrorResponse handleInvalidAttendanceSequenceException(InvalidAttendanceSequenceException ex, WebRequest request) {
+    public ProblemDetail handleInvalidAttendanceSequenceException(InvalidAttendanceSequenceException ex, WebRequest request) {
         logger.error("Invalid Attendance marking sequence: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.CONFLICT.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.CONFLICT, "Invalid Attendance Sequence", ex.getMessage(), request);
     }
 
     @ExceptionHandler(InsufficientStockException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public CustomErrorResponse handleInsufficientStockException(InsufficientStockException ex, WebRequest request) {
+    public ProblemDetail handleInsufficientStockException(InsufficientStockException ex, WebRequest request) {
         logger.error("Insufficient stock: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.CONFLICT.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.CONFLICT, "Insufficient Stock", ex.getMessage(), request);
     }
 
     @ExceptionHandler(InvalidRequestException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public CustomErrorResponse handleInvalidRequestException(InvalidRequestException ex, WebRequest request) {
+    public ProblemDetail handleInvalidRequestException(InvalidRequestException ex, WebRequest request) {
         logger.error("Invalid request: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.BAD_REQUEST, "Invalid Request", ex.getMessage(), request);
     }
 
     @ExceptionHandler(NoActiveSubscriptionException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public CustomErrorResponse handleNoActiveSubscriptionException(NoActiveSubscriptionException ex, WebRequest request) {
+    public ProblemDetail handleNoActiveSubscriptionException(NoActiveSubscriptionException ex, WebRequest request) {
         logger.error("No active subscription: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.CONFLICT.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.CONFLICT, "No Active Subscription", ex.getMessage(), request);
     }
 
     @ExceptionHandler(PlanNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public CustomErrorResponse handlePlanNotFoundException(PlanNotFoundException ex, WebRequest request) {
+    public ProblemDetail handlePlanNotFoundException(PlanNotFoundException ex, WebRequest request) {
         logger.error("Plan not found: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.NOT_FOUND.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.NOT_FOUND, "Plan Not Found", ex.getMessage(), request);
     }
 
     @ExceptionHandler(SubscriptionAccessDeniedException.class)
@@ -348,35 +264,25 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(TenantIdMissingException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public CustomErrorResponse handleTenantIdMissingException(TenantIdMissingException ex, WebRequest request) {
+    public ProblemDetail handleTenantIdMissingException(TenantIdMissingException ex, WebRequest request) {
         logger.error("Tenant ID is missing: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.BAD_REQUEST, "Tenant Id Missing", ex.getMessage(), request);
     }
 
     @ExceptionHandler(FileUploadException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public CustomErrorResponse handleFileUploadException(FileUploadException ex, WebRequest request) {
+    public ProblemDetail handleFileUploadException(FileUploadException ex, WebRequest request) {
         logger.error("File upload failed: ", ex);
-        return new CustomErrorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                ex.getMessage(),
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.INTERNAL_SERVER_ERROR, "File Upload Failed", ex.getMessage(), request);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public CustomErrorResponse handleIllegalArgumentException(IllegalArgumentException ex, WebRequest request) {
+    public ProblemDetail handleIllegalArgumentException(IllegalArgumentException ex, WebRequest request) {
         logger.error("Illegal argument: ", ex);
         String errorMessage = "Invalid input provided: " + ex.getMessage();
-        String invalidValue = null;
-        String enumClassName = null;
+        String invalidValue;
+        String enumClassName;
         String availableEnums = null;
 
         Pattern enumErrorPattern = Pattern.compile("No enum constant (\\S+)\\.(\\S+)");
@@ -403,12 +309,6 @@ public class GlobalExceptionHandler {
                     (availableEnums != null ? availableEnums : "N/A"));
         }
 
-        return new CustomErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                errorMessage,
-                request.getDescription(false),
-                LocalDateTime.now()
-        );
+        return problem(HttpStatus.BAD_REQUEST, "Invalid Argument", errorMessage, request);
     }
 }
-
