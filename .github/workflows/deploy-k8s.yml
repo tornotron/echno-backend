@@ -73,6 +73,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push (immutable per-commit tag)
+        id: build
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:
           context: .
@@ -93,26 +94,34 @@ jobs:
           persist-credentials: false
           path: deployment
 
-      - name: Pin the new backend image tag for Argo CD
+      - name: Pin the new backend image digest for Argo CD
         working-directory: deployment
         env:
           FLAVOR: ${{ steps.f.outputs.flavor }}
           TAG: ${{ steps.f.outputs.tag }}
+          DIGEST: ${{ steps.build.outputs.digest }}
           VALUES: ${{ steps.f.outputs.values }}
           DEPLOY_TOKEN: ${{ secrets.ECHNO_DEPLOYMENT_TOKEN }}
           YQ_VERSION: v4.53.3
           YQ_SHA256: fa52a4e758c63d38299163fbdd1edfb4c4963247918bf9c1c5d31d84789eded4
         run: |
+          # The digest is what Argo CD deploys (immutable); the tag rides along for
+          # human traceability. build-push-action emits the manifest digest as sha256:...
+          case "$DIGEST" in
+            sha256:*) ;;
+            *) echo "build did not produce a sha256 digest: '$DIGEST'" >&2; exit 1 ;;
+          esac
           curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" -o /tmp/yq
           echo "${YQ_SHA256}  /tmp/yq" | sha256sum -c -
           chmod +x /tmp/yq
           /tmp/yq -i ".backend.tag = strenv(TAG)" "k8s/helm/echno/${VALUES}"
+          /tmp/yq -i ".backend.digest = strenv(DIGEST)" "k8s/helm/echno/${VALUES}"
           git config user.name "echno-ci"
           git config user.email "ci@echno.xyz"
           git add "k8s/helm/echno/${VALUES}"
           if git diff --cached --quiet; then
-            echo "image tag unchanged; nothing to deploy"
+            echo "image digest unchanged; nothing to deploy"
             exit 0
           fi
-          git commit -m "ci(echno-backend): ${FLAVOR} -> ${TAG}"
+          git commit -m "ci(echno-backend): ${FLAVOR} -> ${DIGEST}"
           git push "https://x-access-token:${DEPLOY_TOKEN}@github.com/tornotron/echno-deployment.git" HEAD:main
