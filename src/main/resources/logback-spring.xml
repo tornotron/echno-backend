@@ -19,25 +19,35 @@
 
     <springProperty scope="local" name="LOKI_URL" source="loki.url" defaultValue="http://localhost:3100/loki/api/v1/push"/>
 
-    <!-- Loki Appender Configuration -->
-    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
-        <http>
-            <url>${LOKI_URL}</url>
-        </http>
-        <format>
-            <label>
-                <pattern>app=echno_backend,host=${HOSTNAME},level=%level</pattern>
-            </label>
-            <message>
-                <pattern>%msg %ex{full}</pattern>
-            </message>
-        </format>
-    </appender>
+    <!--
+      Direct Loki push is opt-in via the "loki" Spring profile, enabled where a
+      reachable Loki lives (the deployed stack sets SPRING_PROFILES_ACTIVE=loki).
+      Off by default, so local dev and tests do not spam connection errors trying
+      to reach a Loki that is not there. Console logging to stdout is always on, so
+      a stdout log shipper still collects everything even when this is disabled.
+    -->
+    <springProfile name="loki">
+        <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+            <http>
+                <url>${LOKI_URL}</url>
+            </http>
+            <format>
+                <label>
+                    <pattern>app=echno_backend,host=${HOSTNAME},level=%level</pattern>
+                </label>
+                <message>
+                    <pattern>%msg %ex{full}</pattern>
+                </message>
+            </format>
+        </appender>
+    </springProfile>
 
     <!-- Root Logger Configuration -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="LOKI"/>
+        <springProfile name="loki">
+            <appender-ref ref="LOKI"/>
+        </springProfile>
     </root>
 
     <!-- Specific Logger Configurations -->
