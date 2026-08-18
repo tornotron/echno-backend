@@ -53,6 +53,7 @@ public class OrganizationService {
     private final UserContextService userContextService;
     private final EmployeeService employeeService;
     private final org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper;
+    private final org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity;
 
     /**
      * Constructs an {@code OrganizationService} with the necessary dependencies.
@@ -62,7 +63,7 @@ public class OrganizationService {
      * @param keycloakGroupService The service for managing Keycloak groups.
      * @param subscriptionService The service for handling subscription billing.
      */
-    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
+    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity) {
         this.repository = repository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
@@ -71,6 +72,7 @@ public class OrganizationService {
         this.userContextService = userContextService;
         this.employeeService = employeeService;
         this.organizationMapper = organizationMapper;
+        this.orgSecurity = orgSecurity;
     }
 
     /**
@@ -210,6 +212,18 @@ public class OrganizationService {
      */
     @Transactional
     public void batchUpdateOrganization(List<OrganizationPatchDto> updates) {
+        // Organization is the tenant root, not a TenantScopedEntity, so neither the
+        // org filter nor the fail-closed load listener guards it. Authorize each id
+        // here: the caller must be a member of that organization (or a platform
+        // admin), mirroring the single-organization DELETE endpoint. Without this a
+        // member of one organization could patch another organization by id.
+        updates.forEach(update -> {
+            if (!orgSecurity.isMemberOrAdmin(update.getId())) {
+                throw new org.tornotron.echno_backend.common.exception.TenantAccessDeniedException(
+                        "Not permitted to update organization " + update.getId());
+            }
+        });
+
         List<Long> organizationIds = updates.stream().map(OrganizationPatchDto::getId).collect(Collectors.toList());
         List<Organization> organizations = repository.findAllById(organizationIds);
 
