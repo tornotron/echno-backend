@@ -45,9 +45,13 @@ public class TenantFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // Check if user is a global admin — bypass tenant context
+            // Check if user is a global admin — bypass tenant context. This
+            // disables both the org filter and the fail-closed load listener for
+            // the whole request, so audit who did it and against what, at WARN,
+            // for accountability (the bypass is otherwise invisible).
             if (hasAuthority(authentication, ORG_ADMIN_AUTHORITY)) {
-                log.debug("[TenantFilter] Global admin detected, bypassing tenant filter");
+                log.warn("[TenantFilter] Tenant isolation bypassed for global admin '{}' on {} {}",
+                        authentication.getName(), request.getMethod(), request.getRequestURI());
                 TenantContext.setBypass(true);
                 filterChain.doFilter(request, response);
                 return;
@@ -104,10 +108,14 @@ public class TenantFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
+        // The organization and user endpoints are intentionally filtered: they
+        // rely on per-id membership checks, not a blanket bypass. Only the exact
+        // /user/web lookup and the pre-tenant / infra paths below skip the filter.
+        // (Two earlier patterns, /organizations and /users/profile, never matched
+        // the real singular paths and were removed to avoid the false impression
+        // that those endpoints are unfiltered.)
         return path.startsWith("/actuator")
                 || path.equals("/api/" + backendVersion + "/auth/register")
-                || path.startsWith("/api/" + backendVersion + "/organizations")
-                || path.startsWith("/api/" + backendVersion + "/users/profile")
                 || path.equals("/api/" + backendVersion + "/user/web")
                 || path.startsWith("/api/" + backendVersion + "/billing");
     }

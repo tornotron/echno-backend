@@ -183,6 +183,6 @@ public class NotificationService {
 
     @Transactional
     public int markAllAsRead(Long employeeId) {
-        return notificationRepository.markAllAsReadByRecipientId(employeeId);
+        return notificationRepository.markAllAsReadByRecipientId(employeeId, TenantContext.getCurrentOrgId());
     }
 }
