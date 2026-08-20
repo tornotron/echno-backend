@@ -43,11 +43,12 @@ class OrganizationServiceBatchAuthzTest {
     @Mock private EmployeeService employeeService;
     @Mock private OrganizationMapper organizationMapper;
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private org.tornotron.echno_backend.finance.ledger.service.ChartOfAccountsSeeder chartOfAccountsSeeder;
 
     private OrganizationService service() {
         return new OrganizationService(repository, attachmentService, fileStorageService,
                 keycloakGroupService, subscriptionService, userContextService, employeeService,
-                organizationMapper, orgSecurity);
+                organizationMapper, orgSecurity, chartOfAccountsSeeder);
     }
 
     private OrganizationPatchDto patch(long id) {

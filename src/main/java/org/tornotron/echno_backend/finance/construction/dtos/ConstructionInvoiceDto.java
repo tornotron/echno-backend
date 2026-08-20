@@ -5,6 +5,7 @@ import org.tornotron.echno_backend.finance.construction.ConstructionInvoiceType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentStatus;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -34,5 +35,12 @@ public record ConstructionInvoiceDto(
         String taxType,
         String notes,
         String termsAndConditions,
+        Long submittedBy,
+        Instant submittedAt,
+        Long approvedBy,
+        Instant approvedAt,
+        Long paymentRecordedBy,
+        UUID journalEntryId,
+        UUID reversalJournalEntryId,
         List<ConstructionInvoiceLineDto> lines
 ) {}

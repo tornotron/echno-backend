@@ -246,4 +246,7 @@
     <include file="db/changelog/v4.0/032-create-contract-milestones.xml"/>
     <include file="db/changelog/v4.0/033-current-stock-null-location-unique.xml"/>
 
+    <!-- v4.0 - Construction invoice approval workflow + ledger-posting links -->
+    <include file="db/changelog/v4.0/034-add-construction-invoice-approval-fields.xml"/>
+
 </databaseChangeLog>

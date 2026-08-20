@@ -25,6 +25,14 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     List<Account> findByActiveTrue();
     boolean existsByCode(String code);
 
+    /**
+     * Whether the given organization already owns any account. Used by the
+     * chart-of-accounts seeder to stay idempotent: it seeds only an org whose
+     * chart is empty. Queries the organization id directly so it does not depend
+     * on the Hibernate {@code orgFilter} being enabled.
+     */
+    boolean existsByOrganizationId(Long organizationId);
+
     /** Direct children of the given account, used to derive the next sibling code. */
     List<Account> findByParent(Account parent);
 

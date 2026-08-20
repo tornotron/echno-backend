@@ -16,13 +16,14 @@ as placeholders in the base spec. The receivable side is already live: Accounts 
 | Account | Code | Basis |
 |---|---|---|
 | Accounts Payable (control) | `2100` | Matches Abin's chart-of-accounts convention on #341 (liabilities `2000-2999`, Accounts Payable `2100`). |
-| GST Input Credit | `1210` | Assets range (`1000-1999`) per the same convention; sits with the other receivable/asset control accounts. `1200` is already AR, so `1210` is the next free asset-control slot. |
+| GST Input Credit | `1410` | A current asset (recoverable input tax credit), the asset-side mirror of GST Output Payable. Echno's account codes are hierarchical, so `1210` would read as a child of Accounts Receivable (`1200`), which is wrong. It sits instead under a `1400 Duties and Taxes Receivable` group as the `1410` leaf, mirroring how GST Output sits at `2210` under `2200`. |
 
 These are defaults, not hard-coded values. Implement a `ConstructionPostingProperties` bean mirroring
 `InvoicePostingProperties`, bound to `finance.construction.*`, so the real values are a config change and never a
-code change. Abin confirmed Accounts Payable `2100` directly; GST Input Credit `1210` is a reasonable default in
-his structure but was not called out by code, so treat it as provisional and get one explicit confirmation before
-the first real posting. Nothing else in the codes is open.
+code change. Accounts Payable `2100` matches Abin's chart-of-accounts convention. GST Input Credit `1410` follows
+from the accounting (it is a recoverable-tax current asset) and the numbering scheme; there is no universal
+mandated code, and since the chart of accounts is seeded by us, this is the correct placement. Both are seeded as
+postable leaves by the default chart of accounts. Nothing in the codes is open.
 
 ## 2. Approval workflow (new, from Anand's #341 input)
 
@@ -87,20 +88,40 @@ finance pages and needs no backend work beyond the fields above. Applying now (s
   dates, method, reference number), Approval / Audit Trail (created by, submitted, approved by, approval date,
   payment recorded by, activity history).
 
-Two of these fields need backend support that the current model lacks: a **due date** and **payment terms** on
-the invoice, and the audit-trail fields from section 2. The rest are already present or presentational.
+Of these, `due_date` and `payment_terms` already exist on the construction invoice; only the section-2
+audit-trail fields were missing. The rest are already present or presentational.
 
-## 5. Sequencing and what needs a decision
+## 5. What is built and what remains
 
-1. **Web view refinements (section 4)**: safe, no financial logic. Ship first; the audit-trail and due-date
-   columns render once the backend fields below exist.
-2. **Backend fields**: add `due_date`, `payment_terms`, and the section-2 audit-trail columns to the construction
-   invoice/payment (migration + DTOs + core types). Mechanical, low risk.
-3. **Approval workflow + ledger posting (sections 1 and 2)**: the financially sensitive increment 3 of the base
-   spec, now gated on Approved. Build carefully, with the `1210` GST-input code confirmed first, and a
-   concurrency-safe posting path (mirror the tested `JournalPostingService` and `InvoicePostingProperties`
-   patterns). This is the item that should not ship without a review.
-4. **Budgeting (section 3)**: its own phase, starts with a design round with Anand.
+The backend for sections 1 and 2 is built: the chart-of-accounts seed, the approval workflow (submit, approve,
+cancel, record-payment), the audit-trail fields, and the ledger posting on approval with reversal on cancel.
 
-Items 1 and 2 are buildable now. Item 3 is a money path and should be greenlit and reviewed, not merged blind.
-Item 4 is a product design round first. The one open confirmation is the GST Input Credit code (`1210` proposed).
+1. **Backend, done**: the default per-tenant chart of accounts (section 6), the `APPROVED` status and audit-trail
+   columns (migration `034`), `ConstructionPostingProperties`, and the posting-on-approve / reverse-on-cancel path
+   mirroring the tested `JournalPostingService` and `InvoicePostingProperties`, with an integration test asserting
+   the balanced entries for purchase, expense, sales and service.
+2. **Core and web, next**: expose the new statuses, audit-trail fields, and the submit/approve/cancel/record-payment
+   actions in `@tornotron/echno-core`, and apply Anand's list/detail view (section 4) plus the approval actions in
+   the web finance pages.
+3. **Budgeting (section 3)**: its own phase, starts with a design round with Anand.
+
+## 6. The chart-of-accounts seed (as built)
+
+- A default per-tenant chart of accounts is seeded on organization creation, and can be back-filled on an existing
+  org through `POST /finance/accounts/web/seed-defaults` (system-admin only). It is idempotent: an org that already
+  has any account is left untouched. Codes are pinned explicitly because posting reads accounts by code.
+- The tree places Accounts Receivable at `1200` and GST Output at `2210` (matching `finance.invoice.*`), Accounts
+  Payable at `2100`, and GST Input Credit at `1410` under a `1400 Duties and Taxes Receivable` group, alongside
+  cash/bank, inventory, equity, revenue, and construction expense accounts. All the posting control accounts are
+  postable leaves. The construction posting codes are config-driven (`finance.construction.*`), so any of them can
+  be retuned without a code change.
+- **Sales/service posts a direct AR journal entry, not option A.** For sales and service construction
+  invoices the approve step posts DR Accounts Receivable / CR revenue + CR GST output directly (base spec
+  section 4 option B mechanics), rather than materializing a real AR `Invoice` via `InvoiceService.issue`
+  (the preferred option A). Option A needs customer resolution from the project's client, which is not built
+  yet, so those invoices do not appear in AR aging or customer statements. The service carries a
+  `// TODO: option A AR materialization` marker at the posting site. Materializing the AR invoice is the
+  follow-up that closes this gap.
+- **Payment recording is invoice-level only.** `record-payment` advances the invoice's paid/balance amounts
+  and payment status and stamps `payment_recorded_by`; it does not post a cash-movement journal entry. Cash
+  posting stays with the construction payment voucher phase.

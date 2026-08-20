@@ -10,8 +10,10 @@ import org.tornotron.echno_backend.finance.ledger.dtos.AccountDto;
 import org.tornotron.echno_backend.finance.ledger.dtos.AccountTreeDto;
 import org.tornotron.echno_backend.finance.ledger.dtos.CreateAccountRequest;
 import org.tornotron.echno_backend.finance.ledger.service.AccountService;
+import org.tornotron.echno_backend.finance.ledger.service.ChartOfAccountsSeeder;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -20,6 +22,7 @@ import java.util.UUID;
 public class AccountControllerWeb {
 
     private final AccountService service;
+    private final ChartOfAccountsSeeder chartOfAccountsSeeder;
 
     @GetMapping
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
@@ -55,6 +58,17 @@ public class AccountControllerWeb {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
     public AccountDto deactivate(@PathVariable UUID id) {
         return service.deactivate(id);
+    }
+
+    /**
+     * Seeds the default chart of accounts for the current tenant. Idempotent: an org
+     * that already has a chart is left untouched. Lets an org created before the seed
+     * was wired into organization creation be back-filled. Restricted to system-admin.
+     */
+    @PostMapping("/seed-defaults")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    public Map<String, Integer> seedDefaults() {
+        return Map.of("created", chartOfAccountsSeeder.seedDefaults());
     }
 
 }

@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.finance.construction.dtos.CreateConstructionI
 import org.tornotron.echno_backend.finance.construction.dtos.UpdateConstructionInvoiceRequest;
 import org.tornotron.echno_backend.finance.construction.service.ConstructionInvoiceService;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @RestController
@@ -51,5 +52,29 @@ public class ConstructionInvoiceControllerWeb {
     public ConstructionInvoiceDto update(@PathVariable UUID id,
                                          @Valid @RequestBody UpdateConstructionInvoiceRequest req) {
         return service.update(id, req);
+    }
+
+    @PostMapping("/{id}/submit")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    public ConstructionInvoiceDto submit(@PathVariable UUID id) {
+        return service.submit(id);
+    }
+
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    public ConstructionInvoiceDto approve(@PathVariable UUID id) {
+        return service.approve(id);
+    }
+
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    public ConstructionInvoiceDto cancel(@PathVariable UUID id, @RequestParam String reason) {
+        return service.cancel(id, reason);
+    }
+
+    @PostMapping("/{id}/record-payment")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    public ConstructionInvoiceDto recordPayment(@PathVariable UUID id, @RequestParam BigDecimal amount) {
+        return service.recordPayment(id, amount);
     }
 }

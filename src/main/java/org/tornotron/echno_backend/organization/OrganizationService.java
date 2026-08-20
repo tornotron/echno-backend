@@ -54,6 +54,7 @@ public class OrganizationService {
     private final EmployeeService employeeService;
     private final org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper;
     private final org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity;
+    private final org.tornotron.echno_backend.finance.ledger.service.ChartOfAccountsSeeder chartOfAccountsSeeder;
 
     /**
      * Constructs an {@code OrganizationService} with the necessary dependencies.
@@ -63,7 +64,7 @@ public class OrganizationService {
      * @param keycloakGroupService The service for managing Keycloak groups.
      * @param subscriptionService The service for handling subscription billing.
      */
-    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity) {
+    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, org.tornotron.echno_backend.finance.ledger.service.ChartOfAccountsSeeder chartOfAccountsSeeder) {
         this.repository = repository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
@@ -73,6 +74,7 @@ public class OrganizationService {
         this.employeeService = employeeService;
         this.organizationMapper = organizationMapper;
         this.orgSecurity = orgSecurity;
+        this.chartOfAccountsSeeder = chartOfAccountsSeeder;
     }
 
     /**
@@ -107,6 +109,7 @@ public class OrganizationService {
         EmployeeJoinOrgDto joinOrgDto = new EmployeeJoinOrgDto();
         EmployeeDto employeeDto = employeeService.joinOrganization(currentUser.getId(), savedOrganization.getId(), joinOrgDto);
         TenantContext.setCurrentOrgId(savedOrganization.getId());
+        chartOfAccountsSeeder.seedDefaults();
         employeeService.assignOrgRole(employeeDto.getId(), OrgRole.SYSTEM_ADMIN);
 
         if (attachments != null && !attachments.isEmpty()) {

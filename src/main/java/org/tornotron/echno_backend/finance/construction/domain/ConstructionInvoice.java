@@ -13,6 +13,7 @@ import org.tornotron.echno_backend.finance.ledger.domain.BaseEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -111,6 +112,32 @@ public class ConstructionInvoice extends BaseEntity implements TenantScopedEntit
 
     @Column(name = "terms_and_conditions", length = 2000)
     private String termsAndConditions;
+
+    // Approval workflow audit trail. Set by the service as the invoice moves through
+    // submit -> approve; ids are core-domain user ids (no cross-module FK), matching the
+    // verifiedBy/verifiedAt convention on ConstructionPayment.
+    @Column(name = "submitted_by")
+    private Long submittedBy;
+
+    @Column(name = "submitted_at")
+    private Instant submittedAt;
+
+    @Column(name = "approved_by")
+    private Long approvedBy;
+
+    @Column(name = "approved_at")
+    private Instant approvedAt;
+
+    @Column(name = "payment_recorded_by")
+    private Long paymentRecordedBy;
+
+    // Links to the ledger. The journal entry posted when the invoice is approved and,
+    // on cancel, the reversal that unwinds it. Kept as plain ids (no cross-module FK).
+    @Column(name = "journal_entry_id")
+    private UUID journalEntryId;
+
+    @Column(name = "reversal_journal_entry_id")
+    private UUID reversalJournalEntryId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
