@@ -19,6 +19,7 @@ import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
+import org.tornotron.echno_backend.finance.construction.ConstructionPostingProperties;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceDto;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceLineRequest;
 import org.tornotron.echno_backend.finance.construction.dtos.CreateConstructionInvoiceRequest;
@@ -26,7 +27,11 @@ import org.tornotron.echno_backend.finance.construction.dtos.UpdateConstructionI
 import org.tornotron.echno_backend.finance.construction.mapper.ConstructionInvoiceMapperImpl;
 import org.tornotron.echno_backend.finance.construction.repositories.ConstructionInvoiceRepository;
 import org.tornotron.echno_backend.finance.construction.service.ConstructionInvoiceService;
+import org.tornotron.echno_backend.finance.invoice.InvoicePostingProperties;
+import org.tornotron.echno_backend.finance.ledger.mapper.JournalEntryMapperImpl;
+import org.tornotron.echno_backend.finance.ledger.service.JournalPostingService;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.user.UserContextService;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
@@ -46,7 +51,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ConstructionInvoiceService.class, ConstructionInvoiceMapperImpl.class,
-        TenantEntityHelper.class, EntryNumberGenerator.class, JpaAuditingConfig.class})
+        TenantEntityHelper.class, EntryNumberGenerator.class, JpaAuditingConfig.class,
+        JournalPostingService.class, JournalEntryMapperImpl.class, ConstructionPostingProperties.class,
+        InvoicePostingProperties.class, UserContextService.class})
 class ConstructionInvoiceServiceIT extends AbstractIntegrationTest {
 
     @Autowired

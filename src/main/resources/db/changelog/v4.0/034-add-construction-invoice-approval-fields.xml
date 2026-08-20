@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="034-add-construction-invoice-approval-fields" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="construction_invoices" columnName="approved_by"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Approval workflow audit trail and ledger-posting links on construction_invoices.
+            submitted/approved capture who moved the invoice through the approval gate;
+            journal_entry_id / reversal_journal_entry_id link the posted and reversed entries.
+        </comment>
+
+        <addColumn tableName="construction_invoices">
+            <column name="submitted_by" type="BIGINT"/>
+            <column name="submitted_at" type="TIMESTAMP"/>
+            <column name="approved_by" type="BIGINT"/>
+            <column name="approved_at" type="TIMESTAMP"/>
+            <column name="payment_recorded_by" type="BIGINT"/>
+            <column name="journal_entry_id" type="UUID"/>
+            <column name="reversal_journal_entry_id" type="UUID"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

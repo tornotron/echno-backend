@@ -51,6 +51,11 @@ finance:
   invoice:
     ar-account-code: "1200"   # Accounts Receivable (postable leaf)
     gst-output-code: "2210"   # GST Output Payable (postable leaf)
+  construction:
+    ap-account-code: "2100"        # Accounts Payable (postable leaf)
+    gst-input-code: "1410"         # GST Input Credit (postable leaf)
+    default-expense-code: "5100"   # Cost of Materials and Purchases (postable leaf)
+    default-revenue-code: "4100"   # Construction Revenue (postable leaf)
 
 
 keycloak-initializer:
