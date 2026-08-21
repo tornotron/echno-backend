@@ -1,5 +1,8 @@
 package org.tornotron.echno_backend.inspection.dtos;
 
+import org.tornotron.echno_backend.compliance.CompliancePhase;
+import org.tornotron.echno_backend.inspection.ComplianceRiskLevel;
+import org.tornotron.echno_backend.inspection.InspectionOrigin;
 import org.tornotron.echno_backend.inspection.InspectionResult;
 import org.tornotron.echno_backend.inspection.InspectionStatus;
 import org.tornotron.echno_backend.inspection.InspectionType;
@@ -35,6 +38,12 @@ public record InspectionDto(
         int passedCheckPoints,
         int failedCheckPoints,
         int defectsFound,
+        InspectionOrigin origin,
+        CompliancePhase compliancePhase,
+        ComplianceRiskLevel riskLevel,
+        String resolutionOptions,
+        String complianceRuleRef,
+        String aiRationale,
         List<InspectionCheckItemDto> checkItems,
         List<InspectionDefectDto> defects,
         LocalDateTime createdAt,

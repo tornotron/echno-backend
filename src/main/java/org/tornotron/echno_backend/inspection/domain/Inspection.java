@@ -8,6 +8,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.compliance.CompliancePhase;
+import org.tornotron.echno_backend.inspection.ComplianceRiskLevel;
+import org.tornotron.echno_backend.inspection.InspectionOrigin;
 import org.tornotron.echno_backend.inspection.InspectionResult;
 import org.tornotron.echno_backend.inspection.InspectionStatus;
 import org.tornotron.echno_backend.inspection.InspectionType;
@@ -80,7 +83,9 @@ public class Inspection implements TenantScopedEntity {
     @Column(name = "drawing_reference", length = 200)
     private String drawingReference;
 
-    @Column(name = "scheduled_date", nullable = false)
+    // Nullable: AI-generated compliance rows are created without a schedule, which
+    // a project manager fills in when the compliance is planned.
+    @Column(name = "scheduled_date")
     private LocalDate scheduledDate;
 
     @Column(name = "scheduled_time", length = 20)
@@ -96,7 +101,8 @@ public class Inspection implements TenantScopedEntity {
     @Column(name = "duration")
     private Integer duration;
 
-    @Column(name = "inspector_id", nullable = false)
+    // Nullable: AI-generated compliance rows have no inspector until one is assigned.
+    @Column(name = "inspector_id")
     private Long inspectorId;
 
     @Column(name = "contractor_id")
@@ -129,6 +135,30 @@ public class Inspection implements TenantScopedEntity {
 
     @Column(name = "defects_found", nullable = false)
     private int defectsFound;
+
+    // Compliance-extension fields. Present only on compliance-type inspections; null
+    // on ordinary manual inspections. origin defaults to MANUAL so existing rows and
+    // the manual create path are unaffected.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "origin", nullable = false, length = 30)
+    private InspectionOrigin origin = InspectionOrigin.MANUAL;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "compliance_phase", length = 30)
+    private CompliancePhase compliancePhase;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "risk_level", length = 30)
+    private ComplianceRiskLevel riskLevel;
+
+    @Column(name = "resolution_options", columnDefinition = "TEXT")
+    private String resolutionOptions;
+
+    @Column(name = "compliance_rule_ref", length = 100)
+    private String complianceRuleRef;
+
+    @Column(name = "ai_rationale", columnDefinition = "TEXT")
+    private String aiRationale;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")

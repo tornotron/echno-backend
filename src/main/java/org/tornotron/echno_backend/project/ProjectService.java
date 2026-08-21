@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,8 +20,10 @@ import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
+import org.tornotron.echno_backend.common.events.ProjectApprovedEvent;
 import org.tornotron.echno_backend.project.dto.*;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
+import org.tornotron.echno_backend.project.enums.ProjectType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,6 +45,7 @@ public class ProjectService {
     private final AttachmentService attachmentService;
     private final ProjectMapper projectMapper;
     private final EmployeeMapper employeeMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Constructs a ProjectService with the necessary repositories.
@@ -55,13 +59,15 @@ public class ProjectService {
                           OrganizationRepository organizationRepository,
                           EmployeeRepository employeeRepository,
                           AttachmentService attachmentService, ProjectMapper projectMapper,
-                          EmployeeMapper employeeMapper) {
+                          EmployeeMapper employeeMapper,
+                          ApplicationEventPublisher eventPublisher) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
         this.employeeRepository = employeeRepository;
         this.attachmentService = attachmentService;
         this.projectMapper = projectMapper;
         this.employeeMapper = employeeMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -86,6 +92,9 @@ public class ProjectService {
             project.setProjectLatitude(projectDto.getProjectLatitude());
             project.setProjectLongitude(projectDto.getProjectLongitude());
             project.setStatus(ProjectCreationStatus.valueOf(projectDto.getStatus()));
+            if (projectDto.getProjectType() != null && !projectDto.getProjectType().isBlank()) {
+                project.setProjectType(ProjectType.valueOf(projectDto.getProjectType()));
+            }
             project.setOrganization(organization);
             project.setStartDate(projectDto.getStartDate());
             project.setEndDate(projectDto.getEndDate());
@@ -170,7 +179,21 @@ public class ProjectService {
                     project.setProjectAddress((String) value);
                     break;
                 case "status":
-                    project.setStatus(ProjectCreationStatus.valueOf((String) value));
+                    ProjectCreationStatus previousStatus = project.getStatus();
+                    ProjectCreationStatus newStatus = ProjectCreationStatus.valueOf((String) value);
+                    project.setStatus(newStatus);
+                    // Fire a compliance-generation event only on the transition INTO
+                    // approved, never on a save that leaves it approved. The listener runs
+                    // AFTER_COMMIT, so the row is durable before the AI flow reads it.
+                    if (newStatus == ProjectCreationStatus.approved
+                            && previousStatus != ProjectCreationStatus.approved) {
+                        Long orgId = project.getOrganization() != null
+                                ? project.getOrganization().getId() : null;
+                        eventPublisher.publishEvent(new ProjectApprovedEvent(this, project.getId(), orgId));
+                    }
+                    break;
+                case "projectType":
+                    project.setProjectType(value != null ? ProjectType.valueOf((String) value) : null);
                     break;
                 case "projectLongitude":
                     float longitude = ((Number) value).floatValue();

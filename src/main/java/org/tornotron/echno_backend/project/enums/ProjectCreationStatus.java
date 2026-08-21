@@ -7,5 +7,6 @@ public enum ProjectCreationStatus {
     completed,
     dropped,
     onHold,
-    cancelled
+    cancelled,
+    approved
 }

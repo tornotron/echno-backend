@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="037-create-compliance-rules" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="compliance_rules"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Global (non-tenant-scoped) reference data: curated statutory compliances keyed
+            by state + project type + lifecycle phase. Shared across all organizations, so
+            no organization_id column and no org filter.
+        </comment>
+
+        <createTable tableName="compliance_rules">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="state" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_type" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="phase" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(60)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="default_risk_level" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="resolution_options" type="TEXT"/>
+            <column name="authority" type="VARCHAR(200)"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="compliance_rules"
+                             columnNames="state, project_type, code"
+                             constraintName="uk_compliance_rule_code"/>
+
+        <createIndex tableName="compliance_rules" indexName="idx_compliance_rule_state_type">
+            <column name="state"/>
+            <column name="project_type"/>
+        </createIndex>
+        <createIndex tableName="compliance_rules" indexName="idx_compliance_rule_active">
+            <column name="active"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="037-seed-compliance-rules" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM compliance_rules</sqlCheck>
+        </preConditions>
+
+        <comment>
+            Seed a small curated set for Tamil Nadu, Kerala and Maharashtra covering all
+            three lifecycle phases. RESIDENTIAL for each state plus COMMERCIAL for Tamil
+            Nadu, to exercise state + project-type matching. project_type / phase /
+            default_risk_level are stored as the enum constant names (STRING mapping).
+        </comment>
+
+        <!-- ===================== Tamil Nadu / RESIDENTIAL ===================== -->
+        <insert tableName="compliance_rules">
+            <column name="state" value="Tamil Nadu"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="PRE_CONSTRUCTION"/>
+            <column name="code" value="TN-BPA"/>
+            <column name="name" value="Building Plan Approval"/>
+            <column name="description" value="Sanction of building plans by the local planning authority / CMDA / DTCP before construction begins."/>
+            <column name="default_risk_level" value="CRITICAL"/>
+            <column name="resolution_options" value="Submit plans through the licensed surveyor;Apply on the TNSWP portal;Obtain planning permission and building licence"/>
+            <column name="authority" value="CMDA / DTCP / Local Body"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Tamil Nadu"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="PRE_CONSTRUCTION"/>
+            <column name="code" value="TN-ENV-CLEAR"/>
+            <column name="name" value="Environmental Clearance"/>
+            <column name="description" value="Prior environmental clearance for built-up area above the notified threshold under the EIA Notification."/>
+            <column name="default_risk_level" value="HIGH"/>
+            <column name="resolution_options" value="Apply on PARIVESH portal;Obtain SEIAA clearance;Submit Form 1A and conceptual plan"/>
+            <column name="authority" value="SEIAA Tamil Nadu"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Tamil Nadu"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="PRE_CONSTRUCTION"/>
+            <column name="code" value="TN-FIRE-NOC"/>
+            <column name="name" value="Fire Service NOC"/>
+            <column name="description" value="No-objection certificate from the Fire and Rescue Services for high-rise / multi-storey buildings."/>
+            <column name="default_risk_level" value="HIGH"/>
+            <column name="resolution_options" value="Submit fire safety plan;Apply to TN Fire and Rescue Services;Provide required fire-fighting arrangements"/>
+            <column name="authority" value="TN Fire and Rescue Services"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Tamil Nadu"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="ONGOING"/>
+            <column name="code" value="TN-LABOUR-LIC"/>
+            <column name="name" value="Labour Licence (BOCW)"/>
+            <column name="description" value="Registration and licence under the Building and Other Construction Workers Act while construction labour is engaged."/>
+            <column name="default_risk_level" value="MEDIUM"/>
+            <column name="resolution_options" value="Register the establishment under BOCW;Obtain labour licence;Remit the labour welfare cess"/>
+            <column name="authority" value="TN Labour Welfare Board"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Tamil Nadu"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="ONGOING"/>
+            <column name="code" value="TN-STRUCT-STAB"/>
+            <column name="name" value="Structural Stability Certificate"/>
+            <column name="description" value="Certificate from a qualified structural engineer confirming the structure is built to the sanctioned structural design."/>
+            <column name="default_risk_level" value="HIGH"/>
+            <column name="resolution_options" value="Engage a licensed structural engineer;Obtain the stability certificate at key stages;Retain design and test records"/>
+            <column name="authority" value="Licensed Structural Engineer"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Tamil Nadu"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="POST_CONSTRUCTION"/>
+            <column name="code" value="TN-OCC-CERT"/>
+            <column name="name" value="Completion / Occupancy Certificate"/>
+            <column name="description" value="Certificate from the local body that the completed building conforms to the approved plan and may be occupied."/>
+            <column name="default_risk_level" value="CRITICAL"/>
+            <column name="resolution_options" value="Apply for completion certificate;Arrange the final site inspection;Obtain the occupancy certificate before handover"/>
+            <column name="authority" value="Local Body / CMDA"/>
+        </insert>
+
+        <!-- ===================== Tamil Nadu / COMMERCIAL ===================== -->
+        <insert tableName="compliance_rules">
+            <column name="state" value="Tamil Nadu"/>
+            <column name="project_type" value="COMMERCIAL"/>
+            <column name="phase" value="PRE_CONSTRUCTION"/>
+            <column name="code" value="TN-BPA"/>
+            <column name="name" value="Building Plan Approval"/>
+            <column name="description" value="Sanction of commercial building plans by the local planning authority before construction begins."/>
+            <column name="default_risk_level" value="CRITICAL"/>
+            <column name="resolution_options" value="Submit plans through the licensed surveyor;Apply on the TNSWP portal;Obtain planning permission and building licence"/>
+            <column name="authority" value="CMDA / DTCP / Local Body"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Tamil Nadu"/>
+            <column name="project_type" value="COMMERCIAL"/>
+            <column name="phase" value="PRE_CONSTRUCTION"/>
+            <column name="code" value="TN-FIRE-NOC"/>
+            <column name="name" value="Fire Service NOC"/>
+            <column name="description" value="Fire NOC for commercial occupancy, mandatory before commencement and occupancy."/>
+            <column name="default_risk_level" value="HIGH"/>
+            <column name="resolution_options" value="Submit fire safety plan;Apply to TN Fire and Rescue Services;Provide required fire-fighting arrangements"/>
+            <column name="authority" value="TN Fire and Rescue Services"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Tamil Nadu"/>
+            <column name="project_type" value="COMMERCIAL"/>
+            <column name="phase" value="POST_CONSTRUCTION"/>
+            <column name="code" value="TN-OCC-CERT"/>
+            <column name="name" value="Completion / Occupancy Certificate"/>
+            <column name="description" value="Occupancy certificate for the commercial premises before it is put to use."/>
+            <column name="default_risk_level" value="CRITICAL"/>
+            <column name="resolution_options" value="Apply for completion certificate;Arrange the final site inspection;Obtain the occupancy certificate before handover"/>
+            <column name="authority" value="Local Body / CMDA"/>
+        </insert>
+
+        <!-- ===================== Kerala / RESIDENTIAL ===================== -->
+        <insert tableName="compliance_rules">
+            <column name="state" value="Kerala"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="PRE_CONSTRUCTION"/>
+            <column name="code" value="KL-BPA"/>
+            <column name="name" value="Building Permit"/>
+            <column name="description" value="Building permit from the panchayat / municipality / corporation under the Kerala Municipality Building Rules before construction."/>
+            <column name="default_risk_level" value="CRITICAL"/>
+            <column name="resolution_options" value="Apply on the Sanketham / K-SMART portal;Submit plans through an empanelled engineer;Obtain the building permit"/>
+            <column name="authority" value="Local Self Government Department, Kerala"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Kerala"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="PRE_CONSTRUCTION"/>
+            <column name="code" value="KL-ENV-CLEAR"/>
+            <column name="name" value="Environmental Clearance"/>
+            <column name="description" value="Prior environmental clearance for built-up area above the notified threshold under the EIA Notification."/>
+            <column name="default_risk_level" value="HIGH"/>
+            <column name="resolution_options" value="Apply on PARIVESH portal;Obtain SEIAA Kerala clearance;Submit Form 1A and conceptual plan"/>
+            <column name="authority" value="SEIAA Kerala"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Kerala"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="PRE_CONSTRUCTION"/>
+            <column name="code" value="KL-FIRE-NOC"/>
+            <column name="name" value="Fire and Rescue NOC"/>
+            <column name="description" value="No-objection certificate from Kerala Fire and Rescue Services for multi-storey / high-rise buildings."/>
+            <column name="default_risk_level" value="HIGH"/>
+            <column name="resolution_options" value="Submit fire safety plan;Apply to Kerala Fire and Rescue Services;Provide required fire-fighting arrangements"/>
+            <column name="authority" value="Kerala Fire and Rescue Services"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Kerala"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="ONGOING"/>
+            <column name="code" value="KL-LABOUR-LIC"/>
+            <column name="name" value="Labour Licence (BOCW)"/>
+            <column name="description" value="Registration and licence under the Building and Other Construction Workers Act while construction labour is engaged."/>
+            <column name="default_risk_level" value="MEDIUM"/>
+            <column name="resolution_options" value="Register the establishment under BOCW;Obtain labour licence;Remit the labour welfare cess"/>
+            <column name="authority" value="Kerala Building and Other Construction Workers Welfare Board"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Kerala"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="ONGOING"/>
+            <column name="code" value="KL-STRUCT-STAB"/>
+            <column name="name" value="Structural Stability Certificate"/>
+            <column name="description" value="Certificate from a qualified structural engineer confirming the structure is built to the sanctioned design."/>
+            <column name="default_risk_level" value="HIGH"/>
+            <column name="resolution_options" value="Engage a licensed structural engineer;Obtain the stability certificate at key stages;Retain design and test records"/>
+            <column name="authority" value="Licensed Structural Engineer"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Kerala"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="POST_CONSTRUCTION"/>
+            <column name="code" value="KL-OCC-CERT"/>
+            <column name="name" value="Occupancy Certificate"/>
+            <column name="description" value="Occupancy certificate from the local body confirming the completed building conforms to the approved permit."/>
+            <column name="default_risk_level" value="CRITICAL"/>
+            <column name="resolution_options" value="Apply for the occupancy certificate;Arrange the completion inspection;Obtain the certificate before occupation"/>
+            <column name="authority" value="Local Self Government Department, Kerala"/>
+        </insert>
+
+        <!-- ===================== Maharashtra / RESIDENTIAL ===================== -->
+        <insert tableName="compliance_rules">
+            <column name="state" value="Maharashtra"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="PRE_CONSTRUCTION"/>
+            <column name="code" value="MH-BPA"/>
+            <column name="name" value="Commencement Certificate"/>
+            <column name="description" value="Sanction of plans and commencement certificate from the planning authority / municipal corporation before construction."/>
+            <column name="default_risk_level" value="CRITICAL"/>
+            <column name="resolution_options" value="Submit plans through a licensed architect;Apply on the BPMS portal;Obtain the commencement certificate"/>
+            <column name="authority" value="Municipal Corporation / Planning Authority"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Maharashtra"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="PRE_CONSTRUCTION"/>
+            <column name="code" value="MH-ENV-CLEAR"/>
+            <column name="name" value="Environmental Clearance"/>
+            <column name="description" value="Prior environmental clearance for built-up area above the notified threshold under the EIA Notification."/>
+            <column name="default_risk_level" value="HIGH"/>
+            <column name="resolution_options" value="Apply on PARIVESH portal;Obtain SEIAA Maharashtra clearance;Submit Form 1A and conceptual plan"/>
+            <column name="authority" value="SEIAA Maharashtra"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Maharashtra"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="PRE_CONSTRUCTION"/>
+            <column name="code" value="MH-FIRE-NOC"/>
+            <column name="name" value="Fire NOC"/>
+            <column name="description" value="No-objection certificate from the Maharashtra Fire Services for high-rise / multi-storey buildings."/>
+            <column name="default_risk_level" value="HIGH"/>
+            <column name="resolution_options" value="Submit fire safety plan;Apply to the Chief Fire Officer;Provide required fire-fighting arrangements"/>
+            <column name="authority" value="Maharashtra Fire Services"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Maharashtra"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="ONGOING"/>
+            <column name="code" value="MH-LABOUR-LIC"/>
+            <column name="name" value="Labour Licence (BOCW)"/>
+            <column name="description" value="Registration and licence under the Building and Other Construction Workers Act while construction labour is engaged."/>
+            <column name="default_risk_level" value="MEDIUM"/>
+            <column name="resolution_options" value="Register the establishment under BOCW;Obtain labour licence;Remit the labour welfare cess"/>
+            <column name="authority" value="Maharashtra Building and Other Construction Workers Welfare Board"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Maharashtra"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="ONGOING"/>
+            <column name="code" value="MH-STRUCT-STAB"/>
+            <column name="name" value="Structural Stability Certificate"/>
+            <column name="description" value="Certificate from a qualified structural engineer confirming the structure is built to the sanctioned design."/>
+            <column name="default_risk_level" value="HIGH"/>
+            <column name="resolution_options" value="Engage a licensed structural engineer;Obtain the stability certificate at key stages;Retain design and test records"/>
+            <column name="authority" value="Licensed Structural Engineer"/>
+        </insert>
+        <insert tableName="compliance_rules">
+            <column name="state" value="Maharashtra"/>
+            <column name="project_type" value="RESIDENTIAL"/>
+            <column name="phase" value="POST_CONSTRUCTION"/>
+            <column name="code" value="MH-OCC-CERT"/>
+            <column name="name" value="Occupancy Certificate"/>
+            <column name="description" value="Occupancy certificate from the municipal corporation confirming the completed building conforms to the approved plan."/>
+            <column name="default_risk_level" value="CRITICAL"/>
+            <column name="resolution_options" value="Apply for the occupancy certificate;Arrange the completion inspection;Obtain the certificate before occupation"/>
+            <column name="authority" value="Municipal Corporation"/>
+        </insert>
+
+    </changeSet>
+
+</databaseChangeLog>

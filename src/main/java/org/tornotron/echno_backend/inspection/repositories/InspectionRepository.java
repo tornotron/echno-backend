@@ -21,4 +21,14 @@ public interface InspectionRepository
      */
     @Query("SELECT i FROM Inspection i WHERE i.id = :id")
     Optional<Inspection> findByIdScoped(@Param("id") UUID id);
+
+    /**
+     * Dedupe guard for AI compliance generation: true when a compliance inspection
+     * for this project already references the given rule in this organization. The
+     * organization is included explicitly so the check is correct even if the
+     * Hibernate {@code orgFilter} is not active on the calling thread.
+     */
+    boolean existsByProjectIdAndComplianceRuleRefAndOrganization_Id(Long projectId,
+                                                                    String complianceRuleRef,
+                                                                    Long organizationId);
 }
