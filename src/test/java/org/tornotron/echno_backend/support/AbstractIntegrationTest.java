@@ -26,5 +26,11 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.url", COCKROACH::getJdbcUrl);
         registry.add("spring.datasource.username", COCKROACH::getUsername);
         registry.add("spring.datasource.password", COCKROACH::getPassword);
+        // Bound every statement so a lock-wait cannot hang the suite. The tests share one
+        // container and run sequentially, so a single test that blocks on a row lock (for
+        // example a pessimistic SELECT ... FOR UPDATE held open by a rolled-back test
+        // transaction while a REQUIRES_NEW call waits on it) would otherwise stall the whole
+        // run for hours. With this it aborts after 30s and that one test fails fast instead.
+        registry.add("spring.datasource.hikari.connection-init-sql", () -> "SET statement_timeout = '30s'");
     }
 }
