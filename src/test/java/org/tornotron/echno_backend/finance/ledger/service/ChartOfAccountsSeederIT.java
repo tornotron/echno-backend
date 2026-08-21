@@ -81,7 +81,9 @@ class ChartOfAccountsSeederIT extends AbstractIntegrationTest {
         int created = seeder.seedDefaults();
         assertThat(created).isEqualTo(24);
 
-        List<Account> all = accountRepo.findAll();
+        List<Account> all = accountRepo.findAll().stream()
+                .filter(a -> a.getOrganization().getId().equals(orgId))
+                .toList();
         assertThat(all).hasSize(24);
 
         // Header accounts are those named as a parent by another account; a leaf has none.
@@ -90,24 +92,26 @@ class ChartOfAccountsSeederIT extends AbstractIntegrationTest {
 
         // The codes finance.invoice.* and finance.construction.* post to must be leaves.
         for (String leafCode : List.of("1200", "2210", "2100", "1410", "4100", "5100")) {
-            Account leaf = accountRepo.findByCode(leafCode).orElseThrow();
+            Account leaf = accountRepo.findByCodeAndOrganization_Id(leafCode, orgId).orElseThrow();
             assertThat(leaf.isActive()).isTrue();
             assertThat(headerIds).doesNotContain(leaf.getId());
         }
 
         // Sanity: a type root is a header, not postable.
-        Account root = accountRepo.findByCode("1000").orElseThrow();
+        Account root = accountRepo.findByCodeAndOrganization_Id("1000", orgId).orElseThrow();
         assertThat(headerIds).contains(root.getId());
 
         // A child's type matches its parent's branch.
-        assertThat(accountRepo.findByCode("1410").orElseThrow().getParent().getCode()).isEqualTo("1400");
+        assertThat(accountRepo.findByCodeAndOrganization_Id("1410", orgId).orElseThrow().getParent().getCode()).isEqualTo("1400");
     }
 
     @Test
     void seedDefaults_isIdempotent() {
         assertThat(seeder.seedDefaults()).isEqualTo(24);
         assertThat(seeder.seedDefaults()).isZero();
-        assertThat(accountRepo.findAll()).hasSize(24);
+        assertThat(accountRepo.findAll().stream()
+                .filter(a -> a.getOrganization().getId().equals(orgId))
+                .toList()).hasSize(24);
     }
 
     private Organization persistOrganization(String name) {

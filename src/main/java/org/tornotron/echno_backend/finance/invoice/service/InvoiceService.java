@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.finance.invoice.service;
 
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -143,7 +145,7 @@ public class InvoiceService {
                             + " is currently " + inv.getStatus());
         }
 
-        Account ar = accountRepo.findByCode(postingProps.getArAccountCode())
+        Account ar = accountRepo.findByCodeAndOrganization_Id(postingProps.getArAccountCode(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new AccountNotFoundException(postingProps.getArAccountCode()));
 
         List<PostJournalRequest.LineRequest> jeLines = new ArrayList<>();
@@ -166,7 +168,7 @@ public class InvoiceService {
 
         // CR GST Output Payable (if applicable)
         if (MoneyUtils.isPositive(inv.getTaxTotal())) {
-            Account gstOut = accountRepo.findByCode(postingProps.getGstOutputCode())
+            Account gstOut = accountRepo.findByCodeAndOrganization_Id(postingProps.getGstOutputCode(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new AccountNotFoundException(postingProps.getGstOutputCode()));
             jeLines.add(new PostJournalRequest.LineRequest(gstOut.getId(), BigDecimal.ZERO, inv.getTaxTotal(),
                     "GST output - " + inv.getInvoiceNumber()));
