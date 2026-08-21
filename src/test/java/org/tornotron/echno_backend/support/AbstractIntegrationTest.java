@@ -14,8 +14,14 @@ import org.testcontainers.utility.DockerImageName;
  */
 public abstract class AbstractIntegrationTest {
 
+    // Cap the container at 2 GB so CockroachDB sizes its cache and SQL memory to a
+    // fraction of that (it reads the cgroup limit) instead of a quarter of the whole
+    // host. On the small CI runner an unbounded container competes with the test JVM
+    // for memory; the tests use tiny data, so 2 GB is ample.
     private static final CockroachContainer COCKROACH =
-            new CockroachContainer(DockerImageName.parse("cockroachdb/cockroach:v26.2.4"));
+            new CockroachContainer(DockerImageName.parse("cockroachdb/cockroach:v26.2.4"))
+                    .withCreateContainerCmdModifier(cmd ->
+                            cmd.getHostConfig().withMemory(2L * 1024 * 1024 * 1024));
 
     static {
         COCKROACH.start();

@@ -84,6 +84,12 @@ tasks.named('test') {
     // pinned version from the 'api.version' system property (not DOCKER_API_VERSION,
     // which is a docker-CLI variable). 1.44 is accepted by both CI and the lab host.
     systemProperty 'api.version', '1.44'
+    // Bound the forked test JVM so the whole run fits the 2 vCPU / 7 GB CI runner
+    // alongside the shared CockroachDB container: an unbounded heap plus the
+    // container's default cache (a quarter of host memory) can exhaust the runner
+    // and the OOM killer then takes the database, failing the rest of the suite.
+    maxHeapSize = '1024m'
+    jvmArgs '-XX:MaxMetaspaceSize=512m'
     // Print each test as it starts and finishes so a CI log always shows which test
     // is running; without this, a hung test leaves no trace of which one stalled.
     testLogging {
