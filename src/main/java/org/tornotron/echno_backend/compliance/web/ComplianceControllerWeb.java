@@ -32,7 +32,7 @@ public class ComplianceControllerWeb {
     public List<InspectionDto> regenerate(@RequestParam Long projectId) {
         Long orgId = TenantContext.getCurrentOrgId();
         if (orgId == null) {
-            throw new TenantIdMissingException("No organization context set — X-Organization-Id header required");
+            throw new TenantIdMissingException("No organization context set; the X-Organization-Id header is required");
         }
         return complianceGenerationService.generateForProject(projectId, orgId);
     }
