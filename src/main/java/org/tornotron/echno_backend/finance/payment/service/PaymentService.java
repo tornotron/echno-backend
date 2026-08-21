@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.finance.payment.service;
 
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -157,7 +159,7 @@ public class PaymentService {
         }
 
         // 6. Post JE: DR Bank, CR Accounts Receivable
-        Account ar = accountRepo.findByCode(postingProps.getArAccountCode())
+        Account ar = accountRepo.findByCodeAndOrganization_Id(postingProps.getArAccountCode(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new AccountNotFoundException(postingProps.getArAccountCode()));
 
         List<PostJournalRequest.LineRequest> jeLines = List.of(

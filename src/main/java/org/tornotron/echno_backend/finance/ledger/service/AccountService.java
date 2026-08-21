@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.finance.ledger.service;
 
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -87,7 +89,7 @@ public class AccountService {
 
     @Transactional(readOnly = true)
     public AccountDto findByAccountByCode(String code) {
-        return mapper.toDto(repo.findByCode(code)
+        return mapper.toDto(repo.findByCodeAndOrganization_Id(code, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new AccountNotFoundException(code)));
     }
 

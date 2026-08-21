@@ -20,7 +20,12 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     @Query("SELECT a FROM Account a WHERE a.id = :id")
     Optional<Account> findScopedById(@Param("id") UUID id);
 
-    Optional<Account> findByCode(String code);
+    /**
+     * Org-scoped lookup by account code. Codes are unique only within an organization, so
+     * a code must always be resolved against the current tenant; a bare code lookup can
+     * match another tenant's account of the same code.
+     */
+    Optional<Account> findByCodeAndOrganization_Id(String code, Long organizationId);
     List<Account> findByType(AccountType type);
     List<Account> findByActiveTrue();
     boolean existsByCode(String code);

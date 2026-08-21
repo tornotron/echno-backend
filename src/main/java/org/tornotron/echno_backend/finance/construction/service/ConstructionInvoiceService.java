@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.finance.construction.service;
 
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -345,7 +347,7 @@ public class ConstructionInvoiceService {
     }
 
     private Account requireAccount(String code) {
-        return accountRepo.findByCode(code)
+        return accountRepo.findByCodeAndOrganization_Id(code, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new AccountNotFoundException(code));
     }
 
