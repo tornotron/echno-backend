@@ -180,17 +180,16 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
 
     @Test
     void approve_withMissingControlAccount_isRejected() {
+        // Remove the Accounts Payable control account the purchase posting needs, in a
+        // committed transaction before the invoice is created. Deleting it inside the live
+        // test transaction instead contends for the row lock with the service's own
+        // REQUIRES_NEW numbering connection, which blocks until the statement timeout under a
+        // slow CI runner. Committing it first makes the later approve resolve it as missing
+        // cleanly: the account is gone before the invoice transaction takes its snapshot.
+        inCommittedTx(() -> exec("DELETE FROM accounts WHERE organization_id = :org AND code = '2100'"));
+
         ConstructionInvoiceDto created = service.create(request(ConstructionInvoiceType.PURCHASE));
         service.submit(created.id());
-
-        // Remove the Accounts Payable control account the purchase posting needs. Delete
-        // within the test transaction (not a committed one) so the approve query, which runs
-        // in the same long-lived transaction, sees it gone under CockroachDB's serializable
-        // snapshot.
-        entityManager.createNativeQuery("DELETE FROM accounts WHERE organization_id = :org AND code = '2100'")
-                .setParameter("org", orgId).executeUpdate();
-        entityManager.flush();
-        entityManager.clear();
 
         assertThatExceptionOfType(AccountNotFoundException.class)
                 .isThrownBy(() -> service.approve(created.id()));
