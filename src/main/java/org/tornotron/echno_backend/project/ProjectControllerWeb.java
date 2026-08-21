@@ -66,7 +66,7 @@ public class ProjectControllerWeb {
      * @return A {@link ResponseEntity} containing the list of project DTOs and HTTP status 200 (OK).
      */
     @GetMapping()
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     public ResponseEntity<List<ProjectDto>> readAllProjects(@RequestParam(defaultValue = "0") int pageNo,
                                                             @RequestParam(defaultValue = "10") int pageSize) {
         Page<ProjectDto> projects = service.getAllProjects(pageNo,pageSize);
@@ -81,7 +81,7 @@ public class ProjectControllerWeb {
      * @return A {@link ResponseEntity} containing the project DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     public ResponseEntity<?> readAProject(@PathVariable Long id) {
         ProjectDto project = service.getAProject(id);
         return new ResponseEntity<>(project,HttpStatus.OK);
@@ -145,13 +145,13 @@ public class ProjectControllerWeb {
     }
 
     @GetMapping("{projectId}/employees")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     public ResponseEntity<List<EmployeeDto>> getEmployeesByProjectId(@PathVariable Long projectId) {
         return ResponseEntity.status(HttpStatus.OK).body(service.getEmployeesByProjectId(projectId));
     }
 
     @GetMapping("employees/{employeeId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     public ResponseEntity<List<ProjectDto>> getProjectsByEmployeeId(@PathVariable Long employeeId) {
         return ResponseEntity.status(HttpStatus.OK).body(service.getProjectsByEmployeeId(employeeId));
     }
