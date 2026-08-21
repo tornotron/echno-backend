@@ -28,6 +28,10 @@ public class ProjectCreationDto {
     @Enumerated(EnumType.STRING)
     private String status;
 
+    /** Optional construction category (e.g. RESIDENTIAL, COMMERCIAL). Drives compliance matching. */
+    @Size(max = 50, message = "projectType must be at most 50 characters")
+    private String projectType;
+
     @NotNull
     private Float projectLatitude;
 

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="036-add-project-type" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="project" columnName="project_type"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Broad construction category on a project (RESIDENTIAL, COMMERCIAL, ...).
+            Nullable; together with the project's state it drives compliance matching.
+        </comment>
+
+        <addColumn tableName="project">
+            <column name="project_type" type="VARCHAR(30)"/>
+        </addColumn>
+
+        <createIndex tableName="project" indexName="idx_project_type">
+            <column name="project_type"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

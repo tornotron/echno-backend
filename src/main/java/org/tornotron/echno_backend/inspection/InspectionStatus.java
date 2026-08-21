@@ -15,7 +15,8 @@ public enum InspectionStatus {
     FAILED("failed"),
     PASSED("passed"),
     PASSED_WITH_REMARKS("passed-with-remarks"),
-    CANCELLED("cancelled");
+    CANCELLED("cancelled"),
+    SUGGESTED("suggested");
 
     private final String value;
 

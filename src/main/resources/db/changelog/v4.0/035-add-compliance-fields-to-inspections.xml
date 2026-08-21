@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="035-add-compliance-fields-to-inspections" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="inspections" columnName="origin"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Compliance extension on inspections: origin marks manual vs AI-generated rows;
+            compliance_phase / risk_level / resolution_options / compliance_rule_ref /
+            ai_rationale carry the compliance detail for AI-generated compliance inspections.
+            Existing rows default to origin=MANUAL and null compliance fields.
+        </comment>
+
+        <addColumn tableName="inspections">
+            <column name="origin" type="VARCHAR(30)" defaultValue="MANUAL">
+                <constraints nullable="false"/>
+            </column>
+            <column name="compliance_phase" type="VARCHAR(30)"/>
+            <column name="risk_level" type="VARCHAR(30)"/>
+            <column name="resolution_options" type="TEXT"/>
+            <column name="compliance_rule_ref" type="VARCHAR(100)"/>
+            <column name="ai_rationale" type="TEXT"/>
+        </addColumn>
+
+        <createIndex tableName="inspections" indexName="idx_insp_compliance_rule_ref">
+            <column name="compliance_rule_ref"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="035-relax-inspection-not-null-for-ai-rows" author="echno">
+        <comment>
+            AI-generated compliance rows are created without an inspector or a schedule,
+            which a project manager fills in later; drop the NOT NULL on both columns.
+        </comment>
+
+        <dropNotNullConstraint tableName="inspections"
+                               columnName="inspector_id"
+                               columnDataType="BIGINT"/>
+
+        <dropNotNullConstraint tableName="inspections"
+                               columnName="scheduled_date"
+                               columnDataType="DATE"/>
+    </changeSet>
+
+</databaseChangeLog>

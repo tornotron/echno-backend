@@ -4,6 +4,7 @@ import lombok.Data;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
+import org.tornotron.echno_backend.project.enums.ProjectType;
 import org.tornotron.echno_backend.task.dto.TaskDto;
 
 import java.time.LocalDateTime;
@@ -16,6 +17,7 @@ public class ProjectDto {
     private String projectAddress;
     private LocalDateTime createdAt;
     private ProjectCreationStatus status;
+    private ProjectType projectType;
     private List<EmployeeDto> employees;
     private Float projectLatitude;
     private Float projectLongitude;

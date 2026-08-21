@@ -249,4 +249,9 @@
     <!-- v4.0 - Construction invoice approval workflow + ledger-posting links -->
     <include file="db/changelog/v4.0/034-add-construction-invoice-approval-fields.xml"/>
 
+    <!-- v4.0 - Compliance module (AI-generated compliance inspections) -->
+    <include file="db/changelog/v4.0/035-add-compliance-fields-to-inspections.xml"/>
+    <include file="db/changelog/v4.0/036-add-project-type.xml"/>
+    <include file="db/changelog/v4.0/037-create-and-seed-compliance-rules.xml"/>
+
 </databaseChangeLog>

@@ -9,6 +9,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
+import org.tornotron.echno_backend.project.enums.ProjectType;
 import org.tornotron.echno_backend.task.Task;
 import org.tornotron.echno_backend.wbs.WbsElement;
 
@@ -51,6 +52,11 @@ public class Project implements TenantScopedEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = true)
     private ProjectCreationStatus status;
+
+    /** The broad construction category, used to match statutory compliances. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "project_type", nullable = true)
+    private ProjectType projectType;
 
     /** The list of employees assigned to this project. */
     @ManyToMany
