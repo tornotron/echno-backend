@@ -83,4 +83,10 @@ tasks.named('test') {
     // pinned version from the 'api.version' system property (not DOCKER_API_VERSION,
     // which is a docker-CLI variable). 1.44 is accepted by both CI and the lab host.
     systemProperty 'api.version', '1.44'
+    // Print each test as it starts and finishes so a CI log always shows which test
+    // is running; without this, a hung test leaves no trace of which one stalled.
+    testLogging {
+        events 'started', 'passed', 'skipped', 'failed'
+        exceptionFormat 'short'
+    }
 }
