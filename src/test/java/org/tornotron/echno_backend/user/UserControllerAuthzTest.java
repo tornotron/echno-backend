@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
@@ -37,16 +37,16 @@ class UserControllerAuthzTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private UserService userService;
 
     // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
-    @MockBean(name = "orgSecurity")
+    @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
     // because .with(jwt(...)) sets the authentication directly.
-    @MockBean
+    @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
 
     @Test
