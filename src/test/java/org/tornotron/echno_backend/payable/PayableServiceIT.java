@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -50,7 +50,7 @@ class PayableServiceIT extends AbstractIntegrationTest {
 
     // The attachment mapper in the payable mapper chain autowires this; nothing
     // in these payment tests touches file storage, so a mock satisfies the graph.
-    @MockBean
+    @MockitoBean
     private FileStorageService fileStorageService;
 
     private Long orgId;

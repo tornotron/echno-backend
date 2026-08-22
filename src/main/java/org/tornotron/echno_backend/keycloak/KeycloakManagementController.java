@@ -1,7 +1,6 @@
 package org.tornotron.echno_backend.keycloak;
 
 import org.springframework.security.access.prepost.PreAuthorize;
-import io.prometheus.metrics.shaded.com_google_protobuf_4_28_3.Api;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
