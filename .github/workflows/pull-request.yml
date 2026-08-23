@@ -31,11 +31,10 @@ jobs:
       - name: Compile
         run: ./gradlew --no-daemon bootJar -x test
 
-      # There is currently one test, a context-load check. This job exists so
-      # that adding real tests immediately gates merges, rather than requiring
-      # a pipeline change first.
+      # Run the full test suite and enforce the JaCoCo line-coverage floor
+      # (jacocoLineFloor in build.gradle) so a merge cannot regress coverage.
       - name: Test
-        run: ./gradlew --no-daemon test
+        run: ./gradlew --no-daemon test jacocoTestCoverageVerification
 
   secrets:
     runs-on: ubuntu-latest
