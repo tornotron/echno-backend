@@ -20,8 +20,8 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.openhtmltopdf:openhtmltopdf-slf4j:1.0.10'
-    implementation('com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.10') {
+    implementation 'io.github.openhtmltopdf:openhtmltopdf-slf4j:1.1.75'
+    implementation('io.github.openhtmltopdf:openhtmltopdf-pdfbox:1.1.75') {
         exclude group: 'commons-logging', module: 'commons-logging'
     }
     implementation 'org.mapstruct:mapstruct:1.6.3'
