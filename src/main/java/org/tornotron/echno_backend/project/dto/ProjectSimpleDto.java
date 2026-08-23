@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.project.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.project.enums.ProjectType;
@@ -7,17 +8,40 @@ import org.tornotron.echno_backend.project.enums.ProjectType;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Schema(description = "Condensed view of a construction project without its team, tasks or attachments. "
+        + "Returned when a project is created.")
 @Data
 public class ProjectSimpleDto {
+    @Schema(description = "Unique project id.", example = "42")
     private Long id;
+
+    @Schema(description = "Project name.", example = "Tower B, Riverside Residences")
     private String projectName;
+
+    @Schema(description = "Site address of the project.", example = "12 Marina Road, Chennai")
     private String projectAddress;
+
+    @Schema(description = "Creation timestamp.", example = "2026-08-01T09:00:00")
     private LocalDateTime createdAt;
+
+    @Schema(description = "Current project status.", example = "IN_PROGRESS")
     private ProjectCreationStatus status;
+
+    @Schema(description = "Construction category of the project.", example = "RESIDENTIAL")
     private ProjectType projectType;
+
+    @Schema(description = "Site latitude in decimal degrees.", example = "13.0827")
     private Float projectLatitude;
+
+    @Schema(description = "Site longitude in decimal degrees.", example = "80.2707")
     private Float projectLongitude;
+
+    @Schema(description = "Planned start date of the project.", example = "2026-09-01T00:00:00")
     private LocalDateTime startDate;
+
+    @Schema(description = "Planned completion date of the project.", example = "2027-06-30T00:00:00")
     private LocalDateTime endDate;
+
+    @Schema(description = "Overall completion of the project, as a fraction from 0 to 1.", example = "0.35")
     private Double progress;
 }
