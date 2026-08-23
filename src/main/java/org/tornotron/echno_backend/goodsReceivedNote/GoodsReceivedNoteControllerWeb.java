@@ -1,5 +1,8 @@
 package org.tornotron.echno_backend.goodsReceivedNote;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -18,6 +21,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/grns/web")
 @Validated
+@Tag(
+        name = "Goods Received Notes (Web)",
+        description = "Goods received notes (GRNs) record materials received against a vendor, capturing "
+                + "the delivery and its line items. This is the web-console API, restricted to the "
+                + "system-admin role for the current tenant rather than flat authorities. Endpoints "
+                + "cover creating, browsing, filtering by vendor or date range, and updating GRNs."
+)
 public class GoodsReceivedNoteControllerWeb {
 
     private final GoodsReceivedNoteService goodsReceivedNoteService;
@@ -28,6 +38,15 @@ public class GoodsReceivedNoteControllerWeb {
 
     @PostMapping
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "Create a goods received note",
+            description = "Creates a GRN recording materials received against a vendor with its line items."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Goods received note created"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
     public ResponseEntity<GoodsReceivedNoteDto> createGrn(@Valid @RequestBody GoodsReceivedNoteCreationDto creationDto) {
         GoodsReceivedNoteDto created = goodsReceivedNoteService.createGoodsReceivedNote(creationDto);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
@@ -35,6 +54,15 @@ public class GoodsReceivedNoteControllerWeb {
 
     @GetMapping("/{id}")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "Get a goods received note by id",
+            description = "Returns a single GRN."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Goods received note found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No goods received note with the given id")
+    })
     public ResponseEntity<GoodsReceivedNoteDto> getGrnById(@PathVariable Long id) {
         GoodsReceivedNoteDto grn = goodsReceivedNoteService.getGrnById(id);
         return ResponseEntity.ok(grn);
@@ -42,6 +70,14 @@ public class GoodsReceivedNoteControllerWeb {
 
     @GetMapping
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "List goods received notes",
+            description = "Returns every GRN in the current tenant."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Goods received notes returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
     public ResponseEntity<List<GoodsReceivedNoteDto>> getAllGrns() {
         List<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getAllGrns();
         return ResponseEntity.ok(grns);
@@ -49,6 +85,14 @@ public class GoodsReceivedNoteControllerWeb {
 
     @GetMapping("/all")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "List goods received notes (paged)",
+            description = "Returns a single page of GRNs controlled by the pageNo and pageSize parameters."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of goods received notes returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
     public ResponseEntity<Page<GoodsReceivedNoteDto>> getAllGrnsPaginated(
             @RequestParam(defaultValue = "0") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize
@@ -59,6 +103,14 @@ public class GoodsReceivedNoteControllerWeb {
 
     @GetMapping("/vendor/{vendorId}")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "List goods received notes for a vendor",
+            description = "Returns the GRNs recorded against the given vendor."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Goods received notes returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
     public ResponseEntity<List<GoodsReceivedNoteDto>> getGrnsByVendor(@PathVariable Long vendorId) {
         List<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getGrnsByVendor(vendorId);
         return ResponseEntity.ok(grns);
@@ -66,6 +118,16 @@ public class GoodsReceivedNoteControllerWeb {
 
     @PatchMapping
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "Update a goods received note",
+            description = "Applies an update to the GRN identified in the request body."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Goods received note updated"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No goods received note with the given id")
+    })
     public ResponseEntity<GoodsReceivedNoteDto> updateGrn(@Valid @RequestBody GoodsReceivedNoteUpdateDto updateDto) {
         GoodsReceivedNoteDto updated = goodsReceivedNoteService.updateGoodsReceivedNote(updateDto);
         return ResponseEntity.ok(updated);
@@ -73,6 +135,15 @@ public class GoodsReceivedNoteControllerWeb {
 
     @GetMapping("/date-range")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "List goods received notes by date range",
+            description = "Returns the GRNs recorded between the given start and end date-times."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Goods received notes returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A date parameter is missing or malformed"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
     public ResponseEntity<List<GoodsReceivedNoteDto>> getGrnsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate
