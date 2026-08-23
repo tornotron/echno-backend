@@ -13,8 +13,9 @@ ext {
     // measured), raised to 18% after the RBAC, billing, procurement, receipt, ledger
     // and attendance service tests landed (18.77% measured), then to 22% after the
     // consumption, transfer, adjustment, bank-account and report-service tests (22.42%
-    // measured).
-    jacocoLineFloor = 0.22
+    // measured), then to 25% after the leave-accrual, employee-hierarchy,
+    // attendance-regularization and project-invite-code service tests (25.50% measured).
+    jacocoLineFloor = 0.25
 }
 
 repositories {
