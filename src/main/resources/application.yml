@@ -6,6 +6,7 @@ jwt:
 
 digital-ocean:
   uri: ${DIGITAL_OCEAN_SPACES_URI}
+  presign-endpoint: ${OBJECT_STORE_PUBLIC_ENDPOINT:${DIGITAL_OCEAN_SPACES_URI}}
   access-key-id: ${DIGITAL_OCEAN_SPACES_KEY_ID}
   secret-access-key: ${DIGITAL_OCEAN_SPACES_KEY_SECRET}
   bucket-name: ${DIGITAL_OCEAN_SPACES_BUCKET_NAME}
