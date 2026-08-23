@@ -140,6 +140,22 @@ class ReportServiceIT extends AbstractIntegrationTest {
     // --- Profit and loss --------------------------------------------------
 
     @Test
+    void profitAndLoss_excludesEntriesOutsideTheReportingPeriod() {
+        // A posting dated before the reporting window must not leak into the P&L. The
+        // entry_date predicate sits on the journal_entries join while the amounts are
+        // summed from journal_entry_lines, so without guarding the sum on a matched
+        // entry the out-of-window line amounts would still count.
+        post(today.minusDays(30), line(cashId, "800", "0"), line(revenueId, "0", "800"));
+
+        ProfitAndLossReport report = reportService.profitAndLoss(today.minusDays(1), today);
+
+        // Only the in-window seed activity counts; the older 800 of income is excluded.
+        assertThat(report.totalIncome()).isEqualByComparingTo("1000");
+        assertThat(report.totalExpense()).isEqualByComparingTo("300");
+        assertThat(report.netProfit()).isEqualByComparingTo("700");
+    }
+
+    @Test
     void profitAndLoss_nettsIncomeAgainstExpenseForThePeriod() {
         ProfitAndLossReport report = reportService.profitAndLoss(today.minusDays(1), today);
 
