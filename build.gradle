@@ -7,10 +7,12 @@ plugins {
 ext {
     springCloudVersion = "2024.0.2"
     // Minimum line-coverage ratio enforced by jacocoTestCoverageVerification.
-    // Set just under the current measured level (14.5% at introduction) so it locks
-    // in no-regression with a small margin for run-to-run variance; raise it as
-    // tests are added. Denominator excludes generated/DTO/config classes.
-    jacocoLineFloor = 0.14
+    // Set just under the current measured level so it locks in no-regression with a
+    // small margin for run-to-run variance; raise it as tests are added. Denominator
+    // excludes generated/DTO/config classes. History: 14% at introduction (14.5%
+    // measured), raised to 18% after the RBAC, billing, procurement, receipt, ledger
+    // and attendance service tests landed (18.77% measured).
+    jacocoLineFloor = 0.18
 }
 
 repositories {
