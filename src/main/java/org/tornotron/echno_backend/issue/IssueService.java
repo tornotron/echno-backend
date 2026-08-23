@@ -91,9 +91,9 @@ public class IssueService {
     }
 
     @Transactional(readOnly = true)
-    public Page<IssueDto> getAllIssuesPaginated(int pageNo, int pageSize, Long projectId, String search, String status, String type) {
+    public Page<IssueDto> getAllIssuesPaginated(int pageNo, int pageSize, Long projectId, String search, String status, String type, Long assigneeId, Long creatorId) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return issueRepository.search(projectId, searchPattern(search), parseStatus(status), parseType(type), pageable)
+        return issueRepository.search(projectId, searchPattern(search), parseStatus(status), parseType(type), assigneeId, creatorId, pageable)
                 .map(issue -> issueMapper.toDto(issue));
     }
 
