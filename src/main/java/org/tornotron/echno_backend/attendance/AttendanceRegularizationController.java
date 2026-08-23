@@ -51,9 +51,10 @@ public class AttendanceRegularizationController {
     })
     public ResponseEntity<AttendanceRegularizationDto> submitRequest(
             @Valid @RequestBody RegularizationRequestDto dto,
-            @RequestParam String requestedBy) {
+            @RequestParam String requestedBy,
+            @RequestParam(required = false) Long requestedById) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(regularizationService.submitRequest(dto, requestedBy));
+                .body(regularizationService.submitRequest(dto, requestedBy, requestedById));
     }
 
     @PostMapping("/{id}/process")
@@ -72,8 +73,9 @@ public class AttendanceRegularizationController {
     public ResponseEntity<AttendanceRegularizationDto> process(
             @PathVariable Long id,
             @Valid @RequestBody RegularizationActionDto dto,
-            @RequestParam String approvedBy) {
-        return ResponseEntity.ok(regularizationService.processRegularization(id, dto, approvedBy));
+            @RequestParam String approvedBy,
+            @RequestParam(required = false) Long approvedById) {
+        return ResponseEntity.ok(regularizationService.processRegularization(id, dto, approvedBy, approvedById));
     }
 
     @GetMapping("/pending")

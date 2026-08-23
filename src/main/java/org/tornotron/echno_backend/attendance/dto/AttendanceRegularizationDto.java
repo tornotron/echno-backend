@@ -29,11 +29,18 @@ public class AttendanceRegularizationDto {
     @Schema(description = "Name or id of the person who submitted the request.", example = "Ravi Kumar")
     private String requestedBy;
 
+    @Schema(description = "Id of the employee who submitted the request, stored alongside the name so "
+            + "regularizations can be filtered by requester.", example = "18")
+    private Long requestedById;
+
     @Schema(description = "Timestamp the request was submitted.", example = "2026-01-16T08:30:00")
     private LocalDateTime requestedAt;
 
     @Schema(description = "Name or id of the person who approved or rejected the request.", example = "Anand Rajashekar")
     private String approvedBy;
+
+    @Schema(description = "Id of the employee who approved or rejected the request, if known.", example = "5")
+    private Long approvedById;
 
     @Schema(description = "Timestamp the request was approved or rejected.", example = "2026-01-16T11:00:00")
     private LocalDateTime approvedAt;

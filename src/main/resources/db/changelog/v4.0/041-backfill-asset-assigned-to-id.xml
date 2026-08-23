@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Best-effort backfill of asset.assigned_to_id from the free-text assigned_to name,
+         matching against employee.employee_name within the same organization. The id is set
+         only when the name resolves to exactly one employee in that organization; a name that
+         matches no employee, or more than one, is left NULL. Guarded on assigned_to_id IS NULL
+         so the changeset is idempotent and safe to re-run. -->
+    <changeSet id="041-backfill-asset-assigned-to-id" author="echno">
+        <sql>
+            UPDATE asset a
+            SET assigned_to_id = (
+                SELECT e.id FROM employee e
+                WHERE e.employee_name = a.assigned_to
+                  AND e.organization_id = a.organization_id
+            )
+            WHERE a.assigned_to_id IS NULL
+              AND a.assigned_to IS NOT NULL
+              AND a.organization_id IS NOT NULL
+              AND (
+                SELECT COUNT(*) FROM employee e
+                WHERE e.employee_name = a.assigned_to
+                  AND e.organization_id = a.organization_id
+              ) = 1
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

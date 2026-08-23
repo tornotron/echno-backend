@@ -99,6 +99,7 @@ public class AssetService {
         asset.setCurrentValue(dto.getCurrentValue());
         asset.setDepreciationRate(dto.getDepreciationRate());
         asset.setAssignedTo(dto.getAssignedTo());
+        asset.setAssignedToId(dto.getAssignedToId());
         asset.setAssignedProject(dto.getAssignedProject());
         asset.setManufacturer(dto.getManufacturer());
         asset.setModel(dto.getModel());
