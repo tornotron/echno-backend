@@ -12,6 +12,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
+import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.finance.report.dtos.TrialBalanceReport;
 import org.tornotron.echno_backend.finance.report.service.ReportService;
@@ -44,8 +45,14 @@ class ReportControllerWebAuthzTest {
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
+    // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
+    // because .with(jwt(...)) sets the authentication directly.
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
+
+    // RPTExchangeFilter also depends on this cache; mocked for the same reason.
+    @MockitoBean
+    private RPTCache rptCache;
 
     @Test
     void trialBalance_isOk_forAnElevatedFinanceRoleHolder() throws Exception {
