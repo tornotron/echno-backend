@@ -18,6 +18,7 @@ import java.io.IOException;
 public class RPTExchangeFilter extends OncePerRequestFilter {
 
     private final KeycloakAuthorizationService authorizationService;
+    private final RPTCache rptCache;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -35,7 +36,7 @@ public class RPTExchangeFilter extends OncePerRequestFilter {
             String accessToken = authHeader.substring(7);
 
             try {
-                String rptToken = authorizationService.exchangeForRPT(accessToken);
+                String rptToken = rptCache.getOrMint(accessToken, () -> authorizationService.exchangeForRPT(accessToken));
                 log.debug("Successfully obtained RPT token for request to {}", requestUri);
 
                 HttpServletRequest wrappedRequest = new HttpServletRequestWrapper(request) {

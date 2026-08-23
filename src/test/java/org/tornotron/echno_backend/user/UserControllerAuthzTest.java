@@ -13,6 +13,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
+import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -48,6 +49,10 @@ class UserControllerAuthzTest {
     // because .with(jwt(...)) sets the authentication directly.
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
+
+    // RPTExchangeFilter also depends on this cache; mocked for the same reason.
+    @MockitoBean
+    private RPTCache rptCache;
 
     @Test
     void readAllUsers_isForbidden_forANonAdminCaller() throws Exception {
