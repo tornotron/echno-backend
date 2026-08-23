@@ -1,5 +1,9 @@
 package org.tornotron.echno_backend.goodsReceivedNote;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -18,6 +22,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/grns")
 @Validated
+@Tag(
+        name = "Goods Received Notes",
+        description = "Goods received notes (GRNs) record the receipt of materials from a vendor against "
+                + "a purchase order. Each GRN carries the vendor, project, storage location, delivery and "
+                + "invoice references and a list of received line items with ordered and received "
+                + "quantities. Creating a GRN posts the received quantities into stock. Endpoints require "
+                + "the matching grn create, read, update or admin authority."
+)
 public class GoodsReceivedNoteController {
 
     private final GoodsReceivedNoteService goodsReceivedNoteService;
@@ -28,6 +40,17 @@ public class GoodsReceivedNoteController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('grn:create') or hasAuthority('grn:admin')")
+    @Operation(
+            summary = "Create a goods received note",
+            description = "Records a goods receipt from a vendor with its line items. The received "
+                    + "quantities are posted into stock at the given storage location as GRN transactions."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "GRN created and returned"),
+            @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the grn create or admin authority"),
+            @ApiResponse(responseCode = "404", description = "A referenced vendor, project, storage location or material was not found")
+    })
     public ResponseEntity<GoodsReceivedNoteDto> createGrn(@Valid @RequestBody GoodsReceivedNoteCreationDto creationDto) {
         GoodsReceivedNoteDto created = goodsReceivedNoteService.createGoodsReceivedNote(creationDto);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
@@ -35,6 +58,15 @@ public class GoodsReceivedNoteController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('grn:read') or hasAuthority('grn:admin')")
+    @Operation(
+            summary = "Get a goods received note by id",
+            description = "Returns a single GRN with its header details and received line items."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "GRN found"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the grn read or admin authority"),
+            @ApiResponse(responseCode = "404", description = "No GRN with the given id")
+    })
     public ResponseEntity<GoodsReceivedNoteDto> getGrnById(@PathVariable Long id) {
         GoodsReceivedNoteDto grn = goodsReceivedNoteService.getGrnById(id);
         return ResponseEntity.ok(grn);
@@ -42,6 +74,15 @@ public class GoodsReceivedNoteController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('grn:read') or hasAuthority('grn:admin')")
+    @Operation(
+            summary = "List all goods received notes",
+            description = "Returns every GRN as an unpaged list. Use the paginated variant for large "
+                    + "result sets."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "List of GRNs"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the grn read or admin authority")
+    })
     public ResponseEntity<List<GoodsReceivedNoteDto>> getAllGrns() {
         List<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getAllGrns();
         return ResponseEntity.ok(grns);
@@ -49,6 +90,15 @@ public class GoodsReceivedNoteController {
 
     @GetMapping("/all")
     @PreAuthorize("hasAuthority('grn:read') or hasAuthority('grn:admin')")
+    @Operation(
+            summary = "List goods received notes (paginated)",
+            description = "Returns a page of GRNs. The pageNo and pageSize parameters control the slice "
+                    + "returned."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Page of GRNs"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the grn read or admin authority")
+    })
     public ResponseEntity<Page<GoodsReceivedNoteDto>> getAllGrnsPaginated(
             @RequestParam(defaultValue = "0") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize
@@ -59,6 +109,14 @@ public class GoodsReceivedNoteController {
 
     @GetMapping("/vendor/{vendorId}")
     @PreAuthorize("hasAuthority('grn:read') or hasAuthority('grn:admin')")
+    @Operation(
+            summary = "List goods received notes for a vendor",
+            description = "Returns every GRN recorded against the given vendor."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "List of GRNs for the vendor"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the grn read or admin authority")
+    })
     public ResponseEntity<List<GoodsReceivedNoteDto>> getGrnsByVendor(@PathVariable Long vendorId) {
         List<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getGrnsByVendor(vendorId);
         return ResponseEntity.ok(grns);
@@ -66,6 +124,18 @@ public class GoodsReceivedNoteController {
 
     @PatchMapping
     @PreAuthorize("hasAuthority('grn:update') or hasAuthority('grn:admin')")
+    @Operation(
+            summary = "Update a goods received note",
+            description = "Updates the editable header fields of an existing GRN (receipt date, receiver, "
+                    + "delivery challan, invoice details and storage location). The GRN to update is "
+                    + "identified by the id in the request body. Line items are not changed here."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "GRN updated"),
+            @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the grn update or admin authority"),
+            @ApiResponse(responseCode = "404", description = "No GRN with the given id")
+    })
     public ResponseEntity<GoodsReceivedNoteDto> updateGrn(@Valid @RequestBody GoodsReceivedNoteUpdateDto updateDto) {
         GoodsReceivedNoteDto updated = goodsReceivedNoteService.updateGoodsReceivedNote(updateDto);
         return ResponseEntity.ok(updated);
@@ -73,6 +143,16 @@ public class GoodsReceivedNoteController {
 
     @GetMapping("/date-range")
     @PreAuthorize("hasAuthority('grn:read') or hasAuthority('grn:admin')")
+    @Operation(
+            summary = "List goods received notes in a date range",
+            description = "Returns GRNs whose received date falls between the startDate and endDate "
+                    + "parameters (both ISO date-time values)."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "List of GRNs in the range"),
+            @ApiResponse(responseCode = "400", description = "startDate or endDate is missing or not a valid ISO date-time"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the grn read or admin authority")
+    })
     public ResponseEntity<List<GoodsReceivedNoteDto>> getGrnsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate

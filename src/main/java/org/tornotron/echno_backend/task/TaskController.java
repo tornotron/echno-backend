@@ -2,6 +2,9 @@ package org.tornotron.echno_backend.task;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +32,13 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/tasks")
 @Validated
+@Tag(
+        name = "Tasks",
+        description = "Work items tracked against a project. A task carries a title, schedule, assignees, "
+                + "category, tags, progress and status. Endpoints cover creating a task with attachments, "
+                + "browsing and reading tasks, batch updates and deletion. Access is gated by the task "
+                + "authorities, with an admin authority that grants all operations."
+)
 public class TaskController {
 
     private final TaskService service;
@@ -49,12 +59,23 @@ public class TaskController {
     /**
      * Creates a new task.
      *
-     *  taskCreationDto DTO containing the details for the new task.
+     * @param data JSON payload containing the details for the new task.
      * @return A {@link ResponseEntity} with a success message and HTTP status 201 (Created).
      */
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('task:create') or hasAuthority('task:admin')")
+    @Operation(
+            summary = "Create a task",
+            description = "Creates a task from a multipart request. The data part carries the task details "
+                    + "as JSON and the optional attachments part carries supporting files. Returns the "
+                    + "created task as a simple view without its resolved assignees or category."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Task created"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid task JSON, or a field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task create or admin authority")
+    })
     public ResponseEntity<TaskSimpleDto> createTask(@RequestPart @Valid String data,
                                                     @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
         TaskCreationDto dto = objectMapper.readValue(data, TaskCreationDto.class);
@@ -71,6 +92,15 @@ public class TaskController {
      */
     @GetMapping
     @PreAuthorize("hasAuthority('task:read') or hasAuthority('task:admin')")
+    @Operation(
+            summary = "List tasks",
+            description = "Returns a single page of tasks. The pageNo and pageSize parameters control "
+                    + "paging; only the page content is returned, without paging metadata."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of tasks returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task read or admin authority")
+    })
     public ResponseEntity<List<TaskDto>> readAllTasks(@RequestParam(defaultValue = "0") int pageNo,
                                                       @RequestParam(defaultValue = "10") int pageSize) {
         Page<TaskDto> tasks = service.getAllTasks(pageNo, pageSize);
@@ -86,6 +116,16 @@ public class TaskController {
      */
     @GetMapping("{id}")
     @PreAuthorize("hasAuthority('task:read') or hasAuthority('task:admin')")
+    @Operation(
+            summary = "Get a task by id",
+            description = "Returns a single task including its creator, assignees, category, issues and "
+                    + "attachments."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Task found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No task with the given id")
+    })
     public ResponseEntity<?> readATask(@PathVariable Long id) {
         TaskDto taskDto = service.getATask(id);
         return new ResponseEntity<>(taskDto, HttpStatus.OK);
@@ -112,6 +152,16 @@ public class TaskController {
      */
     @PatchMapping("/batch")
     @PreAuthorize("hasAuthority('task:update') or hasAuthority('task:admin')")
+    @Operation(
+            summary = "Batch update tasks",
+            description = "Applies partial updates to several tasks in one call. Each entry names a task "
+                    + "id and the map of fields to change on that task."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Batch update applied"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the update entries failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task update or admin authority")
+    })
     public ResponseEntity<ApiResponse> batchUpdateTasks(@Valid @RequestBody List<TaskPatchDto> updates) {
         service.batchUpdateTasks(updates);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
@@ -125,6 +175,15 @@ public class TaskController {
      */
     @DeleteMapping("{id}")
     @PreAuthorize("hasAuthority('task:delete') or hasAuthority('task:admin')")
+    @Operation(
+            summary = "Delete a task",
+            description = "Deletes the task with the given id."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Task deleted"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No task with the given id")
+    })
     public ResponseEntity<ApiResponse> deleteATask(@PathVariable Long id) {
         service.deleteATask(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Task with id: " + id + " deleted"));

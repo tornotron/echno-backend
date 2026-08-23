@@ -2,6 +2,9 @@ package org.tornotron.echno_backend.project;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +33,13 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/project")
 @Validated
+@Tag(
+        name = "Projects",
+        description = "Construction projects and their team assignments. Endpoints cover creating a "
+                + "project with attachments, browsing and reading projects, batch updates, deletion, "
+                + "and adding or removing the employees assigned to a project. Access is gated by the "
+                + "project authorities, with an admin authority that grants all operations."
+)
 public class ProjectController {
 
     private final ProjectService service;
@@ -53,6 +63,17 @@ public class ProjectController {
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('project:create') or hasAuthority('project:admin')")
+    @Operation(
+            summary = "Create a project",
+            description = "Creates a project from a multipart request. The data part carries the project "
+                    + "details as JSON and the optional attachments part carries supporting files. "
+                    + "Returns the created project as a simple view without its tasks or team."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Project created"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid project JSON, or a field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the project create or admin authority")
+    })
     public ResponseEntity<ProjectSimpleDto> createProject(@RequestPart("data") @Valid String data,
                                                           @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments) throws JsonProcessingException {
         ProjectCreationDto dto = new ObjectMapper().readValue(data, ProjectCreationDto.class);
@@ -69,6 +90,15 @@ public class ProjectController {
      */
     @GetMapping
     @PreAuthorize("hasAuthority('project:read') or hasAuthority('project:admin')")
+    @Operation(
+            summary = "List projects",
+            description = "Returns a single page of projects. The pageNo and pageSize parameters control "
+                    + "paging; only the page content is returned, without paging metadata."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of projects returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the project read or admin authority")
+    })
     public ResponseEntity<List<ProjectDto>> readAllProjects(@RequestParam(defaultValue = "0") int pageNo,
                                                                  @RequestParam(defaultValue = "10") int pageSize) {
           Page<ProjectDto> projects = service.getAllProjects(pageNo,pageSize);
@@ -84,6 +114,15 @@ public class ProjectController {
      */
     @GetMapping("{id}")
     @PreAuthorize("hasAuthority('project:read') or hasAuthority('project:admin')")
+    @Operation(
+            summary = "Get a project by id",
+            description = "Returns a single project including its team, tasks, attachments and progress."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Project found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the project read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
+    })
     public ResponseEntity<?> readAProject(@PathVariable Long id) {
         ProjectDto project = service.getAProject(id);
         return new ResponseEntity<>(project,HttpStatus.OK);
@@ -111,6 +150,16 @@ public class ProjectController {
      */
     @PatchMapping("/batch")
     @PreAuthorize("hasAuthority('project:update') or hasAuthority('project:admin')")
+    @Operation(
+            summary = "Batch update projects",
+            description = "Applies partial updates to several projects in one call. Each entry names a "
+                    + "project id and the map of fields to change on that project."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Batch update applied"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the update entries failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the project update or admin authority")
+    })
     public ResponseEntity<ApiResponse> batchUpdateProjects(@Valid @RequestBody List<ProjectPatchDto> updates) {
         service.batchUpdateProjects(updates);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
@@ -124,6 +173,15 @@ public class ProjectController {
      */
     @DeleteMapping("{id}")
     @PreAuthorize("hasAuthority('project:delete') or hasAuthority('project:admin')")
+    @Operation(
+            summary = "Delete a project",
+            description = "Deletes the project with the given id."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Project deleted"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the project delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
+    })
     public ResponseEntity<ApiResponse> deleteProject(@PathVariable Long id) {
         service.deleteAProject(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Project with id: "+id+" has been deleted"));
@@ -137,6 +195,15 @@ public class ProjectController {
      */
     @GetMapping("{id}/organization")
     @PreAuthorize("hasAuthority('project:read') or hasAuthority('project:admin')")
+    @Operation(
+            summary = "Get the organization id for a project",
+            description = "Returns the id of the organization that owns the given project."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization id returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the project read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
+    })
     public ResponseEntity<Long> getOrganizationIdByProjectId(@PathVariable Long id) {
         Long organizationId = service.getOrganizationIdByProjectId(id);
         return new ResponseEntity<>(organizationId, HttpStatus.OK);
@@ -144,12 +211,31 @@ public class ProjectController {
 
     @PostMapping("{projectId}/employees/{employeeId}")
     @PreAuthorize("hasAuthority('project:update') or hasAuthority('project:admin')")
+    @Operation(
+            summary = "Assign an employee to a project",
+            description = "Adds the given employee to the project team and returns the project's updated "
+                    + "list of assigned employees."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee assigned, updated team returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the project update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project or employee with the given id")
+    })
     public ResponseEntity<List<EmployeeDto>> addEmployeeToProject(@PathVariable Long projectId, @PathVariable Long employeeId) {
         return ResponseEntity.status(HttpStatus.OK).body(service.addEmployeeToProject(projectId, employeeId));
     }
 
     @DeleteMapping("{projectId}/employees/{employeeId}")
     @PreAuthorize("hasAuthority('project:update') or hasAuthority('project:admin')")
+    @Operation(
+            summary = "Remove an employee from a project",
+            description = "Removes the given employee from the project team."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee removed from the project"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the project update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project or employee with the given id")
+    })
     public ResponseEntity<ApiResponse> removeEmployeeFromProject(@PathVariable Long projectId, @PathVariable Long employeeId) {
         service.removeEmployeeFromProject(projectId, employeeId);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Employee removed from project"));
@@ -157,6 +243,15 @@ public class ProjectController {
 
     @GetMapping("{projectId}/employees")
     @PreAuthorize("hasAuthority('project:read') or hasAuthority('project:admin')")
+    @Operation(
+            summary = "List the employees on a project",
+            description = "Returns the employees currently assigned to the given project."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Assigned employees returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the project read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
+    })
     public ResponseEntity<List<EmployeeDto>> getEmployeesByProjectId(@PathVariable Long projectId) {
         return ResponseEntity.status(HttpStatus.OK).body(service.getEmployeesByProjectId(projectId));
     }
