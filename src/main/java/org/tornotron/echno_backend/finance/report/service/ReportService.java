@@ -32,8 +32,8 @@ public class ReportService {
         Long orgId = TenantContext.getCurrentOrgId();
         String sql = """
                 SELECT a.code, a.name, a.type,
-                                   COALESCE(SUM(l.debit), 0)  AS total_debit,
-                                   COALESCE(SUM(l.credit), 0) AS total_credit
+                                   COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN l.debit ELSE 0 END), 0)  AS total_debit,
+                                   COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN l.credit ELSE 0 END), 0) AS total_credit
                             FROM accounts a
                             LEFT JOIN journal_entry_lines l ON l.account_id = a.id
                             LEFT JOIN journal_entries je    ON je.id = l.journal_entry_id
@@ -44,8 +44,8 @@ public class ReportService {
                 + acctOrgWhere(orgId)
                 + """
                             GROUP BY a.code, a.name, a.type
-                            HAVING COALESCE(SUM(l.debit), 0) <> 0
-                                OR COALESCE(SUM(l.credit), 0) <> 0
+                            HAVING COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN l.debit ELSE 0 END), 0) <> 0
+                                OR COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN l.credit ELSE 0 END), 0) <> 0
                             ORDER BY a.code
                 """;
 
@@ -105,8 +105,8 @@ public class ReportService {
         Long orgId = TenantContext.getCurrentOrgId();
         String sql = """
                 SELECT a.code, a.name, a.type,
-                                   COALESCE(SUM(l.debit), 0)  AS total_debit,
-                                   COALESCE(SUM(l.credit), 0) AS total_credit
+                                   COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN l.debit ELSE 0 END), 0)  AS total_debit,
+                                   COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN l.credit ELSE 0 END), 0) AS total_credit
                             FROM accounts a
                             LEFT JOIN journal_entry_lines l ON l.account_id = a.id
                             LEFT JOIN journal_entries je    ON je.id = l.journal_entry_id
@@ -179,8 +179,8 @@ public class ReportService {
         Long orgId = TenantContext.getCurrentOrgId();
         String sql = """
             SELECT a.code, a.name, a.type,
-                   COALESCE(SUM(l.debit), 0)  AS total_debit,
-                   COALESCE(SUM(l.credit), 0) AS total_credit
+                   COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN l.debit ELSE 0 END), 0)  AS total_debit,
+                   COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN l.credit ELSE 0 END), 0) AS total_credit
             FROM accounts a
             LEFT JOIN journal_entry_lines l ON l.account_id = a.id
             LEFT JOIN journal_entries je    ON je.id = l.journal_entry_id
