@@ -94,6 +94,9 @@ public class LeavePolicy implements TenantScopedEntity {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
+    @Column(name = "multi_level_approval_enabled", nullable = false)
+    private Boolean multiLevelApprovalEnabled = true;
+
     @Column(name = "display_order")
     private Integer displayOrder = 0;
 

@@ -256,4 +256,7 @@
     <!-- v4.0 - Backfill organization_id on legacy attachments -->
     <include file="db/changelog/v4.0/038-backfill-attachment-organization-id.xml"/>
 
+    <!-- v4.0 - Opt-in toggle for multi-level leave approval (#249) -->
+    <include file="db/changelog/v4.0/039-add-multi-level-approval-to-leave-policy.xml"/>
+
 </databaseChangeLog>

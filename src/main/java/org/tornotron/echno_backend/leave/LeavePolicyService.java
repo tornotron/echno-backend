@@ -95,6 +95,9 @@ public class LeavePolicyService {
         policy.setIsPaid(dto.getIsPaid());
         policy.setIsActive(true);
         policy.setDisplayOrder(dto.getDisplayOrder());
+        if (dto.getMultiLevelApprovalEnabled() != null) {
+            policy.setMultiLevelApprovalEnabled(dto.getMultiLevelApprovalEnabled());
+        }
 
         LeavePolicy saved = policyRepository.save(policy);
         return leavePolicyMapper.toDto(saved);
@@ -240,6 +243,7 @@ public class LeavePolicyService {
                 case "allowHalfDay" -> policy.setAllowHalfDay((Boolean) value);
                 case "isPaid" -> policy.setIsPaid((Boolean) value);
                 case "isActive" -> policy.setIsActive((Boolean) value);
+                case "multiLevelApprovalEnabled" -> policy.setMultiLevelApprovalEnabled((Boolean) value);
                 case "displayOrder" -> policy.setDisplayOrder(
                         value != null ? ((Number) value).intValue() : null);
             }
@@ -330,6 +334,7 @@ public class LeavePolicyService {
         duplicate.setIsPaid(source.getIsPaid());
         duplicate.setIsActive(true);
         duplicate.setDisplayOrder(source.getDisplayOrder());
+        duplicate.setMultiLevelApprovalEnabled(source.getMultiLevelApprovalEnabled());
 
         LeavePolicy saved = policyRepository.save(duplicate);
         return leavePolicyMapper.toDto(saved);

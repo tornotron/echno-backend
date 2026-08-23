@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="039-add-multi-level-approval-to-leave-policy" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="leave_policy" columnName="multi_level_approval_enabled"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Opt-in toggle for multi-level leave approval (#249). Defaults to true so existing
+            policies keep today's full management-line approval chain; an organization can set it
+            false to have a single approval by the direct approver finalize the request.
+        </comment>
+
+        <addColumn tableName="leave_policy">
+            <column name="multi_level_approval_enabled" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>
