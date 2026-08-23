@@ -27,6 +27,8 @@ public interface IssueRepository extends JpaRepository<Issue, Long> {
      * Paginated issue search. Every filter is optional (a null argument disables
      * that clause); the tenant orgFilter still applies. {@code search} matches
      * title, description, or the creator's name, case-insensitively.
+     * {@code assigneeId} and {@code creatorId} restrict to the issues assigned to
+     * or created by that employee.
      */
     @Query("""
             SELECT i FROM Issue i WHERE
@@ -36,13 +38,17 @@ public interface IssueRepository extends JpaRepository<Issue, Long> {
                  OR LOWER(i.description) LIKE :search
                  OR LOWER(i.createdBy.employeeName) LIKE :search) AND
               (:status IS NULL OR i.status = :status) AND
-              (:type IS NULL OR i.type = :type)
+              (:type IS NULL OR i.type = :type) AND
+              (:assigneeId IS NULL OR i.assignedTo.id = :assigneeId) AND
+              (:creatorId IS NULL OR i.createdBy.id = :creatorId)
             """)
     Page<Issue> search(
             @Param("projectId") Long projectId,
             @Param("search") String search,
             @Param("status") IssueStatus status,
             @Param("type") IssueType type,
+            @Param("assigneeId") Long assigneeId,
+            @Param("creatorId") Long creatorId,
             Pageable pageable);
 
     /**

@@ -64,7 +64,8 @@ public class IssueControllerWeb {
     @Operation(
             summary = "List issues, paginated and filtered",
             description = "Returns a single page of issues, optionally filtered by project, a free-text "
-                    + "search on title and description, status, or type."
+                    + "search on title and description, status, type, the assigned employee, or the "
+                    + "employee who created it."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of issues returned"),
@@ -76,8 +77,10 @@ public class IssueControllerWeb {
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String type) {
-        Page<IssueDto> issues = issueService.getAllIssuesPaginated(pageNo, pageSize, projectId, search, status, type);
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Long assigneeId,
+            @RequestParam(required = false) Long creatorId) {
+        Page<IssueDto> issues = issueService.getAllIssuesPaginated(pageNo, pageSize, projectId, search, status, type, assigneeId, creatorId);
         return new ResponseEntity<>(issues, HttpStatus.OK);
     }
 
