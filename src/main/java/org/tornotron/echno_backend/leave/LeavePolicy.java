@@ -13,6 +13,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Rules for one leave type within an organization: entitlement, accrual, and request limits.
+ *
+ * <p>Defines the annual quota and monthly accrual rate, carry-forward limit and expiry,
+ * per-request minimums and maximums, advance-notice and attachment requirements, and eligibility
+ * gates (applicable genders, minimum service months). Policies are deactivated rather than deleted
+ * so historical balances and requests keep their reference.
+ */
 @Entity
 @Data
 @NoArgsConstructor

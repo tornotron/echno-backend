@@ -9,6 +9,13 @@ import org.tornotron.echno_backend.finance.ledger.domain.Account;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+/**
+ * One billed line of an invoice, carrying its own amounts and the revenue account it credits.
+ *
+ * <p>The line subtotal is quantity times unit price, the tax amount is that subtotal at the line's
+ * tax rate (for example 18% GST), and the line total is subtotal plus tax. {@code revenueAccount}
+ * names the INCOME account credited for this line when the invoice is issued.
+ */
 @Entity
 @Table(name = "invoice_lines",
         indexes = @Index(name = "idx_invl_invoice", columnList = "invoice_id"))

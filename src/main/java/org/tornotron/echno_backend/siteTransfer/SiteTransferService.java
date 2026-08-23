@@ -38,6 +38,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Creates and queries site transfers that move stock between projects or storage locations.
+ *
+ * <p>Creating a transfer sums the requested quantity per material, checks that the sending
+ * side holds enough (at the sending storage location when one is given, otherwise across the
+ * sending project), persists the transfer and its items, then publishes a
+ * {@link SiteTransferCreatedEvent} so the ledger draws stock down at the source and raises it
+ * at the destination in the same transaction.
+ */
 @Service
 public class SiteTransferService {
 
@@ -77,6 +86,20 @@ public class SiteTransferService {
         this.storageLocationRepository = storageLocationRepository;
     }
 
+    /**
+     * Creates a site transfer with its items after checking sending-side stock.
+     *
+     * <p>Rejects a duplicate transfer number and resolves the sending person and the sending
+     * and receiving projects (plus optional storage locations). Requested quantities are
+     * totalled per material and validated against the sending side. After saving the transfer
+     * and its items, a {@link SiteTransferCreatedEvent} is published so inventory moves.
+     *
+     * @param creationDto The transfer header fields and the list of items to move.
+     * @return The created site transfer as a DTO.
+     * @throws DuplicateResourceException if the transfer number already exists in this organization.
+     * @throws ResourceNotFoundException if the sending person, either project, a storage location, or a line's material is not found in this organization.
+     * @throws org.tornotron.echno_backend.common.exception.InsufficientStockException if the sending side does not hold enough of any requested material.
+     */
     @Transactional
     public SiteTransferDto createSiteTransfer(SiteTransferCreationDto creationDto) {
         // Check for duplicate transfer number
@@ -163,6 +186,13 @@ public class SiteTransferService {
         return siteTransferMapper.toDto(transfer);
     }
 
+    /**
+     * Retrieves a single site transfer by its id within the current tenant.
+     *
+     * @param id The id of the site transfer to retrieve.
+     * @return The site transfer as a DTO.
+     * @throws ResourceNotFoundException if no site transfer with the given id exists in this organization.
+     */
     @Transactional(readOnly = true)
     public SiteTransferDto getSiteTransferById(Long id) {
         SiteTransfer transfer = siteTransferRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
@@ -177,6 +207,13 @@ public class SiteTransferService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Retrieves site transfers one page at a time, newest first.
+     *
+     * @param pageNo Zero-based page index.
+     * @param pageSize Number of transfers per page.
+     * @return A page of site transfer DTOs ordered by issue date descending.
+     */
     @Transactional(readOnly = true)
     public Page<SiteTransferDto> getAllSiteTransfers(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "issueDate"));
@@ -184,6 +221,12 @@ public class SiteTransferService {
                 .map(transfer -> siteTransferMapper.toDto(transfer));
     }
 
+    /**
+     * Lists site transfers in a given status.
+     *
+     * @param status The status to filter by.
+     * @return The matching site transfers as DTOs.
+     */
     @Transactional(readOnly = true)
     public List<SiteTransferDto> getSiteTransfersByStatus(SiteTransferStatus status) {
         return siteTransferRepository.findByStatus(status).stream()
@@ -191,6 +234,12 @@ public class SiteTransferService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists site transfers sent from a given project.
+     *
+     * @param projectId The sending project to filter by.
+     * @return The matching site transfers as DTOs.
+     */
     @Transactional(readOnly = true)
     public List<SiteTransferDto> getSiteTransfersBySendingProject(Long projectId) {
         return siteTransferRepository.findBySendingProjectId(projectId).stream()
@@ -198,6 +247,12 @@ public class SiteTransferService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists site transfers received by a given project.
+     *
+     * @param projectId The receiving project to filter by.
+     * @return The matching site transfers as DTOs.
+     */
     @Transactional(readOnly = true)
     public List<SiteTransferDto> getSiteTransfersByReceivingProject(Long projectId) {
         return siteTransferRepository.findByReceivingProjectId(projectId).stream()
@@ -205,6 +260,13 @@ public class SiteTransferService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Sets the status of a site transfer.
+     *
+     * @param id The id of the site transfer to update.
+     * @param status The new status.
+     * @throws ResourceNotFoundException if no site transfer with the given id exists in this organization.
+     */
     @Transactional
     public void updateSiteTransferStatus(Long id, SiteTransferStatus status) {
         SiteTransfer transfer = siteTransferRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())

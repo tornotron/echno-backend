@@ -22,6 +22,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Manages the leave request lifecycle from draft through submission, cancellation, and withdrawal.
+ *
+ * <p>On create or submit it validates against policy, computes total days, assigns a per-year
+ * sequential request number under a row lock, and holds the days as pending while the approval
+ * chain runs. Cancellation and withdrawal release the appropriate hold: pending days for an
+ * in-flight request, used days for one already approved. Editing is allowed only while a request
+ * is still a draft.
+ */
 @Service
 @Validated
 public class LeaveRequestService {
@@ -54,6 +63,18 @@ public class LeaveRequestService {
         this.leaveRequestMapper = leaveRequestMapper;
     }
 
+    /**
+     * Creates a leave request as a draft, or submits it immediately for approval.
+     *
+     * <p>Validates the request against the policy, computes total days, and assigns a request
+     * number. When submitted immediately the approval chain is started and the days are held as
+     * pending, unless the chain resolved to no approvers and auto-approved the request.
+     *
+     * @param dto The request details, including whether to submit immediately.
+     * @param employeeId The ID of the employee the request is for.
+     * @return The created request.
+     * @throws ResourceNotFoundException if the employee or policy is not found in this organization.
+     */
     @Transactional
     public LeaveRequestDto createRequest(LeaveRequestCreationDto dto,Long employeeId) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
@@ -108,6 +129,13 @@ public class LeaveRequestService {
         return leaveRequestMapper.toDto(saved);
     }
 
+    /**
+     * Retrieves a single leave request, resolving the handover employee's name when set.
+     *
+     * @param requestId The ID of the leave request.
+     * @return The request.
+     * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
+     */
     @Transactional(readOnly = true)
     public LeaveRequestDto getRequest(Long requestId) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
@@ -121,12 +149,26 @@ public class LeaveRequestService {
         return dto;
     }
 
+    /**
+     * Lists an employee's leave requests, paginated.
+     *
+     * @param employeeId The employee's ID.
+     * @param pageable The pagination and sort parameters.
+     * @return A page of the employee's requests.
+     */
     @Transactional(readOnly = true)
     public Page<LeaveRequestDto> getRequestsByEmployee(Long employeeId, Pageable pageable) {
         return requestRepository.findByEmployeeId(employeeId, pageable)
                 .map(leaveRequestMapper::toDto);
     }
 
+    /**
+     * Lists an employee's leave requests filtered by status.
+     *
+     * @param employeeId The employee's ID.
+     * @param status The status to filter by.
+     * @return The matching requests.
+     */
     @Transactional(readOnly = true)
     public List<LeaveRequestDto> getRequestsByEmployeeAndStatus(Long employeeId, LeaveStatus status) {
         return requestRepository.findByEmployeeIdAndStatus(employeeId, status)
@@ -135,6 +177,11 @@ public class LeaveRequestService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists every leave request in the current organization.
+     *
+     * @return All requests for the current tenant.
+     */
     @Transactional(readOnly = true)
     public List<LeaveRequestDto> getRequestsByOrganization() {
         return requestRepository.findByOrganizationId(TenantContext.getCurrentOrgId())
@@ -143,6 +190,12 @@ public class LeaveRequestService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists requests currently awaiting a decision from a given approver.
+     *
+     * @param approverId The approver's employee ID.
+     * @return The requests where this approver is the current, pending approver.
+     */
     @Transactional(readOnly = true)
     public List<LeaveRequestDto> getPendingApprovals(Long approverId) {
         return requestRepository.findByCurrentApproverIdAndStatus(approverId, LeaveStatus.PENDING_APPROVAL)
@@ -151,6 +204,12 @@ public class LeaveRequestService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists every request an approver has taken part in at any level, past or present.
+     *
+     * @param approverId The approver's employee ID.
+     * @return The distinct requests this approver participated in.
+     */
     @Transactional(readOnly = true)
     public List<LeaveRequestDto> getRequestsByApprover(Long approverId) {
         return requestRepository.findDistinctByApproverParticipation(approverId)
@@ -159,12 +218,30 @@ public class LeaveRequestService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Counts the requests currently awaiting a decision from a given approver.
+     *
+     * @param approverId The approver's employee ID.
+     * @return The number of requests pending this approver.
+     */
     @Transactional(readOnly = true)
     public long getPendingApprovalCount(Long approverId) {
         return requestRepository.countByCurrentApproverIdAndStatus(
                 approverId, LeaveStatus.PENDING_APPROVAL);
     }
 
+    /**
+     * Applies a partial update to a draft request and recomputes its total days.
+     *
+     * <p>Only the supplied keys are changed; unrecognized keys are ignored. Editing is rejected
+     * once the request has left draft status.
+     *
+     * @param requestId The ID of the request to update.
+     * @param updates A map of field names to new values.
+     * @return The updated request.
+     * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
+     * @throws InvalidRequestException if the request is not in draft status.
+     */
     @Transactional
     public LeaveRequestDto updateRequest(Long requestId, Map<String, Object> updates) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
@@ -203,6 +280,17 @@ public class LeaveRequestService {
         return leaveRequestMapper.toDto(saved);
     }
 
+    /**
+     * Submits a draft request for approval, validating it and holding its days as pending.
+     *
+     * <p>Re-validates against the policy, starts the approval chain, and marks the days pending
+     * unless the chain auto-approved the request because it resolved to no approvers.
+     *
+     * @param requestId The ID of the request to submit.
+     * @return The submitted request.
+     * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
+     * @throws InvalidRequestException if the request is not in draft status.
+     */
     @Transactional
     public LeaveRequestDto submitRequest(Long requestId) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
@@ -231,6 +319,18 @@ public class LeaveRequestService {
         return leaveRequestMapper.toDto(saved);
     }
 
+    /**
+     * Cancels a request and restores whichever balance hold it was carrying.
+     *
+     * <p>A request that was pending approval has its pending days released; one that was already
+     * approved has its used days restored. Requests already cancelled or rejected cannot be cancelled.
+     *
+     * @param requestId The ID of the request to cancel.
+     * @param reason The cancellation reason to record.
+     * @return The cancelled request.
+     * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
+     * @throws InvalidRequestException if the request is already cancelled or rejected.
+     */
     @Transactional
     public LeaveRequestDto cancelRequest(Long requestId, String reason) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
@@ -260,6 +360,17 @@ public class LeaveRequestService {
         return leaveRequestMapper.toDto(saved);
     }
 
+    /**
+     * Withdraws a draft or pending request, releasing any pending balance hold.
+     *
+     * <p>Applies only before a decision is reached; a pending request's held days are released
+     * before it moves to withdrawn.
+     *
+     * @param requestId The ID of the request to withdraw.
+     * @return The withdrawn request.
+     * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
+     * @throws InvalidRequestException if the request is neither draft nor pending approval.
+     */
     @Transactional
     public LeaveRequestDto withdrawRequest(Long requestId) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())

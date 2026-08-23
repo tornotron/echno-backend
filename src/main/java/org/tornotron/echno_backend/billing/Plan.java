@@ -8,6 +8,14 @@ import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * A subscription tier an organization can subscribe to, bundling a set of features.
+ *
+ * <p>Carries monthly and annual pricing, currency, trial length, and a user cap, and is
+ * identified by a unique {@code code}. Its {@link PlanFeature} entries bind each
+ * {@link Feature} to this plan, including any per-feature quota. Only active, public plans
+ * are offered for new subscriptions.
+ */
 @Entity
 @Data
 @NoArgsConstructor

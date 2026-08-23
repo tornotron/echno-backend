@@ -35,6 +35,15 @@ import org.tornotron.echno_backend.finance.ledger.service.JournalPostingService;
 import java.math.BigDecimal;
 import java.util.*;
 
+/**
+ * Sales-invoice lifecycle: draft creation, issuing to the ledger, and cancellation.
+ *
+ * <p>An invoice starts as a DRAFT whose money totals (subtotal, tax, total) are computed from its
+ * line items on save. Issuing it posts a balancing journal entry (debit Accounts Receivable, credit
+ * the revenue accounts and any GST output payable) and moves it to ISSUED. Cancellation reverses that
+ * journal entry when the invoice is unpaid; once any payment has been applied the invoice can no
+ * longer be cancelled and a credit note is required instead.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -50,12 +59,33 @@ public class InvoiceService {
     private final InvoicePostingProperties postingProps;
     private final TenantEntityHelper tenantEntityHelper;
 
+    /**
+     * Retrieves a single invoice with its line items.
+     *
+     * @param id The id of the invoice.
+     * @return The invoice as a DTO.
+     * @throws ResourceNotFoundException if no invoice with the given id exists.
+     */
     @Transactional(readOnly = true)
     public InvoiceDto findById(UUID id) {
         return mapper.toDto(invoiceRepo.findByIdWithLines(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice with ID " + id + " was not found")));
     }
 
+    /**
+     * Creates a DRAFT invoice, computing line and header totals from the request.
+     *
+     * <p>Each line's subtotal is quantity times unit price, its tax is that subtotal times the tax
+     * rate, and the invoice subtotal, tax total, and total are summed from the lines. The customer
+     * must be active and every referenced revenue account must be an active INCOME account. No ledger
+     * entry is posted at this stage.
+     *
+     * @param req The customer, dates, notes, and line items for the invoice.
+     * @return The saved draft as a DTO.
+     * @throws ResourceNotFoundException if the customer does not exist.
+     * @throws AccountNotFoundException if a line references an unknown revenue account.
+     * @throws InvalidJournalException if the due date precedes the invoice date, the customer is inactive, or a revenue account is not an active INCOME account.
+     */
     @Transactional
     public InvoiceDto createDraft(CreateInvoiceRequest req) {
         if (req.dueDate().isBefore(req.invoiceDate())) {
@@ -129,11 +159,17 @@ public class InvoiceService {
     }
 
     /**
-     * Posts the journal entry, transitions DRAFT → ISSUED.
-     * JE layout:
-     *   DR Accounts Receivable      (total)
-     *     CR Revenue account(s)     (per line, grouped)
-     *     CR GST Output Payable     (if any tax)
+     * Issues a draft invoice: posts its journal entry and transitions DRAFT to ISSUED.
+     *
+     * <p>The journal entry debits Accounts Receivable for the invoice total, credits each revenue
+     * account (grouped, by line subtotal), and credits GST Output Payable for any tax. The resulting
+     * entry id is stored on the invoice.
+     *
+     * @param invoiceId The id of the draft invoice to issue.
+     * @return The issued invoice as a DTO.
+     * @throws ResourceNotFoundException if the invoice does not exist.
+     * @throws AccountNotFoundException if the Accounts Receivable or GST output account is not configured.
+     * @throws InvalidJournalException if the invoice is not in DRAFT status.
      */
     @Transactional
     public InvoiceDto issue(UUID invoiceId) {
@@ -190,10 +226,17 @@ public class InvoiceService {
     }
 
     /**
-     * Cancel an invoice.
-     * - DRAFT: just transition to CANCELLED
-     * - ISSUED with no payments: reverse the JE, transition to CANCELLED
-     * - Anything paid: refuse — issue a credit note in v2 instead
+     * Cancels an invoice, with behaviour depending on its current status.
+     *
+     * <p>A DRAFT is simply moved to CANCELLED. An ISSUED invoice with no payments has its journal
+     * entry reversed and the reversal id is recorded before it moves to CANCELLED. An invoice that
+     * has any payment applied cannot be cancelled; a credit note is required instead.
+     *
+     * @param invoiceId The id of the invoice to cancel.
+     * @param reason Free-text reason recorded on the reversal entry.
+     * @return The cancelled invoice as a DTO.
+     * @throws ResourceNotFoundException if the invoice does not exist.
+     * @throws InvalidJournalException if the invoice has payments applied, is already cancelled, or its original journal entry cannot be found.
      */
     @Transactional
     public InvoiceDto cancel(UUID invoiceId, String reason) {

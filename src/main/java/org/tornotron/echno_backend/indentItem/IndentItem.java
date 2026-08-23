@@ -9,6 +9,13 @@ import org.tornotron.echno_backend.indent.Indent;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.material.Material;
 
+/**
+ * A single material line on an indent.
+ *
+ * <p>Holds the requested and later ordered quantities for one material plus any
+ * specifications. A flag records whether the line has been converted into a purchase
+ * order, alongside the linked PO number, so partially procured indents can be tracked.
+ */
 @Data
 @NoArgsConstructor
 @Entity

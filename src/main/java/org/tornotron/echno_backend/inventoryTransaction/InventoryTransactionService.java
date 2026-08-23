@@ -21,6 +21,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Read access over the append-only inventory transaction ledger.
+ *
+ * <p>Exposes single-row lookup and various filtered listings of stock movements, plus a
+ * per-task material usage rollup. This service does not write ledger rows; those are
+ * created by the event handlers that post stock changes.
+ */
 @Service
 public class InventoryTransactionService {
 
@@ -33,6 +40,13 @@ public class InventoryTransactionService {
         this.inventoryTransactionMapper = inventoryTransactionMapper;
     }
 
+    /**
+     * Retrieves a single inventory transaction by its id within the current tenant.
+     *
+     * @param id The id of the transaction to retrieve.
+     * @return The transaction as a DTO.
+     * @throws ResourceNotFoundException if no transaction with the given id exists in this organization.
+     */
     @Transactional(readOnly = true)
     public InventoryTransactionDto getTransactionById(Long id) {
         InventoryTransaction transaction = inventoryTransactionRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
@@ -47,6 +61,13 @@ public class InventoryTransactionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Retrieves transactions one page at a time, newest first.
+     *
+     * @param pageNo Zero-based page index.
+     * @param pageSize Number of transactions per page.
+     * @return A page of transaction DTOs ordered by transaction date descending.
+     */
     @Transactional(readOnly = true)
     public Page<InventoryTransactionDto> getAllTransactions(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "transactionDate"));
@@ -89,6 +110,14 @@ public class InventoryTransactionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists transactions for one material at one storage location within a project.
+     *
+     * @param storageLocationId The storage location to filter by.
+     * @param materialId The material to filter by.
+     * @param projectId The project to filter by.
+     * @return The matching transactions as DTOs.
+     */
     @Transactional(readOnly = true)
     public List<InventoryTransactionDto> getTransactionsByStorageLocationMaterialAndProject(Long storageLocationId, Long materialId, Long projectId) {
         return inventoryTransactionRepository.findByStorageLocationIdAndMaterialIdAndProjectId(storageLocationId,materialId,projectId).stream()
@@ -103,6 +132,17 @@ public class InventoryTransactionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Summarises material usage per task for a project from the transaction ledger.
+     *
+     * <p>Considers only transactions attached to a task, grouping them by task and then by
+     * material. Usage transactions carry a negative quantity, so quantities are accumulated
+     * as absolute values, and cost is accumulated from the unit cost where present. Task and
+     * material totals are rolled up alongside the per-material lines.
+     *
+     * @param projectId The project whose task material usage is summarised.
+     * @return One entry per task, each listing its materials with quantity and cost totals.
+     */
     @Transactional(readOnly = true)
     public List<TaskMaterialUsageDto> getTaskMaterialUsageSummary(Long projectId) {
         List<InventoryTransaction> transactions = inventoryTransactionRepository.findByProjectIdAndTaskIsNotNull(projectId);

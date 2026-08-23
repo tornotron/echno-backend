@@ -17,6 +17,13 @@ import org.tornotron.echno_backend.wbs.WbsElement;
 
 import java.time.LocalDateTime;
 
+/**
+ * Records a quantity of a material used up at a project, optionally against a task.
+ *
+ * <p>Consumption draws stock down: creating one validates that enough stock exists at the
+ * project or storage location and then posts an outbound inventory transaction. The
+ * optional task and WBS links attribute the usage for cost tracking.
+ */
 @Data
 @NoArgsConstructor
 @Entity

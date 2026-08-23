@@ -14,11 +14,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Derives worked hours, overtime, timing flags, and status for an attendance record.
+ *
+ * <p>Pure calculation over a day's clock events and the shift definition, with no persistence.
+ * Morning and afternoon sessions are summed around the lunch break (or measured end to end when no
+ * break was punched); overtime is the excess over the shift threshold, and late arrival and early
+ * checkout are judged against the grace period and shift end. Also rolls a set of daily records
+ * into a monthly summary.
+ */
 @Service
 public class AttendanceCalculationService {
 
     /**
-     * Recalculates work duration, break duration, overtime, and status based on clock events.
+     * Recomputes an attendance record's session minutes, break, overtime, timing flags, and status.
+     *
+     * <p>Mutates the passed record in place from its current clock events; it does not persist.
+     *
+     * @param attendance The attendance record to recompute, with its clock events populated.
+     * @param shift The shift timing that defines work-hour thresholds and the grace period.
      */
     public void recalculate(Attendance attendance, ShiftTiming shift) {
         Map<ClockEventType, ClockEvent> eventMap = attendance.getClockEvents().stream()
@@ -109,7 +123,17 @@ public class AttendanceCalculationService {
     }
 
     /**
-     * Build a monthly summary from a list of attendance records.
+     * Aggregates a month's attendance records into per-status counts and worked-hour totals.
+     *
+     * <p>Half days count as 0.5 and late days as 0.9 toward effective work days, from which the
+     * attendance percentage is derived.
+     *
+     * @param employeeId The employee's ID.
+     * @param employeeName The employee's name, carried into the summary.
+     * @param records The attendance records for the month.
+     * @param month The month (1-12).
+     * @param year The calendar year.
+     * @return The assembled monthly summary.
      */
     public AttendanceSummaryDto buildMonthlySummary(Long employeeId, String employeeName,
                                                      List<Attendance> records,

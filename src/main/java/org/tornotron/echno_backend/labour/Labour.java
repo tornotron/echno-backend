@@ -15,6 +15,14 @@ import org.tornotron.echno_backend.project.Project;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+/**
+ * A labour/worker record on a construction site.
+ *
+ * <p>Holds identity and contact details, emergency contact, employment type, skill level,
+ * and status, along with the worker's current project assignment and pay information (daily
+ * and overtime rates, bank details for disbursement). Scoped to one organization by the
+ * {@code orgFilter} tenant filter.
+ */
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Data

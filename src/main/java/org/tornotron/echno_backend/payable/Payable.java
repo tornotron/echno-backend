@@ -18,6 +18,14 @@ import org.tornotron.echno_backend.wbs.WbsElement;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * An amount owed to a vendor or contractor (accounts payable).
+ *
+ * <p>Tracks the recorded amount against the amount already paid, with the outstanding
+ * balance derived by {@link #getAmountDue()}. A payable belongs to a project and may
+ * reference the originating vendor, goods-received note, and WBS element. Scoped to one
+ * organization by the {@code orgFilter} tenant filter.
+ */
 @Data
 @Entity
 @NoArgsConstructor

@@ -22,6 +22,15 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Manages the chart of accounts: lookups, the account tree, creation, and deactivation.
+ *
+ * <p>Accounts form a hierarchy where a child inherits its parent's {@link AccountType}, so a branch
+ * cannot mix types. Only leaf accounts accept journal lines; header (parent) accounts hold derived
+ * totals for reporting. Codes are unique per organization and are auto-generated from the parent and
+ * siblings when the caller does not supply one. Accounts are deactivated rather than deleted so that
+ * historical postings against them stay intact.
+ */
 @Service
 @RequiredArgsConstructor
 public class AccountService {
@@ -81,18 +90,44 @@ public class AccountService {
         );
     }
 
+    /**
+     * Retrieves a single account by its id, scoped to the current tenant.
+     *
+     * @param id The id of the account.
+     * @return The account as a DTO.
+     * @throws AccountNotFoundException if no account with the given id exists in this organization.
+     */
     @Transactional(readOnly = true)
     public AccountDto findAccountById(UUID id) {
         return mapper.toDto(repo.findScopedById(id)
                 .orElseThrow(() -> new AccountNotFoundException(id)));
     }
 
+    /**
+     * Retrieves a single account by its code within the current organization.
+     *
+     * @param code The account code.
+     * @return The account as a DTO.
+     * @throws AccountNotFoundException if no account with the given code exists in this organization.
+     */
     @Transactional(readOnly = true)
     public AccountDto findByAccountByCode(String code) {
         return mapper.toDto(repo.findByCodeAndOrganization_Id(code, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new AccountNotFoundException(code)));
     }
 
+    /**
+     * Creates a new account under an optional parent.
+     *
+     * <p>When a parent is given the type is taken from the parent so the branch stays consistent; a
+     * caller-supplied type that disagrees with the parent is rejected. The code is generated from the
+     * parent and existing siblings unless one is supplied, and must be unique within the organization.
+     *
+     * @param req The account details, including an optional parent id, type, and code.
+     * @return The created account as a DTO.
+     * @throws AccountNotFoundException if a parent id is given but no such account exists.
+     * @throws InvalidJournalException if the supplied type conflicts with the parent's type, or the code is already in use.
+     */
     @Transactional
     public AccountDto create(CreateAccountRequest req) {
         Account parent = null;
@@ -142,6 +177,13 @@ public class AccountService {
         return codeGenerator.nextCode(parent, type, siblings);
     }
 
+    /**
+     * Marks an account inactive so it can no longer be posted to, keeping its history intact.
+     *
+     * @param id The id of the account to deactivate.
+     * @return The updated account as a DTO.
+     * @throws AccountNotFoundException if no account with the given id exists in this organization.
+     */
     @Transactional
     public AccountDto deactivate(UUID id) {
         Account account = repo.findScopedById(id)

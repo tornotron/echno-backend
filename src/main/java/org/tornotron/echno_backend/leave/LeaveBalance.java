@@ -15,6 +15,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Accrued, used, and pending leave days for one employee, one policy, and one year.
+ *
+ * <p>One row per employee/policy/year (enforced by a unique constraint). Available balance is
+ * {@code openingBalance + accrued - used}; bookable balance subtracts {@code pending} on top,
+ * so a request in flight cannot be double-booked. The last-calculation fields let the accrual
+ * service skip recomputation until a new month rolls over.
+ */
 @Entity
 @Data
 @NoArgsConstructor

@@ -12,6 +12,14 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * A user's active entitlement to a {@link Plan}, the core record of the SaaS billing model.
+ *
+ * <p>Holds the current billing period bounds, optional trial window, and the lifecycle
+ * status (active, trialing, canceled). Cancellation can take effect immediately or at
+ * period end. The status helpers ({@link #isActive()}, {@link #isInTrial()},
+ * {@link #isExpired()}) derive state from the status and the period/trial timestamps.
+ */
 @Entity
 @Data
 @AllArgsConstructor

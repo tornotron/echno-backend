@@ -12,6 +12,13 @@ import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 
 import java.math.BigDecimal;
 
+/**
+ * A single material line on a purchase order.
+ *
+ * <p>Holds the ordered quantity and unit price for one material, the running received
+ * quantity as deliveries arrive, and the line total. May trace back to the indent item
+ * it was raised from.
+ */
 @Entity
 @Data
 @NoArgsConstructor

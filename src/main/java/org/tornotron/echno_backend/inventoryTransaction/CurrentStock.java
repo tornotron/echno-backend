@@ -15,6 +15,14 @@ import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * The running stock balance and value for one material at one project and storage location.
+ *
+ * <p>Acts as the materialized current position that the inventory ledger keeps up to
+ * date, so reads do not have to sum the whole transaction history. The unique constraint
+ * on material, project, and storage location keeps exactly one balance row per key. Stock
+ * value tracks the weighted-average cost of the quantity on hand.
+ */
 @Data
 @Entity
 @NoArgsConstructor

@@ -18,6 +18,17 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Builds the standard financial statements from posted ledger activity: trial balance,
+ * profit and loss, and balance sheet.
+ *
+ * <p>Each report aggregates debits and credits from POSTED journal lines with native SQL. Because
+ * native queries bypass the Hibernate {@code orgFilter}, every query scopes to the current
+ * organization explicitly, and when there is no tenant context (a global admin) the org predicate is
+ * dropped so all organizations are included. Net balances are folded into the debit or credit column
+ * according to each account type's normal side. The trial balance and balance sheet also flag whether
+ * they balance, logging an error if they do not.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -26,6 +37,16 @@ public class ReportService {
     private final EntityManager em;
 
 
+    /**
+     * Builds the trial balance as of a date: every account with activity, its net balance placed on
+     * its normal side, and the debit and credit column totals.
+     *
+     * <p>Only accounts whose debit or credit total is non-zero are listed. Balanced debit and credit
+     * totals confirm the ledger is internally consistent; an imbalance is flagged and logged.
+     *
+     * @param asOfDate Include posted entries dated on or before this date.
+     * @return The trial balance report with rows, totals, and a balanced flag.
+     */
     @Transactional(readOnly = true)
     public TrialBalanceReport trailBalanceReport(LocalDate asOfDate) {
         // Native SQL bypasses the Hibernate orgFilter, so scope by organization explicitly.
@@ -95,6 +116,19 @@ public class ReportService {
         return new TrialBalanceReport(asOfDate, rows, totalDebit, totalCredit, balanced);
     }
 
+    /**
+     * Builds the profit and loss statement for a date range: income and expense lines with their
+     * balances, the two totals, and the net profit.
+     *
+     * <p>Only INCOME and EXPENSE accounts are considered. Income is credit-normal (credits minus
+     * debits), expense is debit-normal (debits minus credits), and accounts with a zero balance are
+     * omitted. Net profit is total income minus total expense.
+     *
+     * @param fromDate Start of the period (inclusive).
+     * @param toDate End of the period (inclusive).
+     * @return The profit and loss report.
+     * @throws IllegalArgumentException if the end date is before the start date.
+     */
     @Transactional(readOnly = true)
     public ProfitAndLossReport profitAndLoss(LocalDate fromDate, LocalDate toDate) {
         if(toDate.isBefore(fromDate)) {
@@ -173,6 +207,17 @@ public class ReportService {
 
     }
 
+    /**
+     * Builds the balance sheet as of a date: asset, liability, and equity lines with their totals.
+     *
+     * <p>Assets are debit-normal (debits minus credits); liabilities and equity are credit-normal.
+     * The current financial year's net profit or loss (computed from the profit and loss statement,
+     * with the year starting 1 April) is added to equity as a retained-earnings line. Whether total
+     * assets equal liabilities plus equity is flagged and logged when it does not hold.
+     *
+     * @param asOfDate Include posted entries dated on or before this date.
+     * @return The balance sheet report with sections, totals, retained earnings, and a balanced flag.
+     */
     @Transactional(readOnly = true)
     public BalanceSheetReport balanceSheet(LocalDate asOfDate) {
         // Native SQL bypasses the Hibernate orgFilter, so scope by organization explicitly.

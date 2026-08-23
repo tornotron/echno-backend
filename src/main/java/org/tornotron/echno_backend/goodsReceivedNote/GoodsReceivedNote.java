@@ -19,6 +19,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Records a delivery of goods received against a purchase order at a project site.
+ *
+ * <p>A GRN captures what a vendor actually delivered (per-material quantities and unit
+ * costs held in its {@link GrnItem} lines), who received it, and where. Creating one
+ * raises the stock of the received materials through an inventory transaction and can
+ * later drive payables to the vendor.
+ */
 @Data
 @NoArgsConstructor
 @Entity
