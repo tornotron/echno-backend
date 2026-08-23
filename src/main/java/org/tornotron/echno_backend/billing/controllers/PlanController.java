@@ -1,5 +1,8 @@
 package org.tornotron.echno_backend.billing.controllers;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +21,13 @@ import java.util.List;
 @RequestMapping("/api/v1/billing/plans/web")
 @RequiredArgsConstructor
 @Validated
+@Tag(
+        name = "Billing Plans",
+        description = "Subscription plans such as Starter, Professional or Enterprise, each carrying a "
+                + "price per billing period and a set of assigned features. Endpoints cover listing public "
+                + "plans, full plan administration, and attaching or detaching features on a plan. All "
+                + "administrative endpoints require the billing admin authority."
+)
 public class PlanController {
 
     private final PlanService planService;
@@ -30,6 +40,14 @@ public class PlanController {
      */
     @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping("/public")
+    @Operation(
+            summary = "List public plans",
+            description = "Returns the plans that are both public and active, for display on a pricing page."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "List of public plans"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
+    })
     public ResponseEntity<List<PlanDto>> getPublicPlans() {
         List<Plan> plans = planService.getAllPublicPlans();
         return ResponseEntity.ok(BillingMapper.toPlanDtoList(plans));
@@ -44,6 +62,14 @@ public class PlanController {
     @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping
 //    @PreAuthorize("hasAuthority('billing:admin')")
+    @Operation(
+            summary = "List all plans",
+            description = "Returns every plan, including private and inactive ones, for administration."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "List of all plans"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
+    })
     public ResponseEntity<List<PlanDto>> getAllPlans() {
         List<Plan> plans = planService.getAllPlans();
         return ResponseEntity.ok(BillingMapper.toPlanDtoList(plans));
@@ -58,6 +84,15 @@ public class PlanController {
     @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping("/{id}")
 //    @PreAuthorize("hasAuthority('billing:read') or hasAuthority('billing:admin')")
+    @Operation(
+            summary = "Get a plan by id",
+            description = "Returns a single plan by its numeric id, including its assigned features."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Plan found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given id")
+    })
     public ResponseEntity<PlanDto> getPlanById(@PathVariable Long id) {
         Plan plan = planService.getPlanById(id);
         return ResponseEntity.ok(BillingMapper.toPlanDto(plan));
@@ -72,6 +107,15 @@ public class PlanController {
     @PreAuthorize("hasAuthority('billing:admin')")
     @GetMapping("/code/{code}")
 //    @PreAuthorize("hasAuthority('billing:read') or hasAuthority('billing:admin')")
+    @Operation(
+            summary = "Get a plan by code",
+            description = "Returns a single plan by its unique code, such as professional-monthly."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Plan found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given code")
+    })
     public ResponseEntity<PlanDto> getPlanByCode(@PathVariable String code) {
         Plan plan = planService.getPlanByCode(code);
         return ResponseEntity.ok(BillingMapper.toPlanDto(plan));
@@ -87,6 +131,16 @@ public class PlanController {
     @PreAuthorize("hasAuthority('billing:admin')")
     @PostMapping
 //    @PreAuthorize("hasAuthority('billing:admin')")
+    @Operation(
+            summary = "Create a plan",
+            description = "Creates a new plan with the given price and billing period. Features are attached "
+                    + "afterwards through the plan features endpoints."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Plan created"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
+    })
     public ResponseEntity<PlanDto> createPlan(@Valid @RequestBody PlanCreateDto dto) {
         Plan plan = planService.createPlan(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(BillingMapper.toPlanDto(plan));
@@ -103,6 +157,16 @@ public class PlanController {
     @PreAuthorize("hasAuthority('billing:admin')")
     @PutMapping("/{id}")
 //    @PreAuthorize("hasAuthority('billing:admin')")
+    @Operation(
+            summary = "Update a plan",
+            description = "Updates the price, period or visibility of an existing plan identified by id."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Plan updated"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given id")
+    })
     public ResponseEntity<PlanDto> updatePlan(@PathVariable Long id, @Valid @RequestBody PlanCreateDto dto) {
         Plan plan = planService.updatePlan(id, dto);
         return ResponseEntity.ok(BillingMapper.toPlanDto(plan));
@@ -118,6 +182,16 @@ public class PlanController {
     @PreAuthorize("hasAuthority('billing:admin')")
     @DeleteMapping("/{id}")
 //    @PreAuthorize("hasAuthority('billing:admin')")
+    @Operation(
+            summary = "Deactivate a plan",
+            description = "Soft-deletes a plan so it can no longer be subscribed to. Existing subscriptions "
+                    + "on the plan are left unchanged."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Plan deactivated"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given id")
+    })
     public ResponseEntity<ApiResponse> deactivatePlan(@PathVariable Long id) {
         planService.deactivatePlan(id);
         return ResponseEntity.ok(new ApiResponse("Plan deactivated successfully"));
@@ -133,6 +207,15 @@ public class PlanController {
     @PreAuthorize("hasAuthority('billing:admin')")
     @PostMapping("/{id}/activate")
 //    @PreAuthorize("hasAuthority('billing:admin')")
+    @Operation(
+            summary = "Reactivate a plan",
+            description = "Reactivates a previously deactivated plan so it can be subscribed to again."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Plan activated"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given id")
+    })
     public ResponseEntity<ApiResponse> activatePlan(@PathVariable Long id) {
         planService.activatePlan(id);
         return ResponseEntity.ok(new ApiResponse("Plan activated successfully"));
@@ -149,6 +232,17 @@ public class PlanController {
     @PreAuthorize("hasAuthority('billing:admin')")
     @PostMapping("/{planId}/features")
 //    @PreAuthorize("hasAuthority('billing:admin')")
+    @Operation(
+            summary = "Assign a feature to a plan",
+            description = "Attaches a feature to a plan, optionally with a quota or limit value carried in "
+                    + "the request body."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Feature assigned, plan returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given id, or no feature with the given code")
+    })
     public ResponseEntity<PlanDto> assignFeatureToPlan(
             @PathVariable Long planId,
             @Valid @RequestBody PlanFeatureAssignDto dto) {
@@ -167,6 +261,16 @@ public class PlanController {
     @PreAuthorize("hasAuthority('billing:admin')")
     @DeleteMapping("/{planId}/features/{featureCode}")
 //    @PreAuthorize("hasAuthority('billing:admin')")
+    @Operation(
+            summary = "Remove a feature from a plan",
+            description = "Detaches a feature from a plan. Subscribers to the plan lose access to the "
+                    + "feature immediately."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Feature removed, plan returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given id, or the feature is not assigned to it")
+    })
     public ResponseEntity<PlanDto> removeFeatureFromPlan(
             @PathVariable Long planId,
             @PathVariable String featureCode) {
