@@ -253,5 +253,7 @@
     <include file="db/changelog/v4.0/035-add-compliance-fields-to-inspections.xml"/>
     <include file="db/changelog/v4.0/036-add-project-type.xml"/>
     <include file="db/changelog/v4.0/037-create-and-seed-compliance-rules.xml"/>
+    <!-- v4.0 - Backfill organization_id on legacy attachments -->
+    <include file="db/changelog/v4.0/038-backfill-attachment-organization-id.xml"/>
 
 </databaseChangeLog>

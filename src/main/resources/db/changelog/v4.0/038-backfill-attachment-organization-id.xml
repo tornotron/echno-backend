@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Backfill attachment.organization_id for legacy rows created before the
+         organization_id column was populated. The fail-closed tenant filter
+         rejects rows with a NULL organization_id ("Attachment has no organization ..."),
+         so this derives each legacy attachment's org from the entity it is attached to
+         (entity_type + entity_id). One statement per entity_type family.
+         Every statement is guarded on organization_id IS NULL, so the changeset is
+         idempotent and safe to re-run. -->
+
+    <!-- ORGANIZATION / ORGANIZATION_LOGO: entity_id is the organization id itself -->
+    <changeSet id="038-01-backfill-attachment-org-organization" author="echno">
+        <sql>
+            UPDATE attachment a
+            SET organization_id = o.id
+            FROM organization o
+            WHERE a.entity_id = o.id
+              AND a.entity_type IN ('ORGANIZATION', 'ORGANIZATION_LOGO')
+              AND a.organization_id IS NULL
+        </sql>
+    </changeSet>
+
+    <!-- PROJECT / PROJECT_ATTACHMENTS: entity_id is the project id -->
+    <changeSet id="038-02-backfill-attachment-org-project" author="echno">
+        <sql>
+            UPDATE attachment a
+            SET organization_id = p.organization_id
+            FROM project p
+            WHERE a.entity_id = p.id
+              AND a.entity_type IN ('PROJECT', 'PROJECT_ATTACHMENTS')
+              AND a.organization_id IS NULL
+              AND p.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <!-- TASK / TASK_ATTACHMENTS: entity_id is the task id -->
+    <changeSet id="038-03-backfill-attachment-org-task" author="echno">
+        <sql>
+            UPDATE attachment a
+            SET organization_id = t.organization_id
+            FROM task t
+            WHERE a.entity_id = t.id
+              AND a.entity_type IN ('TASK', 'TASK_ATTACHMENTS')
+              AND a.organization_id IS NULL
+              AND t.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <!-- ISSUE / ISSUE_ATTACHMENTS: entity_id is the issue id -->
+    <changeSet id="038-04-backfill-attachment-org-issue" author="echno">
+        <sql>
+            UPDATE attachment a
+            SET organization_id = i.organization_id
+            FROM issue i
+            WHERE a.entity_id = i.id
+              AND a.entity_type IN ('ISSUE', 'ISSUE_ATTACHMENTS')
+              AND a.organization_id IS NULL
+              AND i.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <!-- USER_PROFILE_PICTURE / USER_CV / USER: entity_id is the users_table id;
+         derive the org from the user's default organization. Users can belong to
+         several organizations, so rows whose user has no default_organization_id
+         cannot be resolved and are intentionally left NULL. -->
+    <changeSet id="038-05-backfill-attachment-org-user" author="echno">
+        <sql>
+            UPDATE attachment a
+            SET organization_id = u.default_organization_id
+            FROM users_table u
+            WHERE a.entity_id = u.id
+              AND a.entity_type IN ('USER_PROFILE_PICTURE', 'USER_CV', 'USER')
+              AND a.organization_id IS NULL
+              AND u.default_organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
