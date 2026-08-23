@@ -8,7 +8,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -17,8 +19,10 @@ import org.tornotron.echno_backend.finance.construction.ConstructionInvoiceType;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceDto;
 import org.tornotron.echno_backend.finance.construction.dtos.CreateConstructionInvoiceRequest;
 import org.tornotron.echno_backend.finance.construction.dtos.UpdateConstructionInvoiceRequest;
+import org.tornotron.echno_backend.finance.construction.pdf.ConstructionInvoicePdfService;
 import org.tornotron.echno_backend.finance.construction.service.ConstructionInvoiceService;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -35,6 +39,7 @@ import java.util.UUID;
 public class ConstructionInvoiceControllerWeb {
 
     private final ConstructionInvoiceService service;
+    private final ConstructionInvoicePdfService pdfService;
 
     @PostMapping
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
@@ -66,6 +71,31 @@ public class ConstructionInvoiceControllerWeb {
     })
     public ConstructionInvoiceDto get(@PathVariable UUID id) {
         return service.findById(id);
+    }
+
+    @GetMapping("/{id}/pdf")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @Operation(
+            summary = "Download a construction invoice as a PDF",
+            description = "Renders the invoice, with its header, billing details and line items, into a "
+                    + "professionally formatted PDF and returns it as a downloadable attachment named "
+                    + "after the invoice number."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "PDF generated and returned as an attachment"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant"),
+            @ApiResponse(responseCode = "500", description = "PDF rendering failed")
+    })
+    public ResponseEntity<byte[]> downloadPdf(@PathVariable UUID id) throws IOException {
+        ConstructionInvoiceDto invoice = service.findById(id);
+        byte[] pdf = pdfService.render(invoice);
+        String number = invoice.invoiceNumber();
+        String filename = (number == null || number.isBlank()) ? "invoice" : number;
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + ".pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 
     @GetMapping

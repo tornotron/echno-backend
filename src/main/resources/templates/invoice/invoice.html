@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title th:text="${invoiceNumber}">Invoice</title>
+    <style type="text/css">
+        @page {
+            size: A4;
+            margin: 28mm 18mm 24mm 18mm;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #1f2933;
+            font-size: 10.5px;
+            line-height: 1.45;
+            margin: 0;
+        }
+        .doc-header {
+            border-bottom: 2px solid #c2410c;
+            padding-bottom: 14px;
+            margin-bottom: 18px;
+        }
+        .doc-header .brand {
+            font-size: 22px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: #c2410c;
+        }
+        .doc-header .doc-title {
+            font-size: 15px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #52606d;
+            margin-top: 2px;
+        }
+        .doc-header .invoice-no {
+            font-size: 13px;
+            font-weight: bold;
+            color: #1f2933;
+            margin-top: 6px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .meta-table td {
+            vertical-align: top;
+            padding: 0 8px 8px 0;
+            width: 33%;
+        }
+        .meta-label {
+            font-size: 8.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #7b8794;
+            margin-bottom: 1px;
+        }
+        .meta-value {
+            font-size: 11px;
+            font-weight: bold;
+            color: #1f2933;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background-color: #e4e7eb;
+            color: #3e4c59;
+        }
+        .section-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #7b8794;
+            font-weight: bold;
+            margin: 20px 0 6px 0;
+            border-bottom: 1px solid #e4e7eb;
+            padding-bottom: 4px;
+        }
+        .parties td {
+            vertical-align: top;
+            width: 50%;
+            padding-right: 16px;
+        }
+        .party-name {
+            font-size: 12px;
+            font-weight: bold;
+            color: #1f2933;
+        }
+        .party-line {
+            color: #52606d;
+        }
+        .lines {
+            margin-top: 6px;
+        }
+        .lines th {
+            background-color: #f5f7fa;
+            color: #52606d;
+            text-align: left;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 7px 8px;
+            border-bottom: 1px solid #cbd2d9;
+        }
+        .lines td {
+            padding: 7px 8px;
+            border-bottom: 1px solid #e4e7eb;
+            vertical-align: top;
+        }
+        .num {
+            text-align: right;
+            white-space: nowrap;
+        }
+        .totals {
+            margin-top: 14px;
+        }
+        .totals td {
+            padding: 4px 8px;
+        }
+        .totals .totals-inner {
+            width: 46%;
+            margin-left: 54%;
+        }
+        .totals .totals-inner td {
+            border-bottom: 1px solid #f0f2f5;
+        }
+        .totals .label {
+            color: #52606d;
+        }
+        .totals .grand td {
+            border-top: 2px solid #c2410c;
+            border-bottom: none;
+            font-size: 13px;
+            font-weight: bold;
+            color: #1f2933;
+            padding-top: 8px;
+        }
+        .totals .balance td {
+            font-weight: bold;
+            color: #b42318;
+        }
+        .notes {
+            margin-top: 22px;
+            color: #52606d;
+        }
+        .notes .block {
+            margin-bottom: 10px;
+        }
+        .footer {
+            margin-top: 28px;
+            border-top: 1px solid #e4e7eb;
+            padding-top: 8px;
+            font-size: 8.5px;
+            color: #9aa5b1;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="doc-header">
+    <table>
+        <tr>
+            <td>
+                <div class="brand">Echno</div>
+                <div class="doc-title">Tax Invoice</div>
+            </td>
+            <td class="num">
+                <div class="invoice-no" th:text="${invoiceNumber}">CINV-2026-0000</div>
+                <div style="margin-top:4px;"><span class="badge" th:text="${statusLabel}">Status</span></div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<table class="meta-table">
+    <tr>
+        <td>
+            <div class="meta-label">Invoice Type</div>
+            <div class="meta-value" th:text="${typeLabel}">Purchase</div>
+        </td>
+        <td>
+            <div class="meta-label">Issue Date</div>
+            <div class="meta-value" th:text="${issueDate}">-</div>
+        </td>
+        <td>
+            <div class="meta-label">Due Date</div>
+            <div class="meta-value" th:text="${dueDate}">-</div>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="meta-label">Payment Status</div>
+            <div class="meta-value" th:text="${paymentStatusLabel}">Unpaid</div>
+        </td>
+        <td>
+            <div class="meta-label">Payment Terms</div>
+            <div class="meta-value" th:text="${paymentTerms}">-</div>
+        </td>
+        <td>
+            <div class="meta-label">Payment Method</div>
+            <div class="meta-value" th:text="${paymentMethod}">-</div>
+        </td>
+    </tr>
+</table>
+
+<div class="section-title">Billing Details</div>
+<table class="parties">
+    <tr>
+        <td>
+            <div class="meta-label">Vendor / Payee</div>
+            <div class="party-name" th:text="${vendorName}">Vendor</div>
+            <div class="party-line" th:if="${gstNumber != null and gstNumber != ''}">
+                GSTIN: <span th:text="${gstNumber}">-</span>
+            </div>
+            <div class="party-line" th:if="${taxType != null and taxType != ''}">
+                Tax treatment: <span th:text="${taxType}">-</span>
+            </div>
+        </td>
+        <td>
+            <div class="meta-label">Project</div>
+            <div class="party-name" th:text="${projectName}">Project</div>
+            <div class="party-line" th:if="${paymentDate != null and paymentDate != '—'}">
+                Paid on: <span th:text="${paymentDate}">-</span>
+            </div>
+        </td>
+    </tr>
+</table>
+
+<div class="section-title">Line Items</div>
+<table class="lines">
+    <thead>
+    <tr>
+        <th style="width:4%;">#</th>
+        <th style="width:34%;">Description</th>
+        <th style="width:8%;">Unit</th>
+        <th class="num" style="width:9%;">Qty</th>
+        <th class="num" style="width:13%;">Unit Price</th>
+        <th class="num" style="width:8%;">Tax %</th>
+        <th class="num" style="width:8%;">Disc %</th>
+        <th class="num" style="width:16%;">Line Total</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="line, iter : ${lines}">
+        <td th:text="${iter.count}">1</td>
+        <td th:text="${line.description}">Item</td>
+        <td th:text="${line.unit}">-</td>
+        <td class="num" th:text="${line.quantity}">0</td>
+        <td class="num" th:text="${line.unitPrice}">0.00</td>
+        <td class="num" th:text="${line.taxRate}">0</td>
+        <td class="num" th:text="${line.discountRate}">0</td>
+        <td class="num" th:text="${line.total}">0.00</td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(lines)}">
+        <td colspan="8" style="text-align:center; color:#9aa5b1; padding:14px;">No line items.</td>
+    </tr>
+    </tbody>
+</table>
+
+<table class="totals">
+    <tr>
+        <td>
+            <table class="totals-inner">
+                <tr>
+                    <td class="label">Subtotal</td>
+                    <td class="num" th:text="${subtotal}">Rs. 0.00</td>
+                </tr>
+                <tr>
+                    <td class="label">Tax</td>
+                    <td class="num" th:text="${taxAmount}">Rs. 0.00</td>
+                </tr>
+                <tr>
+                    <td class="label">Discount</td>
+                    <td class="num" th:text="${discountAmount}">Rs. 0.00</td>
+                </tr>
+                <tr class="grand">
+                    <td>Total</td>
+                    <td class="num" th:text="${totalAmount}">Rs. 0.00</td>
+                </tr>
+                <tr>
+                    <td class="label">Paid</td>
+                    <td class="num" th:text="${paidAmount}">Rs. 0.00</td>
+                </tr>
+                <tr class="balance">
+                    <td>Balance Due</td>
+                    <td class="num" th:text="${balanceAmount}">Rs. 0.00</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+<div class="notes">
+    <div class="block" th:if="${notes != null and notes != ''}">
+        <div class="meta-label">Notes</div>
+        <div th:text="${notes}">-</div>
+    </div>
+    <div class="block" th:if="${termsAndConditions != null and termsAndConditions != ''}">
+        <div class="meta-label">Terms &amp; Conditions</div>
+        <div th:text="${termsAndConditions}">-</div>
+    </div>
+</div>
+
+<div class="footer">
+    Generated by Echno on <span th:text="${generatedOn}">-</span>. This is a system-generated invoice.
+</div>
+</body>
+</html>
