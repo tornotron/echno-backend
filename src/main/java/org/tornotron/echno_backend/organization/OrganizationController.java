@@ -2,6 +2,9 @@ package org.tornotron.echno_backend.organization;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -29,6 +32,14 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/organization")
 @Validated
+@Tag(
+        name = "Organizations (Platform Admin)",
+        description = "Platform-level organization management, used by platform administrators to look up "
+                + "and manage organizations across tenants rather than within the caller's own tenant. "
+                + "Companies such as Asset Homes are represented as an organization, each with its own "
+                + "members, projects and subscription. Tenant-scoped organization access lives on the "
+                + "sibling /organization/web endpoints."
+)
 public class OrganizationController {
 
     private final OrganizationService service;
@@ -52,6 +63,17 @@ public class OrganizationController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('organization:create') or hasAuthority('organization:admin')")
     @RequireSubscription(feature = "CREATE_ORGANIZATION", recordUsage = true)
+    @Operation(
+            summary = "Create an organization",
+            description = "Creates an organization from a multipart request. The data part carries the "
+                    + "organization details as JSON and the optional attachments part carries supporting "
+                    + "files such as a logo. Counts against the CREATE_ORGANIZATION subscription feature."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Organization created"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid organization JSON, or a field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the organization create or admin authority")
+    })
     public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") @Valid String data,
                                                                     @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
         OrganizationCreationDto dto = objectMapper.readValue(data, OrganizationCreationDto.class);
@@ -85,6 +107,16 @@ public class OrganizationController {
     // which is filtered to their memberships.
     @GetMapping("/creator/{creatorId}")
     @PreAuthorize("hasAuthority('organization:admin')")
+    @Operation(
+            summary = "List organizations by creator",
+            description = "Returns every organization created by the given user id. Platform-admin only, "
+                    + "since it can enumerate another user's organizations regardless of the caller's own "
+                    + "memberships."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "List of organizations created by the given user"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the organization admin authority")
+    })
     public ResponseEntity<List<OrganizationDto>> readAllOrganizationsByCreatorId(@PathVariable Integer creatorId) {
         return ResponseEntity.status(HttpStatus.OK).body(service.getAllOrganizationsByCreatorId(creatorId));
     }
@@ -97,6 +129,15 @@ public class OrganizationController {
      */
     @GetMapping("{id}")
     @PreAuthorize("(hasAuthority('organization:read') and @orgSecurity.isMember(#id)) or hasAuthority('organization:admin')")
+    @Operation(
+            summary = "Get an organization by id",
+            description = "Returns a single organization by its numeric id."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the organization read authority as a member of the organization, or the organization admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
+    })
     public ResponseEntity<?> readAnOrganization(@PathVariable Long id) {
         OrganizationDto organization = service.getAnOrganization(id);
         return new ResponseEntity<>(organization, HttpStatus.OK);
@@ -123,6 +164,16 @@ public class OrganizationController {
      */
     @PatchMapping("/batch")
     @PreAuthorize("hasAuthority('organization:update') or hasAuthority('organization:admin')")
+    @Operation(
+            summary = "Batch update organizations",
+            description = "Applies partial updates to several organizations in one call. Each entry names "
+                    + "an organization id and the fields to change on it."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Batch update applied"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the update entries failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the organization update or admin authority")
+    })
     public ResponseEntity<ApiResponse> batchUpdateOrganizations(@Valid @RequestBody List<OrganizationPatchDto> updates) {
         service.batchUpdateOrganization(updates);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organizations updated successfully"));
@@ -136,6 +187,15 @@ public class OrganizationController {
      */
     @DeleteMapping("{id}")
     @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin') or (hasAuthority('organization:delete') and @orgSecurity.isMember(#id)) or hasAuthority('organization:admin')")
+    @Operation(
+            summary = "Delete an organization",
+            description = "Deletes the organization with the given id."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization deleted"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the system-admin role in the organization, the organization delete authority as a member, or the organization admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
+    })
     public ResponseEntity<ApiResponse> deleteOrganization(@PathVariable Long id) {
         service.deleteAnOrganization(id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Organization with id: " + id + " deleted"));

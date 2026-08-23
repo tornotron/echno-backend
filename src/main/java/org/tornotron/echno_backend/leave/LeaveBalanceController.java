@@ -1,5 +1,8 @@
 package org.tornotron.echno_backend.leave;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +19,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/leave-balances")
 @Validated
+@Tag(
+        name = "Leave Balances",
+        description = "Per-employee, per-policy leave balances for a year: opening balance, accrued, used, "
+                + "pending and available days, plus the transaction ledger behind them. Endpoints cover "
+                + "reading balances and summaries, recalculating and manually adjusting a balance, and "
+                + "reading the transaction history. Reads that target another employee are gated to the "
+                + "system-admin or hr-admin role, or to the caller acting on their own record."
+)
 public class LeaveBalanceController {
 
     private final LeaveBalanceService balanceService;
@@ -27,6 +38,16 @@ public class LeaveBalanceController {
     @GetMapping("/employee/{employeeId}")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @Operation(
+            summary = "List an employee's leave balances",
+            description = "Returns every leave policy balance held by the employee for the given year, "
+                    + "defaulting to the current year when none is given."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Balances returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
+    })
     public ResponseEntity<List<LeaveBalanceDto>> getEmployeeBalances(
             @PathVariable Long employeeId,
             @RequestParam(required = false) Integer year) {
@@ -37,6 +58,16 @@ public class LeaveBalanceController {
     @GetMapping("/employee/{employeeId}/policy/{policyId}")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @Operation(
+            summary = "Get an employee's balance for one policy",
+            description = "Returns, or calculates on demand, the employee's balance under the given leave "
+                    + "policy for the given year, defaulting to the current year when none is given."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Balance returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee or leave policy with the given id")
+    })
     public ResponseEntity<LeaveBalanceDto> getSpecificBalance(
             @PathVariable Long employeeId,
             @PathVariable Long policyId,
@@ -48,6 +79,16 @@ public class LeaveBalanceController {
     @GetMapping("/employee/{employeeId}/summary")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(
+            summary = "Get an employee's balance summary",
+            description = "Returns the employee's balances for the given year together with totals for "
+                    + "available, used and pending days across all policies."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Summary returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
+    })
     public ResponseEntity<LeaveBalanceSummaryDto> getBalanceSummary(
             @PathVariable Long employeeId,
             @RequestParam(required = false) Integer year) {
@@ -58,6 +99,16 @@ public class LeaveBalanceController {
     @PostMapping("/employee/{employeeId}/recalculate")
 //    @PreAuthorize("hasAuthority('leave:admin')")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @Operation(
+            summary = "Recalculate an employee's leave balances",
+            description = "Recomputes every policy balance held by the employee for the given year and "
+                    + "returns the refreshed list, defaulting to the current year when none is given."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Balances recalculated"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
+    })
     public ResponseEntity<List<LeaveBalanceDto>> recalculateBalances(
             @PathVariable Long employeeId,
             @RequestParam(required = false) Integer year) {
@@ -68,6 +119,17 @@ public class LeaveBalanceController {
     @PostMapping("/adjust")
 //    @PreAuthorize("hasAuthority('leave:admin')")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @Operation(
+            summary = "Manually adjust a leave balance",
+            description = "Applies a signed day adjustment to an employee's balance under the given policy "
+                    + "and records the reason. Returns the resulting transaction."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Adjustment applied"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The adjustment payload failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee or leave policy with the given id")
+    })
     public ResponseEntity<LeaveTransactionDto> adjustBalance(
             @Valid @RequestBody LeaveBalanceAdjustmentDto dto) {
         return ResponseEntity.ok(balanceService.adjustBalance(dto));
@@ -76,6 +138,16 @@ public class LeaveBalanceController {
     @GetMapping("/employee/{employeeId}/transactions")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
     @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    @Operation(
+            summary = "Get an employee's transaction history",
+            description = "Returns every leave balance transaction recorded for the employee, across all "
+                    + "policies, in chronological order."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Transaction history returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
+    })
     public ResponseEntity<List<LeaveTransactionDto>> getTransactionHistory(
             @PathVariable Long employeeId) {
         return ResponseEntity.ok(balanceService.getTransactionHistory(employeeId));
@@ -84,6 +156,16 @@ public class LeaveBalanceController {
     @GetMapping("/{balanceId}/transactions")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @Operation(
+            summary = "Get transactions for one balance",
+            description = "Returns every transaction recorded against the given leave balance record, in "
+                    + "chronological order."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Transactions returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave balance with the given id")
+    })
     public ResponseEntity<List<LeaveTransactionDto>> getTransactionsByBalance(
             @PathVariable Long balanceId) {
         return ResponseEntity.ok(balanceService.getTransactionsByBalance(balanceId));

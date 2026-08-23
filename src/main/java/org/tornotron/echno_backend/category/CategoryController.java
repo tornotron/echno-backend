@@ -1,5 +1,8 @@
 package org.tornotron.echno_backend.category;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +26,13 @@ import java.util.List;
 @RestController
 @RequestMapping("api/v1/workCategories")
 @Validated
+@Tag(
+        name = "Categories",
+        description = "Work categories used to classify tasks, such as \"Reinforcement Steel\" or "
+                + "\"Aggregates\". A category carries a name, description and optional icon and image. "
+                + "Endpoints cover creating, listing and deleting categories. Access is gated by the "
+                + "category authorities, with an admin authority that grants all operations."
+)
 public class CategoryController {
 
     private final CategoryService categoryService;
@@ -46,6 +56,17 @@ public class CategoryController {
      */
     @PostMapping
     @PreAuthorize("hasAuthority('category:create') or hasAuthority('category:admin')")
+    @Operation(
+            summary = "Create a category",
+            description = "Creates a work category, such as \"Cement & Binders\", available for tagging "
+                    + "tasks. The name is checked against existing categories in the organization."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Category created"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the category create or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "A category with the same name already exists")
+    })
     public ResponseEntity<CategorySimpleDto> createCategory(@Valid @RequestBody CategoryCreationDto categoryCreationDto) {
         logger.info("Category Added Successfully");
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -61,6 +82,15 @@ public class CategoryController {
      */
     @GetMapping
     @PreAuthorize("hasAuthority('category:read') or hasAuthority('category:admin')")
+    @Operation(
+            summary = "List categories",
+            description = "Returns a single page of work categories. The pageNo and pageSize parameters "
+                    + "control paging; only the page content is returned, without paging metadata."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of categories returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the category read or admin authority")
+    })
     public ResponseEntity<List<CategoryDto>> readAllCategories(@RequestParam(defaultValue = "0") int pageNo,
                                                           @RequestParam(defaultValue = "10") int pageSize) {
         Page<CategoryDto> categories = categoryService.getAllCategories(pageNo, pageSize);
@@ -77,6 +107,15 @@ public class CategoryController {
      */
     @GetMapping("{id}")
     @PreAuthorize("hasAuthority('category:read') or hasAuthority('category:admin')")
+    @Operation(
+            summary = "Get a category by id",
+            description = "Returns a single work category."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Category found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the category read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No category with the given id")
+    })
     public ResponseEntity<?> readACategory(@PathVariable Long id) {
         CategoryDto categoryDto = categoryService.getACategory(id);
         return new ResponseEntity<>(categoryDto, HttpStatus.OK);
@@ -90,6 +129,15 @@ public class CategoryController {
      */
     @DeleteMapping("{id}")
     @PreAuthorize("hasAuthority('category:delete') or hasAuthority('category:admin')")
+    @Operation(
+            summary = "Delete a category",
+            description = "Deletes the category with the given id."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Category deleted"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the category delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No category with the given id")
+    })
     public ResponseEntity<ApiResponse> deleteACategory(@PathVariable Long id) {
         categoryService.deleteACategory(id);
         return ResponseEntity.status(HttpStatus.OK)

@@ -2,6 +2,10 @@ package org.tornotron.echno_backend.pdfGeneration;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -23,6 +27,12 @@ import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1/generate-report")
+@Tag(
+        name = "PDF Reports",
+        description = "Generates a consolidated PDF report covering tasks, task status counts, projects "
+                + "and indents. The report is rendered from a Thymeleaf template and returned as a "
+                + "downloadable file."
+)
 public class ReportController {
 
     private final OrganizationService organizationService;
@@ -67,6 +77,16 @@ public class ReportController {
 
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     @GetMapping("/pdf")
+    @Operation(
+            summary = "Generate a PDF report",
+            description = "Renders and returns a PDF covering all tasks, their status breakdown, projects "
+                    + "and indents in the current tenant."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "PDF report generated and returned as an attachment"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "500", description = "PDF rendering failed")
+    })
     public ResponseEntity<byte[]> pdfReport() {
         Context ctx = populateContext();
 

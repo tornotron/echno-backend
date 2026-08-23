@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.inspection.dtos;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.tornotron.echno_backend.compliance.CompliancePhase;
 import org.tornotron.echno_backend.inspection.ComplianceRiskLevel;
 import org.tornotron.echno_backend.inspection.InspectionOrigin;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@Schema(description = "An inspection as returned by the API, including its checklist items, defects and summary counts.")
 public record InspectionDto(
         UUID id,
         String inspectionNumber,

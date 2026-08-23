@@ -1,5 +1,8 @@
 package org.tornotron.echno_backend.category;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +20,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/category/web")
+@Tag(
+        name = "Categories (Web)",
+        description = "Web-console counterpart of the category API, gated by organization role instead "
+                + "of a flat authority. Covers creating, listing and deleting work categories such as "
+                + "\"Reinforcement Steel\" or \"Aggregates\"."
+)
 public class CategoryControllerWeb {
 
     private final CategoryService categoryService;
@@ -40,6 +49,17 @@ public class CategoryControllerWeb {
      */
     @PostMapping
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(
+            summary = "Create a category",
+            description = "Creates a work category, such as \"Cement & Binders\", available for tagging "
+                    + "tasks. The name is checked against existing categories in the organization."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Category created"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "A category with the same name already exists")
+    })
     public ResponseEntity<CategorySimpleDto> createCategory(@Valid @RequestBody CategoryCreationDto categoryCreationDto) {
         logger.info("Category Added Successfully");
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -55,6 +75,15 @@ public class CategoryControllerWeb {
      */
     @GetMapping
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(
+            summary = "List categories",
+            description = "Returns a single page of work categories. The pageNo and pageSize parameters "
+                    + "control paging; only the page content is returned, without paging metadata."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of categories returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+    })
     public ResponseEntity<List<CategoryDto>> readAllCategories(@RequestParam(defaultValue = "0") int pageNo,
                                                           @RequestParam(defaultValue = "10") int pageSize) {
         Page<CategoryDto> categories = categoryService.getAllCategories(pageNo, pageSize);
@@ -71,6 +100,15 @@ public class CategoryControllerWeb {
      */
     @GetMapping("{id}")
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(
+            summary = "Get a category by id",
+            description = "Returns a single work category."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Category found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No category with the given id")
+    })
     public ResponseEntity<?> readACategory(@PathVariable Long id) {
         CategoryDto categoryDto = categoryService.getACategory(id);
         return new ResponseEntity<>(categoryDto, HttpStatus.OK);
@@ -84,6 +122,15 @@ public class CategoryControllerWeb {
      */
     @DeleteMapping("{id}")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(
+            summary = "Delete a category",
+            description = "Deletes the category with the given id."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Category deleted"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No category with the given id")
+    })
     public ResponseEntity<ApiResponse> deleteACategory(@PathVariable Long id) {
         categoryService.deleteACategory(id);
         return ResponseEntity.status(HttpStatus.OK)
