@@ -68,8 +68,14 @@ public class LeaveApprovalService {
     /**
      * Builds and stores the approval chain for a submitted request and notifies the first approver.
      *
+     * <p>The applicable leave policy (the one the request was raised under) decides the shape of the
+     * chain. When {@code multiLevelApprovalEnabled} is true (the default, preserving today's
+     * behaviour) the full management line is used, so the request advances level by level. When an
+     * organization opts out by setting it false, only the direct approver is enrolled
+     * ({@code maxApprovalLevel = 1}), so a single approval finalizes the request.
+     *
      * <p>When the employee has no resolvable approvers, the request is finalized immediately
-     * instead of waiting for an approval.
+     * instead of waiting for an approval, regardless of the toggle.
      *
      * @param request The submitted leave request to route for approval.
      */
@@ -80,6 +86,12 @@ public class LeaveApprovalService {
         if (approvers.isEmpty()) {
             finalizeApproval(request);
             return;
+        }
+
+        if (!isMultiLevelApprovalEnabled(request)) {
+            // Organization opted out of multi-level approval: only the direct
+            // approver decides, so one approval finalizes the request.
+            approvers = approvers.subList(0, 1);
         }
 
         request.setMaxApprovalLevel(approvers.size());
@@ -132,6 +144,25 @@ public class LeaveApprovalService {
         }
 
         return chain;
+    }
+
+    /**
+     * Resolves whether the request's leave policy opts in to multi-level approval.
+     *
+     * <p>Reads the toggle from the policy the request was raised under (already resolved and attached
+     * to the request when it was submitted, the same policy the rest of the leave flow uses). Defaults
+     * to {@code true} when no policy or no explicit value is present, so the historical full-chain
+     * behaviour is preserved.
+     *
+     * @param request The leave request being routed for approval.
+     * @return {@code true} to build the full management-line chain; {@code false} for single-level.
+     */
+    private boolean isMultiLevelApprovalEnabled(LeaveRequest request) {
+        LeavePolicy policy = request.getLeavePolicy();
+        if (policy == null || policy.getMultiLevelApprovalEnabled() == null) {
+            return true;
+        }
+        return policy.getMultiLevelApprovalEnabled();
     }
 
     /**

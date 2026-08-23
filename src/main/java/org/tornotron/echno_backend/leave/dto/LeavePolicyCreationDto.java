@@ -76,4 +76,9 @@ public class LeavePolicyCreationDto {
 
     @Schema(description = "Order this policy is shown in, relative to the organization's other policies.", example = "1")
     private Integer displayOrder = 0;
+
+    @Schema(description = "Whether leave requests under this policy go through the full multi-level approval "
+            + "chain (the employee's management line). Set false to opt out and let a single approval by the "
+            + "direct approver finalize the request.", example = "true")
+    private Boolean multiLevelApprovalEnabled = true;
 }
