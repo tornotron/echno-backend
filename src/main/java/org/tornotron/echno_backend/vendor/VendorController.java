@@ -119,7 +119,7 @@ public class VendorController {
         return ResponseEntity.ok(vendors);
     }
 
-    @PutMapping("/{id}")
+    @PatchMapping("/{id}")
     @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
     @Operation(
             summary = "Update a vendor",
@@ -208,7 +208,7 @@ public class VendorController {
         return new ResponseEntity<>(vendorService.addContact(vendorId, dto), HttpStatus.CREATED);
     }
 
-    @PutMapping("/{vendorId}/contacts/{contactId}")
+    @PatchMapping("/{vendorId}/contacts/{contactId}")
     @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
     @Operation(
             summary = "Update a vendor contact",
@@ -283,7 +283,7 @@ public class VendorController {
         return new ResponseEntity<>(vendorService.addTaxIdentifier(vendorId, dto), HttpStatus.CREATED);
     }
 
-    @PutMapping("/{vendorId}/tax-identifiers/{taxIdId}")
+    @PatchMapping("/{vendorId}/tax-identifiers/{taxIdId}")
     @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
     @Operation(
             summary = "Update a vendor tax identifier",
@@ -358,7 +358,7 @@ public class VendorController {
         return new ResponseEntity<>(vendorService.addBankAccount(vendorId, dto), HttpStatus.CREATED);
     }
 
-    @PutMapping("/{vendorId}/bank-accounts/{accountId}")
+    @PatchMapping("/{vendorId}/bank-accounts/{accountId}")
     @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
     @Operation(
             summary = "Update a vendor bank account",
