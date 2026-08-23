@@ -1,0 +1,210 @@
+package org.tornotron.echno_backend.stockAdjustment;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.material.Material;
+import org.tornotron.echno_backend.material.MaterialRepository;
+import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentCreationDto;
+import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentLineItemCreationDto;
+import org.tornotron.echno_backend.stockAdjustment.mapper.StockAdjustmentMapper;
+import org.tornotron.echno_backend.storageLocation.StorageLocation;
+import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Unit tests for StockAdjustmentService. The MVP service persists the document only (it
+ * does not yet move stock), so the logic worth pinning is the reference resolution it
+ * owns: an id that names nothing in the current tenant is rejected, a null id resolves to
+ * no association rather than an error, line items are wired to their parent and stamped
+ * with the organization, and an update replaces the whole line-item collection. The
+ * repositories, mapper, and tenant helper are mocked; assertions read the entity captured
+ * on saveAndFlush.
+ */
+@ExtendWith(MockitoExtension.class)
+class StockAdjustmentServiceTest {
+
+    private static final Long ORG = 100L;
+    private static final Long MATERIAL = 11L;
+    private static final Long LOCATION = 3L;
+    private static final Long PROJECT = 9L;
+
+    @Mock private StockAdjustmentRepository stockAdjustmentRepository;
+    @Mock private StockAdjustmentMapper stockAdjustmentMapper;
+    @Mock private TenantEntityHelper tenantEntityHelper;
+    @Mock private MaterialRepository materialRepository;
+    @Mock private StorageLocationRepository storageLocationRepository;
+    @Mock private ProjectRepository projectRepository;
+
+    private StockAdjustmentService service;
+
+    @BeforeEach
+    void setUp() {
+        TenantContext.setCurrentOrgId(ORG);
+        service = new StockAdjustmentService(stockAdjustmentRepository, stockAdjustmentMapper,
+                tenantEntityHelper, materialRepository, storageLocationRepository, projectRepository);
+        lenient().when(tenantEntityHelper.resolveCurrentOrganization()).thenAnswer(inv -> {
+            Organization org = new Organization();
+            org.setId(ORG);
+            return org;
+        });
+        lenient().when(stockAdjustmentRepository.saveAndFlush(any(StockAdjustment.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
+
+    private StockAdjustmentLineItemCreationDto line(Long materialId, Long locationId) {
+        StockAdjustmentLineItemCreationDto l = new StockAdjustmentLineItemCreationDto();
+        l.setMaterialId(materialId);
+        l.setLocationId(locationId);
+        l.setDescription("line");
+        return l;
+    }
+
+    private StockAdjustmentCreationDto baseDto() {
+        StockAdjustmentCreationDto dto = new StockAdjustmentCreationDto();
+        dto.setAdjustmentNumber("ADJ-001");
+        dto.setType("write_off");
+        dto.setStatus("draft");
+        return dto;
+    }
+
+    private void stubReferenceLookups() {
+        Material material = new Material();
+        material.setId(MATERIAL);
+        StorageLocation location = new StorageLocation();
+        location.setId(LOCATION);
+        Project project = new Project();
+        project.setId(PROJECT);
+        lenient().when(materialRepository.findByIdAndOrganization_Id(MATERIAL, ORG)).thenReturn(Optional.of(material));
+        lenient().when(storageLocationRepository.findByIdAndOrganization_Id(LOCATION, ORG)).thenReturn(Optional.of(location));
+        lenient().when(projectRepository.findByIdAndOrganization_Id(PROJECT, ORG)).thenReturn(Optional.of(project));
+    }
+
+    @Test
+    void create_resolvesReferencesAndWiresLineItems() {
+        stubReferenceLookups();
+        StockAdjustmentCreationDto dto = baseDto();
+        dto.setLocationId(LOCATION);
+        dto.setProjectId(PROJECT);
+        dto.setLineItems(List.of(line(MATERIAL, LOCATION)));
+
+        service.create(dto);
+
+        ArgumentCaptor<StockAdjustment> captor = ArgumentCaptor.forClass(StockAdjustment.class);
+        verify(stockAdjustmentRepository).saveAndFlush(captor.capture());
+        StockAdjustment saved = captor.getValue();
+        assertThat(saved.getOrganization().getId()).isEqualTo(ORG);
+        assertThat(saved.getLocation().getId()).isEqualTo(LOCATION);
+        assertThat(saved.getProject().getId()).isEqualTo(PROJECT);
+        assertThat(saved.getLineItems()).hasSize(1);
+        StockAdjustmentLineItem item = saved.getLineItems().get(0);
+        assertThat(item.getMaterial().getId()).isEqualTo(MATERIAL);
+        assertThat(item.getOrganization().getId()).isEqualTo(ORG);
+        assertThat(item.getStockAdjustment()).isSameAs(saved);
+    }
+
+    @Test
+    void create_nullHeaderReferences_leaveAssociationsNull() {
+        StockAdjustmentCreationDto dto = baseDto();     // no locationId / projectId / lineItems
+
+        service.create(dto);
+
+        ArgumentCaptor<StockAdjustment> captor = ArgumentCaptor.forClass(StockAdjustment.class);
+        verify(stockAdjustmentRepository).saveAndFlush(captor.capture());
+        StockAdjustment saved = captor.getValue();
+        assertThat(saved.getLocation()).isNull();
+        assertThat(saved.getProject()).isNull();
+        assertThat(saved.getLineItems()).isEmpty();
+    }
+
+    @Test
+    void create_unknownLineMaterial_throwsNotFound() {
+        when(materialRepository.findByIdAndOrganization_Id(MATERIAL, ORG)).thenReturn(Optional.empty());
+        StockAdjustmentCreationDto dto = baseDto();
+        dto.setLineItems(List.of(line(MATERIAL, null)));
+
+        assertThatExceptionOfType(ResourceNotFoundException.class)
+                .isThrownBy(() -> service.create(dto));
+
+        verify(stockAdjustmentRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void update_unknownDocument_throwsNotFound() {
+        when(stockAdjustmentRepository.findByIdAndOrganization_Id(5L, ORG)).thenReturn(Optional.empty());
+
+        assertThatExceptionOfType(ResourceNotFoundException.class)
+                .isThrownBy(() -> service.update(5L, baseDto()));
+
+        verify(stockAdjustmentRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void update_replacesLineItemCollection() {
+        stubReferenceLookups();
+        StockAdjustment existing = new StockAdjustment();
+        Organization org = new Organization();
+        org.setId(ORG);
+        existing.setOrganization(org);
+        StockAdjustmentLineItem stale = new StockAdjustmentLineItem();
+        existing.addLineItem(stale);
+        when(stockAdjustmentRepository.findByIdAndOrganization_Id(5L, ORG)).thenReturn(Optional.of(existing));
+
+        StockAdjustmentCreationDto dto = baseDto();
+        dto.setLineItems(List.of(line(MATERIAL, null)));
+
+        service.update(5L, dto);
+
+        ArgumentCaptor<StockAdjustment> captor = ArgumentCaptor.forClass(StockAdjustment.class);
+        verify(stockAdjustmentRepository).saveAndFlush(captor.capture());
+        StockAdjustment saved = captor.getValue();
+        assertThat(saved.getLineItems()).hasSize(1);
+        assertThat(saved.getLineItems()).doesNotContain(stale);
+        assertThat(saved.getLineItems().get(0).getMaterial().getId()).isEqualTo(MATERIAL);
+    }
+
+    @Test
+    void delete_unknownDocument_throwsNotFound() {
+        when(stockAdjustmentRepository.findByIdAndOrganization_Id(5L, ORG)).thenReturn(Optional.empty());
+
+        assertThatExceptionOfType(ResourceNotFoundException.class)
+                .isThrownBy(() -> service.delete(5L));
+
+        verify(stockAdjustmentRepository, never()).delete(any());
+    }
+
+    @Test
+    void delete_existingDocument_deletes() {
+        StockAdjustment existing = new StockAdjustment();
+        when(stockAdjustmentRepository.findByIdAndOrganization_Id(5L, ORG)).thenReturn(Optional.of(existing));
+
+        service.delete(5L);
+
+        verify(stockAdjustmentRepository).delete(existing);
+    }
+}
