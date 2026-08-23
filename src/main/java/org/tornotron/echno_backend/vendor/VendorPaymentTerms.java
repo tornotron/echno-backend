@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
-import org.tornotron.echno_backend.vendor.enums.PaymentTermsType;
 
 import java.math.BigDecimal;
 
@@ -26,9 +25,8 @@ public class VendorPaymentTerms extends BaseEntity implements TenantScopedEntity
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PaymentTermsType paymentTerms;
+    private String paymentTerms;
 
     private BigDecimal creditLimit;
     private Integer creditDays;

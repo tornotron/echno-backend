@@ -12,7 +12,6 @@ import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.vendor.dto.*;
-import org.tornotron.echno_backend.vendor.enums.PaymentTermsType;
 import org.tornotron.echno_backend.vendor.enums.TaxIdentifierType;
 import org.tornotron.echno_backend.vendor.enums.VendorStatus;
 import org.tornotron.echno_backend.vendor.enums.VendorType;
@@ -252,7 +251,7 @@ public class VendorService {
 
     private VendorPaymentTerms mapToPaymentTermsEntity(VendorPaymentTermsCreationDto dto) {
         VendorPaymentTerms terms = new VendorPaymentTerms();
-        terms.setPaymentTerms(PaymentTermsType.valueOf(dto.getPaymentTerms()));
+        terms.setPaymentTerms(dto.getPaymentTerms());
         terms.setCreditLimit(dto.getCreditLimit());
         terms.setCreditDays(dto.getCreditDays());
         return terms;

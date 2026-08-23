@@ -5,7 +5,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.vendor.dto.*;
-import org.tornotron.echno_backend.vendor.enums.PaymentTermsType;
 import org.tornotron.echno_backend.vendor.enums.TaxIdentifierType;
 import org.tornotron.echno_backend.vendor.mapper.VendorBankAccountMapper;
 import org.tornotron.echno_backend.vendor.mapper.VendorContactMapper;
@@ -225,7 +224,7 @@ public class VendorSubEntityService {
             vendor.setPaymentTerms(terms);
             vendorRepository.save(vendor);
         } else {
-            terms.setPaymentTerms(PaymentTermsType.valueOf(dto.getPaymentTerms()));
+            terms.setPaymentTerms(dto.getPaymentTerms());
             terms.setCreditLimit(dto.getCreditLimit());
             terms.setCreditDays(dto.getCreditDays());
             vendorPaymentTermsRepository.save(terms);
@@ -279,7 +278,7 @@ public class VendorSubEntityService {
 
     private VendorPaymentTerms mapToPaymentTermsEntity(VendorPaymentTermsCreationDto dto) {
         VendorPaymentTerms terms = new VendorPaymentTerms();
-        terms.setPaymentTerms(PaymentTermsType.valueOf(dto.getPaymentTerms()));
+        terms.setPaymentTerms(dto.getPaymentTerms());
         terms.setCreditLimit(dto.getCreditLimit());
         terms.setCreditDays(dto.getCreditDays());
         return terms;
