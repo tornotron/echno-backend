@@ -1,10 +1,16 @@
 plugins {
     id 'java'
+    id 'jacoco'
     id 'org.springframework.boot' version '3.4.13'
     id 'io.spring.dependency-management' version '1.1.6'
 }
 ext {
     springCloudVersion = "2024.0.2"
+    // Minimum line-coverage ratio enforced by jacocoTestCoverageVerification.
+    // Set just under the current measured level (14.5% at introduction) so it locks
+    // in no-regression with a small margin for run-to-run variance; raise it as
+    // tests are added. Denominator excludes generated/DTO/config classes.
+    jacocoLineFloor = 0.14
 }
 
 repositories {
@@ -96,4 +102,52 @@ tasks.named('test') {
         events 'started', 'passed', 'skipped', 'failed'
         exceptionFormat 'short'
     }
+    finalizedBy jacocoTestReport
+}
+
+jacoco {
+    toolVersion = '0.8.12'
+}
+
+// Coverage report over real business logic. Generated and non-logic classes are
+// excluded from the denominator so the number tracks tested behaviour, not Lombok
+// getters, MapStruct output, Spring config or the application entrypoint.
+def jacocoLogicExclusions = [
+        '**/EchnoBackendApplication.class',
+        '**/config/**', '**/configuration/**',
+        '**/dto/**', '**/dtos/**',
+        '**/*MapperImpl.class',
+]
+
+tasks.named('jacocoTestReport') {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    classDirectories.setFrom(files(sourceSets.main.output.classesDirs.collect {
+        fileTree(dir: it, exclude: jacocoLogicExclusions)
+    }))
+}
+
+// No-regression coverage gate. The floor ratchets upward as tests are added; it is
+// deliberately set at (not above) the current level so the build stays green while
+// coverage climbs, the same ratchet idea as the ArchUnit endpoint rule.
+tasks.named('jacocoTestCoverageVerification') {
+    dependsOn jacocoTestReport
+    classDirectories.setFrom(files(sourceSets.main.output.classesDirs.collect {
+        fileTree(dir: it, exclude: jacocoLogicExclusions)
+    }))
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = jacocoLineFloor
+            }
+        }
+    }
+}
+tasks.named('check') {
+    dependsOn jacocoTestCoverageVerification
 }
