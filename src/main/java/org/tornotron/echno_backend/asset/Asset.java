@@ -66,6 +66,9 @@ public class Asset implements TenantScopedEntity {
     @Column(name = "assigned_to")
     private String assignedTo;
 
+    @Column(name = "assigned_to_id")
+    private Long assignedToId;
+
     @Column(name = "assigned_project")
     private String assignedProject;
 

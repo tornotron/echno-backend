@@ -42,11 +42,17 @@ public class AttendanceRegularization implements TenantScopedEntity {
     @Column(name = "requested_by", nullable = false)
     private String requestedBy;
 
+    @Column(name = "requested_by_id")
+    private Long requestedById;
+
     @Column(name = "requested_at")
     private LocalDateTime requestedAt;
 
     @Column(name = "approved_by")
     private String approvedBy;
+
+    @Column(name = "approved_by_id")
+    private Long approvedById;
 
     @Column(name = "approved_at")
     private LocalDateTime approvedAt;

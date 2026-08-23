@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Best-effort backfill of attendance_regularization.requested_by_id / approved_by_id from the
+         free-text requested_by / approved_by names, matching against employee.employee_name within
+         the same organization. Each id is set only when the name resolves to exactly one employee in
+         that organization; a name that matches no employee, or more than one (or a non-name value
+         such as "system"), is left NULL. Guarded on the target column IS NULL so each statement is
+         idempotent and safe to re-run. -->
+    <changeSet id="043-backfill-regularization-requested-by-id" author="echno">
+        <sql>
+            UPDATE attendance_regularization r
+            SET requested_by_id = (
+                SELECT e.id FROM employee e
+                WHERE e.employee_name = r.requested_by
+                  AND e.organization_id = r.organization_id
+            )
+            WHERE r.requested_by_id IS NULL
+              AND r.requested_by IS NOT NULL
+              AND r.organization_id IS NOT NULL
+              AND (
+                SELECT COUNT(*) FROM employee e
+                WHERE e.employee_name = r.requested_by
+                  AND e.organization_id = r.organization_id
+              ) = 1
+        </sql>
+    </changeSet>
+
+    <changeSet id="043-backfill-regularization-approved-by-id" author="echno">
+        <sql>
+            UPDATE attendance_regularization r
+            SET approved_by_id = (
+                SELECT e.id FROM employee e
+                WHERE e.employee_name = r.approved_by
+                  AND e.organization_id = r.organization_id
+            )
+            WHERE r.approved_by_id IS NULL
+              AND r.approved_by IS NOT NULL
+              AND r.organization_id IS NOT NULL
+              AND (
+                SELECT COUNT(*) FROM employee e
+                WHERE e.employee_name = r.approved_by
+                  AND e.organization_id = r.organization_id
+              ) = 1
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

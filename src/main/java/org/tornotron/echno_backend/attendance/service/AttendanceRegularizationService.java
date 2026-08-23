@@ -44,6 +44,12 @@ public class AttendanceRegularizationService {
 
     @Transactional
     public AttendanceRegularizationDto submitRequest(RegularizationRequestDto dto, String requestedBy) {
+        return submitRequest(dto, requestedBy, null);
+    }
+
+    @Transactional
+    public AttendanceRegularizationDto submitRequest(RegularizationRequestDto dto, String requestedBy,
+                                                     Long requestedById) {
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
@@ -87,6 +93,7 @@ public class AttendanceRegularizationService {
                 .attendance(attendance)
                 .reason(dto.getReason())
                 .requestedBy(requestedBy)
+                .requestedById(requestedById)
                 .status(settings.getRegularizationApprovalRequired()
                         ? RegularizationStatus.PENDING : RegularizationStatus.APPROVED)
                 .missingEvents(regularizationMapper.serializeMissingEvents(dto.getMissingEvents()))
@@ -105,6 +112,14 @@ public class AttendanceRegularizationService {
     public AttendanceRegularizationDto processRegularization(Long regularizationId,
                                                               RegularizationActionDto dto,
                                                               String approvedBy) {
+        return processRegularization(regularizationId, dto, approvedBy, null);
+    }
+
+    @Transactional
+    public AttendanceRegularizationDto processRegularization(Long regularizationId,
+                                                              RegularizationActionDto dto,
+                                                              String approvedBy,
+                                                              Long approvedById) {
         AttendanceRegularization regularization = regularizationRepository.findByIdAndOrganization_Id(regularizationId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Regularization request with ID " + regularizationId + " was not found"));
@@ -118,6 +133,7 @@ public class AttendanceRegularizationService {
 
         regularization.setStatus(dto.getStatus());
         regularization.setApprovedBy(approvedBy);
+        regularization.setApprovedById(approvedById);
         regularization.setApprovedAt(LocalDateTime.now());
         regularization.setRejectionReason(dto.getRejectionReason());
 

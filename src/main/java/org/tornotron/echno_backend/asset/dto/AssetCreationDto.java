@@ -44,6 +44,9 @@ public class AssetCreationDto {
     private Double depreciationRate;
     @Schema(description = "Name of the person the asset is currently assigned to.", example = "Ravi Kumar")
     private String assignedTo;
+    @Schema(description = "Id of the employee the asset is currently assigned to, stored alongside the "
+            + "name so the asset list can be filtered by assignee.", example = "18")
+    private Long assignedToId;
     @Schema(description = "Name of the project the asset is currently deployed on.", example = "Marina Heights Towers")
     private String assignedProject;
     @Schema(description = "Manufacturer of the asset.", example = "JCB India")
