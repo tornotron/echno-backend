@@ -39,6 +39,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Create, update, and query Goods Received Notes recording deliveries against purchase orders.
+ *
+ * <p>Creating a GRN validates every referenced entity (vendor, receiver, project,
+ * purchase order, storage location, and each line's material) against the current tenant,
+ * persists the note and its line items, then publishes a {@link GrnCreatedEvent} so the
+ * inventory ledger raises stock for the received materials in the same transaction.
+ */
 @Service
 public class GoodsReceivedNoteService {
 
@@ -78,6 +86,19 @@ public class GoodsReceivedNoteService {
         this.purchaseOrderRepository = purchaseOrderRepository;
     }
 
+    /**
+     * Creates a Goods Received Note with its line items and triggers the stock increase.
+     *
+     * <p>Rejects a duplicate GRN number, resolves the vendor, receiving employee, project,
+     * and purchase order (plus an optional storage location) within the current tenant, and
+     * resolves each line's material. After saving, a {@link GrnCreatedEvent} is published so
+     * inventory is updated for the received goods.
+     *
+     * @param creationDto The GRN header fields and the list of received line items.
+     * @return The created GRN as a DTO.
+     * @throws DuplicateResourceException if the GRN number is already used in this organization.
+     * @throws ResourceNotFoundException if any referenced vendor, employee, project, purchase order, storage location, or material is not found in this organization.
+     */
     @Transactional
     public GoodsReceivedNoteDto createGoodsReceivedNote(GoodsReceivedNoteCreationDto creationDto) {
         // Check for duplicate GRN number
@@ -153,6 +174,16 @@ public class GoodsReceivedNoteService {
         return goodsReceivedNoteMapper.toDto(grn);
     }
 
+    /**
+     * Applies a partial update to an existing GRN header.
+     *
+     * <p>Only the non-null fields on the update DTO are changed. The line items and the
+     * stock already posted for this GRN are left untouched.
+     *
+     * @param updateDto The GRN id and the header fields to change.
+     * @return The updated GRN as a DTO.
+     * @throws ResourceNotFoundException if the GRN, or a referenced employee or storage location, is not found in this organization.
+     */
     @Transactional
     public GoodsReceivedNoteDto updateGoodsReceivedNote(GoodsReceivedNoteUpdateDto updateDto) {
         GoodsReceivedNote grn = goodsReceivedNoteRepository.findByIdAndOrganization_Id(updateDto.getId(), TenantContext.getCurrentOrgId())
@@ -192,6 +223,13 @@ public class GoodsReceivedNoteService {
         return goodsReceivedNoteMapper.toDto(grn);
     }
 
+    /**
+     * Retrieves a single GRN by its id within the current tenant.
+     *
+     * @param id The id of the GRN to retrieve.
+     * @return The GRN as a DTO.
+     * @throws ResourceNotFoundException if no GRN with the given id exists in this organization.
+     */
     @Transactional(readOnly = true)
     public GoodsReceivedNoteDto getGrnById(Long id) {
         GoodsReceivedNote grn = goodsReceivedNoteRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
@@ -206,6 +244,13 @@ public class GoodsReceivedNoteService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Retrieves GRNs one page at a time, newest received first.
+     *
+     * @param pageNo Zero-based page index.
+     * @param pageSize Number of GRNs per page.
+     * @return A page of GRN DTOs ordered by received date descending.
+     */
     @Transactional(readOnly = true)
     public Page<GoodsReceivedNoteDto> getAllGrns(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "receivedOn"));
@@ -213,6 +258,12 @@ public class GoodsReceivedNoteService {
                 .map(grn -> goodsReceivedNoteMapper.toDto(grn));
     }
 
+    /**
+     * Lists all GRNs recorded against a given vendor.
+     *
+     * @param vendorId The vendor whose GRNs to return.
+     * @return The matching GRNs as DTOs.
+     */
     @Transactional(readOnly = true)
     public List<GoodsReceivedNoteDto> getGrnsByVendor(Long vendorId) {
         return goodsReceivedNoteRepository.findByVendorId(vendorId).stream()
@@ -220,6 +271,13 @@ public class GoodsReceivedNoteService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists GRNs received within an inclusive date range.
+     *
+     * @param startDate Start of the received-on range.
+     * @param endDate End of the received-on range.
+     * @return The matching GRNs as DTOs.
+     */
     @Transactional(readOnly = true)
     public List<GoodsReceivedNoteDto> getGrnsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         return goodsReceivedNoteRepository.findByReceivedOnBetween(startDate, endDate).stream()

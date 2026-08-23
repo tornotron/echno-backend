@@ -33,6 +33,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Records material consumption and exposes queries over past consumption.
+ *
+ * <p>Recording a consumption first checks that enough stock is available (at the storage
+ * location when one is given, otherwise across the project), then persists the record and
+ * publishes a {@link MaterialConsumedEvent} so the inventory ledger draws the stock down in
+ * the same transaction.
+ */
 @Service
 public class MaterialConsumptionService {
 
@@ -69,6 +77,20 @@ public class MaterialConsumptionService {
         this.taskRepository = taskRepository;
     }
 
+    /**
+     * Records a material consumption after checking stock, and triggers the stock decrease.
+     *
+     * <p>Resolves the material, creator, and project, then validates sufficient stock at the
+     * storage location when one is supplied or across the project otherwise. An optional task
+     * must belong to the same project. After saving, a {@link MaterialConsumedEvent} is
+     * published so inventory is reduced.
+     *
+     * @param creationDto The consumption details, including material, quantity, project, and optional storage location and task.
+     * @return The created consumption record as a DTO.
+     * @throws ResourceNotFoundException if the material, creator, project, storage location, or task is not found in this organization.
+     * @throws InsufficientStockException if the available stock is below the consumed quantity.
+     * @throws IllegalArgumentException if the given task does not belong to the given project.
+     */
     @Transactional
     public MaterialConsumptionDto createMaterialConsumption(MaterialConsumptionCreationDto creationDto) {
         // Validate material exists
@@ -133,6 +155,13 @@ public class MaterialConsumptionService {
         return materialConsumptionMapper.toDto(consumption);
     }
 
+    /**
+     * Retrieves a single consumption record by its id within the current tenant.
+     *
+     * @param id The id of the consumption record to retrieve.
+     * @return The consumption record as a DTO.
+     * @throws ResourceNotFoundException if no consumption record with the given id exists in this organization.
+     */
     @Transactional(readOnly = true)
     public MaterialConsumptionDto getMaterialConsumptionById(Long id) {
         MaterialConsumption consumption = materialConsumptionRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
@@ -147,6 +176,13 @@ public class MaterialConsumptionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Retrieves consumption records one page at a time, newest first.
+     *
+     * @param pageNo Zero-based page index.
+     * @param pageSize Number of records per page.
+     * @return A page of consumption DTOs ordered by consumption date descending.
+     */
     @Transactional(readOnly = true)
     public Page<MaterialConsumptionDto> getAllMaterialConsumptions(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "consumptionDate"));
@@ -154,6 +190,12 @@ public class MaterialConsumptionService {
                 .map(consumption -> materialConsumptionMapper.toDto(consumption));
     }
 
+    /**
+     * Lists consumption records for a given material.
+     *
+     * @param materialId The material whose consumptions to return.
+     * @return The matching consumption records as DTOs.
+     */
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByMaterial(Long materialId) {
         return materialConsumptionRepository.findByMaterialId(materialId).stream()
@@ -161,6 +203,12 @@ public class MaterialConsumptionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists consumption records of a given consumption type.
+     *
+     * @param consumptionType The consumption type to filter by.
+     * @return The matching consumption records as DTOs.
+     */
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByType(MaterialConsumptionType consumptionType) {
         return materialConsumptionRepository.findByConsumptionType(consumptionType).stream()
@@ -168,6 +216,13 @@ public class MaterialConsumptionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists consumption records within an inclusive date range.
+     *
+     * @param startDate Start of the consumption-date range.
+     * @param endDate End of the consumption-date range.
+     * @return The matching consumption records as DTOs.
+     */
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         return materialConsumptionRepository.findByConsumptionDateBetween(startDate, endDate).stream()
@@ -175,6 +230,12 @@ public class MaterialConsumptionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists consumption records attributed to a given task.
+     *
+     * @param taskId The task whose consumptions to return.
+     * @return The matching consumption records as DTOs.
+     */
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByTask(Long taskId) {
         return materialConsumptionRepository.findByTaskId(taskId).stream()

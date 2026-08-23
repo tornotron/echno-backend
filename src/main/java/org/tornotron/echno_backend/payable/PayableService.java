@@ -30,6 +30,15 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Create, read, and payment-recording operations for accounts payable.
+ *
+ * <p>On create it validates the referenced employee and project (both required) and the
+ * optional vendor and goods-received note, all within the current organization, and
+ * defaults the paid amount to zero. Recording a payment takes a pessimistic lock on the
+ * payable so concurrent payments serialize their read-modify-write on the paid amount, and
+ * rejects a payment that would push the paid total past the recorded amount.
+ */
 @Service
 public class PayableService {
 
@@ -60,6 +69,14 @@ public class PayableService {
         this.projectRepository = projectRepository;
     }
 
+    /**
+     * Creates a payable after validating its related entities within the current organization.
+     *
+     * @param creationDto The payable details, including the creating employee, project, and optional vendor and GRN.
+     * @return The created payable DTO.
+     * @throws DuplicateResourceException if a payable with the same number already exists in the organization.
+     * @throws ResourceNotFoundException if the employee, project, vendor, or goods-received note cannot be found in the organization.
+     */
     @Transactional
     public PayableDto createPayable(PayableCreationDto creationDto) {
         // Check for duplicate payable number
@@ -105,6 +122,15 @@ public class PayableService {
         return payableMapper.toDto(payable);
     }
 
+    /**
+     * Records a payment against a payable, increasing its paid amount under a pessimistic lock.
+     *
+     * @param id The ID of the payable to pay against.
+     * @param paymentAmount The amount to add to the paid total; must be greater than zero.
+     * @return The updated payable DTO.
+     * @throws InvalidRequestException if the payment amount is null or not positive, or if it would overpay the recorded amount.
+     * @throws ResourceNotFoundException if no payable with the given ID exists in the organization.
+     */
     @Transactional
     public PayableDto recordPayment(Long id, BigDecimal paymentAmount) {
         if (paymentAmount == null || paymentAmount.signum() <= 0) {
@@ -132,6 +158,13 @@ public class PayableService {
         return payableMapper.toDto(payable);
     }
 
+    /**
+     * Retrieves a single payable by its ID within the current organization.
+     *
+     * @param id The ID of the payable to retrieve.
+     * @return The payable DTO.
+     * @throws ResourceNotFoundException if no payable with the given ID exists in the organization.
+     */
     @Transactional(readOnly = true)
     public PayableDto getPayableById(Long id) {
         Payable payable = payableRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
@@ -139,6 +172,11 @@ public class PayableService {
         return payableMapper.toDto(payable);
     }
 
+    /**
+     * Returns every payable visible to the current organization.
+     *
+     * @return The list of payable DTOs.
+     */
     @Transactional(readOnly = true)
     public List<PayableDto> getAllPayables() {
         return payableRepository.findAll().stream()
@@ -146,6 +184,13 @@ public class PayableService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Returns a page of payables, newest first.
+     *
+     * @param pageNo The zero-based page index.
+     * @param pageSize The number of payables per page.
+     * @return A page of payable DTOs sorted descending by creation time.
+     */
     @Transactional(readOnly = true)
     public Page<PayableDto> getAllPayables(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
@@ -153,6 +198,12 @@ public class PayableService {
                 .map(payable -> payableMapper.toDto(payable));
     }
 
+    /**
+     * Returns the payables raised against a given vendor within the current organization.
+     *
+     * @param vendorId The ID of the vendor whose payables to list.
+     * @return The list of payable DTOs for that vendor.
+     */
     @Transactional(readOnly = true)
     public List<PayableDto> getPayablesByVendor(Long vendorId) {
         return payableRepository.findByVendorIdAndOrganization_id(vendorId,TenantContext.getCurrentOrgId()).stream()
@@ -160,6 +211,11 @@ public class PayableService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Returns the payables that still have an unpaid balance.
+     *
+     * @return The list of outstanding payable DTOs.
+     */
     @Transactional(readOnly = true)
     public List<PayableDto> getOutstandingPayables() {
         return payableRepository.findOutstandingPayables().stream()

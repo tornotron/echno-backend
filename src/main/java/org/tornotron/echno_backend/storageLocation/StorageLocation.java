@@ -9,6 +9,13 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.storageLocation.enums.StorageLocationType;
 
+/**
+ * A named place within a project where stock is held, such as a store, yard, or bin.
+ *
+ * <p>Stock balances and movements are tracked per storage location, so this is the finest
+ * level at which a material's quantity on hand is known. Carries its type, optional address
+ * and geo-coordinates, capacity, and an active flag.
+ */
 @Data
 @Entity
 @NoArgsConstructor

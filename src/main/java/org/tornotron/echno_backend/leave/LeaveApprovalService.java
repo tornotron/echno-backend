@@ -25,6 +25,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Drives the multi-level approval workflow for leave requests and the balance moves it triggers.
+ *
+ * <p>Builds the approver chain from the employee's management line, advances a request level by
+ * level on approval, and on the final approval transfers days from pending to used and posts a
+ * deduction ledger entry. Rejection releases the pending hold. Approve and reject take a
+ * pessimistic lock on the request so two concurrent decisions cannot both finalize and deduct twice.
+ */
 @Service
 @Validated
 public class LeaveApprovalService {
@@ -57,6 +65,14 @@ public class LeaveApprovalService {
         this.leaveRequestMapper = leaveRequestMapper;
     }
 
+    /**
+     * Builds and stores the approval chain for a submitted request and notifies the first approver.
+     *
+     * <p>When the employee has no resolvable approvers, the request is finalized immediately
+     * instead of waiting for an approval.
+     *
+     * @param request The submitted leave request to route for approval.
+     */
     @Transactional
     public void initializeApprovalChain(LeaveRequest request) {
         List<Employee> approvers = resolveApprovalChain(request.getEmployee());
@@ -84,6 +100,14 @@ public class LeaveApprovalService {
         notificationService.sendApprovalRequiredNotification(request, approvers.get(0));
     }
 
+    /**
+     * Walks up the employee's management line to build the ordered list of approvers.
+     *
+     * <p>Stops at five levels and guards against self-referencing or cyclic manager links.
+     *
+     * @param employee The employee whose approval chain is being resolved.
+     * @return The approvers in order from immediate manager upward; empty if there is none.
+     */
     @Transactional(readOnly = true)
     public List<Employee> resolveApprovalChain(Employee employee) {
         List<Employee> chain = new ArrayList<>();
@@ -110,6 +134,19 @@ public class LeaveApprovalService {
         return chain;
     }
 
+    /**
+     * Records the current approver's approval and advances or finalizes the request.
+     *
+     * <p>Takes a pessimistic lock on the request to serialize concurrent decisions. If more
+     * levels remain the next approver is notified; otherwise the request is approved, pending days
+     * are moved to used, a deduction ledger entry is posted, and calendar entries are created.
+     *
+     * @param requestId The ID of the leave request being approved.
+     * @param dto The approver's ID and optional comments.
+     * @return The updated leave request.
+     * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
+     * @throws InvalidRequestException if the request is not pending approval or the caller is not the current approver.
+     */
     @Transactional
     public LeaveRequestDto approve(Long requestId, LeaveApprovalActionDto dto) {
         // Pessimistic lock: concurrent approve/reject on the same request must
@@ -137,6 +174,19 @@ public class LeaveApprovalService {
         return leaveRequestMapper.toDto(request);
     }
 
+    /**
+     * Records the current approver's rejection, ends the workflow, and releases the pending hold.
+     *
+     * <p>Takes a pessimistic lock on the request so it cannot be approved and rejected at once.
+     * The request moves to rejected, its current approver is cleared, the pending days are
+     * restored to the balance, and the employee is notified.
+     *
+     * @param requestId The ID of the leave request being rejected.
+     * @param dto The approver's ID and optional comments.
+     * @return The updated leave request.
+     * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
+     * @throws InvalidRequestException if the request is not pending approval or the caller is not the current approver.
+     */
     @Transactional
     public LeaveRequestDto reject(Long requestId, LeaveApprovalActionDto dto) {
         LeaveRequest request = requestRepository.lockByIdAndOrganizationId(requestId, TenantContext.getCurrentOrgId())
@@ -163,6 +213,19 @@ public class LeaveApprovalService {
         return leaveRequestMapper.toDto(request);
     }
 
+    /**
+     * Delegates the current approval level to another employee.
+     *
+     * <p>Marks the current approver's record as delegated and creates a fresh pending record for
+     * the delegate at the same level, with a back-reference to the delegating approver. The
+     * request's current approver becomes the delegate, who is notified.
+     *
+     * @param requestId The ID of the leave request being delegated.
+     * @param dto The delegating approver's ID, the target delegate ID, and optional comments.
+     * @return The updated leave request.
+     * @throws InvalidRequestException if no delegate ID is supplied, the request is not pending approval, or the caller is not the current approver.
+     * @throws ResourceNotFoundException if the request or the delegate is not found in this organization.
+     */
     @Transactional
     public LeaveRequestDto delegate(Long requestId, LeaveApprovalActionDto dto) {
         if (dto.getDelegateToId() == null) {
@@ -203,6 +266,12 @@ public class LeaveApprovalService {
         return leaveRequestMapper.toDto(request);
     }
 
+    /**
+     * Lists all approval records for a request, ordered by approval level.
+     *
+     * @param requestId The ID of the leave request.
+     * @return The approval records in level order.
+     */
     @Transactional(readOnly = true)
     public List<LeaveApprovalDto> getApprovalHistory(Long requestId) {
         return approvalRepository.findByLeaveRequestIdOrderByApprovalLevelAsc(requestId)
@@ -211,6 +280,13 @@ public class LeaveApprovalService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists the approval records for a request after verifying the request exists in this organization.
+     *
+     * @param requestId The ID of the leave request.
+     * @return The approval records in level order.
+     * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
+     */
     @Transactional(readOnly = true)
     public List<LeaveApprovalDto> getApprovalChain(Long requestId) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
@@ -223,6 +299,13 @@ public class LeaveApprovalService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Checks whether an employee is the current approver of a request that is pending approval.
+     *
+     * @param requestId The ID of the leave request.
+     * @param employeeId The ID of the employee to check.
+     * @return {@code true} if the employee may act on the request now; {@code false} otherwise.
+     */
     @Transactional(readOnly = true)
     public boolean canApprove(Long requestId, Long employeeId) {
         return requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())

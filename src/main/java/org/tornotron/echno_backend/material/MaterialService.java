@@ -29,6 +29,15 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * CRUD and stock-aware reads for the material catalogue.
+ *
+ * <p>Maintains material records within the current tenant and enforces SKU uniqueness. When
+ * a material is created with a positive opening stock, this service also writes the opening
+ * balance inventory transaction and seeds the CurrentStock row in the same transaction. The
+ * stock-aware read methods combine a material with its quantity and value on hand from
+ * {@link org.tornotron.echno_backend.inventoryTransaction.InventoryService}.
+ */
 @Service
 public class MaterialService {
 
@@ -60,6 +69,19 @@ public class MaterialService {
         this.userContextService = userContextService;
     }
 
+    /**
+     * Creates a material and, when an opening stock is given, seeds its starting balance.
+     *
+     * <p>Resolves the creating employee and rejects a duplicate SKU. If the opening stock is
+     * positive, the project (and optional storage location) are resolved, an
+     * {@code OPENING_BALANCE} inventory transaction is written, and the CurrentStock row is
+     * seeded, all within the same transaction.
+     *
+     * @param creationDto The material fields, plus optional opening stock, project, location, and unit cost.
+     * @return The created material as a DTO.
+     * @throws ResourceNotFoundException if the creating employee, or the referenced project or storage location, is not found in this organization.
+     * @throws DuplicateResourceException if the given SKU already exists in this organization.
+     */
     @Transactional
     public MaterialDto createMaterial(MaterialCreationDto creationDto) {
         Employee createdBy = employeeRepository.findByIdAndOrganizationId(creationDto.getCreatedBy(), TenantContext.getCurrentOrgId())
@@ -128,6 +150,13 @@ public class MaterialService {
         return materialMapper.toDto(material);
     }
 
+    /**
+     * Retrieves a single material by its id within the current tenant.
+     *
+     * @param id The id of the material to retrieve.
+     * @return The material as a DTO.
+     * @throws ResourceNotFoundException if no material with the given id exists in this organization.
+     */
     @Transactional(readOnly = true)
     public MaterialDto getMaterialById(Long id) {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
@@ -142,6 +171,13 @@ public class MaterialService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Retrieves materials one page at a time, ordered by name.
+     *
+     * @param pageNo Zero-based page index.
+     * @param pageSize Number of materials per page.
+     * @return A page of material DTOs ordered by material name ascending.
+     */
     @Transactional(readOnly = true)
     public Page<MaterialDto> getAllMaterials(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "materialName"));
@@ -149,6 +185,12 @@ public class MaterialService {
                 .map(material -> materialMapper.toDto(material));
     }
 
+    /**
+     * Finds materials whose name contains the given text, case-insensitively.
+     *
+     * @param name The substring to match against material names.
+     * @return The matching materials as DTOs.
+     */
     @Transactional(readOnly = true)
     public List<MaterialDto> searchMaterialsByName(String name) {
         return materialRepository.findByMaterialNameContainingIgnoreCase(name).stream()
@@ -156,6 +198,18 @@ public class MaterialService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Applies a partial update to a material.
+     *
+     * <p>Only the non-null fields on the update DTO are changed. A changed SKU is checked
+     * for uniqueness before being applied. Stock levels held elsewhere are not affected.
+     *
+     * @param id The id of the material to update.
+     * @param updateDto The fields to change.
+     * @return The updated material as a DTO.
+     * @throws ResourceNotFoundException if no material with the given id exists in this organization.
+     * @throws DuplicateResourceException if the new SKU already exists in this organization.
+     */
     @Transactional
     public MaterialDto updateMaterial(Long id, org.tornotron.echno_backend.material.dto.MaterialUpdateDto updateDto) {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
@@ -209,6 +263,12 @@ public class MaterialService {
         return materialMapper.toDto(material);
     }
 
+    /**
+     * Deletes a material within the current tenant.
+     *
+     * @param id The id of the material to delete.
+     * @throws ResourceNotFoundException if no material with the given id exists in this organization.
+     */
     @Transactional
     public void deleteMaterial(Long id) {
         if (!materialRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
@@ -217,6 +277,14 @@ public class MaterialService {
         materialRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
     }
 
+    /**
+     * Retrieves a material along with its quantity and value on hand at a project.
+     *
+     * @param id The id of the material to retrieve.
+     * @param projectId The project to report stock for.
+     * @return The material with its current stock and stock value at the project.
+     * @throws ResourceNotFoundException if no material with the given id exists in this organization.
+     */
     @Transactional(readOnly = true)
     public MaterialWithStockDto getMaterialWithCurrentStock(Long id, Long projectId) {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
@@ -227,6 +295,13 @@ public class MaterialService {
         return materialMapper.toWithStockDto(material, currentStock, stockValue);
     }
 
+    /**
+     * Retrieves a material along with its quantity and value on hand across all projects.
+     *
+     * @param id The id of the material to retrieve.
+     * @return The material with its aggregate current stock and stock value.
+     * @throws ResourceNotFoundException if no material with the given id exists in this organization.
+     */
     @Transactional(readOnly = true)
     public MaterialWithStockDto getMaterialWithAggregateStock(Long id) {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
@@ -237,6 +312,15 @@ public class MaterialService {
         return materialMapper.toWithStockDto(material, currentStock, stockValue);
     }
 
+    /**
+     * Retrieves a material along with its quantity and value on hand at one storage location.
+     *
+     * @param id The id of the material to retrieve.
+     * @param projectId The project the location belongs to.
+     * @param storageLocationId The storage location to report stock for.
+     * @return The material with its current stock and stock value at the location.
+     * @throws ResourceNotFoundException if no material with the given id exists in this organization.
+     */
     @Transactional(readOnly = true)
     public MaterialWithStockDto getMaterialStockAtLocation(Long id, Long projectId, Long storageLocationId) {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())

@@ -20,6 +20,13 @@ import org.tornotron.echno_backend.labour.enums.Status;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.ProjectRepository;
 
+/**
+ * CRUD for on-site labour records, scoped to the current organization.
+ *
+ * <p>Creating or updating a worker resolves and attaches the current project as their active
+ * assignment. Updates are partial: only the fields supplied on the update DTO are applied.
+ * Lookups are constrained to the caller's organization.
+ */
 @Service
 public class LabourService {
 
@@ -35,6 +42,13 @@ public class LabourService {
         this.labourMapper = labourMapper;
     }
 
+    /**
+     * Creates a labour record and assigns it to the given current project.
+     *
+     * @param labourCreationDto The worker's identity, contact, employment, and pay details, plus the current project ID.
+     * @return The created labour as a simple DTO.
+     * @throws ResourceNotFoundException if the referenced current project cannot be found in the organization.
+     */
     @Transactional
     public LabourSimpleDto createLabour(LabourCreationDto labourCreationDto) {
         Organization org = tenantEntityHelper.resolveCurrentOrganization();
@@ -64,6 +78,13 @@ public class LabourService {
         return labourMapper.toSimpleDto(labourRepository.save(labour));
     }
 
+    /**
+     * Returns a page of labour records ordered by ID.
+     *
+     * @param pageNo The zero-based page index.
+     * @param pageSize The number of records per page.
+     * @return A page of labour DTOs sorted ascending by ID.
+     */
     @Transactional(readOnly = true)
     public Page<LabourDto> getAllLabours(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
@@ -71,6 +92,13 @@ public class LabourService {
                 .map(labourMapper::toDto);
     }
 
+    /**
+     * Retrieves a single labour record by its ID within the current organization.
+     *
+     * @param id The ID of the labour record to retrieve.
+     * @return The labour DTO.
+     * @throws ResourceNotFoundException if no labour record with the given ID exists in the organization.
+     */
     @Transactional(readOnly = true)
     public LabourDto getALabour(Long id) {
         return labourRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
@@ -78,6 +106,16 @@ public class LabourService {
                 orElseThrow(() -> new ResourceNotFoundException("Labour with ID " + id + " was not found in this organization"));
     }
 
+    /**
+     * Applies a partial update to a labour record, changing only the fields present in the DTO.
+     *
+     * <p>If a new current project ID is supplied, it is resolved within the organization and set
+     * as the worker's assignment.
+     *
+     * @param updates The fields to change; null fields are left untouched.
+     * @param id The ID of the labour record to update.
+     * @throws ResourceNotFoundException if the labour record or a referenced new current project cannot be found in the organization.
+     */
     @Transactional
     public void partialUpdateALabour(LabourUpdateDto updates, Long id) {
         Organization org = tenantEntityHelper.resolveCurrentOrganization();
@@ -113,6 +151,12 @@ public class LabourService {
         }
     }
 
+    /**
+     * Deletes a labour record within the current organization.
+     *
+     * @param id The ID of the labour record to delete.
+     * @throws ResourceNotFoundException if no labour record with the given ID exists in the organization.
+     */
     @Transactional
     public void deleteALabour(Long id) {
         Labour labour = labourRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())

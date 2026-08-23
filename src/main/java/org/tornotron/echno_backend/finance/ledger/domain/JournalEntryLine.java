@@ -9,6 +9,13 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 
+/**
+ * One line of a journal entry: a debit or a credit posted against a single account.
+ *
+ * <p>Exactly one of {@code debit} or {@code credit} carries an amount and the other is zero. The
+ * lines of an entry taken together must balance, debits equal to credits. {@code lineOrder} fixes
+ * the display order within the entry.
+ */
 @Entity
 @Table(name = "journal_entry_lines",
       indexes = {

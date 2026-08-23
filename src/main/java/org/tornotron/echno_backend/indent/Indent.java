@@ -19,6 +19,13 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * A request from a project site for materials to be procured.
+ *
+ * <p>Lists the wanted materials and quantities as {@link IndentItem} lines and moves
+ * through a status lifecycle. An indent is the demand signal that a purchase order is
+ * later raised to fulfil; items carry a flag once they have been converted to a PO.
+ */
 @Entity
 @NoArgsConstructor
 @Data

@@ -18,6 +18,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * A payment received from a customer, split into allocations across the invoices it settles.
+ *
+ * <p>The amount equals the sum of its allocations. {@code companyBankAccount} is the account the money
+ * landed in, {@code journalEntryId} links the receipt entry posted when the payment was recorded, and
+ * {@code idempotencyKey} (unique per organization) lets a repeated record request return the same
+ * payment instead of creating a duplicate.
+ */
 @Entity
 @Table(name = "payments",
         uniqueConstraints = {

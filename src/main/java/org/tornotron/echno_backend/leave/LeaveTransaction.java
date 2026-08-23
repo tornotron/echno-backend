@@ -13,6 +13,13 @@ import org.tornotron.echno_backend.organization.Organization;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * An immutable ledger entry recording a single change to a leave balance.
+ *
+ * <p>Captures the transaction type (accrual, deduction, adjustment, and so on), the signed number
+ * of days, and the balance before and after, giving an auditable history of how a balance reached
+ * its current value. Linked to the balance it moved and, where applicable, the originating request.
+ */
 @Entity
 @Data
 @NoArgsConstructor

@@ -11,6 +11,13 @@ import org.tornotron.echno_backend.organization.Organization;
 
 import java.util.UUID;
 
+/**
+ * A customer that invoices are raised against and payments are received from.
+ *
+ * <p>Holds billing identity and Indian tax details (GSTIN, PAN), contact information, a billing
+ * address, and commercial terms (credit limit, payment-terms days). The code is unique per
+ * organization. Customers are deactivated rather than deleted so historical invoices stay valid.
+ */
 @Entity
 @Table(name = "customers",
         uniqueConstraints = @UniqueConstraint(name = "uk_customers_code", columnNames = {"organization_id", "code"}),

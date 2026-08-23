@@ -17,6 +17,15 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * An employee's request for time off, from draft through the multi-level approval workflow.
+ *
+ * <p>Carries the leave dates, total days, and current position in the approval chain
+ * ({@code currentApprover}, {@code currentApprovalLevel}, {@code maxApprovalLevel}), and owns the
+ * related {@link LeaveApproval}, {@link LeaveTransaction}, and {@link LeaveCalendar} records.
+ * The {@code status} drives how balances are moved: pending on submission, used on approval,
+ * released on rejection or cancellation.
+ */
 @Entity
 @Data
 @NoArgsConstructor

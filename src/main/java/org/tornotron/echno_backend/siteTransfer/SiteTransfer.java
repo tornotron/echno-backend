@@ -16,6 +16,14 @@ import org.tornotron.echno_backend.user.User;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Moves stock of one or more materials from a sending project or location to a receiving one.
+ *
+ * <p>Lists the transferred materials as {@link SiteTransferItem} lines and moves through a
+ * status lifecycle. Posting a transfer draws stock down at the sending side and raises it
+ * at the receiving side through paired inventory transactions, after the sending stock is
+ * checked to be sufficient.
+ */
 @Data
 @Entity
 @NoArgsConstructor

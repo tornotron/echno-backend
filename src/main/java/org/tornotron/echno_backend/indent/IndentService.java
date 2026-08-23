@@ -31,6 +31,14 @@ import org.tornotron.echno_backend.project.ProjectRepository;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * CRUD for material indents and their line items.
+ *
+ * <p>An indent is a site request for materials to be procured. This service manages the
+ * indent header and its items within the current tenant, enforcing unique indent numbers
+ * and keeping each item bound to its parent indent. Items carry a converted-to-purchase-order
+ * flag that the purchase order flow sets when an item is fulfilled.
+ */
 @Service
 public class IndentService {
 
@@ -58,6 +66,18 @@ public class IndentService {
     }
 
     // ==================== Indent CRUD ====================
+    /**
+     * Applies a partial update to an indent header.
+     *
+     * <p>Only the non-null fields on the update DTO are changed. A changed indent number is
+     * checked for uniqueness before being applied.
+     *
+     * @param id The id of the indent to update.
+     * @param indentDto The fields to change.
+     * @return The updated indent as a DTO.
+     * @throws ResourceNotFoundException if the indent, or a referenced employee or project, is not found in this organization.
+     * @throws DuplicateResourceException if the new indent number is already in use in this organization.
+     */
     @Transactional
     public IndentDto updateIndent(Long id, IndentUpdateDto indentDto) {
         Indent indent = indentRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId()).orElseThrow(() -> new ResourceNotFoundException("Indent with ID " + id + " was not found in this organization"));
@@ -98,6 +118,16 @@ public class IndentService {
         return indentMapper.toDto(indentRepository.save(indent));
     }
 
+    /**
+     * Creates an indent with any nested line items.
+     *
+     * <p>Resolves the creating employee and project, sets the header fields, and attaches
+     * each supplied item, resolving its material.
+     *
+     * @param indentCreationDto The indent header fields and optional list of items.
+     * @return The created indent as a DTO.
+     * @throws ResourceNotFoundException if the creator, project, or a line's material is not found in this organization.
+     */
     @Transactional
     public IndentDto addIndent(IndentCreationDto indentCreationDto) {
         Indent indent = new Indent();
@@ -127,6 +157,13 @@ public class IndentService {
         return indentMapper.toDto(indentRepository.save(indent));
     }
 
+    /**
+     * Retrieves indents one page at a time, ordered by id.
+     *
+     * @param pageNo Zero-based page index.
+     * @param pageSize Number of indents per page.
+     * @return A page of indent DTOs ordered by id ascending.
+     */
     @Transactional(readOnly = true)
     public Page<IndentDto> getAllIndents(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
@@ -141,6 +178,13 @@ public class IndentService {
                 .toList();
     }
 
+    /**
+     * Retrieves a single indent by its id within the current tenant.
+     *
+     * @param id The id of the indent to retrieve.
+     * @return The indent as a DTO.
+     * @throws ResourceNotFoundException if no indent with the given id exists in this organization.
+     */
     @Transactional(readOnly = true)
     public IndentDto getAnIndent(Long id) {
         return indentRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
@@ -148,6 +192,12 @@ public class IndentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Indent with ID " + id + " was not found in this organization"));
     }
 
+    /**
+     * Deletes an indent and its items within the current tenant.
+     *
+     * @param id The id of the indent to delete.
+     * @throws ResourceNotFoundException if no indent with the given id exists in this organization.
+     */
     @Transactional
     public void deleteIndent(Long id) {
         if (!indentRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
@@ -158,6 +208,13 @@ public class IndentService {
 
     // ==================== IndentItem CRUD ====================
 
+    /**
+     * Lists the line items of a given indent.
+     *
+     * @param indentId The indent whose items to return.
+     * @return The indent's items as DTOs.
+     * @throws ResourceNotFoundException if no indent with the given id exists in this organization.
+     */
     @Transactional(readOnly = true)
     public List<IndentItemDto> getItemsByIndentId(Long indentId) {
         findIndentById(indentId);
@@ -166,6 +223,14 @@ public class IndentService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Adds a line item to an existing indent.
+     *
+     * @param indentId The indent to add the item to.
+     * @param dto The item fields, including its material.
+     * @return The created item as a DTO.
+     * @throws ResourceNotFoundException if the indent or the item's material is not found in this organization.
+     */
     @Transactional
     public IndentItemDto addItem(Long indentId, IndentItemCreationDto dto) {
         Indent indent = findIndentById(indentId);
@@ -176,6 +241,18 @@ public class IndentService {
         return indentItemMapper.toDto(item);
     }
 
+    /**
+     * Applies a partial update to a line item of an indent.
+     *
+     * <p>Only the non-null fields on the update DTO are changed. The item must belong to the
+     * given indent.
+     *
+     * @param indentId The indent the item belongs to.
+     * @param itemId The id of the item to update.
+     * @param dto The fields to change.
+     * @return The updated item as a DTO.
+     * @throws ResourceNotFoundException if the indent or item is not found in this organization, if the item does not belong to the indent, or if a new material is not found.
+     */
     @Transactional
     public IndentItemDto updateItem(Long indentId, Long itemId, IndentItemUpdateDto dto) {
         findIndentById(indentId);
@@ -211,6 +288,15 @@ public class IndentService {
         return indentItemMapper.toDto(item);
     }
 
+    /**
+     * Removes a line item from an indent.
+     *
+     * <p>The item must belong to the given indent.
+     *
+     * @param indentId The indent the item belongs to.
+     * @param itemId The id of the item to remove.
+     * @throws ResourceNotFoundException if the indent or item is not found in this organization, or if the item does not belong to the indent.
+     */
     @Transactional
     public void deleteItem(Long indentId, Long itemId) {
         Indent indent = findIndentById(indentId);

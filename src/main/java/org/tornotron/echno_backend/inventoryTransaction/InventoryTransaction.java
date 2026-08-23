@@ -17,6 +17,14 @@ import org.tornotron.echno_backend.task.Task;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * One entry in the append-only ledger of stock movements.
+ *
+ * <p>Every stock change (opening balance, goods received, consumption, site transfer)
+ * writes a row here recording the material, project, storage location, the signed
+ * quantity changed, and the opening and closing stock around it. Rows are never edited
+ * or deleted, so the ledger is the audit trail from which stock can be recomputed.
+ */
 @Data
 @Entity
 @NoArgsConstructor

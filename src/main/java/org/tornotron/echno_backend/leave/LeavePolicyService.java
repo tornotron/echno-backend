@@ -21,6 +21,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * CRUD and lifecycle for leave policies within an organization.
+ *
+ * <p>Enforces one policy per leave-type code per organization, supports partial updates and
+ * activation toggles (policies are deactivated rather than deleted), and can copy a policy into
+ * another organization the caller owns. Eligibility queries filter policies by an employee's
+ * gender and accrued service months.
+ */
 @Service
 @Validated
 public class LeavePolicyService {
@@ -43,6 +51,17 @@ public class LeavePolicyService {
         this.leavePolicyMapper = leavePolicyMapper;
     }
 
+    /**
+     * Creates a leave policy for the current organization.
+     *
+     * <p>The leave-type code is stored uppercased and must be unique within the organization; the
+     * policy is created active.
+     *
+     * @param dto The policy attributes.
+     * @return The created policy.
+     * @throws ResourceNotFoundException if the current organization is not found for this user.
+     * @throws DuplicateResourceException if a policy with the same leave-type code already exists.
+     */
     @Transactional
     public LeavePolicyDto createPolicy(LeavePolicyCreationDto dto) {
         Organization organization = organizationRepository.findByIdAndUserEmail(TenantContext.getCurrentOrgId(), userContextService.getCurrentUserEmail())
@@ -81,6 +100,13 @@ public class LeavePolicyService {
         return leavePolicyMapper.toDto(saved);
     }
 
+    /**
+     * Retrieves a single leave policy by its ID.
+     *
+     * @param policyId The ID of the policy to retrieve.
+     * @return The policy.
+     * @throws ResourceNotFoundException if no policy with the given ID exists in this organization.
+     */
     @Transactional(readOnly = true)
     public LeavePolicyDto getPolicy(Long policyId) {
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
@@ -89,6 +115,11 @@ public class LeavePolicyService {
         return leavePolicyMapper.toDto(policy);
     }
 
+    /**
+     * Lists all leave policies visible to the current tenant.
+     *
+     * @return Every policy for the current organization.
+     */
     @Transactional(readOnly = true)
     public List<LeavePolicyDto> getAllPolicies() {
         return policyRepository.findAll().stream()
@@ -96,6 +127,13 @@ public class LeavePolicyService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists the active policies for an organization, ordered by display order.
+     *
+     * @param organizationId The organization's ID.
+     * @return The active policies in display order.
+     * @throws ResourceNotFoundException if the organization is not found.
+     */
     @Transactional(readOnly = true)
     public List<LeavePolicyDto> getPoliciesByOrganization(Long organizationId) {
         if (!organizationRepository.existsById(organizationId)) {
@@ -109,6 +147,13 @@ public class LeavePolicyService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists all policies for an organization, including inactive ones.
+     *
+     * @param organizationId The organization's ID.
+     * @return Every policy for the organization.
+     * @throws ResourceNotFoundException if the organization is not found.
+     */
     @Transactional(readOnly = true)
     public List<LeavePolicyDto> getAllPoliciesByOrganization(Long organizationId) {
         if (!organizationRepository.existsById(organizationId)) {
@@ -122,6 +167,15 @@ public class LeavePolicyService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists the policies an employee is currently eligible for.
+     *
+     * <p>Filters by the employee's gender and their service months computed from the joining date.
+     *
+     * @param employeeId The employee's ID.
+     * @return The policies applicable to the employee.
+     * @throws ResourceNotFoundException if the employee is not found in this organization.
+     */
     @Transactional(readOnly = true)
     public List<LeavePolicyDto> getApplicablePoliciesForEmployee(Long employeeId) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
@@ -143,6 +197,17 @@ public class LeavePolicyService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Applies a partial update to a policy.
+     *
+     * <p>Only the supplied keys are changed; the leave-type code and organization are not editable
+     * here, and unrecognized keys are ignored.
+     *
+     * @param policyId The ID of the policy to update.
+     * @param updates A map of field names to new values.
+     * @return The updated policy.
+     * @throws ResourceNotFoundException if no policy with the given ID exists in this organization.
+     */
     @Transactional
     public LeavePolicyDto updatePolicy(Long policyId, Map<String, Object> updates) {
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
@@ -184,6 +249,12 @@ public class LeavePolicyService {
         return leavePolicyMapper.toDto(saved);
     }
 
+    /**
+     * Marks a policy inactive, keeping it for historical reference.
+     *
+     * @param policyId The ID of the policy to deactivate.
+     * @throws ResourceNotFoundException if no policy with the given ID exists in this organization.
+     */
     @Transactional
     public void deactivatePolicy(Long policyId) {
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
@@ -194,6 +265,12 @@ public class LeavePolicyService {
         policyRepository.save(policy);
     }
 
+    /**
+     * Marks a previously deactivated policy active again.
+     *
+     * @param policyId The ID of the policy to activate.
+     * @throws ResourceNotFoundException if no policy with the given ID exists in this organization.
+     */
     @Transactional
     public void activatePolicy(Long policyId) {
         LeavePolicy policy = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())
@@ -204,6 +281,18 @@ public class LeavePolicyService {
         policyRepository.save(policy);
     }
 
+    /**
+     * Copies a policy's attributes into another organization the caller owns.
+     *
+     * <p>The copy is created active and keeps the source's leave-type code, which must not already
+     * exist in the target organization.
+     *
+     * @param policyId The ID of the source policy.
+     * @param targetOrganizationId The ID of the organization to copy into.
+     * @return The newly created policy in the target organization.
+     * @throws ResourceNotFoundException if the source policy or target organization is not found.
+     * @throws DuplicateResourceException if the target already has a policy with the same leave-type code.
+     */
     @Transactional
     public LeavePolicyDto duplicatePolicy(Long policyId, Long targetOrganizationId) {
         LeavePolicy source = policyRepository.findByIdAndOrganization_Id(policyId,TenantContext.getCurrentOrgId())

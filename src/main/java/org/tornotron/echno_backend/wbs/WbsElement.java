@@ -23,6 +23,15 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * One node in a project's Work Breakdown Structure, the hierarchical decomposition of a
+ * project into work packages.
+ *
+ * <p>Elements form a parent/child tree: {@code level} is the depth, {@code isLeaf} marks
+ * nodes with no children, and {@code sortOrder} fixes sibling order. Budgeted and actual
+ * cost, weight, and progress roll up from leaves to parents. The {@code wbs_code} is unique
+ * within a project. Scoped to one organization by the {@code orgFilter} tenant filter.
+ */
 @Entity
 @Table(name = "wbs_element", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"project_id", "wbs_code"})

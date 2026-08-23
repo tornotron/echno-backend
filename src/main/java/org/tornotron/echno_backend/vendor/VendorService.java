@@ -19,6 +19,15 @@ import org.tornotron.echno_backend.vendor.enums.VendorType;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * CRUD, listing, and search for vendors, plus forwarding to the sub-entity CRUD.
+ *
+ * <p>Manages the vendor aggregate: on create it maps the vendor fields and any nested
+ * contacts, tax identifiers, bank accounts, and payment terms, stamping each with the
+ * current organization. Vendor email is unique within an organization. Contact,
+ * tax-identifier, bank-account, and payment-terms operations delegate to
+ * {@link VendorSubEntityService} so controllers talk to a single service.
+ */
 @Service
 public class VendorService {
 
@@ -39,6 +48,14 @@ public class VendorService {
 
     // ==================== Vendor CRUD ====================
 
+    /**
+     * Creates a vendor together with any nested contacts, tax identifiers, bank accounts,
+     * and payment terms, all scoped to the current organization.
+     *
+     * @param creationDto The vendor details and optional child entities to create.
+     * @return The created vendor DTO.
+     * @throws DuplicateResourceException if a vendor with the same email already exists in the organization.
+     */
     @Transactional
     public VendorDto createVendor(VendorCreationDto creationDto) {
         if (vendorRepository.existsByVendorEmailAndOrganization_Id(creationDto.getVendorEmail(),TenantContext.getCurrentOrgId())) {
@@ -84,12 +101,24 @@ public class VendorService {
         return vendorMapper.toDto(vendor);
     }
 
+    /**
+     * Retrieves a single vendor by its ID within the current organization.
+     *
+     * @param id The ID of the vendor to retrieve.
+     * @return The vendor DTO.
+     * @throws ResourceNotFoundException if no vendor with the given ID exists in the organization.
+     */
     @Transactional(readOnly = true)
     public VendorDto getVendorById(Long id) {
         Vendor vendor = findVendorByIdAndOrg(id);
         return vendorMapper.toDto(vendor);
     }
 
+    /**
+     * Returns every vendor visible to the current organization.
+     *
+     * @return The list of vendor DTOs.
+     */
     @Transactional(readOnly = true)
     public List<VendorDto> getAllVendors() {
         return vendorRepository.findAll().stream()
@@ -97,6 +126,13 @@ public class VendorService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Returns a page of vendors ordered by name.
+     *
+     * @param pageNo The zero-based page index.
+     * @param pageSize The number of vendors per page.
+     * @return A page of vendor DTOs sorted ascending by vendor name.
+     */
     @Transactional(readOnly = true)
     public Page<VendorDto> getAllVendors(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "vendorName"));
@@ -104,6 +140,12 @@ public class VendorService {
                 .map(vendor -> vendorMapper.toDto(vendor));
     }
 
+    /**
+     * Finds vendors whose name contains the given text, case-insensitively.
+     *
+     * @param name The substring to match against vendor names.
+     * @return The list of matching vendor DTOs.
+     */
     @Transactional(readOnly = true)
     public List<VendorDto> searchVendorsByName(String name) {
         return vendorRepository.findByVendorNameContainingIgnoreCase(name).stream()
@@ -111,6 +153,15 @@ public class VendorService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Updates a vendor's own fields (child entities are managed separately).
+     *
+     * @param id The ID of the vendor to update.
+     * @param updateDto The new vendor field values.
+     * @return The updated vendor DTO.
+     * @throws ResourceNotFoundException if no vendor with the given ID exists in the organization.
+     * @throws DuplicateResourceException if the email is changed to one already used by another vendor in the organization.
+     */
     @Transactional
     public VendorDto updateVendor(Long id, VendorCreationDto updateDto) {
         Vendor vendor = findVendorByIdAndOrg(id);
@@ -127,6 +178,12 @@ public class VendorService {
         return vendorMapper.toDto(vendor);
     }
 
+    /**
+     * Deletes a vendor within the current organization.
+     *
+     * @param id The ID of the vendor to delete.
+     * @throws ResourceNotFoundException if no vendor with the given ID exists in the organization.
+     */
     @Transactional
     public void deleteVendor(Long id) {
         if (!vendorRepository.existsByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())) {

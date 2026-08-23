@@ -7,6 +7,14 @@ import org.tornotron.echno_backend.billing.enums.FeatureType;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * A capability that plans can grant, the unit of entitlement in the billing model.
+ *
+ * <p>Identified by a unique {@code code} and classified by {@link FeatureType} (for example
+ * a boolean on/off capability or a metered/quota capability). Plans expose a feature through
+ * {@link PlanFeature}, which carries the per-plan settings such as whether it is enabled and
+ * any usage quota.
+ */
 @Entity
 @Builder
 @Data

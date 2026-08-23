@@ -38,6 +38,19 @@ import org.tornotron.echno_backend.finance.payment.repositories.PaymentRepositor
 import java.math.BigDecimal;
 import java.util.*;
 
+/**
+ * Records customer payments and allocates them against outstanding invoices.
+ *
+ * <p>A payment carries one or more allocations whose amounts must sum to the payment total. Each
+ * targeted invoice is locked for update, checked to belong to the paying customer and to be open
+ * (ISSUED or PARTIALLY_PAID), and its allocation must not exceed the outstanding balance. Applying
+ * the payment updates each invoice's paid amount and status, then posts a journal entry that debits
+ * the bank ledger account and credits Accounts Receivable.
+ *
+ * <p>Recording is idempotent: a caller-supplied idempotency key that has already been used returns
+ * the existing payment rather than creating a second one, and a concurrent duplicate that trips the
+ * unique constraint is resolved the same way.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -54,12 +67,36 @@ public class PaymentService {
     private final InvoicePostingProperties postingProps;
     private final TenantEntityHelper tenantEntityHelper;
 
+    /**
+     * Retrieves a single payment with its allocations and related details.
+     *
+     * @param id The id of the payment.
+     * @return The payment as a DTO.
+     * @throws ResourceNotFoundException if no payment with the given id exists.
+     */
     @Transactional(readOnly = true)
     public PaymentDto findById(UUID id) {
         return mapper.toDto(paymentRepo.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment with ID " + id + " was not found")));
     }
 
+    /**
+     * Records a payment, allocates it across the given invoices, and posts the bank receipt entry.
+     *
+     * <p>If the idempotency key was already used, the existing payment is returned unchanged. The
+     * allocation amounts must sum to the payment amount. Each invoice is locked, validated (belongs
+     * to the customer, still open, allocation within its balance), and has its paid amount and status
+     * updated. The posted journal entry debits the company bank ledger account and credits Accounts
+     * Receivable for the payment total.
+     *
+     * @param req The customer, payment date, amount, bank account, and per-invoice allocations.
+     * @param idempotencyKey Optional key that makes a repeated request return the first payment; may be null or blank.
+     * @return The recorded (or already-existing) payment as a DTO.
+     * @throws ResourceNotFoundException if the customer, company bank account, or an allocated invoice does not exist.
+     * @throws AccountNotFoundException if the Accounts Receivable account is not configured.
+     * @throws InvalidJournalException if the allocations do not sum to the amount, the bank account is not an active ASSET account, or an invoice is not open, belongs to another customer, or is over-allocated.
+     * @throws DuplicateIdempotencyKeyException if a concurrent request with the same key wins the race and the existing payment cannot be re-read.
+     */
     @Transactional
     public PaymentDto record(RecordPaymentRequest req, String idempotencyKey) {
         // 1. Idempotency check (returns existing payment if key was already used)

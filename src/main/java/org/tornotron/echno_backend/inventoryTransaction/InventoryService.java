@@ -21,6 +21,15 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
 
+/**
+ * Reads stock positions and applies balance changes over the CurrentStock table.
+ *
+ * <p>Read methods sum or look up {@code CurrentStock} rows rather than replaying the
+ * ledger, giving quantity and value on hand per material, project, and storage location.
+ * {@link #updateCurrentStock} is the single write path that ledger events call to move a
+ * balance, using row locking and a seeded zero row so concurrent movements on the same key
+ * stay consistent. Stock value is carried as a running weighted average of unit cost.
+ */
 @Service
 public class InventoryService {
 
@@ -39,8 +48,11 @@ public class InventoryService {
     }
 
     /**
-     * Get current stock for a material at a specific project (across all storage locations).
-     * Reads from the CurrentStock table by summing all CurrentStock records for the material+project.
+     * Returns current stock for a material at a project, summed across all storage locations.
+     *
+     * @param materialId The material to total.
+     * @param projectId The project to total within.
+     * @return The quantity on hand across the project's storage locations.
      */
     @Transactional(readOnly = true)
     public Double getCurrentStock(Long materialId, Long projectId) {
@@ -48,7 +60,10 @@ public class InventoryService {
     }
 
     /**
-     * Get aggregate stock for a material across all projects in the organization.
+     * Returns total stock for a material across all projects in the organization.
+     *
+     * @param materialId The material to total.
+     * @return The quantity on hand across every project.
      */
     @Transactional(readOnly = true)
     public Double getAggregateStock(Long materialId) {
@@ -56,7 +71,12 @@ public class InventoryService {
     }
 
     /**
-     * Get current stock for a material at a specific storage location within a project.
+     * Returns current stock for a material at one storage location within a project.
+     *
+     * @param materialId The material to look up.
+     * @param projectId The project the location belongs to.
+     * @param storageLocationId The storage location to read.
+     * @return The quantity on hand at that location, or zero if no row exists.
      */
     @Transactional(readOnly = true)
     public Double getStockAtLocation(Long materialId, Long projectId, Long storageLocationId) {
@@ -67,7 +87,11 @@ public class InventoryService {
     }
 
     /**
-     * Get current stock for multiple materials at a specific project in batch.
+     * Returns current stock for several materials at a project in one call.
+     *
+     * @param materialIds The materials to total.
+     * @param projectId The project to total within.
+     * @return A map from material id to quantity on hand at the project.
      */
     @Transactional(readOnly = true)
     public Map<Long, Double> getCurrentStockForMaterials(List<Long> materialIds, Long projectId) {
@@ -79,7 +103,12 @@ public class InventoryService {
     }
 
     /**
-     * Validate that sufficient stock exists for a single material at a specific project.
+     * Checks that a project holds at least the required quantity of a material.
+     *
+     * @param materialId The material to check.
+     * @param projectId The project to check within.
+     * @param requiredQuantity The quantity that must be available.
+     * @throws InsufficientStockException if the quantity on hand is below the required amount.
      */
     public void validateSufficientStock(Long materialId, Long projectId, Double requiredQuantity) {
         Double currentStock = getCurrentStock(materialId, projectId);
@@ -92,7 +121,13 @@ public class InventoryService {
     }
 
     /**
-     * Validate that sufficient stock exists for a single material at a specific storage location.
+     * Checks that a storage location holds at least the required quantity of a material.
+     *
+     * @param materialId The material to check.
+     * @param projectId The project the location belongs to.
+     * @param storageLocationId The storage location to check.
+     * @param requiredQuantity The quantity that must be available.
+     * @throws InsufficientStockException if the quantity on hand at the location is below the required amount.
      */
     public void validateSufficientStockAtLocation(Long materialId, Long projectId, Long storageLocationId, Double requiredQuantity) {
         Double currentStock = getStockAtLocation(materialId, projectId, storageLocationId);
@@ -105,7 +140,15 @@ public class InventoryService {
     }
 
     /**
-     * Validate sufficient stock for multiple materials at a specific storage location.
+     * Checks that a storage location holds enough of every requested material.
+     *
+     * <p>All shortfalls are collected so the failure lists every insufficient material
+     * rather than stopping at the first.
+     *
+     * @param requiredQuantities A map from material id to the quantity needed.
+     * @param projectId The project the location belongs to.
+     * @param storageLocationId The storage location to check.
+     * @throws InsufficientStockException if any material falls short, naming each shortfall.
      */
     public void validateSufficientStockForMultipleItemsAtLocation(Map<Long, Double> requiredQuantities, Long projectId, Long storageLocationId) {
         List<String> insufficientItems = new ArrayList<>();
@@ -131,8 +174,11 @@ public class InventoryService {
     }
 
     /**
-     * Get stock for all materials at a specific storage location.
-     * Reads from CurrentStock table.
+     * Returns the stock of every material held at a storage location, with totals.
+     *
+     * @param storageLocationId The storage location to report on.
+     * @return Per-material stock and value at the location, plus location totals.
+     * @throws ResourceNotFoundException if the storage location is not found in this organization.
      */
     @Transactional(readOnly = true)
     public InventoryMaterialStockDto getStockByStorageLocation(Long storageLocationId) {
@@ -167,8 +213,11 @@ public class InventoryService {
     }
 
     /**
-     * Get stock for a specific material across all storage locations.
-     * Returns per-location breakdown with totals.
+     * Returns a material's stock broken down by storage location, with totals.
+     *
+     * @param materialId The material to report on.
+     * @return Per-location stock and value for the material, plus overall totals.
+     * @throws jakarta.persistence.EntityNotFoundException if the material is not found in this organization.
      */
     @Transactional(readOnly = true)
     public MaterialLocationStockDto getStockByMaterial(Long materialId) {
@@ -207,7 +256,14 @@ public class InventoryService {
     }
 
     /**
-     * Validate sufficient stock for multiple materials at a specific project.
+     * Checks that a project holds enough of every requested material across its locations.
+     *
+     * <p>All shortfalls are collected so the failure lists every insufficient material
+     * rather than stopping at the first.
+     *
+     * @param requiredQuantities A map from material id to the quantity needed.
+     * @param projectId The project to check within.
+     * @throws InsufficientStockException if any material falls short, naming each shortfall.
      */
     public void validateSufficientStockForMultipleItems(Map<Long, Double> requiredQuantities, Long projectId) {
         Map<Long, Double> currentStock = getCurrentStockForMaterials(
@@ -235,11 +291,23 @@ public class InventoryService {
     }
 
     /**
-     * Update the CurrentStock record for a given material, project, and storage location.
-     * Creates the record if it doesn't exist (upsert).
-     * This must be called within the same transaction as the InventoryTransaction save.
+     * Applies a signed quantity change to a CurrentStock balance, creating the row if absent.
      *
-     * @param unitCost For inbound (positive qty): the cost per unit. For outbound (negative qty): pass null to use weighted average cost.
+     * <p>Must run in the same transaction as the matching {@code InventoryTransaction} save.
+     * A zero row is seeded first so the subsequent row lock always finds exactly one row to
+     * serialize on, which keeps concurrent first-time movements on the same key from splitting
+     * the balance across duplicate rows. Stock value is adjusted as a running weighted average:
+     * inbound movements add incoming value, outbound movements reduce value at the current
+     * average cost.
+     *
+     * @param material The material whose balance moves.
+     * @param project The project the balance belongs to.
+     * @param storageLocation The storage location, or null for a project-level balance with no location.
+     * @param organization The owning organization used to seed the row.
+     * @param quantityChanged The signed change (positive inbound, negative outbound).
+     * @param unitCost For an inbound change, the cost per unit; for an outbound change, pass null to value the reduction at weighted average cost.
+     * @return The saved CurrentStock row after the change.
+     * @throws IllegalStateException if the balance row cannot be found after seeding.
      */
     @Transactional
     public CurrentStock updateCurrentStock(Material material, Project project, StorageLocation storageLocation,
@@ -284,7 +352,15 @@ public class InventoryService {
     }
 
     /**
-     * Get the weighted average cost for a material at a specific CurrentStock record.
+     * Returns the weighted average unit cost for a material at a balance row.
+     *
+     * <p>When a storage location is given the located row is used, otherwise the
+     * no-location project row is used.
+     *
+     * @param materialId The material to price.
+     * @param projectId The project the balance belongs to.
+     * @param storageLocationId The storage location, or null for the no-location balance.
+     * @return The average unit cost, or zero when there is no priced quantity on hand.
      */
     public BigDecimal getAverageCost(Long materialId, Long projectId, Long storageLocationId) {
         CurrentStock stock;
@@ -304,7 +380,11 @@ public class InventoryService {
     }
 
     /**
-     * Get stock value for a material at a specific project (across all storage locations).
+     * Returns the stock value for a material at a project, summed across all locations.
+     *
+     * @param materialId The material to value.
+     * @param projectId The project to value within.
+     * @return The total stock value across the project's storage locations.
      */
     @Transactional(readOnly = true)
     public BigDecimal getStockValue(Long materialId, Long projectId) {
@@ -312,7 +392,10 @@ public class InventoryService {
     }
 
     /**
-     * Get aggregate stock value for a material across all projects.
+     * Returns the total stock value for a material across all projects.
+     *
+     * @param materialId The material to value.
+     * @return The total stock value across every project.
      */
     @Transactional(readOnly = true)
     public BigDecimal getAggregateStockValue(Long materialId) {
@@ -320,7 +403,12 @@ public class InventoryService {
     }
 
     /**
-     * Get stock value for a material at a specific storage location.
+     * Returns the stock value for a material at one storage location.
+     *
+     * @param materialId The material to value.
+     * @param projectId The project the location belongs to.
+     * @param storageLocationId The storage location to value.
+     * @return The stock value at that location, or zero if no row exists.
      */
     @Transactional(readOnly = true)
     public BigDecimal getStockValueAtLocation(Long materialId, Long projectId, Long storageLocationId) {
@@ -331,8 +419,14 @@ public class InventoryService {
     }
 
     /**
-     * Recalculate stock from transaction history (SUM of quantityChanged).
-     * Use this for auditing or correcting drift between CurrentStock and actual transactions.
+     * Recomputes stock for a material at a project by summing the ledger's quantity changes.
+     *
+     * <p>Use this to audit or correct drift between the CurrentStock balance and the
+     * underlying inventory transactions.
+     *
+     * @param materialId The material to recompute.
+     * @param projectId The project to recompute within.
+     * @return The stock implied by the sum of ledger movements.
      */
     @Transactional(readOnly = true)
     public Double recalculateStockFromTransactions(Long materialId, Long projectId) {

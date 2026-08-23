@@ -13,6 +13,13 @@ import org.tornotron.echno_backend.organization.Organization;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * One calendar day that an employee is on approved leave.
+ *
+ * <p>Expands an approved {@link LeaveRequest} into a row per date, denormalizing employee, leave
+ * type, and department so team and organization leave calendars can be queried by date without
+ * joining back through requests. The {@code dayType} marks whether the day is full or a half day.
+ */
 @Entity
 @Data
 @NoArgsConstructor

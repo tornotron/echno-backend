@@ -19,6 +19,13 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * An issue raised on site, such as a defect, safety concern, or query.
+ *
+ * <p>Carries a type and status, the employee who raised it and the one it is assigned to,
+ * and an optional link to a task. Comments and file attachments hang off the issue. Scoped
+ * to one organization by the {@code orgFilter} tenant filter.
+ */
 @Entity
 @Data
 @NoArgsConstructor

@@ -12,6 +12,14 @@ import org.tornotron.echno_backend.organization.Organization;
 
 import java.util.UUID;
 
+/**
+ * A single account in the chart of accounts, the ledger's classification of what money is or does.
+ *
+ * <p>Accounts form a self-referential tree through {@code parent}, and a child shares its parent's
+ * {@link AccountType}. Only leaf accounts receive journal lines; parent (header) accounts serve as
+ * roll-up buckets in reports. The code is unique per organization, and an account is deactivated
+ * rather than deleted so its posting history survives.
+ */
 @Entity
 @Table(name = "accounts",
         uniqueConstraints = @UniqueConstraint(name = "uk_accounts_code", columnNames = {"organization_id", "code"}))

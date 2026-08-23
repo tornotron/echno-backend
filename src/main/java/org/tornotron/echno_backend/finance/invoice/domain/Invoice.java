@@ -17,6 +17,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * A sales invoice raised to a customer, with its line items and running payment state.
+ *
+ * <p>Money totals (subtotal, tax total, total) are derived from the lines. The invoice moves through
+ * DRAFT, ISSUED, PARTIALLY_PAID, PAID, and CANCELLED; {@code amountPaid} tracks how much has been
+ * settled and {@link #balanceDue()} is the outstanding remainder. {@code journalEntryId} links the
+ * entry posted when the invoice was issued, and {@code reversalJournalEntryId} the entry posted if it
+ * is later cancelled.
+ */
 @Entity
 @Table(name = "invoices",
         uniqueConstraints = @UniqueConstraint(name = "uk_invoice_number", columnNames = {"organization_id", "invoice_number"}),

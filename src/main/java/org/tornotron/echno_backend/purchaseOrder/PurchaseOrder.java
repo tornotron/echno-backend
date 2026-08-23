@@ -22,6 +22,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * An order placed on a vendor to supply materials, optionally raised from an indent.
+ *
+ * <p>Groups the ordered materials as {@link PurchaseOrderItem} lines, tracks status and
+ * expected delivery, and holds the total amount summed from those lines. Deliveries
+ * against it are recorded as goods received notes, which is how ordered stock becomes
+ * stock on hand.
+ */
 @Entity
 @Data
 @NoArgsConstructor

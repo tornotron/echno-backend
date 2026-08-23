@@ -10,6 +10,13 @@ import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.material.Material;
 
+/**
+ * A single material line on a Goods Received Note.
+ *
+ * <p>Holds the ordered and actually received quantities for one material and the unit
+ * cost at which it was received. The received quantity and unit cost feed the stock
+ * increase and stock valuation when the parent GRN is posted.
+ */
 @Data
 @Entity
 @NoArgsConstructor

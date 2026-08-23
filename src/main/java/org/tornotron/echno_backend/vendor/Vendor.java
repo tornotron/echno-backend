@@ -17,6 +17,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 
+/**
+ * A supplier or subcontractor an organization buys from.
+ *
+ * <p>The vendor is the aggregate root for its contacts, tax identifiers, bank accounts,
+ * and a single payment-terms record, all owned with cascade and orphan removal. It also
+ * links to the goods-received notes, purchase orders, and payables raised against it.
+ * Scoped to one organization by the {@code orgFilter} tenant filter.
+ */
 @Entity
 @NoArgsConstructor
 @Data

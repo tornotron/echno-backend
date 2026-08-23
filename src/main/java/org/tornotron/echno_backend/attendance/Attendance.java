@@ -19,6 +19,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * One employee's attendance for a single day on a single project.
+ *
+ * <p>Aggregates the day's {@link ClockEvent} records into computed totals (worked minutes, break,
+ * overtime) and flags (late arrival, early checkout), holding the derived {@link AttendanceStatus}
+ * and the approval state. Unique per employee, date, and project. Also carries any
+ * {@link AttendanceRegularization} entries raised to correct a bad or incomplete record.
+ */
 @Entity
 @Table(name = "attendance",
     uniqueConstraints = @UniqueConstraint(

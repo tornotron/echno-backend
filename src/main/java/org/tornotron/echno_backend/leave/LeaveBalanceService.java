@@ -20,6 +20,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Reads, initializes, and adjusts employee leave balances, and exposes the transaction ledger.
+ *
+ * <p>Lazily creates a balance row on first access (applying prior-year carry-forward within the
+ * policy limit) and recomputes accrual when a new month has passed. Manual adjustments lock the
+ * balance row so concurrent read-modify-write cannot lose updates or overdraw, and every
+ * adjustment writes a {@link LeaveTransaction} for audit.
+ */
 @Service
 @Validated
 public class LeaveBalanceService {
@@ -49,6 +57,18 @@ public class LeaveBalanceService {
         this.leaveAccrualService = leaveAccrualService;
     }
 
+    /**
+     * Returns the balance for an employee, policy, and year, creating and recalculating it as needed.
+     *
+     * <p>Years before the employee joined return a transient zero balance with no row persisted.
+     * Otherwise a missing row is initialized, and accrual is recomputed when a new month has passed.
+     *
+     * @param employeeId The employee's ID.
+     * @param policyId The leave policy's ID.
+     * @param year The calendar year of the balance.
+     * @return The current balance.
+     * @throws ResourceNotFoundException if the employee or policy is not found in this organization.
+     */
     @Transactional
     public LeaveBalanceDto getOrCalculateBalance(Long employeeId, Long policyId, Integer year) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
@@ -74,6 +94,17 @@ public class LeaveBalanceService {
         return leaveBalanceMapper.toDto(balance);
     }
 
+    /**
+     * Returns balances for every leave policy applicable to an employee in a given year.
+     *
+     * <p>Applicability is filtered by the employee's gender and service months, so only policies
+     * the employee is eligible for are returned.
+     *
+     * @param employeeId The employee's ID.
+     * @param year The calendar year of the balances.
+     * @return One balance per applicable policy.
+     * @throws ResourceNotFoundException if the employee is not found in this organization.
+     */
     @Transactional
     public List<LeaveBalanceDto> getAllBalancesForEmployee(Long employeeId, Integer year) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
@@ -90,6 +121,18 @@ public class LeaveBalanceService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Builds a summary of an employee's balances for a year across all applicable policies.
+     *
+     * <p>Initializes and recalculates each policy's balance (pre-joining years contribute a
+     * transient zero balance) and rolls the results into organization-wide totals for available,
+     * used, and pending days.
+     *
+     * @param employeeId The employee's ID.
+     * @param year The calendar year to summarize.
+     * @return The per-policy balances and their totals.
+     * @throws ResourceNotFoundException if the employee is not found in this organization.
+     */
     @Transactional
     public LeaveBalanceSummaryDto getBalanceSummary(Long employeeId, Integer year) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
@@ -131,6 +174,15 @@ public class LeaveBalanceService {
         return summary;
     }
 
+    /**
+     * Forces a recalculation of accrual for one balance, initializing the row first if absent.
+     *
+     * @param employeeId The employee's ID.
+     * @param policyId The leave policy's ID.
+     * @param year The calendar year of the balance.
+     * @return The recalculated balance.
+     * @throws ResourceNotFoundException if the employee or policy is not found in this organization.
+     */
     @Transactional
     public LeaveBalanceDto recalculateBalance(Long employeeId, Long policyId, Integer year) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
@@ -149,6 +201,17 @@ public class LeaveBalanceService {
         return leaveBalanceMapper.toDto(balance);
     }
 
+    /**
+     * Applies a manual balance adjustment for the current year and records it in the ledger.
+     *
+     * <p>Locks the balance row so concurrent adjustments serialize. A positive day count increases
+     * accrued days; a negative count increases used days. The change is captured as an
+     * {@link LeaveTransaction} with the before and after balances and the supplied reason.
+     *
+     * @param dto The employee, policy, signed day count, reason, and adjusting user.
+     * @return The recorded adjustment transaction.
+     * @throws ResourceNotFoundException if the employee or policy is not found in this organization.
+     */
     @Transactional
     public LeaveTransactionDto adjustBalance(LeaveBalanceAdjustmentDto dto) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(dto.getEmployeeId(),TenantContext.getCurrentOrgId())
@@ -193,6 +256,12 @@ public class LeaveBalanceService {
         return leaveTransactionMapper.toDto(saved);
     }
 
+    /**
+     * Lists an employee's leave ledger entries, newest first.
+     *
+     * @param employeeId The employee's ID.
+     * @return The transaction history.
+     */
     @Transactional(readOnly = true)
     public List<LeaveTransactionDto> getTransactionHistory(Long employeeId) {
         return transactionRepository.findByEmployeeIdOrderByCreatedAtDesc(employeeId)
@@ -201,6 +270,12 @@ public class LeaveBalanceService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists the ledger entries tied to a single balance, newest first.
+     *
+     * @param balanceId The leave balance's ID.
+     * @return The transactions for that balance.
+     */
     @Transactional(readOnly = true)
     public List<LeaveTransactionDto> getTransactionsByBalance(Long balanceId) {
         return transactionRepository.findByLeaveBalanceIdOrderByCreatedAtDesc(balanceId)

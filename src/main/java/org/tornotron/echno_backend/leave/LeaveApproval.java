@@ -12,6 +12,13 @@ import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDateTime;
 
+/**
+ * One approver's decision at a single level of a leave request's approval chain.
+ *
+ * <p>Records the approver, the level in the chain, and the {@code action} taken (pending,
+ * approved, rejected, or delegated). When an approver delegates, a new pending record is created
+ * for the delegate with {@code delegatedFromId} pointing back to the original approver.
+ */
 @Entity
 @Data
 @NoArgsConstructor

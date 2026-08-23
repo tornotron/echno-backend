@@ -9,6 +9,13 @@ import org.tornotron.echno_backend.finance.invoice.domain.Invoice;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+/**
+ * The portion of a payment applied to one specific invoice.
+ *
+ * <p>Links a payment to an invoice and records how much of the payment settles that invoice. The
+ * allocations of a payment sum to its total amount, and each is capped at the invoice's outstanding
+ * balance.
+ */
 @Entity
 @Table(name = "payment_allocations",
         indexes = {

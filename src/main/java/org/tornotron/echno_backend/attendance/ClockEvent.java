@@ -16,6 +16,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * A single clock punch within a day's {@link Attendance}: clock-in, lunch start/end, or clock-out.
+ *
+ * <p>Records when the punch happened and the device and geolocation it came from (latitude,
+ * longitude, accuracy, distance from the project, geofence flag), which the attendance calculation
+ * reads to derive worked hours. May be flagged {@code isRegularized} when created or corrected
+ * through a regularization rather than a live punch.
+ */
 @Entity
 @Table(name = "clock_event")
 @Data

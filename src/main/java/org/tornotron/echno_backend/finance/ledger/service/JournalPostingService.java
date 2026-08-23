@@ -36,6 +36,18 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Double-entry posting and reversal core for the general ledger.
+ *
+ * <p>Every entry that reaches the ledger goes through here. Before an entry is saved it must
+ * satisfy the accounting invariants: at least two lines, total debits equal to total credits,
+ * a non-zero total, no future entry date, and each line carrying either a debit or a credit but
+ * not both. Lines may only target active leaf accounts; posting to a header (non-leaf) account is
+ * rejected because that would double-count against its children in roll-up reports.
+ *
+ * <p>Posted entries are immutable. A correction is made by posting a reversal, which mirrors the
+ * original lines with debit and credit swapped and links the two entries together.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -51,16 +63,53 @@ public class JournalPostingService {
     // Public API
     // ============================================================
 
+    /**
+     * Posts a manually entered journal entry.
+     *
+     * @param req The entry header and its debit/credit lines.
+     * @return The posted entry as a DTO.
+     * @throws org.tornotron.echno_backend.common.exception.InvalidJournalException if the entry breaks a posting invariant.
+     * @throws UnbalancedEntryException if total debits do not equal total credits.
+     * @throws AccountNotFoundException if a line references an unknown account.
+     */
     @Transactional
     public JournalEntryDto post(PostJournalRequest req) {
         return mapper.toDto(postInternal(req, "MANUAL", null));
     }
 
+    /**
+     * Posts a system-generated entry, tagging it with the source document that produced it
+     * (for example an invoice or a payment) so the ledger row can be traced back to its origin.
+     *
+     * @param req The entry header and its debit/credit lines.
+     * @param sourceType The kind of source document (INVOICE, PAYMENT, REVERSAL, ...).
+     * @param sourceId The id of the source document, may be null.
+     * @return The posted entry as a DTO.
+     * @throws org.tornotron.echno_backend.common.exception.InvalidJournalException if the entry breaks a posting invariant.
+     * @throws UnbalancedEntryException if total debits do not equal total credits.
+     * @throws AccountNotFoundException if a line references an unknown account.
+     */
     @Transactional
     public JournalEntryDto postSystem(PostJournalRequest req, String sourceType, UUID sourceId) {
         return mapper.toDto(postInternal(req, sourceType, sourceId));
     }
 
+    /**
+     * Validates, builds, and persists a journal entry, returning the managed entity.
+     *
+     * <p>Callers that need the entity (to read its generated id, or to link it from a source
+     * document) use this directly; the invoice and payment services post their ledger entries
+     * this way. Accounts are pre-fetched in one query to avoid an N+1, then each line is checked
+     * against the active and leaf-account rules before the entry is saved with status POSTED.
+     *
+     * @param req The entry header and its debit/credit lines.
+     * @param sourceType The kind of source document (MANUAL, INVOICE, PAYMENT, REVERSAL, ...).
+     * @param sourceId The id of the source document, may be null.
+     * @return The persisted journal entry.
+     * @throws org.tornotron.echno_backend.common.exception.InvalidJournalException if the entry breaks a posting invariant, or a target account is inactive or a header account.
+     * @throws UnbalancedEntryException if total debits do not equal total credits.
+     * @throws AccountNotFoundException if a line references an unknown account.
+     */
     @Transactional
     public JournalEntry postInternal(PostJournalRequest req, String sourceType, UUID sourceId) {
         validateRequest(req);
@@ -118,6 +167,18 @@ public class JournalPostingService {
         return saved;
     }
 
+    /**
+     * Reverses a posted entry by posting a mirror entry with each line's debit and credit swapped.
+     *
+     * <p>The original is left untouched except that its status becomes REVERSED and it records the
+     * id of the reversal; the reversal records the id of the entry it reverses. Only a POSTED entry
+     * that has not already been reversed can be reversed.
+     *
+     * @param entryId The id of the entry to reverse.
+     * @param req Carries the reason recorded on the reversal's description.
+     * @return The newly posted reversal entry as a DTO.
+     * @throws org.tornotron.echno_backend.common.exception.InvalidJournalException if the entry does not exist, is not POSTED, or was already reversed.
+     */
     @Transactional
     public JournalEntryDto reverse(UUID entryId, ReverseJournalRequest req) {
         JournalEntry original = journalRepo.findByIdWithLines(entryId)
@@ -159,6 +220,13 @@ public class JournalPostingService {
         return mapper.toDto(reversal);
     }
 
+    /**
+     * Retrieves a single journal entry with its lines.
+     *
+     * @param id The id of the entry.
+     * @return The entry as a DTO.
+     * @throws org.tornotron.echno_backend.common.exception.InvalidJournalException if no entry with the given id exists.
+     */
     @Transactional(readOnly = true)
     public JournalEntryDto findById(UUID id) {
         JournalEntry entry = journalRepo.findByIdWithLines(id)
@@ -166,6 +234,13 @@ public class JournalPostingService {
         return mapper.toDto(entry);
     }
 
+    /**
+     * Lists journal entries one page at a time, ordered by entry date then creation time.
+     *
+     * @param pageNo Zero-based page index.
+     * @param pageSize Number of entries per page.
+     * @return A page of entry DTOs.
+     */
     @Transactional(readOnly = true)
     public Page<JournalEntryDto> findAll(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize,

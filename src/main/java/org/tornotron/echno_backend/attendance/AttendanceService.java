@@ -33,6 +33,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Records site attendance from clock events and derives each day's worked-hours and status.
+ *
+ * <p>Check-in opens the day's record and its first clock event; later punches append to it. Each
+ * change runs {@link AttendanceCalculationService} to recompute totals and status against the
+ * shift. Enforces per-project photo and geolocation requirements from the effective settings, one
+ * record per employee/date/project, and clock-event ordering. Uploaded photos are cleaned from
+ * storage if the transaction rolls back. Also marks absence and leave days and builds monthly summaries.
+ */
 @Service
 public class AttendanceService {
 
@@ -74,6 +83,20 @@ public class AttendanceService {
         this.fileStorageService = fileStorageService;
     }
 
+    /**
+     * Opens a day's attendance record with a morning clock-in event.
+     *
+     * <p>Validates the effective per-project settings (photo required on check-in, geolocation
+     * required) and rejects a duplicate record for the same employee, date, and project. Worked
+     * totals and status are computed from the new event, and any check-in photo is attached and
+     * scheduled for cleanup should the transaction roll back.
+     *
+     * @param dto The check-in details, including employee, project, shift, timestamp, and location.
+     * @param photo The check-in photo, or {@code null} when none is supplied.
+     * @return The created attendance record.
+     * @throws ResourceNotFoundException if the organization, employee, project, or shift is not found.
+     * @throws jakarta.validation.ValidationException if a required photo or location is missing, the photo is not an image, or a record already exists for the day.
+     */
     @Transactional
     public AttendanceResponseDto checkIn(AttendanceCheckInDto dto, MultipartFile photo) {
         Long orgId = TenantContext.getCurrentOrgId();
@@ -188,6 +211,19 @@ public class AttendanceService {
         return contentType == null || !contentType.startsWith("image/");
     }
 
+    /**
+     * Appends a clock event (lunch start/end or clock-out) to an existing attendance record.
+     *
+     * <p>Validates geolocation and the photo rules that apply to the event type, checks the event
+     * is a legal next step in the punch sequence, then recomputes totals and status against the
+     * record's shift. Any photo is attached and scheduled for cleanup on rollback.
+     *
+     * @param dto The clock event details, including the attendance ID, event type, timestamp, and location.
+     * @param photo The event photo, or {@code null} when none is supplied.
+     * @return The updated attendance record.
+     * @throws ResourceNotFoundException if the organization or attendance record is not found.
+     * @throws jakarta.validation.ValidationException if a required photo or location is missing, the photo is not an image, or the event breaks the allowed sequence.
+     */
     @Transactional
     public AttendanceResponseDto recordClockEvent(AttendanceClockEventDto dto, MultipartFile photo) {
         Long orgId = TenantContext.getCurrentOrgId();
@@ -264,6 +300,13 @@ public class AttendanceService {
         return attendanceMapper.toResponseDto(savedAttendance,fileStorageService);
     }
 
+    /**
+     * Retrieves a single attendance record by its ID.
+     *
+     * @param id The ID of the attendance record.
+     * @return The attendance record.
+     * @throws ResourceNotFoundException if no record with the given ID exists in this organization.
+     */
     @Transactional(readOnly = true)
     public AttendanceResponseDto getAttendanceById(Long id) {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
@@ -271,6 +314,14 @@ public class AttendanceService {
         return attendanceMapper.toResponseDto(attendance,fileStorageService);
     }
 
+    /**
+     * Lists an employee's attendance records within a date range.
+     *
+     * @param employeeId The employee's ID.
+     * @param startDate The inclusive start of the range.
+     * @param endDate The inclusive end of the range.
+     * @return The matching attendance records.
+     */
     @Transactional(readOnly = true)
     public List<AttendanceResponseDto> getAttendanceByEmployee(Long employeeId,
                                                                 LocalDate startDate,
@@ -281,6 +332,19 @@ public class AttendanceService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists a project's attendance for a day, filtered by status and a name search.
+     *
+     * <p>A blank search matches all employees; otherwise it matches employee names
+     * case-insensitively. Results are drawn from a single page and returned as a list.
+     *
+     * @param projectId The project's ID.
+     * @param date The attendance date.
+     * @param status The status to filter by, or {@code null} for any.
+     * @param search An employee-name fragment, or {@code null}/blank for all.
+     * @param pageable The pagination and sort parameters.
+     * @return The matching attendance records for the page.
+     */
     @Transactional(readOnly = true)
     public List<AttendanceResponseDto> getAttendanceByProject(Long projectId,
                                                                LocalDate date,
@@ -295,6 +359,15 @@ public class AttendanceService {
                 .map(attendance -> attendanceMapper.toResponseDto(attendance,fileStorageService)).getContent();
     }
 
+    /**
+     * Sets the approval decision on an attendance record and stamps who approved it and when.
+     *
+     * @param attendanceId The ID of the attendance record.
+     * @param dto The approval status and optional remarks.
+     * @param approvedBy An identifier for the approving user.
+     * @return The updated attendance record.
+     * @throws ResourceNotFoundException if no record with the given ID exists in this organization.
+     */
     @Transactional
     public AttendanceResponseDto approveAttendance(Long attendanceId, AttendanceApprovalDto dto, String approvedBy) {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(attendanceId,TenantContext.getCurrentOrgId())
@@ -310,6 +383,17 @@ public class AttendanceService {
         return attendanceMapper.toResponseDto(attendanceRepository.save(attendance),fileStorageService);
     }
 
+    /**
+     * Marks an employee absent for a day on a project, creating the record if none exists.
+     *
+     * <p>The resulting record is approved, since an absence marking is an administrative decision.
+     *
+     * @param employeeId The employee's ID.
+     * @param projectId The project's ID.
+     * @param date The attendance date.
+     * @return The updated or created attendance record.
+     * @throws ResourceNotFoundException if the organization, employee, or project is not found.
+     */
     @Transactional
     public AttendanceResponseDto markAbsent(Long employeeId, Long projectId, LocalDate date) {
         Long orgId = TenantContext.getCurrentOrgId();
@@ -349,6 +433,20 @@ public class AttendanceService {
         return attendanceMapper.toResponseDto(attendanceRepository.save(attendance),fileStorageService);
     }
 
+    /**
+     * Marks an employee on leave for a day on a project, creating the record if none exists.
+     *
+     * <p>Links the attendance to the originating leave via {@code leaveId} and {@code leaveType},
+     * and the record is approved.
+     *
+     * @param employeeId The employee's ID.
+     * @param projectId The project's ID.
+     * @param date The attendance date.
+     * @param leaveId The ID of the approved leave that covers this day.
+     * @param leaveType The leave type label to record.
+     * @return The updated or created attendance record.
+     * @throws ResourceNotFoundException if the organization, employee, or project is not found.
+     */
     @Transactional
     public AttendanceResponseDto markLeave(Long employeeId, Long projectId, LocalDate date,
                                             Long leaveId, String leaveType) {
@@ -391,6 +489,18 @@ public class AttendanceService {
         return attendanceMapper.toResponseDto(attendanceRepository.save(attendance),fileStorageService);
     }
 
+    /**
+     * Builds a monthly attendance summary for an employee.
+     *
+     * <p>Gathers the month's records and delegates the day counts, worked-hours totals, and
+     * attendance percentage to {@link AttendanceCalculationService}.
+     *
+     * @param employeeId The employee's ID.
+     * @param month The month (1-12).
+     * @param year The calendar year.
+     * @return The monthly summary.
+     * @throws ResourceNotFoundException if the employee is not found in this organization.
+     */
     @Transactional(readOnly = true)
     public AttendanceSummaryDto getMonthlySummary(Long employeeId, int month, int year) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
@@ -407,6 +517,12 @@ public class AttendanceService {
                 employeeId, employee.getEmployeeName(), records, month, year);
     }
 
+    /**
+     * Deletes an attendance record and its cascaded clock events and regularizations.
+     *
+     * @param attendanceId The ID of the attendance record to delete.
+     * @throws ResourceNotFoundException if no record with the given ID exists in this organization.
+     */
     @Transactional
     public void deleteAttendance(Long attendanceId) {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(attendanceId,TenantContext.getCurrentOrgId())

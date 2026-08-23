@@ -19,6 +19,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * A material item in the catalogue that can be requested, purchased, stocked, and consumed.
+ *
+ * <p>Carries identity and unit-of-measure (SKU, name, unit, HSN) along with planning
+ * levels such as minimum order quantity, reorder level, and safety, minimum, and maximum
+ * stock. Stock quantities themselves are not stored here; they live in {@code CurrentStock}
+ * and the inventory ledger, which reference this material.
+ */
 @Entity
 @NoArgsConstructor
 @Data
