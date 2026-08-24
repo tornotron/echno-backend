@@ -265,4 +265,7 @@
     <include file="db/changelog/v4.0/042-add-regularization-employee-ids.xml"/>
     <include file="db/changelog/v4.0/043-backfill-regularization-employee-ids.xml"/>
 
+    <!-- v4.0 - Attribute attendance approvals to the approving employee -->
+    <include file="db/changelog/v4.0/044-add-approved-by-id-to-attendance.xml"/>
+
 </databaseChangeLog>

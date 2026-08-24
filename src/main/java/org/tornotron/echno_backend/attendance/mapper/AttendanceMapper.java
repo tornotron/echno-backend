@@ -63,6 +63,7 @@ public class AttendanceMapper {
                         : null)
                 .approvalStatus(attendance.getApprovalStatus())
                 .approvedBy(attendance.getApprovedBy())
+                .approvedById(attendance.getApprovedById())
                 .approvedAt(attendance.getApprovedAt())
                 .remarks(attendance.getRemarks())
                 .createdAt(attendance.getCreatedAt())
