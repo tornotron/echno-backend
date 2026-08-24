@@ -9,6 +9,7 @@
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
   "failureFactor": 5,
+  "revokeRefreshToken": true,
   "clients": [
     {
       "clientId": "${KEYCLOAK_CLIENT_ID}",
@@ -19,7 +20,7 @@
       "redirectUris": [${KEYCLOAK_REDIRECT_URI}],
       "webOrigins": [${KEYCLOAK_WEB_ORIGIN}],
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "protocolMappers": [
         {
           "name": "groups",
@@ -44,6 +45,9 @@
         "webOrigins": [${KEYCLOAK_FRONTEND_WEB_ORIGIN}],
         "standardFlowEnabled": true,
         "directAccessGrantsEnabled": false,
+        "attributes": {
+          "pkce.code.challenge.method": "S256"
+        },
         "protocolMappers": [
           {
             "name": "groups",

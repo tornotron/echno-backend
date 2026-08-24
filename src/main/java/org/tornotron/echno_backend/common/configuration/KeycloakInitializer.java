@@ -99,6 +99,8 @@ public class KeycloakInitializer {
             log.warn("Keycloak initialization cancelled: realm already exists");
             // Sync client configuration from JSON even if realm exists
             syncClientConfiguration();
+            // Sync realm-level security settings from JSON even if realm exists
+            syncRealmSecuritySettings();
             // Ensure service account roles are assigned even if realm exists
             assignServiceAccountRoles();
             // Ensure authorization setup (JS policy, resource, permission) exists
@@ -108,8 +110,8 @@ public class KeycloakInitializer {
 
     private void syncClientConfiguration() {
         try {
-            log.info("Syncing client configuration for '{}'", appClientId);
-            
+            log.info("Syncing configuration for all clients defined in init-keycloak.json");
+
             Path configFile = Paths.get(configOutput, "init-keycloak.json");
             if (!Files.exists(configFile)) {
                 log.warn("Config file not found at: " + configFile + ". Skipping client sync.");
@@ -117,35 +119,91 @@ public class KeycloakInitializer {
             }
 
             RealmRepresentation realmRep = mapper.readValue(configFile.toFile(), RealmRepresentation.class);
-            org.keycloak.representations.idm.ClientRepresentation clientFromConfig = realmRep.getClients().stream()
-                    .filter(c -> appClientId.equals(c.getClientId()))
-                    .findFirst()
-                    .orElse(null);
-
-            if (clientFromConfig == null) {
-                log.warn("Client '{}' not found in configuration file.", appClientId);
+            List<org.keycloak.representations.idm.ClientRepresentation> clientsFromConfig = realmRep.getClients();
+            if (clientsFromConfig == null || clientsFromConfig.isEmpty()) {
+                log.warn("No clients found in configuration file. Skipping client sync.");
                 return;
             }
 
-            List<org.keycloak.representations.idm.ClientRepresentation> existingClients = keycloak.realm(REALM_ID).clients().findByClientId(appClientId);
+            for (org.keycloak.representations.idm.ClientRepresentation clientFromConfig : clientsFromConfig) {
+                syncSingleClient(clientFromConfig);
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to sync client configuration: {}", e.getMessage());
+        }
+    }
+
+    private void syncSingleClient(org.keycloak.representations.idm.ClientRepresentation clientFromConfig) {
+        String clientId = clientFromConfig.getClientId();
+        try {
+            List<org.keycloak.representations.idm.ClientRepresentation> existingClients = keycloak.realm(REALM_ID).clients().findByClientId(clientId);
             if (existingClients.isEmpty()) {
-                log.warn("Client '{}' not found in Keycloak. Skipping sync.", appClientId);
+                log.warn("Client '{}' from config not found in Keycloak. Skipping sync.", clientId);
                 return;
             }
 
             org.keycloak.representations.idm.ClientRepresentation existingClient = existingClients.get(0);
             org.keycloak.admin.client.resource.ClientResource clientResource = keycloak.realm(REALM_ID).clients().get(existingClient.getId());
 
-            // Update specific fields from config to existing client
-            // We preserve the ID and Secret from the existing client
+            // Update fields from config on the existing client.
+            // We preserve the ID and Secret from the existing client so a rotated secret survives.
             clientFromConfig.setId(existingClient.getId());
             clientFromConfig.setSecret(existingClient.getSecret());
-            
+
             clientResource.update(clientFromConfig);
-            log.info("Client '{}' configuration synced successfully.", appClientId);
+            log.info("Client '{}' configuration synced successfully.", clientId);
 
         } catch (Exception e) {
-            log.error("Failed to sync client configuration: {}", e.getMessage());
+            log.error("Failed to sync client '{}': {}", clientId, e.getMessage());
+        }
+    }
+
+    private void syncRealmSecuritySettings() {
+        try {
+            log.info("Syncing realm-level security settings for '{}'", REALM_ID);
+
+            Path configFile = Paths.get(configOutput, "init-keycloak.json");
+            if (!Files.exists(configFile)) {
+                log.warn("Config file not found at: " + configFile + ". Skipping realm security sync.");
+                return;
+            }
+
+            RealmRepresentation configRealm = mapper.readValue(configFile.toFile(), RealmRepresentation.class);
+            RealmRepresentation liveRealm = keycloak.realm(REALM_ID).toRepresentation();
+
+            // Copy ONLY the explicit security fields that are set in the config onto the live
+            // representation. Clients, roles, groups and users are deliberately left untouched so
+            // the seeded realm content is never clobbered.
+            List<String> applied = new ArrayList<>();
+
+            if (configRealm.getRevokeRefreshToken() != null) {
+                liveRealm.setRevokeRefreshToken(configRealm.getRevokeRefreshToken());
+                applied.add("revokeRefreshToken=" + configRealm.getRevokeRefreshToken());
+            }
+            if (configRealm.getRefreshTokenMaxReuse() != null) {
+                liveRealm.setRefreshTokenMaxReuse(configRealm.getRefreshTokenMaxReuse());
+                applied.add("refreshTokenMaxReuse=" + configRealm.getRefreshTokenMaxReuse());
+            }
+            if (configRealm.getSsoSessionIdleTimeout() != null) {
+                liveRealm.setSsoSessionIdleTimeout(configRealm.getSsoSessionIdleTimeout());
+                applied.add("ssoSessionIdleTimeout=" + configRealm.getSsoSessionIdleTimeout());
+            }
+            if (configRealm.getSsoSessionMaxLifespan() != null) {
+                liveRealm.setSsoSessionMaxLifespan(configRealm.getSsoSessionMaxLifespan());
+                applied.add("ssoSessionMaxLifespan=" + configRealm.getSsoSessionMaxLifespan());
+            }
+
+            if (applied.isEmpty()) {
+                log.info("No realm-level security settings present in config; nothing to sync.");
+                return;
+            }
+
+            keycloak.realm(REALM_ID).update(liveRealm);
+            log.info("Realm-level security settings synced successfully: {}", applied);
+
+        } catch (Exception e) {
+            log.error("Failed to sync realm security settings: {}", e.getMessage());
         }
     }
 
