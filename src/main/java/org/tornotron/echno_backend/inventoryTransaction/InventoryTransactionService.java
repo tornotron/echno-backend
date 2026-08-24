@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.inventoryTransaction.mapper.InventoryTransact
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryTransactionDto;
+import org.tornotron.echno_backend.inventoryTransaction.dto.MaterialMovementHistoryDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.TaskMaterialUsageDto;
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
 
@@ -80,6 +81,26 @@ public class InventoryTransactionService {
         return inventoryTransactionRepository.findByMaterialId(materialId).stream()
                 .map(transaction -> inventoryTransactionMapper.toDto(transaction))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * A material's movement history as a timeline, one page at a time, oldest movement first.
+     *
+     * <p>Backs the Location module timeline (issue #256): each entry carries where the material
+     * moved (storage location), the project, when, the movement type and its stock direction,
+     * the quantity changed and the source reference. Ordered oldest-first so the page reads as a
+     * forward-running timeline, with the id as a stable tie-break within one transaction date.
+     *
+     * @param materialId The material whose movements are listed.
+     * @param pageNo Zero-based page index.
+     * @param pageSize Number of movements per page.
+     * @return A page of movement-history entries ordered by transaction date ascending.
+     */
+    @Transactional(readOnly = true)
+    public Page<MaterialMovementHistoryDto> getMaterialMovementHistory(Long materialId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize);
+        return inventoryTransactionRepository.findMovementHistoryByMaterial(materialId, pageable)
+                .map(inventoryTransactionMapper::toMovementHistoryDto);
     }
 
     @Transactional(readOnly = true)
