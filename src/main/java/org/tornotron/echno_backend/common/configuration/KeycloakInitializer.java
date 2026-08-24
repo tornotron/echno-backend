@@ -421,8 +421,57 @@ public class KeycloakInitializer {
             }
         }
 
+        // Disable the copy's built-in conditional-OTP subflow so OTP is governed solely by our
+        // require-mfa path; otherwise an admin with TOTP would be prompted for OTP twice.
+        disableBuiltinConditionalOtp(flows);
+
         log.info("Built conditional subflow '{}' (role condition '{}' -> OTP Form) inside '{}'",
                 MFA_CONDITIONAL_SUBFLOW_ALIAS, MFA_ROLE, MFA_FLOW_ALIAS);
+    }
+
+    // Within 'echno-browser-mfa' ONLY (never the shared built-in 'browser' flow), disable the
+    // built-in conditional-OTP subflow: the CONDITIONAL subflow inside forms carrying the
+    // 'conditional-user-configured' + 'auth-otp-form' executions (i.e. not our subflow). This
+    // leaves 'echno-admin-mfa-conditional' as the single OTP path.
+    private void disableBuiltinConditionalOtp(AuthenticationManagementResource flows) {
+        List<AuthenticationExecutionInfoRepresentation> executions = flows.getExecutions(MFA_FLOW_ALIAS);
+
+        for (int i = 0; i < executions.size(); i++) {
+            AuthenticationExecutionInfoRepresentation subflow = executions.get(i);
+            if (!Boolean.TRUE.equals(subflow.getAuthenticationFlow())) {
+                continue;
+            }
+            if (MFA_CONDITIONAL_SUBFLOW_ALIAS.equals(subflow.getAlias())) {
+                continue; // never our own conditional subflow
+            }
+
+            // Does this subflow contain a 'conditional-user-configured' condition among its descendants?
+            int parentLevel = subflow.getLevel();
+            boolean hasUserConfiguredCondition = false;
+            for (int j = i + 1; j < executions.size(); j++) {
+                AuthenticationExecutionInfoRepresentation descendant = executions.get(j);
+                if (descendant.getLevel() <= parentLevel) {
+                    break; // left this subflow's descendants
+                }
+                if ("conditional-user-configured".equals(descendant.getProviderId())) {
+                    hasUserConfiguredCondition = true;
+                    break;
+                }
+            }
+
+            if (hasUserConfiguredCondition) {
+                if (!"DISABLED".equals(subflow.getRequirement())) {
+                    subflow.setRequirement("DISABLED");
+                    flows.updateExecutions(MFA_FLOW_ALIAS, subflow);
+                    log.info("Disabled built-in conditional-OTP subflow '{}' in '{}' so OTP is governed solely by the require-mfa path",
+                            subflow.getAlias(), MFA_FLOW_ALIAS);
+                } else {
+                    log.info("Built-in conditional-OTP subflow '{}' already disabled in '{}'", subflow.getAlias(), MFA_FLOW_ALIAS);
+                }
+                return;
+            }
+        }
+        log.warn("Could not locate the built-in conditional-OTP subflow in '{}'; check admin OTP is not double-prompted", MFA_FLOW_ALIAS);
     }
 
     // (e) Bind the realm's browser flow to our conditional flow, only if not already bound.
