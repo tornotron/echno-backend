@@ -47,5 +47,13 @@ public record ConstructionInvoiceLineDto(
         Long assetId,
 
         @Schema(description = "Task the line is charged against, if any.", example = "1204")
-        Long taskId
+        Long taskId,
+
+        @Schema(description = "Budget head (cost category) this line is charged against, if any.",
+                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10")
+        UUID costCategoryId,
+
+        @Schema(description = "Name of the budget head this line is charged against, if any.",
+                example = "Materials")
+        String costCategoryName
 ) {}

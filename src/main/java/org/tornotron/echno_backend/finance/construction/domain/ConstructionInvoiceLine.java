@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.tornotron.echno_backend.finance.budget.domain.CostCategory;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -53,6 +54,12 @@ public class ConstructionInvoiceLine {
 
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal total;                              // subtotal + tax - discount
+
+    // Budget head this line consumes, for project cost-control roll-up. Nullable: a line
+    // without a head is untagged and does not contribute to any category's spend.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cost_category_id")
+    private CostCategory costCategory;
 
     // Nullable scalar references to core-domain records (no cross-module FK).
     @Column(name = "inventory_item_id")
