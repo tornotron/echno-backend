@@ -239,9 +239,10 @@ public class KeycloakInitializer {
             ensureMfaRealmRole();
             mapMfaRoleOntoAdminGroups();
             enableConfigureTotpRequiredAction();
+            // Builds/repairs the flow and binds it ONLY when complete; otherwise leaves the realm
+            // on the built-in 'browser' flow. Binding is handled inside, never unconditionally.
             ensureConditionalBrowserFlow();
-            bindBrowserFlow();
-            log.info("Admin-only MFA configuration complete");
+            log.info("Admin-only MFA configuration reconcile complete");
         } catch (Exception e) {
             log.error("Failed to ensure admin MFA flow: {}", e.getMessage(), e);
         }
@@ -322,115 +323,228 @@ public class KeycloakInitializer {
         }
     }
 
-    // (d) Build the conditional browser flow by copying the built-in 'browser' flow (a known-good
-    // base, so a non-admin login stays identical to today) and adding a single conditional subflow.
+    // (d) Reconcile the conditional browser flow. The flow is only ever bound to the realm once it
+    // is CONFIRMED complete; at no point is login left on a broken or bare-copy flow.
+    //
+    // Note on the Keycloak execution representation: when a flow is COPIED, Keycloak renames the
+    // child subflows (the 'browser' flow's forms subflow becomes '<newName> forms' in the copy),
+    // and getExecutions reports a subflow's alias in getDisplayName() while getAlias() is null. So
+    // subflows are located by displayName / by the executions they contain, never by an exact alias.
     private void ensureConditionalBrowserFlow() {
         AuthenticationManagementResource flows = keycloak.realm(REALM_ID).flows();
 
-        boolean flowExists = flows.getFlows().stream()
-                .anyMatch(f -> MFA_FLOW_ALIAS.equals(f.getAlias()));
-        if (flowExists) {
-            log.info("Browser MFA flow '{}' already exists; leaving it unchanged", MFA_FLOW_ALIAS);
-            return;
-        }
-
-        // Copy the built-in 'browser' flow to our own alias.
-        Map<String, Object> copyData = new HashMap<>();
-        copyData.put("newName", MFA_FLOW_ALIAS);
-        try (Response response = flows.copy("browser", copyData)) {
-            if (response.getStatus() != 201) {
-                log.error("Failed to copy 'browser' flow to '{}'. Status: {}", MFA_FLOW_ALIAS, response.getStatus());
+        if (flowExists(flows, MFA_FLOW_ALIAS)) {
+            if (isFlowComplete(flows)) {
+                // Idempotent no-op: already built correctly. Ensure it is bound and stop.
+                log.info("Browser MFA flow '{}' already exists and is complete", MFA_FLOW_ALIAS);
+                bindBrowserFlowIfComplete(flows);
+                return;
+            }
+            // Self-repair: the flow exists but is missing our conditional subflow (e.g. an earlier
+            // build that failed after copy). Rebind to built-in 'browser' so the flow is deletable,
+            // delete it, and recreate correctly below.
+            log.warn("Browser MFA flow '{}' exists but is INCOMPLETE (missing '{}'); repairing",
+                    MFA_FLOW_ALIAS, MFA_CONDITIONAL_SUBFLOW_ALIAS);
+            rebindRealmToBuiltinBrowser();
+            deleteFlowByAlias(flows, MFA_FLOW_ALIAS);
+            if (flowExists(flows, MFA_FLOW_ALIAS)) {
+                log.error("Could not delete incomplete flow '{}'; leaving realm on built-in 'browser'", MFA_FLOW_ALIAS);
                 return;
             }
         }
-        log.info("Created browser MFA flow '{}' by copying the built-in 'browser' flow", MFA_FLOW_ALIAS);
 
-        // Locate the copied flow's forms subflow (a direct child subflow, alias contains 'forms').
-        List<AuthenticationExecutionInfoRepresentation> executions = flows.getExecutions(MFA_FLOW_ALIAS);
-        AuthenticationExecutionInfoRepresentation formsSubflow = executions.stream()
+        boolean built = buildConditionalBrowserFlow(flows);
+        if (!built) {
+            log.error("Failed to build a complete '{}'; leaving realm browserFlow on built-in 'browser'", MFA_FLOW_ALIAS);
+            rebindRealmToBuiltinBrowser();
+            return;
+        }
+        bindBrowserFlowIfComplete(flows);
+    }
+
+    // Copy 'browser' and build the require-mfa conditional subflow inside its forms subflow, then
+    // disable the copy's built-in conditional-OTP subflow. Returns true only if the result is
+    // verified complete. Any failure returns false and never binds.
+    private boolean buildConditionalBrowserFlow(AuthenticationManagementResource flows) {
+        try {
+            // Copy the built-in 'browser' flow (a known-good base) to our own alias.
+            Map<String, Object> copyData = new HashMap<>();
+            copyData.put("newName", MFA_FLOW_ALIAS);
+            try (Response response = flows.copy("browser", copyData)) {
+                if (response.getStatus() != 201) {
+                    log.error("Failed to copy 'browser' flow to '{}'. Status: {}", MFA_FLOW_ALIAS, response.getStatus());
+                    return false;
+                }
+            }
+            log.info("Created browser MFA flow '{}' by copying the built-in 'browser' flow", MFA_FLOW_ALIAS);
+
+            // Locate the copied flow's forms subflow robustly: the top-level subflow that contains
+            // the 'auth-username-password-form' execution (fallback: displayName ends with 'forms').
+            String formsAlias = findFormsSubflowAlias(flows.getExecutions(MFA_FLOW_ALIAS));
+            if (formsAlias == null) {
+                log.error("Could not locate the forms subflow in '{}'; aborting build", MFA_FLOW_ALIAS);
+                return false;
+            }
+            log.info("Resolved forms subflow alias in '{}' to '{}'", MFA_FLOW_ALIAS, formsAlias);
+
+            // Add our conditional subflow inside the forms subflow.
+            Map<String, Object> subflowData = new HashMap<>();
+            subflowData.put("alias", MFA_CONDITIONAL_SUBFLOW_ALIAS);
+            subflowData.put("type", "basic-flow");
+            subflowData.put("description", "Require TOTP for users carrying the require-mfa role (admins)");
+            subflowData.put("provider", "registration-page-form");
+            flows.addExecutionFlow(formsAlias, subflowData);
+
+            // Add, in order, the role condition then the OTP form inside the conditional subflow.
+            flows.addExecution(MFA_CONDITIONAL_SUBFLOW_ALIAS, Map.of("provider", "conditional-user-role"));
+            flows.addExecution(MFA_CONDITIONAL_SUBFLOW_ALIAS, Map.of("provider", "auth-otp-form"));
+
+            // Set requirements and the role-condition config, scoping strictly to our subflow's children.
+            List<AuthenticationExecutionInfoRepresentation> afterAdd = flows.getExecutions(MFA_FLOW_ALIAS);
+
+            int subflowIndex = -1;
+            AuthenticationExecutionInfoRepresentation conditionalSubflow = null;
+            for (int i = 0; i < afterAdd.size(); i++) {
+                AuthenticationExecutionInfoRepresentation e = afterAdd.get(i);
+                if (Boolean.TRUE.equals(e.getAuthenticationFlow())
+                        && MFA_CONDITIONAL_SUBFLOW_ALIAS.equals(e.getDisplayName())) {
+                    subflowIndex = i;
+                    conditionalSubflow = e;
+                    break;
+                }
+            }
+            if (conditionalSubflow == null) {
+                log.error("Could not find the conditional subflow after creation in '{}'; aborting build", MFA_FLOW_ALIAS);
+                return false;
+            }
+
+            conditionalSubflow.setRequirement("CONDITIONAL");
+            flows.updateExecutions(MFA_FLOW_ALIAS, conditionalSubflow);
+
+            int parentLevel = conditionalSubflow.getLevel();
+            for (int i = subflowIndex + 1; i < afterAdd.size(); i++) {
+                AuthenticationExecutionInfoRepresentation child = afterAdd.get(i);
+                if (child.getLevel() <= parentLevel) {
+                    break; // left the conditional subflow's descendants
+                }
+                if ("conditional-user-role".equals(child.getProviderId())) {
+                    child.setRequirement("REQUIRED");
+                    flows.updateExecutions(MFA_FLOW_ALIAS, child);
+
+                    AuthenticatorConfigRepresentation roleConfig = new AuthenticatorConfigRepresentation();
+                    roleConfig.setAlias("echno-require-mfa-role-condition");
+                    Map<String, String> config = new HashMap<>();
+                    config.put("role", MFA_ROLE);
+                    config.put("negate", "false");
+                    roleConfig.setConfig(config);
+                    flows.newExecutionConfig(child.getId(), roleConfig);
+                } else if ("auth-otp-form".equals(child.getProviderId())) {
+                    child.setRequirement("REQUIRED");
+                    flows.updateExecutions(MFA_FLOW_ALIAS, child);
+                }
+            }
+
+            // Disable the copy's built-in conditional-OTP subflow so OTP is governed solely by our
+            // require-mfa path; otherwise an admin with TOTP would be prompted for OTP twice.
+            disableBuiltinConditionalOtp(flows);
+
+            log.info("Built conditional subflow '{}' (role condition '{}' -> OTP Form) inside '{}'",
+                    MFA_CONDITIONAL_SUBFLOW_ALIAS, MFA_ROLE, MFA_FLOW_ALIAS);
+
+            // Verify the end state before the caller is allowed to bind.
+            boolean complete = isFlowComplete(flows);
+            if (!complete) {
+                log.error("Flow '{}' did not verify as complete after build", MFA_FLOW_ALIAS);
+            }
+            return complete;
+        } catch (Exception e) {
+            log.error("Error building conditional browser flow '{}': {}", MFA_FLOW_ALIAS, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    // Locate the forms subflow alias (its real alias, reported in displayName). Primary: the
+    // top-level subflow whose descendants include 'auth-username-password-form'. Fallback: a
+    // top-level subflow whose displayName ends with 'forms'.
+    private String findFormsSubflowAlias(List<AuthenticationExecutionInfoRepresentation> executions) {
+        for (int i = 0; i < executions.size(); i++) {
+            AuthenticationExecutionInfoRepresentation subflow = executions.get(i);
+            if (!Boolean.TRUE.equals(subflow.getAuthenticationFlow()) || subflow.getLevel() != 0) {
+                continue;
+            }
+            int parentLevel = subflow.getLevel();
+            for (int j = i + 1; j < executions.size(); j++) {
+                AuthenticationExecutionInfoRepresentation descendant = executions.get(j);
+                if (descendant.getLevel() <= parentLevel) {
+                    break;
+                }
+                if ("auth-username-password-form".equals(descendant.getProviderId())) {
+                    return subflow.getDisplayName();
+                }
+            }
+        }
+        // Fallback by displayName.
+        return executions.stream()
                 .filter(e -> Boolean.TRUE.equals(e.getAuthenticationFlow()))
                 .filter(e -> e.getLevel() == 0)
-                .filter(e -> e.getAlias() != null && e.getAlias().toLowerCase().contains("forms"))
+                .filter(e -> e.getDisplayName() != null && e.getDisplayName().toLowerCase().endsWith("forms"))
+                .map(AuthenticationExecutionInfoRepresentation::getDisplayName)
                 .findFirst()
-                .orElseGet(() -> executions.stream()
-                        .filter(e -> Boolean.TRUE.equals(e.getAuthenticationFlow()))
-                        .filter(e -> e.getLevel() == 0)
-                        .findFirst()
-                        .orElse(null));
+                .orElse(null);
+    }
 
-        if (formsSubflow == null || formsSubflow.getAlias() == null) {
-            log.error("Could not locate the forms subflow in '{}'; leaving flow unbound", MFA_FLOW_ALIAS);
-            return;
+    // A flow is complete when it contains our '{@value #MFA_CONDITIONAL_SUBFLOW_ALIAS}' subflow with
+    // both the role condition and the OTP form, AND any built-in conditional-OTP subflow (the one
+    // carrying 'conditional-user-configured') is DISABLED so OTP is single-pathed.
+    private boolean isFlowComplete(AuthenticationManagementResource flows) {
+        List<AuthenticationExecutionInfoRepresentation> executions;
+        try {
+            executions = flows.getExecutions(MFA_FLOW_ALIAS);
+        } catch (Exception e) {
+            return false;
         }
-        String formsAlias = formsSubflow.getAlias();
 
-        // Add a conditional subflow inside the forms subflow.
-        Map<String, Object> subflowData = new HashMap<>();
-        subflowData.put("alias", MFA_CONDITIONAL_SUBFLOW_ALIAS);
-        subflowData.put("type", "basic-flow");
-        subflowData.put("description", "Require TOTP for users carrying the require-mfa role (admins)");
-        subflowData.put("provider", "registration-page-form");
-        flows.addExecutionFlow(formsAlias, subflowData);
+        boolean hasRoleCondition = false;
+        boolean hasOtpForm = false;
+        boolean builtinConditionalOtpActive = false;
 
-        // Add, in order, the role condition then the OTP form inside the conditional subflow.
-        flows.addExecution(MFA_CONDITIONAL_SUBFLOW_ALIAS, Map.of("provider", "conditional-user-role"));
-        flows.addExecution(MFA_CONDITIONAL_SUBFLOW_ALIAS, Map.of("provider", "auth-otp-form"));
-
-        // Set requirements and the role-condition config, scoping strictly to our subflow's children.
-        List<AuthenticationExecutionInfoRepresentation> afterAdd = flows.getExecutions(MFA_FLOW_ALIAS);
-
-        int subflowIndex = -1;
-        AuthenticationExecutionInfoRepresentation conditionalSubflow = null;
-        for (int i = 0; i < afterAdd.size(); i++) {
-            AuthenticationExecutionInfoRepresentation e = afterAdd.get(i);
-            if (Boolean.TRUE.equals(e.getAuthenticationFlow())
-                    && MFA_CONDITIONAL_SUBFLOW_ALIAS.equals(e.getAlias())) {
-                subflowIndex = i;
-                conditionalSubflow = e;
-                break;
+        for (int i = 0; i < executions.size(); i++) {
+            AuthenticationExecutionInfoRepresentation subflow = executions.get(i);
+            if (!Boolean.TRUE.equals(subflow.getAuthenticationFlow())) {
+                continue;
             }
-        }
-        if (conditionalSubflow == null) {
-            log.error("Could not find the conditional subflow after creation in '{}'; leaving flow unbound", MFA_FLOW_ALIAS);
-            return;
-        }
+            int parentLevel = subflow.getLevel();
+            boolean carriesUserConfiguredCondition = false;
+            boolean isOurSubflow = MFA_CONDITIONAL_SUBFLOW_ALIAS.equals(subflow.getDisplayName());
 
-        conditionalSubflow.setRequirement("CONDITIONAL");
-        flows.updateExecutions(MFA_FLOW_ALIAS, conditionalSubflow);
-
-        int parentLevel = conditionalSubflow.getLevel();
-        for (int i = subflowIndex + 1; i < afterAdd.size(); i++) {
-            AuthenticationExecutionInfoRepresentation child = afterAdd.get(i);
-            if (child.getLevel() <= parentLevel) {
-                break; // left the conditional subflow's descendants
+            for (int j = i + 1; j < executions.size(); j++) {
+                AuthenticationExecutionInfoRepresentation descendant = executions.get(j);
+                if (descendant.getLevel() <= parentLevel) {
+                    break;
+                }
+                String providerId = descendant.getProviderId();
+                if (isOurSubflow && "conditional-user-role".equals(providerId)) {
+                    hasRoleCondition = true;
+                }
+                if (isOurSubflow && "auth-otp-form".equals(providerId)) {
+                    hasOtpForm = true;
+                }
+                if ("conditional-user-configured".equals(providerId)) {
+                    carriesUserConfiguredCondition = true;
+                }
             }
-            if ("conditional-user-role".equals(child.getProviderId())) {
-                child.setRequirement("REQUIRED");
-                flows.updateExecutions(MFA_FLOW_ALIAS, child);
 
-                AuthenticatorConfigRepresentation roleConfig = new AuthenticatorConfigRepresentation();
-                roleConfig.setAlias("echno-require-mfa-role-condition");
-                Map<String, String> config = new HashMap<>();
-                config.put("role", MFA_ROLE);
-                config.put("negate", "false");
-                roleConfig.setConfig(config);
-                flows.newExecutionConfig(child.getId(), roleConfig);
-            } else if ("auth-otp-form".equals(child.getProviderId())) {
-                child.setRequirement("REQUIRED");
-                flows.updateExecutions(MFA_FLOW_ALIAS, child);
+            // A built-in conditional-OTP subflow that is not DISABLED means OTP is double-pathed.
+            if (!isOurSubflow && carriesUserConfiguredCondition && !"DISABLED".equals(subflow.getRequirement())) {
+                builtinConditionalOtpActive = true;
             }
         }
 
-        // Disable the copy's built-in conditional-OTP subflow so OTP is governed solely by our
-        // require-mfa path; otherwise an admin with TOTP would be prompted for OTP twice.
-        disableBuiltinConditionalOtp(flows);
-
-        log.info("Built conditional subflow '{}' (role condition '{}' -> OTP Form) inside '{}'",
-                MFA_CONDITIONAL_SUBFLOW_ALIAS, MFA_ROLE, MFA_FLOW_ALIAS);
+        return hasRoleCondition && hasOtpForm && !builtinConditionalOtpActive;
     }
 
     // Within 'echno-browser-mfa' ONLY (never the shared built-in 'browser' flow), disable the
-    // built-in conditional-OTP subflow: the CONDITIONAL subflow inside forms carrying the
+    // built-in conditional-OTP subflow: the CONDITIONAL subflow carrying the
     // 'conditional-user-configured' + 'auth-otp-form' executions (i.e. not our subflow). This
     // leaves 'echno-admin-mfa-conditional' as the single OTP path.
     private void disableBuiltinConditionalOtp(AuthenticationManagementResource flows) {
@@ -441,7 +555,7 @@ public class KeycloakInitializer {
             if (!Boolean.TRUE.equals(subflow.getAuthenticationFlow())) {
                 continue;
             }
-            if (MFA_CONDITIONAL_SUBFLOW_ALIAS.equals(subflow.getAlias())) {
+            if (MFA_CONDITIONAL_SUBFLOW_ALIAS.equals(subflow.getDisplayName())) {
                 continue; // never our own conditional subflow
             }
 
@@ -464,9 +578,9 @@ public class KeycloakInitializer {
                     subflow.setRequirement("DISABLED");
                     flows.updateExecutions(MFA_FLOW_ALIAS, subflow);
                     log.info("Disabled built-in conditional-OTP subflow '{}' in '{}' so OTP is governed solely by the require-mfa path",
-                            subflow.getAlias(), MFA_FLOW_ALIAS);
+                            subflow.getDisplayName(), MFA_FLOW_ALIAS);
                 } else {
-                    log.info("Built-in conditional-OTP subflow '{}' already disabled in '{}'", subflow.getAlias(), MFA_FLOW_ALIAS);
+                    log.info("Built-in conditional-OTP subflow '{}' already disabled in '{}'", subflow.getDisplayName(), MFA_FLOW_ALIAS);
                 }
                 return;
             }
@@ -474,24 +588,59 @@ public class KeycloakInitializer {
         log.warn("Could not locate the built-in conditional-OTP subflow in '{}'; check admin OTP is not double-prompted", MFA_FLOW_ALIAS);
     }
 
-    // (e) Bind the realm's browser flow to our conditional flow, only if not already bound.
-    private void bindBrowserFlow() {
-        // Only bind if the flow was actually built.
-        boolean flowExists = keycloak.realm(REALM_ID).flows().getFlows().stream()
-                .anyMatch(f -> MFA_FLOW_ALIAS.equals(f.getAlias()));
-        if (!flowExists) {
-            log.warn("Browser MFA flow '{}' does not exist; not binding browserFlow", MFA_FLOW_ALIAS);
+    // (e) Bind the realm's browser flow to our conditional flow, but ONLY after verifying it is
+    // complete and only if not already bound. Never binds a broken or bare-copy flow.
+    private void bindBrowserFlowIfComplete(AuthenticationManagementResource flows) {
+        if (!flowExists(flows, MFA_FLOW_ALIAS) || !isFlowComplete(flows)) {
+            log.error("Browser MFA flow '{}' is missing or incomplete; NOT binding, leaving realm on built-in 'browser'", MFA_FLOW_ALIAS);
+            rebindRealmToBuiltinBrowser();
             return;
         }
 
         RealmRepresentation realm = keycloak.realm(REALM_ID).toRepresentation();
         if (MFA_FLOW_ALIAS.equals(realm.getBrowserFlow())) {
-            log.info("Realm browserFlow already bound to '{}'", MFA_FLOW_ALIAS);
+            log.info("Realm browserFlow already bound to complete flow '{}' (admin-only MFA active)", MFA_FLOW_ALIAS);
             return;
         }
         realm.setBrowserFlow(MFA_FLOW_ALIAS);
         keycloak.realm(REALM_ID).update(realm);
         log.info("Bound realm browserFlow to '{}' (admin-only MFA active)", MFA_FLOW_ALIAS);
+    }
+
+    private boolean flowExists(AuthenticationManagementResource flows, String alias) {
+        return flows.getFlows().stream().anyMatch(f -> alias.equals(f.getAlias()));
+    }
+
+    // Rebind the realm browser flow to the built-in 'browser' flow (only if not already there), so
+    // login stays on a known-good flow and our flow becomes deletable.
+    private void rebindRealmToBuiltinBrowser() {
+        try {
+            RealmRepresentation realm = keycloak.realm(REALM_ID).toRepresentation();
+            if ("browser".equals(realm.getBrowserFlow())) {
+                return;
+            }
+            realm.setBrowserFlow("browser");
+            keycloak.realm(REALM_ID).update(realm);
+            log.warn("Rebound realm browserFlow to the built-in 'browser' flow");
+        } catch (Exception e) {
+            log.error("Failed to rebind realm browserFlow to built-in 'browser': {}", e.getMessage());
+        }
+    }
+
+    private void deleteFlowByAlias(AuthenticationManagementResource flows, String alias) {
+        try {
+            AuthenticationFlowRepresentation flow = flows.getFlows().stream()
+                    .filter(f -> alias.equals(f.getAlias()))
+                    .findFirst()
+                    .orElse(null);
+            if (flow == null) {
+                return;
+            }
+            flows.deleteFlow(flow.getId());
+            log.warn("Deleted flow '{}' (id={}) for rebuild", alias, flow.getId());
+        } catch (Exception e) {
+            log.error("Failed to delete flow '{}': {}", alias, e.getMessage());
+        }
     }
 
     private void initKeycloak() {
