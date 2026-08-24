@@ -6,16 +6,25 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.finance.ledger.dtos.AccountDto;
 import org.tornotron.echno_backend.finance.ledger.dtos.AccountTreeDto;
+import org.tornotron.echno_backend.finance.ledger.dtos.CoaImportSummary;
 import org.tornotron.echno_backend.finance.ledger.dtos.CreateAccountRequest;
+import org.tornotron.echno_backend.finance.ledger.dtos.UpdateAccountRequest;
+import org.tornotron.echno_backend.finance.ledger.service.AccountCsvService;
 import org.tornotron.echno_backend.finance.ledger.service.AccountService;
 import org.tornotron.echno_backend.finance.ledger.service.ChartOfAccountsSeeder;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -34,6 +43,7 @@ public class AccountControllerWeb {
 
     private final AccountService service;
     private final ChartOfAccountsSeeder chartOfAccountsSeeder;
+    private final AccountCsvService csvService;
 
     @GetMapping
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
@@ -111,6 +121,67 @@ public class AccountControllerWeb {
     })
     public ResponseEntity<AccountDto> create(@Valid @RequestBody CreateAccountRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(req));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @Operation(
+            summary = "Update an account",
+            description = "Edits an account's code, name, active flag, description and optionally its "
+                    + "parent. The code must stay unique within the tenant; a new parent must share the "
+                    + "account's type and must not form a cycle. Omit the parent id to leave the parent "
+                    + "unchanged. Postings resolve accounts by id, so changing a code is safe."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Account updated"),
+            @ApiResponse(responseCode = "400", description = "Validation failed, the code clashes, or the parent is invalid"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No account, or no such parent, in the current tenant")
+    })
+    public AccountDto update(@PathVariable UUID id, @Valid @RequestBody UpdateAccountRequest req) {
+        return service.update(id, req);
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @Operation(
+            summary = "Export the chart of accounts as CSV",
+            description = "Streams the whole chart of accounts of the current tenant as a CSV attachment "
+                    + "with the columns code, name, type, parentCode and active."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "CSV generated and returned as an attachment"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public ResponseEntity<byte[]> export() {
+        byte[] csv = csvService.exportCsv().getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"chart-of-accounts.csv\"")
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .body(csv);
+    }
+
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "Import a chart of accounts from CSV",
+            description = "Upserts accounts by code from an uploaded CSV with the columns code, name, "
+                    + "type, parentCode and active. Existing accounts are updated and missing ones are "
+                    + "created, applied parent-before-child; accounts absent from the file are never "
+                    + "deleted. Returns a summary of the created and updated counts and any per-row errors. "
+                    + "Restricted to system administrators."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Import processed, summary returned"),
+            @ApiResponse(responseCode = "400", description = "The file is missing, empty, or has an unexpected header"),
+            @ApiResponse(responseCode = "403", description = "Caller is not a system administrator in the current tenant")
+    })
+    public CoaImportSummary importCsv(@RequestParam("file") MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new InvalidRequestException("A non-empty CSV file is required");
+        }
+        String content = new String(file.getBytes(), StandardCharsets.UTF_8);
+        return csvService.importCsv(content);
     }
 
     @PostMapping("/{id}/deactivate")

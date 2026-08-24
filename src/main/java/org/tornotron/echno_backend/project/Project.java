@@ -97,6 +97,14 @@ public class Project implements TenantScopedEntity {
     @Column(name = "progress")
     private Double progress;
 
+    /**
+     * Per-project override of the finance auto-approval threshold. When set, a construction invoice
+     * on this project below this amount is auto-approved on submit; null falls back to the
+     * organization-level finance setting.
+     */
+    @Column(name = "approval_threshold", precision = 19, scale = 4)
+    private java.math.BigDecimal approvalThreshold;
+
     /** The list of attachments associated with this project. */
     @OneToMany(mappedBy = "project")
     private List<Attachment> attachments = new ArrayList<>();

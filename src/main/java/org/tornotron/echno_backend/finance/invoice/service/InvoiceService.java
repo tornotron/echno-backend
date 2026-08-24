@@ -1,8 +1,5 @@
 package org.tornotron.echno_backend.finance.invoice.service;
 
-import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,7 +10,6 @@ import org.tornotron.echno_backend.common.exception.InvalidJournalException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
-import org.tornotron.echno_backend.finance.invoice.InvoicePostingProperties;
 import org.tornotron.echno_backend.finance.invoice.InvoiceStatus;
 import org.tornotron.echno_backend.finance.invoice.domain.Invoice;
 import org.tornotron.echno_backend.finance.invoice.domain.InvoiceLine;
@@ -31,6 +27,8 @@ import org.tornotron.echno_backend.finance.ledger.repositories.AccountRepository
 import org.tornotron.echno_backend.finance.ledger.repositories.CustomerRepository;
 import org.tornotron.echno_backend.finance.ledger.repositories.JournalEntryRepository;
 import org.tornotron.echno_backend.finance.ledger.service.JournalPostingService;
+import org.tornotron.echno_backend.finance.posting.PostingRole;
+import org.tornotron.echno_backend.finance.posting.service.PostingAccountResolver;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -56,7 +54,7 @@ public class InvoiceService {
     private final JournalPostingService postingService;
     private final EntryNumberGenerator numberGen;
     private final InvoiceMapper mapper;
-    private final InvoicePostingProperties postingProps;
+    private final PostingAccountResolver postingAccountResolver;
     private final TenantEntityHelper tenantEntityHelper;
 
     /**
@@ -181,8 +179,7 @@ public class InvoiceService {
                             + " is currently " + inv.getStatus());
         }
 
-        Account ar = accountRepo.findByCodeAndOrganization_Id(postingProps.getArAccountCode(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new AccountNotFoundException(postingProps.getArAccountCode()));
+        Account ar = postingAccountResolver.resolve(PostingRole.ACCOUNTS_RECEIVABLE);
 
         List<PostJournalRequest.LineRequest> jeLines = new ArrayList<>();
 
@@ -204,8 +201,7 @@ public class InvoiceService {
 
         // CR GST Output Payable (if applicable)
         if (MoneyUtils.isPositive(inv.getTaxTotal())) {
-            Account gstOut = accountRepo.findByCodeAndOrganization_Id(postingProps.getGstOutputCode(), TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new AccountNotFoundException(postingProps.getGstOutputCode()));
+            Account gstOut = postingAccountResolver.resolve(PostingRole.GST_OUTPUT);
             jeLines.add(new PostJournalRequest.LineRequest(gstOut.getId(), BigDecimal.ZERO, inv.getTaxTotal(),
                     "GST output - " + inv.getInvoiceNumber()));
         }

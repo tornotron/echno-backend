@@ -31,4 +31,16 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntry, UUID
     Page<JournalEntry> findByEntryDateBetweenAndStatus(LocalDate from, LocalDate to, JournalStatus status, Pageable pageable);
 
     List<JournalEntry> findBySourceTypeAndSourceId(String sourceType, UUID sourceId);
+
+    /**
+     * Tenant-scoped fetch of journal entries with their lines and accounts, for CSV export.
+     * The optional {@code from} and {@code to} bounds are inclusive; a null bound leaves that end
+     * open. Ordered by entry date then entry number so the export is stable.
+     */
+    @EntityGraph(attributePaths = {"lines", "lines.account"})
+    @Query("SELECT je FROM JournalEntry je "
+            + "WHERE (:from IS NULL OR je.entryDate >= :from) "
+            + "AND (:to IS NULL OR je.entryDate <= :to) "
+            + "ORDER BY je.entryDate ASC, je.entryNumber ASC")
+    List<JournalEntry> findForExport(LocalDate from, LocalDate to);
 }

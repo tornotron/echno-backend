@@ -1,7 +1,5 @@
 package org.tornotron.echno_backend.finance.payment.service;
 
-import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -14,7 +12,6 @@ import org.tornotron.echno_backend.common.exception.InvalidJournalException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
-import org.tornotron.echno_backend.finance.invoice.InvoicePostingProperties;
 import org.tornotron.echno_backend.finance.invoice.InvoiceStatus;
 import org.tornotron.echno_backend.finance.invoice.domain.Invoice;
 import org.tornotron.echno_backend.finance.invoice.repositories.InvoiceRepository;
@@ -25,9 +22,10 @@ import org.tornotron.echno_backend.finance.ledger.domain.Account;
 import org.tornotron.echno_backend.finance.ledger.domain.Customer;
 import org.tornotron.echno_backend.finance.ledger.domain.JournalEntry;
 import org.tornotron.echno_backend.finance.ledger.dtos.PostJournalRequest;
-import org.tornotron.echno_backend.finance.ledger.repositories.AccountRepository;
 import org.tornotron.echno_backend.finance.ledger.repositories.CustomerRepository;
 import org.tornotron.echno_backend.finance.ledger.service.JournalPostingService;
+import org.tornotron.echno_backend.finance.posting.PostingRole;
+import org.tornotron.echno_backend.finance.posting.service.PostingAccountResolver;
 import org.tornotron.echno_backend.finance.payment.domain.Payment;
 import org.tornotron.echno_backend.finance.payment.domain.PaymentAllocation;
 import org.tornotron.echno_backend.finance.payment.dtos.PaymentDto;
@@ -59,12 +57,11 @@ public class PaymentService {
     private final PaymentRepository paymentRepo;
     private final CustomerRepository customerRepo;
     private final InvoiceRepository invoiceRepo;
-    private final AccountRepository accountRepo;
     private final CompanyBankAccountRepository companyBankRepo;
     private final JournalPostingService postingService;
     private final EntryNumberGenerator numberGen;
     private final PaymentMapper mapper;
-    private final InvoicePostingProperties postingProps;
+    private final PostingAccountResolver postingAccountResolver;
     private final TenantEntityHelper tenantEntityHelper;
 
     /**
@@ -196,8 +193,7 @@ public class PaymentService {
         }
 
         // 6. Post JE: DR Bank, CR Accounts Receivable
-        Account ar = accountRepo.findByCodeAndOrganization_Id(postingProps.getArAccountCode(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new AccountNotFoundException(postingProps.getArAccountCode()));
+        Account ar = postingAccountResolver.resolve(PostingRole.ACCOUNTS_RECEIVABLE);
 
         List<PostJournalRequest.LineRequest> jeLines = List.of(
                 new PostJournalRequest.LineRequest(bankLedger.getId(), amount, BigDecimal.ZERO,
