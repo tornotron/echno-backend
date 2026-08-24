@@ -156,7 +156,7 @@ class ConstructionInvoiceAutoApprovalIT extends AbstractIntegrationTest {
                 "Net 30", "Bank Transfer", "29ABCDE1234F1Z5", "GST",
                 "Threshold test", "Standard terms apply",
                 List.of(new ConstructionInvoiceLineRequest("Cement supply", new BigDecimal("10"), "nos",
-                        new BigDecimal("100"), new BigDecimal("18"), null, null, null, null)));
+                        new BigDecimal("100"), new BigDecimal("18"), null, null, null, null, null)));
     }
 
     private Organization persistOrganization(String name) {

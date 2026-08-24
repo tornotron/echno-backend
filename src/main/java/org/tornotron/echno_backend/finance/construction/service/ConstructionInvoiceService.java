@@ -12,6 +12,8 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
+import org.tornotron.echno_backend.finance.budget.domain.CostCategory;
+import org.tornotron.echno_backend.finance.budget.repositories.CostCategoryRepository;
 import org.tornotron.echno_backend.finance.construction.ConstructionInvoiceStatus;
 import org.tornotron.echno_backend.finance.construction.ConstructionInvoiceType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentStatus;
@@ -73,6 +75,7 @@ public class ConstructionInvoiceService {
     private final FinanceSettingsService financeSettingsService;
     private final ProjectRepository projectRepository;
     private final UserContextService userContextService;
+    private final CostCategoryRepository costCategoryRepository;
 
     @Transactional(readOnly = true)
     public ConstructionInvoiceDto findById(UUID id) {
@@ -428,6 +431,7 @@ public class ConstructionInvoiceService {
             line.setInventoryItemId(lr.inventoryItemId());
             line.setAssetId(lr.assetId());
             line.setTaskId(lr.taskId());
+            line.setCostCategory(resolveCostCategory(lr.costCategoryId()));
             inv.addLine(line);
 
             subtotal = subtotal.add(lineSub);
@@ -444,5 +448,19 @@ public class ConstructionInvoiceService {
         inv.setTotalAmount(total);
         inv.setPaidAmount(paid);
         inv.setBalanceAmount(MoneyUtils.normalize(total.subtract(paid)));
+    }
+
+    /**
+     * Resolves a line's budget head by id within the current tenant, or null when the line carries no
+     * head. A non-null id that does not resolve in the tenant is rejected, so a line can only be tagged
+     * to a cost category the org actually owns.
+     */
+    private CostCategory resolveCostCategory(UUID costCategoryId) {
+        if (costCategoryId == null) {
+            return null;
+        }
+        return costCategoryRepository.findScopedById(costCategoryId)
+                .orElseThrow(() -> new InvalidRequestException(
+                        "Cost category with ID " + costCategoryId + " was not found"));
     }
 }

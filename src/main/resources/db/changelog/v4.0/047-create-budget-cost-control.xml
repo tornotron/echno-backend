@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="047-create-cost-category" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="cost_category"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Org-level master list of budget heads (cost categories) that project budgets are broken
+            down by and that construction invoice lines are tagged to. An optional expense account
+            aligns a head with the chart of accounts for reporting. Names are unique per organization.
+        </comment>
+
+        <createTable tableName="cost_category">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(20)"/>
+            <column name="expense_account_id" type="UUID"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="cost_category"
+                                 baseColumnNames="expense_account_id"
+                                 constraintName="fk_cost_category_account"
+                                 referencedTableName="accounts"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint baseTableName="cost_category"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_cost_category_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addUniqueConstraint tableName="cost_category"
+                             columnNames="organization_id, name"
+                             constraintName="uk_cost_category_name"/>
+
+        <createIndex tableName="cost_category" indexName="idx_cost_category_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="047-create-budget-allocation" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="budget_allocation"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            A project's budget: one allocation row per budget head, holding the amount set aside for
+            that cost category. The (project, cost category) pair is unique, so an upsert replaces the
+            amount rather than adding a second row.
+        </comment>
+
+        <createTable tableName="budget_allocation">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cost_category_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="allocated_amount" type="NUMERIC(19, 4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="budget_allocation"
+                                 baseColumnNames="project_id"
+                                 constraintName="fk_budget_allocation_project"
+                                 referencedTableName="project"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="budget_allocation"
+                                 baseColumnNames="cost_category_id"
+                                 constraintName="fk_budget_allocation_category"
+                                 referencedTableName="cost_category"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint baseTableName="budget_allocation"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_budget_allocation_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addUniqueConstraint tableName="budget_allocation"
+                             columnNames="project_id, cost_category_id"
+                             constraintName="uk_budget_allocation_project_category"/>
+
+        <createIndex tableName="budget_allocation" indexName="idx_budget_allocation_project">
+            <column name="project_id"/>
+        </createIndex>
+        <createIndex tableName="budget_allocation" indexName="idx_budget_allocation_category">
+            <column name="cost_category_id"/>
+        </createIndex>
+        <createIndex tableName="budget_allocation" indexName="idx_budget_allocation_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="047-add-cost-category-to-construction-invoice-line" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="construction_invoice_lines" columnName="cost_category_id"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Tag a construction invoice line to a budget head so its cost rolls up under that cost
+            category in the project cost-control view. Nullable: a line without a head is untagged.
+        </comment>
+
+        <addColumn tableName="construction_invoice_lines">
+            <column name="cost_category_id" type="UUID"/>
+        </addColumn>
+
+        <addForeignKeyConstraint baseTableName="construction_invoice_lines"
+                                 baseColumnNames="cost_category_id"
+                                 constraintName="fk_cinvl_cost_category"
+                                 referencedTableName="cost_category"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <createIndex tableName="construction_invoice_lines" indexName="idx_cinvl_cost_category">
+            <column name="cost_category_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -143,9 +143,9 @@ class ConstructionInvoiceServiceIT extends AbstractIntegrationTest {
                 "First running bill", "Standard terms apply",
                 List.of(
                         new ConstructionInvoiceLineRequest("Cement supply", bd("2"), "nos",
-                                bd("100"), bd("18"), null, null, null, null),
+                                bd("100"), bd("18"), null, null, null, null, null),
                         new ConstructionInvoiceLineRequest("Steel supply", bd("1"), "lot",
-                                bd("50"), bd("18"), bd("10"), null, null, null)
+                                bd("50"), bd("18"), bd("10"), null, null, null, null)
                 )
         );
 
@@ -203,7 +203,7 @@ class ConstructionInvoiceServiceIT extends AbstractIntegrationTest {
                 "Revised running bill", "Standard terms apply",
                 List.of(
                         new ConstructionInvoiceLineRequest("Cement supply", bd("3"), "nos",
-                                bd("100"), bd("18"), null, null, null, null)
+                                bd("100"), bd("18"), null, null, null, null, null)
                 )
         );
 

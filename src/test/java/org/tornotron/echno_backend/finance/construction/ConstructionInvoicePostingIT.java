@@ -210,7 +210,7 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
                 "Posting test", "Standard terms apply",
                 // 10 * 100 = 1000 subtotal, 18% tax = 180, no discount -> gross 1180
                 List.of(new ConstructionInvoiceLineRequest("Cement supply", bd("10"), "nos",
-                        bd("100"), bd("18"), null, null, null, null)));
+                        bd("100"), bd("18"), null, null, null, null, null)));
     }
 
     private BigDecimal debit(JournalEntry je, String code) {

@@ -38,5 +38,10 @@ public record ConstructionInvoiceLineRequest(
         Long assetId,
 
         @Schema(description = "Task this line is attributed to, if applicable.", example = "512")
-        Long taskId
+        Long taskId,
+
+        @Schema(description = "Budget head (cost category) this line is charged against, if applicable. "
+                + "Must belong to the current tenant. Omit to leave the line untagged.",
+                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10")
+        java.util.UUID costCategoryId
 ) {}

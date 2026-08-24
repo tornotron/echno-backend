@@ -274,4 +274,7 @@
     <!-- v4.0 - Finance: per-org posting-account mapping, finance settings, project approval threshold (#341) -->
     <include file="db/changelog/v4.0/046-add-finance-posting-mapping-settings-and-approval-threshold.xml"/>
 
+    <!-- v4.0 - Finance: project budgeting and cost control (cost categories, budget allocations, tagged lines) -->
+    <include file="db/changelog/v4.0/047-create-budget-cost-control.xml"/>
+
 </databaseChangeLog>

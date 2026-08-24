@@ -74,7 +74,7 @@ class ConstructionInvoicePdfServiceTest {
                 UUID.randomUUID(), "OPC 53 grade cement", new BigDecimal("200"), "bag",
                 new BigDecimal("350.00"), new BigDecimal("18.0"), new BigDecimal("12600.00"),
                 new BigDecimal("5.0"), new BigDecimal("3500.00"), new BigDecimal("70000.00"),
-                new BigDecimal("79100.00"), 512L, 88L, 1204L);
+                new BigDecimal("79100.00"), 512L, 88L, 1204L, UUID.randomUUID(), "Materials");
 
         return new ConstructionInvoiceDto(
                 UUID.randomUUID(), "CINV-2026-0042", ConstructionInvoiceType.PURCHASE,
