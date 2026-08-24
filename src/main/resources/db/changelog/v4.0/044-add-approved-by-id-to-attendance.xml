@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="044-add-approved-by-id-to-attendance" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="attendance" columnName="approved_by_id"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Employee id of the approver on an attendance record, alongside the existing approved_by
+            name. Lets approvals be attributed to and filtered by a real employee instead of the
+            former hard-coded "system" string. Nullable, since a system or scheduled approval has
+            no employee principal.
+        </comment>
+
+        <addColumn tableName="attendance">
+            <column name="approved_by_id" type="BIGINT"/>
+        </addColumn>
+
+        <createIndex tableName="attendance" indexName="idx_attendance_approved_by_id">
+            <column name="approved_by_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

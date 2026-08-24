@@ -162,7 +162,7 @@ public class AttendanceController {
     public ResponseEntity<AttendanceResponseDto> approve(
             @PathVariable Long id,
             @Valid @RequestBody AttendanceApprovalDto dto) {
-        return ResponseEntity.ok(attendanceService.approveAttendance(id, dto, "system"));
+        return ResponseEntity.ok(attendanceService.approveAttendance(id, dto));
     }
 
     @PostMapping("/mark-absent")

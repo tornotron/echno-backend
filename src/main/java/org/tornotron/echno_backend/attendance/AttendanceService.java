@@ -26,6 +26,7 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -47,6 +48,9 @@ public class AttendanceService {
 
     private static final String ATTENDANCE_FOLDER = "attendance";
 
+    /** Fallback approver name stamped when no authenticated employee can be resolved (e.g. a system job). */
+    private static final String SYSTEM_APPROVER = "system";
+
     private final AttendanceRepository attendanceRepository;
     private final ShiftTimingRepository shiftTimingRepository;
     private final EmployeeRepository employeeRepository;
@@ -58,6 +62,7 @@ public class AttendanceService {
     private final AttendanceMapper attendanceMapper;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
+    private final UserContextService userContextService;
 
     public AttendanceService(AttendanceRepository attendanceRepository,
                              ShiftTimingRepository shiftTimingRepository,
@@ -69,7 +74,8 @@ public class AttendanceService {
                              ClockEventSequenceValidator sequenceValidator,
                              AttendanceMapper attendanceMapper,
                              AttachmentService attachmentService,
-                             FileStorageService fileStorageService) {
+                             FileStorageService fileStorageService,
+                             UserContextService userContextService) {
         this.attendanceRepository = attendanceRepository;
         this.shiftTimingRepository = shiftTimingRepository;
         this.employeeRepository = employeeRepository;
@@ -81,6 +87,7 @@ public class AttendanceService {
         this.attendanceMapper = attendanceMapper;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
+        this.userContextService = userContextService;
     }
 
     /**
@@ -362,25 +369,53 @@ public class AttendanceService {
     /**
      * Sets the approval decision on an attendance record and stamps who approved it and when.
      *
+     * <p>The approver is resolved from the security context: the authenticated user is mapped to
+     * their {@link Employee} in the current organization, and that employee's id and name are
+     * stamped onto the record. When no employee can be resolved for the caller (for example a
+     * system or scheduled job that runs without a user principal), the record falls back to the
+     * {@code "system"} name with no approver id.
+     *
      * @param attendanceId The ID of the attendance record.
      * @param dto The approval status and optional remarks.
-     * @param approvedBy An identifier for the approving user.
      * @return The updated attendance record.
      * @throws ResourceNotFoundException if no record with the given ID exists in this organization.
      */
     @Transactional
-    public AttendanceResponseDto approveAttendance(Long attendanceId, AttendanceApprovalDto dto, String approvedBy) {
+    public AttendanceResponseDto approveAttendance(Long attendanceId, AttendanceApprovalDto dto) {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(attendanceId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance record with ID " + attendanceId + " was not found"));
 
+        Employee approver = resolveCurrentEmployee();
+
         attendance.setApprovalStatus(dto.getApprovalStatus());
-        attendance.setApprovedBy(approvedBy);
+        if (approver != null) {
+            attendance.setApprovedBy(approver.getEmployeeName());
+            attendance.setApprovedById(approver.getId());
+        } else {
+            attendance.setApprovedBy(SYSTEM_APPROVER);
+            attendance.setApprovedById(null);
+        }
         attendance.setApprovedAt(LocalDateTime.now());
         if (dto.getRemarks() != null) {
             attendance.setRemarks(dto.getRemarks());
         }
 
         return attendanceMapper.toResponseDto(attendanceRepository.save(attendance),fileStorageService);
+    }
+
+    /**
+     * Resolves the authenticated caller to their {@link Employee} in the current organization,
+     * or {@code null} when there is no authenticated user or no matching employee record (for
+     * example a system or scheduled job).
+     */
+    private Employee resolveCurrentEmployee() {
+        Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            return null;
+        }
+        return employeeRepository
+                .findByUserIdAndOrganizationId(userId, TenantContext.getCurrentOrgId())
+                .orElse(null);
     }
 
     /**

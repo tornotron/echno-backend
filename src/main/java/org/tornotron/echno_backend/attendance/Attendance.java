@@ -122,6 +122,9 @@ public class Attendance implements TenantScopedEntity {
     @Column(name = "approved_by")
     private String approvedBy;
 
+    @Column(name = "approved_by_id")
+    private Long approvedById;
+
     @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 

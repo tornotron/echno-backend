@@ -85,8 +85,11 @@ public class AttendanceResponseDto {
     @Schema(description = "Approval status of the record.", example = "APPROVED")
     private ApprovalStatus approvalStatus;
 
-    @Schema(description = "Name or id of the person who approved or rejected the record.", example = "Anand Rajashekar")
+    @Schema(description = "Name of the employee who approved or rejected the record.", example = "Anand Rajashekar")
     private String approvedBy;
+
+    @Schema(description = "Employee id of the person who approved or rejected the record, for filtering by approver.", example = "42")
+    private Long approvedById;
 
     @Schema(description = "Timestamp the record was approved or rejected.", example = "2026-01-16T10:15:00")
     private LocalDateTime approvedAt;
