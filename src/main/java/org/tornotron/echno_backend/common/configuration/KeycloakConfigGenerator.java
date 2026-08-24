@@ -132,11 +132,19 @@ public class KeycloakConfigGenerator {
         }
         String[] items = input.split(",");
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < items.length; i++) {
-            sb.append("\"").append(items[i].trim()).append("\"");
-            if (i < items.length - 1) {
+        boolean first = true;
+        for (String item : items) {
+            String trimmed = item.trim();
+            // Skip blank entries so an unset optional origin (e.g. a defaulted-empty
+            // localhost var) does not produce an empty-string webOrigin.
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (!first) {
                 sb.append(", ");
             }
+            sb.append("\"").append(trimmed).append("\"");
+            first = false;
         }
         return sb.toString();
     }
