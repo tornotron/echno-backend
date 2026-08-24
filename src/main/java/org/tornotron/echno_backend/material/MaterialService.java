@@ -99,6 +99,7 @@ public class MaterialService {
         material.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
         material.setDescription(creationDto.getDescription());
         material.setHsn(creationDto.getHsn());
+        material.setGstRate(creationDto.getGstRate());
         material.setMoq(creationDto.getMoq());
         material.setOpeningStock(creationDto.getOpeningStock());
         material.setMinStock(creationDto.getMinStock());
@@ -237,6 +238,10 @@ public class MaterialService {
 
         if (updateDto.getHsn() != null) {
             material.setHsn(updateDto.getHsn());
+        }
+
+        if (updateDto.getGstRate() != null) {
+            material.setGstRate(updateDto.getGstRate());
         }
 
         if (updateDto.getMoq() != null) {

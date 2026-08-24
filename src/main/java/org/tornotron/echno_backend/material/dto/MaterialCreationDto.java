@@ -38,6 +38,9 @@ public class MaterialCreationDto {
     @Schema(description = "HSN code for the material, used on GST invoices.", example = "2523")
     private String hsn;
 
+    @Schema(description = "Applicable GST percentage for the material, used on invoices.", example = "18.00")
+    private BigDecimal gstRate;
+
     @Schema(description = "Opening stock quantity to record when the material is created. Requires "
             + "projectId and storageLocationId to also be set.", example = "500")
     private Double openingStock;

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="045-add-gst-rate-to-material" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="material" columnName="gst_rate"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Applicable GST percentage on a material (for example 18.00), used on invoices.
+            Nullable; a material may have no GST rate recorded.
+        </comment>
+
+        <addColumn tableName="material">
+            <column name="gst_rate" type="NUMERIC"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="045-create-material-location-threshold" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="material_location_threshold"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Per-location override of a material's planning thresholds. Where present, the location's
+            levels replace the material's global ones; a null column falls back to the global level.
+            At most one row per material and storage location.
+        </comment>
+
+        <createTable tableName="material_location_threshold">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="material_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="storage_location_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT"/>
+
+            <column name="min_stock" type="DOUBLE"/>
+            <column name="max_stock" type="DOUBLE"/>
+            <column name="safety_stock" type="DOUBLE"/>
+            <column name="reorder_level" type="DOUBLE"/>
+            <column name="moq" type="DOUBLE"/>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="material_location_threshold"
+                                 baseColumnNames="material_id"
+                                 constraintName="fk_mlt_material"
+                                 referencedTableName="material"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="material_location_threshold"
+                                 baseColumnNames="storage_location_id"
+                                 constraintName="fk_mlt_storage_location"
+                                 referencedTableName="storage_location"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="material_location_threshold"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_mlt_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addUniqueConstraint tableName="material_location_threshold"
+                             columnNames="material_id, storage_location_id"
+                             constraintName="uq_material_location_threshold"/>
+
+        <createIndex tableName="material_location_threshold" indexName="idx_mlt_material">
+            <column name="material_id"/>
+        </createIndex>
+        <createIndex tableName="material_location_threshold" indexName="idx_mlt_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

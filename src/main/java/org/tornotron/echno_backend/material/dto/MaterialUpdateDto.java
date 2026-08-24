@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.material.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import java.math.BigDecimal;
 
 @Schema(description = "Payload to partially update a material. Fields left null are left unchanged.")
 @Data
@@ -25,6 +26,9 @@ public class MaterialUpdateDto {
 
     @Schema(description = "HSN code for the material, used on GST invoices.", example = "2523")
     private String hsn;
+
+    @Schema(description = "Applicable GST percentage for the material, used on invoices.", example = "18.00")
+    private BigDecimal gstRate;
 
     @Schema(description = "Minimum order quantity from the supplier.", example = "100")
     private Double moq;
