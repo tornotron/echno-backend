@@ -340,11 +340,10 @@ public class KeycloakInitializer {
                 bindBrowserFlowIfComplete(flows);
                 return;
             }
-            // Self-repair: the flow exists but is missing our conditional subflow (e.g. an earlier
-            // build that failed after copy). Rebind to built-in 'browser' so the flow is deletable,
-            // delete it, and recreate correctly below.
-            log.warn("Browser MFA flow '{}' exists but is INCOMPLETE (missing '{}'); repairing",
-                    MFA_FLOW_ALIAS, MFA_CONDITIONAL_SUBFLOW_ALIAS);
+            // Self-repair: the flow exists but is not fully correct (missing our conditional subflow,
+            // or the built-in conditional-OTP subflow not disabled, etc). Rebind to built-in 'browser'
+            // so the flow is deletable, delete it, and recreate correctly below.
+            log.warn("Browser MFA flow '{}' exists but is INCOMPLETE; rebuilding it", MFA_FLOW_ALIAS);
             rebindRealmToBuiltinBrowser();
             deleteFlowByAlias(flows, MFA_FLOW_ALIAS);
             if (flowExists(flows, MFA_FLOW_ALIAS)) {
@@ -463,10 +462,17 @@ public class KeycloakInitializer {
         }
     }
 
-    // Locate the forms subflow alias (its real alias, reported in displayName). Primary: the
-    // top-level subflow whose descendants include 'auth-username-password-form'. Fallback: a
-    // top-level subflow whose displayName ends with 'forms'.
+    // Locate the forms subflow alias (its real alias, reported in displayName).
     private String findFormsSubflowAlias(List<AuthenticationExecutionInfoRepresentation> executions) {
+        int idx = indexOfFormsSubflow(executions);
+        return idx < 0 ? null : executions.get(idx).getDisplayName();
+    }
+
+    // Index of the forms subflow in the flat executions list. Primary: the top-level (level 0)
+    // subflow whose descendants include the 'auth-username-password-form' execution. Fallback: a
+    // top-level subflow whose displayName ends with 'forms'. The 'browser' flow has more than one
+    // level-0 subflow (e.g. Organization), so the forms subflow must be found by its content.
+    private int indexOfFormsSubflow(List<AuthenticationExecutionInfoRepresentation> executions) {
         for (int i = 0; i < executions.size(); i++) {
             AuthenticationExecutionInfoRepresentation subflow = executions.get(i);
             if (!Boolean.TRUE.equals(subflow.getAuthenticationFlow()) || subflow.getLevel() != 0) {
@@ -479,23 +485,28 @@ public class KeycloakInitializer {
                     break;
                 }
                 if ("auth-username-password-form".equals(descendant.getProviderId())) {
-                    return subflow.getDisplayName();
+                    return i;
                 }
             }
         }
         // Fallback by displayName.
-        return executions.stream()
-                .filter(e -> Boolean.TRUE.equals(e.getAuthenticationFlow()))
-                .filter(e -> e.getLevel() == 0)
-                .filter(e -> e.getDisplayName() != null && e.getDisplayName().toLowerCase().endsWith("forms"))
-                .map(AuthenticationExecutionInfoRepresentation::getDisplayName)
-                .findFirst()
-                .orElse(null);
+        for (int i = 0; i < executions.size(); i++) {
+            AuthenticationExecutionInfoRepresentation subflow = executions.get(i);
+            if (Boolean.TRUE.equals(subflow.getAuthenticationFlow())
+                    && subflow.getLevel() == 0
+                    && subflow.getDisplayName() != null
+                    && subflow.getDisplayName().toLowerCase().endsWith("forms")) {
+                return i;
+            }
+        }
+        return -1;
     }
 
-    // A flow is complete when it contains our '{@value #MFA_CONDITIONAL_SUBFLOW_ALIAS}' subflow with
-    // both the role condition and the OTP form, AND any built-in conditional-OTP subflow (the one
-    // carrying 'conditional-user-configured') is DISABLED so OTP is single-pathed.
+    // A flow is complete when, INSIDE the forms subflow: (1) our '{@value #MFA_CONDITIONAL_SUBFLOW_ALIAS}'
+    // subflow is present with 'conditional-user-role' REQUIRED (configured with role={@value #MFA_ROLE})
+    // and 'auth-otp-form' REQUIRED, AND (2) the built-in "Browser - Conditional OTP" subflow (the other
+    // direct child of forms that contains an 'auth-otp-form') is DISABLED, so OTP is single-pathed. The
+    // Organization subflow (a separate level-0 subflow) is irrelevant and never inspected.
     private boolean isFlowComplete(AuthenticationManagementResource flows) {
         List<AuthenticationExecutionInfoRepresentation> executions;
         try {
@@ -504,88 +515,137 @@ public class KeycloakInitializer {
             return false;
         }
 
-        boolean hasRoleCondition = false;
-        boolean hasOtpForm = false;
-        boolean builtinConditionalOtpActive = false;
+        int formsIdx = indexOfFormsSubflow(executions);
+        if (formsIdx < 0) {
+            return false;
+        }
+        int formsLevel = executions.get(formsIdx).getLevel();
 
-        for (int i = 0; i < executions.size(); i++) {
-            AuthenticationExecutionInfoRepresentation subflow = executions.get(i);
-            if (!Boolean.TRUE.equals(subflow.getAuthenticationFlow())) {
+        boolean ourSubflowOk = false;
+        boolean builtinOtpFound = false;
+        boolean builtinOtpDisabled = false;
+
+        // Walk only the forms subflow's direct children (level == formsLevel + 1), stopping at the
+        // end of the forms span (the next entry at level <= formsLevel).
+        for (int i = formsIdx + 1; i < executions.size(); i++) {
+            AuthenticationExecutionInfoRepresentation child = executions.get(i);
+            if (child.getLevel() <= formsLevel) {
+                break;
+            }
+            if (!Boolean.TRUE.equals(child.getAuthenticationFlow()) || child.getLevel() != formsLevel + 1) {
                 continue;
             }
-            int parentLevel = subflow.getLevel();
-            boolean carriesUserConfiguredCondition = false;
-            boolean isOurSubflow = MFA_CONDITIONAL_SUBFLOW_ALIAS.equals(subflow.getDisplayName());
+
+            boolean isOurSubflow = MFA_CONDITIONAL_SUBFLOW_ALIAS.equals(child.getDisplayName());
+            int childLevel = child.getLevel();
+            boolean roleConditionRequired = false;
+            boolean roleConfiguredForMfa = false;
+            boolean otpFormRequired = false;
+            boolean containsOtpForm = false;
 
             for (int j = i + 1; j < executions.size(); j++) {
                 AuthenticationExecutionInfoRepresentation descendant = executions.get(j);
-                if (descendant.getLevel() <= parentLevel) {
-                    break;
+                if (descendant.getLevel() <= childLevel) {
+                    break; // left this subflow's span
                 }
                 String providerId = descendant.getProviderId();
+                if ("auth-otp-form".equals(providerId)) {
+                    containsOtpForm = true;
+                    if ("REQUIRED".equals(descendant.getRequirement())) {
+                        otpFormRequired = true;
+                    }
+                }
                 if (isOurSubflow && "conditional-user-role".equals(providerId)) {
-                    hasRoleCondition = true;
-                }
-                if (isOurSubflow && "auth-otp-form".equals(providerId)) {
-                    hasOtpForm = true;
-                }
-                if ("conditional-user-configured".equals(providerId)) {
-                    carriesUserConfiguredCondition = true;
+                    if ("REQUIRED".equals(descendant.getRequirement())) {
+                        roleConditionRequired = true;
+                    }
+                    roleConfiguredForMfa = hasRequireMfaRoleConfig(flows, descendant);
                 }
             }
 
-            // A built-in conditional-OTP subflow that is not DISABLED means OTP is double-pathed.
-            if (!isOurSubflow && carriesUserConfiguredCondition && !"DISABLED".equals(subflow.getRequirement())) {
-                builtinConditionalOtpActive = true;
+            if (isOurSubflow) {
+                ourSubflowOk = roleConditionRequired && roleConfiguredForMfa && otpFormRequired;
+            } else if (containsOtpForm) {
+                // The built-in "Browser - Conditional OTP" subflow (direct child of forms, not ours).
+                builtinOtpFound = true;
+                builtinOtpDisabled = "DISABLED".equals(child.getRequirement());
             }
         }
 
-        return hasRoleCondition && hasOtpForm && !builtinConditionalOtpActive;
+        return ourSubflowOk && builtinOtpFound && builtinOtpDisabled;
+    }
+
+    // True if the given 'conditional-user-role' execution is configured with role={@value #MFA_ROLE}.
+    private boolean hasRequireMfaRoleConfig(AuthenticationManagementResource flows,
+                                            AuthenticationExecutionInfoRepresentation execution) {
+        try {
+            String configId = execution.getAuthenticationConfig();
+            if (configId == null) {
+                return false;
+            }
+            AuthenticatorConfigRepresentation config = flows.getAuthenticatorConfig(configId);
+            return config != null && config.getConfig() != null && MFA_ROLE.equals(config.getConfig().get("role"));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     // Within 'echno-browser-mfa' ONLY (never the shared built-in 'browser' flow), disable the
-    // built-in conditional-OTP subflow: the CONDITIONAL subflow carrying the
-    // 'conditional-user-configured' + 'auth-otp-form' executions (i.e. not our subflow). This
-    // leaves 'echno-admin-mfa-conditional' as the single OTP path.
+    // built-in conditional-OTP subflow. It is identified strictly as the CONDITIONAL subflow that is
+    // a DIRECT CHILD of the forms subflow, contains an 'auth-otp-form' execution, and is NOT our own
+    // '{@value #MFA_CONDITIONAL_SUBFLOW_ALIAS}'. This leaves our subflow as the single OTP path and
+    // never touches the Organization subflow (which also carries a 'conditional-user-configured' but
+    // sits outside forms).
     private void disableBuiltinConditionalOtp(AuthenticationManagementResource flows) {
         List<AuthenticationExecutionInfoRepresentation> executions = flows.getExecutions(MFA_FLOW_ALIAS);
 
-        for (int i = 0; i < executions.size(); i++) {
-            AuthenticationExecutionInfoRepresentation subflow = executions.get(i);
-            if (!Boolean.TRUE.equals(subflow.getAuthenticationFlow())) {
-                continue;
+        int formsIdx = indexOfFormsSubflow(executions);
+        if (formsIdx < 0) {
+            log.warn("Could not locate the forms subflow in '{}'; cannot disable the built-in conditional-OTP subflow", MFA_FLOW_ALIAS);
+            return;
+        }
+        int formsLevel = executions.get(formsIdx).getLevel();
+
+        for (int i = formsIdx + 1; i < executions.size(); i++) {
+            AuthenticationExecutionInfoRepresentation child = executions.get(i);
+            if (child.getLevel() <= formsLevel) {
+                break; // left the forms span
             }
-            if (MFA_CONDITIONAL_SUBFLOW_ALIAS.equals(subflow.getDisplayName())) {
+            if (!Boolean.TRUE.equals(child.getAuthenticationFlow()) || child.getLevel() != formsLevel + 1) {
+                continue; // only direct-child subflows of forms
+            }
+            if (MFA_CONDITIONAL_SUBFLOW_ALIAS.equals(child.getDisplayName())) {
                 continue; // never our own conditional subflow
             }
 
-            // Does this subflow contain a 'conditional-user-configured' condition among its descendants?
-            int parentLevel = subflow.getLevel();
-            boolean hasUserConfiguredCondition = false;
+            // Does this direct-child subflow contain an 'auth-otp-form'? That is the built-in
+            // "Browser - Conditional OTP" subflow.
+            int childLevel = child.getLevel();
+            boolean containsOtpForm = false;
             for (int j = i + 1; j < executions.size(); j++) {
                 AuthenticationExecutionInfoRepresentation descendant = executions.get(j);
-                if (descendant.getLevel() <= parentLevel) {
-                    break; // left this subflow's descendants
+                if (descendant.getLevel() <= childLevel) {
+                    break;
                 }
-                if ("conditional-user-configured".equals(descendant.getProviderId())) {
-                    hasUserConfiguredCondition = true;
+                if ("auth-otp-form".equals(descendant.getProviderId())) {
+                    containsOtpForm = true;
                     break;
                 }
             }
 
-            if (hasUserConfiguredCondition) {
-                if (!"DISABLED".equals(subflow.getRequirement())) {
-                    subflow.setRequirement("DISABLED");
-                    flows.updateExecutions(MFA_FLOW_ALIAS, subflow);
-                    log.info("Disabled built-in conditional-OTP subflow '{}' in '{}' so OTP is governed solely by the require-mfa path",
-                            subflow.getDisplayName(), MFA_FLOW_ALIAS);
+            if (containsOtpForm) {
+                if (!"DISABLED".equals(child.getRequirement())) {
+                    child.setRequirement("DISABLED");
+                    flows.updateExecutions(MFA_FLOW_ALIAS, child);
+                    log.info("Disabled built-in conditional-OTP subflow '{}' (direct child of forms) in '{}' so OTP is governed solely by the require-mfa path",
+                            child.getDisplayName(), MFA_FLOW_ALIAS);
                 } else {
-                    log.info("Built-in conditional-OTP subflow '{}' already disabled in '{}'", subflow.getDisplayName(), MFA_FLOW_ALIAS);
+                    log.info("Built-in conditional-OTP subflow '{}' already disabled in '{}'", child.getDisplayName(), MFA_FLOW_ALIAS);
                 }
                 return;
             }
         }
-        log.warn("Could not locate the built-in conditional-OTP subflow in '{}'; check admin OTP is not double-prompted", MFA_FLOW_ALIAS);
+        log.warn("Could not locate the built-in conditional-OTP subflow inside forms in '{}'; check admin OTP is not double-prompted", MFA_FLOW_ALIAS);
     }
 
     // (e) Bind the realm's browser flow to our conditional flow, but ONLY after verifying it is
