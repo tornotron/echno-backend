@@ -56,7 +56,9 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 @Import({ConstructionInvoiceService.class, ConstructionInvoiceMapperImpl.class,
         TenantEntityHelper.class, EntryNumberGenerator.class, JpaAuditingConfig.class,
         JournalPostingService.class, JournalEntryMapperImpl.class, ConstructionPostingProperties.class,
-        InvoicePostingProperties.class, UserContextService.class, ChartOfAccountsSeeder.class})
+        InvoicePostingProperties.class, UserContextService.class, ChartOfAccountsSeeder.class,
+        org.tornotron.echno_backend.finance.posting.service.PostingAccountResolver.class,
+        org.tornotron.echno_backend.finance.settings.FinanceSettingsService.class})
 class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
 
     private static final long PROJECT_ID = 4001L;

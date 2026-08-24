@@ -51,7 +51,9 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({InvoiceService.class, InvoiceMapperImpl.class, JournalPostingService.class,
         JournalEntryMapperImpl.class, EntryNumberGenerator.class, TenantEntityHelper.class,
-        InvoicePostingProperties.class, JpaAuditingConfig.class})
+        InvoicePostingProperties.class, JpaAuditingConfig.class,
+        org.tornotron.echno_backend.finance.posting.service.PostingAccountResolver.class,
+        org.tornotron.echno_backend.finance.construction.ConstructionPostingProperties.class})
 class InvoiceServiceIT extends AbstractIntegrationTest {
 
     @Autowired

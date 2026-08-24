@@ -53,7 +53,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import({ConstructionInvoiceService.class, ConstructionInvoiceMapperImpl.class,
         TenantEntityHelper.class, EntryNumberGenerator.class, JpaAuditingConfig.class,
         JournalPostingService.class, JournalEntryMapperImpl.class, ConstructionPostingProperties.class,
-        InvoicePostingProperties.class, UserContextService.class})
+        InvoicePostingProperties.class, UserContextService.class,
+        org.tornotron.echno_backend.finance.posting.service.PostingAccountResolver.class,
+        org.tornotron.echno_backend.finance.settings.FinanceSettingsService.class})
 class ConstructionInvoiceServiceIT extends AbstractIntegrationTest {
 
     @Autowired

@@ -271,4 +271,7 @@
     <!-- v4.0 - Material GST rate + per-location threshold overrides (#257) -->
     <include file="db/changelog/v4.0/045-add-material-gst-rate-and-location-thresholds.xml"/>
 
+    <!-- v4.0 - Finance: per-org posting-account mapping, finance settings, project approval threshold (#341) -->
+    <include file="db/changelog/v4.0/046-add-finance-posting-mapping-settings-and-approval-threshold.xml"/>
+
 </databaseChangeLog>

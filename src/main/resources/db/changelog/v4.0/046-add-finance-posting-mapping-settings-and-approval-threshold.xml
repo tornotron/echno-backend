@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="046-create-posting-account-mapping" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="posting_account_mapping"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Per-organization override that points a finance posting role (accounts receivable, GST
+            output, accounts payable, GST input, default revenue, default expense) at a concrete
+            account. Where a role has no row, the postings fall back to the configured default code.
+            At most one row per organization and role.
+        </comment>
+
+        <createTable tableName="posting_account_mapping">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="role" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="account_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="posting_account_mapping"
+                                 baseColumnNames="account_id"
+                                 constraintName="fk_pam_account"
+                                 referencedTableName="accounts"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint baseTableName="posting_account_mapping"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_pam_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addUniqueConstraint tableName="posting_account_mapping"
+                             columnNames="organization_id, role"
+                             constraintName="uk_posting_account_mapping_role"/>
+
+        <createIndex tableName="posting_account_mapping" indexName="idx_pam_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="046-create-finance-settings" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="finance_settings"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Organization-level finance settings, one row per tenant. Holds the auto-approval
+            threshold: null means every construction invoice needs manual approval, a value T means
+            invoices below T are auto-approved on submit.
+        </comment>
+
+        <createTable tableName="finance_settings">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="approval_threshold" type="NUMERIC(19,4)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="finance_settings"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_finance_settings_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addUniqueConstraint tableName="finance_settings"
+                             columnNames="organization_id"
+                             constraintName="uk_finance_settings_org"/>
+    </changeSet>
+
+    <changeSet id="046-add-approval-threshold-to-project" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="project" columnName="approval_threshold"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Per-project override of the finance auto-approval threshold. Nullable; a null value falls
+            back to the organization-level finance setting.
+        </comment>
+
+        <addColumn tableName="project">
+            <column name="approval_threshold" type="NUMERIC(19,4)"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

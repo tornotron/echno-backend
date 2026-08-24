@@ -31,6 +31,14 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     boolean existsByCode(String code);
 
     /**
+     * Whether another account in the current tenant already uses the given code, excluding the
+     * account with the given id. Used on edit so an account can keep its own code while a clash
+     * with any other account is still rejected. The Hibernate {@code orgFilter} scopes it to the
+     * current tenant.
+     */
+    boolean existsByCodeAndIdNot(String code, UUID id);
+
+    /**
      * Whether the given organization already owns any account. Used by the
      * chart-of-accounts seeder to stay idempotent: it seeds only an org whose
      * chart is empty. Queries the organization id directly so it does not depend

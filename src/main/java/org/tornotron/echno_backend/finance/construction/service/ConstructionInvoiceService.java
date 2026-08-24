@@ -1,7 +1,5 @@
 package org.tornotron.echno_backend.finance.construction.service;
 
-import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -9,15 +7,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.configuration.MoneyUtils;
-import org.tornotron.echno_backend.common.exception.AccountNotFoundException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.finance.construction.ConstructionInvoiceStatus;
 import org.tornotron.echno_backend.finance.construction.ConstructionInvoiceType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentStatus;
-import org.tornotron.echno_backend.finance.construction.ConstructionPostingProperties;
 import org.tornotron.echno_backend.finance.construction.domain.ConstructionInvoice;
 import org.tornotron.echno_backend.finance.construction.domain.ConstructionInvoiceLine;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceDto;
@@ -27,14 +24,17 @@ import org.tornotron.echno_backend.finance.construction.dtos.UpdateConstructionI
 import org.tornotron.echno_backend.finance.construction.mapper.ConstructionInvoiceMapper;
 import org.tornotron.echno_backend.finance.construction.repositories.ConstructionInvoiceRepository;
 import org.tornotron.echno_backend.finance.construction.repositories.ConstructionInvoiceSpecifications;
-import org.tornotron.echno_backend.finance.invoice.InvoicePostingProperties;
 import org.tornotron.echno_backend.finance.ledger.domain.Account;
 import org.tornotron.echno_backend.finance.ledger.domain.JournalEntry;
 import org.tornotron.echno_backend.finance.ledger.dtos.PostJournalRequest;
 import org.tornotron.echno_backend.finance.ledger.dtos.ReverseJournalRequest;
-import org.tornotron.echno_backend.finance.ledger.repositories.AccountRepository;
 import org.tornotron.echno_backend.finance.ledger.repositories.JournalEntryRepository;
 import org.tornotron.echno_backend.finance.ledger.service.JournalPostingService;
+import org.tornotron.echno_backend.finance.posting.PostingRole;
+import org.tornotron.echno_backend.finance.posting.service.PostingAccountResolver;
+import org.tornotron.echno_backend.finance.settings.FinanceSettingsService;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.UserContextService;
 
 import java.math.BigDecimal;
@@ -67,11 +67,11 @@ public class ConstructionInvoiceService {
     private final EntryNumberGenerator numberGen;
     private final ConstructionInvoiceMapper mapper;
     private final TenantEntityHelper tenantEntityHelper;
-    private final AccountRepository accountRepo;
     private final JournalEntryRepository journalRepo;
     private final JournalPostingService postingService;
-    private final ConstructionPostingProperties postingProps;
-    private final InvoicePostingProperties arPostingProps;
+    private final PostingAccountResolver postingAccountResolver;
+    private final FinanceSettingsService financeSettingsService;
+    private final ProjectRepository projectRepository;
     private final UserContextService userContextService;
 
     @Transactional(readOnly = true)
@@ -177,6 +177,12 @@ public class ConstructionInvoiceService {
 
     /**
      * Submit a draft for approval: DRAFT -> PENDING. Records who submitted it and when.
+     *
+     * <p>When an auto-approval threshold applies (per-project override where set, else the
+     * organization-level finance setting) and the invoice total is strictly below it, the invoice
+     * is approved and posted straight away through the same path as {@link #approve}, rather than
+     * left waiting in PENDING. A null effective threshold means every invoice needs manual approval,
+     * which is the original behaviour.
      */
     @Transactional
     public ConstructionInvoiceDto submit(UUID id) {
@@ -186,9 +192,18 @@ public class ConstructionInvoiceService {
                     "Only DRAFT construction invoices can be submitted; invoice "
                             + inv.getInvoiceNumber() + " is currently " + inv.getStatus());
         }
-        inv.setStatus(ConstructionInvoiceStatus.PENDING);
         inv.setSubmittedBy(userContextService.getCurrentUserId());
         inv.setSubmittedAt(Instant.now());
+
+        BigDecimal threshold = effectiveApprovalThreshold(inv);
+        if (threshold != null && inv.getTotalAmount().compareTo(threshold) < 0) {
+            postAndApprove(inv);
+            log.info("Auto-approved construction invoice {} under threshold {} on submit",
+                    inv.getInvoiceNumber(), threshold);
+            return mapper.toDto(inv);
+        }
+
+        inv.setStatus(ConstructionInvoiceStatus.PENDING);
         log.info("Submitted construction invoice {} for approval", inv.getInvoiceNumber());
         return mapper.toDto(inv);
     }
@@ -196,7 +211,8 @@ public class ConstructionInvoiceService {
     /**
      * Approve a pending invoice: PENDING -> APPROVED, and post the journal entry.
      *
-     * <p>Posting is invoice-level to the configured default accounts:
+     * <p>Posting is invoice-level to the accounts resolved for each posting role (a per-org mapping
+     * where set, else the configured default account):
      * <ul>
      *   <li>PURCHASE / EXPENSE: DR default expense (net of discount) + DR GST input
      *       (tax, if any); CR Accounts Payable (gross total).</li>
@@ -213,7 +229,34 @@ public class ConstructionInvoiceService {
                     "Only PENDING construction invoices can be approved; invoice "
                             + inv.getInvoiceNumber() + " is currently " + inv.getStatus());
         }
+        postAndApprove(inv);
+        return mapper.toDto(inv);
+    }
 
+    /**
+     * The effective auto-approval threshold for an invoice: the invoice's project override where
+     * set, otherwise the organization-level finance setting. Null means manual approval is always
+     * required.
+     */
+    private BigDecimal effectiveApprovalThreshold(ConstructionInvoice inv) {
+        if (inv.getProjectId() != null) {
+            BigDecimal projectThreshold = projectRepository
+                    .findByIdAndOrganization_Id(inv.getProjectId(), TenantContext.getCurrentOrgId())
+                    .map(Project::getApprovalThreshold)
+                    .orElse(null);
+            if (projectThreshold != null) {
+                return projectThreshold;
+            }
+        }
+        return financeSettingsService.getApprovalThreshold();
+    }
+
+    /**
+     * Posts the ledger journal entry for the invoice and moves it to APPROVED, recording the
+     * approving user. Shared by {@link #approve} and the auto-approval path in {@link #submit}, so
+     * both raise an identical journal entry.
+     */
+    private void postAndApprove(ConstructionInvoice inv) {
         BigDecimal net = MoneyUtils.normalize(inv.getSubtotal().subtract(inv.getDiscountAmount()));
         BigDecimal tax = MoneyUtils.normalize(inv.getTaxAmount());
         BigDecimal gross = MoneyUtils.normalize(inv.getTotalAmount());
@@ -223,12 +266,12 @@ public class ConstructionInvoiceService {
             case PURCHASE, EXPENSE -> {
                 // TODO: option A AR materialization is only for sales/service; purchase and
                 // expense always post their own payable entry (no AR analog).
-                Account expense = requireAccount(postingProps.getDefaultExpenseCode());
-                Account payable = requireAccount(postingProps.getApAccountCode());
+                Account expense = postingAccountResolver.resolve(PostingRole.DEFAULT_EXPENSE);
+                Account payable = postingAccountResolver.resolve(PostingRole.ACCOUNTS_PAYABLE);
                 jeLines.add(new PostJournalRequest.LineRequest(expense.getId(), net, BigDecimal.ZERO,
                         "Expense - " + inv.getInvoiceNumber()));
                 if (MoneyUtils.isPositive(tax)) {
-                    Account gstInput = requireAccount(postingProps.getGstInputCode());
+                    Account gstInput = postingAccountResolver.resolve(PostingRole.GST_INPUT);
                     jeLines.add(new PostJournalRequest.LineRequest(gstInput.getId(), tax, BigDecimal.ZERO,
                             "GST input - " + inv.getInvoiceNumber()));
                 }
@@ -240,14 +283,14 @@ public class ConstructionInvoiceService {
                 // materializes a real AR Invoice (customer = project client) via
                 // InvoiceService.issue so AR aging and receipts pick it up. Until customer
                 // resolution exists this posts the AR journal entry directly instead.
-                Account receivable = requireAccount(arPostingProps.getArAccountCode());
-                Account revenue = requireAccount(postingProps.getDefaultRevenueCode());
+                Account receivable = postingAccountResolver.resolve(PostingRole.ACCOUNTS_RECEIVABLE);
+                Account revenue = postingAccountResolver.resolve(PostingRole.DEFAULT_REVENUE);
                 jeLines.add(new PostJournalRequest.LineRequest(receivable.getId(), gross, BigDecimal.ZERO,
                         "Receivable - " + inv.getInvoiceNumber()));
                 jeLines.add(new PostJournalRequest.LineRequest(revenue.getId(), BigDecimal.ZERO, net,
                         "Revenue - " + inv.getInvoiceNumber()));
                 if (MoneyUtils.isPositive(tax)) {
-                    Account gstOutput = requireAccount(arPostingProps.getGstOutputCode());
+                    Account gstOutput = postingAccountResolver.resolve(PostingRole.GST_OUTPUT);
                     jeLines.add(new PostJournalRequest.LineRequest(gstOutput.getId(), BigDecimal.ZERO, tax,
                             "GST output - " + inv.getInvoiceNumber()));
                 }
@@ -267,7 +310,6 @@ public class ConstructionInvoiceService {
         inv.setApprovedAt(Instant.now());
 
         log.info("Approved construction invoice {} (JE: {})", inv.getInvoiceNumber(), je.getEntryNumber());
-        return mapper.toDto(inv);
     }
 
     /**
@@ -344,11 +386,6 @@ public class ConstructionInvoiceService {
         return invoiceRepo.findByIdWithLines(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Construction invoice with ID " + id + " was not found"));
-    }
-
-    private Account requireAccount(String code) {
-        return accountRepo.findByCodeAndOrganization_Id(code, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new AccountNotFoundException(code));
     }
 
     /**

@@ -178,6 +178,73 @@ public class AccountService {
     }
 
     /**
+     * Edits an existing account: its code, name, active flag, description, and optionally its parent.
+     *
+     * <p>The code must stay unique within the tenant (a clash with any other account is rejected,
+     * while keeping the account's own code is allowed). When a new parent is supplied it must belong
+     * to the tenant, share this account's type, and not introduce a cycle; omitting the parent id
+     * leaves the current parent unchanged. Because postings resolve accounts by id through the
+     * posting-account mapping, changing an account's code does not disturb any configured posting.
+     *
+     * @param id The id of the account to edit.
+     * @param req The new code, name, active flag, description, and optional parent id.
+     * @return The updated account as a DTO.
+     * @throws AccountNotFoundException if no account with the given id, or no such parent, exists in this organization.
+     * @throws InvalidJournalException if the code is already in use, or the parent has a different type or would form a cycle.
+     */
+    @Transactional
+    public AccountDto update(UUID id, org.tornotron.echno_backend.finance.ledger.dtos.UpdateAccountRequest req) {
+        Account account = repo.findScopedById(id)
+                .orElseThrow(() -> new AccountNotFoundException(id));
+
+        String code = req.code().trim();
+        if (repo.existsByCodeAndIdNot(code, id)) {
+            throw new InvalidJournalException(
+                    "Account code '" + code + "' is already in use in this organization");
+        }
+
+        if (req.parentId() != null && !req.parentId().equals(currentParentId(account))) {
+            Account parent = repo.findScopedById(req.parentId())
+                    .orElseThrow(() -> new AccountNotFoundException(req.parentId()));
+            if (parent.getType() != account.getType()) {
+                throw new InvalidJournalException("Parent account '" + parent.getCode() + "' type '"
+                        + parent.getType() + "' does not match account type '" + account.getType() + "'");
+            }
+            if (wouldFormCycle(account, parent)) {
+                throw new InvalidJournalException("Account '" + account.getCode()
+                        + "' cannot be moved under '" + parent.getCode() + "'; that would create a cycle");
+            }
+            account.setParent(parent);
+        }
+
+        account.setCode(code);
+        account.setName(req.name());
+        account.setActive(req.active());
+        account.setDescription(req.description());
+        return mapper.toDto(account);
+    }
+
+    private UUID currentParentId(Account account) {
+        return account.getParent() == null ? null : account.getParent().getId();
+    }
+
+    /**
+     * Whether making {@code candidateParent} the parent of {@code account} would create a cycle,
+     * i.e. the candidate is the account itself or one of its descendants. Walks up from the
+     * candidate through its ancestors; if the account is reached, the move would loop.
+     */
+    private boolean wouldFormCycle(Account account, Account candidateParent) {
+        Account cursor = candidateParent;
+        while (cursor != null) {
+            if (cursor.getId().equals(account.getId())) {
+                return true;
+            }
+            cursor = cursor.getParent();
+        }
+        return false;
+    }
+
+    /**
      * Marks an account inactive so it can no longer be posted to, keeping its history intact.
      *
      * @param id The id of the account to deactivate.
