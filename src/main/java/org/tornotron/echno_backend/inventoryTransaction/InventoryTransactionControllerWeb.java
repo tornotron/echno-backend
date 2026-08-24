@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryMaterialStockDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryTransactionDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.MaterialLocationStockDto;
+import org.tornotron.echno_backend.inventoryTransaction.dto.MaterialMovementHistoryDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.TaskMaterialUsageDto;
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
 
@@ -99,6 +100,28 @@ public class InventoryTransactionControllerWeb {
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByMaterial(@PathVariable Long materialId) {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByMaterial(materialId);
         return ResponseEntity.ok(transactions);
+    }
+
+    @GetMapping("/material/{materialId}/history")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "Get a material's movement history (timeline, paged)",
+            description = "Returns the material's stock movements as a timeline, oldest movement first, "
+                    + "one page at a time. Each entry carries the storage location, project, movement type "
+                    + "and its stock direction, the quantity changed, the timestamp and the source reference "
+                    + "so the caller can show where the material has been, when, and how much."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of movement-history entries returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public ResponseEntity<Page<MaterialMovementHistoryDto>> getMaterialMovementHistory(
+            @PathVariable Long materialId,
+            @RequestParam(defaultValue = "0") int pageNo,
+            @RequestParam(defaultValue = "10") int pageSize
+    ) {
+        Page<MaterialMovementHistoryDto> history = inventoryTransactionService.getMaterialMovementHistory(materialId, pageNo, pageSize);
+        return ResponseEntity.ok(history);
     }
 
     @GetMapping("/project/{projectId}")

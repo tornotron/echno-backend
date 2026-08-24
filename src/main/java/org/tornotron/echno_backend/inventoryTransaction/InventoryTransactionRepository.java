@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.inventoryTransaction;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +16,16 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
     Optional<InventoryTransaction> findByIdAndOrganization_Id(Long id, Long organizationId);
 
     List<InventoryTransaction> findByMaterialId(Long materialId);
+
+    /**
+     * A material's movement history as a page, oldest movement first so the caller reads it
+     * as a forward-running timeline. The id is a stable tie-break when two movements share a
+     * transaction date. Tenant scoping is applied by the {@code orgFilter} Hibernate filter,
+     * as with the other ledger reads.
+     */
+    @Query("SELECT it FROM InventoryTransaction it WHERE it.material.id = :materialId " +
+           "ORDER BY it.transactionDate ASC, it.id ASC")
+    Page<InventoryTransaction> findMovementHistoryByMaterial(@Param("materialId") Long materialId, Pageable pageable);
 
     List<InventoryTransaction> findByTransactionType(InventoryTransactionType transactionType);
 
