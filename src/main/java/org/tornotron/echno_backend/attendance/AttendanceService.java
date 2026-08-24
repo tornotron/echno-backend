@@ -118,9 +118,19 @@ public class AttendanceService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Project with ID " + dto.getProjectId() + " was not found in this organization"));
 
-        ShiftTiming shift = shiftTimingRepository.findByIdAndOrganization_Id(dto.getShiftTimingId(), orgId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Shift timing with ID " + dto.getShiftTimingId() + " was not found in this organization"));
+        // Prefer the employee's assigned structured shift. Only when they have none
+        // do we fall back to a shift id supplied on the request (the pre-unification
+        // behavior). A check-in is rejected when neither source yields a shift.
+        ShiftTiming shift = employee.getShiftTiming();
+        if (shift == null) {
+            if (dto.getShiftTimingId() == null) {
+                throw new ValidationException(
+                        "No shift timing is assigned to this employee and none was supplied on the request");
+            }
+            shift = shiftTimingRepository.findByIdAndOrganization_Id(dto.getShiftTimingId(), orgId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Shift timing with ID " + dto.getShiftTimingId() + " was not found in this organization"));
+        }
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, dto.getProjectId());
 

@@ -35,6 +35,15 @@ public class ProjectInviteCode implements TenantScopedEntity {
     @ManyToOne
     private Organization organization;
 
+    /**
+     * The structured shift a joining employee should be assigned. Nullable: an invite
+     * need not carry a shift. The same id also travels inside {@link #employeeDetails},
+     * which is what seeds the employee at join time.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shift_timing_id")
+    private org.tornotron.echno_backend.attendance.ShiftTiming shiftTiming;
+
     /** The date and time when this invite code expires. */
     @Column(nullable = false)
     private LocalDateTime expiryDate;

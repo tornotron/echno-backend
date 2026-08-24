@@ -34,8 +34,8 @@ public class EmployeeJoinOrgDto {
     @Schema(description = "Id of this employee's reporting manager.", example = "5")
     private Long managerId;
 
-    @Schema(description = "Working shift.", example = "09:00-18:00")
-    private String shiftTiming;
+    @Schema(description = "Id of the structured shift timing to assign to the employee.", example = "5")
+    private Long shiftTimingId;
 
     @Schema(description = "Employment status. Defaults to active.", example = "active")
     @NotBlank(message = "status is required")

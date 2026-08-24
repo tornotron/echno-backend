@@ -35,7 +35,7 @@ public class InviteCodeGenerationDto {
 
     private Long managerId;
 
-    private String shiftTiming;
+    private Long shiftTimingId;
 
     @NotBlank(message = "status is required")
     @Size(min = 3, max = 50, message = "status must be between 3 and 50 characters")

@@ -277,4 +277,7 @@
     <!-- v4.0 - Finance: project budgeting and cost control (cost categories, budget allocations, tagged lines) -->
     <include file="db/changelog/v4.0/047-create-budget-cost-control.xml"/>
 
+    <!-- v4.0 - Unify employee and invite shift onto the structured ShiftTiming entity -->
+    <include file="db/changelog/v4.0/048-unify-employee-shift-timing.xml"/>
+
 </databaseChangeLog>

@@ -64,6 +64,7 @@ class ProjectInviteCodeServiceTest {
     @Mock private EmployeeRepository employeeRepository;
     @Mock private ProjectInviteCodeMapper projectInviteCodeMapper;
     @Mock private OrganizationMapper organizationMapper;
+    @Mock private org.tornotron.echno_backend.attendance.ShiftTimingRepository shiftTimingRepository;
 
     private ProjectInviteCodeService service;
 
@@ -71,7 +72,8 @@ class ProjectInviteCodeServiceTest {
     void setUp() {
         TenantContext.setCurrentOrgId(ORG);
         service = new ProjectInviteCodeService(inviteCodeRepository, employeeService, organizationRepository,
-                fileStorageService, employeeRepository, projectInviteCodeMapper, organizationMapper);
+                fileStorageService, employeeRepository, projectInviteCodeMapper, organizationMapper,
+                shiftTimingRepository);
     }
 
     @AfterEach
@@ -151,6 +153,47 @@ class ProjectInviteCodeServiceTest {
     }
 
     @Test
+    void generateInviteCode_withShiftTimingId_resolvesShiftAndStoresIdInDetails() {
+        Long shiftId = 9L;
+        org.tornotron.echno_backend.attendance.ShiftTiming shift =
+                new org.tornotron.echno_backend.attendance.ShiftTiming();
+        shift.setId(shiftId);
+        when(organizationRepository.findById(ORG)).thenReturn(Optional.of(organization()));
+        when(shiftTimingRepository.findByIdAndOrganization_Id(shiftId, ORG)).thenReturn(Optional.of(shift));
+        when(inviteCodeRepository.save(any(ProjectInviteCode.class))).thenAnswer(inv -> {
+            ProjectInviteCode saved = inv.getArgument(0);
+            saved.setId(INVITE_ID);
+            return saved;
+        });
+        when(projectInviteCodeMapper.toDto(any())).thenReturn(new ProjectInviteCodeDto());
+
+        InviteCodeGenerationDto dto = generationDto();
+        dto.setShiftTimingId(shiftId);
+
+        service.generateInviteCode(dto, ORG);
+
+        ArgumentCaptor<ProjectInviteCode> captor = ArgumentCaptor.forClass(ProjectInviteCode.class);
+        verify(inviteCodeRepository).save(captor.capture());
+        ProjectInviteCode saved = captor.getValue();
+        assertThat(saved.getShiftTiming()).isSameAs(shift);
+        assertThat(saved.getEmployeeDetails()).containsEntry("shiftTimingId", shiftId);
+    }
+
+    @Test
+    void generateInviteCode_unknownShiftTimingId_throwsNotFound() {
+        Long shiftId = 9L;
+        when(organizationRepository.findById(ORG)).thenReturn(Optional.of(organization()));
+        when(shiftTimingRepository.findByIdAndOrganization_Id(shiftId, ORG)).thenReturn(Optional.empty());
+
+        InviteCodeGenerationDto dto = generationDto();
+        dto.setShiftTimingId(shiftId);
+
+        assertThatExceptionOfType(ResourceNotFoundException.class)
+                .isThrownBy(() -> service.generateInviteCode(dto, ORG));
+        verify(inviteCodeRepository, never()).save(any());
+    }
+
+    @Test
     void generateInviteCode_notPersisted_throwsDatabaseError() {
         when(organizationRepository.findById(ORG)).thenReturn(Optional.of(organization()));
         // save returns an entity whose id is still null -> persistence failure
@@ -225,6 +268,7 @@ class ProjectInviteCodeServiceTest {
         ProjectInviteCode code = storedCode(true, LocalDateTime.now().plusDays(5), 5, 1);
         code.getEmployeeDetails().put("managerId", 8);
         code.getEmployeeDetails().put("salary", 55000.0);
+        code.getEmployeeDetails().put("shiftTimingId", 9);
         when(inviteCodeRepository.findByCode(12345)).thenReturn(Optional.of(code));
         OrganizationDto orgDto = new OrganizationDto();
         when(organizationMapper.toDto(any())).thenReturn(orgDto);
@@ -239,6 +283,9 @@ class ProjectInviteCodeServiceTest {
         assertThat(joinDto.getEmail()).isEqualTo("jane@example.com");
         assertThat(joinDto.getManagerId()).isEqualTo(8L);
         assertThat(joinDto.getSalary()).isEqualTo(55000.0);
+        // The invite's stored shift id is carried into the join so the new employee is
+        // given that structured shift.
+        assertThat(joinDto.getShiftTimingId()).isEqualTo(9L);
     }
 
     @Test

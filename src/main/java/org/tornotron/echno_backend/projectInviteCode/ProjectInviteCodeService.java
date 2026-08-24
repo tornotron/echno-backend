@@ -2,6 +2,8 @@ package org.tornotron.echno_backend.projectInviteCode;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.attendance.ShiftTiming;
+import org.tornotron.echno_backend.attendance.ShiftTimingRepository;
 import org.tornotron.echno_backend.projectInviteCode.mapper.ProjectInviteCodeMapper;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
@@ -40,6 +42,7 @@ public class ProjectInviteCodeService {
     private final EmployeeRepository employeeRepository;
     private final ProjectInviteCodeMapper projectInviteCodeMapper;
     private final org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper;
+    private final ShiftTimingRepository shiftTimingRepository;
 
     /**
      * Constructs a ProjectInviteCodeService with the necessary repositories and services.
@@ -48,7 +51,7 @@ public class ProjectInviteCodeService {
      * @param employeeService        The service for employee-related operations.
      * @param organizationRepository The repository for organization data access.
      */
-    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository, FileStorageService fileStorageService, EmployeeRepository employeeRepository, ProjectInviteCodeMapper projectInviteCodeMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
+    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository, FileStorageService fileStorageService, EmployeeRepository employeeRepository, ProjectInviteCodeMapper projectInviteCodeMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, ShiftTimingRepository shiftTimingRepository) {
         this.inviteCodeRepository = inviteCodeRepository;
         this.employeeService = employeeService;
         this.organizationRepository = organizationRepository;
@@ -56,6 +59,7 @@ public class ProjectInviteCodeService {
         this.employeeRepository = employeeRepository;
         this.projectInviteCodeMapper = projectInviteCodeMapper;
         this.organizationMapper = organizationMapper;
+        this.shiftTimingRepository = shiftTimingRepository;
     }
 
     /**
@@ -85,10 +89,19 @@ public class ProjectInviteCodeService {
                 throw new ResourceNotFoundException("Manager with ID " + inviteCodeGenerationDto.getManagerId() + " was not found with a manager role in this organization");
             }
         }
+        ShiftTiming shiftTiming = null;
+        if (inviteCodeGenerationDto.getShiftTimingId() != null) {
+            shiftTiming = shiftTimingRepository.findByIdAndOrganization_Id(
+                            inviteCodeGenerationDto.getShiftTimingId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Shift timing with ID " + inviteCodeGenerationDto.getShiftTimingId()
+                                    + " was not found in this organization"));
+        }
         int inviteCode = generateSecureFiveDigitNumber();
         ProjectInviteCode projectInviteCode = new ProjectInviteCode();
         projectInviteCode.setCode(inviteCode);
         projectInviteCode.setOrganization(organization);
+        projectInviteCode.setShiftTiming(shiftTiming);
         projectInviteCode.setExpiryDate(LocalDateTime.now().plusDays(inviteCodeGenerationDto.getValidityDays()));
         projectInviteCode.setActive(true);
         projectInviteCode.setMaxUses(inviteCodeGenerationDto.getMaxUses());
@@ -99,7 +112,7 @@ public class ProjectInviteCodeService {
         employeeDetails.put("joiningDate", LocalDateTime.now().toString());
         employeeDetails.put("salary", inviteCodeGenerationDto.getSalary());
         employeeDetails.put("managerId", inviteCodeGenerationDto.getManagerId());
-        employeeDetails.put("shiftTiming", inviteCodeGenerationDto.getShiftTiming());
+        employeeDetails.put("shiftTimingId", inviteCodeGenerationDto.getShiftTimingId());
         employeeDetails.put("status", inviteCodeGenerationDto.getStatus());
         employeeDetails.put("employeeId", inviteCodeGenerationDto.getEmployeeId());
         employeeDetails.put("employeeName", inviteCodeGenerationDto.getEmployeeName());
@@ -147,7 +160,9 @@ public class ProjectInviteCodeService {
         if (employeeDetails.get("managerId") != null) {
             employeeJoinOrgDto.setManagerId(((Number) employeeDetails.get("managerId")).longValue());
         }
-        employeeJoinOrgDto.setShiftTiming((String) employeeDetails.get("shiftTiming"));
+        if (employeeDetails.get("shiftTimingId") != null) {
+            employeeJoinOrgDto.setShiftTimingId(((Number) employeeDetails.get("shiftTimingId")).longValue());
+        }
         employeeJoinOrgDto.setStatus((String) employeeDetails.get("status"));
         employeeJoinOrgDto.setEmployeeId((String) employeeDetails.get("employeeId"));
         employeeJoinOrgDto.setEmployeeName((String) employeeDetails.get("employeeName"));
