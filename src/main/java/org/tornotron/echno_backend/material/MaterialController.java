@@ -14,6 +14,9 @@ import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.material.dto.MaterialCreationDto;
 import org.tornotron.echno_backend.material.dto.MaterialDto;
 import org.tornotron.echno_backend.material.dto.MaterialWithStockDto;
+import org.tornotron.echno_backend.material.threshold.MaterialLocationThresholdService;
+import org.tornotron.echno_backend.material.threshold.dto.MaterialLocationThresholdDto;
+import org.tornotron.echno_backend.material.threshold.dto.MaterialLocationThresholdUpsertDto;
 
 import java.util.List;
 
@@ -31,9 +34,12 @@ import java.util.List;
 public class MaterialController {
 
     private final MaterialService materialService;
+    private final MaterialLocationThresholdService thresholdService;
 
-    public MaterialController(MaterialService materialService) {
+    public MaterialController(MaterialService materialService,
+                             MaterialLocationThresholdService thresholdService) {
         this.materialService = materialService;
+        this.thresholdService = thresholdService;
     }
 
     @PostMapping
@@ -186,5 +192,60 @@ public class MaterialController {
     public ResponseEntity<ApiResponse> deleteMaterial(@PathVariable Long id) {
         materialService.deleteMaterial(id);
         return ResponseEntity.ok(new ApiResponse("Material with id: " + id + " deleted successfully"));
+    }
+
+    @GetMapping("/{materialId}/location-thresholds")
+    @PreAuthorize("hasAuthority('material:read') or hasAuthority('material:admin')")
+    @Operation(
+            summary = "List a material's per-location threshold overrides",
+            description = "Returns every storage-location override of the material's planning thresholds. "
+                    + "A location not listed here uses the material's global thresholds."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Overrides returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No material with the given id")
+    })
+    public ResponseEntity<List<MaterialLocationThresholdDto>> getLocationThresholds(@PathVariable Long materialId) {
+        return ResponseEntity.ok(thresholdService.listForMaterial(materialId));
+    }
+
+    @PutMapping("/{materialId}/location-thresholds/{storageLocationId}")
+    @PreAuthorize("hasAuthority('material:update') or hasAuthority('material:admin')")
+    @Operation(
+            summary = "Set a material's thresholds at a storage location",
+            description = "Creates or replaces the material's threshold override at the given storage location. "
+                    + "Any field left null clears that level so the material's global threshold applies."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Override saved"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No material or storage location with the given id")
+    })
+    public ResponseEntity<MaterialLocationThresholdDto> upsertLocationThreshold(
+            @PathVariable Long materialId,
+            @PathVariable Long storageLocationId,
+            @Valid @RequestBody MaterialLocationThresholdUpsertDto upsertDto) {
+        return ResponseEntity.ok(thresholdService.upsert(materialId, storageLocationId, upsertDto));
+    }
+
+    @DeleteMapping("/{materialId}/location-thresholds/{storageLocationId}")
+    @PreAuthorize("hasAuthority('material:update') or hasAuthority('material:admin')")
+    @Operation(
+            summary = "Remove a material's thresholds at a storage location",
+            description = "Deletes the material's threshold override at the given storage location, so the "
+                    + "material's global thresholds apply there again."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Override removed"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No override for the given material and storage location")
+    })
+    public ResponseEntity<Void> deleteLocationThreshold(
+            @PathVariable Long materialId,
+            @PathVariable Long storageLocationId) {
+        thresholdService.delete(materialId, storageLocationId);
+        return ResponseEntity.noContent().build();
     }
 }

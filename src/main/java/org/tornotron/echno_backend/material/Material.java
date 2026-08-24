@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumption;
 import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItem;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +51,9 @@ public class Material implements TenantScopedEntity {
 
     @Column(name = "hsn")
     private String hsn;
+
+    @Column(name = "gst_rate")
+    private BigDecimal gstRate;
 
     @Column(name = "opening_stock")
     private Double openingStock;

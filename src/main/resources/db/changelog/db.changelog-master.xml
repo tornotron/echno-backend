@@ -268,4 +268,7 @@
     <!-- v4.0 - Attribute attendance approvals to the approving employee -->
     <include file="db/changelog/v4.0/044-add-approved-by-id-to-attendance.xml"/>
 
+    <!-- v4.0 - Material GST rate + per-location threshold overrides (#257) -->
+    <include file="db/changelog/v4.0/045-add-material-gst-rate-and-location-thresholds.xml"/>
+
 </databaseChangeLog>
