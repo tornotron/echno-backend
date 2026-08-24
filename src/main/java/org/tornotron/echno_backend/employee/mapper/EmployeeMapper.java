@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.employee.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapper;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -14,9 +15,11 @@ import org.tornotron.echno_backend.employee.dto.EmployeeDto;
  * {@code isManager} is deliberately left unset to match the previous converter, which
  * never populated it (the DTO field stays null rather than the entity's boolean false).
  */
-@Mapper(componentModel = "spring", uses = AttachmentMapper.class)
+@Mapper(componentModel = "spring", uses = {AttachmentMapper.class, ShiftTimingMapper.class})
 public interface EmployeeMapper {
 
+    @Mapping(source = "shiftTiming.id", target = "shiftTimingId")
+    @Mapping(source = "shiftTiming", target = "shiftTiming")
     @Mapping(source = "organization.id", target = "organizationId")
     @Mapping(source = "organization.organizationName", target = "organizationName")
     @Mapping(source = "manager.id", target = "managerId")

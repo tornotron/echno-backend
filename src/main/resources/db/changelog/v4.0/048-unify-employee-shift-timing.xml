@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="048-rename-employee-shift-timing-to-legacy" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="employee" columnName="shift_timing"/>
+            <not>
+                <columnExists tableName="employee" columnName="legacy_shift_timing"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            The free-text shift label is superseded by a structured shift foreign key. Keep the label
+            under a legacy name so it survives for reference and for the name-match backfill below.
+        </comment>
+
+        <renameColumn tableName="employee"
+                      oldColumnName="shift_timing"
+                      newColumnName="legacy_shift_timing"
+                      columnDataType="VARCHAR(100)"/>
+    </changeSet>
+
+    <changeSet id="048-add-employee-shift-timing-id" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="employee" columnName="shift_timing_id"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            The employee's structured shift. Nullable: an employee need not have an assigned shift.
+        </comment>
+
+        <addColumn tableName="employee">
+            <column name="shift_timing_id" type="BIGINT"/>
+        </addColumn>
+
+        <addForeignKeyConstraint baseTableName="employee"
+                                 baseColumnNames="shift_timing_id"
+                                 constraintName="fk_employee_shift_timing"
+                                 referencedTableName="shift_timing"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <createIndex tableName="employee" indexName="idx_employee_shift_timing">
+            <column name="shift_timing_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="048-add-invite-shift-timing-id" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="project_invite_code" columnName="shift_timing_id"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            The structured shift an invite grants a joining employee. Nullable: an invite need not
+            carry a shift. The same id also rides inside the invite's employee_details payload.
+        </comment>
+
+        <addColumn tableName="project_invite_code">
+            <column name="shift_timing_id" type="BIGINT"/>
+        </addColumn>
+
+        <addForeignKeyConstraint baseTableName="project_invite_code"
+                                 baseColumnNames="shift_timing_id"
+                                 constraintName="fk_invite_shift_timing"
+                                 referencedTableName="shift_timing"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <createIndex tableName="project_invite_code" indexName="idx_invite_shift_timing">
+            <column name="shift_timing_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="048-backfill-employee-shift-timing-id" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="employee" columnName="legacy_shift_timing"/>
+            <columnExists tableName="employee" columnName="shift_timing_id"/>
+        </preConditions>
+
+        <comment>
+            Backfill the structured shift by matching the retained legacy label to a shift in the same
+            organization, case-insensitively and trimmed, on the shift name only. Labels that were
+            free-form times or that match no shift stay null; the times in a label are not parsed,
+            since a label carries no lunch window, grace period or thresholds.
+        </comment>
+
+        <sql>
+            UPDATE employee
+            SET shift_timing_id = (
+                SELECT st.id
+                FROM shift_timing st
+                WHERE st.organization_id = employee.organization_id
+                  AND lower(trim(st.shift_name)) = lower(trim(employee.legacy_shift_timing))
+                LIMIT 1
+            )
+            WHERE legacy_shift_timing IS NOT NULL
+              AND shift_timing_id IS NULL;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

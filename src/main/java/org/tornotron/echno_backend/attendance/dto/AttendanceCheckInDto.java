@@ -22,8 +22,9 @@ public class AttendanceCheckInDto {
     @NotNull
     private Long projectId;
 
-    @Schema(description = "Id of the shift the employee is working.", example = "5")
-    @NotNull
+    @Schema(description = "Id of the shift the employee is working. Optional: when omitted, the "
+            + "employee's assigned shift is used. Required only if the employee has no assigned shift.",
+            example = "5")
     private Long shiftTimingId;
 
     @Schema(description = "Timestamp of the check-in event.", example = "2026-01-15T09:02:00")

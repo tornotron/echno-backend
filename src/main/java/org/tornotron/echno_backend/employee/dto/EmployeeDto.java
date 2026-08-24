@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.employee.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import org.tornotron.echno_backend.attendance.dto.ShiftTimingDto;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
@@ -66,8 +67,11 @@ public class EmployeeDto {
     @Schema(description = "Name of this employee's reporting manager.", example = "Priya Nair")
     private String managerName;
 
-    @Schema(description = "Working shift.", example = "09:00-18:00")
-    private String shiftTiming;
+    @Schema(description = "Id of the structured shift timing assigned to the employee.", example = "5")
+    private Long shiftTimingId;
+
+    @Schema(description = "The resolved structured shift assigned to the employee. Null when unassigned.")
+    private ShiftTimingDto shiftTiming;
 
     @Schema(description = "Employment status.", example = "ACTIVE")
     private EmployeeStatus status;

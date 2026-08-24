@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import lombok.extern.slf4j.Slf4j;
+import org.tornotron.echno_backend.attendance.ShiftTiming;
+import org.tornotron.echno_backend.attendance.ShiftTimingRepository;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -50,6 +52,7 @@ public class EmployeeService {
     private final KeycloakGroupService keycloakGroupService;
     private final EmployeeMapper employeeMapper;
     private final EmployeeHierarchyService employeeHierarchyService;
+    private final ShiftTimingRepository shiftTimingRepository;
 
     /**
      * Constructs an EmployeeService with the necessary repositories.
@@ -60,13 +63,34 @@ public class EmployeeService {
      * @param keycloakGroupService   The service for managing Keycloak groups.
      * @param employeeHierarchyService The service owning the reporting hierarchy.
      */
-    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, KeycloakGroupService keycloakGroupService, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, KeycloakGroupService keycloakGroupService, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository) {
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.keycloakGroupService = keycloakGroupService;
         this.employeeMapper = employeeMapper;
         this.employeeHierarchyService = employeeHierarchyService;
+        this.shiftTimingRepository = shiftTimingRepository;
+    }
+
+    /**
+     * Resolves a structured shift for an employee. A null id yields no shift. A
+     * non-null id is looked up scoped to the given organization, and an id that does
+     * not belong to that organization is rejected so a shift cannot be borrowed
+     * across tenants.
+     *
+     * @param shiftTimingId The id of the shift to assign, or null for none.
+     * @param organization  The organization the employee belongs to.
+     * @return The resolved shift, or null when no id was supplied.
+     * @throws ResourceNotFoundException if the id does not resolve within the organization.
+     */
+    private ShiftTiming resolveShiftTiming(Long shiftTimingId, Organization organization) {
+        if (shiftTimingId == null) {
+            return null;
+        }
+        return shiftTimingRepository.findByIdAndOrganization_Id(shiftTimingId, organization.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Shift timing with ID " + shiftTimingId + " was not found in this organization"));
     }
 
     /**
@@ -95,6 +119,8 @@ public class EmployeeService {
             }
             employee.setManager(manager);
         }
+
+        employee.setShiftTiming(resolveShiftTiming(employeeCreationDto.getShiftTimingId(), organization));
 
         return employeeMapper.toDto(employeeRepository.save(employee));
     }
@@ -145,7 +171,7 @@ public class EmployeeService {
             employee.setManager(manager);
         }
 
-        employee.setShiftTiming(employeeJoinOrgDto.getShiftTiming());
+        employee.setShiftTiming(resolveShiftTiming(employeeJoinOrgDto.getShiftTimingId(), org));
         employee.setStatus(EmployeeStatus.valueOf(employeeJoinOrgDto.getStatus()));
 
         employee.setEmployeeName(user.getName());
@@ -308,8 +334,13 @@ public class EmployeeService {
                 case "salary":
                     employee.setSalary((Double) value);
                     break;
-                case "shiftTiming":
-                    employee.setShiftTiming((String) value);
+                case "shiftTimingId":
+                    if (value == null) {
+                        employee.setShiftTiming(null);
+                    } else {
+                        Long shiftTimingId = ((Number) value).longValue();
+                        employee.setShiftTiming(resolveShiftTiming(shiftTimingId, employee.getOrganization()));
+                    }
                     break;
                 case "department":
                     employee.setDepartment((String) value);

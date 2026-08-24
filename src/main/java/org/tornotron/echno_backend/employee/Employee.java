@@ -70,9 +70,21 @@ public class Employee implements TenantScopedEntity {
     @JoinColumn(name = "manager_id")
     private Employee manager;
 
-    /** The employee's work shift schedule. */
-    @Column(name = "shift_timing", nullable = true)
-    private String shiftTiming;
+    /**
+     * The employee's structured work shift. Drives the shift the attendance engine
+     * uses for this employee when set.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shift_timing_id")
+    private org.tornotron.echno_backend.attendance.ShiftTiming shiftTiming;
+
+    /**
+     * The employee's former free-text shift label (for example {@code 09:00-18:00}).
+     * Retained for reference and for the name-match backfill onto {@link #shiftTiming};
+     * not exposed on the response DTO.
+     */
+    @Column(name = "legacy_shift_timing", nullable = true)
+    private String legacyShiftTiming;
 
     /** The current employment status of the employee. */
     @Enumerated(EnumType.STRING)
