@@ -13,6 +13,8 @@ import org.springframework.web.client.RestClient;
 import org.tornotron.echno_backend.compliance.domain.ComplianceRule;
 import org.tornotron.echno_backend.project.Project;
 
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.time.Duration;
 import java.util.List;
 
@@ -85,6 +87,14 @@ public class OpenAiCompatibleComplianceService {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(10));
         factory.setReadTimeout(Duration.ofSeconds(60));
+        String proxyHost = props.getProxyHost();
+        if (proxyHost != null && !proxyHost.isBlank()) {
+            int proxyPort = props.getProxyPort();
+            factory.setProxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort)));
+            log.info("Compliance AI egress routed through HTTP proxy {}:{}", proxyHost, proxyPort);
+        } else {
+            log.debug("Compliance AI egress is direct (no proxy configured)");
+        }
         return factory;
     }
 

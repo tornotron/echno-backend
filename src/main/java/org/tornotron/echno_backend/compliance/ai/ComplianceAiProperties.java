@@ -39,4 +39,15 @@ public class ComplianceAiProperties {
 
     /** Master switch; when false the AI call is skipped and generation no-ops. */
     private boolean enabled = true;
+
+    /**
+     * Optional HTTP forward-proxy host for reaching the inference endpoint. Empty by
+     * default (direct egress, the production behaviour on DigitalOcean). Set it in
+     * environments where the backend has no direct internet and must egress through a
+     * forward proxy (for example the IITM lab, where a haproxy on the host relays out).
+     */
+    private String proxyHost = "";
+
+    /** Proxy port used only when {@code proxyHost} is set. */
+    private int proxyPort = 3128;
 }
