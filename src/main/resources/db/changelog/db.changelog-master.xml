@@ -283,4 +283,7 @@
     <!-- v4.0 - Expense module -->
     <include file="db/changelog/v4.0/049-create-expenses.xml"/>
 
+    <!-- v4.0 - Receipt module -->
+    <include file="db/changelog/v4.0/050-create-receipts.xml"/>
+
 </databaseChangeLog>
