@@ -34,6 +34,9 @@ class ChatRepositoryIT extends AbstractIntegrationTest {
     private ChatMessageRepository messageRepository;
 
     @Autowired
+    private ChatReactionRepository reactionRepository;
+
+    @Autowired
     private TestEntityManager em;
 
     @Test
@@ -116,6 +119,97 @@ class ChatRepositoryIT extends AbstractIntegrationTest {
 
         assertThat(last).isPresent();
         assertThat(last.get().isDeleted()).isFalse();
+    }
+
+    @Test
+    void reactionToggle_addsThenRemovesTheRow() {
+        Organization org = persistOrganization("Chat Org G");
+        ChatRoom room = persistDirectRoom(org, ALICE, BOB);
+        ChatMessage message = persistMessage(org, room, BOB, "nice work");
+        em.flush();
+        em.clear();
+
+        // Absent to start: the toggle would add.
+        assertThat(reactionRepository.findByMessage_IdAndEmployeeIdAndEmoji(message.getId(), ALICE, "👍"))
+                .isEmpty();
+
+        ChatReaction reaction = new ChatReaction();
+        reaction.setMessage(em.find(ChatMessage.class, message.getId()));
+        reaction.setEmployeeId(ALICE);
+        reaction.setEmoji("👍");
+        reaction.setOrganization(org);
+        reactionRepository.saveAndFlush(reaction);
+        em.clear();
+
+        // Present now: the toggle would remove, and the message groups one reaction.
+        assertThat(reactionRepository.findByMessage_IdAndEmployeeIdAndEmoji(message.getId(), ALICE, "👍"))
+                .isPresent();
+        assertThat(reactionRepository.findByMessage_Id(message.getId())).hasSize(1);
+
+        reactionRepository.deleteById(
+                reactionRepository.findByMessage_IdAndEmployeeIdAndEmoji(message.getId(), ALICE, "👍")
+                        .orElseThrow().getId());
+        reactionRepository.flush();
+        em.clear();
+
+        assertThat(reactionRepository.findByMessage_Id(message.getId())).isEmpty();
+    }
+
+    @Test
+    void softDelete_keepsRowButHidesFromNonDeletedQueries() {
+        Organization org = persistOrganization("Chat Org H");
+        ChatRoom room = persistDirectRoom(org, ALICE, BOB);
+        ChatMessage message = persistMessage(org, room, BOB, "to be deleted");
+        em.flush();
+        em.clear();
+
+        ChatMessage loaded = messageRepository.findById(message.getId()).orElseThrow();
+        loaded.setDeleted(true);
+        messageRepository.saveAndFlush(loaded);
+        em.clear();
+
+        // The row survives, but the non-deleted queries no longer see it.
+        assertThat(messageRepository.findById(message.getId())).isPresent();
+        assertThat(messageRepository.findFirstByRoom_IdAndDeletedFalseOrderByCreatedAtDesc(room.getId()))
+                .isEmpty();
+    }
+
+    @Test
+    void archive_flagRoundTripsThroughTheDatabase() {
+        Organization org = persistOrganization("Chat Org I");
+        ChatRoom room = persistDirectRoom(org, ALICE, BOB);
+        em.flush();
+        em.clear();
+
+        ChatRoom loaded = roomRepository.findByIdAndOrganization_Id(room.getId(), org.getId()).orElseThrow();
+        assertThat(loaded.isArchived()).isFalse();
+        loaded.setArchived(true);
+        roomRepository.saveAndFlush(loaded);
+        em.clear();
+
+        ChatRoom reloaded = roomRepository.findByIdAndOrganization_Id(room.getId(), org.getId()).orElseThrow();
+        assertThat(reloaded.isArchived()).isTrue();
+    }
+
+    @Test
+    void mentions_persistedOnAMessageRoundTripThroughTheDatabase() {
+        Organization org = persistOrganization("Chat Org J");
+        ChatRoom room = persistDirectRoom(org, ALICE, BOB);
+        ChatMessage message = persistMessage(org, room, ALICE,
+                "@[Bob](200) see #[Pour slab C](task:42)");
+        message.setMentions(ChatMentionParser.parseMentions(message.getContent()));
+        message.setEntityMentions(ChatMentionParser.parseEntityMentions(message.getContent()));
+        em.persist(message);
+        em.flush();
+        em.clear();
+
+        ChatMessage reloaded = messageRepository.findById(message.getId()).orElseThrow();
+        assertThat(reloaded.getMentions()).containsExactly(200L);
+        assertThat(reloaded.getEntityMentions()).singleElement().satisfies(m -> {
+            assertThat(m.getEntityType()).isEqualTo("task");
+            assertThat(m.getEntityId()).isEqualTo(42L);
+            assertThat(m.getLabel()).isEqualTo("Pour slab C");
+        });
     }
 
     // --- helpers -----------------------------------------------------------------

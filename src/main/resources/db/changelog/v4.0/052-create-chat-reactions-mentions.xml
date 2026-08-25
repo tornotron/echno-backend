@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="052-create-chat-reactions-mentions" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="chat_reactions"/>
+            </not>
+        </preConditions>
+
+        <!-- chat_reactions -->
+        <createTable tableName="chat_reactions">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="message_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="emoji" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="chat_reactions"
+                                 baseColumnNames="message_id"
+                                 constraintName="fk_chat_reaction_message"
+                                 referencedTableName="chat_messages"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="chat_reactions"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_chat_reaction_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addUniqueConstraint tableName="chat_reactions"
+                             columnNames="message_id, employee_id, emoji"
+                             constraintName="uk_chat_reaction_message_employee_emoji"/>
+
+        <createIndex tableName="chat_reactions" indexName="idx_chat_reaction_message">
+            <column name="message_id"/>
+        </createIndex>
+        <createIndex tableName="chat_reactions" indexName="idx_chat_reaction_organization">
+            <column name="organization_id"/>
+        </createIndex>
+
+        <!-- chat_message_mentions (element collection: employee ids mentioned in a message) -->
+        <createTable tableName="chat_message_mentions">
+            <column name="message_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="chat_message_mentions"
+                                 baseColumnNames="message_id"
+                                 constraintName="fk_chat_message_mention_message"
+                                 referencedTableName="chat_messages"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <createIndex tableName="chat_message_mentions" indexName="idx_chat_message_mention_message">
+            <column name="message_id"/>
+        </createIndex>
+
+        <!-- chat_message_entity_mentions (element collection: task/issue/project references) -->
+        <createTable tableName="chat_message_entity_mentions">
+            <column name="message_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_type" type="VARCHAR(30)"/>
+            <column name="entity_id" type="BIGINT"/>
+            <column name="label" type="VARCHAR(300)"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="chat_message_entity_mentions"
+                                 baseColumnNames="message_id"
+                                 constraintName="fk_chat_message_entity_mention_message"
+                                 referencedTableName="chat_messages"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <createIndex tableName="chat_message_entity_mentions" indexName="idx_chat_message_entity_mention_message">
+            <column name="message_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

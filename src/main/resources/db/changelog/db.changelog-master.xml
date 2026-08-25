@@ -289,4 +289,7 @@
     <!-- v4.0 - Chat module (rooms, participants, messages) -->
     <include file="db/changelog/v4.0/051-create-chat.xml"/>
 
+    <!-- v4.0 - Chat phase 2 (reactions, employee mentions, entity mentions) -->
+    <include file="db/changelog/v4.0/052-create-chat-reactions-mentions.xml"/>
+
 </databaseChangeLog>
