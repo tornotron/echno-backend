@@ -8,7 +8,9 @@ import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.AuthenticationManagementResource;
 import org.keycloak.admin.client.resource.ClientResource;
+import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.RoleMappingResource;
+import org.keycloak.admin.client.resource.RoleResource;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.representations.idm.AuthenticationFlowRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
@@ -113,6 +115,8 @@ public class KeycloakInitializer {
             assignServiceAccountRoles();
             // Ensure authorization setup (JS policy, resource, permission) exists
             ensureAuthorizationSetup();
+            // Ensure the H-1 composite job roles exist and carry their granular children
+            ensureCompositeJobRoles();
         }
     }
 
@@ -437,7 +441,147 @@ public class KeycloakInitializer {
         assignServiceAccountRoles();
         ensureAuthorizationSetup();
         ensureAdminMfa();
+        ensureCompositeJobRoles();
 
+    }
+
+    /**
+     * Immutable definition of one composite job role: a coarse, function-based realm role that
+     * bundles a set of the fine-grained occupation realm roles as its composite children.
+     */
+    private static final class CompositeJobRole {
+        final String name;
+        final String description;
+        final List<String> children;
+
+        CompositeJobRole(String name, String description, List<String> children) {
+            this.name = name;
+            this.description = description;
+            this.children = children;
+        }
+    }
+
+    /**
+     * H-1 (RBAC role-model improvement): the realm ships ~52 fine-grained occupation realm roles
+     * (mason, site-engineer, accountant, ...) that today have to be assigned one by one. These
+     * composite job roles group them by function so an org admin can grant a single job role and
+     * the member inherits every child occupation role through Keycloak's composite-role evaluation.
+     *
+     * Purely additive: the granular occupation roles are left exactly as they are, no user or group
+     * is auto-assigned a composite here, and the org-scoped role subgroups (system-admin, org-manager,
+     * hr-admin, project-manager, resolved from the JWT "groups" claim by JwtAuthConverter) are a
+     * separate authorization layer that this change does not touch. The occupation role 'system-admin'
+     * is deliberately left out of every family: it is the administrative role driven through the
+     * org-scoped subgroup layer, not a job title to be bundled.
+     */
+    private static final List<CompositeJobRole> COMPOSITE_JOB_ROLES = List.of(
+            new CompositeJobRole("job-site-management",
+                    "Composite job role: site leadership, supervision and safety.",
+                    List.of("site-manager", "site-supervisor", "site-engineer", "foreman",
+                            "supervisor", "safety-officer", "technical-coordinator", "document-controller")),
+            new CompositeJobRole("job-engineering",
+                    "Composite job role: design and engineering professionals.",
+                    List.of("architect", "civil-engineer", "structural-engineer",
+                            "planning-engineer", "quantity-surveyor")),
+            new CompositeJobRole("job-skilled-trades",
+                    "Composite job role: skilled tradespeople and equipment operators.",
+                    List.of("mason", "carpenter", "electrician", "plumber", "painter", "welder",
+                            "scaffolder", "crane-operator", "equipment-operator", "driver")),
+            new CompositeJobRole("job-general-workforce",
+                    "Composite job role: general labour and site facilities.",
+                    List.of("laborer", "helper", "site-cleaner", "security-guard")),
+            new CompositeJobRole("job-finance-procurement",
+                    "Composite job role: finance and procurement.",
+                    List.of("accountant", "procurement-officer")),
+            new CompositeJobRole("job-office-admin",
+                    "Composite job role: office, HR and IT administration and support.",
+                    List.of("hr-manager", "admin-staff", "office-assistant", "receptionist", "it-support")),
+            new CompositeJobRole("job-leadership",
+                    "Composite job role: executive leadership and project management.",
+                    List.of("director", "owner-representative", "project-manager")),
+            new CompositeJobRole("job-external-stakeholders",
+                    "Composite job role: external, non-employee parties.",
+                    List.of("client", "consultant", "contractor", "sub-contractor",
+                            "vendor", "material-supplier")),
+            new CompositeJobRole("job-early-career",
+                    "Composite job role: interns, students and trainees.",
+                    List.of("intern", "student", "trainee"))
+    );
+
+    /**
+     * Codifies the H-1 composite job roles on every startup (both the fresh-realm and existing-realm
+     * paths), fully idempotent and guarded so a failure only logs and never aborts startup. Each
+     * composite is ensured to exist and to carry its granular occupation children; re-running only
+     * fills in whatever is missing and never removes or reassigns anything.
+     */
+    private void ensureCompositeJobRoles() {
+        try {
+            log.info("Ensuring composite job roles over the granular occupation roles (H-1)");
+            for (CompositeJobRole jobRole : COMPOSITE_JOB_ROLES) {
+                ensureCompositeJobRole(jobRole);
+            }
+            log.info("Composite job roles reconcile complete");
+        } catch (Exception e) {
+            log.error("Failed to ensure composite job roles: {}", e.getMessage(), e);
+        }
+    }
+
+    private void ensureCompositeJobRole(CompositeJobRole jobRole) {
+        try {
+            RealmResource realm = keycloak.realm(REALM_ID);
+
+            // 1. Ensure the composite role itself exists (create if missing, never overwrite).
+            boolean exists;
+            try {
+                realm.roles().get(jobRole.name).toRepresentation();
+                exists = true;
+            } catch (NotFoundException e) {
+                exists = false;
+            }
+            if (!exists) {
+                RoleRepresentation rep = new RoleRepresentation();
+                rep.setName(jobRole.name);
+                rep.setDescription(jobRole.description);
+                rep.setComposite(true);
+                realm.roles().create(rep);
+                log.info("Created composite job role '{}'", jobRole.name);
+            }
+
+            RoleResource roleResource = realm.roles().get(jobRole.name);
+
+            // 2. Determine which children are already attached, so we only add what is missing.
+            Set<String> alreadyAttached = new HashSet<>();
+            Set<RoleRepresentation> existingComposites = roleResource.getRealmRoleComposites();
+            if (existingComposites != null) {
+                for (RoleRepresentation r : existingComposites) {
+                    alreadyAttached.add(r.getName());
+                }
+            }
+
+            // 3. Attach any missing child occupation role that actually exists in the realm.
+            List<RoleRepresentation> toAdd = new ArrayList<>();
+            for (String child : jobRole.children) {
+                if (alreadyAttached.contains(child)) {
+                    continue;
+                }
+                try {
+                    toAdd.add(realm.roles().get(child).toRepresentation());
+                } catch (NotFoundException e) {
+                    log.warn("Child occupation role '{}' not found; skipping from composite '{}'",
+                            child, jobRole.name);
+                }
+            }
+
+            if (!toAdd.isEmpty()) {
+                roleResource.addComposites(toAdd);
+                log.info("Added {} child role(s) to composite '{}': {}", toAdd.size(), jobRole.name,
+                        toAdd.stream().map(RoleRepresentation::getName).toList());
+            } else {
+                log.info("Composite job role '{}' already carries all available children", jobRole.name);
+            }
+        } catch (Exception e) {
+            log.error("Failed to ensure composite job role '{}': {}", jobRole.name, e.getMessage());
+        }
     }
 
     private void assignServiceAccountRoles() {
