@@ -51,6 +51,10 @@ compliance:
     max-tokens: 4096
     temperature: 0.2
     enabled: ${COMPLIANCE_AI_ENABLED:true}
+    # Optional forward proxy for egress (unset = direct, the DO production behaviour).
+    # Set both when the backend has no direct internet, e.g. the IITM lab host proxy.
+    proxy-host: ${COMPLIANCE_AI_PROXY_HOST:}
+    proxy-port: ${COMPLIANCE_AI_PROXY_PORT:3128}
 
 
 # Chart-of-accounts auto numbering. level-steps is the gap between sibling codes

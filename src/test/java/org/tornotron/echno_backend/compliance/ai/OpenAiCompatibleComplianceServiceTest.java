@@ -62,4 +62,26 @@ class OpenAiCompatibleComplianceServiceTest {
 
         assertThat(result).isEmpty();
     }
+
+    @Test
+    void proxyDefaultsToDirectEgress() {
+        ComplianceAiProperties props = new ComplianceAiProperties();
+
+        assertThat(props.getProxyHost()).isEmpty();
+        assertThat(props.getProxyPort()).isEqualTo(3128);
+    }
+
+    @Test
+    void proxyConfigIsOptionalAndDoesNotBreakTheNoOpPath() {
+        ComplianceAiProperties props = new ComplianceAiProperties();
+        props.setEnabled(false);
+        props.setProxyHost("10.24.6.116");
+        props.setProxyPort(3128);
+        OpenAiCompatibleComplianceService service = new OpenAiCompatibleComplianceService(props);
+
+        List<ComplianceSuggestion> result =
+                service.suggestCompliances(sampleProject(), "Tamil Nadu", sampleRules());
+
+        assertThat(result).isEmpty();
+    }
 }
