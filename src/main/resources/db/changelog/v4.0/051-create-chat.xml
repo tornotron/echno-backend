@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="051-create-chat" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="chat_rooms"/>
+            </not>
+        </preConditions>
+
+        <!-- chat_rooms -->
+        <createTable tableName="chat_rooms">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="description" type="TEXT"/>
+            <column name="project_id" type="BIGINT"/>
+            <column name="is_archived" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="chat_rooms"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_chat_room_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="chat_rooms" indexName="idx_chat_room_organization">
+            <column name="organization_id"/>
+        </createIndex>
+
+        <!-- chat_participants -->
+        <createTable tableName="chat_participants">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="room_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employee_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role" type="VARCHAR(20)" defaultValue="member">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_read_at" type="TIMESTAMP"/>
+            <column name="organization_id" type="BIGINT"/>
+            <column name="joined_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="chat_participants"
+                                 baseColumnNames="room_id"
+                                 constraintName="fk_chat_participant_room"
+                                 referencedTableName="chat_rooms"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="chat_participants"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_chat_participant_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addUniqueConstraint tableName="chat_participants"
+                             columnNames="room_id, employee_id"
+                             constraintName="uk_chat_participant_room_employee"/>
+
+        <createIndex tableName="chat_participants" indexName="idx_chat_participant_room">
+            <column name="room_id"/>
+        </createIndex>
+        <createIndex tableName="chat_participants" indexName="idx_chat_participant_employee">
+            <column name="employee_id"/>
+        </createIndex>
+        <createIndex tableName="chat_participants" indexName="idx_chat_participant_organization">
+            <column name="organization_id"/>
+        </createIndex>
+
+        <!-- chat_messages -->
+        <createTable tableName="chat_messages">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="room_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sender_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content" type="TEXT"/>
+            <column name="reply_to_id" type="BIGINT"/>
+            <column name="is_edited" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="edited_at" type="TIMESTAMP"/>
+            <column name="is_deleted" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="chat_messages"
+                                 baseColumnNames="room_id"
+                                 constraintName="fk_chat_message_room"
+                                 referencedTableName="chat_rooms"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="chat_messages"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_chat_message_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="chat_messages" indexName="idx_chat_message_room">
+            <column name="room_id"/>
+        </createIndex>
+        <createIndex tableName="chat_messages" indexName="idx_chat_message_room_created">
+            <column name="room_id"/>
+            <column name="created_at"/>
+        </createIndex>
+        <createIndex tableName="chat_messages" indexName="idx_chat_message_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
