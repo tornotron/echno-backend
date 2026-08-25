@@ -7,19 +7,27 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.chat.dto.ChatMessageDto;
+import org.tornotron.echno_backend.chat.dto.ChatMessageReplyDto;
+import org.tornotron.echno_backend.chat.dto.ChatReactionDto;
 import org.tornotron.echno_backend.chat.dto.ChatRoomDto;
 import org.tornotron.echno_backend.chat.mapper.ChatMapper;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The chat core flow: rooms an employee belongs to, direct-room open-or-create, marking a
@@ -27,38 +35,53 @@ import java.util.List;
  * to the caller's participation; the caller is resolved to their {@link Employee} because
  * chat is employee-centric (senders and participants are employee ids, not user ids).
  *
- * <p>Deferred and intentionally absent here: reactions, mentions, entity mentions,
- * attachments, reply-preview resolution, message delete, archive toggle and any real-time
- * transport. The web client polls.
+ * <p>Rich content is handled here: emoji reaction toggles, employee and entity mentions
+ * parsed from the body on send, file attachments stored through {@link AttachmentService},
+ * reply-preview resolution, message soft-delete and the room archive toggle. Real-time
+ * transport is intentionally absent; the web client polls.
  */
 @Service
 public class ChatService {
 
     private static final String ROOM_DIRECT = "direct";
     private static final String ROLE_MEMBER = "member";
+    private static final String ROLE_ADMIN = "admin";
+
+    /** Polymorphic attachment owner type and S3 folder for chat message files. */
+    private static final String ATTACHMENT_ENTITY_TYPE = "CHAT_MESSAGE";
+    private static final String ATTACHMENT_FOLDER = "chat";
+
+    /** How much of a quoted message the reply preview carries. */
+    private static final int REPLY_SNIPPET_LENGTH = 200;
 
     private final ChatRoomRepository roomRepository;
     private final ChatParticipantRepository participantRepository;
     private final ChatMessageRepository messageRepository;
+    private final ChatReactionRepository reactionRepository;
     private final ChatMapper chatMapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final UserContextService userContextService;
     private final EmployeeRepository employeeRepository;
+    private final AttachmentService attachmentService;
 
     public ChatService(ChatRoomRepository roomRepository,
                        ChatParticipantRepository participantRepository,
                        ChatMessageRepository messageRepository,
+                       ChatReactionRepository reactionRepository,
                        ChatMapper chatMapper,
                        TenantEntityHelper tenantEntityHelper,
                        UserContextService userContextService,
-                       EmployeeRepository employeeRepository) {
+                       EmployeeRepository employeeRepository,
+                       AttachmentService attachmentService) {
         this.roomRepository = roomRepository;
         this.participantRepository = participantRepository;
         this.messageRepository = messageRepository;
+        this.reactionRepository = reactionRepository;
         this.chatMapper = chatMapper;
         this.tenantEntityHelper = tenantEntityHelper;
         this.userContextService = userContextService;
         this.employeeRepository = employeeRepository;
+        this.attachmentService = attachmentService;
     }
 
     @Transactional(readOnly = true)
@@ -121,11 +144,26 @@ public class ChatService {
         requireParticipant(roomId, employeeId);
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         return messageRepository.findByRoom_IdAndDeletedFalse(roomId, pageable)
-                .map(chatMapper::toDto);
+                .map(this::toMessageDto);
     }
 
+    /**
+     * Posts a text (optionally reply) message with no attachments. Kept as the JSON path the
+     * web uses today; the multipart overload below adds files.
+     */
     @Transactional
     public ChatMessageDto sendMessage(Long roomId, String content, Long replyToId) {
+        return sendMessage(roomId, content, replyToId, null);
+    }
+
+    /**
+     * Posts a message to the room from the current employee. The body is parsed for employee
+     * mentions ({@code @[Name](id)}) and entity mentions ({@code #[label](type:id)}), which
+     * are persisted on the message. Any {@code files} are stored through the shared
+     * attachment service and linked to the saved message.
+     */
+    @Transactional
+    public ChatMessageDto sendMessage(Long roomId, String content, Long replyToId, List<MultipartFile> files) {
         Long employeeId = resolveCurrentEmployeeId();
         ChatRoom room = requireRoom(roomId);
         requireParticipant(roomId, employeeId);
@@ -136,6 +174,8 @@ public class ChatService {
         message.setSenderId(employeeId);
         message.setContent(content);
         message.setReplyToId(replyToId);
+        message.setMentions(ChatMentionParser.parseMentions(content));
+        message.setEntityMentions(ChatMentionParser.parseEntityMentions(content));
 
         // Bump the room so it sorts to the top of the caller's list and updatedAt reflects
         // the new activity.
@@ -144,7 +184,70 @@ public class ChatService {
 
         // saveAndFlush before mapping so the generated id and @CreationTimestamp land on the DTO.
         ChatMessage saved = messageRepository.saveAndFlush(message);
-        return chatMapper.toDto(saved);
+
+        if (files != null && !files.isEmpty()) {
+            attachmentService.uploadAttachments(files, ATTACHMENT_ENTITY_TYPE, saved.getId(), ATTACHMENT_FOLDER);
+        }
+        return toMessageDto(saved);
+    }
+
+    /**
+     * Toggles the caller's emoji reaction on a message: adds the reaction if absent, removes
+     * it if already present. Returns the message with its refreshed reaction list.
+     */
+    @Transactional
+    public ChatMessageDto toggleReaction(Long messageId, String emoji) {
+        Long employeeId = resolveCurrentEmployeeId();
+        ChatMessage message = requireMessage(messageId);
+        requireParticipant(message.getRoom().getId(), employeeId);
+
+        reactionRepository.findByMessage_IdAndEmployeeIdAndEmoji(messageId, employeeId, emoji)
+                .ifPresentOrElse(
+                        reactionRepository::delete,
+                        () -> {
+                            ChatReaction reaction = new ChatReaction();
+                            reaction.setMessage(message);
+                            reaction.setEmployeeId(employeeId);
+                            reaction.setEmoji(emoji);
+                            reaction.setOrganization(message.getOrganization());
+                            reactionRepository.save(reaction);
+                        });
+        reactionRepository.flush();
+        return toMessageDto(message);
+    }
+
+    /**
+     * Soft-deletes a message: only its sender or a room admin may delete it, and the row is
+     * kept with {@code isDeleted} set so the web renders a tombstone.
+     */
+    @Transactional
+    public void deleteMessage(Long messageId) {
+        Long employeeId = resolveCurrentEmployeeId();
+        ChatMessage message = requireMessage(messageId);
+        ChatParticipant participant = requireParticipant(message.getRoom().getId(), employeeId);
+
+        boolean isSender = employeeId.equals(message.getSenderId());
+        boolean isRoomAdmin = ROLE_ADMIN.equalsIgnoreCase(participant.getRole());
+        if (!isSender && !isRoomAdmin) {
+            throw new AccessDeniedException("Only the sender or a room admin can delete this message");
+        }
+
+        message.setDeleted(true);
+        messageRepository.save(message);
+    }
+
+    /**
+     * Archives or unarchives a room for the whole conversation. Any participant may toggle it.
+     */
+    @Transactional
+    public ChatRoomDto setArchived(Long roomId, boolean archived) {
+        Long employeeId = resolveCurrentEmployeeId();
+        ChatRoom room = requireRoom(roomId);
+        requireParticipant(roomId, employeeId);
+
+        room.setArchived(archived);
+        ChatRoom saved = roomRepository.saveAndFlush(room);
+        return toRoomDto(saved, employeeId);
     }
 
     /** Edits the caller's own message. Only the sender may edit; others get a 403. */
@@ -163,9 +266,11 @@ public class ChatService {
         message.setContent(content);
         message.setEdited(true);
         message.setEditedAt(LocalDateTime.now());
+        message.setMentions(ChatMentionParser.parseMentions(content));
+        message.setEntityMentions(ChatMentionParser.parseEntityMentions(content));
 
         ChatMessage saved = messageRepository.saveAndFlush(message);
-        return chatMapper.toDto(saved);
+        return toMessageDto(saved);
     }
 
     // --- helpers -----------------------------------------------------------------
@@ -178,7 +283,7 @@ public class ChatService {
         ChatRoomDto dto = chatMapper.toDto(room);
 
         messageRepository.findFirstByRoom_IdAndDeletedFalseOrderByCreatedAtDesc(room.getId())
-                .ifPresent(last -> dto.setLastMessage(chatMapper.toDto(last)));
+                .ifPresent(last -> dto.setLastMessage(toMessageDto(last)));
 
         LocalDateTime lastReadAt = participantRepository
                 .findByRoom_IdAndEmployeeId(room.getId(), viewerEmployeeId)
@@ -188,6 +293,77 @@ public class ChatService {
         dto.setUnreadCount((int) unread);
 
         return dto;
+    }
+
+    /**
+     * Maps a message to its DTO and fills the fields the mapper cannot: the grouped emoji
+     * reactions, the stored attachments (each freshly presigned), and the reply preview
+     * resolved from {@code replyToId}.
+     */
+    private ChatMessageDto toMessageDto(ChatMessage message) {
+        ChatMessageDto dto = chatMapper.toDto(message);
+        dto.setReactions(groupReactions(message.getId()));
+
+        List<AttachmentDto> attachments =
+                attachmentService.getAttachments(ATTACHMENT_ENTITY_TYPE, message.getId());
+        dto.setAttachments(attachments);
+
+        if (message.getReplyToId() != null) {
+            dto.setReplyTo(buildReplyPreview(message.getReplyToId()));
+        }
+        return dto;
+    }
+
+    /**
+     * Collapses a message's reaction rows into one entry per emoji, each carrying the count
+     * and the employee ids who reacted. Insertion order of first appearance is preserved.
+     */
+    private List<ChatReactionDto> groupReactions(Long messageId) {
+        Map<String, ChatReactionDto> byEmoji = new LinkedHashMap<>();
+        for (ChatReaction reaction : reactionRepository.findByMessage_Id(messageId)) {
+            ChatReactionDto group = byEmoji.computeIfAbsent(reaction.getEmoji(), emoji -> {
+                ChatReactionDto d = new ChatReactionDto();
+                d.setEmoji(emoji);
+                d.setEmployeeIds(new ArrayList<>());
+                return d;
+            });
+            group.getEmployeeIds().add(reaction.getEmployeeId());
+            group.setCount(group.getEmployeeIds().size());
+        }
+        return new ArrayList<>(byEmoji.values());
+    }
+
+    /**
+     * Resolves the compact preview of a replied-to message. A reply to a message that is gone
+     * or belongs to another tenant simply yields no preview.
+     */
+    private ChatMessageReplyDto buildReplyPreview(Long replyToId) {
+        return messageRepository
+                .findByIdAndOrganization_Id(replyToId, TenantContext.getCurrentOrgId())
+                .map(replied -> {
+                    ChatMessageReplyDto preview = new ChatMessageReplyDto();
+                    preview.setId(replied.getId());
+                    preview.setSenderId(replied.getSenderId());
+                    preview.setContent(snippet(replied.getContent()));
+                    return preview;
+                })
+                .orElse(null);
+    }
+
+    private String snippet(String content) {
+        if (content == null) {
+            return null;
+        }
+        return content.length() <= REPLY_SNIPPET_LENGTH
+                ? content
+                : content.substring(0, REPLY_SNIPPET_LENGTH);
+    }
+
+    private ChatMessage requireMessage(Long messageId) {
+        return messageRepository
+                .findByIdAndOrganization_Id(messageId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Message with ID " + messageId + " was not found in this organization"));
     }
 
     private ChatParticipant newParticipant(Long employeeId, Organization organization) {

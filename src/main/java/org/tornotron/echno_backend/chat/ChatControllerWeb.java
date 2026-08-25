@@ -1,19 +1,25 @@
 package org.tornotron.echno_backend.chat;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.chat.dto.ArchiveRoomRequestDto;
 import org.tornotron.echno_backend.chat.dto.ChatMessageDto;
 import org.tornotron.echno_backend.chat.dto.ChatRoomDto;
 import org.tornotron.echno_backend.chat.dto.CreateDirectRoomDto;
 import org.tornotron.echno_backend.chat.dto.EditMessageDto;
+import org.tornotron.echno_backend.chat.dto.ReactionRequestDto;
 import org.tornotron.echno_backend.chat.dto.SendMessageDto;
 
 import java.util.List;
@@ -35,9 +41,11 @@ import java.util.List;
 public class ChatControllerWeb {
 
     private final ChatService chatService;
+    private final ObjectMapper objectMapper;
 
-    public ChatControllerWeb(ChatService chatService) {
+    public ChatControllerWeb(ChatService chatService, ObjectMapper objectMapper) {
         this.chatService = chatService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/rooms/web")
@@ -121,11 +129,13 @@ public class ChatControllerWeb {
         return new ResponseEntity<>(chatService.getMessages(roomId, pageNo, pageSize), HttpStatus.OK);
     }
 
-    @PostMapping("/rooms/web/{roomId}/messages")
+    @PostMapping(value = "/rooms/web/{roomId}/messages", consumes = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
-            summary = "Send a message",
-            description = "Posts a message from the current employee to the room and bumps the room's activity."
+            summary = "Send a message (text only)",
+            description = "Posts a text message from the current employee to the room and bumps the room's "
+                    + "activity. Employee and entity mentions are parsed from the body. For a message that "
+                    + "carries file attachments, use the multipart variant of this endpoint."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Message created"),
@@ -137,6 +147,31 @@ public class ChatControllerWeb {
                                                       @Valid @RequestBody SendMessageDto dto) {
         return new ResponseEntity<>(
                 chatService.sendMessage(roomId, dto.getContent(), dto.getReplyToId()), HttpStatus.CREATED);
+    }
+
+    @PostMapping(value = "/rooms/web/{roomId}/messages", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(
+            summary = "Send a message with attachments",
+            description = "Posts a message with one or more file attachments. The message fields travel as a "
+                    + "JSON 'data' part; the files travel as 'attachments' parts. Attachments are stored and "
+                    + "returned with presigned download URLs."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Message created"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "content is blank or the data part is malformed"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a participant of the room"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No room with the given id in this tenant")
+    })
+    public ResponseEntity<ChatMessageDto> sendMessageWithAttachments(
+            @PathVariable Long roomId,
+            @RequestPart("data") @Valid String data,
+            @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments)
+            throws JsonProcessingException {
+        SendMessageDto dto = objectMapper.readValue(data, SendMessageDto.class);
+        return new ResponseEntity<>(
+                chatService.sendMessage(roomId, dto.getContent(), dto.getReplyToId(), attachments),
+                HttpStatus.CREATED);
     }
 
     @PatchMapping("/messages/web/{id}")
@@ -154,5 +189,57 @@ public class ChatControllerWeb {
     public ResponseEntity<ChatMessageDto> editMessage(@PathVariable Long id,
                                                       @Valid @RequestBody EditMessageDto dto) {
         return new ResponseEntity<>(chatService.editMessage(id, dto.getContent()), HttpStatus.OK);
+    }
+
+    @PostMapping("/messages/web/{id}/reactions")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(
+            summary = "Toggle a reaction",
+            description = "Adds the caller's emoji reaction to the message, or removes it if they already "
+                    + "reacted with that emoji. Returns the message with its refreshed reaction list."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Reaction toggled"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "emoji is blank"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a participant of the room"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No message with the given id in this tenant")
+    })
+    public ResponseEntity<ChatMessageDto> toggleReaction(@PathVariable Long id,
+                                                         @Valid @RequestBody ReactionRequestDto dto) {
+        return new ResponseEntity<>(chatService.toggleReaction(id, dto.getEmoji()), HttpStatus.OK);
+    }
+
+    @DeleteMapping("/messages/web/{id}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(
+            summary = "Delete a message",
+            description = "Soft-deletes a message, keeping the row so the web can render a tombstone. Only the "
+                    + "sender or a room admin may delete it."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Message deleted"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the sender nor a room admin"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No message with the given id in this tenant")
+    })
+    public ResponseEntity<Void> deleteMessage(@PathVariable Long id) {
+        chatService.deleteMessage(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/rooms/web/{roomId}/archive")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(
+            summary = "Archive or unarchive a room",
+            description = "Sets the room's archived state for the whole conversation. Any participant may toggle it."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Room archive state updated"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "archived is missing"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a participant of the room"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No room with the given id in this tenant")
+    })
+    public ResponseEntity<ChatRoomDto> archiveRoom(@PathVariable Long roomId,
+                                                   @Valid @RequestBody ArchiveRoomRequestDto dto) {
+        return new ResponseEntity<>(chatService.setArchived(roomId, dto.getArchived()), HttpStatus.OK);
     }
 }
