@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.tornotron.echno_backend.common.events.ProjectApprovedEvent;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.compliance.ComplianceGenerationService;
 
@@ -42,6 +44,11 @@ public class ComplianceGenerationListener {
         try {
             TenantContext.setCurrentOrgId(orgId);
             complianceGenerationService.generateForProject(projectId, orgId);
+        } catch (InvalidRequestException | ResourceNotFoundException e) {
+            // Expected on auto-approval: a project approved without a state in its address, or
+            // before any rules exist for its jurisdiction, is normal. Log quietly and move on;
+            // a project manager can regenerate once the precondition is met.
+            log.info("Compliance auto-generation skipped for project {}: {}", projectId, e.getMessage());
         } catch (Exception e) {
             log.error("Compliance generation failed for project {} in organization {}: {}",
                     projectId, orgId, e.getMessage(), e);
