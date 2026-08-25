@@ -280,4 +280,7 @@
     <!-- v4.0 - Unify employee and invite shift onto the structured ShiftTiming entity -->
     <include file="db/changelog/v4.0/048-unify-employee-shift-timing.xml"/>
 
+    <!-- v4.0 - Expense module -->
+    <include file="db/changelog/v4.0/049-create-expenses.xml"/>
+
 </databaseChangeLog>
