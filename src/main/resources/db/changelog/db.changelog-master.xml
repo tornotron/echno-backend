@@ -286,4 +286,7 @@
     <!-- v4.0 - Receipt module -->
     <include file="db/changelog/v4.0/050-create-receipts.xml"/>
 
+    <!-- v4.0 - Chat module (rooms, participants, messages) -->
+    <include file="db/changelog/v4.0/051-create-chat.xml"/>
+
 </databaseChangeLog>
