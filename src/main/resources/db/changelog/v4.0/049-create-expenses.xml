@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="049-create-expenses" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="expenses"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="expenses">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="expense_number" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="type" type="VARCHAR(50)"/>
+            <column name="category" type="VARCHAR(50)"/>
+            <column name="status" type="VARCHAR(50)"/>
+
+            <column name="description" type="TEXT"/>
+            <column name="amount" type="NUMERIC(15, 2)"/>
+            <column name="currency" type="VARCHAR(10)"/>
+            <column name="expense_date" type="DATE"/>
+            <column name="payment_method" type="VARCHAR(255)"/>
+            <column name="notes" type="TEXT"/>
+
+            <column name="project_id" type="BIGINT"/>
+            <column name="vendor_id" type="BIGINT"/>
+            <column name="employee_id" type="BIGINT"/>
+            <column name="invoice_id" type="BIGINT"/>
+            <column name="payment_id" type="BIGINT"/>
+            <column name="budget_id" type="BIGINT"/>
+
+            <column name="organization_id" type="BIGINT"/>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="expenses"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_expense_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addUniqueConstraint tableName="expenses"
+                             columnNames="organization_id, expense_number"
+                             constraintName="uk_expense_number"/>
+
+        <createIndex tableName="expenses" indexName="idx_expense_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="expenses" indexName="idx_expense_category">
+            <column name="category"/>
+        </createIndex>
+        <createIndex tableName="expenses" indexName="idx_expense_project">
+            <column name="project_id"/>
+        </createIndex>
+        <createIndex tableName="expenses" indexName="idx_expense_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
