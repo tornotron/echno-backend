@@ -39,6 +39,15 @@ public class OpenAiCompatibleComplianceService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
+     * Whether the AI service is switched on and has an API key, decided purely from
+     * config with no network call. When this is false the service always no-ops, so
+     * callers can tell "AI not configured" apart from "AI ran and found nothing".
+     */
+    public boolean isConfigured() {
+        return props.isEnabled() && props.getApiKey() != null && !props.getApiKey().isBlank();
+    }
+
+    /**
      * Asks the model which of the candidate rules apply to the project. Returns one
      * suggestion per rule the model reasoned about; an empty list means "generate
      * nothing" (either the AI is off/unconfigured or the call failed).
@@ -46,7 +55,7 @@ public class OpenAiCompatibleComplianceService {
     public List<ComplianceSuggestion> suggestCompliances(Project project,
                                                          String state,
                                                          List<ComplianceRule> candidateRules) {
-        if (!props.isEnabled() || props.getApiKey() == null || props.getApiKey().isBlank()) {
+        if (!isConfigured()) {
             log.info("Compliance AI disabled or API key not configured; skipping AI suggestion for project {}",
                     project.getId());
             return List.of();

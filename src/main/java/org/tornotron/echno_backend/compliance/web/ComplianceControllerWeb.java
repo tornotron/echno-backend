@@ -47,8 +47,8 @@ public class ComplianceControllerWeb {
                     + "matched rule are not duplicated."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Generation ran; the created inspections are returned (possibly empty)"),
-            @ApiResponse(responseCode = "400", description = "No organization context set: the X-Organization-Id header is required"),
+            @ApiResponse(responseCode = "200", description = "Generation ran; the created inspections are returned (possibly empty when nothing new applied)"),
+            @ApiResponse(responseCode = "400", description = "No organization context set (the X-Organization-Id header is required), or a precondition is unmet: the project has no type, its address carries no recognisable state, no rules are registered for its jurisdiction, or the AI service is not configured. The detail message states what to fix."),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No project with the given id in the current tenant")
     })

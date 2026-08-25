@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.compliance.ai.OpenAiCompatibleComplianceService;
@@ -58,9 +60,15 @@ public class ComplianceGenerationService {
 
     /**
      * Generates the missing compliance inspections for a project. Returns the DTOs of
-     * the rows created by this call (empty when the AI is disabled/unconfigured, the
-     * project has no resolvable state or type, no rules match, or everything already
-     * exists).
+     * the rows created by this call; the list is empty in the genuine "generation ran
+     * but nothing applied" cases (the AI found no applicable rule, or every applicable
+     * compliance already exists).
+     *
+     * <p>Precondition failures are surfaced instead of silently returning empty so the
+     * caller can tell the user what to fix: a missing project raises
+     * {@link ResourceNotFoundException} (404); a project with no type, an address with
+     * no recognisable state, no rules registered for that jurisdiction, or an
+     * unconfigured AI service each raise {@link InvalidRequestException} (400).
      *
      * @param projectId the project to generate for
      * @param orgId     the owning organization; must match the current tenant context
@@ -69,34 +77,42 @@ public class ComplianceGenerationService {
     public List<InspectionDto> generateForProject(Long projectId, Long orgId) {
         Project project = projectRepository.findByIdAndOrganization_Id(projectId, orgId).orElse(null);
         if (project == null) {
-            log.warn("Compliance generation skipped: project {} not found in organization {}", projectId, orgId);
-            return List.of();
+            throw new ResourceNotFoundException(
+                    "No project with id " + projectId + " was found in this organization.");
         }
 
         ProjectType projectType = project.getProjectType();
         if (projectType == null) {
-            log.warn("Compliance generation skipped for project {}: projectType is not set", projectId);
-            return List.of();
+            throw new InvalidRequestException(
+                    "This project has no type set. Add a project type (for example Residential or "
+                            + "Commercial) before generating compliance.");
         }
 
         String state = IndianStateResolver.resolve(project.getProjectAddress());
         if (state == null) {
-            log.warn("Compliance generation skipped for project {}: could not resolve a state from address '{}'",
-                    projectId, project.getProjectAddress());
-            return List.of();
+            throw new InvalidRequestException(
+                    "The project address does not include a recognised state, so the applicable "
+                            + "regulations cannot be determined. Add the state to the project address "
+                            + "(for example 'Chennai, Tamil Nadu') and try again.");
         }
 
         List<ComplianceRule> candidateRules =
                 ruleRepository.findByStateIgnoreCaseAndProjectTypeAndActiveTrue(state, projectType);
         if (candidateRules.isEmpty()) {
-            log.info("No compliance rules registered for state '{}' and type {} (project {})",
-                    state, projectType, projectId);
-            return List.of();
+            throw new InvalidRequestException(
+                    "No compliance rules are registered for this project's state (" + state
+                            + ") and type (" + projectType + ") yet. Once rules for that jurisdiction "
+                            + "are added, generation will produce results.");
         }
 
         List<ComplianceSuggestion> suggestions =
                 complianceAiService.suggestCompliances(project, state, candidateRules);
         if (suggestions.isEmpty()) {
+            if (!complianceAiService.isConfigured()) {
+                throw new InvalidRequestException(
+                        "The compliance AI service is not configured, so suggestions cannot be "
+                                + "generated. Set the compliance AI key and try again.");
+            }
             log.info("Compliance AI returned no suggestions for project {}", projectId);
             return List.of();
         }
