@@ -1,36 +1,43 @@
 package org.tornotron.echno_backend.compliance.ai;
 
-import com.anthropic.client.AnthropicClient;
-import com.anthropic.client.okhttp.AnthropicOkHttpClient;
-import com.anthropic.models.messages.ContentBlock;
-import com.anthropic.models.messages.Message;
-import com.anthropic.models.messages.MessageCreateParams;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 import org.tornotron.echno_backend.compliance.domain.ComplianceRule;
 import org.tornotron.echno_backend.project.Project;
 
+import java.time.Duration;
 import java.util.List;
 
 /**
- * Wraps the Anthropic Claude call that decides which candidate compliance rules
- * apply to a project. The service is deliberately fail-soft: it never throws into
- * the approval flow. If the AI is disabled, has no API key, or the call/parse
- * fails, it logs and returns an empty list, and the caller generates nothing for
- * that project (a manual regenerate can be retried once the key is set).
+ * Wraps the OpenAI-compatible chat-completions call that decides which candidate
+ * compliance rules apply to a project. The endpoint is any service speaking the
+ * OpenAI Chat Completions schema (DigitalOcean Gradient serverless inference by
+ * default, or OpenAI, or a self-hosted OSS-model gateway), selected purely through
+ * {@code compliance.ai.*} config.
+ *
+ * <p>The service is deliberately fail-soft: it never throws into the approval flow.
+ * If the AI is disabled, has no API key, or the call/parse fails, it logs and
+ * returns an empty list, and the caller generates nothing for that project (a
+ * manual regenerate can be retried once the key is set).
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ClaudeComplianceService {
+public class OpenAiCompatibleComplianceService {
 
-    private final AnthropicProperties props;
+    private final ComplianceAiProperties props;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
-     * Asks Claude which of the candidate rules apply to the project. Returns one
+     * Asks the model which of the candidate rules apply to the project. Returns one
      * suggestion per rule the model reasoned about; an empty list means "generate
      * nothing" (either the AI is off/unconfigured or the call failed).
      */
@@ -47,20 +54,26 @@ public class ClaudeComplianceService {
         }
 
         try {
-            AnthropicClient client = AnthropicOkHttpClient.builder()
-                    .apiKey(props.getApiKey())
+            String systemPrompt = buildSystemPrompt();
+            String userPrompt = buildUserPrompt(project, state, candidateRules);
+
+            String requestBody = buildRequestBody(systemPrompt, userPrompt);
+
+            RestClient client = RestClient.builder()
+                    .requestFactory(requestFactory())
+                    .baseUrl(props.getBaseUrl())
                     .build();
 
-            String prompt = buildPrompt(project, state, candidateRules);
+            String responseJson = client.post()
+                    .uri("/chat/completions")
+                    .header("Authorization", "Bearer " + props.getApiKey())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .retrieve()
+                    .body(String.class);
 
-            MessageCreateParams params = MessageCreateParams.builder()
-                    .model(props.getModel())
-                    .maxTokens(props.getMaxTokens())
-                    .addUserMessage(prompt)
-                    .build();
-
-            Message message = client.messages().create(params);
-            String responseText = extractText(message);
+            String responseText = extractText(responseJson);
             return parseSuggestions(responseText);
         } catch (Exception e) {
             log.error("Compliance AI call failed for project {}: {}", project.getId(), e.getMessage());
@@ -68,11 +81,42 @@ public class ClaudeComplianceService {
         }
     }
 
-    private String buildPrompt(Project project, String state, List<ComplianceRule> rules) {
+    private SimpleClientHttpRequestFactory requestFactory() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(10));
+        factory.setReadTimeout(Duration.ofSeconds(60));
+        return factory;
+    }
+
+    /**
+     * Builds the OpenAI chat-completions request body with the system/user message
+     * split. Jackson assembles the JSON so message content is escaped correctly.
+     */
+    private String buildRequestBody(String systemPrompt, String userPrompt) throws Exception {
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("model", props.getModel());
+        root.put("max_tokens", props.getMaxTokens());
+        root.put("temperature", props.getTemperature());
+
+        ArrayNode messages = root.putArray("messages");
+        ObjectNode system = messages.addObject();
+        system.put("role", "system");
+        system.put("content", systemPrompt);
+        ObjectNode user = messages.addObject();
+        user.put("role", "user");
+        user.put("content", userPrompt);
+
+        return objectMapper.writeValueAsString(root);
+    }
+
+    private String buildSystemPrompt() {
+        return "You are a construction-compliance assistant for India. Decide which statutory "
+                + "compliances apply to a construction project, reasoning ONLY over the candidate "
+                + "rules provided. Do not invent compliances outside this list.";
+    }
+
+    private String buildUserPrompt(Project project, String state, List<ComplianceRule> rules) {
         StringBuilder sb = new StringBuilder();
-        sb.append("You are a construction-compliance assistant for India. Decide which statutory ")
-                .append("compliances apply to a construction project, reasoning ONLY over the candidate ")
-                .append("rules provided. Do not invent compliances outside this list.\n\n");
         sb.append("Project:\n");
         sb.append("- name: ").append(project.getProjectName()).append('\n');
         sb.append("- state: ").append(state).append('\n');
@@ -114,13 +158,14 @@ public class ClaudeComplianceService {
         return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ");
     }
 
-    /** Concatenates the text of every text content block in the message. */
-    private String extractText(Message message) {
-        StringBuilder sb = new StringBuilder();
-        for (ContentBlock block : message.content()) {
-            block.text().ifPresent(t -> sb.append(t.text()));
+    /** Pulls the assistant text out of {@code choices[0].message.content}. */
+    private String extractText(String responseJson) throws Exception {
+        if (responseJson == null || responseJson.isBlank()) {
+            return "";
         }
-        return sb.toString();
+        JsonNode root = objectMapper.readTree(responseJson);
+        JsonNode content = root.path("choices").path(0).path("message").path("content");
+        return content.isTextual() ? content.asText() : "";
     }
 
     /**

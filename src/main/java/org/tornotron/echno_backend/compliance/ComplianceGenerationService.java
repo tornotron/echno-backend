@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
-import org.tornotron.echno_backend.compliance.ai.ClaudeComplianceService;
+import org.tornotron.echno_backend.compliance.ai.OpenAiCompatibleComplianceService;
 import org.tornotron.echno_backend.compliance.ai.ComplianceSuggestion;
 import org.tornotron.echno_backend.compliance.domain.ComplianceRule;
 import org.tornotron.echno_backend.compliance.repository.ComplianceRuleRepository;
@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 /**
  * Generates compliance-type inspections for an approved project. It resolves the
  * project's state (from its address) and type, loads the matching curated
- * {@link ComplianceRule}s, asks {@link ClaudeComplianceService} which of them apply,
+ * {@link ComplianceRule}s, asks {@link OpenAiCompatibleComplianceService} which of them apply,
  * and materialises each "applies" decision as a suggested, AI-generated inspection.
  *
  * <p>Idempotent: a (projectId, complianceRuleRef) pair that already has an inspection
@@ -50,7 +50,7 @@ public class ComplianceGenerationService {
 
     private final ProjectRepository projectRepository;
     private final ComplianceRuleRepository ruleRepository;
-    private final ClaudeComplianceService claudeComplianceService;
+    private final OpenAiCompatibleComplianceService complianceAiService;
     private final InspectionRepository inspectionRepository;
     private final EntryNumberGenerator numberGen;
     private final TenantEntityHelper tenantEntityHelper;
@@ -95,7 +95,7 @@ public class ComplianceGenerationService {
         }
 
         List<ComplianceSuggestion> suggestions =
-                claudeComplianceService.suggestCompliances(project, state, candidateRules);
+                complianceAiService.suggestCompliances(project, state, candidateRules);
         if (suggestions.isEmpty()) {
             log.info("Compliance AI returned no suggestions for project {}", projectId);
             return List.of();
