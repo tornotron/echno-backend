@@ -30,8 +30,8 @@ import java.util.List;
 @Tag(
         name = "Compliance Generation",
         description = "Manual trigger for AI-driven compliance inspection generation. A project's "
-                + "location and type are matched against curated compliance rules and the Anthropic Claude "
-                + "API to create compliance-type inspections; this endpoint re-runs that generation on "
+                + "location and type are matched against curated compliance rules and an OpenAI-compatible "
+                + "inference endpoint to create compliance-type inspections; this endpoint re-runs that generation on "
                 + "demand, in addition to the automatic run on project approval."
 )
 public class ComplianceControllerWeb {

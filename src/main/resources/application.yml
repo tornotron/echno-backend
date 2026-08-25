@@ -38,14 +38,19 @@ API:
   VERSION: ${BACKEND_API_VERSION}
 
 
-# Anthropic Claude, used to generate compliance inspections when a project is approved.
-# api-key is a secret injected at deploy time; when it is empty (or enabled=false) the
-# compliance AI no-ops and the application runs normally without a key.
-anthropic:
-  api-key: ${ANTHROPIC_API_KEY:}
-  model: claude-opus-5
-  max-tokens: 4096
-  enabled: ${ANTHROPIC_ENABLED:true}
+# OpenAI-compatible chat-completions endpoint, used to generate compliance inspections when a
+# project is approved. base-url points at any OpenAI-compatible service (DigitalOcean Gradient
+# serverless inference by default; override for OpenAI or a self-hosted gateway). api-key is a
+# secret injected at deploy time; when it is empty (or enabled=false) the compliance AI no-ops
+# and the application runs normally without a key.
+compliance:
+  ai:
+    base-url: ${COMPLIANCE_AI_BASE_URL:https://inference.do-ai.run/v1}
+    api-key: ${COMPLIANCE_AI_API_KEY:}
+    model: ${COMPLIANCE_AI_MODEL:llama3.3-70b-instruct}
+    max-tokens: 4096
+    temperature: 0.2
+    enabled: ${COMPLIANCE_AI_ENABLED:true}
 
 
 # Chart-of-accounts auto numbering. level-steps is the gap between sibling codes

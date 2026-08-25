@@ -16,7 +16,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
-import org.tornotron.echno_backend.compliance.ai.ClaudeComplianceService;
+import org.tornotron.echno_backend.compliance.ai.OpenAiCompatibleComplianceService;
 import org.tornotron.echno_backend.compliance.ai.ComplianceSuggestion;
 import org.tornotron.echno_backend.inspection.ComplianceRiskLevel;
 import org.tornotron.echno_backend.inspection.InspectionOrigin;
@@ -58,7 +58,7 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
     private ComplianceGenerationService service;
 
     @MockitoBean
-    private ClaudeComplianceService claudeComplianceService;
+    private OpenAiCompatibleComplianceService complianceAiService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -89,7 +89,7 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
         });
 
         // The stub applies two of the six seeded TN residential rules and rejects the rest.
-        when(claudeComplianceService.suggestCompliances(any(Project.class), anyString(), any()))
+        when(complianceAiService.suggestCompliances(any(Project.class), anyString(), any()))
                 .thenReturn(List.of(
                         new ComplianceSuggestion(RULE_POST, true, "critical",
                                 List.of("Apply for the occupancy certificate"), "Required before handover",

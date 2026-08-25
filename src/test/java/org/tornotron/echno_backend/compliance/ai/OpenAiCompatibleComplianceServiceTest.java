@@ -12,11 +12,11 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The compliance AI must be safe to run without an Anthropic key: when disabled or
- * unconfigured it returns no suggestions rather than attempting a call. These are pure
- * unit tests; they never touch the network.
+ * The compliance AI must be safe to run without a configured endpoint: when disabled
+ * or missing an API key it returns no suggestions rather than attempting a call. These
+ * are pure unit tests; they never touch the network.
  */
-class ClaudeComplianceServiceTest {
+class OpenAiCompatibleComplianceServiceTest {
 
     private Project sampleProject() {
         Project project = new Project();
@@ -39,10 +39,10 @@ class ClaudeComplianceServiceTest {
 
     @Test
     void returnsEmptyWhenDisabled() {
-        AnthropicProperties props = new AnthropicProperties();
+        ComplianceAiProperties props = new ComplianceAiProperties();
         props.setEnabled(false);
         props.setApiKey("sk-should-not-be-used");
-        ClaudeComplianceService service = new ClaudeComplianceService(props);
+        OpenAiCompatibleComplianceService service = new OpenAiCompatibleComplianceService(props);
 
         List<ComplianceSuggestion> result =
                 service.suggestCompliances(sampleProject(), "Tamil Nadu", sampleRules());
@@ -52,10 +52,10 @@ class ClaudeComplianceServiceTest {
 
     @Test
     void returnsEmptyWhenApiKeyBlank() {
-        AnthropicProperties props = new AnthropicProperties();
+        ComplianceAiProperties props = new ComplianceAiProperties();
         props.setEnabled(true);
         props.setApiKey("   ");
-        ClaudeComplianceService service = new ClaudeComplianceService(props);
+        OpenAiCompatibleComplianceService service = new OpenAiCompatibleComplianceService(props);
 
         List<ComplianceSuggestion> result =
                 service.suggestCompliances(sampleProject(), "Tamil Nadu", sampleRules());
