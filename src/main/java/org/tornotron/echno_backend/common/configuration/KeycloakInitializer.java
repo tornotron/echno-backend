@@ -47,17 +47,7 @@ import java.util.Set;
 @DependsOn("keycloakConfigGenerator")
 public class KeycloakInitializer {
 
-    // Bootstrap-only master client (admin-cli password grant on the master realm). Used solely to
-    // create the application realm and provision the echno-initializer client on a fresh or
-    // not-yet-migrated environment. Never used for steady-state reconcile.
-    private final Keycloak masterKeycloak;
-
-    // The admin client every reconcile/content operation runs through. It is set to the realm-scoped
-    // echno-initializer client for the whole reconcile; the master client is only reached, if at all,
-    // to bootstrap that scoped client into existence.
-    private Keycloak admin;
-
-    private final KeycloakConfig keycloakConfig;
+    private final Keycloak keycloak;
 
     private final KeycloakInitializerConfigurationProperties keycloakInitializerConfigurationProperties;
 
@@ -71,14 +61,12 @@ public class KeycloakInitializer {
     @Value("${keycloak.client-id}")
     private String appClientId;
 
-    public KeycloakInitializer(Keycloak masterKeycloak,
+    public KeycloakInitializer(Keycloak keycloak,
                                KeycloakInitializerConfigurationProperties keycloakInitializerConfigurationProperties,
-                               ObjectMapper objectMapper,
-                               KeycloakConfig keycloakConfig) {
-        this.masterKeycloak = masterKeycloak;
+                               ObjectMapper objectMapper) {
+        this.keycloak = keycloak;
         this.keycloakInitializerConfigurationProperties = keycloakInitializerConfigurationProperties;
         this.mapper = objectMapper;
-        this.keycloakConfig = keycloakConfig;
     }
 
 
@@ -93,237 +81,42 @@ public class KeycloakInitializer {
         }
     }
 
-    /**
-     * Reconciles Keycloak on startup, authenticating with the least-privileged credential that can
-     * do the job (H-3). The scoped realm-admin path is tried first: if the echno-initializer service
-     * account can already obtain a token against the application realm, the whole reconcile runs
-     * through it and the privileged master credential is never touched this startup. The master
-     * client is used only to bootstrap a fresh (or not-yet-migrated) environment up to the point
-     * where that scoped client exists: create the realm and provision echno-initializer with the
-     * realm-admin role, then hand off to the scoped client for all remaining work.
-     */
     public void init(boolean overwrite) {
 
         log.info("Initializer start");
 
-        Keycloak scoped = keycloakConfig.buildScopedKeycloak();
+        boolean isAlreadyInitialized;
         try {
-            if (!overwrite && probeRealm(scoped)) {
-                log.info("Scoped initializer client authenticated against realm '{}'; reconciling with the "
-                        + "realm-scoped admin only (master credential untouched)", REALM_ID);
-                this.admin = scoped;
-                reconcileExistingRealm();
-                log.info("Keycloak reconcile complete (scoped realm-admin)");
-                return;
-            }
-        } finally {
-            if (this.admin != scoped) {
-                closeQuietly(scoped);
-            }
-        }
-
-        // Fresh env, not-yet-migrated realm, or an explicit overwrite: fall back to the master
-        // credential to bring the scoped client into existence, then reconcile through the scoped one.
-        bootstrapWithMaster(overwrite);
-    }
-
-    /**
-     * Bootstrap/overwrite path. Uses the master credential ONLY to create the realm (if absent) and
-     * to provision the echno-initializer client with realm-admin; every subsequent operation runs
-     * through the freshly built scoped client.
-     */
-    private void bootstrapWithMaster(boolean overwrite) {
-        boolean realmExists = probeRealm(masterKeycloak);
-
-        if (realmExists && overwrite) {
-            reset();
-            realmExists = false;
-        }
-
-        if (!realmExists) {
-            initKeycloakRealm();
-        }
-
-        // Ensure the realm-scoped admin client exists (create it + set its secret + grant realm-admin
-        // if absent). This is the one step that genuinely needs the master credential on a fresh or
-        // pre-migration environment, because the scoped client cannot yet authenticate to create itself.
-        ensureInitializerClient();
-
-        Keycloak scoped = keycloakConfig.buildScopedKeycloak();
-        this.admin = scoped;
-        try {
-            if (!realmExists) {
-                initKeycloakContents();
-                log.info("Keycloak initialized successfully (fresh bootstrap; scoped realm-admin provisioned)");
-            } else {
-                log.warn("Realm '{}' already existed but the scoped initializer client was not usable; "
-                        + "provisioned it via master and reconciled through it", REALM_ID);
-                reconcileExistingRealm();
-                log.info("Keycloak reconcile complete (scoped realm-admin, provisioned this startup)");
-            }
-        } finally {
-            closeQuietly(scoped);
-        }
-    }
-
-    /** The existing-realm reconcile suite, run through {@link #admin}. */
-    private void reconcileExistingRealm() {
-        // Sync client configuration from JSON even if realm exists
-        syncClientConfiguration();
-        // Sync realm-level security settings from JSON even if realm exists
-        syncRealmSecuritySettings();
-        // Ensure admin-only MFA (conditional TOTP) is codified even if realm exists
-        ensureAdminMfa();
-        // Ensure service account roles are assigned even if realm exists
-        assignServiceAccountRoles();
-        // Ensure authorization setup (JS policy, resource, permission) exists
-        ensureAuthorizationSetup();
-        // Ensure the H-1 composite job roles exist and carry their granular children
-        ensureCompositeJobRoles();
-    }
-
-    /**
-     * Probes whether the given admin client can read the application realm. A success proves both
-     * that the realm exists and that the client authenticated. Any failure (realm absent, client
-     * absent, or token request rejected) returns false so the caller falls back to bootstrap.
-     */
-    private boolean probeRealm(Keycloak client) {
-        try {
-            client.realm(REALM_ID).toRepresentation();
-            return true;
+            keycloak.realm(REALM_ID).toRepresentation();
+            isAlreadyInitialized = true;
         } catch (NotFoundException e) {
-            return false;
-        } catch (Exception e) {
-            log.debug("Realm probe against '{}' did not succeed: {}", REALM_ID, e.getMessage());
-            return false;
+            isAlreadyInitialized = false;
         }
-    }
 
-    private void closeQuietly(Keycloak client) {
-        if (client == null) {
-            return;
+        if(isAlreadyInitialized && overwrite) {
+            reset();
         }
-        try {
-            client.close();
-        } catch (Exception e) {
-            log.debug("Failed to close a Keycloak admin client: {}", e.getMessage());
-        }
-    }
 
-    // Composite role on the realm-management client that grants full admin over a single realm.
-    private static final String REALM_ADMIN_ROLE = "realm-admin";
-    private static final String REALM_MANAGEMENT_CLIENT = "realm-management";
+        if (!isAlreadyInitialized || overwrite) {
 
-    /**
-     * Ensures the realm-scoped initializer client (echno-initializer) exists in the application
-     * realm as a confidential client with a service account holding the realm-admin composite. This
-     * is the migration step that lets every future deploy authenticate as the scoped realm-admin
-     * instead of the master credential. Runs through the master client (the only credential able to
-     * create it on a fresh or pre-migration environment) and is idempotent.
-     */
-    private void ensureInitializerClient() {
-        String clientId = keycloakConfig.getInitializerServiceClientId();
-        String secret = keycloakConfig.getInitializerServiceClientSecret();
-        try {
-            RealmResource realm = masterKeycloak.realm(REALM_ID);
+            initKeycloak();
 
-            List<org.keycloak.representations.idm.ClientRepresentation> existing =
-                    realm.clients().findByClientId(clientId);
+            log.info("Keycloak initialized successfully");
+        } else {
 
-            String clientUuid;
-            if (existing.isEmpty()) {
-                org.keycloak.representations.idm.ClientRepresentation rep =
-                        new org.keycloak.representations.idm.ClientRepresentation();
-                rep.setClientId(clientId);
-                rep.setEnabled(true);
-                rep.setPublicClient(false);
-                rep.setServiceAccountsEnabled(true);
-                rep.setStandardFlowEnabled(false);
-                rep.setDirectAccessGrantsEnabled(false);
-                rep.setDescription("Realm-scoped admin client used by the startup initializer (H-3). "
-                        + "Holds realm-admin on this realm only; steady-state deploys authenticate as this "
-                        + "service account instead of the master credential.");
-                if (secret != null && !secret.isBlank()) {
-                    rep.setSecret(secret);
-                }
-                try (Response response = realm.clients().create(rep)) {
-                    if (response.getStatus() != 201) {
-                        String body = response.hasEntity() ? response.readEntity(String.class) : "(no body)";
-                        log.error("Failed to create initializer client '{}'. Status: {}, Body: {}",
-                                clientId, response.getStatus(), body);
-                        return;
-                    }
-                    clientUuid = CreatedResponseUtil.getCreatedId(response);
-                }
-                log.info("Created realm-scoped initializer client '{}' (id={})", clientId, clientUuid);
-            } else {
-                org.keycloak.representations.idm.ClientRepresentation rep = existing.get(0);
-                clientUuid = rep.getId();
-                boolean changed = false;
-                if (!Boolean.TRUE.equals(rep.isServiceAccountsEnabled())) {
-                    rep.setServiceAccountsEnabled(true);
-                    changed = true;
-                }
-                if (Boolean.TRUE.equals(rep.isPublicClient())) {
-                    rep.setPublicClient(false);
-                    changed = true;
-                }
-                if (secret != null && !secret.isBlank()) {
-                    // Realign the stored secret with the configured one so the scoped client can log in.
-                    rep.setSecret(secret);
-                    changed = true;
-                }
-                if (changed) {
-                    realm.clients().get(clientUuid).update(rep);
-                    log.info("Reconciled existing initializer client '{}' (id={})", clientId, clientUuid);
-                } else {
-                    log.info("Initializer client '{}' already present (id={})", clientId, clientUuid);
-                }
-            }
-
-            grantRealmAdmin(realm, clientUuid, clientId);
-
-        } catch (Exception e) {
-            log.error("Failed to ensure initializer client '{}': {}", clientId, e.getMessage(), e);
-        }
-    }
-
-    /** Grants the realm-admin composite (from realm-management) to the client's service account, if missing. */
-    private void grantRealmAdmin(RealmResource realm, String clientUuid, String clientId) {
-        try {
-            UserRepresentation serviceAccount = realm.clients().get(clientUuid).getServiceAccountUser();
-            if (serviceAccount == null) {
-                log.error("Initializer client '{}' has no service account user; cannot grant {}",
-                        clientId, REALM_ADMIN_ROLE);
-                return;
-            }
-
-            List<org.keycloak.representations.idm.ClientRepresentation> realmMgmt =
-                    realm.clients().findByClientId(REALM_MANAGEMENT_CLIENT);
-            if (realmMgmt.isEmpty()) {
-                log.error("'{}' client not found; cannot grant {} to '{}'",
-                        REALM_MANAGEMENT_CLIENT, REALM_ADMIN_ROLE, clientId);
-                return;
-            }
-            String realmMgmtUuid = realmMgmt.get(0).getId();
-
-            RoleRepresentation realmAdmin = realm.clients().get(realmMgmtUuid)
-                    .roles().get(REALM_ADMIN_ROLE).toRepresentation();
-
-            RoleMappingResource saRoles = realm.users().get(serviceAccount.getId()).roles();
-            boolean alreadyAssigned = saRoles.clientLevel(realmMgmtUuid).listAll().stream()
-                    .anyMatch(r -> REALM_ADMIN_ROLE.equals(r.getName()));
-
-            if (alreadyAssigned) {
-                log.info("Initializer service account for '{}' already holds {}", clientId, REALM_ADMIN_ROLE);
-                return;
-            }
-
-            saRoles.clientLevel(realmMgmtUuid).add(List.of(realmAdmin));
-            log.info("Granted {} to the initializer service account for '{}'", REALM_ADMIN_ROLE, clientId);
-        } catch (Exception e) {
-            log.error("Failed to grant {} to initializer client '{}': {}",
-                    REALM_ADMIN_ROLE, clientId, e.getMessage(), e);
+            log.warn("Keycloak initialization cancelled: realm already exists");
+            // Sync client configuration from JSON even if realm exists
+            syncClientConfiguration();
+            // Sync realm-level security settings from JSON even if realm exists
+            syncRealmSecuritySettings();
+            // Ensure admin-only MFA (conditional TOTP) is codified even if realm exists
+            ensureAdminMfa();
+            // Ensure service account roles are assigned even if realm exists
+            assignServiceAccountRoles();
+            // Ensure authorization setup (JS policy, resource, permission) exists
+            ensureAuthorizationSetup();
+            // Ensure the H-1 composite job roles exist and carry their granular children
+            ensureCompositeJobRoles();
         }
     }
 
@@ -356,14 +149,14 @@ public class KeycloakInitializer {
     private void syncSingleClient(org.keycloak.representations.idm.ClientRepresentation clientFromConfig) {
         String clientId = clientFromConfig.getClientId();
         try {
-            List<org.keycloak.representations.idm.ClientRepresentation> existingClients = admin.realm(REALM_ID).clients().findByClientId(clientId);
+            List<org.keycloak.representations.idm.ClientRepresentation> existingClients = keycloak.realm(REALM_ID).clients().findByClientId(clientId);
             if (existingClients.isEmpty()) {
                 log.warn("Client '{}' from config not found in Keycloak. Skipping sync.", clientId);
                 return;
             }
 
             org.keycloak.representations.idm.ClientRepresentation existingClient = existingClients.get(0);
-            org.keycloak.admin.client.resource.ClientResource clientResource = admin.realm(REALM_ID).clients().get(existingClient.getId());
+            org.keycloak.admin.client.resource.ClientResource clientResource = keycloak.realm(REALM_ID).clients().get(existingClient.getId());
 
             // Update fields from config on the existing client.
             // We preserve the ID and Secret from the existing client so a rotated secret survives.
@@ -389,7 +182,7 @@ public class KeycloakInitializer {
             }
 
             RealmRepresentation configRealm = mapper.readValue(configFile.toFile(), RealmRepresentation.class);
-            RealmRepresentation liveRealm = admin.realm(REALM_ID).toRepresentation();
+            RealmRepresentation liveRealm = keycloak.realm(REALM_ID).toRepresentation();
 
             // Copy ONLY the explicit security fields that are set in the config onto the live
             // representation. Clients, roles, groups and users are deliberately left untouched so
@@ -418,7 +211,7 @@ public class KeycloakInitializer {
                 return;
             }
 
-            admin.realm(REALM_ID).update(liveRealm);
+            keycloak.realm(REALM_ID).update(liveRealm);
             log.info("Realm-level security settings synced successfully: {}", applied);
 
         } catch (Exception e) {
@@ -464,10 +257,10 @@ public class KeycloakInitializer {
     // (rebind first: a bound flow cannot be deleted). Each step guarded.
     private void useBuiltinBrowserFlow() {
         try {
-            RealmRepresentation realm = admin.realm(REALM_ID).toRepresentation();
+            RealmRepresentation realm = keycloak.realm(REALM_ID).toRepresentation();
             if (!BUILTIN_BROWSER_FLOW.equals(realm.getBrowserFlow())) {
                 realm.setBrowserFlow(BUILTIN_BROWSER_FLOW);
-                admin.realm(REALM_ID).update(realm);
+                keycloak.realm(REALM_ID).update(realm);
                 log.info("Rebound realm browserFlow to the built-in '{}' flow", BUILTIN_BROWSER_FLOW);
             } else {
                 log.info("Realm browserFlow already on the built-in '{}' flow", BUILTIN_BROWSER_FLOW);
@@ -477,7 +270,7 @@ public class KeycloakInitializer {
         }
 
         try {
-            AuthenticationManagementResource flows = admin.realm(REALM_ID).flows();
+            AuthenticationManagementResource flows = keycloak.realm(REALM_ID).flows();
             AuthenticationFlowRepresentation custom = flows.getFlows().stream()
                     .filter(f -> CUSTOM_MFA_FLOW_ALIAS.equals(f.getAlias()))
                     .findFirst()
@@ -496,7 +289,7 @@ public class KeycloakInitializer {
     private void enableConfigureTotpRequiredAction() {
         try {
             RequiredActionProviderRepresentation action =
-                    admin.realm(REALM_ID).flows().getRequiredAction(CONFIGURE_TOTP);
+                    keycloak.realm(REALM_ID).flows().getRequiredAction(CONFIGURE_TOTP);
             if (action == null) {
                 log.warn("{} required action not found; skipping enable", CONFIGURE_TOTP);
                 return;
@@ -511,7 +304,7 @@ public class KeycloakInitializer {
                 changed = true;
             }
             if (changed) {
-                admin.realm(REALM_ID).flows().updateRequiredAction(CONFIGURE_TOTP, action);
+                keycloak.realm(REALM_ID).flows().updateRequiredAction(CONFIGURE_TOTP, action);
                 log.info("Enabled {} required action (defaultAction=false)", CONFIGURE_TOTP);
             } else {
                 log.info("{} required action already enabled", CONFIGURE_TOTP);
@@ -528,7 +321,7 @@ public class KeycloakInitializer {
     private void forceTotpEnrolmentForAdmins() {
         try {
             List<GroupRepresentation> adminGroups = new ArrayList<>();
-            collectSystemAdminGroups(admin.realm(REALM_ID).groups().groups(), adminGroups);
+            collectSystemAdminGroups(keycloak.realm(REALM_ID).groups().groups(), adminGroups);
             if (adminGroups.isEmpty()) {
                 log.info("No '/system-admin' groups found yet; no admins to enrol this reconcile");
                 return;
@@ -536,7 +329,7 @@ public class KeycloakInitializer {
 
             Set<String> processed = new HashSet<>();
             for (GroupRepresentation group : adminGroups) {
-                List<UserRepresentation> members = admin.realm(REALM_ID).groups().group(group.getId()).members();
+                List<UserRepresentation> members = keycloak.realm(REALM_ID).groups().group(group.getId()).members();
                 if (members == null) {
                     continue;
                 }
@@ -554,7 +347,7 @@ public class KeycloakInitializer {
 
     private void forceTotpForAdmin(String userId, String username) {
         try {
-            UserResource userResource = admin.realm(REALM_ID).users().get(userId);
+            UserResource userResource = keycloak.realm(REALM_ID).users().get(userId);
 
             boolean hasOtp = userResource.credentials().stream()
                     .map(CredentialRepresentation::getType)
@@ -590,7 +383,7 @@ public class KeycloakInitializer {
     private void cleanupLegacyRequireMfaRole() {
         RoleRepresentation mfaRole;
         try {
-            mfaRole = admin.realm(REALM_ID).roles().get(MFA_ROLE).toRepresentation();
+            mfaRole = keycloak.realm(REALM_ID).roles().get(MFA_ROLE).toRepresentation();
         } catch (NotFoundException e) {
             return; // already gone
         } catch (Exception e) {
@@ -600,10 +393,10 @@ public class KeycloakInitializer {
 
         try {
             List<GroupRepresentation> adminGroups = new ArrayList<>();
-            collectSystemAdminGroups(admin.realm(REALM_ID).groups().groups(), adminGroups);
+            collectSystemAdminGroups(keycloak.realm(REALM_ID).groups().groups(), adminGroups);
             for (GroupRepresentation group : adminGroups) {
                 try {
-                    RoleMappingResource groupRoles = admin.realm(REALM_ID).groups().group(group.getId()).roles();
+                    RoleMappingResource groupRoles = keycloak.realm(REALM_ID).groups().group(group.getId()).roles();
                     boolean mapped = groupRoles.realmLevel().listAll().stream()
                             .anyMatch(r -> MFA_ROLE.equals(r.getName()));
                     if (mapped) {
@@ -619,7 +412,7 @@ public class KeycloakInitializer {
         }
 
         try {
-            admin.realm(REALM_ID).roles().deleteRole(MFA_ROLE);
+            keycloak.realm(REALM_ID).roles().deleteRole(MFA_ROLE);
             log.info("Deleted unused legacy realm role '{}'", MFA_ROLE);
         } catch (Exception e) {
             log.error("Failed to delete legacy realm role '{}': {}", MFA_ROLE, e.getMessage());
@@ -636,22 +429,20 @@ public class KeycloakInitializer {
                 out.add(group);
             }
             List<GroupRepresentation> subGroups =
-                    admin.realm(REALM_ID).groups().group(group.getId()).getSubGroups(0, 1000, false);
+                    keycloak.realm(REALM_ID).groups().group(group.getId()).getSubGroups(0, 1000, false);
             collectSystemAdminGroups(subGroups, out);
         }
     }
 
-    /**
-     * The fresh-realm content pipeline, run through {@link #admin} (the scoped realm-admin). Realm
-     * creation itself is handled separately in {@link #bootstrapWithMaster} because it is the one
-     * step that needs the master credential.
-     */
-    private void initKeycloakContents() {
+    private void initKeycloak() {
+
+        initKeycloakRealm();
         initKeycloakUsers();
         assignServiceAccountRoles();
         ensureAuthorizationSetup();
         ensureAdminMfa();
         ensureCompositeJobRoles();
+
     }
 
     /**
@@ -737,7 +528,7 @@ public class KeycloakInitializer {
 
     private void ensureCompositeJobRole(CompositeJobRole jobRole) {
         try {
-            RealmResource realm = admin.realm(REALM_ID);
+            RealmResource realm = keycloak.realm(REALM_ID);
 
             // 1. Ensure the composite role itself exists (create if missing, never overwrite).
             boolean exists;
@@ -798,13 +589,13 @@ public class KeycloakInitializer {
             log.info("Assigning service account roles for client '{}'", appClientId);
 
             // 1. Find the client UUID (not clientId) for the application client
-            List<org.keycloak.representations.idm.ClientRepresentation> clients = admin.realm(REALM_ID).clients().findByClientId(appClientId);
+            List<org.keycloak.representations.idm.ClientRepresentation> clients = keycloak.realm(REALM_ID).clients().findByClientId(appClientId);
             if (clients.isEmpty()) {
                 log.error("Client '{}' not found in realm '{}'", appClientId, REALM_ID);
                 return;
             }
             org.keycloak.representations.idm.ClientRepresentation appClientRep = clients.get(0);
-            org.keycloak.admin.client.resource.ClientResource appClientResource = admin.realm(REALM_ID).clients().get(appClientRep.getId());
+            org.keycloak.admin.client.resource.ClientResource appClientResource = keycloak.realm(REALM_ID).clients().get(appClientRep.getId());
 
             // 2. Enable Service Accounts if not enabled
             if (!Boolean.TRUE.equals(appClientRep.isServiceAccountsEnabled())) {
@@ -819,10 +610,10 @@ public class KeycloakInitializer {
                 log.error("Service account user not found for client '{}'", appClientId);
                 return;
             }
-            UserResource serviceAccountUserResource = admin.realm(REALM_ID).users().get(serviceAccountUser.getId());
+            UserResource serviceAccountUserResource = keycloak.realm(REALM_ID).users().get(serviceAccountUser.getId());
 
             // 4. Find the 'realm-management' client UUID
-            List<org.keycloak.representations.idm.ClientRepresentation> realmMgmtClients = admin.realm(REALM_ID).clients().findByClientId("realm-management");
+            List<org.keycloak.representations.idm.ClientRepresentation> realmMgmtClients = keycloak.realm(REALM_ID).clients().findByClientId("realm-management");
             if (realmMgmtClients.isEmpty()) {
                 log.error("'realm-management' client not found!");
                 return;
@@ -835,7 +626,7 @@ public class KeycloakInitializer {
 
             for (String roleName : requiredRoles) {
                 try {
-                    RoleRepresentation role = admin.realm(REALM_ID).clients().get(realmMgmtClientRep.getId()).roles().get(roleName).toRepresentation();
+                    RoleRepresentation role = keycloak.realm(REALM_ID).clients().get(realmMgmtClientRep.getId()).roles().get(roleName).toRepresentation();
                     rolesToAdd.add(role);
                 } catch (Exception e) {
                     log.warn("Role '{}' not found in realm-management", roleName);
@@ -869,7 +660,7 @@ public class KeycloakInitializer {
             realmRepresentationToImport.setRealm(REALM_ID);
             realmRepresentationToImport.setId(REALM_ID);
 
-            masterKeycloak.realms().create(realmRepresentationToImport);
+            keycloak.realms().create(realmRepresentationToImport);
         } catch (IOException e) {
             String errorMessage = String.format("Failed to import keycloak realm representation : %s", e.getMessage());
             log.error(errorMessage);
@@ -915,14 +706,14 @@ public class KeycloakInitializer {
         userCredentialRepresentation.setValue(user.getPassword());
         userRepresentation.setCredentials(List.of(userCredentialRepresentation));
 
-        try (Response response = admin.realm(REALM_ID).users().create(userRepresentation)) {
+        try (Response response = keycloak.realm(REALM_ID).users().create(userRepresentation)) {
             String userId = null;
             if (response.getStatus() == 201) { // CREATED
                 userId = CreatedResponseUtil.getCreatedId(response);
                 log.info("User '{}' created with id {}", user.getUserName(), userId);
             } else if (response.getStatus() == 409) { // CONFLICT
                 log.warn("User '{}' already exists. Fetching to assign roles if needed.", user.getUserName());
-                List<UserRepresentation> users = admin.realm(REALM_ID).users().search(user.getUserName());
+                List<UserRepresentation> users = keycloak.realm(REALM_ID).users().search(user.getUserName());
                 if (!users.isEmpty()) {
                     userId = users.get(0).getId();
                 } else {
@@ -935,10 +726,10 @@ public class KeycloakInitializer {
             }
 
             if (userId != null) {
-                UserResource userResource = admin.realm(REALM_ID).users().get(userId);
+                UserResource userResource = keycloak.realm(REALM_ID).users().get(userId);
                 String roleName = user.isAdmin() ? "admin" : "user";
                 List<RoleRepresentation> rolesToAdd =
-                        Collections.singletonList(admin.realm(REALM_ID).roles().get(roleName).toRepresentation());
+                        Collections.singletonList(keycloak.realm(REALM_ID).roles().get(roleName).toRepresentation());
                 userResource.roles().realmLevel().add(rolesToAdd);
                 log.info("Role '{}' assigned to user '{}'", roleName, user.getUserName());
             }
@@ -950,13 +741,13 @@ public class KeycloakInitializer {
             log.info("Ensuring authorization setup for client '{}'", appClientId);
 
             List<org.keycloak.representations.idm.ClientRepresentation> clients =
-                    admin.realm(REALM_ID).clients().findByClientId(appClientId);
+                    keycloak.realm(REALM_ID).clients().findByClientId(appClientId);
             if (clients.isEmpty()) {
                 log.warn("Client '{}' not found, skipping authorization setup", appClientId);
                 return;
             }
 
-            ClientResource clientResource = admin.realm(REALM_ID).clients().get(clients.get(0).getId());
+            ClientResource clientResource = keycloak.realm(REALM_ID).clients().get(clients.get(0).getId());
 
             String policyId = ensureDefaultRolePolicy(clientResource);
             String resourceId = ensureDefaultResource(clientResource);
@@ -989,13 +780,13 @@ public class KeycloakInitializer {
 
         // required=false = OR logic — user needs at least one of these roles
         try {
-            RoleRepresentation userRole = admin.realm(REALM_ID).roles().get("user").toRepresentation();
+            RoleRepresentation userRole = keycloak.realm(REALM_ID).roles().get("user").toRepresentation();
             policy.addRole(userRole.getId(), false);
         } catch (Exception e) {
             log.warn("Realm role 'user' not found, skipping from Default Policy");
         }
         try {
-            RoleRepresentation adminRole = admin.realm(REALM_ID).roles().get("admin").toRepresentation();
+            RoleRepresentation adminRole = keycloak.realm(REALM_ID).roles().get("admin").toRepresentation();
             policy.addRole(adminRole.getId(), false);
         } catch (Exception e) {
             log.warn("Realm role 'admin' not found, skipping from Default Policy");
@@ -1124,16 +915,16 @@ public class KeycloakInitializer {
     private void ensureUsersHaveBaseRole() {
         try {
             log.info("Ensuring all users have at least the 'user' realm role");
-            RoleRepresentation userRole = admin.realm(REALM_ID).roles().get("user").toRepresentation();
+            RoleRepresentation userRole = keycloak.realm(REALM_ID).roles().get("user").toRepresentation();
 
-            List<UserRepresentation> allUsers = admin.realm(REALM_ID).users().list();
+            List<UserRepresentation> allUsers = keycloak.realm(REALM_ID).users().list();
             for (UserRepresentation u : allUsers) {
-                List<RoleRepresentation> realmRoles = admin.realm(REALM_ID).users()
+                List<RoleRepresentation> realmRoles = keycloak.realm(REALM_ID).users()
                         .get(u.getId()).roles().realmLevel().listAll();
                 boolean hasRole = realmRoles.stream()
                         .anyMatch(r -> "user".equals(r.getName()) || "admin".equals(r.getName()));
                 if (!hasRole) {
-                    admin.realm(REALM_ID).users().get(u.getId()).roles()
+                    keycloak.realm(REALM_ID).users().get(u.getId()).roles()
                             .realmLevel().add(Collections.singletonList(userRole));
                     log.info("Assigned 'user' role to existing user '{}'", u.getUsername());
                 }
@@ -1146,7 +937,7 @@ public class KeycloakInitializer {
 
     public void reset() {
         try {
-         masterKeycloak.realm(REALM_ID).remove();
+         keycloak.realm(REALM_ID).remove();
         } catch (NotFoundException e) {
             log.error("Failed to reset Keycloak", e);
         }
