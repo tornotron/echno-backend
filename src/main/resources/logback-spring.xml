@@ -42,13 +42,28 @@
         </appender>
     </springProfile>
 
-    <!-- Root Logger Configuration -->
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
-        <springProfile name="loki">
+    <!--
+      Root logger. Console is always attached, so a stdout log shipper and
+      `kubectl logs` always see everything; Loki is added on top only under the
+      loki profile.
+
+      A <springProfile> must NOT be nested inside <root> (or <appender>/<logger>):
+      Spring Boot's sanity checker rejects it and the enclosing element's appender
+      refs stop being applied, which silently detaches CONSOLE and loses every
+      application log. So the two variants are declared as sibling roots, each
+      wrapped in a top-level <springProfile>.
+    -->
+    <springProfile name="loki">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
             <appender-ref ref="LOKI"/>
-        </springProfile>
-    </root>
+        </root>
+    </springProfile>
+    <springProfile name="!loki">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
 
     <!-- Specific Logger Configurations -->
     <logger name="org.tornotron.echno_backend" level="INFO"/>
