@@ -264,10 +264,11 @@ public class ChatControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller has no employee record in this tenant")
     })
     public SseEmitter stream(HttpServletResponse response) {
-        // nginx buffers proxied responses by default (proxy_buffering on, set for every site in
-        // the edge vhost), which would hold events until the buffer filled. Both nginx and
-        // ingress-nginx honour this header to disable buffering for one response, so the stream
-        // needs no change to the edge configuration.
+        // The edge vhost sets proxy_buffering on for every site. Measured against those same
+        // directives, nginx forwards a flushing chunked stream promptly with or without this
+        // header, so it is a safeguard rather than a fix: it costs one response header and
+        // removes any dependence on buffer sizing staying as it is. Both nginx and
+        // ingress-nginx honour it to disable buffering for a single response.
         response.setHeader("X-Accel-Buffering", "no");
         return chatStreamService.open();
     }
