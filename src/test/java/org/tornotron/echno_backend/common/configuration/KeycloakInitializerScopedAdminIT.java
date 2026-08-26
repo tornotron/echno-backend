@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.common.configuration;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dasniko.testcontainers.keycloak.KeycloakContainer;
 import org.junit.jupiter.api.AfterAll;
@@ -105,10 +106,19 @@ class KeycloakInitializerScopedAdminIT {
 
     private KeycloakInitializer newInitializer(Keycloak masterClient) {
         KeycloakInitializer initializer =
-                new KeycloakInitializer(masterClient, props, new ObjectMapper(), keycloakConfig);
+                new KeycloakInitializer(masterClient, props, lenientMapper(), keycloakConfig);
         ReflectionTestUtils.setField(initializer, "configOutput", configDir.toString());
         ReflectionTestUtils.setField(initializer, "appClientId", APP_CLIENT_ID);
         return initializer;
+    }
+
+    // Mirrors Spring Boot's injected ObjectMapper, which ignores unknown JSON
+    // properties. A bare new ObjectMapper() fails on any field a newer Keycloak
+    // image adds to a representation, which is what differs between the cached
+    // lab image and the CI runner's pull.
+    private static ObjectMapper lenientMapper() {
+        return new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
     @Test
