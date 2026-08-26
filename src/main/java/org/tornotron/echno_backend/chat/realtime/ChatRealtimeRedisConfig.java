@@ -9,6 +9,7 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.util.backoff.FixedBackOff;
 
 /**
  * Redis wiring for cross-replica chat delivery, active only when
@@ -30,6 +31,9 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 @ConditionalOnProperty(name = "echno.cache.provider", havingValue = "redis")
 public class ChatRealtimeRedisConfig {
 
+    /** How long the container waits before re-establishing a subscription it has lost. */
+    private static final long RECOVERY_INTERVAL_MS = 10_000L;
+
     @Bean
     public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory connectionFactory) {
         return new StringRedisTemplate(connectionFactory);
@@ -42,10 +46,25 @@ public class ChatRealtimeRedisConfig {
     @Bean
     public RedisMessageListenerContainer chatEventListenerContainer(
             RedisConnectionFactory connectionFactory, ChatEventSubscriber subscriber) {
-        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        // isAutoStartup is overridden rather than set: RedisMessageListenerContainer exposes no
+        // setter for it, and this is the only hook that keeps the lifecycle processor from
+        // starting the subscription during context refresh.
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer() {
+            @Override
+            public boolean isAutoStartup() {
+                return false;
+            }
+        };
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener(subscriber, new ChannelTopic(RedisChatEventPublisher.CHANNEL));
-        log.info("Chat real-time delivery subscribed to Redis channel {}", RedisChatEventPublisher.CHANNEL);
+        // Do NOT start with the context. The container opens its subscription during startup, and
+        // an unreachable Redis makes that throw out of the lifecycle processor and take the whole
+        // context with it. That is a real deployment state rather than a hypothetical: the app
+        // deploy renders SPRING_DATA_REDIS_HOST while only an infra run creates the container, so
+        // the two can legitimately be out of step. The cache and rate limiter never noticed
+        // because Lettuce connects lazily. Chat must not be the reason the API fails to boot, so
+        // ChatStreamSubscription starts this after the context is up and keeps retrying.
+        container.setRecoveryBackoff(new FixedBackOff(RECOVERY_INTERVAL_MS, Long.MAX_VALUE));
         return container;
     }
 
