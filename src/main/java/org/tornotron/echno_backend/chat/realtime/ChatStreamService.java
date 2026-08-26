@@ -65,8 +65,13 @@ public class ChatStreamService {
             // An opening frame does two jobs: it sets the reconnect delay, and it makes the
             // response commit now rather than when the first message happens to arrive, so the
             // client knows it is connected instead of waiting on an idle socket.
+            //
+            // Not named "open". A named SSE frame is dispatched to the browser as an event of
+            // that name, so "open" would be indistinguishable from EventSource's own open
+            // event, and the client uses that one to tell a reconnect (refetch everything, the
+            // gap may have swallowed a change) from a first connection (nothing to repair).
             emitter.send(SseEmitter.event()
-                    .name("open")
+                    .name("ready")
                     .reconnectTime(RECONNECT_DELAY_MS)
                     .data("connected"));
         } catch (IOException e) {
