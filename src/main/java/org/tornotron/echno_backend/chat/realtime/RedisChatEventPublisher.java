@@ -37,6 +37,7 @@ public class RedisChatEventPublisher implements ChatEventPublisher {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final ChatStreamRegistry registry;
 
     @Override
     public void publish(ChatEvent event) {
@@ -48,8 +49,13 @@ public class RedisChatEventPublisher implements ChatEventPublisher {
             // the reader's poll will still show it.
             log.error("Could not serialize chat event for room {}: {}", event.roomId(), e.getMessage());
         } catch (Exception e) {
-            log.warn("Could not publish chat event for room {} to Redis, falling back to the client poll: {}",
+            // Redis is unreachable. Deliver to this replica's own streams instead. That is never
+            // wrong, only incomplete: a recipient connected here sees the change immediately, and
+            // one connected elsewhere falls back to their poll. On a single-replica deployment,
+            // which is what the compose staging is, it is complete.
+            log.warn("Could not publish chat event for room {} to Redis, delivering locally only: {}",
                     event.roomId(), e.getMessage());
+            registry.deliver(event);
         }
     }
 }

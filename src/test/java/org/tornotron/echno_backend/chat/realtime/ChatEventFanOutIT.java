@@ -142,8 +142,9 @@ class ChatEventFanOutIT {
         closeables.add(container::destroy);
     }
 
-    private RedisChatEventPublisher publisherFor(ChatStreamRegistry ignored) {
-        return new RedisChatEventPublisher(new StringRedisTemplate(connectionFactory()), objectMapper);
+    private RedisChatEventPublisher publisherFor(ChatStreamRegistry registry) {
+        return new RedisChatEventPublisher(
+                new StringRedisTemplate(connectionFactory()), objectMapper, registry);
     }
 
     private RedisConnectionFactory connectionFactory() {
