@@ -146,10 +146,20 @@ rather than removed, and why reconnect invalidates wholesale.
 
 ### Backend: publication points
 
-`ChatService` publishes after the transaction commits, so a rolled back write
-never notifies. Publication is added to `sendMessage` (both overloads converge on
-one), `editMessage`, `deleteMessage`, `toggleReaction`, `setArchived` and
-`markRead`. The first four are `MESSAGE_*`; the last two are `ROOM_UPDATED`.
+`ChatService` raises a `ChatEvent` through `ApplicationEventPublisher`, and a
+`ChatEventListener` in `common/events/listeners` handles it with
+`@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)` before
+handing it to the `ChatEventPublisher`. This is the pattern `InventoryEventListener`
+and `ComplianceGenerationListener` already use, and it is what stops a rolled back
+write from notifying anyone.
+
+Recipients are resolved inside the transaction, while the room and its
+participants are loaded and the tenant context is set, and travel on the event.
+The listener therefore performs no tenant scoped read of its own.
+
+Publication is added to `sendMessage` (both overloads converge on one),
+`editMessage`, `deleteMessage`, `toggleReaction`, `setArchived` and `markRead`.
+The first four are `MESSAGE_*`; the last two are `ROOM_UPDATED`.
 
 `markRead` publishes only to the actor: an unread count is per viewer, and no
 other participant's view changes when someone else reads a room.
