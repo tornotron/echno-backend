@@ -11,3 +11,7 @@ description = "JDBC connection strings of the form host:5432/database, matched a
 paths = ['''docker-compose\.yml''']
 regexTarget = "match"
 regexes = ['''keycloak-db:5432/keycloak''']
+
+[[allowlists]]
+description = "Full-context redis boot IT. Its @SpringBootTest properties are dummy stand-ins for the deployment environment (object store, keycloak, encryption key) so the context can start; none are real credentials."
+paths = ['''src/test/java/org/tornotron/echno_backend/common/configuration/RedisFullContextBootIT\.java''']
