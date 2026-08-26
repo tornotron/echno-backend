@@ -172,6 +172,14 @@ spring:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
+      # We use Redis only to back the Spring cache, never Spring Data Redis
+      # repositories. Leaving repositories on makes RedisRepositoriesAutoConfiguration
+      # activate as soon as a RedisConnectionFactory exists (i.e. when the provider is
+      # redis) and register a redisReferenceResolver that needs the redisTemplate bean,
+      # which is absent because RedisAutoConfiguration is excluded. Disabling them keeps
+      # the redis provider booting cleanly with no repository infrastructure.
+      repositories:
+        enabled: false
   cache:
     cache-names:
       - rate-limit-buckets
