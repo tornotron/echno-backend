@@ -37,6 +37,9 @@ class ChatRepositoryIT extends AbstractIntegrationTest {
     private ChatReactionRepository reactionRepository;
 
     @Autowired
+    private ChatParticipantRepository participantRepository;
+
+    @Autowired
     private TestEntityManager em;
 
     @Test
@@ -52,6 +55,21 @@ class ChatRepositoryIT extends AbstractIntegrationTest {
 
         assertThat(sameTenant).isPresent();
         assertThat(otherTenant).isEmpty();
+    }
+
+    @Test
+    void findEmployeeIdsByRoomId_returnsEveryParticipantOfThatRoomOnly() {
+        Organization org = persistOrganization("Chat Org R");
+        ChatRoom aliceBob = persistDirectRoom(org, ALICE, BOB);
+        persistDirectRoom(org, BOB, CAROL);
+        em.flush();
+        em.clear();
+
+        // This list is what addresses a real-time event, so a room leaking a neighbouring room's
+        // participants would deliver someone else's chat activity to the wrong person.
+        List<Long> recipients = participantRepository.findEmployeeIdsByRoomId(aliceBob.getId());
+
+        assertThat(recipients).containsExactlyInAnyOrder(ALICE, BOB);
     }
 
     @Test
