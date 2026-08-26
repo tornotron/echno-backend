@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.chat;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +15,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.tornotron.echno_backend.chat.realtime.ChatStreamService;
 import org.tornotron.echno_backend.chat.dto.ArchiveRoomRequestDto;
 import org.tornotron.echno_backend.chat.dto.ChatMessageDto;
 import org.tornotron.echno_backend.chat.dto.ChatRoomDto;
@@ -42,10 +45,13 @@ public class ChatControllerWeb {
 
     private final ChatService chatService;
     private final ObjectMapper objectMapper;
+    private final ChatStreamService chatStreamService;
 
-    public ChatControllerWeb(ChatService chatService, ObjectMapper objectMapper) {
+    public ChatControllerWeb(ChatService chatService, ObjectMapper objectMapper,
+                             ChatStreamService chatStreamService) {
         this.chatService = chatService;
         this.objectMapper = objectMapper;
+        this.chatStreamService = chatStreamService;
     }
 
     @GetMapping("/rooms/web")
@@ -241,5 +247,28 @@ public class ChatControllerWeb {
     public ResponseEntity<ChatRoomDto> archiveRoom(@PathVariable Long roomId,
                                                    @Valid @RequestBody ArchiveRoomRequestDto dto) {
         return new ResponseEntity<>(chatService.setArchived(roomId, dto.getArchived()), HttpStatus.OK);
+    }
+
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(
+            summary = "Subscribe to chat changes",
+            description = "A server-sent event stream of the caller's chat changes: new messages, message "
+                    + "updates (edit, delete, reaction) and room updates. Frames carry identifiers only, not "
+                    + "content: the client refetches through the ordinary endpoints, so what a caller can read "
+                    + "is decided there and not here. The server closes the stream every ten minutes and the "
+                    + "browser reconnects, which is what re-checks that the session is still valid."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stream opened"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller has no employee record in this tenant")
+    })
+    public SseEmitter stream(HttpServletResponse response) {
+        // nginx buffers proxied responses by default (proxy_buffering on, set for every site in
+        // the edge vhost), which would hold events until the buffer filled. Both nginx and
+        // ingress-nginx honour this header to disable buffering for one response, so the stream
+        // needs no change to the edge configuration.
+        response.setHeader("X-Accel-Buffering", "no");
+        return chatStreamService.open();
     }
 }

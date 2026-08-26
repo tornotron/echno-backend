@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.chat;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +14,8 @@ import org.tornotron.echno_backend.chat.dto.ChatMessageReplyDto;
 import org.tornotron.echno_backend.chat.dto.ChatReactionDto;
 import org.tornotron.echno_backend.chat.dto.ChatRoomDto;
 import org.tornotron.echno_backend.chat.mapper.ChatMapper;
+import org.tornotron.echno_backend.chat.realtime.ChatEvent;
+import org.tornotron.echno_backend.chat.realtime.ChatEventType;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -37,8 +40,13 @@ import java.util.Map;
  *
  * <p>Rich content is handled here: emoji reaction toggles, employee and entity mentions
  * parsed from the body on send, file attachments stored through {@link AttachmentService},
- * reply-preview resolution, message soft-delete and the room archive toggle. Real-time
- * transport is intentionally absent; the web client polls.
+ * reply-preview resolution, message soft-delete and the room archive toggle.
+ *
+ * <p>Every change raises a {@link ChatEvent} so connected clients are told about it. The event
+ * is raised inside the transaction and released by {@code ChatEventListener} only after commit,
+ * so a write that rolls back tells nobody. It carries identifiers only: the client reacts by
+ * refetching through these same authorized methods, which keeps every authorization decision
+ * here rather than on the delivery path.
  */
 @Service
 public class ChatService {
@@ -63,6 +71,7 @@ public class ChatService {
     private final UserContextService userContextService;
     private final EmployeeRepository employeeRepository;
     private final AttachmentService attachmentService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ChatService(ChatRoomRepository roomRepository,
                        ChatParticipantRepository participantRepository,
@@ -72,7 +81,8 @@ public class ChatService {
                        TenantEntityHelper tenantEntityHelper,
                        UserContextService userContextService,
                        EmployeeRepository employeeRepository,
-                       AttachmentService attachmentService) {
+                       AttachmentService attachmentService,
+                       ApplicationEventPublisher eventPublisher) {
         this.roomRepository = roomRepository;
         this.participantRepository = participantRepository;
         this.messageRepository = messageRepository;
@@ -82,6 +92,7 @@ public class ChatService {
         this.userContextService = userContextService;
         this.employeeRepository = employeeRepository;
         this.attachmentService = attachmentService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -90,6 +101,16 @@ public class ChatService {
         return roomRepository.findRoomsForEmployee(employeeId).stream()
                 .map(room -> toRoomDto(room, employeeId))
                 .toList();
+    }
+
+    /**
+     * The employee id of the authenticated caller in the current tenant. Exposed because the
+     * real-time stream is addressed by employee, and resolving the caller is the one piece of
+     * that the stream needs from this service.
+     */
+    @Transactional(readOnly = true)
+    public Long getCurrentEmployeeId() {
+        return resolveCurrentEmployeeId();
     }
 
     @Transactional(readOnly = true)
@@ -124,6 +145,11 @@ public class ChatService {
         room.addParticipant(newParticipant(otherEmployeeId, organization));
 
         ChatRoom saved = roomRepository.saveAndFlush(room);
+
+        // Both sides, not just the opener: the point of the event is that the room appears in
+        // the other person's sidebar without them reloading.
+        raise(ChatEventType.ROOM_UPDATED, saved.getId(), null, employeeId,
+                List.of(employeeId, otherEmployeeId));
         return toRoomDto(saved, employeeId);
     }
 
@@ -135,6 +161,10 @@ public class ChatService {
         ChatParticipant participant = requireParticipant(roomId, employeeId);
         participant.setLastReadAt(LocalDateTime.now());
         participantRepository.save(participant);
+
+        // Only the reader. An unread count is per viewer, so nobody else's room list changes
+        // when someone catches up on their own.
+        raise(ChatEventType.ROOM_UPDATED, roomId, null, employeeId, List.of(employeeId));
     }
 
     @Transactional(readOnly = true)
@@ -188,6 +218,8 @@ public class ChatService {
         if (files != null && !files.isEmpty()) {
             attachmentService.uploadAttachments(files, ATTACHMENT_ENTITY_TYPE, saved.getId(), ATTACHMENT_FOLDER);
         }
+
+        raise(ChatEventType.MESSAGE_CREATED, roomId, saved.getId(), employeeId, participantsOf(roomId));
         return toMessageDto(saved);
     }
 
@@ -213,6 +245,9 @@ public class ChatService {
                             reactionRepository.save(reaction);
                         });
         reactionRepository.flush();
+
+        Long roomId = message.getRoom().getId();
+        raise(ChatEventType.MESSAGE_UPDATED, roomId, messageId, employeeId, participantsOf(roomId));
         return toMessageDto(message);
     }
 
@@ -234,6 +269,9 @@ public class ChatService {
 
         message.setDeleted(true);
         messageRepository.save(message);
+
+        Long roomId = message.getRoom().getId();
+        raise(ChatEventType.MESSAGE_UPDATED, roomId, messageId, employeeId, participantsOf(roomId));
     }
 
     /**
@@ -247,6 +285,8 @@ public class ChatService {
 
         room.setArchived(archived);
         ChatRoom saved = roomRepository.saveAndFlush(room);
+
+        raise(ChatEventType.ROOM_UPDATED, roomId, null, employeeId, participantsOf(roomId));
         return toRoomDto(saved, employeeId);
     }
 
@@ -270,10 +310,33 @@ public class ChatService {
         message.setEntityMentions(ChatMentionParser.parseEntityMentions(content));
 
         ChatMessage saved = messageRepository.saveAndFlush(message);
+
+        Long roomId = message.getRoom().getId();
+        raise(ChatEventType.MESSAGE_UPDATED, roomId, messageId, employeeId, participantsOf(roomId));
         return toMessageDto(saved);
     }
 
     // --- helpers -----------------------------------------------------------------
+
+    /**
+     * Raises a real-time event for a change just made. It is published while the transaction is
+     * still open; {@code ChatEventListener} holds it until commit, so a rolled back write never
+     * reaches a client.
+     */
+    private void raise(ChatEventType type, Long roomId, Long messageId, Long actorEmployeeId,
+                       List<Long> recipients) {
+        eventPublisher.publishEvent(new ChatEvent(
+                type, TenantContext.getCurrentOrgId(), roomId, messageId, actorEmployeeId, recipients));
+    }
+
+    /**
+     * The employees who should hear about a change to this room. Resolved here, inside the
+     * transaction and the tenant context, so the after-commit listener carries the answer with
+     * it and performs no tenant-scoped read of its own.
+     */
+    private List<Long> participantsOf(Long roomId) {
+        return participantRepository.findEmployeeIdsByRoomId(roomId);
+    }
 
     /**
      * Builds a room DTO for the given viewer, filling in the fields the mapper cannot: the
