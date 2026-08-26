@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.common.configuration;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
 /**
@@ -21,7 +22,13 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
  * <p>So the rule this pins down: an unreachable broker degrades real-time delivery and nothing else.
  * The context must still load, the API must still serve, and chat falls back to the polling the web
  * client deliberately kept.
+ *
+ * <p>The context is closed after the class. Spring otherwise caches every distinct test context
+ * for the life of the test JVM, and the JVM here is deliberately capped at 1 GB so the suite fits
+ * the CI runner alongside the CockroachDB container. A whole-application context that exists to
+ * make one assertion and is shared with nothing has no business being retained.
  */
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
         "echno.cache.provider=redis",
         "BACKEND_API_VERSION=v1",

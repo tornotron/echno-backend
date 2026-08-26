@@ -13,5 +13,8 @@ regexTarget = "match"
 regexes = ['''keycloak-db:5432/keycloak''']
 
 [[allowlists]]
-description = "Full-context redis boot IT. Its @SpringBootTest properties are dummy stand-ins for the deployment environment (object store, keycloak, encryption key) so the context can start; none are real credentials."
-paths = ['''src/test/java/org/tornotron/echno_backend/common/configuration/RedisFullContextBootIT\.java''']
+description = "Full-context redis boot ITs, one against a reachable redis and one against an unreachable one. Their @SpringBootTest properties are dummy stand-ins for the deployment environment (object store, keycloak, encryption key) so the context can start; none are real credentials."
+paths = [
+  '''src/test/java/org/tornotron/echno_backend/common/configuration/RedisFullContextBootIT\.java''',
+  '''src/test/java/org/tornotron/echno_backend/common/configuration/RedisUnreachableBootIT\.java''',
+]
