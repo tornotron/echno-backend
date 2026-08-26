@@ -7,6 +7,7 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
+  "registrationAllowed": ${KEYCLOAK_REGISTRATION_ALLOWED},
   "bruteForceProtected": true,
   "failureFactor": 5,
   "revokeRefreshToken": true,

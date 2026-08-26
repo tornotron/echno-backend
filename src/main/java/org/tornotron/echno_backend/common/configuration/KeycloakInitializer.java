@@ -189,6 +189,16 @@ public class KeycloakInitializer {
             // the seeded realm content is never clobbered.
             List<String> applied = new ArrayList<>();
 
+            // Self-service registration is the one realm security setting we deliberately let an
+            // instance flip: default false keeps dedicated/per-client instances closed (the hardened
+            // posture), and the public shared instance sets keycloak.registration-allowed=true so a
+            // signed-up user can create their own org. The template always emits the value, so it is
+            // reconciled onto the realm on every deploy. No other security setting is relaxed here.
+            if (configRealm.isRegistrationAllowed() != null) {
+                liveRealm.setRegistrationAllowed(configRealm.isRegistrationAllowed());
+                applied.add("registrationAllowed=" + configRealm.isRegistrationAllowed());
+            }
+
             if (configRealm.getRevokeRefreshToken() != null) {
                 liveRealm.setRevokeRefreshToken(configRealm.getRevokeRefreshToken());
                 applied.add("revokeRefreshToken=" + configRealm.getRevokeRefreshToken());

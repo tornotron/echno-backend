@@ -63,6 +63,9 @@ public class KeycloakConfigGenerator {
     @Value("${keycloak.service.lastName}")
     private String serviceLastName;
 
+    @Value("${keycloak.registration-allowed}")
+    private boolean registrationAllowed;
+
     @Value("${keycloak.config.output-path}")
     private String outputPath;
 
@@ -87,7 +90,8 @@ public class KeycloakConfigGenerator {
                 .replace("${KEYCLOAK_WEB_ORIGIN}",formatListString(webOrigin))
                 .replace("${KEYCLOAK_FRONTEND_CLIENT_ID}",frontendClientId)
                 .replace("${KEYCLOAK_FRONTEND_REDIRECT_URI}",formatListString(frontendRedirectUri))
-                .replace("${KEYCLOAK_FRONTEND_WEB_ORIGIN}",formatListString(frontendWebOrigin));
+                .replace("${KEYCLOAK_FRONTEND_WEB_ORIGIN}",formatListString(frontendWebOrigin))
+                .replace("${KEYCLOAK_REGISTRATION_ALLOWED}",String.valueOf(registrationAllowed));
 
         writeConfig("init-keycloak.json",config);
 

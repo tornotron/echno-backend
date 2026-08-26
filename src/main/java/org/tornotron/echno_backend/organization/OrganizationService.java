@@ -54,7 +54,7 @@ public class OrganizationService {
     private final EmployeeService employeeService;
     private final org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper;
     private final org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity;
-    private final org.tornotron.echno_backend.finance.ledger.service.ChartOfAccountsSeeder chartOfAccountsSeeder;
+    private final OrganizationOnboardingSeeder onboardingSeeder;
 
     /**
      * Constructs an {@code OrganizationService} with the necessary dependencies.
@@ -63,8 +63,9 @@ public class OrganizationService {
      * @param fileStorageService The service for file storage operations.
      * @param keycloakGroupService The service for managing Keycloak groups.
      * @param subscriptionService The service for handling subscription billing.
+     * @param onboardingSeeder Seeds the per-organization finance defaults for a new organization.
      */
-    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, org.tornotron.echno_backend.finance.ledger.service.ChartOfAccountsSeeder chartOfAccountsSeeder) {
+    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, OrganizationOnboardingSeeder onboardingSeeder) {
         this.repository = repository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
@@ -74,7 +75,7 @@ public class OrganizationService {
         this.employeeService = employeeService;
         this.organizationMapper = organizationMapper;
         this.orgSecurity = orgSecurity;
-        this.chartOfAccountsSeeder = chartOfAccountsSeeder;
+        this.onboardingSeeder = onboardingSeeder;
     }
 
     /**
@@ -109,14 +110,45 @@ public class OrganizationService {
         EmployeeJoinOrgDto joinOrgDto = new EmployeeJoinOrgDto();
         EmployeeDto employeeDto = employeeService.joinOrganization(currentUser.getId(), savedOrganization.getId(), joinOrgDto);
         TenantContext.setCurrentOrgId(savedOrganization.getId());
-        chartOfAccountsSeeder.seedDefaults();
+
+        // Make the creator the system-admin of the organization they just created. This is the
+        // linchpin of self-service onboarding: assignOrgRole adds them to the '/org-{id}/system-admin'
+        // Keycloak subgroup (idempotent), so their next token carries ORG_{id}_ROLE_system-admin and
+        // they can administer their own org. It is critical: assignOrgRole rethrows on a Keycloak
+        // failure, which rolls this creation back so the caller sees the error rather than an
+        // org whose creator cannot manage it.
         employeeService.assignOrgRole(employeeDto.getId(), OrgRole.SYSTEM_ADMIN);
 
         if (attachments != null && !attachments.isEmpty()) {
             attachmentService.uploadAttachments(attachments, "ORGANIZATION", savedOrganization.getId(), ORGANIZATION_FOLDER);
         }
 
+        // Seed the org's finance defaults (chart of accounts, cost categories, finance settings)
+        // AFTER this creating transaction commits, so a seed failure is logged and skipped rather
+        // than rolling back the created org. Running them post-commit is also what lets each
+        // idempotent seeder see the committed org and run in its own transaction.
+        scheduleFinanceSeeding(savedOrganization.getId());
+
         return organizationMapper.toSimpleDto(savedOrganization);
+    }
+
+    /**
+     * Runs the per-org finance seeding after the current transaction commits when one is active, so a
+     * seed failure cannot roll back the newly created organization. Falls back to running inline when
+     * there is no active transaction (the seeding is idempotent and independently guarded either way).
+     */
+    private void scheduleFinanceSeeding(Long organizationId) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            onboardingSeeder.seedFinanceDefaults(organizationId);
+                        }
+                    });
+        } else {
+            onboardingSeeder.seedFinanceDefaults(organizationId);
+        }
     }
 
     /**
