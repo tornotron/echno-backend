@@ -116,13 +116,6 @@ keycloak:
   redirect-uri: ${KEYCLOAK_BACKEND_REDIRECT_URI},${KEYCLOAK_BACKEND_REDIRECT_URI_APIDOG}
   web-origin: ${KEYCLOAK_BACKEND_WEB_ORIGIN}
   secret: ${KEYCLOAK_BACKEND_SECRET}
-  # Realm-scoped initializer client (H-3). Steady-state startup reconcile authenticates as this
-  # confidential service account (realm-admin on the application realm only) instead of the master
-  # credential. The master credential (keycloak-initializer.*) is now used only to bootstrap a fresh
-  # or not-yet-migrated environment: create the realm and provision this client + its secret.
-  initializer:
-    service-client-id: ${KEYCLOAK_INITIALIZER_SERVICE_CLIENT_ID:echno-initializer}
-    service-client-secret: ${KEYCLOAK_INITIALIZER_CLIENT_SECRET:}
   admin:
     userName: ${KEYCLOAK_BACKEND_ADMIN_USERNAME}
     email: ${KEYCLOAK_BACKEND_ADMIN_EMAIL}
