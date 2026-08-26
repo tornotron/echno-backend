@@ -1,0 +1,2 @@
+org.springframework.boot.env.EnvironmentPostProcessor=\
+  org.tornotron.echno_backend.common.configuration.EchnoCacheEnvironmentPostProcessor
