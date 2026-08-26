@@ -37,6 +37,12 @@ dependencies {
     implementation 'javax.cache:cache-api:1.1.1'
     implementation 'com.github.ben-manes.caffeine:caffeine:3.2.2'
     implementation 'com.github.ben-manes.caffeine:jcache:3.2.2'
+    // Optional Redis backing for cross-replica shared state (Spring cache + Bucket4j rate
+    // limiting). Only wired when echno.cache.provider=redis; the default (caffeine) path
+    // never contacts Redis. The Lettuce-based Bucket4j proxy manager version is pinned to
+    // match the bucket4j core the giffing starter pulls (8.14.0).
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'com.bucket4j:bucket4j_jdk17-lettuce:8.14.0'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'

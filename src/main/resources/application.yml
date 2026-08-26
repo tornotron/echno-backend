@@ -145,6 +145,13 @@ keycloak:
 
 
 echno:
+  cache:
+    # Single switch for cross-replica shared state. Default 'caffeine' keeps every cache and the
+    # Bucket4j rate limiter in-process (the single-replica compose staging behaviour: no Redis is
+    # contacted and no Redis bean is created). Set to 'redis' on multi-replica deployments to back
+    # the Spring cache abstraction and the rate limiter with the shared Redis configured under
+    # spring.data.redis below, so limits and cached values are shared across pods.
+    provider: ${ECHNO_CACHE_PROVIDER:caffeine}
   security:
     jwt:
       # Reject any access token whose audience does not include the backend client
@@ -158,6 +165,13 @@ echno:
 
 
 spring:
+  # Connection for the optional Redis cache/rate-limit backing. Only read when
+  # echno.cache.provider=redis; on the default caffeine profile nothing consumes these and no
+  # connection is opened. Host/port follow the Spring Boot standard env vars.
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
   cache:
     cache-names:
       - rate-limit-buckets
