@@ -116,6 +116,11 @@ keycloak:
   redirect-uri: ${KEYCLOAK_BACKEND_REDIRECT_URI},${KEYCLOAK_BACKEND_REDIRECT_URI_APIDOG}
   web-origin: ${KEYCLOAK_BACKEND_WEB_ORIGIN}
   secret: ${KEYCLOAK_BACKEND_SECRET}
+  # Whether the realm's self-service registration page is enabled. Reconciled onto the realm on
+  # every deploy. Default false keeps dedicated/per-client instances closed (an admin creates the
+  # org); the public shared instance sets KEYCLOAK_REGISTRATION_ALLOWED=true so a signed-up user
+  # can create their own org.
+  registration-allowed: ${KEYCLOAK_REGISTRATION_ALLOWED:false}
   admin:
     userName: ${KEYCLOAK_BACKEND_ADMIN_USERNAME}
     email: ${KEYCLOAK_BACKEND_ADMIN_EMAIL}
