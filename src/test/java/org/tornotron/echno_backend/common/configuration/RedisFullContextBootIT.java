@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.common.configuration;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
@@ -28,7 +29,14 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
  * encryption) so the context reaches the redis wiring instead of failing earlier on an unresolved
  * placeholder. The keycloak initializer is an async {@code ApplicationReadyEvent} listener, so it runs
  * after refresh on another thread and does not affect this context-load assertion.
+ *
+ * <p>The context is closed after the class, which matters more than it looks. The redis container
+ * stops when the class finishes, but a cached Spring context would outlive it and keep its Lettuce
+ * connection factory alive, reconnecting to a mapped port that no longer exists. Those reconnect
+ * threads are not daemons, so the test JVM never exits and the whole task hangs until CI's timeout
+ * kills it. Closing the context here retires the connections with the container that served them.
  */
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
         "echno.cache.provider=redis",
         "BACKEND_API_VERSION=v1",
