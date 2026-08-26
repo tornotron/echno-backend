@@ -1,6 +1,5 @@
 package org.tornotron.echno_backend.common.configuration;
 
-import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.distributed.BucketProxy;
 import io.github.bucket4j.distributed.ExpirationAfterWriteStrategy;
@@ -115,7 +114,7 @@ class RedisDistributedStateIT {
         LettuceBasedProxyManager<byte[]> proxyManagerB = lettuceProxyManager(newRedisClient());
 
         Supplier<BucketConfiguration> config = () -> BucketConfiguration.builder()
-                .addLimit(Bandwidth.simple(20, Duration.ofMinutes(1)))
+                .addLimit(limit -> limit.capacity(20).refillGreedy(20, Duration.ofMinutes(1)))
                 .build();
 
         byte[] sharedKey = "rate-limit:1.2.3.4".getBytes(StandardCharsets.UTF_8);
