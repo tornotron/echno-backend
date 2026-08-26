@@ -87,8 +87,14 @@ chain with no new code path.
 
 The response sets `X-Accel-Buffering: no`. The compose edge vhost
 (`ansible/roles/edge/templates/vhost.conf.j2`) sets `proxy_buffering on` for
-every site; nginx and ingress-nginx both honour that header to disable buffering
-for a single response, which avoids editing the vhost.
+every site, and nginx and ingress-nginx both honour that header to disable
+buffering for a single response, which avoids editing the vhost.
+
+Measured against those exact directives (see Verification below), nginx forwards
+a flushing chunked stream promptly whether or not the header is present. It is
+therefore a safeguard rather than the thing that makes this work, and it is kept
+as one: it costs a response header and removes any dependence on buffer sizing
+staying as it is today.
 
 **Emitter lifetime is ten minutes**, after which the emitter is completed and the
 browser's `EventSource` reconnects. This is a security property, not a resource
@@ -245,6 +251,29 @@ appears without a poll interval elapsing; reaction, edit and delete propagate;
 stream survives more than ten minutes across at least one emitter recycle;
 killing the backend pod holding one client's stream results in reconnection and a
 repaired view.
+
+## Verification
+
+The proxy assumptions above were measured rather than assumed, against an nginx
+carrying the same directives as the backend site in the edge vhost, in front of a
+flushing chunked SSE responder. Two results, both from a raw-socket client (a
+shell pipeline through `awk` or `head` buffers the stream and reports every frame
+arriving at once, which looks exactly like the failure being tested for):
+
+1. Frames arrive at the client as they are produced, one second apart, whether or
+   not `X-Accel-Buffering: no` is set. `proxy_buffering on` does not delay a
+   stream whose upstream flushes.
+2. With `proxy_read_timeout` compressed to 3s so the behaviour is observable in
+   seconds: a stream carrying a frame every second survives past the timeout
+   indefinitely, and a stream that goes silent after its opening frame is cut.
+   This is the property the heartbeat interval rests on, that the timeout bounds
+   the gap between reads rather than the life of the response. Scaled up, a
+   comment every 15s clears the real 60s (`ui`) and 90s (`backend`) values.
+
+What this does not cover is Cloudflare and the tunnel. `cloudflared` runs with
+`protocol: http2` (forced, since QUIC is not proxyable through the lab's Squid
+egress), and whether that path passes a long-lived stream unbuffered can only be
+established on a deployed environment.
 
 ## Out of scope
 
