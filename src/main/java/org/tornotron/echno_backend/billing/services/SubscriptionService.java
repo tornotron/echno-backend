@@ -6,7 +6,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.billing.*;
 import org.tornotron.echno_backend.billing.components.SubscriptionCache;
+import org.tornotron.echno_backend.billing.dto.BillingMapper;
 import org.tornotron.echno_backend.billing.dto.FeatureAccessResultDto;
+import org.tornotron.echno_backend.billing.dto.SubscriptionDto;
 import org.tornotron.echno_backend.billing.enums.BillingPeriod;
 import org.tornotron.echno_backend.billing.enums.FeatureType;
 import org.tornotron.echno_backend.billing.enums.QuotaPeriod;
@@ -22,6 +24,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -32,6 +35,12 @@ import java.util.Optional;
  * windows are computed per {@link QuotaPeriod} (hourly through annual, plus an all-time
  * bucket). Creating, changing, and canceling a subscription each evict the user's cache
  * entry so the next access re-reads the current state.
+ *
+ * <p>Entities never leave this class. Every method that a caller can reach returns a DTO
+ * built while the persistence context is still open, because {@code spring.jpa.open-in-view}
+ * is off and {@link Subscription#getPlan()} and {@link Plan#getPlanFeatures()} are both lazy:
+ * mapping a subscription anywhere outside a transaction throws
+ * {@code LazyInitializationException}.
  */
 @Service
 @Slf4j
@@ -44,14 +53,39 @@ public class SubscriptionService {
     private final SubscriptionCache subscriptionCache;
 
     /**
-     * Returns the user's active subscription, serving it from the cache when present.
-     *
-     * <p>On a cache miss it queries the repository and, if found, populates the cache.
+     * Returns the user's active subscription as a DTO.
      *
      * @param userId The ID of the user whose subscription to resolve.
      * @return The active subscription, or empty if the user has none.
      */
-    public Optional<Subscription> getActiveSubscription(Long userId) {
+    @Transactional(readOnly = true)
+    public Optional<SubscriptionDto> getActiveSubscription(Long userId) {
+        return loadActiveSubscription(userId).map(BillingMapper::toSubscriptionDto);
+    }
+
+    /**
+     * Returns every subscription the user has ever held, most recently created first.
+     *
+     * @param userId The ID of the user whose subscriptions to list.
+     * @return The user's subscription history, newest first, empty if they have none.
+     */
+    @Transactional(readOnly = true)
+    public List<SubscriptionDto> getSubscriptionHistory(Long userId) {
+        return BillingMapper.toSubscriptionDtoList(
+                subscriptionRepository.findByUserIdOrderByCreatedAtDesc(userId));
+    }
+
+    /**
+     * Loads the user's active subscription entity, serving it from the cache when present.
+     *
+     * <p>On a cache miss it queries the repository and, if found, populates the cache. The
+     * query fetch-joins the plan, its plan features and each feature, so a cached instance
+     * carries them initialized and stays mappable after its session closes; keep it that way.
+     *
+     * @param userId The ID of the user whose subscription to resolve.
+     * @return The active subscription, or empty if the user has none.
+     */
+    private Optional<Subscription> loadActiveSubscription(Long userId) {
 
         Subscription cached = subscriptionCache.get(userId);
         if(cached != null) {
@@ -78,8 +112,9 @@ public class SubscriptionService {
      * @param featureCode The code of the feature to check.
      * @return The access result, describing whether access is allowed and, for quota features, the current usage against the limit.
      */
+    @Transactional(readOnly = true)
     public FeatureAccessResultDto checkFeatureAccess(Long userId, String featureCode) {
-        Optional<Subscription> subscriptionOptional = getActiveSubscription(userId);
+        Optional<Subscription> subscriptionOptional = loadActiveSubscription(userId);
 
         if(subscriptionOptional.isEmpty()) {
             return FeatureAccessResultDto.noSubscription();
@@ -188,7 +223,7 @@ public class SubscriptionService {
      */
     @Transactional
     public void recordUsage(Long userId, String featureCode, Long amount) {
-        Optional<Subscription> subscriptionOptional = getActiveSubscription(userId);
+        Optional<Subscription> subscriptionOptional = loadActiveSubscription(userId);
         if(subscriptionOptional.isEmpty()) {
             log.warn("Attempted to record usage for user without active subscription: {}", userId);
             return;
@@ -240,13 +275,13 @@ public class SubscriptionService {
      * @param userId The ID of the user to subscribe.
      * @param planCode The code of the plan to subscribe to.
      * @param billingPeriod The billing period that sets the current period length.
-     * @return The created subscription.
+     * @return The created subscription, as a DTO.
      * @throws DuplicateResourceException if the user already has an active subscription.
      * @throws PlanNotFoundException if no plan with the given code exists.
      */
     @Transactional
-    public Subscription createSubscription(Long userId, String planCode, BillingPeriod billingPeriod) {
-        if (getActiveSubscription(userId).isPresent()) {
+    public SubscriptionDto createSubscription(Long userId, String planCode, BillingPeriod billingPeriod) {
+        if (loadActiveSubscription(userId).isPresent()) {
             throw new DuplicateResourceException(
                     "User " + userId + " already has an active subscription; use change-plan to switch plans instead");
         }
@@ -279,7 +314,7 @@ public class SubscriptionService {
         log.info("Created subscription {} for user {} on plan {} ({})", 
                 subscription.getId(), userId, planCode, billingPeriod);
 
-        return subscription;
+        return BillingMapper.toSubscriptionDto(subscription);
     }
 
     /**
@@ -290,13 +325,13 @@ public class SubscriptionService {
      *
      * @param userId The ID of the user whose plan to change.
      * @param newPlanCode The code of the new plan; it must be active.
-     * @return The updated subscription.
+     * @return The updated subscription, as a DTO.
      * @throws NoActiveSubscriptionException if the user has no active subscription.
      * @throws PlanNotFoundException if no active plan with the given code exists.
      */
     @Transactional
-    public Subscription changeSubscription(Long userId,String newPlanCode) {
-        Subscription currentSubscription = getActiveSubscription(userId)
+    public SubscriptionDto changeSubscription(Long userId,String newPlanCode) {
+        Subscription currentSubscription = loadActiveSubscription(userId)
                 .orElseThrow(() -> new NoActiveSubscriptionException("User " + userId + " has no active subscription"));
 
         Plan newPlan = planRepository.findByCodeAndIsActiveTrue(newPlanCode)
@@ -310,7 +345,7 @@ public class SubscriptionService {
         log.info("Changed subscription {} for user {} to plan {}",
                 currentSubscription.getId(), userId, newPlanCode);
 
-        return currentSubscription;
+        return BillingMapper.toSubscriptionDto(currentSubscription);
 
     }
 
@@ -328,7 +363,7 @@ public class SubscriptionService {
     @Transactional
     public void cancelSubscription(Long userId, boolean immediate) {
 
-       Subscription subscription = getActiveSubscription(userId)
+       Subscription subscription = loadActiveSubscription(userId)
                .orElseThrow(() -> new NoActiveSubscriptionException("User " + userId + " has no active subscription"));
 
        if(immediate) {
