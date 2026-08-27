@@ -34,6 +34,17 @@ public class CostCategoryService {
     private final AccountRepository accountRepo;
     private final TenantEntityHelper tenantEntityHelper;
 
+    /**
+     * Returns the tenant's cost categories, optionally only the active ones.
+     *
+     * <p>Deliberately unpaginated. Cost categories are the breakdown structure a tenant costs its
+     * work against, so the count follows how finely it chooses to categorise and not how much work
+     * it has done. Spend against the categories accumulates in the expense and payable tables,
+     * which are the ones that grow.
+     *
+     * @param activeOnly Whether to omit deactivated categories.
+     * @return The matching cost categories, ordered by name.
+     */
     @Transactional(readOnly = true)
     public List<CostCategoryDto> findAll(boolean activeOnly) {
         return mapper.toDtos(activeOnly

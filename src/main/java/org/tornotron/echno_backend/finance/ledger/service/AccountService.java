@@ -40,6 +40,17 @@ public class AccountService {
     private final AccountCodeGenerator codeGenerator;
     private final TenantEntityHelper tenantEntityHelper;
 
+    /**
+     * Returns the whole chart of accounts, active and inactive.
+     *
+     * <p>Deliberately unpaginated. A chart of accounts is bounded by the accounting structure a
+     * tenant defines rather than by anything it records against that structure: adding a year of
+     * trading adds journal entries, not accounts. Transaction volume lives in {@code JournalEntry},
+     * which is paged. Callers also need the chart whole, because a partial chart misreports every
+     * rolled-up total computed from it.
+     *
+     * @return Every account in the current tenant's chart.
+     */
     @Transactional(readOnly = true)
     public List<AccountDto> findAllAccounts() {
         return  mapper.toDtos(repo.findAll());
@@ -54,6 +65,10 @@ public class AccountService {
      * Returns the full chart of accounts as a nested tree, ordered by code.
      * Includes inactive accounts (flagged via {@code active}). Built from a
      * single fetch and assembled in memory to avoid per-node lazy queries.
+     *
+     * <p>Deliberately unpaginated, for the reason given on {@link #findAllAccounts()}, and here
+     * the whole read is also structural: a tree cannot be assembled from a page, because a node
+     * on one page may have its parent on another.
      */
     @Transactional(readOnly = true)
     public List<AccountTreeDto> findAccountTree() {

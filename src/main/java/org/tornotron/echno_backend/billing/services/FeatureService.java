@@ -23,6 +23,16 @@ public class FeatureService {
         return featureRepository.findByIsActiveTrueOrderByCategory();
     }
 
+    /**
+     * Returns the whole billing feature catalogue, including features not currently on sale.
+     *
+     * <p>Deliberately unpaginated. The catalogue is a fixed enum-like table describing what the
+     * product can sell; it changes when the product changes, not with tenant activity, and it is
+     * not per-tenant data. Callers need it whole in order to resolve a subscription's feature
+     * codes.
+     *
+     * @return Every feature in the catalogue.
+     */
     public List<Feature> getAllFeatures() {
         return featureRepository.findAll();
     }

@@ -43,6 +43,11 @@ public class AccountCsvService {
 
     /**
      * Exports the whole chart of accounts (active and inactive) as CSV, ordered by code.
+     *
+     * <p>Deliberately unpaginated on both counts. The chart is bounded by the accounting structure
+     * a tenant defines rather than by what it records, and an export that returned part of the
+     * chart would be wrong rather than merely incomplete: the file is meant to round-trip through
+     * {@link #importCsv(String)}, which resolves parent references by code across the whole set.
      */
     @Transactional(readOnly = true)
     public String exportCsv() {
@@ -105,6 +110,9 @@ public class AccountCsvService {
         }
 
         // Existing accounts by code, so we can update in place and resolve parent references.
+        // Read whole rather than paged: a parent reference may point at any account in the chart,
+        // so a partial map would silently reparent rows. The chart is bounded by the tenant's
+        // accounting structure, not by its transaction volume.
         Map<String, Account> byCode = new HashMap<>();
         for (Account a : repo.findAll()) {
             byCode.put(a.getCode(), a);
