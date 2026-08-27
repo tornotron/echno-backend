@@ -97,11 +97,13 @@ public class InspectionControllerWeb {
     @Operation(
             summary = "Update an inspection",
             description = "Updates the status, result, checklist items and defects of an existing "
-                    + "inspection identified by id."
+                    + "inspection identified by id. The project the inspection is against is fixed "
+                    + "when it is created and cannot be changed here."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Inspection updated"),
-            @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
+            @ApiResponse(responseCode = "400", description = "Validation failed on the request body, or the "
+                    + "payload names a different project"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
     })

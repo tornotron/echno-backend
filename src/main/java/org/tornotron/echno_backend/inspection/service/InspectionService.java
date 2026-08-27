@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
@@ -104,11 +105,28 @@ public class InspectionService {
         return mapper.toDto(saved);
     }
 
+    /**
+     * Replaces an inspection, except for the project it is against. The project is
+     * chosen when the inspection is created and is fixed from then on: a statutory
+     * approval has to keep a permanent, traceable relationship with the project it
+     * was obtained for, and a compliance inspection is additionally identified by
+     * its project (the duplicate check is keyed on project plus rule code), so
+     * moving one would let the same compliance be generated twice for the original
+     * project.
+     *
+     * @param id  Id of the inspection to replace.
+     * @param req The replacement payload. Its project id may repeat the stored one
+     *            or be omitted, but it may not name a different project.
+     * @throws ResourceNotFoundException if no such inspection exists in this tenant.
+     * @throws InvalidRequestException   if the payload names a different project.
+     */
     @Transactional
     public InspectionDto update(UUID id, UpdateInspectionRequest req) {
         Inspection inspection = inspectionRepo.findByIdScoped(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Inspection with ID " + id + " was not found"));
+
+        requireSameProject(inspection, req.projectId());
 
         inspection.setTitle(req.title());
         inspection.setType(req.type());
@@ -116,7 +134,6 @@ public class InspectionService {
         inspection.setTrade(req.trade());
         inspection.setStatus(req.status());
         inspection.setResult(req.result());
-        inspection.setProjectId(req.projectId());
         inspection.setLocation(req.location());
         inspection.setAreaInspected(req.areaInspected());
         inspection.setDrawingReference(req.drawingReference());
@@ -139,6 +156,27 @@ public class InspectionService {
         Inspection saved = inspectionRepo.saveAndFlush(inspection);
         log.info("Updated inspection {}", saved.getInspectionNumber());
         return mapper.toDto(saved);
+    }
+
+    /**
+     * Rejects an update that would move an inspection to another project. A payload
+     * that omits the project, or repeats the one already stored, passes: the web
+     * client sends the whole record back on every save, so the stored id arriving
+     * unchanged is the normal case rather than an attempt to reassign. Only a
+     * genuinely different id is refused.
+     *
+     * @param inspection The inspection being replaced.
+     * @param projectId  The project id carried by the request, possibly null.
+     * @throws InvalidRequestException if the two disagree.
+     */
+    private void requireSameProject(Inspection inspection, Long projectId) {
+        if (projectId == null || projectId.equals(inspection.getProjectId())) {
+            return;
+        }
+        throw new InvalidRequestException(
+                "Inspection " + inspection.getInspectionNumber() + " belongs to project "
+                        + inspection.getProjectId() + " and cannot be moved to project "
+                        + projectId + ". The project is fixed when the inspection is created.");
     }
 
     /**
