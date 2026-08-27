@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.materialConsumption.enums.MaterialConsumption
 
 import java.time.LocalDateTime;
 import java.util.List;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 @RestController
 @RequestMapping("/api/v1/material-consumptions")
@@ -79,15 +80,15 @@ public class MaterialConsumptionController {
     @PreAuthorize("hasAuthority('material-consumption:read') or hasAuthority('material-consumption:admin')")
     @Operation(
             summary = "List all material consumptions",
-            description = "Returns every material consumption record in the organization, unpaginated."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Consumptions returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the material-consumption read or admin authority")
     })
     public ResponseEntity<List<MaterialConsumptionDto>> getAllMaterialConsumptions() {
-        List<MaterialConsumptionDto> consumptions = materialConsumptionService.getAllMaterialConsumptions();
-        return ResponseEntity.ok(consumptions);
+        return UnpagedResultCap.respond(
+                materialConsumptionService.getAllMaterialConsumptions(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/all")

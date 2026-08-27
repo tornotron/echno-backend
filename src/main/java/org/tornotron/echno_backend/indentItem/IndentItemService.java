@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.indentItem;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.indentItem.mapper.IndentItemMapper;
@@ -65,11 +67,20 @@ public class IndentItemService {
         return indentItemMapper.toDto(indentItem);
     }
 
+    /**
+     * Retrieves indent items one page at a time.
+     *
+     * <p>Replaces an unpaginated read of the whole table. Indent items accumulate with every
+     * indent a tenant raises, so the row count has no ceiling and the only safe read is a
+     * bounded one.
+     *
+     * @param pageable The page to fetch.
+     * @return A page of indent item DTOs.
+     */
     @Transactional(readOnly = true)
-    public List<IndentItemDto> getAllIndentItems() {
-        return indentItemRepository.findAll().stream()
-                .map(indentItem -> indentItemMapper.toDto(indentItem))
-                .collect(Collectors.toList());
+    public Page<IndentItemDto> getAllIndentItems(Pageable pageable) {
+        return indentItemRepository.findAll(pageable)
+                .map(indentItem -> indentItemMapper.toDto(indentItem));
     }
 
     @Transactional(readOnly = true)

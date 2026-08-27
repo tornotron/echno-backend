@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.vendor.dto.*;
 
 import java.util.List;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 @RestController
 @RequestMapping("/api/v1/vendors")
@@ -75,15 +76,14 @@ public class VendorController {
     @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
     @Operation(
             summary = "List vendors",
-            description = "Returns every vendor in the current tenant."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vendors returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor read or admin authority")
     })
     public ResponseEntity<List<VendorDto>> getAllVendors() {
-        List<VendorDto> vendors = vendorService.getAllVendors();
-        return ResponseEntity.ok(vendors);
+        return UnpagedResultCap.respond(vendorService.getAllVendors(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/all")

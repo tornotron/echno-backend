@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.employee.dto.EmployeePatchDto;
 
 import java.util.List;
 import java.util.Map;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 /**
  * REST controller for managing employees.
@@ -102,14 +103,15 @@ public class EmployeeController {
     @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
     @Operation(
             summary = "List all employees",
-            description = "Returns every employee the caller is permitted to see."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employees returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the employee read or admin authority")
     })
     public ResponseEntity<List<EmployeeDto>> readAllEmployees() {
-        return new ResponseEntity<>(employeeService.displayAllEmployees(),HttpStatus.OK);
+        return UnpagedResultCap.respond(employeeService.displayAllEmployees(
+                0, UnpagedResultCap.MAX_ROWS, null, null, null));
     }
 
     /**
