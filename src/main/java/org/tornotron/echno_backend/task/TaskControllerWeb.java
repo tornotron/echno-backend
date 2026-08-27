@@ -87,7 +87,7 @@ public class TaskControllerWeb {
      * @return A {@link ResponseEntity} containing the list of task DTOs and HTTP status 200 (OK).
      */
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List tasks",
             description = "Returns a single page of tasks. The pageNo and pageSize parameters control "
@@ -105,7 +105,7 @@ public class TaskControllerWeb {
     }
 
     @GetMapping("/projectId/{projectId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List tasks for a project",
             description = "Returns every task belonging to the given project."
@@ -126,7 +126,7 @@ public class TaskControllerWeb {
      * @return A {@link ResponseEntity} containing the task DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Get a task by id",
             description = "Returns a single task including its creator, assignees, category, issues and "
