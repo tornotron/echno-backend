@@ -176,8 +176,15 @@ public class KeycloakGroupService {
      * groups claim, which JwtAuthConverter converts to authority "ORG_5_ROLE_system-admin".
      *
      * NOTE: The user must ALSO be a member of the org (via addUserToOrganization).
-     * Role assignment and membership are separate — a user can be a member without
+     * Role assignment and membership are separate: a user can be a member without
      * any role, but should not have a role without being a member.
+     *
+     * A subgroup that does not exist yet is created here rather than refused. The
+     * subgroups are created from OrgRole when an organization is created, so an
+     * organization created before a role was added to the enum has no subgroup for
+     * it, and every existing tenant is in that position the moment a role is added.
+     * Creating it on first assignment keeps that a non-event instead of a migration
+     * over every tenant, and it can only ever create a name the enum already names.
      */
     public void assignOrgRole(String userId, String organizationId, OrgRole role) {
         Keycloak keycloak = getKeycloakAdminClient();
@@ -189,12 +196,7 @@ public class KeycloakGroupService {
                         "Cannot assign role: group 'org-" + organizationId + "' was not found in Keycloak");
             }
 
-            String subgroupId = findRoleSubgroupId(keycloak, orgGroupId, role.getGroupName());
-            if (subgroupId == null) {
-                throw new RuntimeException(
-                        "Cannot assign role: subgroup '" + role.getGroupName() + "' was not found under 'org-"
-                                + organizationId + "'");
-            }
+            String subgroupId = ensureRoleSubgroup(keycloak, orgGroupId, organizationId, role);
 
             keycloak.realm(realm).users().get(userId).joinGroup(subgroupId);
             log.info("Assigned role '{}' to user {} in organization {}", role.getGroupName(), userId, organizationId);
@@ -280,23 +282,67 @@ public class KeycloakGroupService {
      */
     private void createDefaultRoleSubgroups(Keycloak keycloak, String orgGroupId, String organizationId) {
         for (OrgRole role : OrgRole.values()) {
-            GroupRepresentation subgroup = new GroupRepresentation();
-            subgroup.setName(role.getGroupName());
-
-            Response response = keycloak.realm(realm).groups().group(orgGroupId).subGroup(subgroup);
-
-            if (response.getStatus() != 201) {
-                String error = response.readEntity(String.class);
-                response.close();
-                throw new RuntimeException(
-                        "Failed to create role subgroup '" + role.getGroupName() + "' under 'org-" + organizationId
-                                + "' in Keycloak (status " + response.getStatus() + "): " + error);
-            }
-
-            response.close();
-
-            log.debug("Created role subgroup '{}' under org-{}", role.getGroupName(), organizationId);
+            createRoleSubgroup(keycloak, orgGroupId, organizationId, role);
         }
+    }
+
+    /**
+     * The id of a role subgroup, creating it if this organization does not have one.
+     *
+     * Organizations get their subgroups from OrgRole at creation, so one created
+     * before a role was added to the enum is missing that subgroup. Rather than
+     * refuse the assignment and leave an operator to create groups by hand in
+     * Keycloak for every existing tenant, the subgroup is created on demand. The
+     * name always comes from the enum, so this cannot invent an authority.
+     */
+    private String ensureRoleSubgroup(Keycloak keycloak, String orgGroupId,
+                                      String organizationId, OrgRole role) {
+        String subgroupId = findRoleSubgroupId(keycloak, orgGroupId, role.getGroupName());
+        if (subgroupId != null) {
+            return subgroupId;
+        }
+        log.info("Role subgroup '{}' is missing under org-{}; creating it",
+                role.getGroupName(), organizationId);
+        try {
+            createRoleSubgroup(keycloak, orgGroupId, organizationId, role);
+        } catch (RuntimeException e) {
+            // Two assignments of the same new role can race here and the loser is told
+            // the group already exists. That is the outcome it wanted, so it is only an
+            // error if the subgroup still is not there when it looks again.
+            if (findRoleSubgroupId(keycloak, orgGroupId, role.getGroupName()) == null) {
+                throw e;
+            }
+            log.debug("Role subgroup '{}' under org-{} was created concurrently",
+                    role.getGroupName(), organizationId);
+        }
+
+        String created = findRoleSubgroupId(keycloak, orgGroupId, role.getGroupName());
+        if (created == null) {
+            throw new RuntimeException(
+                    "Cannot assign role: subgroup '" + role.getGroupName()
+                            + "' was created under 'org-" + organizationId + "' but cannot be read back");
+        }
+        return created;
+    }
+
+    private void createRoleSubgroup(Keycloak keycloak, String orgGroupId,
+                                    String organizationId, OrgRole role) {
+        GroupRepresentation subgroup = new GroupRepresentation();
+        subgroup.setName(role.getGroupName());
+
+        Response response = keycloak.realm(realm).groups().group(orgGroupId).subGroup(subgroup);
+
+        if (response.getStatus() != 201) {
+            String error = response.readEntity(String.class);
+            response.close();
+            throw new RuntimeException(
+                    "Failed to create role subgroup '" + role.getGroupName() + "' under 'org-" + organizationId
+                            + "' in Keycloak (status " + response.getStatus() + "): " + error);
+        }
+
+        response.close();
+
+        log.debug("Created role subgroup '{}' under org-{}", role.getGroupName(), organizationId);
     }
 
     /**

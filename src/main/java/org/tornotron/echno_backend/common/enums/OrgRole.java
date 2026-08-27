@@ -15,12 +15,27 @@ import java.util.Set;
  *   @PreAuthorize("@orgSecurity.hasOrgRole(#orgId, 'system-admin')")
  *
  * The groupName field is the actual Keycloak subgroup name (kebab-case).
+ *
+ * <p>Adding a constant here adds the subgroup to every organization created from
+ * then on. Organizations that already exist get theirs the first time the role is
+ * assigned: {@code KeycloakGroupService.assignOrgRole} creates a missing subgroup
+ * rather than refusing, so no backfill over existing tenants is needed.
  */
 public enum OrgRole {
     SYSTEM_ADMIN("system-admin"),
     ORG_MANAGER("org-manager"),
     HR_ADMIN("hr-admin"),
-    PROJECT_MANAGER("project-manager");
+    PROJECT_MANAGER("project-manager"),
+    // The three inspection roles. They are org-scoped rather than realm occupation
+    // roles because this is the layer @PreAuthorize actually checks: the realm has a
+    // 'site-engineer' and a 'safety-officer' occupation role already, but occupation
+    // roles gate nothing in application code and are a catalogue for assignment, not
+    // an authority. They are deliberately not manager roles: a QA engineer signs off
+    // quality, not headcount, and getManagerRoles decides who may be named the
+    // manager on a project invite code.
+    QA_ENGINEER("qa-engineer"),
+    SAFETY_OFFICER("safety-officer"),
+    SITE_ENGINEER("site-engineer");
 
     private final String groupName;
 
