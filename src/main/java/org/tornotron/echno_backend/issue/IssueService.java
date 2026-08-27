@@ -1,5 +1,8 @@
 package org.tornotron.echno_backend.issue;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,17 +44,58 @@ public class IssueService {
     private final AttachmentService attachmentService;
     private final IssueMapper issueMapper;
     private final EmployeeRepository employeeRepository;
+    private final Validator validator;
 
-    public IssueService(IssueRepository issueRepository, TaskRepository taskRepository, AttachmentService attachmentService, IssueMapper issueMapper, EmployeeRepository employeeRepository) {
+    /**
+     * Constructs an IssueService with the necessary collaborators.
+     *
+     * @param issueRepository    The repository for issue data access.
+     * @param taskRepository     The repository used to resolve the task an issue is raised against.
+     * @param attachmentService  The service for attachment operations.
+     * @param issueMapper        The mapper between issues and their DTOs.
+     * @param employeeRepository The repository used to resolve the creator and the assignee.
+     * @param validator          Bean validator applied to the create payload.
+     */
+    public IssueService(IssueRepository issueRepository, TaskRepository taskRepository, AttachmentService attachmentService, IssueMapper issueMapper, EmployeeRepository employeeRepository, Validator validator) {
         this.issueRepository = issueRepository;
         this.taskRepository = taskRepository;
         this.attachmentService = attachmentService;
         this.issueMapper = issueMapper;
         this.employeeRepository = employeeRepository;
+        this.validator = validator;
     }
 
+    /**
+     * Runs bean validation over the create payload.
+     *
+     * <p>Both issue controllers take the payload as the JSON string part of a multipart request
+     * and deserialize it by hand, so Spring never binds a bean and never validates one, and the
+     * constraints on {@link IssueCreationDto} would otherwise never fire. Doing it here covers
+     * both entry points at once, and covers any later caller by construction.
+     *
+     * @param issueCreationDto The payload as deserialized from the request.
+     * @throws ConstraintViolationException if any constraint on the payload fails.
+     */
+    private void requireValid(IssueCreationDto issueCreationDto) {
+        Set<ConstraintViolation<IssueCreationDto>> violations = validator.validate(issueCreationDto);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
+        }
+    }
+
+    /**
+     * Creates a new issue against a task, with any attachments that came with it.
+     *
+     * @param issueCreationDto DTO containing the details for the new issue.
+     * @param attachments      Files uploaded with the issue, or null when there are none.
+     * @return The created issue.
+     * @throws ConstraintViolationException if the payload fails its own constraints.
+     * @throws ResourceNotFoundException if the task, the creator or the assignee is not found in
+     *                                   this organization.
+     */
     @Transactional
     public IssueSimpleDto addIssue(IssueCreationDto issueCreationDto, List<MultipartFile> attachments) {
+        requireValid(issueCreationDto);
         Task task = taskRepository.findByIdAndOrganization_Id(issueCreationDto.getTaskId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Task with ID " + issueCreationDto.getTaskId() + " was not found in this organization"));
         Employee creator = employeeRepository.findByIdAndOrganizationId(issueCreationDto.getCreatedById(), TenantContext.getCurrentOrgId())
