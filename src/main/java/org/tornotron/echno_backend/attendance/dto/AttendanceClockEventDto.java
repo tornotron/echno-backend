@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.attendance.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.OptBoolean;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -23,8 +25,11 @@ public class AttendanceClockEventDto {
     @NotNull
     private ClockEventType eventType;
 
-    @Schema(description = "Timestamp of the event.", example = "2026-01-15T13:00:00")
+    @Schema(
+            description = "Site-local wall-clock time of the event, with no timezone offset. A value carrying an offset or a trailing Z is rejected: the field has no offset to store it in, so accepting one would silently shift the recorded time and, near midnight, the attendance date with it.",
+            example = "2026-01-15T13:00:00")
     @NotNull
+    @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime eventTimestamp;
 
     @Schema(description = "Latitude captured for the event.", example = "13.0827")
