@@ -11,6 +11,7 @@
   "bruteForceProtected": true,
   "failureFactor": 5,
   "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 2,
   "clients": [
     {
       "clientId": "${KEYCLOAK_CLIENT_ID}",
