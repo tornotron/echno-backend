@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.finance.invoice.dtos.CreateInvoiceRequest;
 import org.tornotron.echno_backend.finance.invoice.dtos.InvoiceDto;
 import org.tornotron.echno_backend.finance.invoice.mapper.InvoiceMapper;
 import org.tornotron.echno_backend.finance.invoice.repositories.InvoiceRepository;
+import org.tornotron.echno_backend.finance.construction.repositories.ConstructionInvoiceRepository;
 import org.tornotron.echno_backend.finance.ledger.AccountType;
 import org.tornotron.echno_backend.finance.ledger.domain.Account;
 import org.tornotron.echno_backend.finance.ledger.domain.Customer;
@@ -41,6 +42,10 @@ import java.util.*;
  * the revenue accounts and any GST output payable) and moves it to ISSUED. Cancellation reverses that
  * journal entry when the invoice is unpaid; once any payment has been applied the invoice can no
  * longer be cancelled and a credit note is required instead.
+ *
+ * <p>An invoice raised by another document (a sales or service construction invoice materializes
+ * one on approval) belongs to that document's lifecycle: {@link #cancel} refuses it and the source
+ * document is cancelled instead, which unwinds both sides through {@link #cancelInternal}.
  */
 @Slf4j
 @Service
@@ -56,6 +61,7 @@ public class InvoiceService {
     private final InvoiceMapper mapper;
     private final PostingAccountResolver postingAccountResolver;
     private final TenantEntityHelper tenantEntityHelper;
+    private final ConstructionInvoiceRepository constructionInvoiceRepo;
 
     /**
      * Retrieves a single invoice with its line items.
@@ -228,6 +234,35 @@ public class InvoiceService {
      * entry reversed and the reversal id is recorded before it moves to CANCELLED. An invoice that
      * has any payment applied cannot be cancelled; a credit note is required instead.
      *
+     * <p>An invoice another document raised for itself is refused here: its source document owns
+     * the journal entry they share, so cancelling this invoice on its own would leave that document
+     * approved against a reversed entry. Cancelling the source unwinds both sides.
+     *
+     * @param invoiceId The id of the invoice to cancel.
+     * @param reason Free-text reason recorded on the reversal entry.
+     * @return The cancelled invoice as a DTO.
+     * @throws ResourceNotFoundException if the invoice does not exist.
+     * @throws InvalidJournalException if the invoice has payments applied, is already cancelled, was raised by another document, or its original journal entry cannot be found.
+     */
+    @Transactional
+    public InvoiceDto cancel(UUID invoiceId, String reason) {
+        constructionInvoiceRepo.findByArInvoiceId(invoiceId).ifPresent(source -> {
+            throw new InvalidJournalException(
+                    "Invoice was raised for construction invoice " + source.getInvoiceNumber()
+                            + " and cannot be cancelled on its own; cancel construction invoice "
+                            + source.getInvoiceNumber() + " instead");
+        });
+        return cancelInternal(invoiceId, reason);
+    }
+
+    /**
+     * Cancels an invoice without the check on who raised it.
+     *
+     * <p>The document that materialized an invoice uses this to unwind it as part of cancelling
+     * itself; every other caller goes through {@link #cancel}. The payment guard stays in force
+     * here, so a receipt already applied on this side still blocks the cancellation, whichever
+     * document it was asked for.
+     *
      * @param invoiceId The id of the invoice to cancel.
      * @param reason Free-text reason recorded on the reversal entry.
      * @return The cancelled invoice as a DTO.
@@ -235,7 +270,7 @@ public class InvoiceService {
      * @throws InvalidJournalException if the invoice has payments applied, is already cancelled, or its original journal entry cannot be found.
      */
     @Transactional
-    public InvoiceDto cancel(UUID invoiceId, String reason) {
+    public InvoiceDto cancelInternal(UUID invoiceId, String reason) {
         Invoice inv = invoiceRepo.findByIdWithLines(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice with ID " + invoiceId + " was not found"));
 

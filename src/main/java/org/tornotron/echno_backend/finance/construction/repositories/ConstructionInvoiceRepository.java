@@ -23,4 +23,12 @@ public interface ConstructionInvoiceRepository
     @EntityGraph(attributePaths = {"lines"})
     @Query("SELECT ci FROM ConstructionInvoice ci WHERE ci.id = :id")
     Optional<ConstructionInvoice> findByIdWithLines(@Param("id") UUID id);
+
+    /**
+     * Org-scoped lookup of the construction invoice that adopted a given AR invoice, if any.
+     * At most one invoice can adopt an AR invoice: each approval raises its own. Used by the
+     * AR module to refuse cancelling an invoice whose lifecycle another document owns.
+     */
+    @Query("SELECT ci FROM ConstructionInvoice ci WHERE ci.arInvoiceId = :arInvoiceId")
+    Optional<ConstructionInvoice> findByArInvoiceId(@Param("arInvoiceId") UUID arInvoiceId);
 }

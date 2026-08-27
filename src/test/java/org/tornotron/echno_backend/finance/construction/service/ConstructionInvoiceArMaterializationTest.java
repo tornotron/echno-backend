@@ -55,8 +55,10 @@ import static org.mockito.Mockito.when;
  * Everything the service talks to is mocked, so what is pinned here is the routing and the
  * line mapping: an invoice on a project with a client raises a real AR invoice and adopts
  * its journal entry, a discounted line is billed at its net so the two documents agree,
- * cancelling unwinds through the AR invoice, and an absent, unknown or inactive client
- * falls back to posting the receivable directly.
+ * cancelling unwinds through the AR invoice on the internal call that the AR module's own
+ * refusal does not block, and an absent, unknown or inactive client falls back to posting
+ * the receivable directly. The totals the two documents must agree on are reconciled in
+ * ConstructionInvoicePostingIT, where both are real.
  */
 @ExtendWith(MockitoExtension.class)
 class ConstructionInvoiceArMaterializationTest {
@@ -179,7 +181,7 @@ class ConstructionInvoiceArMaterializationTest {
         inv.setArInvoiceId(arInvoiceId);
         inv.setJournalEntryId(arJournalEntryId);
         UUID reversalId = UUID.randomUUID();
-        when(invoiceService.cancel(arInvoiceId, "Client withdrew the claim"))
+        when(invoiceService.cancelInternal(arInvoiceId, "Client withdrew the claim"))
                 .thenReturn(arInvoiceDto(arJournalEntryId, reversalId));
 
         service.cancel(inv.getId(), "Client withdrew the claim");
