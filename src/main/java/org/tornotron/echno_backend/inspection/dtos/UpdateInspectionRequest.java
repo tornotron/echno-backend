@@ -17,10 +17,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Full replacement of an inspection. Status is set directly and the result is
- * optional (set once the inspection is concluded). The category falls back to the
- * one derived from the type when it is omitted. The check items and defects are
- * rebuilt from the payload and the summary counts recomputed from them.
+ * Full replacement of an inspection, apart from the project it is against, which
+ * is fixed at creation. Status is set directly and the result is optional (set
+ * once the inspection is concluded). The category falls back to the one derived
+ * from the type when it is omitted. The check items and defects are rebuilt from
+ * the payload and the summary counts recomputed from them.
  */
 @Schema(description = "Payload to fully replace an existing inspection, including its status, result, checklist items and defects.")
 public record UpdateInspectionRequest(
@@ -36,7 +37,9 @@ public record UpdateInspectionRequest(
         @NotNull InspectionStatus status,
         @Schema(description = "Overall result once the inspection is concluded.", example = "PASSED")
         InspectionResult result,
-        @Schema(description = "Id of the project this inspection is against.", example = "14")
+        @Schema(description = "Id of the project this inspection is against. Fixed when the inspection is "
+                + "created: send the stored id or omit the field. A different id is rejected with 400.",
+                example = "14")
         Long projectId,
         @Schema(description = "Site or building location of the inspection.", example = "Block C, Ground Floor")
         @Size(max = 300) String location,
