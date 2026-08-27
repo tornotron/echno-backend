@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.payable.dto.PayableDto;
 import org.tornotron.echno_backend.payable.dto.PaymentRecordDto;
 
 import java.util.List;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 @RestController
 @RequestMapping("/api/v1/payables/web")
@@ -90,15 +91,14 @@ public class PayableControllerWeb {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "List payables",
-            description = "Returns every payable in the current tenant."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payables returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<PayableDto>> getAllPayables() {
-        List<PayableDto> payables = payableService.getAllPayables();
-        return ResponseEntity.ok(payables);
+        return UnpagedResultCap.respond(payableService.getAllPayables(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/all")

@@ -173,18 +173,6 @@ public class PayableService {
     }
 
     /**
-     * Returns every payable visible to the current organization.
-     *
-     * @return The list of payable DTOs.
-     */
-    @Transactional(readOnly = true)
-    public List<PayableDto> getAllPayables() {
-        return payableRepository.findAll().stream()
-                .map(payable -> payableMapper.toDto(payable))
-                .collect(Collectors.toList());
-    }
-
-    /**
      * Returns a page of payables, newest first.
      *
      * @param pageNo The zero-based page index.

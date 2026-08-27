@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.indentItem.dto.IndentItemCreationDto;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
 
 import java.util.List;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 @RestController
 @RequestMapping("/api/v1/indent-items")
@@ -69,15 +70,15 @@ public class IndentItemController {
     @PreAuthorize("hasAuthority('indent-item:read') or hasAuthority('indent-item:admin')")
     @Operation(
             summary = "List all indent items",
-            description = "Returns every indent item for the current tenant, unpaginated."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent items returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent-item read or admin authority")
     })
     public ResponseEntity<List<IndentItemDto>> getAllIndentItems() {
-        List<IndentItemDto> indentItems = indentItemService.getAllIndentItems();
-        return ResponseEntity.ok(indentItems);
+        return UnpagedResultCap.respond(
+                indentItemService.getAllIndentItems(UnpagedResultCap.firstPage()));
     }
 
     @GetMapping("/indent/{indentId}")

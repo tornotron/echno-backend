@@ -42,13 +42,15 @@
 <!-- activity summary -->
 <table class="activity-table">
     <tr>
-        <td><div class="box">Task Updates<strong th:text="${#lists.size(tasks)}">0</strong></div></td>
+        <td><div class="box">Task Updates<strong th:text="${taskTotal ?: 0}">0</strong></div></td>
         <td><div class="box">Issues Created<strong th:text="${issuesCount ?: 0}">0</strong></div></td>
         <td><div class="box">Attendance Logged<strong th:text="${attendanceCount ?: 0}">0</strong></div></td>
     </tr>
 </table>
 
 <!-- tasks -->
+<p class="truncation-note" th:if="${truncated}"
+   th:text="|Showing the first ${rowCap} tasks and indents. This tenant has ${taskTotal} tasks and ${indentTotal} indents in total.|"></p>
 <div th:each="task : ${tasks}">
     <div class="task-block" th:classappend="${task.getProgress() == 100 ? 'completed' : (task.getProgress() > 0 ? 'inprogress' : 'notstarted')}">
         <div class="section-heading">

@@ -55,13 +55,6 @@ public class InventoryTransactionService {
         return inventoryTransactionMapper.toDto(transaction);
     }
 
-    @Transactional(readOnly = true)
-    public List<InventoryTransactionDto> getAllTransactions() {
-        return inventoryTransactionRepository.findAll().stream()
-                .map(transaction -> inventoryTransactionMapper.toDto(transaction))
-                .collect(Collectors.toList());
-    }
-
     /**
      * Retrieves transactions one page at a time, newest first.
      *

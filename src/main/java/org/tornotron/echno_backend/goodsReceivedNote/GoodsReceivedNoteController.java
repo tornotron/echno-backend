@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteUpdate
 
 import java.time.LocalDateTime;
 import java.util.List;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 @RestController
 @RequestMapping("/api/v1/grns")
@@ -76,16 +77,15 @@ public class GoodsReceivedNoteController {
     @PreAuthorize("hasAuthority('grn:read') or hasAuthority('grn:admin')")
     @Operation(
             summary = "List all goods received notes",
-            description = "Returns every GRN as an unpaged list. Use the paginated variant for large "
-                    + "result sets."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of GRNs"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the grn read or admin authority")
     })
     public ResponseEntity<List<GoodsReceivedNoteDto>> getAllGrns() {
-        List<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getAllGrns();
-        return ResponseEntity.ok(grns);
+        return UnpagedResultCap.respond(
+                goodsReceivedNoteService.getAllGrns(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/all")

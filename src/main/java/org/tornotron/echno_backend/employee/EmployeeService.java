@@ -249,8 +249,14 @@ public class EmployeeService {
     /**
      * Retrieves a page of employees, ordered alphabetically by name.
      *
-     * @param pageNo   Zero-based page index.
-     * @param pageSize Number of employees per page.
+     * <p>Every filter is optional: pass null or blank to leave that filter off.
+     *
+     * @param pageNo     Zero-based page index.
+     * @param pageSize   Number of employees per page.
+     * @param search     Case-insensitive substring to match against the employee, or null for no
+     *                   name filter.
+     * @param status     {@code EmployeeStatus} name to restrict to, or null for any status.
+     * @param department Department to restrict to, or null for any department.
      * @return A page of employee DTOs.
      */
     @Transactional(readOnly = true)
