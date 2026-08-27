@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="054-01-add-inspection-category-and-trade" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="inspections" columnName="category"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Taxonomy columns on inspections. category is the top-level grouping
+            (SAFETY / QA_QC / COMPLIANCE / OTHER) the UI and reporting filter on, and is
+            indexed for that reason; trade is the QA/QC construction stage, populated
+            only for QA/QC (and optionally OTHER) rows. type is left untouched and keeps
+            working as the finer label. Existing rows take the OTHER default here and are
+            moved to their real category by the backfill in the next changeset.
+        </comment>
+
+        <addColumn tableName="inspections">
+            <column name="category" type="VARCHAR(30)" defaultValue="OTHER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="trade" type="VARCHAR(50)"/>
+        </addColumn>
+
+        <createIndex tableName="inspections" indexName="idx_insp_category">
+            <column name="category"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="054-02-backfill-inspection-category" author="echno">
+        <comment>
+            Derive category from the existing type for every row created before the column
+            existed. safety maps to SAFETY, compliance to COMPLIANCE, and the seven quality
+            and progress types to QA_QC, which covers all nine members of InspectionType, so
+            no row keeps the OTHER default by accident. Each statement is guarded on the row
+            still holding the default, making this a backfill rather than an overwrite.
+        </comment>
+
+        <sql>
+            UPDATE inspections SET category = 'SAFETY'
+            WHERE type = 'SAFETY' AND category = 'OTHER'
+        </sql>
+
+        <sql>
+            UPDATE inspections SET category = 'COMPLIANCE'
+            WHERE type = 'COMPLIANCE' AND category = 'OTHER'
+        </sql>
+
+        <sql>
+            UPDATE inspections SET category = 'QA_QC'
+            WHERE type IN ('QUALITY', 'STRUCTURAL', 'ELECTRICAL', 'PLUMBING',
+                           'FINISHING', 'PROGRESS', 'FINAL')
+              AND category = 'OTHER'
+        </sql>
+    </changeSet>
+
+    <changeSet id="054-03-blank-defect-severity-and-status" author="echno">
+        <comment>
+            Clear whitespace-only severity and status before the enum promotion below, so a
+            blank string is treated as "not recorded" rather than as an unmappable value.
+            severity is nullable and becomes NULL; status carries the OPEN default the entity
+            has always applied.
+        </comment>
+
+        <sql>
+            UPDATE inspection_defects SET severity = NULL
+            WHERE severity IS NOT NULL AND trim(severity) = ''
+        </sql>
+
+        <sql>
+            UPDATE inspection_defects SET status = 'open'
+            WHERE status IS NULL OR trim(status) = ''
+        </sql>
+    </changeSet>
+
+    <changeSet id="054-04-promote-defect-severity-to-enum" author="echno">
+        <preConditions onFail="HALT">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM inspection_defects
+                WHERE severity IS NOT NULL
+                  AND upper(replace(replace(trim(severity), '-', '_'), ' ', '_'))
+                      NOT IN ('CRITICAL', 'MAJOR', 'MINOR')
+            </sqlCheck>
+        </preConditions>
+
+        <comment>
+            Rewrite the free-text severity as the DefectSeverity constant name that
+            @Enumerated(STRING) reads. Matching is case-insensitive and tolerates hyphens,
+            underscores and spaces; already-normalised values map to themselves, so the
+            statement is idempotent. The precondition halts the migration if any row holds a
+            value outside the three severities rather than dropping it or guessing a bucket
+            for it, which would silently corrupt the row.
+        </comment>
+
+        <sql>
+            UPDATE inspection_defects
+            SET severity = upper(replace(replace(trim(severity), '-', '_'), ' ', '_'))
+            WHERE severity IS NOT NULL
+              AND upper(replace(replace(trim(severity), '-', '_'), ' ', '_'))
+                  IN ('CRITICAL', 'MAJOR', 'MINOR')
+        </sql>
+    </changeSet>
+
+    <changeSet id="054-05-promote-defect-status-to-enum" author="echno">
+        <preConditions onFail="HALT">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM inspection_defects
+                WHERE status IS NOT NULL
+                  AND upper(replace(replace(trim(status), '-', '_'), ' ', '_'))
+                      NOT IN ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'VERIFIED')
+            </sqlCheck>
+        </preConditions>
+
+        <comment>
+            The same promotion for status, against the four DefectStatus members. The
+            precondition halts on any value outside them for the same reason as the severity
+            changeset above.
+        </comment>
+
+        <sql>
+            UPDATE inspection_defects
+            SET status = upper(replace(replace(trim(status), '-', '_'), ' ', '_'))
+            WHERE status IS NOT NULL
+              AND upper(replace(replace(trim(status), '-', '_'), ' ', '_'))
+                  IN ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'VERIFIED')
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

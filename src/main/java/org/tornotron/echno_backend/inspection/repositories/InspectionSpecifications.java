@@ -2,8 +2,10 @@ package org.tornotron.echno_backend.inspection.repositories;
 
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
+import org.tornotron.echno_backend.inspection.InspectionCategory;
 import org.tornotron.echno_backend.inspection.InspectionResult;
 import org.tornotron.echno_backend.inspection.InspectionStatus;
+import org.tornotron.echno_backend.inspection.InspectionTrade;
 import org.tornotron.echno_backend.inspection.InspectionType;
 import org.tornotron.echno_backend.inspection.domain.Inspection;
 
@@ -23,6 +25,8 @@ public final class InspectionSpecifications {
     public static Specification<Inspection> withFilters(Long projectId,
                                                         InspectionStatus status,
                                                         InspectionType type,
+                                                        InspectionCategory category,
+                                                        InspectionTrade trade,
                                                         InspectionResult result) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -34,6 +38,12 @@ public final class InspectionSpecifications {
             }
             if (type != null) {
                 predicates.add(cb.equal(root.get("type"), type));
+            }
+            if (category != null) {
+                predicates.add(cb.equal(root.get("category"), category));
+            }
+            if (trade != null) {
+                predicates.add(cb.equal(root.get("trade"), trade));
             }
             if (result != null) {
                 predicates.add(cb.equal(root.get("result"), result));

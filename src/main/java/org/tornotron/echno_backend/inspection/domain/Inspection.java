@@ -10,9 +10,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.compliance.CompliancePhase;
 import org.tornotron.echno_backend.inspection.ComplianceRiskLevel;
+import org.tornotron.echno_backend.inspection.InspectionCategory;
 import org.tornotron.echno_backend.inspection.InspectionOrigin;
 import org.tornotron.echno_backend.inspection.InspectionResult;
 import org.tornotron.echno_backend.inspection.InspectionStatus;
+import org.tornotron.echno_backend.inspection.InspectionTrade;
 import org.tornotron.echno_backend.inspection.InspectionType;
 import org.tornotron.echno_backend.organization.Organization;
 
@@ -38,6 +40,7 @@ import java.util.UUID;
                 @Index(name = "idx_insp_project", columnList = "project_id"),
                 @Index(name = "idx_insp_status", columnList = "status"),
                 @Index(name = "idx_insp_type", columnList = "type"),
+                @Index(name = "idx_insp_category", columnList = "category"),
                 @Index(name = "idx_insp_result", columnList = "result"),
                 @Index(name = "idx_insp_scheduled_date", columnList = "scheduled_date"),
                 @Index(name = "idx_insp_inspector", columnList = "inspector_id")
@@ -60,6 +63,18 @@ public class Inspection implements TenantScopedEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private InspectionType type;
+
+    // The authoritative grouping the UI and reporting filter on. Derived from the
+    // type when the caller does not state one, so a row created before this column
+    // existed and a new row of the same type land in the same bucket.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", nullable = false, length = 30)
+    private InspectionCategory category = InspectionCategory.OTHER;
+
+    // The QA/QC stage or trade. Null on safety and compliance inspections.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "trade", length = 50)
+    private InspectionTrade trade;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)

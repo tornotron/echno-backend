@@ -295,4 +295,7 @@
     <!-- v4.0 - Finance: project client and the AR invoice materialized for sales/service billing -->
     <include file="db/changelog/v4.0/053-add-project-customer-and-ar-invoice-link.xml"/>
 
+    <!-- v4.0 - Inspection taxonomy: category discriminator, trade axis, defect severity/status enums -->
+    <include file="db/changelog/v4.0/054-add-inspection-taxonomy-and-defect-enums.xml"/>
+
 </databaseChangeLog>

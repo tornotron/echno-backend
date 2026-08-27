@@ -10,8 +10,11 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.inspection.CheckItemStatus;
+import org.tornotron.echno_backend.inspection.DefectStatus;
+import org.tornotron.echno_backend.inspection.InspectionCategory;
 import org.tornotron.echno_backend.inspection.InspectionResult;
 import org.tornotron.echno_backend.inspection.InspectionStatus;
+import org.tornotron.echno_backend.inspection.InspectionTrade;
 import org.tornotron.echno_backend.inspection.InspectionType;
 import org.tornotron.echno_backend.inspection.domain.Inspection;
 import org.tornotron.echno_backend.inspection.domain.InspectionCheckItem;
@@ -57,10 +60,13 @@ public class InspectionService {
     public Page<InspectionDto> findAll(Long projectId,
                                        InspectionStatus status,
                                        InspectionType type,
+                                       InspectionCategory category,
+                                       InspectionTrade trade,
                                        InspectionResult result,
                                        Pageable pageable) {
         return inspectionRepo.findAll(
-                        InspectionSpecifications.withFilters(projectId, status, type, result),
+                        InspectionSpecifications.withFilters(projectId, status, type, category,
+                                trade, result),
                         pageable)
                 .map(mapper::toDto);
     }
@@ -71,6 +77,8 @@ public class InspectionService {
         inspection.setInspectionNumber(numberGen.next(DOC_TYPE));
         inspection.setTitle(req.title());
         inspection.setType(req.type());
+        inspection.setCategory(categoryFor(req.category(), req.type()));
+        inspection.setTrade(req.trade());
         inspection.setStatus(InspectionStatus.SCHEDULED);
         inspection.setProjectId(req.projectId());
         inspection.setLocation(req.location());
@@ -104,6 +112,8 @@ public class InspectionService {
 
         inspection.setTitle(req.title());
         inspection.setType(req.type());
+        inspection.setCategory(categoryFor(req.category(), req.type()));
+        inspection.setTrade(req.trade());
         inspection.setStatus(req.status());
         inspection.setResult(req.result());
         inspection.setProjectId(req.projectId());
@@ -178,7 +188,7 @@ public class InspectionService {
                 defect.setCorrectiveAction(dr.correctiveAction());
                 defect.setResponsibleParty(dr.responsibleParty());
                 defect.setTargetDate(dr.targetDate());
-                defect.setStatus(dr.status() != null ? dr.status() : "open");
+                defect.setStatus(dr.status() != null ? dr.status() : DefectStatus.OPEN);
                 defect.setResolvedDate(dr.resolvedDate());
                 inspection.addDefect(defect);
                 defectCount++;
@@ -189,6 +199,16 @@ public class InspectionService {
         inspection.setPassedCheckPoints(passed);
         inspection.setFailedCheckPoints(failed);
         inspection.setDefectsFound(defectCount);
+    }
+
+    /**
+     * The category to store: the one the caller stated, or the one derived from the
+     * inspection type when the request leaves it out. Keeping the fallback here means
+     * a client that has not yet been updated for the taxonomy still produces rows in
+     * the right bucket.
+     */
+    private static InspectionCategory categoryFor(InspectionCategory requested, InspectionType type) {
+        return requested != null ? requested : InspectionCategory.defaultFor(type);
     }
 
     /**

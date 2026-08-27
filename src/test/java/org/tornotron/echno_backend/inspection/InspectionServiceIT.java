@@ -39,8 +39,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * End-to-end exercise of the inspection CRUD path against a real CockroachDB:
  * create derives the summary counts from the check items and defects, get and
- * list return them, update rebuilds the children and recomputes the counts, and
- * the org filter keeps one tenant's inspections invisible to another.
+ * list return them, update rebuilds the children and recomputes the counts, the
+ * category is derived from the type when the request omits it, and the org filter
+ * keeps one tenant's inspections invisible to another.
  *
  * <p>No {@code JpaAuditingConfig} import is needed: the created and updated
  * timestamps are populated by Hibernate's {@code @CreationTimestamp}/{@code
@@ -140,6 +141,8 @@ class InspectionServiceIT extends AbstractIntegrationTest {
         CreateInspectionRequest createReq = new CreateInspectionRequest(
                 "Third floor slab check",
                 InspectionType.QUALITY,
+                null,
+                InspectionTrade.RCC,
                 projectId,
                 "Block A, Level 3",
                 "Slab and columns",
@@ -166,19 +169,25 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                 ),
                 List.of(
                         new InspectionDefectRequest("Finishing", "Uneven surface near grid B2",
-                                "minor", "Grid B2", List.of("defect-1.jpg"),
+                                DefectSeverity.MINOR, "Grid B2", List.of("defect-1.jpg"),
                                 "Re-level and re-finish", "Contractor",
-                                LocalDate.of(2026, 8, 25), "open", null)
+                                LocalDate.of(2026, 8, 25), null, null)
                 )
         );
 
         // create - counts derived from the children, status forced to SCHEDULED
         InspectionDto created = service.create(createReq);
         assertThat(created.status()).isEqualTo(InspectionStatus.SCHEDULED);
+        // category omitted on the request, so it is derived from the type
+        assertThat(created.category()).isEqualTo(InspectionCategory.QA_QC);
+        assertThat(created.trade()).isEqualTo(InspectionTrade.RCC);
         assertThat(created.result()).isNull();
         assertThat(created.inspectionNumber()).startsWith("INSP-");
         assertThat(created.checkItems()).hasSize(3);
         assertThat(created.defects()).hasSize(1);
+        assertThat(created.defects().getFirst().severity()).isEqualTo(DefectSeverity.MINOR);
+        // status omitted on the request, so it takes the OPEN default
+        assertThat(created.defects().getFirst().status()).isEqualTo(DefectStatus.OPEN);
         assertThat(created.attendees()).containsExactly("Site Engineer", "Safety Officer");
         assertThat(created.totalCheckPoints()).isEqualTo(3);
         assertThat(created.passedCheckPoints()).isEqualTo(2);
@@ -201,15 +210,22 @@ class InspectionServiceIT extends AbstractIntegrationTest {
 
         // tenant scoping - invisible to another organization
         enableOrgFilter(orgBId);
-        assertThat(service.findAll(null, null, null, null, pageable).getTotalElements()).isZero();
+        assertThat(service.findAll(null, null, null, null, null, null, pageable).getTotalElements())
+                .isZero();
         assertThat(inspectionRepo.findByIdScoped(id)).isEmpty();
 
         // visible and listable to the owning organization
         disableOrgFilter();
         enableOrgFilter(orgAId);
-        assertThat(service.findAll(null, null, null, null, pageable).getTotalElements()).isEqualTo(1);
+        assertThat(service.findAll(null, null, null, null, null, null, pageable).getTotalElements())
+                .isEqualTo(1);
         assertThat(service.findAll(projectId, InspectionStatus.SCHEDULED,
-                InspectionType.QUALITY, null, pageable).getTotalElements()).isEqualTo(1);
+                InspectionType.QUALITY, null, null, null, pageable).getTotalElements()).isEqualTo(1);
+        // the taxonomy filters narrow on the derived category and the stated trade
+        assertThat(service.findAll(null, null, null, InspectionCategory.QA_QC,
+                InspectionTrade.RCC, null, pageable).getTotalElements()).isEqualTo(1);
+        assertThat(service.findAll(null, null, null, InspectionCategory.SAFETY,
+                null, null, pageable).getTotalElements()).isZero();
         assertThat(inspectionRepo.findByIdScoped(id)).isPresent();
         disableOrgFilter();
 
@@ -217,6 +233,8 @@ class InspectionServiceIT extends AbstractIntegrationTest {
         UpdateInspectionRequest updateReq = new UpdateInspectionRequest(
                 "Third floor slab check",
                 InspectionType.QUALITY,
+                InspectionCategory.QA_QC,
+                InspectionTrade.RCC,
                 InspectionStatus.COMPLETED,
                 InspectionResult.PASSED,
                 projectId,
@@ -242,6 +260,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
 
         InspectionDto updated = service.update(id, updateReq);
         assertThat(updated.status()).isEqualTo(InspectionStatus.COMPLETED);
+        assertThat(updated.category()).isEqualTo(InspectionCategory.QA_QC);
         assertThat(updated.result()).isEqualTo(InspectionResult.PASSED);
         assertThat(updated.checkItems()).hasSize(1);
         assertThat(updated.defects()).isEmpty();

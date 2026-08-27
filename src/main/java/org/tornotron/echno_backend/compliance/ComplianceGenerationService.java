@@ -13,6 +13,7 @@ import org.tornotron.echno_backend.compliance.ai.ComplianceSuggestion;
 import org.tornotron.echno_backend.compliance.domain.ComplianceRule;
 import org.tornotron.echno_backend.compliance.repository.ComplianceRuleRepository;
 import org.tornotron.echno_backend.inspection.ComplianceRiskLevel;
+import org.tornotron.echno_backend.inspection.InspectionCategory;
 import org.tornotron.echno_backend.inspection.InspectionOrigin;
 import org.tornotron.echno_backend.inspection.InspectionStatus;
 import org.tornotron.echno_backend.inspection.InspectionType;
@@ -146,6 +147,7 @@ public class ComplianceGenerationService {
             inspection.setInspectionNumber(numberGen.next(DOC_TYPE));
             inspection.setTitle(rule.getName());
             inspection.setType(InspectionType.COMPLIANCE);
+            inspection.setCategory(InspectionCategory.COMPLIANCE);
             inspection.setStatus(InspectionStatus.SUGGESTED);
             inspection.setOrigin(InspectionOrigin.AI_GENERATED);
             inspection.setProjectId(projectId);

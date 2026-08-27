@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.tornotron.echno_backend.inspection.DefectSeverity;
+import org.tornotron.echno_backend.inspection.DefectStatus;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -12,9 +14,10 @@ import java.util.UUID;
 
 /**
  * A defect raised during an inspection. Owned by {@link Inspection} through the
- * {@code inspection_id} FK; the parent cascades persist and removal. The severity
- * and status are kept as text to match the web contract's inline string unions
- * ('critical' | 'major' | 'minor' and 'open' | 'in-progress' | 'resolved' | 'verified').
+ * {@code inspection_id} FK; the parent cascades persist and removal. Severity and
+ * status are enums whose wire values are the same string unions the web contract
+ * already documents ('critical' | 'major' | 'minor' and 'open' | 'in-progress' |
+ * 'resolved' | 'verified'), so the payload is unchanged from when they were text.
  */
 @Entity
 @Table(name = "inspection_defects",
@@ -38,8 +41,9 @@ public class InspectionDefect {
     @Column(nullable = false, length = 1000)
     private String description;
 
-    @Column(length = 20)
-    private String severity;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "severity", length = 20)
+    private DefectSeverity severity;
 
     @Column(length = 300)
     private String location;
@@ -59,8 +63,9 @@ public class InspectionDefect {
     @Column(name = "target_date")
     private LocalDate targetDate;
 
-    @Column(length = 20)
-    private String status = "open";
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20)
+    private DefectStatus status = DefectStatus.OPEN;
 
     @Column(name = "resolved_date")
     private LocalDate resolvedDate;
