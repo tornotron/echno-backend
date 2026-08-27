@@ -2,8 +2,11 @@ package org.tornotron.echno_backend.task;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.tornotron.echno_backend.IssueComment.IssueComment;
 import org.tornotron.echno_backend.task.enums.TaskStatus;
 
@@ -33,6 +36,32 @@ public interface TaskRepository extends JpaRepository<Task,Long> {
     List<Task> findByProject_Id(Long projectId);
 
     List<Task> findAllByProject_IdAndOrganization_Id(Long projectId, Long organizationId);
+
+    /**
+     * Finds tasks under optional project and free-text filters, one page at a time.
+     *
+     * <p>Every filter is optional: a null argument drops its clause, so the query serves the
+     * unfiltered listing as well as a project-scoped or searched one. The search pattern is a
+     * pre-lowercased {@code %...%} LIKE built by the service, which escapes any wildcard the user
+     * typed; {@code ESCAPE '\'} is what makes that escaping take effect.
+     *
+     * <p>The tenant filter applies to this query exactly as it does to a derived finder.
+     *
+     * @param projectId Optional project id.
+     * @param search    Optional lower-cased LIKE pattern for title or description.
+     * @param pageable  The page to return.
+     * @return A page of matching tasks.
+     */
+    @Query("""
+            SELECT t FROM Task t WHERE
+              (:projectId IS NULL OR t.project.id = :projectId) AND
+              (:search IS NULL
+                 OR LOWER(t.title) LIKE :search ESCAPE '\\'
+                 OR LOWER(t.description) LIKE :search ESCAPE '\\')
+            """)
+    Page<Task> search(@Param("projectId") Long projectId,
+                      @Param("search") String search,
+                      Pageable pageable);
 
     /**
      * Counts the current tenant's tasks by status.
