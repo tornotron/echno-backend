@@ -91,6 +91,7 @@ class ConstructionInvoicePdfAuthzTest {
                 null, null, null, null, null, null,
                 null, null, null, null, null, null,
                 null, null, null, null, null, null, null,
+                null,
                 List.of());
     }
 

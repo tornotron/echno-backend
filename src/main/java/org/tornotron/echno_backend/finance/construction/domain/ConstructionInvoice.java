@@ -139,6 +139,12 @@ public class ConstructionInvoice extends BaseEntity implements TenantScopedEntit
     @Column(name = "reversal_journal_entry_id")
     private UUID reversalJournalEntryId;
 
+    // The AR invoice raised for this invoice when it was approved. Set only on a sales or
+    // service invoice whose project carries a client; the receivable then lives on that AR
+    // invoice (aging, receipts) and this invoice carries no receivable entry of its own.
+    @Column(name = "ar_invoice_id")
+    private UUID arInvoiceId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
     private Organization organization;

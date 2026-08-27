@@ -26,10 +26,15 @@ import org.tornotron.echno_backend.finance.construction.dtos.UpdateConstructionI
 import org.tornotron.echno_backend.finance.construction.mapper.ConstructionInvoiceMapper;
 import org.tornotron.echno_backend.finance.construction.repositories.ConstructionInvoiceRepository;
 import org.tornotron.echno_backend.finance.construction.repositories.ConstructionInvoiceSpecifications;
+import org.tornotron.echno_backend.finance.invoice.dtos.CreateInvoiceRequest;
+import org.tornotron.echno_backend.finance.invoice.dtos.InvoiceDto;
+import org.tornotron.echno_backend.finance.invoice.service.InvoiceService;
 import org.tornotron.echno_backend.finance.ledger.domain.Account;
+import org.tornotron.echno_backend.finance.ledger.domain.Customer;
 import org.tornotron.echno_backend.finance.ledger.domain.JournalEntry;
 import org.tornotron.echno_backend.finance.ledger.dtos.PostJournalRequest;
 import org.tornotron.echno_backend.finance.ledger.dtos.ReverseJournalRequest;
+import org.tornotron.echno_backend.finance.ledger.repositories.CustomerRepository;
 import org.tornotron.echno_backend.finance.ledger.repositories.JournalEntryRepository;
 import org.tornotron.echno_backend.finance.ledger.service.JournalPostingService;
 import org.tornotron.echno_backend.finance.posting.PostingRole;
@@ -55,6 +60,12 @@ import java.util.UUID;
  * reverses that entry. Posting is invoice-level to the default accounts configured on
  * {@link ConstructionPostingProperties}; per-line cost-category posting is the later
  * budgeting phase.
+ *
+ * <p>Sales and service invoices bill through accounts receivable. Where the invoice's project
+ * names a client, approval materializes a real AR {@link org.tornotron.echno_backend.finance.invoice.domain.Invoice}
+ * against that customer and takes its journal entry as its own, so the amount appears in AR
+ * aging and can be settled by an ordinary receipt. Where the project has no client, the
+ * receivable entry is posted directly and no AR document exists.
  */
 @Slf4j
 @Service
@@ -76,6 +87,8 @@ public class ConstructionInvoiceService {
     private final ProjectRepository projectRepository;
     private final UserContextService userContextService;
     private final CostCategoryRepository costCategoryRepository;
+    private final CustomerRepository customerRepository;
+    private final InvoiceService invoiceService;
 
     @Transactional(readOnly = true)
     public ConstructionInvoiceDto findById(UUID id) {
@@ -219,8 +232,9 @@ public class ConstructionInvoiceService {
      * <ul>
      *   <li>PURCHASE / EXPENSE: DR default expense (net of discount) + DR GST input
      *       (tax, if any); CR Accounts Payable (gross total).</li>
-     *   <li>SALES / SERVICE: DR Accounts Receivable (gross total); CR default revenue
-     *       (net of discount) + CR GST output (tax, if any).</li>
+     *   <li>SALES / SERVICE: an AR invoice is raised to the project's client and its own entry
+     *       (DR Accounts Receivable; CR revenue + CR GST output) becomes this invoice's entry.
+     *       With no client on the project, the same entry is posted directly instead.</li>
      * </ul>
      * The posted journal-entry id is stored on the invoice for drill-back and reversal.
      */
@@ -258,8 +272,23 @@ public class ConstructionInvoiceService {
      * Posts the ledger journal entry for the invoice and moves it to APPROVED, recording the
      * approving user. Shared by {@link #approve} and the auto-approval path in {@link #submit}, so
      * both raise an identical journal entry.
+     *
+     * <p>A sales or service invoice whose project has a client takes the AR route: the entry comes
+     * from the AR invoice raised for it. Everything else posts its own entry from the invoice
+     * totals.
      */
     private void postAndApprove(ConstructionInvoice inv) {
+        if (isReceivableType(inv.getType())) {
+            Customer client = resolveProjectClient(inv);
+            if (client != null && !inv.getLines().isEmpty()) {
+                materializeArInvoice(inv, client);
+                markApproved(inv);
+                log.info("Approved construction invoice {} through AR invoice {} for customer {}",
+                        inv.getInvoiceNumber(), inv.getArInvoiceId(), client.getCode());
+                return;
+            }
+        }
+
         BigDecimal net = MoneyUtils.normalize(inv.getSubtotal().subtract(inv.getDiscountAmount()));
         BigDecimal tax = MoneyUtils.normalize(inv.getTaxAmount());
         BigDecimal gross = MoneyUtils.normalize(inv.getTotalAmount());
@@ -267,8 +296,8 @@ public class ConstructionInvoiceService {
         List<PostJournalRequest.LineRequest> jeLines = new ArrayList<>();
         switch (inv.getType()) {
             case PURCHASE, EXPENSE -> {
-                // TODO: option A AR materialization is only for sales/service; purchase and
-                // expense always post their own payable entry (no AR analog).
+                // The payable side has no document to materialize: purchase and expense
+                // invoices always post their own entry.
                 Account expense = postingAccountResolver.resolve(PostingRole.DEFAULT_EXPENSE);
                 Account payable = postingAccountResolver.resolve(PostingRole.ACCOUNTS_PAYABLE);
                 jeLines.add(new PostJournalRequest.LineRequest(expense.getId(), net, BigDecimal.ZERO,
@@ -282,10 +311,9 @@ public class ConstructionInvoiceService {
                         "Payable - " + inv.getInvoiceNumber()));
             }
             case SALES, SERVICE -> {
-                // TODO: option A AR materialization - the preferred sales/service path
-                // materializes a real AR Invoice (customer = project client) via
-                // InvoiceService.issue so AR aging and receipts pick it up. Until customer
-                // resolution exists this posts the AR journal entry directly instead.
+                // Reached only when the project names no client, so there is no customer to
+                // raise an AR invoice against. The receivable is posted straight to the ledger
+                // and stays out of AR aging until a client is set.
                 Account receivable = postingAccountResolver.resolve(PostingRole.ACCOUNTS_RECEIVABLE);
                 Account revenue = postingAccountResolver.resolve(PostingRole.DEFAULT_REVENUE);
                 jeLines.add(new PostJournalRequest.LineRequest(receivable.getId(), gross, BigDecimal.ZERO,
@@ -308,17 +336,99 @@ public class ConstructionInvoiceService {
 
         JournalEntry je = postingService.postInternal(jeReq, SOURCE_TYPE, inv.getId());
         inv.setJournalEntryId(je.getId());
-        inv.setStatus(ConstructionInvoiceStatus.APPROVED);
-        inv.setApprovedBy(userContextService.getCurrentUserId());
-        inv.setApprovedAt(Instant.now());
+        markApproved(inv);
 
         log.info("Approved construction invoice {} (JE: {})", inv.getInvoiceNumber(), je.getEntryNumber());
     }
 
+    /** Moves the invoice to APPROVED and records who approved it and when. */
+    private void markApproved(ConstructionInvoice inv) {
+        inv.setStatus(ConstructionInvoiceStatus.APPROVED);
+        inv.setApprovedBy(userContextService.getCurrentUserId());
+        inv.setApprovedAt(Instant.now());
+    }
+
+    /** Whether the invoice type bills a customer rather than recording a supplier's bill. */
+    private boolean isReceivableType(ConstructionInvoiceType type) {
+        return type == ConstructionInvoiceType.SALES || type == ConstructionInvoiceType.SERVICE;
+    }
+
+    /**
+     * The active customer the invoice's project is billed to, or null when the project has no
+     * client set. A client that no longer resolves in the tenant, or has been deactivated, is
+     * also treated as absent: approval falls back to the direct receivable posting rather than
+     * failing, and says so in the log.
+     */
+    private Customer resolveProjectClient(ConstructionInvoice inv) {
+        if (inv.getProjectId() == null) {
+            return null;
+        }
+        UUID customerId = projectRepository
+                .findByIdAndOrganization_Id(inv.getProjectId(), TenantContext.getCurrentOrgId())
+                .map(Project::getCustomerId)
+                .orElse(null);
+        if (customerId == null) {
+            return null;
+        }
+        Customer customer = customerRepository.findScopedById(customerId).orElse(null);
+        if (customer == null || !customer.isActive()) {
+            log.warn("Project {} names customer {} as its client but it is missing or inactive; "
+                            + "posting the receivable for construction invoice {} directly",
+                    inv.getProjectId(), customerId, inv.getInvoiceNumber());
+            return null;
+        }
+        return customer;
+    }
+
+    /**
+     * Raises and issues the AR invoice that carries this invoice's receivable, and adopts its
+     * journal entry. The AR document repeats the construction lines against the resolved default
+     * revenue account, so the two totals agree to the paisa, and the receivable is then tracked
+     * in one place: AR aging, customer statements, and ordinary receipts all see it.
+     */
+    private void materializeArInvoice(ConstructionInvoice inv, Customer client) {
+        Account revenue = postingAccountResolver.resolve(PostingRole.DEFAULT_REVENUE);
+
+        List<CreateInvoiceRequest.LineRequest> arLines = new ArrayList<>();
+        for (ConstructionInvoiceLine line : inv.getLines()) {
+            arLines.add(toArLine(line, revenue.getId()));
+        }
+
+        CreateInvoiceRequest req = new CreateInvoiceRequest(
+                client.getId(),
+                inv.getIssueDate(),
+                inv.getDueDate(),
+                "Raised from construction invoice " + inv.getInvoiceNumber(),
+                arLines);
+
+        InvoiceDto issued = invoiceService.issue(invoiceService.createDraft(req).id());
+        inv.setArInvoiceId(issued.id());
+        inv.setJournalEntryId(issued.journalEntryId());
+    }
+
+    /**
+     * Maps one construction line onto an AR invoice line. An AR line has no discount of its own,
+     * so a discounted line is billed as a single unit priced at its net-of-discount amount; that
+     * keeps the AR line's tax and total identical to the construction line's rather than letting
+     * the discount round differently. A line with no discount keeps its quantity and unit price.
+     */
+    private CreateInvoiceRequest.LineRequest toArLine(ConstructionInvoiceLine line, UUID revenueAccountId) {
+        BigDecimal taxRate = MoneyUtils.normalize(line.getTaxRate());
+        if (MoneyUtils.isPositive(line.getDiscountAmount())) {
+            BigDecimal net = MoneyUtils.normalize(line.getSubtotal().subtract(line.getDiscountAmount()));
+            return new CreateInvoiceRequest.LineRequest(
+                    line.getDescription(), BigDecimal.ONE, net, taxRate, revenueAccountId);
+        }
+        return new CreateInvoiceRequest.LineRequest(
+                line.getDescription(), line.getQuantity(), line.getUnitPrice(), taxRate, revenueAccountId);
+    }
+
     /**
      * Cancel an invoice. An approved invoice with a posted entry and no payments has that
-     * entry reversed via the ledger; anything with a payment applied is refused. The
-     * status moves to CANCELLED.
+     * entry reversed via the ledger; anything with a payment applied is refused. Where the
+     * approval materialized an AR invoice, that invoice is cancelled instead, which reverses
+     * the same entry and takes the receivable back out of AR aging. The status moves to
+     * CANCELLED.
      */
     @Transactional
     public ConstructionInvoiceDto cancel(UUID id, String reason) {
@@ -334,7 +444,12 @@ public class ConstructionInvoiceService {
                             + "; it has payments applied");
         }
 
-        if (inv.getStatus() == ConstructionInvoiceStatus.APPROVED && inv.getJournalEntryId() != null) {
+        if (inv.getArInvoiceId() != null) {
+            // The entry belongs to the AR invoice, so unwind it from that side: cancelling the
+            // AR invoice reverses the entry and refuses if a receipt has already been applied.
+            InvoiceDto cancelledAr = invoiceService.cancel(inv.getArInvoiceId(), reason);
+            inv.setReversalJournalEntryId(cancelledAr.reversalJournalEntryId());
+        } else if (inv.getStatus() == ConstructionInvoiceStatus.APPROVED && inv.getJournalEntryId() != null) {
             JournalEntry reversal = journalRepo.findByIdWithLines(inv.getJournalEntryId())
                     .map(je -> postingService.reverse(je.getId(), new ReverseJournalRequest(reason)).id())
                     .map(reversalId -> journalRepo.findScopedById(reversalId).orElseThrow())

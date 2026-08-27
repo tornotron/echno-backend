@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
+import org.tornotron.echno_backend.finance.ledger.repositories.CustomerRepository;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.common.events.ProjectApprovedEvent;
@@ -28,6 +29,7 @@ import org.tornotron.echno_backend.project.enums.ProjectType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -46,6 +48,7 @@ public class ProjectService {
     private final ProjectMapper projectMapper;
     private final EmployeeMapper employeeMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final CustomerRepository customerRepository;
 
     /**
      * Constructs a ProjectService with the necessary repositories.
@@ -54,13 +57,15 @@ public class ProjectService {
      * @param organizationRepository The repository for organization data access.
      * @param employeeRepository     The repository for employee data access.
      * @param attachmentService      The service for attachment operations.
+     * @param customerRepository     The repository used to validate the project's client.
      */
     public ProjectService(ProjectRepository repository,
                           OrganizationRepository organizationRepository,
                           EmployeeRepository employeeRepository,
                           AttachmentService attachmentService, ProjectMapper projectMapper,
                           EmployeeMapper employeeMapper,
-                          ApplicationEventPublisher eventPublisher) {
+                          ApplicationEventPublisher eventPublisher,
+                          CustomerRepository customerRepository) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
         this.employeeRepository = employeeRepository;
@@ -68,6 +73,7 @@ public class ProjectService {
         this.projectMapper = projectMapper;
         this.employeeMapper = employeeMapper;
         this.eventPublisher = eventPublisher;
+        this.customerRepository = customerRepository;
     }
 
     /**
@@ -95,6 +101,7 @@ public class ProjectService {
             if (projectDto.getProjectType() != null && !projectDto.getProjectType().isBlank()) {
                 project.setProjectType(ProjectType.valueOf(projectDto.getProjectType()));
             }
+            project.setCustomerId(requireCustomerInTenant(projectDto.getCustomerId()));
             project.setOrganization(organization);
             project.setStartDate(projectDto.getStartDate());
             project.setEndDate(projectDto.getEndDate());
@@ -195,6 +202,13 @@ public class ProjectService {
                 case "projectType":
                     project.setProjectType(value != null ? ProjectType.valueOf((String) value) : null);
                     break;
+                case "customerId":
+                    // Sent as a string over JSON; a null or blank value clears the client.
+                    String customerId = value != null ? value.toString().trim() : null;
+                    project.setCustomerId(customerId == null || customerId.isEmpty()
+                            ? null
+                            : requireCustomerInTenant(UUID.fromString(customerId)));
+                    break;
                 case "projectLongitude":
                     float longitude = ((Number) value).floatValue();
                     if(longitude >= -180 && longitude <= 180) {
@@ -213,6 +227,25 @@ public class ProjectService {
                     break;
             }
         });
+    }
+
+    /**
+     * Checks that a project's client exists in the current tenant before it is stored on the
+     * project. A null id means the project has no client and is returned unchanged.
+     *
+     * @param customerId The finance customer id to validate, or null.
+     * @return The same id, once it is known to resolve in this tenant.
+     * @throws ResourceNotFoundException if the id does not resolve to a customer in this tenant.
+     */
+    private UUID requireCustomerInTenant(UUID customerId) {
+        if (customerId == null) {
+            return null;
+        }
+        if (customerRepository.findScopedById(customerId).isEmpty()) {
+            throw new ResourceNotFoundException(
+                    "Customer with ID " + customerId + " was not found in this organization");
+        }
+        return customerId;
     }
 
     /**

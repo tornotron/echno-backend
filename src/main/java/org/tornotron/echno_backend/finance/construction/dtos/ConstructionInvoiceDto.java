@@ -107,6 +107,11 @@ public record ConstructionInvoiceDto(
         @Schema(description = "Reversal journal entry, present when the invoice was cancelled after posting.")
         UUID reversalJournalEntryId,
 
+        @Schema(description = "AR invoice raised for this invoice on approval. Present on a sales or "
+                + "service invoice whose project has a client; null otherwise.",
+                example = "1c9d4b7a-0f2e-4a63-8b11-5d7c2e9f4a88")
+        UUID arInvoiceId,
+
         @Schema(description = "Invoice line items.")
         List<ConstructionInvoiceLineDto> lines
 ) {}
