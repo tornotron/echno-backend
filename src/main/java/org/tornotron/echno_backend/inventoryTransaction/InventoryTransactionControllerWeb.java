@@ -108,8 +108,9 @@ public class InventoryTransactionControllerWeb {
             summary = "Get a material's movement history (timeline, paged)",
             description = "Returns the material's stock movements as a timeline, oldest movement first, "
                     + "one page at a time. Each entry carries the storage location, project, movement type "
-                    + "and its stock direction, the quantity changed, the timestamp and the source reference "
-                    + "so the caller can show where the material has been, when, and how much."
+                    + "and its stock direction, the quantity changed, the stock level either side of it, the "
+                    + "timestamp, the source reference and the employee who booked it, so the caller can show "
+                    + "where the material has been, when, how much, and on whose hand."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of movement-history entries returned"),

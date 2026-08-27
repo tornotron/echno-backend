@@ -88,8 +88,10 @@ public class InventoryTransactionService {
      *
      * <p>Backs the Location module timeline (issue #256): each entry carries where the material
      * moved (storage location), the project, when, the movement type and its stock direction,
-     * the quantity changed and the source reference. Ordered oldest-first so the page reads as a
-     * forward-running timeline, with the id as a stable tie-break within one transaction date.
+     * the quantity changed, the stock level either side of it, the source reference and the employee
+     * who booked it. Ordered oldest-first so the page reads as a forward-running timeline, with the id
+     * as a stable tie-break within one transaction date. The finder fetch-joins the associations the
+     * entry reads, so a page costs one query rather than one per row.
      *
      * @param materialId The material whose movements are listed.
      * @param pageNo Zero-based page index.
