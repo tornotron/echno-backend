@@ -178,6 +178,8 @@ echno:
       # does that for the units of work that opt in. Attempts include the first try; the wait
       # between attempts doubles from the initial value and is fully jittered up to the cap, so
       # two transactions that abort against each other do not wake up together and collide again.
+      # Both backoff values are clamped to 0..2000 ms at startup, since they land on a request
+      # thread; an override outside that range is logged and replaced with the nearest bound.
       max-attempts: ${ECHNO_TXN_RETRY_MAX_ATTEMPTS:4}
       initial-backoff-millis: ${ECHNO_TXN_RETRY_INITIAL_BACKOFF_MS:25}
       max-backoff-millis: ${ECHNO_TXN_RETRY_MAX_BACKOFF_MS:250}

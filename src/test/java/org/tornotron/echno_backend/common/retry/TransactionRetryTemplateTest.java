@@ -37,6 +37,8 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  *
  * <p>Backoff is configured to zero here so the retries do not add wall-clock time to the build;
  * the jitter maths is bounded arithmetic and is exercised in production by the real defaults.
+ * The one exception is the extreme-bounds test, which has to let a real pause happen to show
+ * that the clamped ceiling both keeps the pause short and keeps it legal.
  */
 class TransactionRetryTemplateTest {
 
@@ -166,6 +168,58 @@ class TransactionRetryTemplateTest {
         assertThat(attempts).hasValue(2);
         assertThat(transactionManager.begun).isEqualTo(2);
         assertThat(transactionManager.committed).isEqualTo(1);
+    }
+
+    @Test
+    void stillRetriesWhenTheBackoffBoundsAreConfiguredAtTheirExtreme() {
+        // Long.MAX_VALUE on both bounds used to make the jitter ceiling overflow when it was
+        // incremented, so ThreadLocalRandom rejected the bound and the IllegalArgumentException
+        // replaced the serialization failure on its way out of the catch block: a retryable
+        // abort surfacing as a 500, which is what this template exists to prevent. The bounds
+        // are clamped at construction now, so the retry happens and the pause stays bounded.
+        TransactionRetryTemplate extreme = new TransactionRetryTemplate(
+                transactionalRunner(transactionManager), meterRegistry, MAX_ATTEMPTS,
+                Long.MAX_VALUE, Long.MAX_VALUE);
+        AtomicInteger attempts = new AtomicInteger();
+
+        long startedAt = System.nanoTime();
+        String result = extreme.execute(OPERATION, () -> {
+            if (attempts.incrementAndGet() == 1) {
+                throw serializationFailure();
+            }
+            return "committed";
+        });
+        long elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000L;
+
+        assertThat(result).isEqualTo("committed");
+        assertThat(attempts).hasValue(2);
+        assertThat(transactionManager.begun).isEqualTo(2);
+        // The clamp is what keeps this from being a geological sleep as well as a throw; the
+        // slack is generous because the assertion is about the bound, not about scheduling.
+        assertThat(elapsedMillis)
+                .isLessThanOrEqualTo(TransactionRetryTemplate.MAX_CONFIGURABLE_BACKOFF_MILLIS + 10_000L);
+    }
+
+    @Test
+    void clampsABackoffTooLongForARequestThreadToWait() {
+        long cap = TransactionRetryTemplate.MAX_CONFIGURABLE_BACKOFF_MILLIS;
+
+        // The shipped defaults and anything else sensible pass through untouched.
+        assertThat(TransactionRetryTemplate.clampBackoff("initial-backoff-millis", 25L)).isEqualTo(25L);
+        assertThat(TransactionRetryTemplate.clampBackoff("max-backoff-millis", 250L)).isEqualTo(250L);
+        assertThat(TransactionRetryTemplate.clampBackoff("max-backoff-millis", cap)).isEqualTo(cap);
+        assertThat(TransactionRetryTemplate.clampBackoff("max-backoff-millis", 0L)).isZero();
+
+        // A plausible typo in an environment override: an initial pause of roughly 31 years.
+        assertThat(TransactionRetryTemplate.clampBackoff("initial-backoff-millis",
+                1_000_000_000_000_000_000L)).isEqualTo(cap);
+        assertThat(TransactionRetryTemplate.clampBackoff("max-backoff-millis", Long.MAX_VALUE))
+                .isEqualTo(cap);
+
+        // The floor that was already there stays.
+        assertThat(TransactionRetryTemplate.clampBackoff("initial-backoff-millis", -1L)).isZero();
+        assertThat(TransactionRetryTemplate.clampBackoff("initial-backoff-millis", Long.MIN_VALUE))
+                .isZero();
     }
 
     /** A CockroachDB serializable abort in the shape Spring hands to application code. */

@@ -61,6 +61,18 @@ public class TransactionRetryTemplate {
     /** Caps the doubling so a misconfigured backoff cannot overflow the shift. */
     private static final int MAX_BACKOFF_DOUBLINGS = 20;
 
+    /**
+     * The longest either configured backoff bound is allowed to be, in milliseconds.
+     *
+     * <p>Both bounds arrive from {@code application.yml} and are overridable per environment, so
+     * they are outside input. Two seconds is eight times the shipped cap and already the most a
+     * request thread should ever spend asleep between two attempts at the same unit of work: at
+     * the default four attempts it bounds the added latency at six seconds. It also leaves the
+     * arithmetic in {@link #backOff(int)} nowhere near the range where the shift or the
+     * {@code ceiling + 1} could overflow.
+     */
+    static final long MAX_CONFIGURABLE_BACKOFF_MILLIS = 2_000L;
+
     private final TransactionalWorkRunner runner;
     private final MeterRegistry meterRegistry;
     private final int maxAttempts;
@@ -76,8 +88,32 @@ public class TransactionRetryTemplate {
         this.runner = runner;
         this.meterRegistry = meterRegistry;
         this.maxAttempts = Math.max(1, maxAttempts);
-        this.initialBackoffMillis = Math.max(0L, initialBackoffMillis);
-        this.maxBackoffMillis = Math.max(0L, maxBackoffMillis);
+        this.initialBackoffMillis = clampBackoff("initial-backoff-millis", initialBackoffMillis);
+        this.maxBackoffMillis = clampBackoff("max-backoff-millis", maxBackoffMillis);
+    }
+
+    /**
+     * Brings a configured backoff bound inside the range a request thread can plausibly wait,
+     * and says so in the log when it has to.
+     *
+     * <p>The bounds were already floored at zero but had no ceiling, so a value such as
+     * {@code initial-backoff-millis: 1000000000000000000} was accepted intact and put a request
+     * thread to sleep for longer than anyone would wait for the response. Clamping here rather
+     * than saturating the arithmetic in {@link #backOff(int)} keeps the hot path free of special
+     * cases, and it closes the narrower overflow with it: with both bounds held to
+     * {@link #MAX_CONFIGURABLE_BACKOFF_MILLIS} the shifted term stays around 10<sup>10</sup>, so
+     * neither the left shift nor the {@code ceiling + 1} handed to
+     * {@link ThreadLocalRandom#nextLong(long)} can reach {@code Long.MAX_VALUE} and turn a
+     * retryable abort into an {@code IllegalArgumentException} thrown out of the catch block.
+     */
+    static long clampBackoff(String property, long configured) {
+        long clamped = Math.min(Math.max(0L, configured), MAX_CONFIGURABLE_BACKOFF_MILLIS);
+        if (clamped != configured) {
+            logger.warn("echno.transaction.retry.{} was configured as {} ms, which is outside the "
+                            + "supported range 0..{} ms; using {} ms instead",
+                    property, configured, MAX_CONFIGURABLE_BACKOFF_MILLIS, clamped);
+        }
+        return clamped;
     }
 
     /**
@@ -137,6 +173,9 @@ public class TransactionRetryTemplate {
      * Sleeps for a jittered, exponentially growing interval before the next attempt. Full
      * jitter rather than a fixed pause: two transactions that abort against each other and then
      * wait the same length of time simply collide again.
+     *
+     * <p>Both bounds were clamped at construction, so the arithmetic here stays well inside the
+     * range of a {@code long} and needs no saturation of its own.
      *
      * @return false when the wait was interrupted, in which case the caller should stop retrying
      */
