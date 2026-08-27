@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.compliance.IndianStateResolver;
@@ -146,6 +147,47 @@ public class ProjectService {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC,"id"));
         return repository.findAll(pageable)
                 .map(project -> projectMapper.toDto(project));
+    }
+
+    /**
+     * Retrieves a page of projects under an optional free-text filter.
+     *
+     * <p>Unlike {@link #getAllProjects(int, int)} the caller keeps the {@link Page}, so the total
+     * row count and the page index survive to the response and a truncated result says so. Newest
+     * first, because a project list is read from the recent end.
+     *
+     * @param pageNo   Zero-based page index; a negative value is treated as zero.
+     * @param pageSize Rows per page, clamped to {@link UnpagedResultCap#MAX_ROWS} so one request
+     *                 cannot re-create the unbounded read this endpoint exists to replace.
+     * @param search   Optional case-insensitive match on the project name; blank means none.
+     * @return A {@link Page} of project DTOs.
+     */
+    @Transactional(readOnly = true)
+    public Page<ProjectDto> getProjectsPaginated(int pageNo, int pageSize, String search) {
+        int page = Math.max(pageNo, 0);
+        int size = Math.clamp(pageSize, 1, UnpagedResultCap.MAX_ROWS);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
+        return repository.search(searchPattern(search), pageable)
+                .map(project -> projectMapper.toDto(project));
+    }
+
+    /**
+     * Builds a lower-cased {@code %...%} LIKE pattern for a search term, or null when there is no
+     * term to match on. Wildcards the user typed are escaped so a bare {@code %} matches a literal
+     * percent sign rather than every row.
+     *
+     * @param value The raw search term.
+     * @return The LIKE pattern, or null when the term is absent or blank.
+     */
+    private static String searchPattern(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String escaped = value.trim().toLowerCase()
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+        return "%" + escaped + "%";
     }
 
     /**
