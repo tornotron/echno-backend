@@ -14,17 +14,23 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.test.context.transaction.AfterTransaction;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
+import org.tornotron.echno_backend.inspection.dtos.ChecklistTemplateItemRequest;
+import org.tornotron.echno_backend.inspection.dtos.ChecklistTemplateRequest;
 import org.tornotron.echno_backend.inspection.dtos.CreateInspectionRequest;
+import org.tornotron.echno_backend.inspection.dtos.InspectionCheckItemDto;
 import org.tornotron.echno_backend.inspection.dtos.InspectionCheckItemRequest;
 import org.tornotron.echno_backend.inspection.dtos.InspectionDefectRequest;
 import org.tornotron.echno_backend.inspection.dtos.InspectionDto;
 import org.tornotron.echno_backend.inspection.dtos.UpdateInspectionRequest;
+import org.tornotron.echno_backend.inspection.mapper.ChecklistTemplateMapperImpl;
 import org.tornotron.echno_backend.inspection.mapper.InspectionMapperImpl;
 import org.tornotron.echno_backend.inspection.repositories.InspectionRepository;
+import org.tornotron.echno_backend.inspection.service.ChecklistTemplateService;
 import org.tornotron.echno_backend.inspection.service.InspectionService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
@@ -46,10 +52,18 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>No {@code JpaAuditingConfig} import is needed: the created and updated
  * timestamps are populated by Hibernate's {@code @CreationTimestamp}/{@code
  * @UpdateTimestamp} at persist time, not by Spring Data auditing.
+ *
+ * <p>{@link ChecklistTemplateServiceIT} and {@link InspectionTaxonomyMigrationIT}
+ * declare the same annotations and the same {@code @Import} list, deliberately and
+ * to the letter, so Spring's context cache hands all of them one context instead of
+ * building three. The test JVM is capped at 1 GB with no fork between classes, so
+ * every distinct test configuration is a Spring context that stays cached for the
+ * whole run. Keep the lists identical when any one changes.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({InspectionService.class, InspectionMapperImpl.class,
+        ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         TenantEntityHelper.class, EntryNumberGenerator.class})
 class InspectionServiceIT extends AbstractIntegrationTest {
 
@@ -58,6 +72,9 @@ class InspectionServiceIT extends AbstractIntegrationTest {
 
     @Autowired
     private InspectionRepository inspectionRepo;
+
+    @Autowired
+    private ChecklistTemplateService templateService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -94,10 +111,33 @@ class InspectionServiceIT extends AbstractIntegrationTest {
         TenantContext.setCurrentOrgId(orgAId);
     }
 
+    /**
+     * Resets the per-test session state while the test transaction is still open.
+     * The database rows are removed separately by {@link #removeCommittedRows()},
+     * once that transaction has gone.
+     */
     @AfterEach
-    void cleanup() {
+    void clearTenantState() {
         entityManager.unwrap(Session.class).disableFilter("orgFilter");
         TenantContext.clear();
+    }
+
+    /**
+     * Removes the rows the seed committed, after the test transaction has rolled
+     * back rather than while it is still open.
+     *
+     * <p>{@code @AfterEach} runs inside the test transaction, so a delete issued
+     * from there runs in a second, committed transaction while the first still
+     * holds write intents on the same tables. CockroachDB may resolve that by
+     * aborting the writer, or it may make the deleter wait for a transaction that
+     * cannot commit until the delete returns. When it waits, the statement timeout
+     * fires 30 seconds later and the test fails on cleanup with a query timeout and
+     * no failed assertion, which is exactly the kind of failure that gets blamed on
+     * an unrelated test. {@code @AfterTransaction} runs after the rollback, so
+     * there are no intents left to contend with.
+     */
+    @AfterTransaction
+    void removeCommittedRows() {
         if (orgAId == null && orgBId == null) {
             return;
         }
@@ -117,6 +157,9 @@ class InspectionServiceIT extends AbstractIntegrationTest {
             deleteForOrgs("DELETE FROM inspection_check_items WHERE inspection_id IN "
                     + "(SELECT id FROM inspections WHERE organization_id IN (:a,:b))");
             deleteForOrgs("DELETE FROM inspections WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM checklist_template_items WHERE template_id IN "
+                    + "(SELECT id FROM checklist_templates WHERE organization_id IN (:a,:b))");
+            deleteForOrgs("DELETE FROM checklist_templates WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM document_sequence WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM project WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM organization WHERE id IN (:a,:b)");
@@ -159,13 +202,13 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                 List.of(
                         new InspectionCheckItemRequest("Structural", "Column alignment",
                                 "Within 5mm", CheckItemStatus.PASSED, null, false, null,
-                                "3mm", "5mm", "high"),
+                                "3mm", "5mm", null, null, null, "high"),
                         new InspectionCheckItemRequest("Structural", "Rebar spacing",
                                 "150mm c/c", CheckItemStatus.PASSED, null, false, null,
-                                null, null, "medium"),
+                                null, null, null, null, null, "medium"),
                         new InspectionCheckItemRequest("Finishing", "Surface level",
                                 "Level within tolerance", CheckItemStatus.FAILED, "Uneven patch",
-                                true, List.of("photo-1.jpg"), null, null, "low")
+                                true, List.of("photo-1.jpg"), null, null, null, null, null, "low")
                 ),
                 List.of(
                         new InspectionDefectRequest("Finishing", "Uneven surface near grid B2",
@@ -189,6 +232,10 @@ class InspectionServiceIT extends AbstractIntegrationTest {
         // status omitted on the request, so it takes the OPEN default
         assertThat(created.defects().getFirst().status()).isEqualTo(DefectStatus.OPEN);
         assertThat(created.attendees()).containsExactly("Site Engineer", "Safety Officer");
+        // measurement 3mm against an expected 5mm, in the same unit, so the deviation is -2
+        assertThat(created.checkItems().getFirst().deviation()).isEqualByComparingTo("-2");
+        // no measurement recorded, so there is nothing to deviate from
+        assertThat(created.checkItems().get(1).deviation()).isNull();
         assertThat(created.totalCheckPoints()).isEqualTo(3);
         assertThat(created.passedCheckPoints()).isEqualTo(2);
         assertThat(created.failedCheckPoints()).isEqualTo(1);
@@ -253,7 +300,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                 List.of(
                         new InspectionCheckItemRequest("Structural", "Column alignment",
                                 "Within 5mm", CheckItemStatus.PASSED, null, false, null,
-                                null, null, "high")
+                                null, null, null, null, null, "high")
                 ),
                 List.of()
         );
@@ -269,6 +316,78 @@ class InspectionServiceIT extends AbstractIntegrationTest {
         assertThat(updated.passedCheckPoints()).isEqualTo(1);
         assertThat(updated.failedCheckPoints()).isZero();
         assertThat(updated.defectsFound()).isZero();
+    }
+
+    @Test
+    void create_startsFromTheTradeChecklistTemplateWhenNoCheckItemsAreSupplied() {
+        templateService.create(new ChecklistTemplateRequest(
+                InspectionTrade.MASONRY,
+                "Masonry checklist",
+                "Block work",
+                null,
+                List.of(
+                        new ChecklistTemplateItemRequest("Coursing", "Course height uniform",
+                                "IS 2212", "200 mm", "Level taken at both ends", "+/- 5 mm",
+                                true, "high"),
+                        new ChecklistTemplateItemRequest("Joints", "Mortar joints fully filled",
+                                "IS 2212", "10 mm", "No unfilled vertical joint", "+/- 2 mm",
+                                false, "medium"))));
+
+        InspectionDto created = service.create(scheduleFor(InspectionTrade.MASONRY, null));
+
+        assertThat(created.checkItems()).hasSize(2);
+        assertThat(created.totalCheckPoints()).isEqualTo(2);
+        assertThat(created.passedCheckPoints()).isZero();
+        assertThat(created.failedCheckPoints()).isZero();
+
+        InspectionCheckItemDto first = created.checkItems().getFirst();
+        assertThat(first.checkPoint()).isEqualTo("Course height uniform");
+        assertThat(first.acceptanceCriterion()).isEqualTo("Level taken at both ends");
+        assertThat(first.tolerance()).isEqualTo("+/- 5 mm");
+        assertThat(first.expectedValue()).isEqualTo("200 mm");
+        assertThat(first.photosRequired()).isTrue();
+        // instantiated items are unanswered: an inspector fills these in on site
+        assertThat(first.status()).isEqualTo(CheckItemStatus.PENDING);
+        assertThat(first.measurement()).isNull();
+        assertThat(first.deviation()).isNull();
+        assertThat(created.checkItems().get(1).checkPoint()).isEqualTo("Mortar joints fully filled");
+    }
+
+    @Test
+    void create_keepsTheSuppliedCheckItemsInsteadOfAppendingTheTemplate() {
+        templateService.create(new ChecklistTemplateRequest(
+                InspectionTrade.MASONRY,
+                "Masonry checklist",
+                null,
+                null,
+                List.of(new ChecklistTemplateItemRequest("Coursing", "Course height uniform",
+                        null, null, null, null, false, null))));
+
+        InspectionDto created = service.create(scheduleFor(InspectionTrade.MASONRY,
+                List.of(new InspectionCheckItemRequest("Joints", "Re-check the failed joint",
+                        null, CheckItemStatus.PENDING, null, false, null,
+                        null, null, null, null, null, "high"))));
+
+        assertThat(created.checkItems()).hasSize(1);
+        assertThat(created.checkItems().getFirst().checkPoint()).isEqualTo("Re-check the failed joint");
+        assertThat(created.totalCheckPoints()).isEqualTo(1);
+    }
+
+    @Test
+    void create_leavesTheChecklistEmptyWhenTheTradeHasNoActiveTemplate() {
+        InspectionDto created = service.create(scheduleFor(InspectionTrade.PLASTERING, null));
+
+        assertThat(created.checkItems()).isEmpty();
+        assertThat(created.totalCheckPoints()).isZero();
+    }
+
+    private CreateInspectionRequest scheduleFor(InspectionTrade trade,
+                                                List<InspectionCheckItemRequest> checkItems) {
+        return new CreateInspectionRequest(
+                "Wall check", InspectionType.QUALITY, null, trade, projectId,
+                "Block A", null, null, LocalDate.of(2026, 8, 20), null,
+                null, null, null, 100L, null, null, null, null, null,
+                checkItems, null);
     }
 
     private void enableOrgFilter(Long orgId) {
