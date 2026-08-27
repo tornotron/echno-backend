@@ -52,6 +52,7 @@ public class Feature {
     private Boolean isActive = true;
 
     @OneToMany(mappedBy = "feature")
+    @Builder.Default
     private Set<PlanFeature> planFeatures = new HashSet<>();
 
 

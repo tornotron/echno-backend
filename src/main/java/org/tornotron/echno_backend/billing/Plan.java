@@ -70,7 +70,11 @@ public class Plan {
     @Builder.Default
     private Integer sortOrder = 0;
 
+    // Without @Builder.Default the builder ignores this initializer and leaves the collection
+    // null, so addFeature throws on a builder-constructed plan and every caller has to remember
+    // to pass an empty set of its own.
     @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private Set<PlanFeature> planFeatures = new HashSet<>();
 
     public void addFeature(PlanFeature planFeature) {

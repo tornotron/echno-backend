@@ -71,7 +71,8 @@ public class Subscription {
 
     private String externalSubscriptionId;
 
-    @OneToMany(mappedBy = "subscription",cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "subscription", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private Set<SubscriptionItem> subscriptionItems = new HashSet<>();
 
     public boolean isActive() {
