@@ -20,6 +20,7 @@ import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -72,6 +73,7 @@ public class ChatService {
     private final EmployeeRepository employeeRepository;
     private final AttachmentService attachmentService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TransactionRetryTemplate transactionRetryTemplate;
 
     public ChatService(ChatRoomRepository roomRepository,
                        ChatParticipantRepository participantRepository,
@@ -82,7 +84,8 @@ public class ChatService {
                        UserContextService userContextService,
                        EmployeeRepository employeeRepository,
                        AttachmentService attachmentService,
-                       ApplicationEventPublisher eventPublisher) {
+                       ApplicationEventPublisher eventPublisher,
+                       TransactionRetryTemplate transactionRetryTemplate) {
         this.roomRepository = roomRepository;
         this.participantRepository = participantRepository;
         this.messageRepository = messageRepository;
@@ -93,6 +96,7 @@ public class ChatService {
         this.employeeRepository = employeeRepository;
         this.attachmentService = attachmentService;
         this.eventPublisher = eventPublisher;
+        this.transactionRetryTemplate = transactionRetryTemplate;
     }
 
     @Transactional(readOnly = true)
@@ -153,18 +157,27 @@ public class ChatService {
         return toRoomDto(saved, employeeId);
     }
 
-    /** Marks the room read for the caller by advancing their {@code lastReadAt} to now. */
-    @Transactional
+    /**
+     * Marks the room read for the caller by advancing their {@code lastReadAt} to now.
+     *
+     * <p>Run through the retry template rather than under a plain {@code @Transactional}: this
+     * reads the room row that every {@link #sendMessage} concurrently bumps, which is exactly
+     * the read-write pair CockroachDB resolves by aborting one side under {@code SERIALIZABLE}.
+     * The work is a single participant timestamp plus an after-commit event, so running it
+     * again from the start costs nothing and produces the same result.
+     */
     public void markRead(Long roomId) {
-        Long employeeId = resolveCurrentEmployeeId();
-        requireRoom(roomId);
-        ChatParticipant participant = requireParticipant(roomId, employeeId);
-        participant.setLastReadAt(LocalDateTime.now());
-        participantRepository.save(participant);
+        transactionRetryTemplate.executeWithoutResult("ChatService.markRead", () -> {
+            Long employeeId = resolveCurrentEmployeeId();
+            requireRoom(roomId);
+            ChatParticipant participant = requireParticipant(roomId, employeeId);
+            participant.setLastReadAt(LocalDateTime.now());
+            participantRepository.save(participant);
 
-        // Only the reader. An unread count is per viewer, so nobody else's room list changes
-        // when someone catches up on their own.
-        raise(ChatEventType.ROOM_UPDATED, roomId, null, employeeId, List.of(employeeId));
+            // Only the reader. An unread count is per viewer, so nobody else's room list changes
+            // when someone catches up on their own.
+            raise(ChatEventType.ROOM_UPDATED, roomId, null, employeeId, List.of(employeeId));
+        });
     }
 
     @Transactional(readOnly = true)
@@ -180,10 +193,18 @@ public class ChatService {
     /**
      * Posts a text (optionally reply) message with no attachments. Kept as the JSON path the
      * web uses today; the multipart overload below adds files.
+     *
+     * <p>This is the contended path: sending bumps the room's {@code updatedAt}, so two people
+     * talking in the same room write the same row and one of them gets aborted. The retry
+     * template runs the whole send again in a fresh transaction. Safe to repeat because the
+     * only effects are database writes and an event released after commit, so an aborted
+     * attempt leaves nothing behind. The multipart overload below is deliberately not wrapped:
+     * it uploads the attachments to object storage inside the transaction, and those uploads
+     * would be repeated (from streams already consumed) on a second attempt.
      */
-    @Transactional
     public ChatMessageDto sendMessage(Long roomId, String content, Long replyToId) {
-        return sendMessage(roomId, content, replyToId, null);
+        return transactionRetryTemplate.execute("ChatService.sendMessage",
+                () -> sendMessage(roomId, content, replyToId, null));
     }
 
     /**
