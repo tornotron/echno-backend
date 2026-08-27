@@ -152,12 +152,23 @@ public class OrganizationService {
     }
 
     /**
-     * Retrieves a paginated list of all organizations, sorted by their ID in ascending order.
-     * @return A {@link Page} of {@link OrganizationDto}s.
+     * Retrieves the organizations the currently authenticated user belongs to.
+     *
+     * <p>This method is the row filter for the organization picker, not the endpoint guard.
+     * It resolves the caller from the security context and returns only organizations that
+     * have an employee record for that user, so the caller's identity decides the result set
+     * and a relaxed guard cannot widen it.
+     *
+     * @return A {@link List} of {@link OrganizationDto}s the caller is a member of, empty if none.
      */
     @Transactional(readOnly = true)
     public List<OrganizationDto> getAllOrganization() {
         User user = userContextService.getCurrentUser();
+        if (user == null) {
+            // Authenticated against Keycloak but with no local user record yet, which happens
+            // between first login and the user being provisioned. They belong to nothing yet.
+            return List.of();
+        }
         return repository.findAllByUserEmail(user.getEmail()).stream()
                 .map(org -> organizationMapper.toDto(org))
                 .collect(Collectors.toList());
