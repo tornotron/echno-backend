@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
+import org.tornotron.echno_backend.inspection.InspectionCategory;
+import org.tornotron.echno_backend.inspection.InspectionTrade;
 import org.tornotron.echno_backend.inspection.InspectionType;
 
 import java.time.LocalDate;
@@ -15,8 +17,9 @@ import java.util.List;
 /**
  * Creates a new inspection. Status is forced to {@code SCHEDULED} and the result
  * stays unset until the inspection is concluded through an update; neither is
- * accepted here. The summary counts are computed from the supplied check items
- * and defects.
+ * accepted here. The category falls back to the one derived from the type when it
+ * is omitted. The summary counts are computed from the supplied check items and
+ * defects.
  */
 @Schema(description = "Payload to schedule a new inspection, with its checklist items and any defects already known at scheduling time.")
 public record CreateInspectionRequest(
@@ -24,6 +27,10 @@ public record CreateInspectionRequest(
         @NotBlank @Size(max = 200) String title,
         @Schema(description = "Category of inspection.", example = "SAFETY")
         @NotNull InspectionType type,
+        @Schema(description = "Top-level grouping the inspection belongs to. Derived from the type when omitted.", example = "qa-qc")
+        InspectionCategory category,
+        @Schema(description = "QA/QC stage or trade the inspection covers. Left unset for safety and compliance inspections.", example = "reinforcement")
+        InspectionTrade trade,
         @Schema(description = "Id of the project this inspection is against.", example = "14")
         Long projectId,
         @Schema(description = "Site or building location of the inspection.", example = "Block C, Ground Floor")

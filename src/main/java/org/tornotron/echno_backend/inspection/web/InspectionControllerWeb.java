@@ -12,8 +12,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.inspection.InspectionCategory;
 import org.tornotron.echno_backend.inspection.InspectionResult;
 import org.tornotron.echno_backend.inspection.InspectionStatus;
+import org.tornotron.echno_backend.inspection.InspectionTrade;
 import org.tornotron.echno_backend.inspection.InspectionType;
 import org.tornotron.echno_backend.inspection.dtos.CreateInspectionRequest;
 import org.tornotron.echno_backend.inspection.dtos.InspectionDto;
@@ -73,8 +75,8 @@ public class InspectionControllerWeb {
     @Operation(
             summary = "List inspections",
             description = "Returns a page of inspections in the current tenant. The projectId, status, "
-                    + "type and result parameters are optional filters; omitting all of them returns every "
-                    + "inspection, subject to paging."
+                    + "type, category, trade and result parameters are optional filters; omitting all of "
+                    + "them returns every inspection, subject to paging."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of matching inspections"),
@@ -83,9 +85,11 @@ public class InspectionControllerWeb {
     public Page<InspectionDto> list(@RequestParam(required = false) Long projectId,
                                     @RequestParam(required = false) InspectionStatus status,
                                     @RequestParam(required = false) InspectionType type,
+                                    @RequestParam(required = false) InspectionCategory category,
+                                    @RequestParam(required = false) InspectionTrade trade,
                                     @RequestParam(required = false) InspectionResult result,
                                     Pageable pageable) {
-        return service.findAll(projectId, status, type, result, pageable);
+        return service.findAll(projectId, status, type, category, trade, result, pageable);
     }
 
     @PutMapping("/{id}")

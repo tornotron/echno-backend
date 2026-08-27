@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.inspection.dtos;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import org.tornotron.echno_backend.inspection.DefectSeverity;
+import org.tornotron.echno_backend.inspection.DefectStatus;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -11,12 +13,12 @@ public record InspectionDefectDto(
         UUID id,
         String category,
         String description,
-        String severity,
+        DefectSeverity severity,
         String location,
         List<String> photos,
         String correctiveAction,
         String responsibleParty,
         LocalDate targetDate,
-        String status,
+        DefectStatus status,
         LocalDate resolvedDate
 ) {}

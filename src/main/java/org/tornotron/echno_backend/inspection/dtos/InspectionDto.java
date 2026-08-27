@@ -3,9 +3,11 @@ package org.tornotron.echno_backend.inspection.dtos;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.tornotron.echno_backend.compliance.CompliancePhase;
 import org.tornotron.echno_backend.inspection.ComplianceRiskLevel;
+import org.tornotron.echno_backend.inspection.InspectionCategory;
 import org.tornotron.echno_backend.inspection.InspectionOrigin;
 import org.tornotron.echno_backend.inspection.InspectionResult;
 import org.tornotron.echno_backend.inspection.InspectionStatus;
+import org.tornotron.echno_backend.inspection.InspectionTrade;
 import org.tornotron.echno_backend.inspection.InspectionType;
 
 import java.time.LocalDate;
@@ -19,6 +21,8 @@ public record InspectionDto(
         String inspectionNumber,
         String title,
         InspectionType type,
+        InspectionCategory category,
+        InspectionTrade trade,
         InspectionStatus status,
         InspectionResult result,
         Long projectId,

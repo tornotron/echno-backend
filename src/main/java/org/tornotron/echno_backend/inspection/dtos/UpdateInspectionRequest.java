@@ -6,8 +6,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
+import org.tornotron.echno_backend.inspection.InspectionCategory;
 import org.tornotron.echno_backend.inspection.InspectionResult;
 import org.tornotron.echno_backend.inspection.InspectionStatus;
+import org.tornotron.echno_backend.inspection.InspectionTrade;
 import org.tornotron.echno_backend.inspection.InspectionType;
 
 import java.time.LocalDate;
@@ -16,8 +18,9 @@ import java.util.List;
 
 /**
  * Full replacement of an inspection. Status is set directly and the result is
- * optional (set once the inspection is concluded). The check items and defects
- * are rebuilt from the payload and the summary counts recomputed from them.
+ * optional (set once the inspection is concluded). The category falls back to the
+ * one derived from the type when it is omitted. The check items and defects are
+ * rebuilt from the payload and the summary counts recomputed from them.
  */
 @Schema(description = "Payload to fully replace an existing inspection, including its status, result, checklist items and defects.")
 public record UpdateInspectionRequest(
@@ -25,6 +28,10 @@ public record UpdateInspectionRequest(
         @NotBlank @Size(max = 200) String title,
         @Schema(description = "Category of inspection.", example = "SAFETY")
         @NotNull InspectionType type,
+        @Schema(description = "Top-level grouping the inspection belongs to. Derived from the type when omitted.", example = "qa-qc")
+        InspectionCategory category,
+        @Schema(description = "QA/QC stage or trade the inspection covers. Left unset for safety and compliance inspections.", example = "reinforcement")
+        InspectionTrade trade,
         @Schema(description = "Current lifecycle status of the inspection.", example = "COMPLETED")
         @NotNull InspectionStatus status,
         @Schema(description = "Overall result once the inspection is concluded.", example = "PASSED")
