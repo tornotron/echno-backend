@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.attendance.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.OptBoolean;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -32,11 +34,17 @@ public class MovementRecordCreationDto {
     @Schema(description = "Location the employee is travelling to.", example = "Tile Vendor Showroom, Guindy")
     private String toLocation;
 
-    @Schema(description = "Timestamp the movement started.", example = "2026-01-15T11:00:00")
+    @Schema(
+            description = "Site-local wall-clock time the movement started, with no timezone offset. A value carrying an offset or a trailing Z is rejected: the field has no offset to store it in, so accepting one would silently shift the recorded time.",
+            example = "2026-01-15T11:00:00")
     @NotNull
+    @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime startTime;
 
-    @Schema(description = "Timestamp the movement ended, once known.", example = "2026-01-15T12:30:00")
+    @Schema(
+            description = "Site-local wall-clock time the movement ended, once known, with no timezone offset. A value carrying an offset or a trailing Z is rejected: the field has no offset to store it in, so accepting one would silently shift the recorded time.",
+            example = "2026-01-15T12:30:00")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime endTime;
 
     @Schema(description = "Purpose of the movement.", example = "Vendor negotiation for tile supply")
