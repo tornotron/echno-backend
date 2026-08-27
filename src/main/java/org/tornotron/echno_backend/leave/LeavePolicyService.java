@@ -121,6 +121,11 @@ public class LeavePolicyService {
     /**
      * Lists all leave policies visible to the current tenant.
      *
+     * <p>Deliberately unpaginated. A leave policy is a leave type the organization defines
+     * (annual, sick, casual and so on), so the count follows how the organization chooses to
+     * structure its leave and not its headcount or how long it has been running. The rows that
+     * grow with either of those are leave requests and balances, which are separate tables.
+     *
      * @return Every policy for the current organization.
      */
     @Transactional(readOnly = true)

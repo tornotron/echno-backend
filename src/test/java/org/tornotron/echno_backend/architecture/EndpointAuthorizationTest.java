@@ -2,11 +2,10 @@ package org.tornotron.echno_backend.architecture;
 
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
-import com.tngtech.archunit.core.domain.JavaClasses;
-import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.junit.AnalyzeClasses;
+import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
-import org.junit.jupiter.api.Test;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,7 +24,14 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
  * guarded it is removed from this set. The rule keeps the gap from growing and
  * forces every new controller to be guarded. A deliberately public endpoint must
  * use {@code @PreAuthorize("permitAll()")} rather than be left un-annotated.
+ *
+ * <p>Runs under {@code @AnalyzeClasses} so the imported class graph comes from ArchUnit's own
+ * cache, which every architecture test in this package shares and which holds it behind a soft
+ * reference. See {@link UnboundedRepositoryReadTest} for why that matters in a 1 GB test JVM.
  */
+@AnalyzeClasses(
+        packages = "org.tornotron.echno_backend",
+        importOptions = ImportOption.DoNotIncludeTests.class)
 class EndpointAuthorizationTest {
 
     /**
@@ -44,19 +50,11 @@ class EndpointAuthorizationTest {
                 }
             };
 
-    private static final JavaClasses PRODUCTION_CLASSES = new ClassFileImporter()
-            .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
-            .importPackages("org.tornotron.echno_backend");
-
-    @Test
-    void everyControllerEndpointHasAnAuthorizationGuard() {
-        ArchRule rule = methods()
-                .that().areDeclaredInClassesThat().areAnnotatedWith(RestController.class)
-                .and().areDeclaredInClassesThat(NOT_GRANDFATHERED)
-                .and().areMetaAnnotatedWith(RequestMapping.class)
-                .should().beAnnotatedWith(PreAuthorize.class)
-                .orShould().beDeclaredInClassesThat().areAnnotatedWith(PreAuthorize.class);
-
-        rule.check(PRODUCTION_CLASSES);
-    }
+    @ArchTest
+    static final ArchRule everyControllerEndpointHasAnAuthorizationGuard = methods()
+            .that().areDeclaredInClassesThat().areAnnotatedWith(RestController.class)
+            .and().areDeclaredInClassesThat(NOT_GRANDFATHERED)
+            .and().areMetaAnnotatedWith(RequestMapping.class)
+            .should().beAnnotatedWith(PreAuthorize.class)
+            .orShould().beDeclaredInClassesThat().areAnnotatedWith(PreAuthorize.class);
 }

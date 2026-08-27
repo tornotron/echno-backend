@@ -26,6 +26,16 @@ public class CompanyBankAccountService {
     private final CompanyBankAccountMapper mapper;
     private final TenantEntityHelper tenantEntityHelper;
 
+    /**
+     * Returns every bank account the tenant has registered, active and closed.
+     *
+     * <p>Deliberately unpaginated. The set is bounded by how many accounts a company operates,
+     * which is a decision it makes, not by how long it has operated or how much it has moved
+     * through them. Payments and receipts against these accounts are separate tables and are
+     * paged.
+     *
+     * @return Every company bank account in the current tenant.
+     */
     @Transactional(readOnly = true)
     public List<CompanyBankAccountDto> findAll() {
         return mapper.toDtos(repository.findAll());
