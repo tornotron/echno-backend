@@ -118,8 +118,9 @@ public class InventoryTransactionController {
             summary = "Get a material's movement history (timeline, paginated)",
             description = "Returns the material's stock movements as a timeline, oldest movement first, one "
                     + "page at a time. Each entry carries the storage location, project, movement type and its "
-                    + "stock direction, the quantity changed, the timestamp and the source reference, so a "
-                    + "caller can show where the material has been, when, and how much."
+                    + "stock direction, the quantity changed, the stock level either side of it, the timestamp, "
+                    + "the source reference and the employee who booked it, so a caller can show where the "
+                    + "material has been, when, how much, and on whose hand."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of movement-history entries for the material"),

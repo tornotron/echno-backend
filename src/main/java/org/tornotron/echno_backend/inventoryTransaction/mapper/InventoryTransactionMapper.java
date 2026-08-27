@@ -27,12 +27,15 @@ public interface InventoryTransactionMapper {
     /**
      * Condenses a ledger row to a movement-history timeline entry. The movement direction is
      * read from the transaction type's {@code stockEffect}, so the sign metadata lives in one
-     * place rather than being inferred at the call site.
+     * place rather than being inferred at the call site. The creator flattens to a display
+     * name, the same way the storage location and project flatten to theirs, so the timeline
+     * carries no nested employee payload; a null {@code createdBy} leaves the name null.
      */
     @Mapping(source = "transactionType.stockEffect", target = "direction")
     @Mapping(source = "storageLocation.id", target = "storageLocationId")
     @Mapping(source = "storageLocation.locationName", target = "storageLocationName")
     @Mapping(source = "project.id", target = "projectId")
     @Mapping(source = "project.projectName", target = "projectName")
+    @Mapping(source = "createdBy.employeeName", target = "createdByName")
     MaterialMovementHistoryDto toMovementHistoryDto(InventoryTransaction transaction);
 }
