@@ -104,6 +104,16 @@ public class FileStorageService {
      *
      * <p>The URL is write-only, limited to the single key it names, and expires.
      * The caller registers the object afterwards using the returned key.
+     *
+     * <p>No canned ACL is set here, deliberately. Every header on the request
+     * is folded into {@code X-Amz-SignedHeaders}, and SigV4 requires the client
+     * to send back each one byte-for-byte or the signature will not match. A
+     * browser PUT sends {@code Content-Type} and nothing else, so signing an
+     * {@code x-amz-acl} header made every direct upload fail on the signature.
+     * The bucket is private, so objects are private without the canned ACL; the
+     * server-side path in {@link #uploadFile} still sets it because it sends the
+     * header itself. Anything added to this request must be a header the client
+     * is known to send.
      */
     public PresignedUpload generateUploadUrl(String folder, String filename, String contentType, Duration expiry) {
         if (filename == null || filename.isBlank()) {
@@ -116,7 +126,6 @@ public class FileStorageService {
                 .bucket(bucketName)
                 .key(key)
                 .contentType(contentType)
-                .acl(ObjectCannedACL.PRIVATE)
                 .build();
 
         PresignedPutObjectRequest presignedRequest =
