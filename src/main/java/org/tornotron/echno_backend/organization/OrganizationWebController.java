@@ -70,21 +70,29 @@ public class OrganizationWebController {
     }
 
     /**
-     * Retrieves a paginated list of organizations that the authenticated user is a member of.
-     * Returns only organizations where the user has ORG_MEMBER_{id} authority.
+     * Retrieves the organizations that the authenticated user is a member of.
+     *
+     * <p>This is the organization picker: it is called before a tenant has been chosen, so the
+     * guard is authentication alone and deliberately not tenant-scoped. Any check reading
+     * {@link org.tornotron.echno_backend.common.multitenancy.TenantContext} would be circular
+     * here, because the caller is asking which tenants they may select. The result is narrowed
+     * to the caller's own organizations by {@code OrganizationService.getAllOrganization},
+     * which queries by the authenticated user's identity rather than trusting this guard.
      *
      * @return A {@link ResponseEntity} containing the list of organization DTOs and HTTP status 200 (OK).
      */
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("isAuthenticated()")
     @Operation(
             summary = "List the current user's organizations",
-            description = "Returns the organizations the caller is a member of, filtered to those where "
-                    + "the caller holds an organization membership authority for the current tenant."
+            description = "Returns the organizations the caller is a member of. Any authenticated "
+                    + "caller may request it and receives only their own organizations, those where "
+                    + "they hold an employee record. No tenant needs to be selected first, since this "
+                    + "is the endpoint that populates the organization picker."
     )
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "List of the caller's organizations"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "List of the caller's organizations, empty if they belong to none"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Caller is not authenticated")
     })
     public ResponseEntity<List<OrganizationDto>> readAllOrganizations() {
         return ResponseEntity.status(HttpStatus.OK).body(service.getAllOrganization());
