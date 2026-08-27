@@ -301,4 +301,7 @@
     <!-- v4.0 - Persist the corrected clock events submitted with a regularization request -->
     <include file="db/changelog/v4.0/055-add-regularization-requested-events.xml"/>
 
+    <!-- v4.0 - Project site address as fields: city, state and postal code -->
+    <include file="db/changelog/v4.0/056-add-project-structured-location.xml"/>
+
 </databaseChangeLog>

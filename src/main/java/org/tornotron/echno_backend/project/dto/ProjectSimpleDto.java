@@ -19,8 +19,18 @@ public class ProjectSimpleDto {
     @Schema(description = "Project name.", example = "Tower B, Riverside Residences")
     private String projectName;
 
-    @Schema(description = "Site address of the project.", example = "12 Marina Road, Chennai")
+    @Schema(description = "Street address of the site, as one line.", example = "12 Marina Road, Mylapore")
     private String projectAddress;
+
+    @Schema(description = "Town or city the site is in. Null when not recorded.", example = "Chennai")
+    private String projectCity;
+
+    @Schema(description = "Indian state or union territory the site is in, used to match statutory "
+            + "compliances. Null when not recorded.", example = "Tamil Nadu")
+    private String projectState;
+
+    @Schema(description = "Postal (PIN) code of the site. Null when not recorded.", example = "600004")
+    private String projectPostalCode;
 
     @Schema(description = "Creation timestamp.", example = "2026-08-01T09:00:00")
     private LocalDateTime createdAt;

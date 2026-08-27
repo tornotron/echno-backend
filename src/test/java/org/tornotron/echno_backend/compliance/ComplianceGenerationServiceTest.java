@@ -85,13 +85,44 @@ class ComplianceGenerationServiceTest {
     }
 
     @Test
-    void unresolvableAddress_throwsInvalidRequest() {
+    void noStateAndAnAddressThatNamesNone_throwsInvalidRequest() {
         when(projectRepository.findByIdAndOrganization_Id(PROJECT_ID, ORG_ID))
                 .thenReturn(Optional.of(project(ProjectType.RESIDENTIAL, "No state named here")));
 
         assertThatThrownBy(() -> service.generateForProject(PROJECT_ID, ORG_ID))
                 .isInstanceOf(InvalidRequestException.class)
-                .hasMessageContaining("recognised state");
+                .hasMessageContaining("no state set");
+    }
+
+    @Test
+    void statedState_isPreferredOverScrapingTheAddress() {
+        // The reason the field exists: an address of "Chennai" names no state, so the scan
+        // finds nothing and generation used to be impossible for a perfectly ordinary address.
+        Project project = project(ProjectType.RESIDENTIAL, "12 Mount Road, Chennai");
+        project.setProjectState("Tamil Nadu");
+        when(projectRepository.findByIdAndOrganization_Id(PROJECT_ID, ORG_ID))
+                .thenReturn(Optional.of(project));
+        when(ruleRepository.findByStateIgnoreCaseAndProjectTypeAndActiveTrue("Tamil Nadu", ProjectType.RESIDENTIAL))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.generateForProject(PROJECT_ID, ORG_ID))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("No compliance rules are registered")
+                .hasMessageContaining("Tamil Nadu");
+    }
+
+    @Test
+    void statedState_winsOverADifferentStateInTheAddress() {
+        Project project = project(ProjectType.RESIDENTIAL, "Site office, Kerala");
+        project.setProjectState("Karnataka");
+        when(projectRepository.findByIdAndOrganization_Id(PROJECT_ID, ORG_ID))
+                .thenReturn(Optional.of(project));
+        when(ruleRepository.findByStateIgnoreCaseAndProjectTypeAndActiveTrue("Karnataka", ProjectType.RESIDENTIAL))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.generateForProject(PROJECT_ID, ORG_ID))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("Karnataka");
     }
 
     @Test

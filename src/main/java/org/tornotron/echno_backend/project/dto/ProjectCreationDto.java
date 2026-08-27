@@ -3,9 +3,9 @@ package org.tornotron.echno_backend.project.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -22,10 +22,31 @@ public class ProjectCreationDto {
     @Size(min = 3,max = 50,message = "projectName must be between 3 and 50 characters")
     private String projectName;
 
-    @Schema(description = "Site address of the project.", example = "12 Marina Road, Chennai")
+    @Schema(description = "Street address of the site, as one line.", example = "12 Marina Road, Mylapore")
     @NotBlank(message = "projectAddress is required")
-    @Size(min = 3,max = 50,message = "projectAddress must be between 3 and 50 characters")
+    @Size(min = 3,max = 255,message = "projectAddress must be between 3 and 255 characters")
     private String projectAddress;
+
+    /** Optional town or city. Display only. */
+    @Schema(description = "Optional town or city the site is in.", example = "Chennai")
+    @Size(max = 100, message = "projectCity must be at most 100 characters")
+    private String projectCity;
+
+    /**
+     * Optional Indian state or union territory. Read by compliance generation, which keys its
+     * rules by state; when it is absent the state is scraped out of the free-text address
+     * instead, which only works if the address happens to name one.
+     */
+    @Schema(description = "Optional Indian state or union territory the site is in. Used to match "
+            + "statutory compliances; falls back to reading the state out of the address when absent.",
+            example = "Tamil Nadu")
+    @Size(max = 100, message = "projectState must be at most 100 characters")
+    private String projectState;
+
+    /** Optional postal (PIN) code. Display only. */
+    @Schema(description = "Optional postal (PIN) code of the site.", example = "600004")
+    @Size(max = 16, message = "projectPostalCode must be at most 16 characters")
+    private String projectPostalCode;
 
     @Schema(description = "Creation timestamp, set server side when omitted.", example = "2026-08-01T09:00:00")
     private LocalDateTime createdAt;
@@ -46,12 +67,19 @@ public class ProjectCreationDto {
             example = "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d")
     private UUID customerId;
 
-    @Schema(description = "Site latitude in decimal degrees.", example = "13.0827")
-    @NotNull
+    /**
+     * Optional site coordinates. They were required, which contradicted the web form offering
+     * them as optional and made a project with only a typed address impossible to create. Left
+     * null they are simply not recorded; the range check catches a transposed or mistyped pair.
+     */
+    @Schema(description = "Optional site latitude in decimal degrees.", example = "13.0827")
+    @DecimalMin(value = "-90", message = "projectLatitude must be between -90 and 90")
+    @DecimalMax(value = "90", message = "projectLatitude must be between -90 and 90")
     private Float projectLatitude;
 
-    @Schema(description = "Site longitude in decimal degrees.", example = "80.2707")
-    @NotNull
+    @Schema(description = "Optional site longitude in decimal degrees.", example = "80.2707")
+    @DecimalMin(value = "-180", message = "projectLongitude must be between -180 and 180")
+    @DecimalMax(value = "180", message = "projectLongitude must be between -180 and 180")
     private Float projectLongitude;
 
     @Schema(description = "Planned start date of the project.", example = "2026-09-01T00:00:00")

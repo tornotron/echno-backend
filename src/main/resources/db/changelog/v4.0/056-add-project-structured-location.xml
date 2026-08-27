@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="056-add-structured-location-to-project" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="project" columnName="project_state"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            The parts of a site address the system reads rather than just displays. Compliance
+            generation is keyed by Indian state and until now scraped one out of the free-text
+            address by substring match, which fails on any address that names only the city.
+            State is therefore stored on its own; city and postal code go with it so the address
+            can be entered as fields instead of one line. All three are nullable: existing
+            projects have none of them and keep working from the free-text address alone.
+        </comment>
+
+        <addColumn tableName="project">
+            <column name="project_city" type="VARCHAR(100)"/>
+            <column name="project_state" type="VARCHAR(100)"/>
+            <column name="project_postal_code" type="VARCHAR(16)"/>
+        </addColumn>
+
+        <createIndex tableName="project" indexName="idx_project_state">
+            <column name="project_state"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
