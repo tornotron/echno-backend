@@ -5,7 +5,35 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="056-add-structured-location-to-project" author="echno">
+    <!--
+        The parts of a site address the system reads rather than just displays. Compliance
+        generation is keyed by Indian state and until now scraped one out of the free-text
+        address by substring match, which fails on any address that names only the city. State is
+        therefore stored on its own; city and postal code go with it so the address can be
+        entered as fields instead of one line. All three are nullable: existing projects have
+        none of them and keep working from the free-text address alone.
+
+        One changeSet per object rather than one for the lot. A failed precondition under
+        MARK_RAN records the changeSet as run without executing it, so a single precondition over
+        one column would let a half-applied state (one column present, the rest missing) be
+        stamped as complete and never repaired.
+    -->
+
+    <changeSet id="056-add-project-city" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="project" columnName="project_city"/>
+            </not>
+        </preConditions>
+
+        <comment>Town or city the site is in. Display only.</comment>
+
+        <addColumn tableName="project">
+            <column name="project_city" type="VARCHAR(100)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="056-add-project-state" author="echno">
         <preConditions onFail="MARK_RAN">
             <not>
                 <columnExists tableName="project" columnName="project_state"/>
@@ -13,19 +41,37 @@
         </preConditions>
 
         <comment>
-            The parts of a site address the system reads rather than just displays. Compliance
-            generation is keyed by Indian state and until now scraped one out of the free-text
-            address by substring match, which fails on any address that names only the city.
-            State is therefore stored on its own; city and postal code go with it so the address
-            can be entered as fields instead of one line. All three are nullable: existing
-            projects have none of them and keep working from the free-text address alone.
+            Indian state or union territory the site is in, in canonical spelling. Read by
+            compliance generation, which keys its rules by state.
         </comment>
 
         <addColumn tableName="project">
-            <column name="project_city" type="VARCHAR(100)"/>
             <column name="project_state" type="VARCHAR(100)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="056-add-project-postal-code" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="project" columnName="project_postal_code"/>
+            </not>
+        </preConditions>
+
+        <comment>Postal (PIN) code of the site. Display only.</comment>
+
+        <addColumn tableName="project">
             <column name="project_postal_code" type="VARCHAR(16)"/>
         </addColumn>
+    </changeSet>
+
+    <changeSet id="056-index-project-state" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="project" indexName="idx_project_state"/>
+            </not>
+        </preConditions>
+
+        <comment>Compliance generation filters projects by state, so the column is indexed.</comment>
 
         <createIndex tableName="project" indexName="idx_project_state">
             <column name="project_state"/>

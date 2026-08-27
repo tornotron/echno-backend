@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -137,6 +139,27 @@ public class GlobalExceptionHandler {
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
         });
+
+        ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "Validation Failed", "Validation Failed", request);
+        pd.setProperty("errors", errors);
+        return pd;
+    }
+
+    /**
+     * The same 400 as above, for a bean validated outside Spring's own argument binding. A
+     * payload that arrives as the JSON string part of a multipart request has to be
+     * deserialized and validated by hand, and that raises this rather than
+     * {@link MethodArgumentNotValidException}. Without this it would fall through to the
+     * catch-all handler and be reported as a 500.
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ProblemDetail handleConstraintViolationException(ConstraintViolationException exception,
+                                                           WebRequest request) {
+        Map<String, String> errors = new HashMap<>();
+        for (ConstraintViolation<?> violation : exception.getConstraintViolations()) {
+            errors.put(violation.getPropertyPath().toString(), violation.getMessage());
+        }
 
         ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "Validation Failed", "Validation Failed", request);
         pd.setProperty("errors", errors);
