@@ -22,9 +22,24 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
      * as a forward-running timeline. The id is a stable tie-break when two movements share a
      * transaction date. Tenant scoping is applied by the {@code orgFilter} Hibernate filter,
      * as with the other ledger reads.
+     *
+     * <p>The storage location, project and creator are fetch-joined because the timeline DTO
+     * reads a field off each one. All three are {@code @ManyToOne}, so the fetch join stays a
+     * to-one join: it neither multiplies rows nor pushes Hibernate into in-memory pagination,
+     * and it keeps the page to one statement instead of one per row per association. They are
+     * LEFT joins because {@code storageLocation} and {@code createdBy} are nullable. Deliberately
+     * no collection is fetched here, which is what would break paging.
+     *
+     * <p>The count query is spelled out because a derived count cannot be built from a query
+     * carrying fetch joins.
      */
-    @Query("SELECT it FROM InventoryTransaction it WHERE it.material.id = :materialId " +
-           "ORDER BY it.transactionDate ASC, it.id ASC")
+    @Query(value = "SELECT it FROM InventoryTransaction it " +
+                   "LEFT JOIN FETCH it.storageLocation " +
+                   "LEFT JOIN FETCH it.project " +
+                   "LEFT JOIN FETCH it.createdBy " +
+                   "WHERE it.material.id = :materialId " +
+                   "ORDER BY it.transactionDate ASC, it.id ASC",
+           countQuery = "SELECT COUNT(it) FROM InventoryTransaction it WHERE it.material.id = :materialId")
     Page<InventoryTransaction> findMovementHistoryByMaterial(@Param("materialId") Long materialId, Pageable pageable);
 
     List<InventoryTransaction> findByTransactionType(InventoryTransactionType transactionType);
