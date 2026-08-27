@@ -54,6 +54,8 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ConstructionInvoiceService.class, ConstructionInvoiceMapperImpl.class,
+        org.tornotron.echno_backend.finance.invoice.service.InvoiceService.class,
+        org.tornotron.echno_backend.finance.invoice.mapper.InvoiceMapperImpl.class,
         TenantEntityHelper.class, EntryNumberGenerator.class, JpaAuditingConfig.class,
         JournalPostingService.class, JournalEntryMapperImpl.class, ConstructionPostingProperties.class,
         InvoicePostingProperties.class, UserContextService.class, ChartOfAccountsSeeder.class,

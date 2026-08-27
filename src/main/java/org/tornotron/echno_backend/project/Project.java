@@ -105,6 +105,15 @@ public class Project implements TenantScopedEntity {
     @Column(name = "approval_threshold", precision = 19, scale = 4)
     private java.math.BigDecimal approvalThreshold;
 
+    /**
+     * The finance customer this project is billed to, its client. Kept as a plain id rather than
+     * an association so the core project stays decoupled from the finance module. When set, a
+     * sales or service construction invoice on the project is billed by materializing a real AR
+     * invoice against this customer; when null, that invoice posts its receivable entry directly.
+     */
+    @Column(name = "customer_id")
+    private java.util.UUID customerId;
+
     /** The list of attachments associated with this project. */
     @OneToMany(mappedBy = "project")
     private List<Attachment> attachments = new ArrayList<>();

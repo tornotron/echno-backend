@@ -61,6 +61,7 @@ class ConstructionInvoicePdfServiceTest {
                 null, null, null, null, null, null,
                 null, null, null, null, null, null,
                 null, null, null, null, null, null, null,
+                null,
                 null);
 
         byte[] pdf = service.render(invoice);
@@ -86,6 +87,7 @@ class ConstructionInvoicePdfServiceTest {
                 "Net 30", "BANK_TRANSFER", "29ABCDE1234F1Z5", "CGST_SGST",
                 "Second progress claim for tower B", "Payable within 30 days of receipt.",
                 5L, null, 2L, null, 5L, UUID.randomUUID(), null,
+                null,
                 List.of(line));
     }
 }

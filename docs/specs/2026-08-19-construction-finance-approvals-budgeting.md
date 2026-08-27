@@ -115,13 +115,19 @@ cancel, record-payment), the audit-trail fields, and the ledger posting on appro
   cash/bank, inventory, equity, revenue, and construction expense accounts. All the posting control accounts are
   postable leaves. The construction posting codes are config-driven (`finance.construction.*`), so any of them can
   be retuned without a code change.
-- **Sales/service posts a direct AR journal entry, not option A.** For sales and service construction
-  invoices the approve step posts DR Accounts Receivable / CR revenue + CR GST output directly (base spec
-  section 4 option B mechanics), rather than materializing a real AR `Invoice` via `InvoiceService.issue`
-  (the preferred option A). Option A needs customer resolution from the project's client, which is not built
-  yet, so those invoices do not appear in AR aging or customer statements. The service carries a
-  `// TODO: option A AR materialization` marker at the posting site. Materializing the AR invoice is the
-  follow-up that closes this gap.
+- **Sales/service materializes a real AR invoice (option A), with option B as the fallback.** A project
+  now carries its client as `project.customer_id`, a nullable finance customer id set on create or through
+  the project patch. Where an invoice's project has a client, approving a sales or service construction
+  invoice raises and issues a real AR `Invoice` against that customer through `InvoiceService`, and the
+  construction invoice adopts that invoice's journal entry, recording the AR invoice on
+  `construction_invoices.ar_invoice_id`. The amount is then a normal receivable: it appears in AR aging and
+  customer statements and is settled by an ordinary receipt. Cancelling the construction invoice cancels the
+  AR invoice, which reverses the same entry and refuses if a receipt has already landed. Where the project
+  has no client, or names one that no longer resolves or has been deactivated, approval falls back to
+  posting DR Accounts Receivable / CR revenue + CR GST output directly (option B mechanics), which is also
+  what every invoice approved before this change did. The AR document has no discount column, so a
+  discounted construction line is billed as a single unit priced at its net-of-discount amount; that keeps
+  the two documents' tax and totals identical.
 - **Payment recording is invoice-level only.** `record-payment` advances the invoice's paid/balance amounts
   and payment status and stamps `payment_recorded_by`; it does not post a cash-movement journal entry. Cash
   posting stays with the construction payment voucher phase.

@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Schema(description = "Payload to create a construction project. Sent as the JSON data part of the "
         + "multipart create request.")
@@ -39,6 +40,11 @@ public class ProjectCreationDto {
     @Schema(description = "Optional construction category. Drives compliance matching.", example = "RESIDENTIAL")
     @Size(max = 50, message = "projectType must be at most 50 characters")
     private String projectType;
+
+    /** Optional finance customer the project is billed to. Must already exist in the tenant. */
+    @Schema(description = "Optional finance customer the project is billed to (its client).",
+            example = "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d")
+    private UUID customerId;
 
     @Schema(description = "Site latitude in decimal degrees.", example = "13.0827")
     @NotNull

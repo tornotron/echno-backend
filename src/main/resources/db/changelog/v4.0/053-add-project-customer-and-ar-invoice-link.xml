@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="053-add-customer-to-project" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="project" columnName="customer_id"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            The finance customer a project is billed to (its client). Nullable: a project with no
+            client keeps the direct receivable posting. Held as a plain id rather than a foreign key,
+            matching the way the construction finance tables reference core-domain records.
+        </comment>
+
+        <addColumn tableName="project">
+            <column name="customer_id" type="UUID"/>
+        </addColumn>
+
+        <createIndex tableName="project" indexName="idx_project_customer">
+            <column name="customer_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="053-add-ar-invoice-to-construction-invoices" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="construction_invoices" columnName="ar_invoice_id"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            The AR invoice materialized when a sales or service construction invoice is approved
+            against a project that has a client. Null on purchase and expense invoices, and on
+            sales/service invoices approved before a client was set, which post the receivable
+            entry directly instead.
+        </comment>
+
+        <addColumn tableName="construction_invoices">
+            <column name="ar_invoice_id" type="UUID"/>
+        </addColumn>
+
+        <createIndex tableName="construction_invoices" indexName="idx_cinv_ar_invoice">
+            <column name="ar_invoice_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

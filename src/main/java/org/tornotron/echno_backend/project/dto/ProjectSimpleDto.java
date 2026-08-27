@@ -7,6 +7,7 @@ import org.tornotron.echno_backend.project.enums.ProjectType;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Schema(description = "Condensed view of a construction project without its team, tasks or attachments. "
         + "Returned when a project is created.")
@@ -29,6 +30,10 @@ public class ProjectSimpleDto {
 
     @Schema(description = "Construction category of the project.", example = "RESIDENTIAL")
     private ProjectType projectType;
+
+    @Schema(description = "Finance customer the project is billed to. Null when no client is set.",
+            example = "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d")
+    private UUID customerId;
 
     @Schema(description = "Site latitude in decimal degrees.", example = "13.0827")
     private Float projectLatitude;

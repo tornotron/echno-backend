@@ -292,4 +292,7 @@
     <!-- v4.0 - Chat phase 2 (reactions, employee mentions, entity mentions) -->
     <include file="db/changelog/v4.0/052-create-chat-reactions-mentions.xml"/>
 
+    <!-- v4.0 - Finance: project client and the AR invoice materialized for sales/service billing -->
+    <include file="db/changelog/v4.0/053-add-project-customer-and-ar-invoice-link.xml"/>
+
 </databaseChangeLog>
