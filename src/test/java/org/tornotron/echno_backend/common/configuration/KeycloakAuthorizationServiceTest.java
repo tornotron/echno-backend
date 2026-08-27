@@ -35,6 +35,9 @@ class KeycloakAuthorizationServiceTest {
 
     private static final String ACCESS_TOKEN = "header.payload.signature";
 
+    /** Mirrors the service's own logging bound, so the truncation test stays honest if it moves. */
+    private static final int MAX_LOGGED_BODY = 512;
+
     private RestTemplate restTemplate;
     private KeycloakAuthorizationService service;
 
@@ -114,6 +117,37 @@ class KeycloakAuthorizationServiceTest {
 
         assertEquals(RPTExchangeException.Reason.EXCHANGE_MISCONFIGURED, e.getReason());
         assertEquals(400, e.getStatus().intValue());
+    }
+
+    @Test
+    void invalidClientOn401_classifiesAsMisconfigurationNotAnExpiredToken() {
+        // Keycloak answers 401 with invalid_client when OUR client credentials are wrong. Classifying on
+        // the status alone would report a bad client secret as the caller's expired token: logged below
+        // ERROR where nobody looks, and handed back as invalid_token, which invites the client to
+        // re-authenticate in a loop against a server whose configuration is broken.
+        keycloakThrows(clientError(HttpStatus.UNAUTHORIZED, "{\"error\":\"invalid_client\",\"error_description\":\"Invalid client credentials\"}"));
+
+        RPTExchangeException e = exchangeFailure();
+
+        assertEquals(RPTExchangeException.Reason.EXCHANGE_MISCONFIGURED, e.getReason());
+        assertEquals(401, e.getStatus().intValue());
+    }
+
+    @Test
+    void errorCodeBeyondTheLogTruncationLimit_isStillClassified() {
+        // The body is classified whole and truncated only for logging. Truncating first would cut this
+        // payload mid-JSON, the parse would fail, and it would fall back to the status and be misread
+        // as an expired token.
+        String padding = "x".repeat(MAX_LOGGED_BODY * 2);
+        String body = "{\"error_description\":\"" + padding + "\",\"error\":\"invalid_client\"}";
+        keycloakThrows(clientError(HttpStatus.UNAUTHORIZED, body));
+
+        RPTExchangeException e = exchangeFailure();
+
+        assertEquals(RPTExchangeException.Reason.EXCHANGE_MISCONFIGURED, e.getReason());
+        // Only what is logged and carried is bounded.
+        assertTrue(e.getResponseBody().length() < body.length());
+        assertTrue(e.getResponseBody().endsWith("...(truncated)"));
     }
 
     @Test

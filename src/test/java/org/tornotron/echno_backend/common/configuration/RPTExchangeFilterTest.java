@@ -19,6 +19,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -143,11 +144,14 @@ class RPTExchangeFilterTest {
     }
 
     @Test
-    void permissionDenied_isRejectedAs401AccessDenied() throws Exception {
+    void permissionDenied_isRejectedAs403AccessDenied() throws Exception {
         MockHttpServletResponse response = responseForFailure(RPTExchangeException.Reason.PERMISSION_DENIED, 403);
 
-        assertEquals(401, response.getStatus());
+        // The token authenticated; only the authorization decision went against the caller.
+        assertEquals(403, response.getStatus());
         assertTrue(response.getContentAsString().contains("\"error\":\"access_denied\""));
+        // Re-authenticating is not the remedy, so the caller is not challenged for a new token.
+        assertNull(response.getHeader("WWW-Authenticate"));
     }
 
     @Test

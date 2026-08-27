@@ -130,18 +130,31 @@ public class KeycloakAuthorizationService {
     }
 
     /**
-     * Splits a 4xx from Keycloak into the caller's problem and ours. A 401, or any OAuth error body of
-     * {@code invalid_token} or {@code invalid_grant}, means the caller arrived with a token Keycloak
-     * will not accept. {@code access_denied} means the token was fine but carries no permission.
-     * Everything else (unknown client, unknown audience, bad client credentials, authorization services
-     * switched off) is a misconfiguration on this side.
+     * Splits a 4xx from Keycloak into the caller's problem and ours.
+     *
+     * <p>The OAuth error code in the body is checked first and the HTTP status is only a fallback,
+     * because the two disagree in a way that matters. Keycloak answers 401 with {@code invalid_client}
+     * when <em>our</em> client credentials are wrong, so trusting the status would report a bad client
+     * secret as the caller's expired token: logged below ERROR where nobody looks, and handed back as
+     * {@code invalid_token}, which invites the client to re-authenticate in a loop against a server
+     * whose configuration is broken. An unambiguous error code always beats a guess from the status.
+     *
+     * <p>So: {@code invalid_token} or {@code invalid_grant} means the caller's token was rejected,
+     * {@code access_denied} means the token was fine but carries no permission, and any other explicit
+     * code (unknown client, unknown audience, bad client credentials, authorization services switched
+     * off) is a misconfiguration on this side. Only when the body carries no readable code does the
+     * status decide, and there a 401 is the caller's token.
      */
     private RPTExchangeException classifyClientError(String tokenEndpoint, HttpClientErrorException e) {
         int status = e.getStatusCode().value();
-        String responseBody = truncate(e.getResponseBodyAsString());
-        String oauthError = oauthErrorCode(responseBody);
+        // Classify on the whole body and truncate only what is logged and carried: truncating first
+        // can cut a long payload mid-JSON, so the error code would be unreadable and misclassified.
+        String fullBody = e.getResponseBodyAsString();
+        String oauthError = oauthErrorCode(fullBody);
+        String responseBody = truncate(fullBody);
 
-        if (status == 401 || (oauthError != null && TOKEN_ERRORS.contains(oauthError))) {
+        boolean tokenRejected = oauthError == null ? status == 401 : TOKEN_ERRORS.contains(oauthError);
+        if (tokenRejected) {
             // Routine: a caller turned up with an expired or revoked token. Logged below ERROR on purpose,
             // one stale token can otherwise produce hundreds of lines a minute.
             log.warn("RPT exchange at {} rejected the caller's access token: HTTP {}, error={}. Body: {}",
@@ -163,7 +176,11 @@ public class KeycloakAuthorizationService {
                 "Keycloak rejected the RPT exchange configuration", e);
     }
 
-    /** Reads the OAuth {@code error} code out of an error payload, or returns {@code null} if there is none. */
+    /**
+     * Reads the OAuth {@code error} code out of an error payload, or returns {@code null} if there is
+     * none. Must be given the untruncated body, or a long payload parses as malformed JSON and the
+     * code is lost.
+     */
     @Nullable
     private static String oauthErrorCode(@Nullable String responseBody) {
         if (responseBody == null || responseBody.isBlank()) {
