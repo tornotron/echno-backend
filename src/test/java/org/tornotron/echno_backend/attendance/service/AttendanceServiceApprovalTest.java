@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.attendance.service;
 
+import jakarta.validation.Validation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,7 +68,7 @@ class AttendanceServiceApprovalTest {
         service = new AttendanceService(attendanceRepository, shiftTimingRepository, employeeRepository,
                 organizationRepository, projectRepository, settingsService, calculationService,
                 sequenceValidator, attendanceMapper, attachmentService, fileStorageService,
-                userContextService);
+                userContextService, Validation.buildDefaultValidatorFactory().getValidator());
     }
 
     @AfterEach
