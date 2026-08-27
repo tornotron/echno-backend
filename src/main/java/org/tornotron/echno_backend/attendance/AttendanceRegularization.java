@@ -67,6 +67,17 @@ public class AttendanceRegularization implements TenantScopedEntity {
     @Column(name = "missing_events", columnDefinition = "TEXT")
     private String missingEvents;
 
+    /**
+     * The corrected clock events the employee submitted with the request, serialized as JSON.
+     *
+     * <p>Held until the request is approved, at which point they are written onto the attendance
+     * record. Before this was stored the times were applied only when the project auto-approved
+     * regularizations and were dropped entirely when a manager's approval was required, so an
+     * approved request left the day exactly as broken as it was found.
+     */
+    @Column(name = "requested_events", columnDefinition = "TEXT")
+    private String requestedEvents;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;

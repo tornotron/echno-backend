@@ -15,7 +15,9 @@ import org.tornotron.echno_backend.organization.OrganizationRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -97,12 +99,19 @@ public class AttendanceRegularizationService {
                 .status(settings.getRegularizationApprovalRequired()
                         ? RegularizationStatus.PENDING : RegularizationStatus.APPROVED)
                 .missingEvents(regularizationMapper.serializeMissingEvents(dto.getMissingEvents()))
+                // Kept whichever path the request takes. When approval is required the events sit
+                // here until the manager decides; without them an approval had nothing to apply.
+                .requestedEvents(regularizationMapper.serializeRequestedEvents(dto.getCorrectedEvents()))
                 .organization(org)
                 .build();
 
-        // If auto-approved, apply corrected events
-        if (!settings.getRegularizationApprovalRequired() && dto.getCorrectedEvents() != null) {
+        // Auto-approving projects take effect immediately, so the corrections are written now.
+        if (!settings.getRegularizationApprovalRequired()) {
             applyCorrectedEvents(attendance, dto.getCorrectedEvents(), org);
+            if (attendance.getShiftTiming() != null) {
+                calculationService.recalculate(attendance, attendance.getShiftTiming());
+            }
+            attendanceRepository.save(attendance);
         }
 
         return regularizationMapper.toDto(regularizationRepository.save(regularization));
@@ -139,10 +148,17 @@ public class AttendanceRegularizationService {
 
         if (dto.getStatus() == RegularizationStatus.APPROVED) {
             Attendance attendance = regularization.getAttendance();
+            // Write the times the employee asked for before recomputing. Approval used to recompute
+            // over the events that already existed, which for a day with no clock-in at all meant
+            // recomputing over nothing and leaving the record exactly as broken as it was.
+            applyCorrectedEvents(
+                    attendance,
+                    regularizationMapper.deserializeRequestedEvents(regularization.getRequestedEvents()),
+                    regularization.getOrganization());
             if (attendance.getShiftTiming() != null) {
                 calculationService.recalculate(attendance, attendance.getShiftTiming());
-                attendanceRepository.save(attendance);
             }
+            attendanceRepository.save(attendance);
         }
 
         return regularizationMapper.toDto(regularizationRepository.save(regularization));
@@ -164,10 +180,34 @@ public class AttendanceRegularizationService {
         return regularizationMapper.toDto(regularization);
     }
 
+    /**
+     * Writes the employee's corrected clock events onto the attendance record.
+     *
+     * <p>An event type already present is left alone. A regularization exists to supply what is
+     * missing, not to overwrite a real clock event, and skipping duplicates keeps the operation safe
+     * to reach twice, for instance when a rejected request is resubmitted and then approved.
+     *
+     * @param attendance      the record being corrected
+     * @param correctedEvents the events to add; {@code null} or empty is a no-op
+     * @param org             the owning organization, stamped onto each new event
+     */
     private void applyCorrectedEvents(Attendance attendance,
                                        List<ClockEventCreationDto> correctedEvents,
                                        Organization org) {
+        if (correctedEvents == null || correctedEvents.isEmpty()) {
+            return;
+        }
+        if (attendance.getClockEvents() == null) {
+            attendance.setClockEvents(new ArrayList<>());
+        }
+        Set<ClockEventType> existing = attendance.getClockEvents().stream()
+                .map(ClockEvent::getEventType)
+                .collect(Collectors.toSet());
+
         for (ClockEventCreationDto req : correctedEvents) {
+            if (req.getEventType() == null || !existing.add(req.getEventType())) {
+                continue;
+            }
             ClockEvent event = ClockEvent.builder()
                     .attendance(attendance)
                     .eventType(req.getEventType())

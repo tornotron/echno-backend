@@ -14,9 +14,12 @@ import org.tornotron.echno_backend.attendance.AttendanceRegularizationRepository
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
 import org.tornotron.echno_backend.attendance.AttendanceSettings;
 import org.tornotron.echno_backend.attendance.ShiftTiming;
+import org.tornotron.echno_backend.attendance.ClockEvent;
 import org.tornotron.echno_backend.attendance.dto.AttendanceRegularizationDto;
+import org.tornotron.echno_backend.attendance.dto.ClockEventCreationDto;
 import org.tornotron.echno_backend.attendance.dto.RegularizationActionDto;
 import org.tornotron.echno_backend.attendance.dto.RegularizationRequestDto;
+import org.tornotron.echno_backend.attendance.enums.ClockEventType;
 import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 import org.tornotron.echno_backend.attendance.mapper.AttendanceRegularizationMapper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -25,6 +28,9 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,8 +47,8 @@ import static org.mockito.Mockito.when;
  * calculation services, and the mapper are mocked. The focus is the submission and
  * processing gates the service owns: refusing self-service when disabled, enforcing the
  * monthly cap, blocking a duplicate pending request, choosing PENDING vs auto-APPROVED from
- * the settings, applying corrected events only on auto-approve, and refusing to re-action a
- * request that is no longer PENDING (recalculating attendance only on approval).
+ * the settings, carrying the submitted corrections through to approval, and refusing to
+ * re-action a request that is no longer PENDING (recalculating attendance only on approval).
  */
 @ExtendWith(MockitoExtension.class)
 class AttendanceRegularizationServiceTest {
@@ -255,6 +261,128 @@ class AttendanceRegularizationServiceTest {
         verify(attendanceRepository).save(attendance);
         assertThat(pending.getStatus()).isEqualTo(RegularizationStatus.APPROVED);
         assertThat(pending.getApprovedBy()).isEqualTo(APPROVER);
+    }
+
+    private ClockEventCreationDto correctedEvent(ClockEventType type, int hour) {
+        ClockEventCreationDto event = new ClockEventCreationDto();
+        event.setEventType(type);
+        event.setEventTimestamp(LocalDate.of(2024, 5, 10).atTime(hour, 0));
+        return event;
+    }
+
+    /**
+     * The corrections have to be stored even when a manager still has to approve. They used to be
+     * applied on the auto-approve path only and dropped otherwise, so an approved request restored
+     * nothing.
+     */
+    @Test
+    void submitRequest_approvalRequired_persistsTheSubmittedCorrections() {
+        stubOrgAndAttendance(attendance());
+        when(settingsService.resolveEffectiveSettings(eq(ORG), any()))
+                .thenReturn(settings(true, true, 3));
+        when(regularizationRepository.countApprovedRegularizationsInMonth(eq(REQUESTER), any(), any()))
+                .thenReturn(0L);
+        when(regularizationRepository.findByAttendanceId(ATT_ID)).thenReturn(Optional.empty());
+        when(regularizationRepository.save(any(AttendanceRegularization.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        when(regularizationMapper.toDto(any())).thenReturn(AttendanceRegularizationDto.builder().build());
+        when(regularizationMapper.serializeRequestedEvents(any())).thenReturn("[serialized]");
+
+        RegularizationRequestDto dto = requestDto();
+        List<ClockEventCreationDto> corrections =
+                List.of(correctedEvent(ClockEventType.MORNING_CLOCK_IN, 9));
+        dto.setCorrectedEvents(corrections);
+
+        service.submitRequest(dto, REQUESTER);
+
+        verify(regularizationMapper).serializeRequestedEvents(corrections);
+        ArgumentCaptor<AttendanceRegularization> captor =
+                ArgumentCaptor.forClass(AttendanceRegularization.class);
+        verify(regularizationRepository).save(captor.capture());
+        assertThat(captor.getValue().getRequestedEvents()).isEqualTo("[serialized]");
+    }
+
+    /**
+     * Approval has to write the times the employee entered. Recomputing over the events that were
+     * already there is a no-op for a day that had no events at all, which is the case a
+     * regularization exists to fix.
+     */
+    @Test
+    void processRegularization_approve_appliesTheStoredCorrections() {
+        Attendance attendance = attendance();
+        attendance.setShiftTiming(new ShiftTiming());
+        attendance.setClockEvents(new ArrayList<>());
+        AttendanceRegularization pending = AttendanceRegularization.builder()
+                .status(RegularizationStatus.PENDING)
+                .attendance(attendance)
+                .organization(organization())
+                .requestedEvents("[stored]")
+                .build();
+        when(regularizationRepository.findByIdAndOrganization_Id(REG_ID, ORG))
+                .thenReturn(Optional.of(pending));
+        when(regularizationRepository.save(any(AttendanceRegularization.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        when(regularizationMapper.toDto(any())).thenReturn(AttendanceRegularizationDto.builder().build());
+        when(regularizationMapper.deserializeRequestedEvents("[stored]")).thenReturn(List.of(
+                correctedEvent(ClockEventType.MORNING_CLOCK_IN, 9),
+                correctedEvent(ClockEventType.EVENING_CLOCK_OUT, 18)));
+
+        RegularizationActionDto action = new RegularizationActionDto();
+        action.setStatus(RegularizationStatus.APPROVED);
+
+        service.processRegularization(REG_ID, action, APPROVER);
+
+        assertThat(attendance.getClockEvents())
+                .extracting(ClockEvent::getEventType)
+                .containsExactly(ClockEventType.MORNING_CLOCK_IN, ClockEventType.EVENING_CLOCK_OUT);
+        assertThat(attendance.getClockEvents())
+                .extracting(ClockEvent::getEventTimestamp)
+                .containsExactly(
+                        LocalDateTime.of(2024, 5, 10, 9, 0),
+                        LocalDateTime.of(2024, 5, 10, 18, 0));
+        assertThat(attendance.getClockEvents()).allMatch(ClockEvent::getIsRegularized);
+        verify(calculationService).recalculate(eq(attendance), any(ShiftTiming.class));
+        verify(attendanceRepository).save(attendance);
+    }
+
+    /**
+     * A correction never overwrites a real clock event, and applying twice is harmless: a rejected
+     * request can be resubmitted and then approved.
+     */
+    @Test
+    void processRegularization_approve_leavesAnExistingEventAlone() {
+        Attendance attendance = attendance();
+        attendance.setShiftTiming(new ShiftTiming());
+        ClockEvent real = ClockEvent.builder()
+                .eventType(ClockEventType.MORNING_CLOCK_IN)
+                .eventTimestamp(LocalDateTime.of(2024, 5, 10, 8, 45))
+                .build();
+        attendance.setClockEvents(new ArrayList<>(List.of(real)));
+        AttendanceRegularization pending = AttendanceRegularization.builder()
+                .status(RegularizationStatus.PENDING)
+                .attendance(attendance)
+                .organization(organization())
+                .requestedEvents("[stored]")
+                .build();
+        when(regularizationRepository.findByIdAndOrganization_Id(REG_ID, ORG))
+                .thenReturn(Optional.of(pending));
+        when(regularizationRepository.save(any(AttendanceRegularization.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        when(regularizationMapper.toDto(any())).thenReturn(AttendanceRegularizationDto.builder().build());
+        when(regularizationMapper.deserializeRequestedEvents("[stored]")).thenReturn(List.of(
+                correctedEvent(ClockEventType.MORNING_CLOCK_IN, 9),
+                correctedEvent(ClockEventType.EVENING_CLOCK_OUT, 18)));
+
+        RegularizationActionDto action = new RegularizationActionDto();
+        action.setStatus(RegularizationStatus.APPROVED);
+
+        service.processRegularization(REG_ID, action, APPROVER);
+
+        assertThat(attendance.getClockEvents()).hasSize(2);
+        assertThat(attendance.getClockEvents().get(0).getEventTimestamp())
+                .isEqualTo(LocalDateTime.of(2024, 5, 10, 8, 45));
+        assertThat(attendance.getClockEvents().get(1).getEventType())
+                .isEqualTo(ClockEventType.EVENING_CLOCK_OUT);
     }
 
     @Test
