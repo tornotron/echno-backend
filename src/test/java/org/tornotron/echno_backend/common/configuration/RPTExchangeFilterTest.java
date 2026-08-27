@@ -188,6 +188,21 @@ class RPTExchangeFilterTest {
     }
 
     @Test
+    void everyClassifiedReason_producesAnErrorStatusAndBody() throws Exception {
+        // Iterates the enum rather than listing the reasons, so a Reason added without a branch in
+        // rejectClassified fails here as well as at the compiler. An unhandled reason would fall out of
+        // the filter as an empty 200: an authorization failure answered as success, with nothing written.
+        for (RPTExchangeException.Reason reason : RPTExchangeException.Reason.values()) {
+            MockHttpServletResponse response = responseForFailure(reason, 400);
+            String body = response.getContentAsString();
+
+            assertTrue(response.getStatus() >= 400, reason + " must not answer with a success status");
+            assertFalse(body.isBlank(), reason + " must write an error body");
+            assertTrue(body.contains("\"error\":\""), reason + " must write a machine-readable error code");
+        }
+    }
+
+    @Test
     void unclassifiedFailure_staysA401() throws Exception {
         String token = jwtWithJti(UUID.randomUUID().toString());
         when(authorizationService.exchangeForRPT(token)).thenThrow(new IllegalStateException("boom"));

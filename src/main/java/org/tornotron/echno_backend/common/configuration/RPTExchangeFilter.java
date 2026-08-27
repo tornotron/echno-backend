@@ -72,45 +72,58 @@ public class RPTExchangeFilter extends OncePerRequestFilter {
     }
 
     /**
+     * The response a classified failure earns: the HTTP status, the OAuth error code the caller can
+     * branch on, and a short description. Deliberately says nothing about the deployment.
+     */
+    private record Rejection(int status, String errorCode, String description) {
+    }
+
+    /**
      * Turns a classified exchange failure into the response the caller deserves.
      *
      * <p>A rejected or expired access token is a 401 the caller can act on by re-authenticating. An
      * unreachable Keycloak is a 503, because it is not the caller's fault and re-authenticating against
      * a Keycloak that is down would be exactly the wrong move. A misconfiguration or a protocol break on
      * our side stays a 401 so nothing about the deployment leaks, but it is logged in full at ERROR.
+     *
+     * <p>This is a switch expression with no default on purpose. The compiler checks it covers every
+     * {@link RPTExchangeException.Reason}, so adding a reason without deciding its response breaks the
+     * build. A switch statement would instead match nothing at runtime and let the request fall out of
+     * the filter as an empty 200, which is the worst answer an auth filter can give.
      */
     private void rejectClassified(HttpServletResponse response, String requestUri, RPTExchangeException e) throws IOException {
-        switch (e.getReason()) {
+        Rejection rejection = switch (e.getReason()) {
             case TOKEN_INVALID -> {
                 // Already logged at WARN with the wire detail by the service; keep the per-request line quiet.
                 log.debug("Rejecting request to {}: access token rejected by Keycloak", requestUri);
-                writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "invalid_token",
+                yield new Rejection(HttpServletResponse.SC_UNAUTHORIZED, "invalid_token",
                         "The access token is expired or invalid");
             }
             case PERMISSION_DENIED -> {
                 log.debug("Rejecting request to {}: Keycloak granted no permissions for the caller", requestUri);
-                writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "access_denied",
+                yield new Rejection(HttpServletResponse.SC_UNAUTHORIZED, "access_denied",
                         "The access token grants no permissions");
             }
             case KEYCLOAK_UNAVAILABLE -> {
                 log.error("Failing request to {} with 503: Keycloak is unavailable (status={})", requestUri, e.getStatus());
-                response.setHeader(HttpHeaders.RETRY_AFTER, RETRY_AFTER_SECONDS);
-                writeError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "service_unavailable",
+                yield new Rejection(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "service_unavailable",
                         "Authorization service is temporarily unavailable");
             }
             case EXCHANGE_MISCONFIGURED, PROTOCOL_VIOLATION -> {
                 log.error("Rejecting request to {}: RPT exchange failed as {} (status={}, body={})",
                         requestUri, e.getReason(), e.getStatus(), e.getResponseBody());
-                writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "unauthorized",
+                yield new Rejection(HttpServletResponse.SC_UNAUTHORIZED, "unauthorized",
                         "Authorization could not be established");
             }
-        }
+        };
+
+        writeError(response, rejection.status(), rejection.errorCode(), rejection.description());
     }
 
     /**
      * Writes a terse OAuth-shaped error body so the caller can branch on the code without being told
      * anything about the deployment. The {@code WWW-Authenticate} header carries the same code on a 401,
-     * per RFC 6750.
+     * per RFC 6750, and a 503 carries {@code Retry-After}.
      */
     private void writeError(HttpServletResponse response, int status, String errorCode, String description) throws IOException {
         response.setStatus(status);
@@ -118,6 +131,9 @@ public class RPTExchangeFilter extends OncePerRequestFilter {
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         if (status == HttpServletResponse.SC_UNAUTHORIZED) {
             response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer error=\"" + errorCode + "\"");
+        }
+        if (status == HttpServletResponse.SC_SERVICE_UNAVAILABLE) {
+            response.setHeader(HttpHeaders.RETRY_AFTER, RETRY_AFTER_SECONDS);
         }
         response.getWriter().write("{\"error\":\"" + errorCode + "\",\"error_description\":\"" + description + "\"}");
     }
