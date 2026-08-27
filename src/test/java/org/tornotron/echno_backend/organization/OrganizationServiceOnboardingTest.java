@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import jakarta.validation.Validation;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -59,7 +60,8 @@ class OrganizationServiceOnboardingTest {
     private OrganizationService service() {
         return new OrganizationService(repository, attachmentService, fileStorageService,
                 keycloakGroupService, subscriptionService, userContextService, employeeService,
-                organizationMapper, orgSecurity, onboardingSeeder);
+                organizationMapper, orgSecurity, onboardingSeeder,
+                Validation.buildDefaultValidatorFactory().getValidator());
     }
 
     private OrganizationCreationDto creationDto() {

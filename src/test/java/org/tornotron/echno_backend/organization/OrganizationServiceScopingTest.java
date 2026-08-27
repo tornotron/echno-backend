@@ -5,6 +5,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import jakarta.validation.Validator;
 import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
@@ -46,6 +47,8 @@ class OrganizationServiceScopingTest {
     @Mock private OrganizationMapper organizationMapper;
     @Mock private OrganizationSecurityService orgSecurity;
     @Mock private OrganizationOnboardingSeeder onboardingSeeder;
+
+    @Mock private Validator validator;
 
     @InjectMocks private OrganizationService service;
 
