@@ -89,12 +89,17 @@ public class ComplianceGenerationService {
                             + "Commercial) before generating compliance.");
         }
 
-        String state = IndianStateResolver.resolve(project.getProjectAddress());
+        // A project that states its own state is taken at its word; scanning the free-text
+        // address is only the fallback for projects that predate the field, and it cannot find
+        // what the address does not say (an address of "Chennai" names no state at all).
+        String state = project.getProjectState() != null
+                ? project.getProjectState()
+                : IndianStateResolver.resolve(project.getProjectAddress());
         if (state == null) {
             throw new InvalidRequestException(
-                    "The project address does not include a recognised state, so the applicable "
-                            + "regulations cannot be determined. Add the state to the project address "
-                            + "(for example 'Chennai, Tamil Nadu') and try again.");
+                    "This project has no state set, and its address does not name one, so the "
+                            + "applicable regulations cannot be determined. Set the project's state "
+                            + "(for example Tamil Nadu) and try again.");
         }
 
         List<ComplianceRule> candidateRules =

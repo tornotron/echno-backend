@@ -40,9 +40,26 @@ public class Project implements TenantScopedEntity {
     @Column(name = "project_name",nullable = true)
     private String projectName;
 
-    /** The physical address where the project is located. */
+    /** The street address of the site, as one line. */
     @Column(name = "project_address", nullable = true)
     private String projectAddress;
+
+    /** Town or city the site is in. Optional, and display only. */
+    @Column(name = "project_city", length = 100)
+    private String projectCity;
+
+    /**
+     * Indian state or union territory the site is in, in its canonical spelling. Read by
+     * compliance generation, which keys its rules by state: stated here it is exact, whereas
+     * the fallback of scraping the free-text address only works when the address happens to
+     * name the state. Optional, so projects created before this field keep working.
+     */
+    @Column(name = "project_state", length = 100)
+    private String projectState;
+
+    /** Postal (PIN) code of the site. Optional, and display only. */
+    @Column(name = "project_postal_code", length = 16)
+    private String projectPostalCode;
 
     /** The timestamp when the project was created. */
     @Column(name = "created_at", nullable = true)

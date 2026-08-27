@@ -12,10 +12,12 @@ import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.project.mapper.ProjectMapper;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.compliance.IndianStateResolver;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.finance.ledger.repositories.CustomerRepository;
@@ -94,6 +96,9 @@ public class ProjectService {
             Project project = new Project();
             project.setProjectName(projectDto.getProjectName());
             project.setProjectAddress(projectDto.getProjectAddress());
+            project.setProjectCity(trimToNull(projectDto.getProjectCity()));
+            project.setProjectState(canonicalState(projectDto.getProjectState()));
+            project.setProjectPostalCode(trimToNull(projectDto.getProjectPostalCode()));
             project.setCreatedAt(LocalDateTime.now());
             project.setProjectLatitude(projectDto.getProjectLatitude());
             project.setProjectLongitude(projectDto.getProjectLongitude());
@@ -185,6 +190,15 @@ public class ProjectService {
                 case "projectAddress":
                     project.setProjectAddress((String) value);
                     break;
+                case "projectCity":
+                    project.setProjectCity(trimToNull((String) value));
+                    break;
+                case "projectState":
+                    project.setProjectState(canonicalState((String) value));
+                    break;
+                case "projectPostalCode":
+                    project.setProjectPostalCode(trimToNull((String) value));
+                    break;
                 case "status":
                     ProjectCreationStatus previousStatus = project.getStatus();
                     ProjectCreationStatus newStatus = ProjectCreationStatus.valueOf((String) value);
@@ -227,6 +241,40 @@ public class ProjectService {
                     break;
             }
         });
+    }
+
+    /**
+     * Trims a supplied text field, treating an empty or whitespace-only value as absent rather
+     * than storing a blank. Optional address parts are read as "recorded or not", so a blank
+     * and a missing value have to mean the same thing.
+     *
+     * @param value The value as supplied, possibly null.
+     * @return The trimmed value, or null when there is nothing in it.
+     */
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
+     * Normalises a supplied state to its canonical spelling before it is stored. Compliance
+     * rules are looked up by state name, so a state stored as the user happened to type it
+     * would match nothing; and a state that is not a state at all is worth refusing at the
+     * point of entry rather than leaving to fail silently at generation time.
+     *
+     * @param state The state name as supplied, possibly null or blank.
+     * @return The canonical state name, or null when none was given.
+     * @throws InvalidRequestException if the name is not an Indian state or union territory.
+     */
+    private String canonicalState(String state) {
+        try {
+            return IndianStateResolver.canonicalise(state);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidRequestException(e.getMessage());
+        }
     }
 
     /**
