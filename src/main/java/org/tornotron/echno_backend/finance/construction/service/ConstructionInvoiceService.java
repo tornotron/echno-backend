@@ -447,7 +447,9 @@ public class ConstructionInvoiceService {
         if (inv.getArInvoiceId() != null) {
             // The entry belongs to the AR invoice, so unwind it from that side: cancelling the
             // AR invoice reverses the entry and refuses if a receipt has already been applied.
-            InvoiceDto cancelledAr = invoiceService.cancel(inv.getArInvoiceId(), reason);
+            // The internal call is the one that skips the AR module's own refusal to cancel an
+            // invoice a construction invoice raised, which is this cancellation.
+            InvoiceDto cancelledAr = invoiceService.cancelInternal(inv.getArInvoiceId(), reason);
             inv.setReversalJournalEntryId(cancelledAr.reversalJournalEntryId());
         } else if (inv.getStatus() == ConstructionInvoiceStatus.APPROVED && inv.getJournalEntryId() != null) {
             JournalEntry reversal = journalRepo.findByIdWithLines(inv.getJournalEntryId())

@@ -11,10 +11,13 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.common.exception.AccountNotFoundException;
+import org.tornotron.echno_backend.common.exception.InvalidJournalException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
@@ -25,14 +28,19 @@ import org.tornotron.echno_backend.finance.construction.dtos.CreateConstructionI
 import org.tornotron.echno_backend.finance.construction.mapper.ConstructionInvoiceMapperImpl;
 import org.tornotron.echno_backend.finance.construction.service.ConstructionInvoiceService;
 import org.tornotron.echno_backend.finance.invoice.InvoicePostingProperties;
+import org.tornotron.echno_backend.finance.invoice.dtos.InvoiceDto;
+import org.tornotron.echno_backend.finance.invoice.service.InvoiceService;
+import org.tornotron.echno_backend.finance.invoice.InvoiceStatus;
 import org.tornotron.echno_backend.finance.ledger.JournalStatus;
 import org.tornotron.echno_backend.finance.ledger.domain.JournalEntry;
 import org.tornotron.echno_backend.finance.ledger.domain.JournalEntryLine;
+import org.tornotron.echno_backend.finance.ledger.domain.Customer;
 import org.tornotron.echno_backend.finance.ledger.mapper.JournalEntryMapperImpl;
 import org.tornotron.echno_backend.finance.ledger.repositories.JournalEntryRepository;
 import org.tornotron.echno_backend.finance.ledger.service.ChartOfAccountsSeeder;
 import org.tornotron.echno_backend.finance.ledger.service.JournalPostingService;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -50,6 +58,11 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  * accounts payable; approving a sales invoice posts DR accounts receivable / CR revenue
  * + CR GST output; both store the journal-entry id. Cancel reverses the posted entry,
  * approving from the wrong status is refused, and a missing control account aborts.
+ *
+ * <p>The AR route is exercised here too, because it is the only place both documents are
+ * real: a sales invoice on a project with a client materializes an AR invoice whose total
+ * must equal the construction invoice's to the paisa, since the entry the construction
+ * invoice adopts is the AR invoice's. The two cancellation doors are pinned alongside it.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -69,6 +82,9 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
     private ConstructionInvoiceService service;
 
     @Autowired
+    private InvoiceService invoiceService;
+
+    @Autowired
     private ChartOfAccountsSeeder seeder;
 
     @Autowired
@@ -81,6 +97,7 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
     private PlatformTransactionManager txManager;
 
     private Long orgId;
+    private UUID customerId;
 
     // The org and the chart of accounts must be committed, not held in the rolled-back
     // test transaction: EntryNumberGenerator.next() runs in REQUIRES_NEW (document_sequence
@@ -113,6 +130,11 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
             exec("DELETE FROM construction_invoice_lines WHERE invoice_id IN "
                     + "(SELECT id FROM construction_invoices WHERE organization_id = :org)");
             exec("DELETE FROM construction_invoices WHERE organization_id = :org");
+            exec("DELETE FROM invoice_lines WHERE invoice_id IN "
+                    + "(SELECT id FROM invoices WHERE organization_id = :org)");
+            exec("DELETE FROM invoices WHERE organization_id = :org");
+            exec("DELETE FROM customers WHERE organization_id = :org");
+            exec("DELETE FROM project WHERE organization_id = :org");
             exec("DELETE FROM document_sequence WHERE organization_id = :org");
             exec("DELETE FROM accounts WHERE organization_id = :org");
             exec("DELETE FROM organization WHERE id = :org");
@@ -199,7 +221,122 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
                 .isThrownBy(() -> service.approve(created.id()));
     }
 
+    // The two AR tests below commit their writes instead of running inside the rolled-back
+    // ambient transaction. The AR path writes an invoice whose lines reference the committed
+    // chart of accounts, and holding those writes open leaves the cleanup's DELETE FROM
+    // accounts waiting on the test's own transaction until the statement timeout. Committing
+    // them is what ConstructionInvoiceAutoApprovalIT does for the same reason; the cleanup
+    // already deletes every table they touch.
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void approve_salesInvoiceForAProjectClient_materializesAnArInvoiceThatTotalsTheSame() {
+        ConstructionInvoiceDto created = service.create(clientRequest(seedClientProject()));
+        service.submit(created.id());
+
+        ConstructionInvoiceDto approved = service.approve(created.id());
+        assertThat(approved.arInvoiceId()).isNotNull();
+
+        InvoiceDto ar = invoiceService.findById(approved.arInvoiceId());
+        assertThat(ar.customerId()).isEqualTo(customerId);
+        // Pinned so the equality below cannot pass on two trivially equal numbers: 12.36%
+        // tax on a 7.5%-discounted line lands well inside the store scale.
+        assertThat(approved.totalAmount()).isEqualByComparingTo("6638.5453");
+        // The whole design rests on this: the construction invoice adopts the AR invoice's
+        // entry, so a receivable posted for a different amount than the invoice claims would
+        // be a silent divergence on the money path.
+        assertThat(ar.total()).isEqualByComparingTo(approved.totalAmount());
+        assertThat(approved.journalEntryId()).isEqualTo(ar.journalEntryId());
+
+        withJournalEntry(approved.journalEntryId(), je -> {
+            assertThat(je.getSourceType()).isEqualTo("INVOICE");
+            assertThat(debit(je, "1200")).isEqualByComparingTo(approved.totalAmount());
+            assertBalanced(je);
+        });
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void cancel_theArInvoiceOnItsOwn_isRefused_whileCancellingTheConstructionInvoiceUnwindsBoth() {
+        ConstructionInvoiceDto created = service.create(clientRequest(seedClientProject()));
+        service.submit(created.id());
+        ConstructionInvoiceDto approved = service.approve(created.id());
+        UUID arInvoiceId = approved.arInvoiceId();
+
+        // The AR door is shut: the construction invoice owns the entry they share.
+        assertThatExceptionOfType(InvalidJournalException.class)
+                .isThrownBy(() -> invoiceService.cancel(arInvoiceId, "Cancelled from the AR module"))
+                .withMessageContaining(created.invoiceNumber());
+
+        ConstructionInvoiceDto cancelled = service.cancel(created.id(), "Client withdrew the claim");
+        assertThat(cancelled.status()).isEqualTo(ConstructionInvoiceStatus.CANCELLED);
+        assertThat(cancelled.reversalJournalEntryId()).isNotNull();
+        assertThat(invoiceService.findById(arInvoiceId).status()).isEqualTo(InvoiceStatus.CANCELLED);
+
+        withJournalEntry(approved.journalEntryId(),
+                je -> assertThat(je.getStatus()).isEqualTo(JournalStatus.REVERSED));
+        withJournalEntry(cancelled.reversalJournalEntryId(), this::assertBalanced);
+    }
+
     // --- Helpers ----------------------------------------------------------
+
+    /**
+     * Commits a customer and a project that names it as its client, for the AR tests to bill
+     * against. Committed rather than left in a test transaction because those tests run
+     * outside one, for the reason given on {@link #approve_salesInvoiceForAProjectClient_materializesAnArInvoiceThatTotalsTheSame}.
+     *
+     * @return The id of the project, for the invoice request to bill against.
+     */
+    private Long seedClientProject() {
+        Long[] projectId = new Long[1];
+        inCommittedTx(() -> {
+            Organization org = entityManager.getReference(Organization.class, orgId);
+
+            Customer client = new Customer();
+            client.setCode("CUST-POST-1");
+            client.setName("Asset Homes Pvt Ltd");
+            client.setOrganization(org);
+            entityManager.persist(client);
+
+            Project project = new Project();
+            project.setProjectName("Tower B, Riverside Residences");
+            project.setProjectAddress("12 Marina Road, Chennai");
+            project.setOrganization(org);
+            project.setCustomerId(client.getId());
+            entityManager.persist(project);
+            entityManager.flush();
+
+            customerId = client.getId();
+            projectId[0] = project.getId();
+        });
+        return projectId[0];
+    }
+
+    /** Reads a posted entry with its lines and accounts inside a transaction, for assertions. */
+    private void withJournalEntry(UUID journalEntryId, java.util.function.Consumer<JournalEntry> assertions) {
+        inCommittedTx(() -> assertions.accept(
+                journalRepo.findByIdWithLines(journalEntryId).orElseThrow()));
+    }
+
+    /**
+     * A sales invoice on the project that names a client, with one discounted line and one
+     * undiscounted line at a tax rate that does not divide evenly, so the two documents have
+     * to round the same way rather than merely happening to agree on round numbers.
+     */
+    private CreateConstructionInvoiceRequest clientRequest(Long projectId) {
+        return new CreateConstructionInvoiceRequest(
+                ConstructionInvoiceType.SALES,
+                projectId,
+                null, null, null,
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 31),
+                "Net 30", "Bank Transfer", "29ABCDE1234F1Z5", "GST",
+                "AR materialization test", "Standard terms apply",
+                List.of(
+                        new ConstructionInvoiceLineRequest("Piling works", bd("7"), "lot",
+                                bd("333.33"), bd("12.36"), bd("7.5"), null, null, null, null),
+                        new ConstructionInvoiceLineRequest("Site supervision", bd("3"), "month",
+                                bd("1249.99"), bd("12.36"), null, null, null, null, null)));
+    }
 
     private CreateConstructionInvoiceRequest request(ConstructionInvoiceType type) {
         return new CreateConstructionInvoiceRequest(
