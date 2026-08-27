@@ -10,7 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.tornotron.echno_backend.billing.Plan;
 import org.tornotron.echno_backend.billing.dto.*;
 import org.tornotron.echno_backend.billing.services.PlanService;
 import org.tornotron.echno_backend.common.response.ApiResponse;
@@ -49,8 +48,7 @@ public class PlanController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
     })
     public ResponseEntity<List<PlanDto>> getPublicPlans() {
-        List<Plan> plans = planService.getAllPublicPlans();
-        return ResponseEntity.ok(BillingMapper.toPlanDtoList(plans));
+        return ResponseEntity.ok(planService.getAllPublicPlans());
     }
 
     /**
@@ -71,8 +69,7 @@ public class PlanController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
     })
     public ResponseEntity<List<PlanDto>> getAllPlans() {
-        List<Plan> plans = planService.getAllPlans();
-        return ResponseEntity.ok(BillingMapper.toPlanDtoList(plans));
+        return ResponseEntity.ok(planService.getAllPlans());
     }
 
     /**
@@ -94,8 +91,7 @@ public class PlanController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given id")
     })
     public ResponseEntity<PlanDto> getPlanById(@PathVariable Long id) {
-        Plan plan = planService.getPlanById(id);
-        return ResponseEntity.ok(BillingMapper.toPlanDto(plan));
+        return ResponseEntity.ok(planService.getPlanById(id));
     }
 
     /**
@@ -117,8 +113,7 @@ public class PlanController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given code")
     })
     public ResponseEntity<PlanDto> getPlanByCode(@PathVariable String code) {
-        Plan plan = planService.getPlanByCode(code);
-        return ResponseEntity.ok(BillingMapper.toPlanDto(plan));
+        return ResponseEntity.ok(planService.getPlanByCode(code));
     }
 
     /**
@@ -142,8 +137,7 @@ public class PlanController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
     })
     public ResponseEntity<PlanDto> createPlan(@Valid @RequestBody PlanCreateDto dto) {
-        Plan plan = planService.createPlan(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(BillingMapper.toPlanDto(plan));
+        return ResponseEntity.status(HttpStatus.CREATED).body(planService.createPlan(dto));
     }
 
     /**
@@ -168,8 +162,7 @@ public class PlanController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given id")
     })
     public ResponseEntity<PlanDto> updatePlan(@PathVariable Long id, @Valid @RequestBody PlanCreateDto dto) {
-        Plan plan = planService.updatePlan(id, dto);
-        return ResponseEntity.ok(BillingMapper.toPlanDto(plan));
+        return ResponseEntity.ok(planService.updatePlan(id, dto));
     }
 
     /**
@@ -246,8 +239,7 @@ public class PlanController {
     public ResponseEntity<PlanDto> assignFeatureToPlan(
             @PathVariable Long planId,
             @Valid @RequestBody PlanFeatureAssignDto dto) {
-        Plan plan = planService.assignFeatureToPlan(planId, dto);
-        return ResponseEntity.ok(BillingMapper.toPlanDto(plan));
+        return ResponseEntity.ok(planService.assignFeatureToPlan(planId, dto));
     }
 
     /**
@@ -274,7 +266,6 @@ public class PlanController {
     public ResponseEntity<PlanDto> removeFeatureFromPlan(
             @PathVariable Long planId,
             @PathVariable String featureCode) {
-        Plan plan = planService.removeFeatureFromPlan(planId, featureCode);
-        return ResponseEntity.ok(BillingMapper.toPlanDto(plan));
+        return ResponseEntity.ok(planService.removeFeatureFromPlan(planId, featureCode));
     }
 }
