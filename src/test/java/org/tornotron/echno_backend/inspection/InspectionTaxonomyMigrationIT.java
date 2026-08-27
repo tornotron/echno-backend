@@ -12,9 +12,12 @@ import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.inspection.domain.InspectionDefect;
 import org.tornotron.echno_backend.inspection.mapper.ChecklistTemplateMapperImpl;
 import org.tornotron.echno_backend.inspection.mapper.InspectionMapperImpl;
+import org.tornotron.echno_backend.inspection.mapper.NcrMapperImpl;
 import org.tornotron.echno_backend.inspection.service.ChecklistTemplateService;
 import org.tornotron.echno_backend.inspection.service.InspectionService;
+import org.tornotron.echno_backend.inspection.service.NcrService;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
+import org.tornotron.echno_backend.user.UserContextService;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -42,12 +45,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * rows for it to touch.
  *
  * <p>The Spring configuration is deliberately identical to {@link InspectionServiceIT}
- * so both classes share one cached application context rather than starting a second.
+ * so every inspection test class shares one cached application context rather than
+ * starting a second. Keep it in step when that list changes.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({InspectionService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
+        NcrService.class, NcrMapperImpl.class, UserContextService.class,
         TenantEntityHelper.class, EntryNumberGenerator.class})
 class InspectionTaxonomyMigrationIT extends AbstractIntegrationTest {
 

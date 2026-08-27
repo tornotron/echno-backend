@@ -310,4 +310,7 @@
     <!-- v4.0 - Inspection QA/QC: acceptance criterion, tolerance, computed deviation and the BIM element link -->
     <include file="db/changelog/v4.0/058-extend-inspection-check-items.xml"/>
 
+    <!-- v4.0 - Inspection QA/QC: non-conformance reports and their assignment and closure trail -->
+    <include file="db/changelog/v4.0/059-create-ncrs.xml"/>
+
 </databaseChangeLog>

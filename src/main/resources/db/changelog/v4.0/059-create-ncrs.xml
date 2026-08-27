@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="059-01-create-ncrs" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="ncrs"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Non-conformance reports: the accountability trail over work that failed an
+            inspection. Tenant-scoped like inspections, with its own NCR document series
+            unique per organization.
+
+            inspection_id and defect_id are plain scalar UUIDs with no foreign key, matching
+            the way inspections refer to their project. That is deliberate: it keeps the
+            module additive, and it lets an NCR outlive the defect row it started from, since
+            an inspection's defects are rebuilt wholesale on every save.
+
+            type is fixed when the report is raised and is derived from the originating
+            inspection's category, because it decides who may close the report. status is
+            written only through the guarded transition in NcrService; the column carries no
+            database-level constraint on the lifecycle because the graph has branches
+            (reject, reopen) that a check constraint cannot express without duplicating the
+            rule in a second place that would then drift.
+        </comment>
+
+        <createTable tableName="ncrs">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ncr_number" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="inspection_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="defect_id" type="UUID"/>
+            <column name="title" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(2000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="severity" type="VARCHAR(20)"/>
+            <column name="status" type="VARCHAR(40)" defaultValue="OPEN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="site_engineer_id" type="BIGINT"/>
+            <column name="target_date" type="DATE"/>
+            <column name="raised_by_id" type="BIGINT"/>
+            <column name="closed_by_id" type="BIGINT"/>
+            <column name="corrective_action_remarks" type="VARCHAR(2000)"/>
+            <column name="verification_remarks" type="VARCHAR(2000)"/>
+            <column name="corrective_action_completed_at" type="TIMESTAMP"/>
+            <column name="verified_at" type="TIMESTAMP"/>
+            <column name="closed_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="ncrs"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_ncr_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addUniqueConstraint tableName="ncrs"
+                             columnNames="organization_id, ncr_number"
+                             constraintName="uk_ncr_number"/>
+
+        <createIndex tableName="ncrs" indexName="idx_ncr_inspection">
+            <column name="inspection_id"/>
+        </createIndex>
+        <createIndex tableName="ncrs" indexName="idx_ncr_defect">
+            <column name="defect_id"/>
+        </createIndex>
+        <createIndex tableName="ncrs" indexName="idx_ncr_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="ncrs" indexName="idx_ncr_type">
+            <column name="type"/>
+        </createIndex>
+        <createIndex tableName="ncrs" indexName="idx_ncr_site_engineer">
+            <column name="site_engineer_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

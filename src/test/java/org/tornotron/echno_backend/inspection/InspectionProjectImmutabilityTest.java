@@ -13,6 +13,7 @@ import org.tornotron.echno_backend.inspection.domain.Inspection;
 import org.tornotron.echno_backend.inspection.dtos.UpdateInspectionRequest;
 import org.tornotron.echno_backend.inspection.mapper.InspectionMapper;
 import org.tornotron.echno_backend.inspection.repositories.InspectionRepository;
+import org.tornotron.echno_backend.inspection.service.ChecklistTemplateService;
 import org.tornotron.echno_backend.inspection.service.InspectionService;
 
 import java.time.LocalDate;
@@ -51,6 +52,8 @@ class InspectionProjectImmutabilityTest {
     private InspectionMapper mapper;
     @Mock
     private TenantEntityHelper tenantEntityHelper;
+    @Mock
+    private ChecklistTemplateService checklistTemplateService;
 
     @InjectMocks
     private InspectionService service;
