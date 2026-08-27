@@ -16,6 +16,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.test.context.transaction.AfterTransaction;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
@@ -29,18 +30,22 @@ import org.tornotron.echno_backend.inspection.dtos.InspectionDto;
 import org.tornotron.echno_backend.inspection.dtos.UpdateInspectionRequest;
 import org.tornotron.echno_backend.inspection.mapper.ChecklistTemplateMapperImpl;
 import org.tornotron.echno_backend.inspection.mapper.InspectionMapperImpl;
+import org.tornotron.echno_backend.inspection.mapper.NcrMapperImpl;
 import org.tornotron.echno_backend.inspection.repositories.InspectionRepository;
 import org.tornotron.echno_backend.inspection.service.ChecklistTemplateService;
 import org.tornotron.echno_backend.inspection.service.InspectionService;
+import org.tornotron.echno_backend.inspection.service.NcrService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * End-to-end exercise of the inspection CRUD path against a real CockroachDB:
@@ -53,17 +58,19 @@ import static org.assertj.core.api.Assertions.assertThat;
  * timestamps are populated by Hibernate's {@code @CreationTimestamp}/{@code
  * @UpdateTimestamp} at persist time, not by Spring Data auditing.
  *
- * <p>{@link ChecklistTemplateServiceIT} and {@link InspectionTaxonomyMigrationIT}
- * declare the same annotations and the same {@code @Import} list, deliberately and
- * to the letter, so Spring's context cache hands all of them one context instead of
- * building three. The test JVM is capped at 1 GB with no fork between classes, so
- * every distinct test configuration is a Spring context that stays cached for the
- * whole run. Keep the lists identical when any one changes.
+ * <p>{@link ChecklistTemplateServiceIT}, {@link NcrServiceIT} and
+ * {@link InspectionTaxonomyMigrationIT} declare the same annotations and the same
+ * {@code @Import} list, deliberately and to the letter, so Spring's context cache
+ * hands all four classes one context instead of building four. The test JVM is
+ * capped at 1 GB with no fork between classes, so every distinct test configuration
+ * is a Spring context that stays cached for the whole run. Keep the lists identical
+ * when any one changes.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({InspectionService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
+        NcrService.class, NcrMapperImpl.class, UserContextService.class,
         TenantEntityHelper.class, EntryNumberGenerator.class})
 class InspectionServiceIT extends AbstractIntegrationTest {
 
@@ -379,6 +386,44 @@ class InspectionServiceIT extends AbstractIntegrationTest {
 
         assertThat(created.checkItems()).isEmpty();
         assertThat(created.totalCheckPoints()).isZero();
+    }
+
+    @Test
+    void update_refusesAStatusMoveThatIsNotPartOfTheLifecycle() {
+        InspectionDto created = service.create(scheduleFor(InspectionTrade.PLASTERING, null));
+        UUID id = created.id();
+
+        // scheduled straight to passed is legal: work is often carried out and recorded
+        // afterwards, so this is a normal day rather than a skipped step
+        assertThat(service.update(id, concludeAs(InspectionStatus.PASSED)).status())
+                .isEqualTo(InspectionStatus.PASSED);
+
+        // coming back out of that verdict is not
+        assertThatThrownBy(() -> service.update(id, concludeAs(InspectionStatus.SCHEDULED)))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("is passed and cannot move to scheduled")
+                .hasMessageContaining("this is where the inspection ends");
+
+        // and the refusal leaves the stored record untouched
+        assertThat(service.findById(id).status()).isEqualTo(InspectionStatus.PASSED);
+    }
+
+    @Test
+    void update_acceptsAPayloadThatRepeatsTheStoredStatus() {
+        // the web client sends the whole record back on every save, so an unchanged
+        // status must not be read as an attempted transition
+        UUID id = service.create(scheduleFor(InspectionTrade.PLASTERING, null)).id();
+
+        assertThat(service.update(id, concludeAs(InspectionStatus.SCHEDULED)).status())
+                .isEqualTo(InspectionStatus.SCHEDULED);
+    }
+
+    private UpdateInspectionRequest concludeAs(InspectionStatus status) {
+        return new UpdateInspectionRequest(
+                "Wall check", InspectionType.QUALITY, null, InspectionTrade.PLASTERING,
+                status, null, projectId, "Block A", null, null,
+                LocalDate.of(2026, 8, 20), null, null, null, null, 100L, null, null,
+                null, null, null, null, null);
     }
 
     private CreateInspectionRequest scheduleFor(InspectionTrade trade,

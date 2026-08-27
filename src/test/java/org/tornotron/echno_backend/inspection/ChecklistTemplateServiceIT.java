@@ -29,10 +29,13 @@ import org.tornotron.echno_backend.inspection.dtos.ChecklistTemplateRequest;
 import org.tornotron.echno_backend.inspection.dtos.StarterChecklistTemplateDto;
 import org.tornotron.echno_backend.inspection.mapper.ChecklistTemplateMapperImpl;
 import org.tornotron.echno_backend.inspection.mapper.InspectionMapperImpl;
+import org.tornotron.echno_backend.inspection.mapper.NcrMapperImpl;
 import org.tornotron.echno_backend.inspection.service.ChecklistTemplateService;
 import org.tornotron.echno_backend.inspection.service.InspectionService;
+import org.tornotron.echno_backend.inspection.service.NcrService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.util.List;
 import java.util.UUID;
@@ -47,14 +50,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * test can.
  *
  * <p>The annotations and the {@code @Import} list repeat {@link InspectionServiceIT}
- * to the letter on purpose, so Spring's context cache serves both classes from one
- * context. See that class for why that matters in a 1 GB test JVM. Keep the two in
- * step when either changes.
+ * to the letter on purpose, so Spring's context cache serves all three inspection
+ * test classes from one context. See that class for why that matters in a 1 GB test
+ * JVM. Keep them in step when any one changes.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({InspectionService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
+        NcrService.class, NcrMapperImpl.class, UserContextService.class,
         TenantEntityHelper.class, EntryNumberGenerator.class})
 class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
 

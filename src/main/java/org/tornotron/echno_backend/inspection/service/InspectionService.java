@@ -139,7 +139,7 @@ public class InspectionService {
         inspection.setType(req.type());
         inspection.setCategory(categoryFor(req.category(), req.type()));
         inspection.setTrade(req.trade());
-        inspection.setStatus(req.status());
+        transitionTo(inspection, req.status());
         inspection.setResult(req.result());
         inspection.setLocation(req.location());
         inspection.setAreaInspected(req.areaInspected());
@@ -163,6 +163,43 @@ public class InspectionService {
         Inspection saved = inspectionRepo.saveAndFlush(inspection);
         log.info("Updated inspection {}", saved.getInspectionNumber());
         return mapper.toDto(saved);
+    }
+
+    /**
+     * Moves an inspection along its lifecycle, or refuses the move.
+     *
+     * <p>This is the only place the status is written after creation. It used to be
+     * taken from the payload as given, so an inspection could go from cancelled back
+     * to passed, or from passed to scheduled, and the record would then show a
+     * conclusion that was never reached. The graph in
+     * {@link InspectionStatus#canTransitionTo} is deliberately permissive about how
+     * an inspection is concluded, because work is often carried out and recorded
+     * afterwards; what it refuses is coming back out of a conclusion.
+     *
+     * <p>A payload that repeats the stored status passes, which is the normal case:
+     * the web client sends the whole record back on every save.
+     *
+     * @param inspection The inspection being updated.
+     * @param target     The status the request asks for.
+     * @throws InvalidRequestException if the move is not part of the lifecycle.
+     */
+    private static void transitionTo(Inspection inspection, InspectionStatus target) {
+        InspectionStatus current = inspection.getStatus();
+        if (!current.canTransitionTo(target)) {
+            throw new InvalidRequestException(
+                    "Inspection " + inspection.getInspectionNumber() + " is " + current.getValue()
+                            + " and cannot move to " + target.getValue() + ". From "
+                            + current.getValue() + " it may move to " + allowedFrom(current) + ".");
+        }
+        inspection.setStatus(target);
+    }
+
+    private static String allowedFrom(InspectionStatus current) {
+        if (current.allowedNext().isEmpty()) {
+            return "nothing: this is where the inspection ends";
+        }
+        return String.join(", ",
+                current.allowedNext().stream().map(InspectionStatus::getValue).toList());
     }
 
     /**
