@@ -17,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
@@ -80,28 +81,72 @@ public class ProjectControllerWeb {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addProject(dto, attachments));
     }
     /**
-     * Retrieves a paginated list of all projects.
+     * Lists the current tenant's projects as a bare array, capped rather than paged.
      *
-     * @param pageNo   The page number to retrieve (default is 0).
-     * @param pageSize The number of projects per page (default is 10).
-     * @return A {@link ResponseEntity} containing the list of project DTOs and HTTP status 200 (OK).
+     * <p>This used to accept {@code pageNo} and {@code pageSize} defaulting to the first ten rows
+     * and then answer with {@code page.getContent()}, so a caller that passed no parameters, which
+     * is every caller the web client has, received ten projects and no indication that more
+     * existed. Most of those callers are project pickers in forms, so the effect was that a user
+     * could not select their own project unless it happened to hold one of the ten lowest ids, and
+     * the dropdown looked complete while doing it.
+     *
+     * <p>The parameters are gone rather than re-tuned: keeping them on an endpoint that discards
+     * the page envelope is what made the truncation silent. The read is bounded by
+     * {@link UnpagedResultCap} instead and never silently truncated. Every response carries the
+     * true row count in {@code X-Total-Count}, and one that did not fit also carries
+     * {@code X-Result-Capped}. A caller that needs to walk past the cap has
+     * {@link #readAllProjectsPaginated} for it.
+     *
+     * @return A {@link ResponseEntity} containing the project DTOs and the count headers.
      */
     @GetMapping()
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List projects",
-            description = "Returns a single page of projects. The pageNo and pageSize parameters "
-                    + "control paging; only the page content is returned, without paging metadata."
+            description = "Returns the current tenant's projects as a bare array, capped at 500 "
+                    + "rows. The response always carries the true total in X-Total-Count, and "
+                    + "carries X-Result-Capped when rows were left out, so a caller can tell a "
+                    + "complete result from a capped one. Use /paginated to page beyond the cap."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Projects returned, capped at 500 rows"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public ResponseEntity<List<ProjectDto>> readAllProjects() {
+        logger.info("All Projects Retrieved Successfully");
+        return UnpagedResultCap.respond(service.getAllProjects(0, UnpagedResultCap.MAX_ROWS));
+    }
+
+    /**
+     * Lists projects as a real {@link Page}, with the paging metadata intact.
+     *
+     * <p>The honest counterpart to {@link #readAllProjects}: a caller gets {@code totalElements},
+     * {@code totalPages} and the page index alongside the content, so a truncated result describes
+     * itself. Deliberately the same shape as {@code GET /tasks/web/paginated}; consistency between
+     * the two listings matters more than either choice would in isolation.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page, clamped to the result cap.
+     * @param search   Optional case-insensitive match on the project name.
+     * @return A {@link ResponseEntity} containing the page of project DTOs.
+     */
+    @GetMapping("/paginated")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(
+            summary = "List projects, paginated and filtered",
+            description = "Returns a single page of projects with the paging metadata included, "
+                    + "optionally filtered by a free-text search on the project name. pageSize is "
+                    + "clamped to 500."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of projects returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<ProjectDto>> readAllProjects(@RequestParam(defaultValue = "0") int pageNo,
-                                                            @RequestParam(defaultValue = "10") int pageSize) {
-        Page<ProjectDto> projects = service.getAllProjects(pageNo,pageSize);
-        logger.info("All Projects Retrieved Successfully");
-        return new ResponseEntity<>(projects.getContent(),HttpStatus.OK);
+    public ResponseEntity<Page<ProjectDto>> readAllProjectsPaginated(
+            @RequestParam(defaultValue = "0") int pageNo,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(service.getProjectsPaginated(pageNo, pageSize, search));
     }
 
     /**
