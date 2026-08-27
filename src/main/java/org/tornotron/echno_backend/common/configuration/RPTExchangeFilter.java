@@ -81,7 +81,8 @@ public class RPTExchangeFilter extends OncePerRequestFilter {
     /**
      * Turns a classified exchange failure into the response the caller deserves.
      *
-     * <p>A rejected or expired access token is a 401 the caller can act on by re-authenticating. An
+     * <p>A rejected or expired access token is a 401 the caller can act on by re-authenticating. A
+     * refused authorization is a 403, because the token was accepted and a fresh one changes nothing. An
      * unreachable Keycloak is a 503, because it is not the caller's fault and re-authenticating against
      * a Keycloak that is down would be exactly the wrong move. A misconfiguration or a protocol break on
      * our side stays a 401 so nothing about the deployment leaks, but it is logged in full at ERROR.
@@ -100,8 +101,10 @@ public class RPTExchangeFilter extends OncePerRequestFilter {
                         "The access token is expired or invalid");
             }
             case PERMISSION_DENIED -> {
+                // 403, not 401: the token authenticated fine, authorization was refused. No
+                // WWW-Authenticate either, since presenting a different token is not the remedy.
                 log.debug("Rejecting request to {}: Keycloak granted no permissions for the caller", requestUri);
-                yield new Rejection(HttpServletResponse.SC_UNAUTHORIZED, "access_denied",
+                yield new Rejection(HttpServletResponse.SC_FORBIDDEN, "access_denied",
                         "The access token grants no permissions");
             }
             case KEYCLOAK_UNAVAILABLE -> {
