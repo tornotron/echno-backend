@@ -37,6 +37,11 @@ import java.util.UUID;
  * status field: status and result are set directly from the request, and the
  * summary counts (total, passed, failed check points and defects found) are
  * recomputed from the supplied check items and defects on every save.
+ *
+ * <p>Creating an inspection for a trade the organization has an active checklist
+ * template for starts it from a copy of that template's check points, so an
+ * inspector opens a ready checklist instead of an empty one. See
+ * {@link #applyChildrenAndCounts} for when the template is consulted.
  */
 @Slf4j
 @Service
@@ -49,6 +54,7 @@ public class InspectionService {
     private final EntryNumberGenerator numberGen;
     private final InspectionMapper mapper;
     private final TenantEntityHelper tenantEntityHelper;
+    private final ChecklistTemplateService checklistTemplateService;
 
     @Transactional(readOnly = true)
     public InspectionDto findById(UUID id) {
@@ -99,6 +105,7 @@ public class InspectionService {
         inspection.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         applyChildrenAndCounts(inspection, req.checkItems(), req.defects());
+        instantiateTemplateIfEmpty(inspection);
 
         Inspection saved = inspectionRepo.saveAndFlush(inspection);
         log.info("Created inspection {}", saved.getInspectionNumber());
@@ -203,6 +210,10 @@ public class InspectionService {
                 replaceAll(item.getPhotos(), cr.photos());
                 item.setMeasurement(cr.measurement());
                 item.setExpectedValue(cr.expectedValue());
+                item.setAcceptanceCriterion(cr.acceptanceCriterion());
+                item.setTolerance(cr.tolerance());
+                item.setDeviation(MeasurementDeviation.of(cr.measurement(), cr.expectedValue()));
+                item.setBimElementGuid(cr.bimElementGuid());
                 item.setPriority(cr.priority() != null ? cr.priority() : "medium");
                 inspection.addCheckItem(item);
 
@@ -247,6 +258,37 @@ public class InspectionService {
      */
     private static InspectionCategory categoryFor(InspectionCategory requested, InspectionType type) {
         return requested != null ? requested : InspectionCategory.defaultFor(type);
+    }
+
+    /**
+     * Starts a new inspection from the organization's checklist for its trade, when
+     * the caller supplied no check points of their own.
+     *
+     * <p>An explicit list always wins. A client that sends its own check points has
+     * said what this inspection covers, and a template is a default, not an override:
+     * silently appending template rows to a hand-built checklist would double up every
+     * check point on the re-inspection of a failed item. The template is therefore
+     * consulted only for an inspection that would otherwise start empty, which is the
+     * normal case for one scheduled against a trade.
+     *
+     * <p>The counts are recomputed here rather than left to
+     * {@link #applyChildrenAndCounts}, because the instantiated items are only known
+     * after it has run. Instantiated items are all {@code PENDING}, so only the total
+     * moves; passed and failed stay at zero until the inspection is carried out.
+     */
+    private void instantiateTemplateIfEmpty(Inspection inspection) {
+        if (!inspection.getCheckItems().isEmpty()) {
+            return;
+        }
+        List<InspectionCheckItem> instantiated =
+                checklistTemplateService.instantiateFor(inspection.getTrade());
+        if (instantiated.isEmpty()) {
+            return;
+        }
+        instantiated.forEach(inspection::addCheckItem);
+        inspection.setTotalCheckPoints(instantiated.size());
+        log.info("Instantiated {} check points from the {} checklist template",
+                instantiated.size(), inspection.getTrade().getValue());
     }
 
     /**

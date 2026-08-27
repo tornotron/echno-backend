@@ -304,4 +304,10 @@
     <!-- v4.0 - Project site address as fields: city, state and postal code -->
     <include file="db/changelog/v4.0/056-add-project-structured-location.xml"/>
 
+    <!-- v4.0 - Inspection QA/QC: per-trade checklist templates, tenant-owned, plus the shipped starter seed -->
+    <include file="db/changelog/v4.0/057-create-and-seed-checklist-templates.xml"/>
+
+    <!-- v4.0 - Inspection QA/QC: acceptance criterion, tolerance, computed deviation and the BIM element link -->
+    <include file="db/changelog/v4.0/058-extend-inspection-check-items.xml"/>
+
 </databaseChangeLog>

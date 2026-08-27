@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.tornotron.echno_backend.inspection.CheckItemStatus;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -61,6 +62,26 @@ public class InspectionCheckItem {
 
     @Column(name = "expected_value", length = 200)
     private String expectedValue;
+
+    // The measurable criterion copied from the checklist template this check point
+    // came from: what makes it pass, and the band around the expected value.
+    @Column(name = "acceptance_criterion", length = 1000)
+    private String acceptanceCriterion;
+
+    @Column(name = "tolerance", length = 100)
+    private String tolerance;
+
+    // measurement minus expectedValue, computed server-side by MeasurementDeviation
+    // whenever both are numeric and carry the same unit. Null when either is absent
+    // or non-numeric, which is the normal case for a qualitative check point.
+    @Column(name = "deviation", precision = 19, scale = 4)
+    private BigDecimal deviation;
+
+    // IFC GlobalId of the BIM element this check point was carried out against.
+    // Nullable and unused until the BIM phase; the column exists now so the link is
+    // already in place when the viewer lands and needs no migration of live rows.
+    @Column(name = "bim_element_guid", length = 100)
+    private String bimElementGuid;
 
     // Free-form priority ('high' | 'medium' | 'low'), kept as text to match the
     // web contract's inline string union.

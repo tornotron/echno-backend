@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="058-01-add-check-item-criteria-and-bim-link" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="inspection_check_items" columnName="acceptance_criterion"/>
+            </not>
+            <not>
+                <columnExists tableName="inspection_check_items" columnName="tolerance"/>
+            </not>
+            <not>
+                <columnExists tableName="inspection_check_items" columnName="deviation"/>
+            </not>
+            <not>
+                <columnExists tableName="inspection_check_items" columnName="bim_element_guid"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            The measurable form of a check point, carried onto the inspection when a checklist
+            template is instantiated. acceptance_criterion states what makes the check point
+            pass and tolerance is the band around expected_value; deviation is the measured
+            value minus the expected one, computed server-side and left NULL where the pair is
+            not a comparable numeric quantity in one unit, which is the normal case for a
+            qualitative check point.
+
+            bim_element_guid holds the IFC GlobalId of the element the check point was carried
+            out against. It is unused until the BIM phase; the column is added now so the link
+            is already in place when the viewer lands and no live table has to be migrated then.
+
+            All four columns are guarded above. A precondition naming only the first would mark
+            the changeset as run on a database that already had it and silently skip the rest.
+        </comment>
+
+        <addColumn tableName="inspection_check_items">
+            <column name="acceptance_criterion" type="VARCHAR(1000)"/>
+            <column name="tolerance" type="VARCHAR(100)"/>
+            <column name="deviation" type="DECIMAL(19,4)"/>
+            <column name="bim_element_guid" type="VARCHAR(100)"/>
+        </addColumn>
+
+        <createIndex tableName="inspection_check_items" indexName="idx_insp_check_item_bim_guid">
+            <column name="bim_element_guid"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

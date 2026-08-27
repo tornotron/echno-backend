@@ -10,7 +10,9 @@ import org.springframework.context.annotation.Import;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.inspection.domain.InspectionDefect;
+import org.tornotron.echno_backend.inspection.mapper.ChecklistTemplateMapperImpl;
 import org.tornotron.echno_backend.inspection.mapper.InspectionMapperImpl;
+import org.tornotron.echno_backend.inspection.service.ChecklistTemplateService;
 import org.tornotron.echno_backend.inspection.service.InspectionService;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.w3c.dom.Document;
@@ -45,6 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({InspectionService.class, InspectionMapperImpl.class,
+        ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         TenantEntityHelper.class, EntryNumberGenerator.class})
 class InspectionTaxonomyMigrationIT extends AbstractIntegrationTest {
 

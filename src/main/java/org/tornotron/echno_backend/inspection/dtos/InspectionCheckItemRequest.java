@@ -11,7 +11,8 @@ import java.util.List;
 /**
  * Check-point payload shared by the create and update requests. The inspection's
  * passed, failed and total counts are derived server-side from the supplied
- * check items; the client does not set them.
+ * check items; the client does not set them, and neither is the deviation, which
+ * the server computes from the measurement and the expected value.
  */
 @Schema(description = "A single checklist item within an inspection.")
 public record InspectionCheckItemRequest(
@@ -33,6 +34,14 @@ public record InspectionCheckItemRequest(
         @Size(max = 200) String measurement,
         @Schema(description = "Value expected per specification.", example = "150mm")
         @Size(max = 200) String expectedValue,
+        @Schema(description = "What makes this check point pass, copied from the checklist template.",
+                example = "Spacing measured at three locations per bay")
+        @Size(max = 1000) String acceptanceCriterion,
+        @Schema(description = "Permitted band around the expected value.", example = "+/- 10 mm")
+        @Size(max = 100) String tolerance,
+        @Schema(description = "IFC GlobalId of the BIM element this check point covers, when the "
+                + "inspection was carried out against a model.", example = "1kTvXnbbzCWw8lcMd1dR4o")
+        @Size(max = 100) String bimElementGuid,
         @Schema(description = "Priority of this check point.", example = "high")
         @Size(max = 20) String priority
 ) {}

@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.inspection.dtos;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.tornotron.echno_backend.inspection.CheckItemStatus;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,5 +19,9 @@ public record InspectionCheckItemDto(
         List<String> photos,
         String measurement,
         String expectedValue,
+        String acceptanceCriterion,
+        String tolerance,
+        BigDecimal deviation,
+        String bimElementGuid,
         String priority
 ) {}

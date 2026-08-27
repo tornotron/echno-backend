@@ -107,6 +107,16 @@ tasks.named('test') {
     // and the OOM killer then takes the database, failing the rest of the suite.
     maxHeapSize = '1024m'
     jvmArgs '-XX:MaxMetaspaceSize=512m'
+    // Bound how many Spring test contexts the run keeps alive at once. There is no
+    // forkEvery, so one JVM serves the whole suite and the default cache of 32 means
+    // every distinct test configuration's context, each with its own Hibernate
+    // SessionFactory, is held to the last test. That total only grows as the schema
+    // does, and it is what leaves nothing for the ArchUnit import that runs late in
+    // the run and needs the class graph of the whole application in memory at once.
+    // Capping the cache makes Spring close the least recently used context instead of
+    // holding all of them; a context is rebuilt if a later class needs it again,
+    // which costs seconds where the alternative costs the build.
+    systemProperty 'spring.test.context.cache.maxSize', '8'
     // Print each test as it starts and finishes so a CI log always shows which test
     // is running; without this, a hung test leaves no trace of which one stalled.
     testLogging {
