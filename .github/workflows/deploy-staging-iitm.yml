@@ -133,17 +133,45 @@ jobs:
         working-directory: deployment/ansible
         run: ansible-galaxy collection install -r requirements.yml -p collections
 
-      - name: Deploy
+      - name: Set up Ansible credentials
         working-directory: deployment/ansible
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
           printf '%s' "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
           chmod 600 .vault_pass
           install -d -m 700 ~/.ssh
           printf '%s' "${{ secrets.LAB_NODE_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          # The fereydon sudo password comes from the vault (ansible.cfg reads
+
+      # The infra services (redis included) are created by the `infra` role,
+      # which this workflow does not run. If echno_cache_provider is redis but
+      # the echno-redis container is missing, the backend health-checks against
+      # an absent cache and every deploy rolls back with a confusing failure.
+      # Catch it here with a clear message. The cache provider is read from the
+      # inventory, so if it is not redis this check passes without touching the
+      # node.
+      - name: Pre-flight infra check
+        working-directory: deployment/ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible echno-iitm -i inventory/staging-iitm.yml \
+            -m ansible.builtin.shell -a '
+              if [ "{{ echno_cache_provider | default("caffeine") }}" = "redis" ]; then
+                docker inspect echno-redis >/dev/null 2>&1 || {
+                  echo "echno_cache_provider is redis but the echno-redis container is missing.";
+                  echo "Run the Infra (IITM) workflow first, then re-run this deploy.";
+                  exit 1;
+                }
+              fi
+            '
+
+      - name: Deploy
+        working-directory: deployment/ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          # Credentials were written by the "Set up Ansible credentials" step;
+          # the fereydon sudo password comes from the vault (ansible.cfg reads
           # .vault_pass), so no separate become secret is needed here.
           ansible-playbook -i inventory/staging-iitm.yml playbooks/deploy-apps.yml \
             -e "echno_backend_image_digest=${{ needs.build.outputs.digest }}" \

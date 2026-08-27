@@ -1,0 +1,90 @@
+name: Infra (IITM)
+
+# Apply the infrastructure layer to the IIT Madras staging node on echno.in.
+#
+# The Staging (IITM) workflow only ever runs the Ansible `apps` role, so infra
+# changes (the compose.infra.yml services like cockroach, keycloak, redis and
+# minio, and their env files) never reach the box through CI. That gap bites
+# when the app config depends on an infra service that does not exist yet: set
+# `echno_cache_provider: redis` and a plain app deploy health-checks the backend
+# against a redis container that was never created, so every release rolls back.
+#
+# This workflow closes that gap. It runs the `infra` role from
+# tornotron/echno-deployment through the same ephemeral tailnet runner the app
+# deploy uses, so the compose.infra.yml services are created or updated. The
+# infra role runs `docker compose ... up` with state: present, which only
+# creates new or changed services, so unchanged cockroach/keycloak containers
+# are left running untouched.
+#
+# Deliberately workflow_dispatch only. Infra changes are rarer and more
+# sensitive than app releases, and coupling them to every app deploy would
+# recreate infra services on each release. Run this by hand when the infra
+# layer changes, then run Staging (IITM).
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  # Share the staging-iitm deploy group so an infra apply and an app deploy
+  # cannot run against the node at the same time.
+  group: staging-iitm-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  infra:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the deployment repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: tornotron/echno-deployment
+          ssh-key: ${{ secrets.ECHNO_DEPLOYMENT_SSH_KEY }}
+          path: deployment
+
+      # The lab node is not a tailnet device: it sits on 10.24.6.0/24 behind the
+      # hp-z / OptiPlex subnet routers. The runner joins as tag:ci-deploy (a
+      # dedicated deployer tag, not a host tag), which the ACL grants the lab
+      # route. Its OAuth client is scoped to exactly that one tag.
+      - name: Join the tailnet
+        uses: tailscale/github-action@780049a30b6ff5c378a9e7b389d15ece7a204888 # v4.1.3
+        with:
+          oauth-client-id: ${{ secrets.TS_CI_DEPLOY_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_CI_DEPLOY_SECRET }}
+          tags: tag:ci-deploy
+
+      # The action's own `tailscale up` already sets --accept-routes, so passing
+      # it again through args fails ("flag provided multiple times"). Enable the
+      # subnet route in a separate step instead, so the runner can reach the node.
+      - name: Accept the lab subnet route
+        run: sudo tailscale set --accept-routes=true
+
+      - name: Install Ansible
+        run: python3 -m pip install --quiet ansible-core docker
+
+      - name: Install collections
+        working-directory: deployment/ansible
+        run: ansible-galaxy collection install -r requirements.yml -p collections
+
+      - name: Apply infra
+        working-directory: deployment/ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          printf '%s' "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > .vault_pass
+          chmod 600 .vault_pass
+          install -d -m 700 ~/.ssh
+          printf '%s' "${{ secrets.LAB_NODE_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # The fereydon sudo password comes from the vault (ansible.cfg reads
+          # .vault_pass), so no separate become secret is needed here. No image
+          # digest is passed: infra services are pinned in the role, not built by
+          # this repo, so they are not image-versioned here.
+          ansible-playbook -i inventory/staging-iitm.yml playbooks/site.yml --tags infra
+
+      - name: Clean up
+        if: always()
+        working-directory: deployment/ansible
+        run: rm -f .vault_pass ~/.ssh/id_ed25519
