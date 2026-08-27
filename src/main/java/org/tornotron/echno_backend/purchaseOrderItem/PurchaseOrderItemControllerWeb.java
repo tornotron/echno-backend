@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemRespon
 import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemUpdateDto;
 
 import java.util.List;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 @RestController
 @RequestMapping("/api/v1/purchase-order-items/web")
@@ -68,15 +69,15 @@ public class PurchaseOrderItemControllerWeb {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "List all purchase order items",
-            description = "Returns every purchase order line item for the current tenant, unpaginated."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase order items returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<PurchaseOrderItemResponseDto>> getAllPurchaseOrderItems() {
-        List<PurchaseOrderItemResponseDto> items = purchaseOrderItemService.getAllPurchaseOrderItems();
-        return ResponseEntity.ok(items);
+        return UnpagedResultCap.respond(
+                purchaseOrderItemService.getAllPurchaseOrderItems(UnpagedResultCap.firstPage()));
     }
 
     @GetMapping("/purchase-order/{purchaseOrderId}")

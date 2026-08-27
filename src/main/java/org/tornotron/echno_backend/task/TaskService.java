@@ -173,15 +173,20 @@ public class TaskService {
     }
 
     /**
-     * Retrieves a list of all tasks.
+     * Counts the current tenant's tasks by status.
      *
-     * @return A list of all task DTOs.
+     * <p>Replaces a full-table read that grouped in memory. The grouping happens in the database,
+     * so the work is proportional to the number of distinct statuses rather than to the number of
+     * tasks.
+     *
+     * @return Status name to task count, with a null status reported as {@code Unknown}.
      */
     @Transactional(readOnly = true)
-    public List<TaskDto> getAllTasks() {
-        return taskRepository.findAll().stream()
-                .map(task -> taskMapper.toDto(task))
-                .toList();
+    public Map<String, Long> countTasksByStatus() {
+        return taskRepository.countByStatus().stream()
+                .collect(Collectors.toMap(
+                        row -> row.getStatus() == null ? "Unknown" : row.getStatus().toString(),
+                        TaskRepository.TaskStatusCount::getTotal));
     }
 
     /**

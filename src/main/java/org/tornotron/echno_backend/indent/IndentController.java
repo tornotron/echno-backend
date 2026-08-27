@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.indent.dto.IndentCreationDto;
 import org.tornotron.echno_backend.indent.dto.IndentDto;
 
 import java.util.List;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 @RestController
 @RequestMapping("/api/v1/indents")
@@ -74,14 +75,14 @@ public class IndentController {
     @PreAuthorize("hasAuthority('indent:read') or hasAuthority('indent:admin')")
     @Operation(
             summary = "List all indents",
-            description = "Returns every indent for the current tenant, unpaginated."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indents returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent read or admin authority")
     })
     public ResponseEntity<List<IndentDto>> getAllIndents() {
-        return new ResponseEntity<>(indentService.getAllIndents(), HttpStatus.OK);
+        return UnpagedResultCap.respond(indentService.getAllIndents(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/{id}")

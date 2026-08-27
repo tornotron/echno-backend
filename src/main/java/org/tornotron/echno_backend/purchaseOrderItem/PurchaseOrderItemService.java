@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.purchaseOrderItem;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -93,11 +95,20 @@ public class PurchaseOrderItemService {
         return convertToResponseDto(item);
     }
 
+    /**
+     * Retrieves purchase order items one page at a time.
+     *
+     * <p>Replaces an unpaginated read of the whole table. Line items accumulate with every
+     * purchase order a tenant raises, so the row count has no ceiling and the only safe read is
+     * a bounded one.
+     *
+     * @param pageable The page to fetch.
+     * @return A page of purchase order item DTOs.
+     */
     @Transactional(readOnly = true)
-    public List<PurchaseOrderItemResponseDto> getAllPurchaseOrderItems() {
-        return purchaseOrderItemRepository.findAll().stream()
-                .map(this::convertToResponseDto)
-                .collect(Collectors.toList());
+    public Page<PurchaseOrderItemResponseDto> getAllPurchaseOrderItems(Pageable pageable) {
+        return purchaseOrderItemRepository.findAll(pageable)
+                .map(this::convertToResponseDto);
     }
 
     @Transactional(readOnly = true)

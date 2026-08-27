@@ -19,6 +19,7 @@ import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransacti
 
 import java.time.LocalDateTime;
 import java.util.List;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 @RestController
 @RequestMapping("/api/v1/inventory-transactions")
@@ -65,16 +66,15 @@ public class InventoryTransactionController {
     @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
     @Operation(
             summary = "List all inventory transactions",
-            description = "Returns every inventory transaction as an unpaged list. Use the paginated "
-                    + "variant for large ledgers."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
     })
     public ResponseEntity<List<InventoryTransactionDto>> getAllTransactions() {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getAllTransactions();
-        return ResponseEntity.ok(transactions);
+        return UnpagedResultCap.respond(
+                inventoryTransactionService.getAllTransactions(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/all")

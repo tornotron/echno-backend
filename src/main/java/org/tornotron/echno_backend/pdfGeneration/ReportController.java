@@ -24,6 +24,10 @@ import org.tornotron.echno_backend.task.TaskService;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import org.springframework.data.domain.Page;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
+import org.tornotron.echno_backend.indent.dto.IndentDto;
+import org.tornotron.echno_backend.task.dto.TaskDto;
 
 @RestController
 @RequestMapping("/api/v1/generate-report")
@@ -62,16 +66,33 @@ public class ReportController {
         this.indentService = indentService;
     }
 
+    /**
+     * Assembles the template context.
+     *
+     * <p>Tasks and indents are read one capped page at a time rather than whole. Both tables grow
+     * with everything a tenant ever records, so an uncapped read would load, map and render every
+     * row a client has accumulated. The true totals go into the context alongside the capped
+     * lists, so the report states its real counts and says when it is showing only part of them.
+     */
     private Context populateContext() {
+        Page<TaskDto> tasks = taskService.getAllTasks(0, UnpagedResultCap.MAX_ROWS);
+        Page<IndentDto> indents = indentService.getAllIndents(0, UnpagedResultCap.MAX_ROWS);
+
         Context ctx = new Context();
-        ctx.setVariable("tasks", taskService.getAllTasks());
+        ctx.setVariable("tasks", tasks.getContent());
+        ctx.setVariable("taskTotal", tasks.getTotalElements());
         ctx.setVariable("counts", pdfReportService.statusCount());
         ctx.setVariable("delayedCounts", pdfReportService.statusCount());
         ctx.setVariable("category", categoryService);
         ctx.setVariable("dateConverter", dateConversion);
         ctx.setVariable("project",projectService);
         ctx.setVariable("organization",organizationService);
-        ctx.setVariable("indents", indentService.getAllIndents());
+        ctx.setVariable("indents", indents.getContent());
+        ctx.setVariable("indentTotal", indents.getTotalElements());
+        ctx.setVariable("truncated",
+                tasks.getTotalElements() > tasks.getNumberOfElements()
+                        || indents.getTotalElements() > indents.getNumberOfElements());
+        ctx.setVariable("rowCap", UnpagedResultCap.MAX_ROWS);
         return ctx;
     }
 
@@ -79,8 +100,10 @@ public class ReportController {
     @GetMapping("/pdf")
     @Operation(
             summary = "Generate a PDF report",
-            description = "Renders and returns a PDF covering all tasks, their status breakdown, projects "
-                    + "and indents in the current tenant."
+            description = "Renders and returns a PDF covering the current tenant's tasks, their status "
+                    + "breakdown, projects and indents. The task and indent sections show at most "
+                    + "500 rows each; the report states the true totals and flags itself when it "
+                    + "is showing only part of them."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "PDF report generated and returned as an attachment"),
