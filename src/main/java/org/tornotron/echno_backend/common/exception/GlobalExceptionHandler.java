@@ -4,6 +4,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -105,6 +106,26 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleDuplicateIdempotencyKeyException(DuplicateIdempotencyKeyException ex, WebRequest request) {
         logger.error("Duplicate idempotency key exception: ", ex);
         return problem(HttpStatus.CONFLICT, "Duplicate Idempotency Key", ex.getMessage(), request);
+    }
+
+    /**
+     * A write that kept colliding with a concurrent change on the same rows and used up its
+     * serialization retries. 409 rather than 503: the service is healthy and every other
+     * request is being served, so signalling unavailability would be untrue and would push
+     * clients and proxies into backing off from the whole API. It is the same shape as the
+     * other "someone else got there first" answers here, and the retryable flag tells the
+     * client it may simply send the request again.
+     */
+    @ExceptionHandler({TransactionRetriesExhaustedException.class, CannotAcquireLockException.class})
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ProblemDetail handleSerializationConflict(Exception ex, WebRequest request) {
+        logger.warn("Serialization conflict, request not applied: {}", ex.getMessage());
+        ProblemDetail pd = problem(HttpStatus.CONFLICT, "Concurrent Update Conflict",
+                "Someone else changed the same records at the same time, so the request was not "
+                        + "applied. Please try again.", request);
+        pd.setProperty("retryable", true);
+        pd.setProperty("retryAfterSeconds", 1);
+        return pd;
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
