@@ -298,4 +298,7 @@
     <!-- v4.0 - Inspection taxonomy: category discriminator, trade axis, defect severity/status enums -->
     <include file="db/changelog/v4.0/054-add-inspection-taxonomy-and-defect-enums.xml"/>
 
+    <!-- v4.0 - Persist the corrected clock events submitted with a regularization request -->
+    <include file="db/changelog/v4.0/055-add-regularization-requested-events.xml"/>
+
 </databaseChangeLog>
