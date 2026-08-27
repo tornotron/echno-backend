@@ -30,14 +30,17 @@ import java.util.UUID;
                 + "inspection created for a trade starts from a copy of that trade's active "
                 + "template, so later edits never rewrite a checklist already signed off. The "
                 + "starter endpoints expose the product-supplied defaults an organization adopts "
-                + "as its own editable templates. All endpoints are tenant scoped."
+                + "as its own editable templates. All endpoints are tenant scoped. Defining a "
+                + "template is the QA engineer's authority: setting the tolerance work is judged "
+                + "against is a bigger act than recording a measurement against one. Everyone with "
+                + "inspection read access can see the templates."
 )
 public class ChecklistTemplateControllerWeb {
 
     private final ChecklistTemplateService service;
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canDefineChecklists()")
     @Operation(
             summary = "Define a checklist template",
             description = "Creates the organization's checklist for a trade, with its check points. "
@@ -54,7 +57,7 @@ public class ChecklistTemplateControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canRead()")
     @Operation(
             summary = "Get a checklist template by id",
             description = "Returns a single template including its check points in line order."
@@ -69,7 +72,7 @@ public class ChecklistTemplateControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canRead()")
     @Operation(
             summary = "List checklist templates",
             description = "Returns a page of the organization's templates. The trade and active "
@@ -87,7 +90,7 @@ public class ChecklistTemplateControllerWeb {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canDefineChecklists()")
     @Operation(
             summary = "Replace a checklist template",
             description = "Replaces the name, description, active flag and check points of an "
@@ -108,7 +111,7 @@ public class ChecklistTemplateControllerWeb {
     }
 
     @GetMapping("/starters")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canRead()")
     @Operation(
             summary = "List the starter checklists on offer",
             description = "Returns the product-supplied default checklists, one per trade at most. "
@@ -124,7 +127,7 @@ public class ChecklistTemplateControllerWeb {
     }
 
     @PostMapping("/starters/{trade}/adopt")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canDefineChecklists()")
     @Operation(
             summary = "Adopt a starter checklist",
             description = "Copies the shipped starter for a trade into this organization as its own "

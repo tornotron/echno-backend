@@ -31,14 +31,19 @@ import java.util.UUID;
                 + "non-conformance, which site engineer owns it, who re-inspected it and who closed "
                 + "it. The lifecycle runs open, assigned, corrective action complete, verified, "
                 + "closed, with reject and reopen as the ways off that line; a step that is not part "
-                + "of it is refused rather than recorded. All endpoints are tenant scoped."
+                + "of it is refused rather than recorded. All endpoints are tenant scoped, and the "
+                + "authority is split along the same line as the lifecycle: the QA engineer and the "
+                + "safety officer raise and assign, the site engineer reports the corrective work "
+                + "done, and verifying, rejecting, reopening and closing need the sign-off role for "
+                + "that report's own discipline, so a safety officer cannot close a quality report or "
+                + "the other way round."
 )
 public class NcrControllerWeb {
 
     private final NcrService service;
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canRaiseNcrs()")
     @Operation(
             summary = "Raise a non-conformance report",
             description = "Raises an NCR against an inspection, and against one of its defects when "
@@ -58,7 +63,7 @@ public class NcrControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canRead()")
     @Operation(summary = "Get a non-conformance report by id")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "NCR found"),
@@ -70,7 +75,7 @@ public class NcrControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canRead()")
     @Operation(
             summary = "List non-conformance reports",
             description = "Returns a page of NCRs in the current tenant. Every parameter is an "
@@ -91,7 +96,7 @@ public class NcrControllerWeb {
     }
 
     @PostMapping("/{id}/assign")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canRaiseNcrs()")
     @Operation(
             summary = "Assign a non-conformance report",
             description = "Hands the corrective work to a site engineer, or moves it to a different "
@@ -108,7 +113,7 @@ public class NcrControllerWeb {
     }
 
     @PostMapping("/{id}/corrective-action-complete")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canReportCorrectiveAction()")
     @Operation(
             summary = "Report the corrective action complete",
             description = "The site engineer reports the work done and the NCR ready for "
@@ -127,7 +132,7 @@ public class NcrControllerWeb {
     }
 
     @PostMapping("/{id}/verify")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canSignOffNcr(#id)")
     @Operation(
             summary = "Verify the corrective action",
             description = "Records that the corrective work was re-inspected and accepted."
@@ -144,7 +149,7 @@ public class NcrControllerWeb {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canSignOffNcr(#id)")
     @Operation(
             summary = "Reject the corrective action",
             description = "Records that the corrective work was re-inspected and not accepted. The "
@@ -162,7 +167,7 @@ public class NcrControllerWeb {
     }
 
     @PostMapping("/{id}/reopen")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canSignOffNcr(#id)")
     @Operation(
             summary = "Reopen a non-conformance report",
             description = "Records that the same non-conformance has come back after it was verified "
@@ -181,7 +186,7 @@ public class NcrControllerWeb {
     }
 
     @PostMapping("/{id}/close")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canSignOffNcr(#id)")
     @Operation(
             summary = "Close a non-conformance report",
             description = "Closes a verified NCR and records who closed it."

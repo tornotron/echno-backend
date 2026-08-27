@@ -31,15 +31,17 @@ import java.util.UUID;
         name = "Inspections",
         description = "Site inspections carried out against a project, covering routine, safety and "
                 + "compliance types. An inspection tracks its checklist items, defects, result and status. "
-                + "All endpoints are tenant scoped and limited to system administrators and project "
-                + "managers."
+                + "All endpoints are tenant scoped. Reading is open to the project manager, QA engineer, "
+                + "safety officer and site engineer; scheduling and recording an inspection is not open "
+                + "to the site engineer, who acts on the non-conformances an inspection raises rather "
+                + "than carrying it out."
 )
 public class InspectionControllerWeb {
 
     private final InspectionService service;
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canManageInspections()")
     @Operation(
             summary = "Create an inspection",
             description = "Creates a new inspection for a project, including its checklist items."
@@ -55,7 +57,7 @@ public class InspectionControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canRead()")
     @Operation(
             summary = "Get an inspection by id",
             description = "Returns a single inspection including its checklist items and any recorded "
@@ -71,7 +73,7 @@ public class InspectionControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canRead()")
     @Operation(
             summary = "List inspections",
             description = "Returns a page of inspections in the current tenant. The projectId, status, "
@@ -93,7 +95,7 @@ public class InspectionControllerWeb {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@inspectionSecurity.canManageInspections()")
     @Operation(
             summary = "Update an inspection",
             description = "Updates the status, result, checklist items and defects of an existing "
