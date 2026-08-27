@@ -17,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.task.dto.TaskCreationDto;
@@ -80,28 +81,70 @@ public class TaskControllerWeb {
     }
 
     /**
-     * Retrieves a paginated list of all tasks.
+     * Lists the current tenant's tasks as a bare array, capped rather than paged.
      *
-     * @param pageNo   The page number to retrieve (default is 0).
-     * @param pageSize The number of tasks per page (default is 10).
-     * @return A {@link ResponseEntity} containing the list of task DTOs and HTTP status 200 (OK).
+     * <p>This used to accept {@code pageNo} and {@code pageSize} defaulting to the first ten rows
+     * and then answer with {@code page.getContent()}, so a caller that passed no parameters, which
+     * is every caller the web client has, received ten tasks and no indication that more existed.
+     * The list looked complete and was not. The parameters are gone rather than re-tuned: keeping
+     * them on an endpoint that discards the page envelope is what made the truncation silent.
+     *
+     * <p>The read is bounded by {@link UnpagedResultCap} and never silently truncated. Every
+     * response carries the true row count in {@code X-Total-Count}, and one that did not fit also
+     * carries {@code X-Result-Capped}. A caller that needs to walk past the cap has
+     * {@link #readAllTasksPaginated} for it.
+     *
+     * @return A {@link ResponseEntity} containing the task DTOs and the count headers.
      */
     @GetMapping
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List tasks",
-            description = "Returns a single page of tasks. The pageNo and pageSize parameters control "
-                    + "paging; only the page content is returned, without paging metadata."
+            description = "Returns the current tenant's tasks as a bare array, capped at "
+                    + "500 rows. The response always carries the true total in X-Total-Count, and "
+                    + "carries X-Result-Capped when rows were left out, so a caller can tell a "
+                    + "complete result from a capped one. Use /paginated to page beyond the cap."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tasks returned, capped at 500 rows"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public ResponseEntity<List<TaskDto>> readAllTasks() {
+        logger.info("All Tasks Retrieved Successfully");
+        return UnpagedResultCap.respond(service.getAllTasks(0, UnpagedResultCap.MAX_ROWS));
+    }
+
+    /**
+     * Lists tasks as a real {@link Page}, with the paging metadata intact.
+     *
+     * <p>The honest counterpart to {@link #readAllTasks}: a caller gets {@code totalElements},
+     * {@code totalPages} and the page index alongside the content, so a truncated result describes
+     * itself. Mirrors {@code GET /issues/web/paginated}.
+     *
+     * @param pageNo    Zero-based page index.
+     * @param pageSize  Rows per page, clamped to the result cap.
+     * @param projectId Optional project filter.
+     * @param search    Optional case-insensitive match on title or description.
+     * @return A {@link ResponseEntity} containing the page of task DTOs.
+     */
+    @GetMapping("/paginated")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(
+            summary = "List tasks, paginated and filtered",
+            description = "Returns a single page of tasks with the paging metadata included, "
+                    + "optionally filtered by project or by a free-text search on title and "
+                    + "description. pageSize is clamped to 500."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of tasks returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<TaskDto>> readAllTasks(@RequestParam(defaultValue = "0") int pageNo,
-                                                      @RequestParam(defaultValue = "10") int pageSize) {
-        Page<TaskDto> tasks = service.getAllTasks(pageNo, pageSize);
-        logger.info("All Tasks Retrieved Successfully");
-        return new ResponseEntity<>(tasks.getContent(), HttpStatus.OK);
+    public ResponseEntity<Page<TaskDto>> readAllTasksPaginated(
+            @RequestParam(defaultValue = "0") int pageNo,
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(service.getTasksPaginated(pageNo, pageSize, projectId, search));
     }
 
     @GetMapping("/projectId/{projectId}")
