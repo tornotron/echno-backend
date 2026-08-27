@@ -121,6 +121,15 @@ keycloak:
   # org); the public shared instance sets KEYCLOAK_REGISTRATION_ALLOWED=true so a signed-up user
   # can create their own org.
   registration-allowed: ${KEYCLOAK_REGISTRATION_ALLOWED:false}
+  # Local-development convenience client + account (issue #451): the public 'echno-web-local' client
+  # (localhost redirect) and the 'amelia-price' dev login, reconciled into the realm so they survive a
+  # realm rebuild. Default false keeps them OUT of every real instance (a localhost redirect must never
+  # exist in a production realm); a staging deploy sets KEYCLOAK_DEV_CLIENT_ENABLED=true to enable them.
+  dev-client-enabled: ${KEYCLOAK_DEV_CLIENT_ENABLED:false}
+  dev-user:
+    # Password for the dev account when the dev client is enabled. Public dev credential only, never a
+    # real one; override per environment via KEYCLOAK_DEV_USER_PASSWORD.
+    password: ${KEYCLOAK_DEV_USER_PASSWORD:echno-dev}
   # Realm-scoped initializer client (H-3). Steady-state startup reconcile authenticates as this
   # confidential service account (realm-admin on the application realm only) instead of the master
   # credential. The master credential (keycloak-initializer.*) is now used only to bootstrap a fresh

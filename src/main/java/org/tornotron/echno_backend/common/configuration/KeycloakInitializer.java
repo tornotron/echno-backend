@@ -15,6 +15,7 @@ import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.representations.idm.AuthenticationFlowRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.GroupRepresentation;
+import org.keycloak.representations.idm.ProtocolMapperRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.RequiredActionProviderRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
@@ -40,6 +41,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Slf4j
@@ -76,6 +78,27 @@ public class KeycloakInitializer {
 
     @Value("${keycloak.client-id}")
     private String appClientId;
+
+    // Local-dev convenience client + account (issue #451). Gated OFF by default so a real production
+    // realm never carries a localhost redirect. A deploy that wants local login against its realm
+    // (staging only) sets keycloak.dev-client-enabled=true. See ensureDevClient().
+    @Value("${keycloak.dev-client-enabled:false}")
+    private boolean devClientEnabled;
+
+    // Password given to the dev account when the dev client is enabled. Public dev credential only,
+    // never a real one; overridable per environment. Default is a placeholder for local use.
+    @Value("${keycloak.dev-user.password:echno-dev}")
+    private String devUserPassword;
+
+    // Public browser client used for local development (mirrors the real web client but redirects to
+    // localhost), and the throwaway account that logs into it.
+    private static final String DEV_CLIENT_ID = "echno-web-local";
+    private static final String DEV_REDIRECT_URI = "http://localhost:3000/*";
+    private static final String DEV_WEB_ORIGIN = "http://localhost:3000";
+    private static final String DEV_USERNAME = "amelia-price";
+    private static final String DEV_USER_EMAIL = "amelia.price@echno.local";
+    private static final String DEV_USER_FIRST_NAME = "Amelia";
+    private static final String DEV_USER_LAST_NAME = "Price";
 
     public KeycloakInitializer(Keycloak masterKeycloak,
                                KeycloakInitializerConfigurationProperties keycloakInitializerConfigurationProperties,
@@ -214,6 +237,8 @@ public class KeycloakInitializer {
         ensureAuthorizationSetup();
         // Ensure the H-1 composite job roles exist and carry their granular children
         ensureCompositeJobRoles();
+        // Ensure the local-dev client + account when explicitly enabled (non-prod only)
+        ensureDevClient();
     }
 
     /**
@@ -726,6 +751,7 @@ public class KeycloakInitializer {
         ensureAuthorizationSetup();
         ensureAdminMfa();
         ensureCompositeJobRoles();
+        ensureDevClient();
     }
 
     /**
@@ -865,6 +891,111 @@ public class KeycloakInitializer {
         } catch (Exception e) {
             log.error("Failed to ensure composite job role '{}': {}", jobRole.name, e.getMessage());
         }
+    }
+
+    /**
+     * Codifies the local-development client + account (issue #451) so a realm rebuild (a fresh
+     * production instance or a DR restore) no longer silently drops them. The pair was originally
+     * added live via kcadm on 2026-08-25 to unblock local dev after 'localhost' was removed from the
+     * real web client; because the reconcile does not prune, it survived only until the next rebuild.
+     *
+     * <p>Gated OFF by default (keycloak.dev-client-enabled): a real production realm must never carry
+     * a localhost redirect, so nothing is created unless a deploy (staging only) explicitly opts in.
+     * When enabled it is fully idempotent and guarded so a failure only logs and never aborts startup:
+     * the public 'echno-web-local' client mirrors the real web client (standard flow, PKCE S256, the
+     * groups mapper) but redirects to localhost, and the 'amelia-price' account is a throwaway login
+     * with a public dev password.
+     */
+    private void ensureDevClient() {
+        if (!devClientEnabled) {
+            log.info("Dev client disabled (keycloak.dev-client-enabled=false); skipping '{}' + '{}'",
+                    DEV_CLIENT_ID, DEV_USERNAME);
+            return;
+        }
+        try {
+            log.info("Ensuring local-dev client '{}' and account '{}' (keycloak.dev-client-enabled=true)",
+                    DEV_CLIENT_ID, DEV_USERNAME);
+            ensureDevWebLocalClient();
+            ensureDevUser();
+            log.info("Local-dev client reconcile complete");
+        } catch (Exception e) {
+            log.error("Failed to ensure local-dev client/account: {}", e.getMessage(), e);
+        }
+    }
+
+    /** Creates or updates the public 'echno-web-local' browser client with a localhost redirect. */
+    private void ensureDevWebLocalClient() {
+        try {
+            RealmResource realm = admin.realm(REALM_ID);
+
+            org.keycloak.representations.idm.ClientRepresentation rep =
+                    new org.keycloak.representations.idm.ClientRepresentation();
+            rep.setClientId(DEV_CLIENT_ID);
+            rep.setEnabled(true);
+            rep.setPublicClient(true);
+            rep.setProtocol("openid-connect");
+            rep.setStandardFlowEnabled(true);
+            rep.setDirectAccessGrantsEnabled(false);
+            rep.setServiceAccountsEnabled(false);
+            rep.setRedirectUris(List.of(DEV_REDIRECT_URI));
+            rep.setWebOrigins(List.of(DEV_WEB_ORIGIN));
+            rep.setDescription("Local-development browser client (issue #451): mirrors the real web "
+                    + "client but redirects to localhost. Only exists where keycloak.dev-client-enabled=true.");
+            Map<String, String> attributes = new java.util.HashMap<>();
+            attributes.put("pkce.code.challenge.method", "S256");
+            rep.setAttributes(attributes);
+            rep.setProtocolMappers(List.of(buildGroupsMapper()));
+
+            List<org.keycloak.representations.idm.ClientRepresentation> existing =
+                    realm.clients().findByClientId(DEV_CLIENT_ID);
+            if (existing.isEmpty()) {
+                try (Response response = realm.clients().create(rep)) {
+                    if (response.getStatus() == 201) {
+                        log.info("Created local-dev client '{}'", DEV_CLIENT_ID);
+                    } else {
+                        String body = response.hasEntity() ? response.readEntity(String.class) : "(no body)";
+                        log.error("Failed to create local-dev client '{}'. Status: {}, Body: {}",
+                                DEV_CLIENT_ID, response.getStatus(), body);
+                    }
+                }
+            } else {
+                // Keep the existing client's desired config in sync (public client, no secret to preserve).
+                String uuid = existing.get(0).getId();
+                rep.setId(uuid);
+                realm.clients().get(uuid).update(rep);
+                log.info("Local-dev client '{}' already exists (id={}); config synced", DEV_CLIENT_ID, uuid);
+            }
+        } catch (Exception e) {
+            log.error("Failed to ensure local-dev client '{}': {}", DEV_CLIENT_ID, e.getMessage());
+        }
+    }
+
+    /** Creates the throwaway 'amelia-price' dev account (with the 'user' role) idempotently. */
+    private void ensureDevUser() {
+        UserKeycloakDto devUser = new UserKeycloakDto();
+        devUser.setUserName(DEV_USERNAME);
+        devUser.setEmailId(DEV_USER_EMAIL);
+        devUser.setFirstName(DEV_USER_FIRST_NAME);
+        devUser.setLastName(DEV_USER_LAST_NAME);
+        devUser.setPassword(devUserPassword);
+        devUser.setAdmin(false);
+        initKeycloakUser(devUser);
+    }
+
+    /** The standard 'groups' membership mapper shared by the web clients. */
+    private ProtocolMapperRepresentation buildGroupsMapper() {
+        ProtocolMapperRepresentation groupsMapper = new ProtocolMapperRepresentation();
+        groupsMapper.setName("groups");
+        groupsMapper.setProtocol("openid-connect");
+        groupsMapper.setProtocolMapper("oidc-group-membership-mapper");
+        Map<String, String> config = new java.util.HashMap<>();
+        config.put("full.path", "true");
+        config.put("id.token.claim", "true");
+        config.put("access.token.claim", "true");
+        config.put("claim.name", "groups");
+        config.put("userinfo.token.claim", "true");
+        groupsMapper.setConfig(config);
+        return groupsMapper;
     }
 
     private void assignServiceAccountRoles() {
