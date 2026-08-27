@@ -10,16 +10,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.tornotron.echno_backend.billing.Subscription;
 import org.tornotron.echno_backend.billing.dto.*;
-import org.tornotron.echno_backend.billing.repositories.SubscriptionRepository;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.user.UserContextService;
 
 import javax.naming.AuthenticationException;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/billing/subscriptions/web")
@@ -35,7 +32,6 @@ import java.util.Optional;
 public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
-    private final SubscriptionRepository subscriptionRepository;
     private final UserContextService userContextService;
 
     /**
@@ -57,10 +53,9 @@ public class SubscriptionController {
     })
     public ResponseEntity<SubscriptionDto> getCurrentSubscription() throws AuthenticationException {
         Long userId = userContextService.getCurrentUserIdOrThrow();
-        Optional<Subscription> subscription = subscriptionService.getActiveSubscription(userId);
-        return subscription
-                .map(sub -> ResponseEntity.ok(BillingMapper.toSubscriptionDto(sub)))
-                .orElse(ResponseEntity.noContent().build());
+        return subscriptionService.getActiveSubscription(userId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     /**
@@ -80,8 +75,7 @@ public class SubscriptionController {
     })
     public ResponseEntity<List<SubscriptionDto>> getSubscriptionHistory() throws AuthenticationException {
         Long userId = userContextService.getCurrentUserIdOrThrow();
-        List<Subscription> subscriptions = subscriptionRepository.findByUserIdOrderByCreatedAtDesc(userId);
-        return ResponseEntity.ok(BillingMapper.toSubscriptionDtoList(subscriptions));
+        return ResponseEntity.ok(subscriptionService.getSubscriptionHistory(userId));
     }
 
     /**
@@ -107,8 +101,8 @@ public class SubscriptionController {
     public ResponseEntity<SubscriptionDto> createSubscription(@Valid @RequestBody SubscriptionCreateDto dto)
             throws AuthenticationException {
         Long userId = userContextService.getCurrentUserIdOrThrow();
-        Subscription subscription = subscriptionService.createSubscription(userId, dto.getPlanCode(), dto.getBillingPeriod());
-        return ResponseEntity.status(HttpStatus.CREATED).body(BillingMapper.toSubscriptionDto(subscription));
+        SubscriptionDto subscription = subscriptionService.createSubscription(userId, dto.getPlanCode(), dto.getBillingPeriod());
+        return ResponseEntity.status(HttpStatus.CREATED).body(subscription);
     }
 
     /**
@@ -133,8 +127,7 @@ public class SubscriptionController {
     public ResponseEntity<SubscriptionDto> changeSubscription(@Valid @RequestBody SubscriptionChangeDto dto)
             throws AuthenticationException {
         Long userId = userContextService.getCurrentUserIdOrThrow();
-        Subscription subscription = subscriptionService.changeSubscription(userId, dto.getNewPlanCode());
-        return ResponseEntity.ok(BillingMapper.toSubscriptionDto(subscription));
+        return ResponseEntity.ok(subscriptionService.changeSubscription(userId, dto.getNewPlanCode()));
     }
 
     /**
@@ -240,10 +233,9 @@ public class SubscriptionController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
     })
     public ResponseEntity<SubscriptionDto> getUserSubscription(@PathVariable Long userId) {
-        Optional<Subscription> subscription = subscriptionService.getActiveSubscription(userId);
-        return subscription
-                .map(sub -> ResponseEntity.ok(BillingMapper.toSubscriptionDto(sub)))
-                .orElse(ResponseEntity.noContent().build());
+        return subscriptionService.getActiveSubscription(userId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     /**
@@ -266,8 +258,7 @@ public class SubscriptionController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
     })
     public ResponseEntity<List<SubscriptionDto>> getUserSubscriptionHistory(@PathVariable Long userId) {
-        List<Subscription> subscriptions = subscriptionRepository.findByUserIdOrderByCreatedAtDesc(userId);
-        return ResponseEntity.ok(BillingMapper.toSubscriptionDtoList(subscriptions));
+        return ResponseEntity.ok(subscriptionService.getSubscriptionHistory(userId));
     }
 
     /**
@@ -296,8 +287,8 @@ public class SubscriptionController {
     public ResponseEntity<SubscriptionDto> createSubscriptionForUser(
             @PathVariable Long userId,
             @Valid @RequestBody SubscriptionCreateDto dto) {
-        Subscription subscription = subscriptionService.createSubscription(userId, dto.getPlanCode(), dto.getBillingPeriod());
-        return ResponseEntity.status(HttpStatus.CREATED).body(BillingMapper.toSubscriptionDto(subscription));
+        SubscriptionDto subscription = subscriptionService.createSubscription(userId, dto.getPlanCode(), dto.getBillingPeriod());
+        return ResponseEntity.status(HttpStatus.CREATED).body(subscription);
     }
 
     /**
@@ -325,8 +316,7 @@ public class SubscriptionController {
     public ResponseEntity<SubscriptionDto> changeSubscriptionForUser(
             @PathVariable Long userId,
             @Valid @RequestBody SubscriptionChangeDto dto) {
-        Subscription subscription = subscriptionService.changeSubscription(userId, dto.getNewPlanCode());
-        return ResponseEntity.ok(BillingMapper.toSubscriptionDto(subscription));
+        return ResponseEntity.ok(subscriptionService.changeSubscription(userId, dto.getNewPlanCode()));
     }
 
     /**
