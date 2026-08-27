@@ -7,7 +7,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.billing.Feature;
 import org.tornotron.echno_backend.billing.Plan;
 import org.tornotron.echno_backend.billing.PlanFeature;
+import org.tornotron.echno_backend.billing.dto.BillingMapper;
 import org.tornotron.echno_backend.billing.dto.PlanCreateDto;
+import org.tornotron.echno_backend.billing.dto.PlanDto;
 import org.tornotron.echno_backend.billing.dto.PlanFeatureAssignDto;
 import org.tornotron.echno_backend.billing.repositories.FeatureRepository;
 import org.tornotron.echno_backend.billing.repositories.PlanRepository;
@@ -17,6 +19,18 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 
 import java.util.List;
 
+/**
+ * Plan administration: reading plans with their assigned features, and creating, updating and
+ * deactivating them.
+ *
+ * <p>Entities never leave this class. Every method a caller can reach returns a DTO built while
+ * the persistence context is still open, because {@code spring.jpa.open-in-view} is off and
+ * {@link Plan#getPlanFeatures()} is a lazy collection: mapping a plan anywhere outside a
+ * transaction throws {@code LazyInitializationException}. The reads here happen to use fetch-join
+ * queries, which is what kept the old controller-side mapping working, but that is a property of
+ * the queries rather than of the call site, and it is one query change away from the failure that
+ * took down the subscription endpoints in #472.
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -25,26 +39,63 @@ public class PlanService {
     private final PlanRepository planRepository;
     private final FeatureRepository featureRepository;
 
-    public List<Plan> getAllPublicPlans() {
-        return planRepository.findPublicPlansWithFeatures();
+    /**
+     * Returns the plans that are both public and active, ordered for display.
+     *
+     * @return The public plans, each with its assigned features.
+     */
+    @Transactional(readOnly = true)
+    public List<PlanDto> getAllPublicPlans() {
+        return BillingMapper.toPlanDtoList(planRepository.findPublicPlansWithFeatures());
     }
 
-    public List<Plan> getAllPlans() {
-        return planRepository.findAllWithFeatures();
+    /**
+     * Returns every plan, including the private and inactive ones.
+     *
+     * @return All plans, each with its assigned features.
+     */
+    @Transactional(readOnly = true)
+    public List<PlanDto> getAllPlans() {
+        return BillingMapper.toPlanDtoList(planRepository.findAllWithFeatures());
     }
 
-    public Plan getPlanById(Long id) {
+    /**
+     * Returns a single plan by its numeric id.
+     *
+     * @param id The id of the plan to read.
+     * @return The plan with its assigned features.
+     * @throws PlanNotFoundException if no plan has that id.
+     */
+    @Transactional(readOnly = true)
+    public PlanDto getPlanById(Long id) {
+        return BillingMapper.toPlanDto(loadPlanById(id));
+    }
+
+    /**
+     * Returns a single active plan by its unique code.
+     *
+     * @param code The code of the plan to read, such as {@code professional-monthly}.
+     * @return The plan with its assigned features.
+     * @throws PlanNotFoundException if no active plan has that code.
+     */
+    @Transactional(readOnly = true)
+    public PlanDto getPlanByCode(String code) {
+        return BillingMapper.toPlanDto(planRepository.findByCodeWithFeatures(code)
+                .orElseThrow(() -> new PlanNotFoundException("Plan with code '" + code + "' was not found")));
+    }
+
+    /**
+     * Loads a plan entity with its features initialized, for the methods here that go on to
+     * change it. Private on purpose: an entity handed out of this class would be mapped against
+     * a closed persistence context.
+     */
+    private Plan loadPlanById(Long id) {
         return planRepository.findByIdWithFeatures(id)
                 .orElseThrow(() -> new PlanNotFoundException("Plan with ID " + id + " was not found"));
     }
 
-    public Plan getPlanByCode(String code) {
-        return planRepository.findByCodeWithFeatures(code)
-                .orElseThrow(() -> new PlanNotFoundException("Plan with code '" + code + "' was not found"));
-    }
-
     @Transactional
-    public Plan createPlan(PlanCreateDto dto) {
+    public PlanDto createPlan(PlanCreateDto dto) {
         Plan plan = Plan.builder()
                 .code(dto.getCode())
                 .name(dto.getName())
@@ -60,12 +111,12 @@ public class PlanService {
 
         plan = planRepository.save(plan);
         log.info("Created plan: {}", plan.getCode());
-        return plan;
+        return BillingMapper.toPlanDto(plan);
     }
 
     @Transactional
-    public Plan updatePlan(Long id, PlanCreateDto dto) {
-        Plan plan = getPlanById(id);
+    public PlanDto updatePlan(Long id, PlanCreateDto dto) {
+        Plan plan = loadPlanById(id);
 
         plan.setCode(dto.getCode());
         plan.setName(dto.getName());
@@ -80,12 +131,12 @@ public class PlanService {
 
         plan = planRepository.save(plan);
         log.info("Updated plan: {}", plan.getCode());
-        return plan;
+        return BillingMapper.toPlanDto(plan);
     }
 
     @Transactional
     public void deactivatePlan(Long id) {
-        Plan plan = getPlanById(id);
+        Plan plan = loadPlanById(id);
         plan.setIsActive(false);
         planRepository.save(plan);
         log.info("Deactivated plan: {}", plan.getCode());
@@ -101,8 +152,8 @@ public class PlanService {
     }
 
     @Transactional
-    public Plan assignFeatureToPlan(Long planId, PlanFeatureAssignDto dto) {
-        Plan plan = getPlanById(planId);
+    public PlanDto assignFeatureToPlan(Long planId, PlanFeatureAssignDto dto) {
+        Plan plan = loadPlanById(planId);
 
         Feature feature = featureRepository.findByCodeAndIsActiveTrue(dto.getFeatureCode())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -128,12 +179,12 @@ public class PlanService {
         plan = planRepository.save(plan);
 
         log.info("Assigned feature {} to plan {}", dto.getFeatureCode(), plan.getCode());
-        return plan;
+        return BillingMapper.toPlanDto(plan);
     }
 
     @Transactional
-    public Plan removeFeatureFromPlan(Long planId, String featureCode) {
-        Plan plan = getPlanById(planId);
+    public PlanDto removeFeatureFromPlan(Long planId, String featureCode) {
+        Plan plan = loadPlanById(planId);
 
         Plan finalPlan = plan;
         PlanFeature planFeature = plan.getPlanFeatures().stream()
@@ -146,6 +197,6 @@ public class PlanService {
         plan = planRepository.save(plan);
 
         log.info("Removed feature {} from plan {}", featureCode, plan.getCode());
-        return plan;
+        return BillingMapper.toPlanDto(plan);
     }
 }
