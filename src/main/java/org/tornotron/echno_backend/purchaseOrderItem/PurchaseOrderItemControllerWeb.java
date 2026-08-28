@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
@@ -78,6 +79,35 @@ public class PurchaseOrderItemControllerWeb {
     public ResponseEntity<List<PurchaseOrderItemResponseDto>> getAllPurchaseOrderItems() {
         return UnpagedResultCap.respond(
                 purchaseOrderItemService.getAllPurchaseOrderItems(UnpagedResultCap.firstPage()));
+    }
+
+    /**
+     * Retrieves a page of purchase order items, chosen by the caller.
+     *
+     * <p>The counterpart to the capped listing above. That one answers with the first
+     * {@link UnpagedResultCap#MAX_ROWS} rows and marks itself when it left some out, but gives a
+     * caller no way to ask for the rest. Here the {@link Page} reaches the response, so
+     * {@code totalElements}, {@code totalPages} and the page index travel with the content.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page, clamped to the result cap.
+     * @return A {@link ResponseEntity} containing the page of purchase order items.
+     */
+    @GetMapping("/paginated")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "List purchase order items, paginated",
+            description = "Returns a single page of purchase order items with the paging metadata included. "
+                    + "pageSize is clamped to 500."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of purchase order items returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public ResponseEntity<Page<PurchaseOrderItemResponseDto>> getPurchaseOrderItemsPaginated(
+            @RequestParam(defaultValue = "0") int pageNo,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return ResponseEntity.ok(purchaseOrderItemService.getPurchaseOrderItemsPaginated(pageNo, pageSize));
     }
 
     @GetMapping("/purchase-order/{purchaseOrderId}")

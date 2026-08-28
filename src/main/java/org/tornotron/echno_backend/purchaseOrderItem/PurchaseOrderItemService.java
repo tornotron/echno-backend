@@ -2,8 +2,11 @@ package org.tornotron.echno_backend.purchaseOrderItem;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -109,6 +112,31 @@ public class PurchaseOrderItemService {
     public Page<PurchaseOrderItemResponseDto> getAllPurchaseOrderItems(Pageable pageable) {
         return purchaseOrderItemRepository.findAll(pageable)
                 .map(this::convertToResponseDto);
+    }
+
+    /**
+     * Retrieves a page of purchase order items, chosen by the caller.
+     *
+     * <p>The counterpart to the capped listing, which answers with the first page and says so in
+     * its headers but gives a caller no way to ask for the next one. Here the {@link Page} reaches
+     * the response, so the total row count and the page index survive with it.
+     *
+     * <p>Ordered by id ascending. The capped listing asks for no sort at all, which is tolerable
+     * when there is only ever one page but not here: paging over an unordered result lets rows
+     * repeat on one page and vanish from another, so an explicit order is what makes the pages
+     * add up.
+     *
+     * @param pageNo   Zero-based page index; a negative value is treated as zero.
+     * @param pageSize Rows per page, clamped to {@link UnpagedResultCap#MAX_ROWS} so one request
+     *                 cannot re-create the unbounded read the cap exists to prevent.
+     * @return A page of purchase order item DTOs.
+     */
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderItemResponseDto> getPurchaseOrderItemsPaginated(int pageNo, int pageSize) {
+        int page = Math.max(pageNo, 0);
+        int size = Math.clamp(pageSize, 1, UnpagedResultCap.MAX_ROWS);
+        return getAllPurchaseOrderItems(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "id")));
     }
 
     @Transactional(readOnly = true)
