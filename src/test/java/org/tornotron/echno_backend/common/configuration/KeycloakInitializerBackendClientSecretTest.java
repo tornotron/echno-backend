@@ -94,7 +94,8 @@ class KeycloakInitializerBackendClientSecretTest {
         when(clientsResource.get(CLIENT_UUID)).thenReturn(clientResource);
         when(grantProbe.tokenManager()).thenReturn(tokenManager);
 
-        initializer = new KeycloakInitializer(masterKeycloak, properties, new ObjectMapper(), keycloakConfig);
+        initializer = new KeycloakInitializer(masterKeycloak, properties, new ObjectMapper(), keycloakConfig,
+                org.mockito.Mockito.mock(DevFixtureProvisioner.class));
         ReflectionTestUtils.setField(initializer, "admin", adminClient);
         ReflectionTestUtils.setField(initializer, "appClientId", BACKEND_CLIENT_ID);
         ReflectionTestUtils.setField(KeycloakInitializer.class, "REALM_ID", REALM);

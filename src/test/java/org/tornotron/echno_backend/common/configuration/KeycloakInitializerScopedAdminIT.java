@@ -17,6 +17,8 @@ import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.InputStream;
@@ -55,6 +57,11 @@ class KeycloakInitializerScopedAdminIT {
     private static final String REALM_MANAGEMENT = "realm-management";
     private static final String REALM_ADMIN = "realm-admin";
     private static final String COMPOSITE_JOB_ROLE = "job-leadership";
+    private static final String DEV_CLIENT_ID = "echno-web-local";
+    private static final String DEV_USERNAME = "echno-local-dev";
+    private static final String DEV_EMAIL = "local-dev@echno.local";
+    // Public dev placeholder, not a credential for anything real.
+    private static final String DEV_PASSWORD = "dev-fixture-it-password";
 
     // Pin the server image to the tag matching the keycloak-admin-client version so the container
     // API and the client stay in lockstep.
@@ -65,6 +72,9 @@ class KeycloakInitializerScopedAdminIT {
     private static Keycloak master;
     private static KeycloakInitializerConfigurationProperties props;
     private static KeycloakConfig keycloakConfig;
+    // The application half of the dev fixture writes to the database, which this test has none of.
+    // A mock keeps the Keycloak half under test and records that it was asked to run.
+    private static DevFixtureProvisioner devFixtureProvisioner;
 
     @BeforeAll
     static void setUp() throws Exception {
@@ -97,6 +107,8 @@ class KeycloakInitializerScopedAdminIT {
         ReflectionTestUtils.setField(keycloakConfig, "initializerServiceClientId", INIT_CLIENT_ID);
         ReflectionTestUtils.setField(keycloakConfig, "initializerServiceClientSecret", INIT_SECRET);
 
+        devFixtureProvisioner = Mockito.mock(DevFixtureProvisioner.class);
+
         // REALM_ID is a static field normally set from ApplicationReadyEvent; set it directly here.
         ReflectionTestUtils.setField(KeycloakInitializer.class, "REALM_ID", TEST_REALM);
     }
@@ -122,7 +134,7 @@ class KeycloakInitializerScopedAdminIT {
         ObjectMapper lenientMapper = new ObjectMapper()
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         KeycloakInitializer initializer =
-                new KeycloakInitializer(master, props, lenientMapper, keycloakConfig);
+                new KeycloakInitializer(master, props, lenientMapper, keycloakConfig, devFixtureProvisioner);
         ReflectionTestUtils.setField(initializer, "configOutput", configDir.toString());
         ReflectionTestUtils.setField(initializer, "appClientId", APP_CLIENT_ID);
         return initializer;
@@ -327,5 +339,93 @@ class KeycloakInitializerScopedAdminIT {
         assertThat(master.realm(TEST_REALM).clients().get(appUuid).authorization().getSettings())
                 .as("the client's resource server must survive a secret repair")
                 .isNotNull();
+    }
+
+    /**
+     * The local-development fixture, against a real Keycloak. Three things are proven, all of which
+     * the fixture was getting wrong:
+     *
+     * <ol>
+     *   <li>The account is created under the fixture's own username and email, and its Keycloak id
+     *       is handed to the provisioner that writes the application half of the identity. Without
+     *       that id nothing links the login to an employee row, and the organization picker is
+     *       empty no matter what the token says.</li>
+     *   <li>A second reconcile adopts the same account rather than creating another, and reapplies
+     *       the configured password, so the documented dev credential keeps working.</li>
+     *   <li>An account that already holds the fixture username but is somebody else's is left
+     *       untouched and the fixture is skipped. This is the staging failure in miniature: the
+     *       fixture used to be named after a seeded QA persona, so it took her account over.</li>
+     * </ol>
+     */
+    @Test
+    @Order(4)
+    void devFixture_isCreatedOnceAndNeverTakesOverAForeignAccount() {
+        if (!realmExists()) {
+            newInitializer().init(false);
+        }
+
+        KeycloakInitializer initializer = newInitializer();
+        // ensureDevClient runs at the end of a reconcile, through the admin client init() selected.
+        // Driving it directly means setting that field, which init() would otherwise do.
+        ReflectionTestUtils.setField(initializer, "admin", master);
+        ReflectionTestUtils.setField(initializer, "devClientEnabled", true);
+        ReflectionTestUtils.setField(initializer, "devUserPassword", DEV_PASSWORD);
+
+        // (1) First reconcile: client and account are created, and the provisioner is handed the id.
+        ReflectionTestUtils.invokeMethod(initializer, "ensureDevClient");
+
+        List<ClientRepresentation> devClients =
+                master.realm(TEST_REALM).clients().findByClientId(DEV_CLIENT_ID);
+        assertThat(devClients).hasSize(1);
+        assertThat(devClients.get(0).isPublicClient()).isTrue();
+        assertThat(devClients.get(0).getRedirectUris()).contains("http://localhost:3000/*");
+
+        List<UserRepresentation> created =
+                master.realm(TEST_REALM).users().search(DEV_USERNAME, true);
+        assertThat(created).hasSize(1);
+        String devUserId = created.get(0).getId();
+        assertThat(created.get(0).getEmail()).isEqualTo(DEV_EMAIL);
+
+        ArgumentCaptor<String> idCaptor = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(devFixtureProvisioner)
+                .provision(idCaptor.capture(), Mockito.anyString(), Mockito.eq(DEV_EMAIL));
+        assertThat(idCaptor.getValue())
+                .as("the provisioner needs the Keycloak id to bind an employee row to this login")
+                .isEqualTo(devUserId);
+
+        // (2) Second reconcile: same account, no duplicate, password reapplied.
+        Mockito.clearInvocations(devFixtureProvisioner);
+        ReflectionTestUtils.invokeMethod(initializer, "ensureDevClient");
+
+        List<UserRepresentation> afterSecondRun =
+                master.realm(TEST_REALM).users().search(DEV_USERNAME, true);
+        assertThat(afterSecondRun).hasSize(1);
+        assertThat(afterSecondRun.get(0).getId()).isEqualTo(devUserId);
+        Mockito.verify(devFixtureProvisioner)
+                .provision(Mockito.eq(devUserId), Mockito.anyString(), Mockito.eq(DEV_EMAIL));
+
+        // (3) A foreign account holding the fixture username must be left alone.
+        master.realm(TEST_REALM).users().get(devUserId).remove();
+        UserRepresentation foreign = new UserRepresentation();
+        foreign.setUsername(DEV_USERNAME);
+        foreign.setEmail("a.real.person@example.com");
+        foreign.setEnabled(true);
+        String foreignId;
+        try (Response response = master.realm(TEST_REALM).users().create(foreign)) {
+            assertThat(response.getStatus()).isEqualTo(201);
+            foreignId = CreatedResponseUtil.getCreatedId(response);
+        }
+
+        Mockito.clearInvocations(devFixtureProvisioner);
+        ReflectionTestUtils.invokeMethod(initializer, "ensureDevClient");
+
+        List<UserRepresentation> afterCollision =
+                master.realm(TEST_REALM).users().search(DEV_USERNAME, true);
+        assertThat(afterCollision).hasSize(1);
+        assertThat(afterCollision.get(0).getId())
+                .as("the foreign account must survive untouched")
+                .isEqualTo(foreignId);
+        assertThat(afterCollision.get(0).getEmail()).isEqualTo("a.real.person@example.com");
+        Mockito.verifyNoInteractions(devFixtureProvisioner);
     }
 }
