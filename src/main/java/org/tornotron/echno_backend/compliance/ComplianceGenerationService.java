@@ -92,9 +92,10 @@ public class ComplianceGenerationService {
         // A project that states its own state is taken at its word; scanning the free-text
         // address is only the fallback for projects that predate the field, and it cannot find
         // what the address does not say (an address of "Chennai" names no state at all).
-        String state = project.getProjectState() != null
-                ? project.getProjectState()
-                : IndianStateResolver.resolve(project.getProjectAddress());
+        // Approval refuses a project this returns null for, so reaching the throw below means
+        // the state was cleared between approval and generation.
+        String state = IndianStateResolver.forProject(
+                project.getProjectState(), project.getProjectAddress());
         if (state == null) {
             throw new InvalidRequestException(
                     "This project has no state set, and its address does not name one, so the "

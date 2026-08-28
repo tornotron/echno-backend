@@ -234,6 +234,8 @@ public class ProjectService {
     }
 
     private void partialUpdateAProject(Map<String, Object> updates, Project project) {
+        ProjectCreationStatus previousStatus = project.getStatus();
+
         updates.forEach((key,value) -> {
             switch (key) {
                 case "projectName":
@@ -252,18 +254,7 @@ public class ProjectService {
                     project.setProjectPostalCode(trimToNull((String) value));
                     break;
                 case "status":
-                    ProjectCreationStatus previousStatus = project.getStatus();
-                    ProjectCreationStatus newStatus = ProjectCreationStatus.valueOf((String) value);
-                    project.setStatus(newStatus);
-                    // Fire a compliance-generation event only on the transition INTO
-                    // approved, never on a save that leaves it approved. The listener runs
-                    // AFTER_COMMIT, so the row is durable before the AI flow reads it.
-                    if (newStatus == ProjectCreationStatus.approved
-                            && previousStatus != ProjectCreationStatus.approved) {
-                        Long orgId = project.getOrganization() != null
-                                ? project.getOrganization().getId() : null;
-                        eventPublisher.publishEvent(new ProjectApprovedEvent(this, project.getId(), orgId));
-                    }
+                    project.setStatus(ProjectCreationStatus.valueOf((String) value));
                     break;
                 case "startDate":
                     project.setStartDate(DateConversion.parseLocalDateTime(value));
@@ -299,6 +290,61 @@ public class ProjectService {
                     break;
             }
         });
+
+        onApproval(project, previousStatus);
+    }
+
+    /**
+     * Runs the approval transition, once the whole patch has been applied.
+     *
+     * <p>Approval is what publishes {@link ProjectApprovedEvent}, and only on the transition INTO
+     * approved, never on a save that leaves a project already approved. Because it runs after the
+     * loop rather than inside it, a single patch that sets the state and the status together is
+     * judged on the state it is setting, whichever order the two arrive in.
+     *
+     * @param project The project the patch has been applied to.
+     * @param previousStatus The status it held before the patch.
+     */
+    private void onApproval(Project project, ProjectCreationStatus previousStatus) {
+        if (project.getStatus() != ProjectCreationStatus.approved
+                || previousStatus == ProjectCreationStatus.approved) {
+            return;
+        }
+
+        requireStateForApproval(project);
+
+        Long orgId = project.getOrganization() != null ? project.getOrganization().getId() : null;
+        // The listener runs AFTER_COMMIT, so the row is durable before the AI flow reads it.
+        eventPublisher.publishEvent(new ProjectApprovedEvent(this, project.getId(), orgId));
+    }
+
+    /**
+     * Refuses an approval the compliance generation behind it could not act on.
+     *
+     * <p>The state is optional while a project is being drafted, because site paperwork is often
+     * settled after the project record exists. Approval is where it stops being optional: it is
+     * the moment that generates the project's compliance inspections, and those are keyed by the
+     * state's regulations. Left unchecked, the project is approved, the generation fails out of
+     * sight in an AFTER_COMMIT listener, and the missing field surfaces as an absence of
+     * inspections rather than as a message.
+     *
+     * <p>The address scan still counts, so a project that predates the state field but names its
+     * state in its address line approves exactly as it did before.
+     *
+     * @param project The project being approved.
+     * @throws InvalidRequestException if neither the state field nor the address yields a state.
+     */
+    private void requireStateForApproval(Project project) {
+        String state = IndianStateResolver.forProject(
+                project.getProjectState(), project.getProjectAddress());
+        if (state == null) {
+            throw new InvalidRequestException(
+                    "This project cannot be approved without a state. Approval draws up the "
+                            + "project's compliance inspections from the regulations of the state it "
+                            + "is built in, and neither the project's state nor its address names "
+                            + "one. Set the project's state (for example Tamil Nadu) and approve it "
+                            + "again.");
+        }
     }
 
     /**
