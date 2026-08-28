@@ -319,4 +319,13 @@
     <!-- v4.0 - Server-allocated document numbers, and per-tenant uniqueness for them -->
     <include file="db/changelog/v4.0/061-document-number-sequences.xml"/>
 
+    <!-- v4.0 - Assets: the project an asset is deployed on becomes a reference, keeping the old text -->
+    <include file="db/changelog/v4.0/063-add-asset-assigned-project-ref.xml"/>
+
+    <!-- v4.0 - Assets: the append-only movement ledger, plus an opening entry for every asset -->
+    <include file="db/changelog/v4.0/064-create-asset-movement.xml"/>
+
+    <!-- v4.0 - Attachments: what a file is and when it stops being valid, shared by every module -->
+    <include file="db/changelog/v4.0/065-add-attachment-document-metadata.xml"/>
+
 </databaseChangeLog>

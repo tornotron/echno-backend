@@ -40,6 +40,7 @@ class AttachmentServiceTenancyTest {
     @Mock private UserRepository userRepository;
     @Mock private AttendanceRepository attendanceRepository;
     @Mock private TenantEntityHelper tenantEntityHelper;
+    @Mock private org.tornotron.echno_backend.common.mapper.AttachmentMapper attachmentMapper;
     @Mock private MultipartFile file;
 
     private AttachmentService service;
@@ -48,7 +49,7 @@ class AttachmentServiceTenancyTest {
     void setUp() {
         service = new AttachmentService(attachmentRepository, fileStorageService, organizationRepository,
                 projectRepository, taskRepository, issueRepository, userRepository, attendanceRepository,
-                tenantEntityHelper);
+                tenantEntityHelper, attachmentMapper);
     }
 
     @Test

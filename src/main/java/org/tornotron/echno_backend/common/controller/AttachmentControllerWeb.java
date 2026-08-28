@@ -10,6 +10,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import jakarta.validation.Valid;
+import org.tornotron.echno_backend.common.dto.AttachmentDocumentMetadataDto;
 import org.tornotron.echno_backend.common.dto.PresignedUpload;
 import org.tornotron.echno_backend.common.dto.RegisterUploadRequest;
 import org.tornotron.echno_backend.common.dto.UploadRequest;
@@ -154,6 +156,27 @@ public class AttachmentControllerWeb {
     public ResponseEntity<List<AttachmentDto>> readAttachments(@PathVariable String entityType,
                                                                @PathVariable Long entityId) {
         return ResponseEntity.status(HttpStatus.OK).body(attachmentService.getAttachments(entityType,entityId));
+    }
+
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PatchMapping("/attachmentId/{attachmentId}/document")
+    @Operation(
+            summary = "Record what an attachment is and when it expires",
+            description = "Sets the document type, issue date and expiry date on an already-uploaded "
+                    + "file. Applied after the upload so it works for both upload paths and for any "
+                    + "entity that files documents, for example an asset's insurance policy or "
+                    + "warranty. Any field sent as null is cleared."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Document metadata recorded"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No attachment with the given id in the caller's organization")
+    })
+    public ResponseEntity<AttachmentDto> updateDocumentMetadata(
+            @PathVariable Long attachmentId,
+            @Valid @RequestBody AttachmentDocumentMetadataDto metadata) {
+        return ResponseEntity.ok(attachmentService.updateDocumentMetadata(attachmentId, metadata));
     }
 
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")

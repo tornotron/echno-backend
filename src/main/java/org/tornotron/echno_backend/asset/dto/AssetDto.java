@@ -38,7 +38,13 @@ public class AssetDto {
     private String assignedTo;
     @Schema(description = "Id of the employee the asset is currently assigned to, if known.", example = "18")
     private Long assignedToId;
-    @Schema(description = "Name of the project the asset is currently deployed on.", example = "Marina Heights Towers")
+    @Schema(description = "Id of the project the asset is currently deployed on, resolved from the "
+            + "latest movement in the asset's ledger.", example = "5")
+    private Long assignedProjectId;
+    @Schema(description = "Name of the project the asset is currently deployed on. Read-only and "
+            + "derived: the referenced project's name where the asset names one, otherwise the "
+            + "free text the asset carried before the project became a reference.",
+            example = "Marina Heights Towers")
     private String assignedProject;
     @Schema(description = "Manufacturer of the asset.", example = "JCB India")
     private String manufacturer;

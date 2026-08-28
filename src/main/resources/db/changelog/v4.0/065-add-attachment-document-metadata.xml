@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        What a file is, and when it stops being valid.
+
+        The shared attachment table is widened rather than assets being given a documents table
+        of their own. Attachments are already generic: entity_type is free-form and the upload,
+        presign, register, list and delete endpoints all take the type and the id as path
+        variables, so an asset's insurance policy stores through the endpoints that already
+        exist. The only thing missing was somewhere to say what the file is and when it lapses,
+        and inspections want the same two columns, so putting them on the shared table answers
+        both asks once.
+
+        Both columns are nullable and every existing row keeps working: a photo attached to a
+        task has no document type and no expiry, which is exactly what null means here.
+    -->
+    <changeSet id="065-add-attachment-document-metadata" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="attachment" columnName="expires_on"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="attachment">
+            <column name="document_type" type="VARCHAR(50)"/>
+            <column name="issued_on" type="DATE"/>
+            <column name="expires_on" type="DATE"/>
+        </addColumn>
+
+        <createIndex tableName="attachment" indexName="idx_attachment_expiry">
+            <column name="organization_id"/>
+            <column name="entity_type"/>
+            <column name="expires_on"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

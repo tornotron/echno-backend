@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Turns asset.assigned_project from free text into a reference to a real project.
+
+        The free text is NOT touched. assigned_project keeps every value it holds, is mapped
+        read-only on the entity so nothing can write it again, and is what a rollback restores
+        from. A row whose text matched no project keeps that text and simply has no reference,
+        which is the honest outcome: the string is preserved rather than guessed at or dropped.
+
+        Rows the backfill could not resolve are listed by:
+
+            SELECT id, organization_id, assigned_project
+            FROM asset
+            WHERE assigned_project IS NOT NULL
+              AND btrim(assigned_project) <> ''
+              AND assigned_project_id IS NULL;
+    -->
+
+    <changeSet id="063-add-asset-assigned-project-id" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="asset" columnName="assigned_project_id"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="asset">
+            <column name="assigned_project_id" type="BIGINT"/>
+        </addColumn>
+
+        <addForeignKeyConstraint baseTableName="asset"
+                                 baseColumnNames="assigned_project_id"
+                                 constraintName="fk_asset_assigned_project"
+                                 referencedTableName="project"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <createIndex tableName="asset" indexName="idx_asset_assigned_project">
+            <column name="assigned_project_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!--
+        Resolves the text to a project, conservatively.
+
+        Matching is per organization, trimmed and case-insensitive, and only where exactly one
+        project in that organization carries the name. Two projects sharing a name leave the row
+        unresolved rather than have the migration pick one, because a wrong reference is worse
+        than an absent one: an absent one still has the text beside it.
+    -->
+    <changeSet id="063-backfill-asset-assigned-project-id" author="echno">
+        <sql>
+            UPDATE asset
+            SET assigned_project_id = m.project_id
+            FROM (
+                SELECT p.organization_id AS organization_id,
+                       lower(btrim(p.project_name)) AS match_key,
+                       min(p.id) AS project_id,
+                       count(*) AS candidates
+                FROM project p
+                WHERE p.project_name IS NOT NULL
+                  AND btrim(p.project_name) &lt;&gt; ''
+                GROUP BY p.organization_id, lower(btrim(p.project_name))
+            ) AS m
+            WHERE asset.assigned_project IS NOT NULL
+              AND btrim(asset.assigned_project) &lt;&gt; ''
+              AND asset.assigned_project_id IS NULL
+              AND asset.organization_id = m.organization_id
+              AND lower(btrim(asset.assigned_project)) = m.match_key
+              AND m.candidates = 1;
+        </sql>
+        <rollback>
+            <sql>UPDATE asset SET assigned_project_id = NULL;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

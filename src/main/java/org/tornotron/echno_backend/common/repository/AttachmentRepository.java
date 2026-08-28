@@ -1,11 +1,14 @@
 package org.tornotron.echno_backend.common.repository;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Repository for managing Attachment entities.
@@ -42,4 +45,29 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
 
     boolean existsByEntityTypeAndEntityIdAndOriginalFilenameAndFileSize(
             String entityType, Long entityId, String originalFilename, Long fileSize);
+
+    /**
+     * One attachment by id, refusing to cross tenants. The unscoped {@code findById} lets a
+     * member of one organization reach another's attachment by numeric id, so every path this
+     * change adds uses this one.
+     *
+     * @param id           The attachment id
+     * @param organizationId The organization the caller is acting in
+     * @return The attachment, if it belongs to that organization
+     */
+    Optional<Attachment> findByIdAndOrganization_Id(Long id, Long organizationId);
+
+    /**
+     * Documents of one entity type whose expiry falls on or before a cutoff, soonest first.
+     * Already-expired documents come back too, since a policy that lapsed last week is exactly
+     * what the caller is looking for.
+     *
+     * @param entityType     The attachment entity type, for example ASSET_DOCUMENTS
+     * @param organizationId The organization the caller is acting in
+     * @param cutoff         The latest expiry date to include
+     * @param pageable       Bound on the rows returned
+     * @return The matching attachments, ordered by expiry
+     */
+    List<Attachment> findByEntityTypeAndOrganization_IdAndExpiresOnLessThanEqualOrderByExpiresOnAscIdAsc(
+            String entityType, Long organizationId, LocalDate cutoff, Pageable pageable);
 }
