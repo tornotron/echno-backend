@@ -11,15 +11,22 @@ import java.util.regex.Pattern;
  * What a {@code @PreAuthorize} guard asked for, read back out of its own expression.
  *
  * <p>Spring answers every denied {@code @PreAuthorize} with the same two words, "Access Denied",
- * so a caller is told that something was refused but never which permission would have let it
- * through. The expression that did the refusing is available on the failure itself, and it is the
- * one place that states the requirement exactly. This parses it into the role and permission names
- * it names, so the API can say what was missing instead of only that something was.
+ * so a caller is told that something was refused but never what. The expression that did the
+ * refusing is available on the failure itself, and it is the one place that states the requirement
+ * exactly. This parses it into the role and permission names it names, so the API can say what was
+ * missing instead of only that something was.
  *
- * <p>The parse is deliberately shallow: it walks the {@code name(arguments)} calls in the
- * expression and keeps the quoted literals from the ones it recognises. An expression it does not
- * recognise yields {@link #isDescribable()} false, and the caller falls back to the generic
- * message rather than guessing.
+ * <p>The parse keeps the shape of the expression as well as its names. An expression is first split
+ * on its top-level {@code or} into the alternatives that each independently grant access; within an
+ * alternative, everything found is required together. That distinction matters: a guard reading
+ * {@code hasAuthority('organization:delete') and @orgSecurity.isMember(#id)} grants nothing to a
+ * caller holding only the permission, and a message offering the two as separate routes would send
+ * them back for a second refusal.
+ *
+ * <p>Within an alternative the parse is deliberately shallow: it walks the {@code name(arguments)}
+ * calls and keeps the quoted literals from the ones it recognises. An expression it does not
+ * recognise yields {@link #isDescribable()} false, and the caller falls back to the generic message
+ * rather than guessing.
  *
  * <p>Nothing here reveals more than the endpoint's own annotation already does. It names the role
  * or permission an endpoint wants, never who holds it, and never anything about the caller.
@@ -48,17 +55,47 @@ public final class AuthorizationRequirement {
     private static final Set<String> SELF_CALLS = Set.of(
             "isSelfUser", "isSelfInCurrentTenant", "isSelfOrHasAnyOrgRole");
 
-    private final List<String> organizationRoles;
-    private final List<String> authorities;
-    private final boolean organizationMembership;
-    private final boolean ownRecord;
+    /**
+     * One route through the guard: everything it names has to hold at the same time.
+     *
+     * @param organizationRoles org-scoped roles, any one of which satisfies the role part.
+     * @param authorities global authorities, any one of which satisfies the permission part.
+     * @param organizationMembership whether membership of the organization is also required.
+     * @param ownRecord whether owning the record is also accepted.
+     */
+    private record Alternative(List<String> organizationRoles, List<String> authorities,
+                               boolean organizationMembership, boolean ownRecord) {
 
-    private AuthorizationRequirement(List<String> organizationRoles, List<String> authorities,
-                                     boolean organizationMembership, boolean ownRecord) {
-        this.organizationRoles = List.copyOf(organizationRoles);
-        this.authorities = List.copyOf(authorities);
-        this.organizationMembership = organizationMembership;
-        this.ownRecord = ownRecord;
+        boolean isEmpty() {
+            return organizationRoles.isEmpty() && authorities.isEmpty() && !organizationMembership && !ownRecord;
+        }
+
+        /** This route in words, with its parts joined by "and" because all of them are needed. */
+        String describe() {
+            List<String> parts = new ArrayList<>();
+            if (!organizationRoles.isEmpty()) {
+                parts.add(joinQuoted(organizationRoles)
+                        + (organizationRoles.size() == 1 ? " role" : " roles")
+                        + " in this organization");
+            }
+            if (!authorities.isEmpty()) {
+                parts.add(joinQuoted(authorities)
+                        + (authorities.size() == 1 ? " permission" : " permissions"));
+            }
+            if (organizationMembership) {
+                parts.add("membership of this organization");
+            }
+            if (ownRecord) {
+                parts.add("that the record belongs to you");
+            }
+            return String.join(" and ", parts);
+        }
+    }
+
+    private final List<Alternative> alternatives;
+
+    private AuthorizationRequirement(List<Alternative> alternatives) {
+        this.alternatives = List.copyOf(alternatives);
     }
 
     /**
@@ -69,48 +106,37 @@ public final class AuthorizationRequirement {
      *         this knows how to name.
      */
     public static AuthorizationRequirement from(String expression) {
-        Set<String> roles = new LinkedHashSet<>();
-        Set<String> permissions = new LinkedHashSet<>();
-        boolean membership = false;
-        boolean self = false;
-
+        List<Alternative> parsed = new ArrayList<>();
         if (expression != null) {
-            Matcher call = CALL.matcher(expression);
-            while (call.find()) {
-                String name = simpleName(call.group(1));
-                String arguments = call.group(2);
-
-                if (ORG_ROLE_CALLS.contains(name)) {
-                    roles.addAll(literals(arguments));
-                }
-                if (AUTHORITY_CALLS.contains(name)) {
-                    permissions.addAll(literals(arguments));
-                }
-                if (MEMBERSHIP_CALLS.contains(name)) {
-                    membership = true;
-                }
-                if (SELF_CALLS.contains(name)) {
-                    self = true;
+            for (String alternative : splitOnTopLevelOr(expression)) {
+                Alternative read = readAlternative(alternative);
+                if (!read.isEmpty()) {
+                    parsed.add(read);
                 }
             }
         }
-
-        return new AuthorizationRequirement(new ArrayList<>(roles), new ArrayList<>(permissions), membership, self);
+        return new AuthorizationRequirement(parsed);
     }
 
     /** Whether the expression named anything worth telling the caller about. */
     public boolean isDescribable() {
-        return !organizationRoles.isEmpty() || !authorities.isEmpty() || organizationMembership || ownRecord;
+        return !alternatives.isEmpty();
     }
 
-    /** The org-scoped role names the endpoint accepts, in the order the expression lists them. */
+    /** Every org-scoped role name the expression mentions, in the order it lists them. */
     public List<String> getOrganizationRoles() {
-        return organizationRoles;
+        return alternatives.stream()
+                .flatMap(alternative -> alternative.organizationRoles().stream())
+                .distinct()
+                .toList();
     }
 
-    /** The global authority names the endpoint accepts, in the order the expression lists them. */
+    /** Every global authority name the expression mentions, in the order it lists them. */
     public List<String> getAuthorities() {
-        return authorities;
+        return alternatives.stream()
+                .flatMap(alternative -> alternative.authorities().stream())
+                .distinct()
+                .toList();
     }
 
     /**
@@ -123,32 +149,91 @@ public final class AuthorizationRequirement {
             return null;
         }
 
-        List<String> alternatives = new ArrayList<>();
-        if (!organizationRoles.isEmpty()) {
-            alternatives.add(joinQuoted(organizationRoles)
-                    + (organizationRoles.size() == 1 ? " role" : " roles")
-                    + " in this organization");
-        }
-        if (!authorities.isEmpty()) {
-            alternatives.add(joinQuoted(authorities)
-                    + (authorities.size() == 1 ? " permission" : " permissions"));
-        }
-        if (organizationMembership) {
-            alternatives.add("membership of this organization");
-        }
-        if (ownRecord) {
-            alternatives.add("that the record belongs to you");
-        }
+        String routes = String.join(", or ", alternatives.stream().map(Alternative::describe).toList());
+        StringBuilder sentence = new StringBuilder("This action requires ").append(routes).append(".");
 
-        StringBuilder sentence = new StringBuilder("This action requires ")
-                .append(String.join(", or ", alternatives))
-                .append(".");
-
-        if (!organizationRoles.isEmpty() || organizationMembership) {
+        boolean organizationScoped = alternatives.stream()
+                .anyMatch(alternative -> !alternative.organizationRoles().isEmpty()
+                        || alternative.organizationMembership());
+        if (organizationScoped) {
             sentence.append(" Your roles are read from the session you signed in with, so if one was "
                     + "granted just now, sign out and back in to pick it up.");
         }
         return sentence.toString();
+    }
+
+    /**
+     * Splits an expression on the {@code or} operators that sit outside any bracket.
+     *
+     * <p>Only a top-level {@code or} separates two independent routes through the guard. An
+     * {@code or} nested inside brackets belongs to whichever clause encloses it, and splitting on
+     * it would break a conjunction apart and turn "both of these" into "either of these".
+     */
+    private static List<String> splitOnTopLevelOr(String expression) {
+        List<String> parts = new ArrayList<>();
+        int depth = 0;
+        int start = 0;
+        boolean inLiteral = false;
+
+        for (int i = 0; i < expression.length(); i++) {
+            char c = expression.charAt(i);
+            if (c == '\'') {
+                inLiteral = !inLiteral;
+            } else if (!inLiteral && c == '(') {
+                depth++;
+            } else if (!inLiteral && c == ')') {
+                depth--;
+            } else if (!inLiteral && depth == 0 && isOperatorAt(expression, i, "or")) {
+                parts.add(expression.substring(start, i));
+                start = i + 2;
+            } else if (!inLiteral && depth == 0 && isOperatorAt(expression, i, "||")) {
+                parts.add(expression.substring(start, i));
+                start = i + 2;
+            }
+        }
+        parts.add(expression.substring(start));
+        return parts;
+    }
+
+    /** Whether the token at this position is the given operator standing on its own. */
+    private static boolean isOperatorAt(String expression, int index, String operator) {
+        if (!expression.startsWith(operator, index)) {
+            return false;
+        }
+        boolean beforeIsBoundary = index == 0 || !Character.isLetterOrDigit(expression.charAt(index - 1));
+        int after = index + operator.length();
+        boolean afterIsBoundary = after >= expression.length()
+                || !Character.isLetterOrDigit(expression.charAt(after));
+        return beforeIsBoundary && afterIsBoundary;
+    }
+
+    /** Reads one alternative, treating everything it names as required together. */
+    private static Alternative readAlternative(String expression) {
+        Set<String> roles = new LinkedHashSet<>();
+        Set<String> permissions = new LinkedHashSet<>();
+        boolean membership = false;
+        boolean self = false;
+
+        Matcher call = CALL.matcher(expression);
+        while (call.find()) {
+            String name = simpleName(call.group(1));
+            String arguments = call.group(2);
+
+            if (ORG_ROLE_CALLS.contains(name)) {
+                roles.addAll(literals(arguments));
+            }
+            if (AUTHORITY_CALLS.contains(name)) {
+                permissions.addAll(literals(arguments));
+            }
+            if (MEMBERSHIP_CALLS.contains(name)) {
+                membership = true;
+            }
+            if (SELF_CALLS.contains(name)) {
+                self = true;
+            }
+        }
+
+        return new Alternative(new ArrayList<>(roles), new ArrayList<>(permissions), membership, self);
     }
 
     /** Strips a bean reference and package qualification, leaving the method name. */

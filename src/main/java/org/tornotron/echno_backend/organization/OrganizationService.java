@@ -123,6 +123,17 @@ public class OrganizationService {
      * and mobile, create through here, and the fact the rule turns on (whether this user has
      * created an organization before) is only known at this level.
      *
+     * <p>The read and the insert it guards run in one transaction against CockroachDB, whose
+     * isolation is SERIALIZABLE, so two concurrent first creations by the same user cannot both
+     * pass: the second insert invalidates the other's read and that transaction retries, by which
+     * point the first organization exists and the check applies normally.
+     *
+     * <p>Deleting an organization does restore the exemption, and that is intended rather than a
+     * gap. Deletion already refunds the CREATE_ORGANIZATION usage it recorded, so a create followed
+     * by a delete leaves the account exactly where it started. Making the exemption permanent
+     * instead would mean a user who deletes the organization they made by mistake can never create
+     * another without buying a plan, which is a worse answer than the one it replaces.
+     *
      * @param currentUser The user creating the organization.
      * @throws SubscriptionAccessDeniedException if this is not their first and their plan does not
      *         cover it.
