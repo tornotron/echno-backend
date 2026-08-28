@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.user.User;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -84,6 +85,30 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
     boolean existsByIdAndOrgRolesIn(@Param("employeeId") Long employeeId, @Param("roles") Set<OrgRole> roles);
 
     boolean existsByIdAndOrganization_Id(Long id, Long organizationId);
+
+    /**
+     * Names for a known set of employee ids, in one query.
+     *
+     * <p>For the places that print a scalar employee reference and would otherwise
+     * look each one up in a loop. The read is bounded by the ids the caller already
+     * holds, and the projection keeps it to two columns rather than hydrating an
+     * employee per row.
+     *
+     * @param organizationId The tenant. Named explicitly rather than left to a
+     *                       filter, since this crosses into another module's table.
+     * @param ids            The ids to resolve. Must not be empty.
+     */
+    @Query("SELECT e.id AS id, e.employeeName AS employeeName FROM Employee e "
+            + "WHERE e.organization.id = :organizationId AND e.id IN :ids")
+    List<EmployeeName> findNamesByIds(@Param("organizationId") Long organizationId,
+                                      @Param("ids") Collection<Long> ids);
+
+    /** An employee id and the name to print for it. */
+    interface EmployeeName {
+        Long getId();
+
+        String getEmployeeName();
+    }
 
     /**
      * Paginated employee search. Every filter is optional (a null argument

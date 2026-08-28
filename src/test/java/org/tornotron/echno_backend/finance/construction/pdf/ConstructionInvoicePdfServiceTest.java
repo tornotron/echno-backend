@@ -7,6 +7,7 @@ import org.tornotron.echno_backend.finance.construction.ConstructionInvoiceType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentStatus;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceDto;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceLineDto;
+import org.tornotron.echno_backend.pdfGeneration.PdfRenderer;
 import org.tornotron.echno_backend.project.ProjectService;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.vendor.VendorService;
@@ -31,7 +32,8 @@ class ConstructionInvoicePdfServiceTest {
     private final VendorService vendorService = mock(VendorService.class);
     private final ProjectService projectService = mock(ProjectService.class);
     private final ConstructionInvoicePdfService service =
-            new ConstructionInvoicePdfService(new ThymeleafConfig().pdfTemplateEngine(), vendorService, projectService);
+            new ConstructionInvoicePdfService(new ThymeleafConfig().pdfTemplateEngine(),
+                    new PdfRenderer(), vendorService, projectService);
 
     @Test
     void render_producesAPdf_forAFullyPopulatedInvoice() throws Exception {

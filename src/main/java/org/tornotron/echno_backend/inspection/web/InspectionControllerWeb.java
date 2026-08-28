@@ -8,7 +8,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -18,10 +20,17 @@ import org.tornotron.echno_backend.inspection.InspectionStatus;
 import org.tornotron.echno_backend.inspection.InspectionTrade;
 import org.tornotron.echno_backend.inspection.InspectionType;
 import org.tornotron.echno_backend.inspection.dtos.CreateInspectionRequest;
+import org.tornotron.echno_backend.inspection.dtos.DefectPhotoAnnotationDto;
 import org.tornotron.echno_backend.inspection.dtos.InspectionDto;
+import org.tornotron.echno_backend.inspection.dtos.ReplaceAnnotationsRequest;
 import org.tornotron.echno_backend.inspection.dtos.UpdateInspectionRequest;
+import org.tornotron.echno_backend.inspection.pdf.InspectionReportPdfService;
+import org.tornotron.echno_backend.inspection.service.DefectAnnotationService;
 import org.tornotron.echno_backend.inspection.service.InspectionService;
+import org.tornotron.echno_backend.pdfGeneration.RenderedReport;
 
+import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -39,6 +48,8 @@ import java.util.UUID;
 public class InspectionControllerWeb {
 
     private final InspectionService service;
+    private final DefectAnnotationService annotationService;
+    private final InspectionReportPdfService reportService;
 
     @PostMapping
     @PreAuthorize("@inspectionSecurity.canManageInspections()")
@@ -112,5 +123,70 @@ public class InspectionControllerWeb {
     public InspectionDto update(@PathVariable UUID id,
                                 @Valid @RequestBody UpdateInspectionRequest req) {
         return service.update(id, req);
+    }
+
+    @GetMapping("/{id}/annotations")
+    @PreAuthorize("@inspectionSecurity.canRead()")
+    @Operation(
+            summary = "List the marks drawn over an inspection's defect photos",
+            description = "Returns a page of annotations. Each one names the photo it is drawn on, "
+                    + "exactly as that photo appears in a defect's photos list, and positions itself "
+                    + "as fractions of the image so it holds its place at any rendered size."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Page of annotations"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
+    })
+    public Page<DefectPhotoAnnotationDto> listAnnotations(@PathVariable UUID id, Pageable pageable) {
+        return annotationService.findByInspection(id, pageable);
+    }
+
+    @PutMapping("/{id}/annotations")
+    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @Operation(
+            summary = "Replace the marks drawn over an inspection's defect photos",
+            description = "Stores the supplied set and discards whatever was there before, so one "
+                    + "save records the whole mark-up canvas. Every mark must name a photo that one "
+                    + "of the inspection's defects actually carries. Marks do not survive the photo "
+                    + "they are drawn on being replaced: the coordinates describe a region of that "
+                    + "image, so on a different one they would be evidence pointing at nothing."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Annotations stored"),
+            @ApiResponse(responseCode = "400", description = "Validation failed, or a mark names a photo "
+                    + "no defect on this inspection carries"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
+    })
+    public List<DefectPhotoAnnotationDto> replaceAnnotations(
+            @PathVariable UUID id,
+            @Valid @RequestBody ReplaceAnnotationsRequest req) {
+        return annotationService.replaceForInspection(id, req);
+    }
+
+    @GetMapping("/{id}/pdf")
+    @PreAuthorize("@inspectionSecurity.canRead()")
+    @Operation(
+            summary = "Download the QA/QC inspection report",
+            description = "Renders the inspection into a PDF: its check points with the acceptance "
+                    + "criterion, tolerance, measurement and computed deviation for each, its defects, "
+                    + "the summary counts, and the annotated photographs of those defects. The check "
+                    + "point and defect tables print at most 500 rows each; the report states the true "
+                    + "totals and flags itself when it is showing only part of them."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "PDF generated and returned as an attachment"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant"),
+            @ApiResponse(responseCode = "500", description = "PDF rendering failed")
+    })
+    public ResponseEntity<byte[]> downloadReport(@PathVariable UUID id) throws IOException {
+        RenderedReport report = reportService.render(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + report.documentName() + ".pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(report.content());
     }
 }

@@ -8,7 +8,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -18,8 +20,11 @@ import org.tornotron.echno_backend.inspection.dtos.AssignNcrRequest;
 import org.tornotron.echno_backend.inspection.dtos.CreateNcrRequest;
 import org.tornotron.echno_backend.inspection.dtos.NcrDto;
 import org.tornotron.echno_backend.inspection.dtos.NcrRemarksRequest;
+import org.tornotron.echno_backend.inspection.pdf.NcrReportPdfService;
 import org.tornotron.echno_backend.inspection.service.NcrService;
+import org.tornotron.echno_backend.pdfGeneration.RenderedReport;
 
+import java.io.IOException;
 import java.util.UUID;
 
 @RestController
@@ -41,6 +46,7 @@ import java.util.UUID;
 public class NcrControllerWeb {
 
     private final NcrService service;
+    private final NcrReportPdfService reportService;
 
     @PostMapping
     @PreAuthorize("@inspectionSecurity.canRaiseNcrs()")
@@ -204,5 +210,60 @@ public class NcrControllerWeb {
     /** The remark, when a body was sent at all. Every note on the lifecycle is optional. */
     private static String remarksOf(NcrRemarksRequest req) {
         return req == null ? null : req.remarks();
+    }
+
+    /*
+     * Mapped ahead of /{id}/pdf on purpose. Spring's path-pattern comparator sorts a
+     * literal segment before a template variable, so /punch-list/pdf wins the match and
+     * "punch-list" is never offered to the UUID converter.
+     */
+    @GetMapping("/punch-list/pdf")
+    @PreAuthorize("@inspectionSecurity.canRead()")
+    @Operation(
+            summary = "Download the punch list",
+            description = "Renders every non-conformance that is not yet closed, newest first. This "
+                    + "is the same query the open=true filter on the listing answers, rendered rather "
+                    + "than recomputed. The inspectionId, type and siteEngineerId parameters narrow "
+                    + "it the same way they narrow the listing. At most 500 rows print; the document "
+                    + "states the true total and flags itself when it is showing only part of it."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "PDF generated and returned as an attachment"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "500", description = "PDF rendering failed")
+    })
+    public ResponseEntity<byte[]> downloadPunchList(
+            @RequestParam(required = false) UUID inspectionId,
+            @RequestParam(required = false) NcrType type,
+            @RequestParam(required = false) Long siteEngineerId) throws IOException {
+        return asAttachment(reportService.renderPunchList(inspectionId, type, siteEngineerId));
+    }
+
+    @GetMapping("/{id}/pdf")
+    @PreAuthorize("@inspectionSecurity.canRead()")
+    @Operation(
+            summary = "Download a non-conformance report",
+            description = "Renders one report with its full accountability trail: who raised it and "
+                    + "when, which site engineer owns it, the corrective action they reported and the "
+                    + "date they reported it, who accepted it and when, and who closed it and when. A "
+                    + "stage that has not happened prints as blank rather than being hidden, so a "
+                    + "reader can see how far the report got."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "PDF generated and returned as an attachment"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant"),
+            @ApiResponse(responseCode = "500", description = "PDF rendering failed")
+    })
+    public ResponseEntity<byte[]> downloadReport(@PathVariable UUID id) throws IOException {
+        return asAttachment(reportService.render(id));
+    }
+
+    private static ResponseEntity<byte[]> asAttachment(RenderedReport report) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + report.documentName() + ".pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(report.content());
     }
 }

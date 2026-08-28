@@ -98,6 +98,15 @@ public class Ncr implements TenantScopedEntity {
     @Column(name = "closed_by_id")
     private Long closedById;
 
+    /**
+     * Who accepted or refused the corrective work on re-inspection. Recorded
+     * because a trail that says the work was verified without saying by whom is not
+     * a trail: the whole reason sign-off is role-gated is that it matters which
+     * qualified person accepted it.
+     */
+    @Column(name = "verified_by_id")
+    private Long verifiedById;
+
     // What the site engineer reports on marking the corrective work complete, and
     // what a verifier writes when sending it back or reopening it. Both are part of
     // the record a client reads on a closed NCR, so neither is a transient note.

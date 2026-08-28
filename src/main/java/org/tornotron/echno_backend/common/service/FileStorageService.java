@@ -6,10 +6,14 @@ import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.common.dto.PresignedUpload;
 import org.tornotron.echno_backend.common.dto.StoredFile;
 import org.tornotron.echno_backend.common.exception.FileUploadException;
+import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
@@ -22,6 +26,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -194,6 +199,86 @@ public class FileStorageService {
      */
     public List<StoredFile> uploadFiles(String folder, MultipartFile... files) {
         return uploadFiles(List.of(files), folder);
+    }
+
+    /**
+     * The storage key a stored reference points at, when it points into our own
+     * bucket.
+     *
+     * <p>Modules store what a file upload returned, which is either the public URL
+     * built from the CDN endpoint or the bare key. Anything else, notably an
+     * absolute URL on a host that is not ours, is not one of our objects and comes
+     * back empty.
+     *
+     * <p>This is what keeps a server-side read of a stored reference from becoming
+     * a request forgery. A caller that wants the bytes behind a reference resolves
+     * it here first, so the only thing it can ever fetch is a key in the configured
+     * bucket. A reference the tenant put in the database is never dereferenced as a
+     * URL.
+     *
+     * @param storedReference The value a module recorded, possibly null.
+     * @return The key, or empty when the reference does not name an object in this
+     *         bucket.
+     */
+    public Optional<String> keyForStoredReference(String storedReference) {
+        if (storedReference == null || storedReference.isBlank()) {
+            return Optional.empty();
+        }
+        String reference = storedReference.trim();
+
+        String endpoint = cdnEndpoint == null ? "" : cdnEndpoint;
+        String prefix = endpoint.endsWith("/") ? endpoint : endpoint + "/";
+        if (!prefix.isBlank() && reference.startsWith(prefix)) {
+            String key = reference.substring(prefix.length());
+            return key.isBlank() ? Optional.empty() : Optional.of(key);
+        }
+
+        // A bare key: no scheme, no protocol-relative prefix, no path traversal.
+        if (reference.contains("://") || reference.startsWith("//") || reference.contains("..")) {
+            return Optional.empty();
+        }
+        return Optional.of(reference.startsWith("/") ? reference.substring(1) : reference);
+    }
+
+    /**
+     * Reads an object back into memory, refusing anything above a size limit.
+     *
+     * <p>The size is checked with a HEAD before the body is fetched, so an
+     * oversized object costs one metadata round trip rather than the transfer.
+     * Callers that embed objects in a rendered document need that: the limit is
+     * what stops one large site photo from deciding how much heap a report takes.
+     *
+     * @param key      Key of the object to read.
+     * @param maxBytes Largest object to fetch. An object at or below this is
+     *                 returned; a larger one, or a missing one, comes back empty.
+     * @return The bytes and the content type recorded on the object.
+     */
+    public Optional<StoredObject> readObject(String key, long maxBytes) {
+        if (key == null || key.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            HeadObjectResponse head = s3Client.headObject(
+                    HeadObjectRequest.builder().bucket(bucketName).key(key).build());
+            if (head.contentLength() == null || head.contentLength() > maxBytes) {
+                return Optional.empty();
+            }
+
+            ResponseBytes<GetObjectResponse> object = s3Client.getObjectAsBytes(
+                    GetObjectRequest.builder().bucket(bucketName).key(key).build());
+            return Optional.of(new StoredObject(
+                    key, object.response().contentType(), object.asByteArray()));
+        } catch (NoSuchKeyException e) {
+            return Optional.empty();
+        } catch (SdkException e) {
+            // Storage being unavailable must not fail whatever is embedding the
+            // object; the caller renders a placeholder in its place.
+            return Optional.empty();
+        }
+    }
+
+    /** An object read back out of storage. */
+    public record StoredObject(String key, String contentType, byte[] content) {
     }
 
     /**

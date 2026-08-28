@@ -328,4 +328,10 @@
     <!-- v4.0 - Attachments: what a file is and when it stops being valid, shared by every module -->
     <include file="db/changelog/v4.0/065-add-attachment-document-metadata.xml"/>
 
+    <!-- v4.0 - Inspection reports: the marks drawn over defect photographs -->
+    <include file="db/changelog/v4.0/066-create-defect-photo-annotations.xml"/>
+
+    <!-- v4.0 - Inspection reports: who accepted the corrective work, for the NCR trail -->
+    <include file="db/changelog/v4.0/067-add-ncr-verified-by.xml"/>
+
 </databaseChangeLog>

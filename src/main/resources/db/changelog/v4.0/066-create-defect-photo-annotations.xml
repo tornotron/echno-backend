@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="066-01-create-defect-photo-annotations" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="inspection_defect_annotations"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            The marks drawn over defect photographs, for the annotated defect images the
+            QA/QC report prints.
+
+            Keyed by inspection_id and by the photo reference itself, not by defect_id.
+            An inspection's defects are rebuilt wholesale on every save (see the ncrs
+            changelog), so every defect row is deleted and reinserted under a new id each
+            time an inspector saves; a child of the defect row would be destroyed with it.
+            The photo reference survives that rebuild unchanged, and it is what the mark
+            actually describes.
+
+            There is no foreign key on photo either: inspection_defect_photos is an element
+            collection with no row identity to point at. The consequence is deliberate. When
+            a photograph is replaced it arrives under a new key, the old marks match nothing,
+            and DefectAnnotationService deletes them. Carrying a mark onto a replacement
+            image would be worse than losing it: the coordinates describe a region of
+            specific pixels, so the mark would keep claiming to be evidence while pointing
+            somewhere meaningless.
+
+            The four coordinates are fractions of the image width and height rather than
+            pixels, so a mark holds its place whether it is drawn on a thumbnail in the web
+            app or a half-page plate in the PDF, and nothing stored depends on the resolution
+            of the file or the device that took it. The CHECK constraint enforces the range
+            in the schema, because a coordinate off the image cannot be drawn and cannot be
+            read.
+        </comment>
+
+        <createTable tableName="inspection_defect_annotations">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="inspection_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="photo" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="shape" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="x1" type="DECIMAL(9,6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="y1" type="DECIMAL(9,6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="x2" type="DECIMAL(9,6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="y2" type="DECIMAL(9,6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="label" type="VARCHAR(200)"/>
+            <column name="line_order" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="inspection_defect_annotations"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_defect_annotation_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="inspection_defect_annotations"
+                     indexName="idx_defect_annotation_inspection">
+            <column name="organization_id"/>
+            <column name="inspection_id"/>
+        </createIndex>
+
+        <createIndex tableName="inspection_defect_annotations"
+                     indexName="idx_defect_annotation_photo">
+            <column name="organization_id"/>
+            <column name="inspection_id"/>
+            <column name="photo"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="066-02-bound-annotation-coordinates" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="inspection_defect_annotations"/>
+        </preConditions>
+
+        <comment>
+            Coordinates are fractions of the image, so every one of them is between zero and
+            one. Enforced here as well as in the request validation: the validation stops a
+            bad payload, this stops a bad row whatever wrote it.
+        </comment>
+
+        <sql>
+            ALTER TABLE inspection_defect_annotations
+                ADD CONSTRAINT ck_defect_annotation_bounds
+                    CHECK (x1 BETWEEN 0 AND 1
+                        AND y1 BETWEEN 0 AND 1
+                        AND x2 BETWEEN 0 AND 1
+                        AND y2 BETWEEN 0 AND 1)
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE inspection_defect_annotations
+                    DROP CONSTRAINT ck_defect_annotation_bounds
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

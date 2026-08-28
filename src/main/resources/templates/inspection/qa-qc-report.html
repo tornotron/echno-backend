@@ -1,0 +1,389 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>QA/QC inspection report</title>
+    <style>
+        /*
+          Inline on purpose. openhtmltopdf resolves a linked stylesheet against the
+          document base URI with its default user agent, which cannot open a
+          classpath resource, so an external sheet is silently ignored. The invoice
+          template already learned this.
+        */
+        @page {
+            size: A4;
+            margin: 22mm 15mm 20mm 15mm;
+        }
+
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 9.5px;
+            color: #1f2933;
+            margin: 0;
+        }
+
+        .doc-header {
+            border-bottom: 2px solid #c2410c;
+            padding-bottom: 8px;
+            margin-bottom: 14px;
+        }
+
+        .brand {
+            color: #c2410c;
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        .doc-title {
+            font-size: 13px;
+            font-weight: bold;
+            margin-top: 2px;
+        }
+
+        .doc-number {
+            font-size: 11px;
+            color: #52606d;
+            margin-top: 2px;
+        }
+
+        h2 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #c2410c;
+            border-bottom: 1px solid #dcdcdc;
+            padding-bottom: 3px;
+            margin: 16px 0 7px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .meta td {
+            padding: 3px 6px 3px 0;
+            vertical-align: top;
+        }
+
+        .meta .key {
+            color: #52606d;
+            width: 22%;
+        }
+
+        .grid th, .grid td {
+            border: 1px solid #d7d7d7;
+            padding: 4px 5px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .grid th {
+            background: #f5f5f4;
+            font-size: 8.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #52606d;
+        }
+
+        .summary td {
+            border: 1px solid #d7d7d7;
+            padding: 6px;
+            text-align: center;
+            width: 25%;
+        }
+
+        .summary .figure {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .summary .caption {
+            font-size: 8.5px;
+            color: #52606d;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .note {
+            font-size: 8.5px;
+            color: #8a6d3b;
+            background: #fdf6e3;
+            border: 1px solid #f0e0b0;
+            padding: 5px 7px;
+            margin: 6px 0;
+        }
+
+        .plate {
+            margin-bottom: 14px;
+            page-break-inside: avoid;
+        }
+
+        .plate-caption {
+            font-size: 9px;
+            color: #52606d;
+            margin-bottom: 4px;
+        }
+
+        .plate-caption .number {
+            font-weight: bold;
+            color: #1f2933;
+        }
+
+        /*
+          The image and its marks share one positioned box. Every mark is placed in
+          percentages of that box, which is what makes the stored geometry
+          resolution independent: the same numbers drive this plate and the canvas
+          in the web app.
+        */
+        .canvas {
+            position: relative;
+            width: 100%;
+        }
+
+        .canvas img {
+            width: 100%;
+        }
+
+        .mark {
+            position: absolute;
+        }
+
+        .mark.box, .mark.ellipse {
+            border: 1.5px solid #dc2626;
+        }
+
+        .mark.ellipse {
+            border-radius: 50%;
+        }
+
+        .mark.pin {
+            border: 1.5px solid #dc2626;
+            border-radius: 50%;
+            background: #dc2626;
+        }
+
+        .mark .tag {
+            position: absolute;
+            top: -1.5px;
+            left: -1.5px;
+            background: #dc2626;
+            color: #ffffff;
+            font-size: 7.5px;
+            font-weight: bold;
+            padding: 0 3px;
+        }
+
+        .legend td {
+            padding: 2px 6px 2px 0;
+            font-size: 8.5px;
+            vertical-align: top;
+        }
+
+        .legend .key {
+            width: 22px;
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        .missing {
+            border: 1px dashed #b0b0b0;
+            color: #767676;
+            font-size: 9px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .footer {
+            margin-top: 18px;
+            padding-top: 6px;
+            border-top: 1px solid #dcdcdc;
+            font-size: 8px;
+            color: #767676;
+        }
+    </style>
+</head>
+<body>
+
+<div class="doc-header">
+    <div class="brand">Echno</div>
+    <div class="doc-title">QA/QC Inspection Report</div>
+    <div class="doc-number"><span th:text="${inspectionNumber}">-</span> &#183; <span th:text="${title}">-</span></div>
+</div>
+
+<h2>Inspection</h2>
+<table class="meta">
+    <tr>
+        <td class="key">Project</td>
+        <td th:text="${projectName}">-</td>
+        <td class="key">Category</td>
+        <td th:text="${categoryLabel}">-</td>
+    </tr>
+    <tr>
+        <td class="key">Trade</td>
+        <td th:text="${tradeLabel}">-</td>
+        <td class="key">Type</td>
+        <td th:text="${typeLabel}">-</td>
+    </tr>
+    <tr>
+        <td class="key">Status</td>
+        <td th:text="${statusLabel}">-</td>
+        <td class="key">Result</td>
+        <td th:text="${resultLabel}">-</td>
+    </tr>
+    <tr>
+        <td class="key">Location</td>
+        <td th:text="${location}">-</td>
+        <td class="key">Area inspected</td>
+        <td th:text="${areaInspected}">-</td>
+    </tr>
+    <tr>
+        <td class="key">Drawing reference</td>
+        <td th:text="${drawingReference}">-</td>
+        <td class="key">Scheduled</td>
+        <td th:text="${scheduledDate}">-</td>
+    </tr>
+    <tr>
+        <td class="key">Started</td>
+        <td th:text="${startedAt}">-</td>
+        <td class="key">Ended</td>
+        <td th:text="${endedAt}">-</td>
+    </tr>
+    <tr>
+        <td class="key">Client representative</td>
+        <td th:text="${clientRepresentative}">-</td>
+        <td class="key">Weather</td>
+        <td th:text="${weather}">-</td>
+    </tr>
+    <tr>
+        <td class="key">Attendees</td>
+        <td colspan="3" th:text="${attendees}">-</td>
+    </tr>
+</table>
+
+<h2>Summary</h2>
+<table class="summary">
+    <tr>
+        <td>
+            <div class="figure" th:text="${totalCheckPoints}">0</div>
+            <div class="caption">Check points</div>
+        </td>
+        <td>
+            <div class="figure" th:text="${passedCheckPoints}">0</div>
+            <div class="caption">Passed</div>
+        </td>
+        <td>
+            <div class="figure" th:text="${failedCheckPoints}">0</div>
+            <div class="caption">Failed</div>
+        </td>
+        <td>
+            <div class="figure" th:text="${defectsFound}">0</div>
+            <div class="caption">Defects</div>
+        </td>
+    </tr>
+</table>
+
+<p class="note" th:if="${truncated}"
+   th:text="|This inspection has ${checkItemTotal} check points and ${defectTotal} defects. This report prints at most ${rowCap} of each.|"></p>
+
+<h2>Check points</h2>
+<table class="grid">
+    <tr>
+        <th>Category</th>
+        <th>Check point</th>
+        <th>Specification</th>
+        <th>Acceptance criterion</th>
+        <th>Tolerance</th>
+        <th>Expected</th>
+        <th>Measured</th>
+        <th>Deviation</th>
+        <th>Result</th>
+        <th>Remarks</th>
+    </tr>
+    <tr th:each="row : ${checkRows}">
+        <td th:text="${row.category}">-</td>
+        <td th:text="${row.checkPoint}">-</td>
+        <td th:text="${row.specification}">-</td>
+        <td th:text="${row.acceptanceCriterion}">-</td>
+        <td th:text="${row.tolerance}">-</td>
+        <td th:text="${row.expectedValue}">-</td>
+        <td th:text="${row.measurement}">-</td>
+        <td th:text="${row.deviation}">-</td>
+        <td th:text="${row.status}">-</td>
+        <td th:text="${row.remarks}">-</td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(checkRows)}">
+        <td colspan="10">No check points were recorded.</td>
+    </tr>
+</table>
+
+<h2>Defects</h2>
+<table class="grid">
+    <tr>
+        <th>#</th>
+        <th>Description</th>
+        <th>Severity</th>
+        <th>Location</th>
+        <th>Corrective action</th>
+        <th>Responsible</th>
+        <th>Target</th>
+        <th>Status</th>
+        <th>Resolved</th>
+        <th>Photos</th>
+    </tr>
+    <tr th:each="row : ${defectRows}">
+        <td th:text="${row.index}">1</td>
+        <td th:text="${row.description}">-</td>
+        <td th:text="${row.severity}">-</td>
+        <td th:text="${row.location}">-</td>
+        <td th:text="${row.correctiveAction}">-</td>
+        <td th:text="${row.responsibleParty}">-</td>
+        <td th:text="${row.targetDate}">-</td>
+        <td th:text="${row.status}">-</td>
+        <td th:text="${row.resolvedDate}">-</td>
+        <td th:text="${row.photoCount}">0</td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(defectRows)}">
+        <td colspan="10">No defects were recorded.</td>
+    </tr>
+</table>
+
+<div th:if="${!#lists.isEmpty(plates)}">
+    <h2>Annotated defect photographs</h2>
+    <p class="note" th:if="${platesTruncated}"
+       th:text="|${annotatedPhotoTotal} photographs on this inspection carry marks. This report prints the first ${photoCap}.|"></p>
+    <p class="note" th:if="${annotationsTruncated}"
+       th:text="|This inspection carries ${annotationTotal} marks. This report reads the first ${rowCap}.|"></p>
+
+    <div class="plate" th:each="plate : ${plates}">
+        <div class="plate-caption">
+            <span class="number" th:text="${plate.plateNumber}">Plate 1</span> &#183;
+            <span th:text="${plate.caption}">-</span>
+        </div>
+
+        <div class="canvas" th:if="${plate.image != null}">
+            <img th:src="${plate.image}" alt="Annotated defect photograph"/>
+            <div class="mark" th:each="mark : ${plate.marks}"
+                 th:classappend="${mark.kind}"
+                 th:style="|left:${mark.left}%;top:${mark.top}%;width:${mark.width}%;height:${mark.height}%;|">
+                <span class="tag" th:text="${mark.index}">1</span>
+            </div>
+        </div>
+        <div class="missing" th:if="${plate.image == null}" th:text="${plate.missingNote}">-</div>
+
+        <table class="legend">
+            <tr th:each="mark : ${plate.marks}">
+                <td class="key" th:text="${mark.index}">1</td>
+                <td th:text="${mark.label}">-</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<div class="footer">
+    Generated by Echno on <span th:text="${generatedOn}">-</span>. This is a system-generated report.
+</div>
+
+</body>
+</html>
