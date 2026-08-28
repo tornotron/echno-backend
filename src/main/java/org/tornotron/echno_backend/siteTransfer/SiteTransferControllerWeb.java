@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferCreationDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferDto;
 import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferStatus;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
 
@@ -77,15 +78,15 @@ public class SiteTransferControllerWeb {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "List all site transfers",
-            description = "Returns every site transfer in the organization, without pagination."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Site transfers returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<SiteTransferDto>> getAllSiteTransfers() {
-        List<SiteTransferDto> transfers = siteTransferService.getAllSiteTransfers();
-        return ResponseEntity.ok(transfers);
+        return UnpagedResultCap.respond(
+                siteTransferService.getAllSiteTransfers(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/all")

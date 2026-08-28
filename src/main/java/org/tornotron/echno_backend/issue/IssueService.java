@@ -108,12 +108,6 @@ public class IssueService {
         return issueMapper.toSimpleDto(savedIssue);
     }
 
-    @Transactional(readOnly = true)
-    public List<IssueDto> getAllIssues() {
-        return issueRepository.findAll().stream()
-                .map(issue -> issueMapper.toDto(issue))
-                .collect(Collectors.toList());
-    }
 
     @Transactional(readOnly = true)
     public Page<IssueDto> getAllIssuesPaginated(int pageNo, int pageSize, Long projectId, String search, String status, String type, Long assigneeId, Long creatorId) {

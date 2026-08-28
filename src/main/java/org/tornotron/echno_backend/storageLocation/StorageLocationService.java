@@ -77,12 +77,6 @@ public class StorageLocationService {
         return storageLocationMapper.toDto(storageLocation);
     }
 
-    @Transactional(readOnly = true)
-    public List<StorageLocationDto> getAllStorageLocations() {
-        return storageLocationRepository.findAll().stream()
-                .map(storageLocation -> storageLocationMapper.toDto(storageLocation))
-                .collect(Collectors.toList());
-    }
 
     @Transactional(readOnly = true)
     public Page<StorageLocationDto> getAllStorageLocations(int pageNo, int pageSize) {

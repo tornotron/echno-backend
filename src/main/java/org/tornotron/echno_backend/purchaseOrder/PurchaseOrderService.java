@@ -178,12 +178,6 @@ public class PurchaseOrderService {
         return purchaseOrderMapper.toDto(purchaseOrder);
     }
 
-    @Transactional(readOnly = true)
-    public List<PurchaseOrderDto> getAllPurchaseOrders() {
-        return purchaseOrderRepository.findAll().stream()
-                .map(po -> purchaseOrderMapper.toDto(po))
-                .collect(Collectors.toList());
-    }
 
     /**
      * Retrieves purchase orders one page at a time, newest first.

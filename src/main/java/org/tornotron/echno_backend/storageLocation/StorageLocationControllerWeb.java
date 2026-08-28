@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.storageLocation.dto.StorageLocationCreationDt
 import org.tornotron.echno_backend.storageLocation.dto.StorageLocationDto;
 import org.tornotron.echno_backend.storageLocation.dto.StorageLocationUpdateDto;
 import org.tornotron.echno_backend.storageLocation.enums.StorageLocationType;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
 
@@ -77,15 +78,15 @@ public class StorageLocationControllerWeb {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "List all storage locations",
-            description = "Returns every storage location in the caller's organization, unpaginated."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Storage locations returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<StorageLocationDto>> getAllStorageLocations() {
-        List<StorageLocationDto> storageLocations = storageLocationService.getAllStorageLocations();
-        return ResponseEntity.ok(storageLocations);
+        return UnpagedResultCap.respond(
+                storageLocationService.getAllStorageLocations(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/all")

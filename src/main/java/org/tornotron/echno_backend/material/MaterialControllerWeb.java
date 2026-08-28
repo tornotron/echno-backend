@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.material.dto.MaterialWithStockDto;
 import org.tornotron.echno_backend.material.threshold.MaterialLocationThresholdService;
 import org.tornotron.echno_backend.material.threshold.dto.MaterialLocationThresholdDto;
 import org.tornotron.echno_backend.material.threshold.dto.MaterialLocationThresholdUpsertDto;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
 
@@ -80,15 +81,14 @@ public class MaterialControllerWeb {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "List all materials",
-            description = "Returns every material in the organization's catalogue, unpaginated."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Materials returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<MaterialDto>> getAllMaterials() {
-        List<MaterialDto> materials = materialService.getAllMaterials();
-        return ResponseEntity.ok(materials);
+        return UnpagedResultCap.respond(materialService.getAllMaterials(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/all")

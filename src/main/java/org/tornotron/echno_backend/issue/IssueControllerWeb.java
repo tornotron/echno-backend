@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.issue.dto.IssueDto;
 import org.tornotron.echno_backend.issue.dto.IssueSimpleDto;
 import org.tornotron.echno_backend.issue.dto.IssueStatsDto;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
 import java.util.Map;
@@ -47,15 +48,15 @@ public class IssueControllerWeb {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List all issues",
-            description = "Returns every issue in the current tenant, unpaginated."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issues returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<IssueDto>> readAllIssues() {
-        List<IssueDto> issues = issueService.getAllIssues();
-        return new ResponseEntity<>(issues, HttpStatus.OK);
+        return UnpagedResultCap.respond(issueService.getAllIssuesPaginated(
+                0, UnpagedResultCap.MAX_ROWS, null, null, null, null, null, null));
     }
 
     @GetMapping("/paginated")
