@@ -78,9 +78,16 @@ public class SubscriptionService {
     /**
      * Loads the user's active subscription entity, serving it from the cache when present.
      *
-     * <p>On a cache miss it queries the repository and, if found, populates the cache. The
-     * query fetch-joins the plan, its plan features and each feature, so a cached instance
-     * carries them initialized and stays mappable after its session closes; keep it that way.
+     * <p>On a cache miss it queries the repository and, if found, populates the cache.
+     *
+     * <p>A cached instance is detached, so anything it left uninitialized throws
+     * {@code LazyInitializationException} on the next hit, in a later transaction that cannot
+     * reattach it. What keeps that from happening is that the graph is always initialized before
+     * the session that loaded it closes: {@code findActiveSubscriptionByUserId} fetch-joins the
+     * plan, its plan features and each feature, and every caller below then maps or walks the
+     * whole graph inside its own transaction anyway. Either alone would do; do not remove both.
+     * A new caller that caches a subscription without touching its plan would be relying on the
+     * fetch joins by itself.
      *
      * @param userId The ID of the user whose subscription to resolve.
      * @return The active subscription, or empty if the user has none.
@@ -98,6 +105,29 @@ public class SubscriptionService {
         subscription.ifPresent(sub -> subscriptionCache.put(userId, sub));
 
         return subscription;
+    }
+
+    /**
+     * Loads the user's active subscription entity for a caller that is about to change it,
+     * always from the database and never from the cache.
+     *
+     * <p>{@link #loadActiveSubscription(Long)} hands back the very instance the cache holds,
+     * which every concurrent reader of this user shares and which is detached from any
+     * persistence context. A write path must not touch that instance: mutating it publishes a
+     * half-finished change to every reader at once, and leaves the cache holding state that
+     * never reached the database if the write then fails. Reading fresh gives the caller a
+     * managed entity of its own, so the change is confined to its transaction and reaches
+     * other callers only through the eviction on
+     * {@link SubscriptionCache#evictOnWrite(Long)}.
+     *
+     * <p>The read deliberately does not populate the cache either. The row is about to change,
+     * so caching what it looks like now would only have to be undone.
+     *
+     * @param userId The ID of the user whose subscription is about to be changed.
+     * @return The active subscription as a managed entity, or empty if the user has none.
+     */
+    private Optional<Subscription> loadActiveSubscriptionForWrite(Long userId) {
+        return subscriptionRepository.findActiveSubscriptionByUserId(userId);
     }
 
     /**
@@ -281,7 +311,7 @@ public class SubscriptionService {
      */
     @Transactional
     public SubscriptionDto createSubscription(Long userId, String planCode, BillingPeriod billingPeriod) {
-        if (loadActiveSubscription(userId).isPresent()) {
+        if (loadActiveSubscriptionForWrite(userId).isPresent()) {
             throw new DuplicateResourceException(
                     "User " + userId + " already has an active subscription; use change-plan to switch plans instead");
         }
@@ -309,7 +339,7 @@ public class SubscriptionService {
 
         subscription = subscriptionRepository.save(subscription);
 
-        subscriptionCache.evict(userId);
+        subscriptionCache.evictOnWrite(userId);
 
         log.info("Created subscription {} for user {} on plan {} ({})", 
                 subscription.getId(), userId, planCode, billingPeriod);
@@ -331,7 +361,7 @@ public class SubscriptionService {
      */
     @Transactional
     public SubscriptionDto changeSubscription(Long userId,String newPlanCode) {
-        Subscription currentSubscription = loadActiveSubscription(userId)
+        Subscription currentSubscription = loadActiveSubscriptionForWrite(userId)
                 .orElseThrow(() -> new NoActiveSubscriptionException("User " + userId + " has no active subscription"));
 
         Plan newPlan = planRepository.findByCodeAndIsActiveTrue(newPlanCode)
@@ -340,7 +370,7 @@ public class SubscriptionService {
         currentSubscription.setPlan(newPlan);
         currentSubscription = subscriptionRepository.save(currentSubscription);
 
-        subscriptionCache.evict(userId);
+        subscriptionCache.evictOnWrite(userId);
 
         log.info("Changed subscription {} for user {} to plan {}",
                 currentSubscription.getId(), userId, newPlanCode);
@@ -363,7 +393,7 @@ public class SubscriptionService {
     @Transactional
     public void cancelSubscription(Long userId, boolean immediate) {
 
-       Subscription subscription = loadActiveSubscription(userId)
+       Subscription subscription = loadActiveSubscriptionForWrite(userId)
                .orElseThrow(() -> new NoActiveSubscriptionException("User " + userId + " has no active subscription"));
 
        if(immediate) {
@@ -374,7 +404,7 @@ public class SubscriptionService {
        }
 
        subscriptionRepository.save(subscription);
-       subscriptionCache.evict(userId);
+       subscriptionCache.evictOnWrite(userId);
 
        log.info("Canceled subscription {} for user {} (immediate: {})",
                subscription.getId(), userId, immediate);
