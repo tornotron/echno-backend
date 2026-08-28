@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.task.mapper.TaskMapper;
 import org.tornotron.echno_backend.category.CategoryRepository;
+import org.tornotron.echno_backend.common.conversions.DateConversion;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
@@ -32,7 +33,6 @@ import org.tornotron.echno_backend.task.dto.TaskSimpleDto;
 import org.tornotron.echno_backend.task.enums.TaskStatus;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -321,8 +321,11 @@ public class TaskService {
                 case "description":
                     task.setDescription((String) value);
                     break;
+                case "startDate":
+                    task.setStartDate(DateConversion.parseLocalDateTime(value));
+                    break;
                 case "endDate":
-                    task.setEndDate(LocalDateTime.parse((String) value, DateTimeFormatter.ISO_DATE_TIME));
+                    task.setEndDate(DateConversion.parseLocalDateTime(value));
                     break;
                 case "progress":
                     if (value == null) {
