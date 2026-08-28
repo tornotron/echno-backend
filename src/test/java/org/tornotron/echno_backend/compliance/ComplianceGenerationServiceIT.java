@@ -16,6 +16,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.compliance.ai.OpenAiCompatibleComplianceService;
 import org.tornotron.echno_backend.compliance.ai.ComplianceSuggestion;
 import org.tornotron.echno_backend.inspection.ComplianceRiskLevel;
@@ -48,7 +49,7 @@ import static org.mockito.Mockito.when;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ComplianceGenerationService.class, InspectionMapperImpl.class,
-        TenantEntityHelper.class, EntryNumberGenerator.class})
+        TenantEntityHelper.class, EntryNumberGenerator.class, TransactionalWorkRunner.class})
 class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
 
     private static final String RULE_PRE = "TN-BPA";        // pre-construction
