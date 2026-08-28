@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.project.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.OptBoolean;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -83,8 +85,10 @@ public class ProjectCreationDto {
     private Float projectLongitude;
 
     @Schema(description = "Planned start date of the project.", example = "2026-09-01T00:00:00")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime startDate;
 
     @Schema(description = "Planned completion date of the project.", example = "2027-06-30T00:00:00")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime endDate;
 }

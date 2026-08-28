@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.user.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.OptBoolean;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.*;
@@ -41,6 +43,7 @@ public class UserCreationDto {
 
     @Past(message = "dateOfBirth must be a past date")
     @NotNull
+    @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime dateOfBirth;
 
     @NotBlank(message = "qualification is required")

@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.user.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.OptBoolean;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -23,6 +25,7 @@ public class UserRegistrationDto {
     private String gender;
 
     @NotNull(message = "dateOfBirth is required")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime dateOfBirth;
 
     private String role;

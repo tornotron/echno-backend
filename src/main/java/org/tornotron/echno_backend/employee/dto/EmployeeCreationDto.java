@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.employee.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.OptBoolean;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -23,6 +25,7 @@ public class EmployeeCreationDto {
     private String department;
 
     @Schema(description = "Date the employee joined.", example = "2026-01-15T00:00:00")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime joiningDate;
 
     @Schema(description = "Organization-assigned employee code.", example = "EMP-0042")
@@ -73,6 +76,7 @@ public class EmployeeCreationDto {
 
     @Schema(description = "Date of birth of the employee.", example = "1994-03-22T00:00:00")
     @NotNull(message = "dateOfBirth is required")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime dateOfBirth;
 
     @Schema(description = "Name of the organization the employee belongs to.", example = "Asset Homes")
