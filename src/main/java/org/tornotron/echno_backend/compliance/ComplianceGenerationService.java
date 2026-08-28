@@ -3,11 +3,11 @@ package org.tornotron.echno_backend.compliance;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.compliance.ai.OpenAiCompatibleComplianceService;
 import org.tornotron.echno_backend.compliance.ai.ComplianceSuggestion;
 import org.tornotron.echno_backend.compliance.domain.ComplianceRule;
@@ -43,6 +43,27 @@ import java.util.stream.Collectors;
  * is skipped, so a re-run (the manual regenerate endpoint, or a repeated approval)
  * only adds compliances that are missing. The document number series is shared with
  * manual inspections ({@code INSP}).
+ *
+ * <h2>Why this class owns no transaction of its own</h2>
+ *
+ * <p>The model call takes 34 to 47 seconds today and grows with the size of the curated
+ * rule set. Running it inside a transaction pinned one of twenty pool connections for
+ * that whole time while doing nothing but waiting on a third party, so a handful of
+ * concurrent users could exhaust the pool. {@link #generateForProject} is therefore
+ * three phases: read the inputs in one transaction, call the model with no transaction
+ * and no connection held, then persist in a second transaction.
+ *
+ * <p>Both transactions are opened by calling {@link TransactionalWorkRunner}, and that
+ * choice is load bearing rather than stylistic. {@code HibernateFilterConfig} advises
+ * {@code @Transactional} methods in this package tree to enable the {@code orgFilter}
+ * tenant filter on the session. A programmatic {@code TransactionTemplate} carries no
+ * such annotation, so splitting the boundary that way would have run both phases with
+ * tenant filtering off, and (because that filter fails open rather than closed) would
+ * have done so silently.
+ *
+ * <p>The corollary is that the caller must have a tenant context on the thread before
+ * calling in. Request threads get one from {@code TenantFilter}; background callers must
+ * go through {@code TenantScopedJobRunner}.
  */
 @Slf4j
 @Service
@@ -58,6 +79,18 @@ public class ComplianceGenerationService {
     private final EntryNumberGenerator numberGen;
     private final TenantEntityHelper tenantEntityHelper;
     private final InspectionMapper inspectionMapper;
+    private final TransactionalWorkRunner workRunner;
+
+    /**
+     * What the read phase hands to the phases after it. The entities are detached once the
+     * read transaction closes, which is safe here because every field the model call and
+     * the write phase go on to read is a basic column loaded eagerly with the row: the
+     * project's name, type and address, and each rule's code, name, phase, default risk,
+     * description, authority and resolution options. Nothing in here is dereferenced
+     * through a lazy association, and nothing may start being, or it will fail outside a
+     * session.
+     */
+    private record GenerationInputs(Project project, String state, List<ComplianceRule> candidateRules) {}
 
     /**
      * Generates the missing compliance inspections for a project. Returns the DTOs of
@@ -71,11 +104,39 @@ public class ComplianceGenerationService {
      * no recognisable state, no rules registered for that jurisdiction, or an
      * unconfigured AI service each raise {@link InvalidRequestException} (400).
      *
+     * <p>Runs in three phases so the model call holds no database connection; see the class
+     * javadoc for why the boundaries are drawn where they are.
+     *
      * @param projectId the project to generate for
      * @param orgId     the owning organization; must match the current tenant context
      */
-    @Transactional
     public List<InspectionDto> generateForProject(Long projectId, Long orgId) {
+        GenerationInputs inputs = workRunner.runInTransaction(() -> loadInputs(projectId, orgId));
+
+        // Outside any transaction: this is the 34 to 47 second call, and it must not be
+        // holding a pool connection while it waits.
+        List<ComplianceSuggestion> suggestions = complianceAiService.suggestCompliances(
+                inputs.project(), inputs.state(), inputs.candidateRules());
+
+        if (suggestions.isEmpty()) {
+            if (!complianceAiService.isConfigured()) {
+                throw new InvalidRequestException(
+                        "The compliance AI service is not configured, so suggestions cannot be "
+                                + "generated. Set the compliance AI key and try again.");
+            }
+            log.info("Compliance AI returned no suggestions for project {}", projectId);
+            return List.of();
+        }
+
+        return workRunner.runInTransaction(() -> persist(projectId, orgId, inputs, suggestions));
+    }
+
+    /**
+     * Read phase. Resolves the project, its jurisdiction and the candidate rules, and
+     * raises the precondition failures so the caller can tell the user what to fix before
+     * anything slow happens.
+     */
+    private GenerationInputs loadInputs(Long projectId, Long orgId) {
         Project project = projectRepository.findByIdAndOrganization_Id(projectId, orgId).orElse(null);
         if (project == null) {
             throw new ResourceNotFoundException(
@@ -111,19 +172,20 @@ public class ComplianceGenerationService {
                             + "are added, generation will produce results.");
         }
 
-        List<ComplianceSuggestion> suggestions =
-                complianceAiService.suggestCompliances(project, state, candidateRules);
-        if (suggestions.isEmpty()) {
-            if (!complianceAiService.isConfigured()) {
-                throw new InvalidRequestException(
-                        "The compliance AI service is not configured, so suggestions cannot be "
-                                + "generated. Set the compliance AI key and try again.");
-            }
-            log.info("Compliance AI returned no suggestions for project {}", projectId);
-            return List.of();
-        }
+        return new GenerationInputs(project, state, candidateRules);
+    }
 
-        Map<String, ComplianceRule> rulesByCode = candidateRules.stream()
+    /**
+     * Write phase. Materialises each "applies" decision that does not already have an
+     * inspection. The document-number sequence is locked here, inside the second
+     * transaction, so it is held for the length of a few inserts rather than the length of
+     * the model call.
+     */
+    private List<InspectionDto> persist(Long projectId,
+                                        Long orgId,
+                                        GenerationInputs inputs,
+                                        List<ComplianceSuggestion> suggestions) {
+        Map<String, ComplianceRule> rulesByCode = inputs.candidateRules().stream()
                 .collect(Collectors.toMap(ComplianceRule::getCode, Function.identity(), (a, b) -> a));
 
         Organization organization = tenantEntityHelper.resolveCurrentOrganization();
@@ -168,7 +230,7 @@ public class ComplianceGenerationService {
         }
 
         log.info("Generated {} compliance inspection(s) for project {} (state '{}', type {})",
-                created.size(), projectId, state, projectType);
+                created.size(), projectId, inputs.state(), inputs.project().getProjectType());
         return created;
     }
 

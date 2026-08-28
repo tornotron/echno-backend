@@ -1,7 +1,10 @@
 package org.tornotron.echno_backend.compliance;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -9,6 +12,7 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.compliance.ai.OpenAiCompatibleComplianceService;
 import org.tornotron.echno_backend.compliance.repository.ComplianceRuleRepository;
 import org.tornotron.echno_backend.inspection.mapper.InspectionMapper;
@@ -16,9 +20,12 @@ import org.tornotron.echno_backend.inspection.repositories.InspectionRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.project.enums.ProjectType;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -52,9 +59,22 @@ class ComplianceGenerationServiceTest {
     private TenantEntityHelper tenantEntityHelper;
     @Mock
     private InspectionMapper inspectionMapper;
+    @Mock
+    private TransactionalWorkRunner workRunner;
 
     @InjectMocks
     private ComplianceGenerationService service;
+
+    /**
+     * The runner is the transaction boundary in production; here it only has to run the
+     * block it is handed, so the phase split is exercised without a database. Every test
+     * reaches at least the read phase, so this stub is always used.
+     */
+    @BeforeEach
+    void runWorkInline() {
+        when(workRunner.runInTransaction(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0, Supplier.class).get());
+    }
 
     private Project project(ProjectType type, String address) {
         Project project = new Project();
@@ -151,6 +171,22 @@ class ComplianceGenerationServiceTest {
         assertThatThrownBy(() -> service.generateForProject(PROJECT_ID, ORG_ID))
                 .isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("AI service is not configured");
+    }
+
+    /**
+     * The orchestrator must hold no transaction of its own, because its middle phase is an
+     * external model call measured at 34 to 47 seconds. A {@code @Transactional} here would
+     * put that call back inside a transaction and pin one of twenty pool connections for
+     * its duration. The two transactions belong to the read and write phases, which reach
+     * them through {@code TransactionalWorkRunner}.
+     */
+    @Test
+    @MockitoSettings(strictness = Strictness.LENIENT)
+    void orchestratorOwnsNoTransaction() throws Exception {
+        Method method = ComplianceGenerationService.class
+                .getMethod("generateForProject", Long.class, Long.class);
+
+        assertThat(method.getAnnotation(Transactional.class)).isNull();
     }
 
     @Test
