@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import lombok.extern.slf4j.Slf4j;
+import org.tornotron.echno_backend.common.conversions.DateConversion;
 import org.tornotron.echno_backend.attendance.ShiftTiming;
 import org.tornotron.echno_backend.attendance.ShiftTimingRepository;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
@@ -29,7 +30,6 @@ import org.tornotron.echno_backend.user.UserRepository;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -332,7 +332,7 @@ public class EmployeeService {
                     employee.setDesignation((String) value);
                     break;
                 case "joiningDate":
-                    employee.setJoiningDate(LocalDateTime.parse((String) value, DateTimeFormatter.ISO_DATE_TIME));
+                    employee.setJoiningDate(DateConversion.parseLocalDateTime(value));
                     break;
                 case "phoneNumber":
                     employee.setPhoneNumber((String) value);
@@ -355,7 +355,7 @@ public class EmployeeService {
                     employee.setEmailAddress((String) value);
                     break;
                 case "dateOfBirth":
-                    employee.setDateOfBirth(LocalDateTime.parse((String) value, DateTimeFormatter.ISO_DATE_TIME));
+                    employee.setDateOfBirth(DateConversion.parseLocalDateTime(value));
                     break;
                 case "managerId":
                     Long managerId = ((Number) value).longValue();

@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.task.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.OptBoolean;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -19,9 +21,11 @@ public class TaskCreationDto {
     private String title;
 
     @Schema(description = "Planned start of the task.", example = "2026-09-05T08:00:00")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime startDate;
 
     @Schema(description = "Planned end of the task.", example = "2026-09-07T17:00:00")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime endDate;
 
     @Schema(description = "Longer description of the work to be done.",
