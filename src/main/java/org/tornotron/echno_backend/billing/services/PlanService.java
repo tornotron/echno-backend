@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.billing.Feature;
 import org.tornotron.echno_backend.billing.Plan;
 import org.tornotron.echno_backend.billing.PlanFeature;
+import org.tornotron.echno_backend.billing.components.SubscriptionCache;
 import org.tornotron.echno_backend.billing.dto.BillingMapper;
 import org.tornotron.echno_backend.billing.dto.PlanCreateDto;
 import org.tornotron.echno_backend.billing.dto.PlanDto;
@@ -23,6 +24,12 @@ import java.util.List;
  * Plan administration: reading plans with their assigned features, and creating, updating and
  * deactivating them.
  *
+ * <p>Every write here empties the subscription cache. A cached subscription carries a copy of
+ * the plan it was taken against, features and quotas included, so changing a plan changes what
+ * every subscriber of it is entitled to while their cached copies still say otherwise. The
+ * entries are not addressable by user without a query, and plan writes are rare administrative
+ * operations, so the whole cache goes.
+ *
  * <p>Entities never leave this class. Every method a caller can reach returns a DTO built while
  * the persistence context is still open, because {@code spring.jpa.open-in-view} is off and
  * {@link Plan#getPlanFeatures()} is a lazy collection: mapping a plan anywhere outside a
@@ -38,6 +45,7 @@ public class PlanService {
 
     private final PlanRepository planRepository;
     private final FeatureRepository featureRepository;
+    private final SubscriptionCache subscriptionCache;
 
     /**
      * Returns the plans that are both public and active, ordered for display.
@@ -130,6 +138,7 @@ public class PlanService {
         if (dto.getSortOrder() != null) plan.setSortOrder(dto.getSortOrder());
 
         plan = planRepository.save(plan);
+        subscriptionCache.evictAllOnWrite();
         log.info("Updated plan: {}", plan.getCode());
         return BillingMapper.toPlanDto(plan);
     }
@@ -139,6 +148,7 @@ public class PlanService {
         Plan plan = loadPlanById(id);
         plan.setIsActive(false);
         planRepository.save(plan);
+        subscriptionCache.evictAllOnWrite();
         log.info("Deactivated plan: {}", plan.getCode());
     }
 
@@ -148,6 +158,7 @@ public class PlanService {
                 .orElseThrow(() -> new PlanNotFoundException("Plan with ID " + id + " was not found"));
         plan.setIsActive(true);
         planRepository.save(plan);
+        subscriptionCache.evictAllOnWrite();
         log.info("Activated plan: {}", plan.getCode());
     }
 
@@ -177,6 +188,7 @@ public class PlanService {
 
         plan.addFeature(planFeature);
         plan = planRepository.save(plan);
+        subscriptionCache.evictAllOnWrite();
 
         log.info("Assigned feature {} to plan {}", dto.getFeatureCode(), plan.getCode());
         return BillingMapper.toPlanDto(plan);
@@ -195,6 +207,7 @@ public class PlanService {
 
         plan.removeFeature(planFeature);
         plan = planRepository.save(plan);
+        subscriptionCache.evictAllOnWrite();
 
         log.info("Removed feature {} from plan {}", featureCode, plan.getCode());
         return BillingMapper.toPlanDto(plan);

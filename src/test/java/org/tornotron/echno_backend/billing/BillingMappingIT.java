@@ -30,6 +30,7 @@ import org.tornotron.echno_backend.billing.enums.FeatureType;
 import org.tornotron.echno_backend.billing.enums.SubscriptionStatus;
 import org.tornotron.echno_backend.billing.repositories.PlanRepository;
 import org.tornotron.echno_backend.billing.repositories.SubscriptionRepository;
+import org.tornotron.echno_backend.billing.snapshot.SubscriptionSnapshot;
 import org.tornotron.echno_backend.billing.services.PlanService;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -184,15 +185,11 @@ class BillingMappingIT extends AbstractIntegrationTest {
     }
 
     /**
-     * The counterpart to the test above, and the reason the cache may hold entities at all.
-     * {@code findActiveSubscriptionByUserId} fetch-joins the plan, its plan features and each
-     * feature, so what it returns is still mappable once its session has closed, which is the
-     * state every cache hit sees. Weaken those fetch joins and this fails where the query above
-     * already fails.
-     *
-     * <p>Nothing in the type system says the query has to keep them, and the cache is what makes
-     * it matter: an ordinary caller would notice a missing fetch join as extra queries, a caller
-     * served from the cache would notice it as a 500.
+     * What the fetch joins on {@code findActiveSubscriptionByUserId} are worth now that the
+     * cache holds a snapshot rather than the entity. The snapshot is copied inside the loading
+     * transaction, so the lazy reads resolve there either way and weakening the query costs a
+     * round trip per plan feature instead of a 500. This pins the query all the same: it is the
+     * one read whose result the cache is built from, so its shape is worth knowing.
      */
     @Test
     void theQueryBehindTheCacheReturnsAGraphThatOutlivesItsSession() {
@@ -203,39 +200,43 @@ class BillingMappingIT extends AbstractIntegrationTest {
     }
 
     /**
-     * The invariant the one above is only half of. What has to hold is that whatever reaches the
-     * cache is fully initialized by the time its session closes, which the fetch joins secure at
-     * the query and every current caller secures again by mapping or walking the graph inside its
-     * own transaction. This asserts it end to end, on the instance the cache is actually holding.
+     * The invariant that replaced it. What the cache holds is a complete copy: every field the
+     * response needs, the plan and its features included, resolved before the loading
+     * transaction ended. Nothing on it can throw {@link LazyInitializationException}, because
+     * there is no entity left on it to throw one, so this maps it with nothing open around it.
      */
     @Test
-    void whatTheCacheHoldsIsStillMappableOnceItsSessionHasClosed() {
+    void whatTheCacheHoldsIsACompleteCopyWithNoPersistenceStateLeftOnIt() {
         subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow();
 
-        Subscription cached = subscriptionCache.get(SUBSCRIBED_USER);
+        SubscriptionSnapshot cached = subscriptionCache.get(SUBSCRIBED_USER);
         assertThat(cached).as("the read should have populated the cache").isNotNull();
 
         assertFullyMapped(BillingMapper.toSubscriptionDto(cached), CURRENT_PLAN);
     }
 
     /**
-     * The cached instance is shared by every concurrent reader of this user, so a write path
-     * must not change it in place. changeSubscription used to resolve its subscription through
-     * the cache and call setPlan on whatever came back, which published the new plan to every
-     * reader before the transaction had committed, and left the cache holding it if the
-     * transaction then rolled back.
+     * The cached value is shared by every concurrent reader of this user, so a write path must
+     * not change it in place. changeSubscription used to resolve its subscription through the
+     * cache and call setPlan on whatever came back, which published the new plan to every reader
+     * before the transaction had committed, and left the cache holding it if the transaction then
+     * rolled back. A snapshot has no setter to call, and this holds the pre-write value to say so.
      */
     @Test
-    void changeSubscription_leavesTheCachedInstanceAlone() {
+    void changeSubscription_leavesTheCachedValueAlone() {
         subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow();
-        Subscription cached = subscriptionCache.get(SUBSCRIBED_USER);
-        assertThat(cached.getPlan().getCode()).isEqualTo(CURRENT_PLAN);
+        SubscriptionSnapshot cached = subscriptionCache.get(SUBSCRIBED_USER);
+        assertThat(cached.plan().code()).isEqualTo(CURRENT_PLAN);
 
         subscriptionService.changeSubscription(SUBSCRIBED_USER, TARGET_PLAN);
 
-        assertThat(cached.getPlan().getCode())
-                .as("the write must not have mutated the shared cached instance")
+        assertThat(cached.plan().code())
+                .as("the write must not have changed the shared cached value")
                 .isEqualTo(CURRENT_PLAN);
+        assertThat(subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow()
+                .getPlan().getCode())
+                .as("and the next read must see the new plan")
+                .isEqualTo(TARGET_PLAN);
     }
 
     /**
@@ -243,17 +244,45 @@ class BillingMappingIT extends AbstractIntegrationTest {
      * cancellation timestamp straight onto the cached instance.
      */
     @Test
-    void cancelSubscription_leavesTheCachedInstanceAlone() {
+    void cancelSubscription_leavesTheCachedValueAlone() {
         subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow();
-        Subscription cached = subscriptionCache.get(SUBSCRIBED_USER);
-        assertThat(cached.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        SubscriptionSnapshot cached = subscriptionCache.get(SUBSCRIBED_USER);
+        assertThat(cached.status()).isEqualTo(SubscriptionStatus.ACTIVE);
 
         subscriptionService.cancelSubscription(SUBSCRIBED_USER, true);
 
-        assertThat(cached.getStatus())
-                .as("the write must not have mutated the shared cached instance")
+        assertThat(cached.status())
+                .as("the write must not have changed the shared cached value")
                 .isEqualTo(SubscriptionStatus.ACTIVE);
-        assertThat(cached.getCanceledAt()).isNull();
+        assertThat(cached.canceledAt()).isNull();
+    }
+
+    /**
+     * A snapshot carries a copy of the plan it was taken against, so a plan write leaves every
+     * subscriber of that plan holding entitlements the plan no longer grants. Nothing about the
+     * subscription row changes, so no per-user eviction fires and the stale copies would stand
+     * for the rest of the five minute window. The plan writes therefore empty the cache.
+     *
+     * <p>This is a staleness the choice of cached value cannot fix. The entity cache had it too,
+     * for the same reason: what it held was a detached plan graph read at some earlier moment.
+     */
+    @Test
+    void removingAFeatureFromAPlan_invalidatesTheCachedSubscriptions() {
+        subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow();
+        assertThat(subscriptionCache.get(SUBSCRIBED_USER))
+                .as("the read should have populated the cache").isNotNull();
+
+        Long planId = inCommittedTx(() ->
+                planRepository.findByCodeWithFeatures(CURRENT_PLAN).orElseThrow().getId());
+        planService.removeFeatureFromPlan(planId, FEATURE_CODE);
+
+        assertThat(subscriptionCache.get(SUBSCRIBED_USER))
+                .as("a plan write must not leave subscribers holding the old plan")
+                .isNull();
+        assertThat(subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow()
+                .getPlan().getFeatures())
+                .as("and the next read must see the plan without the feature")
+                .isEmpty();
     }
 
     /**
@@ -267,8 +296,9 @@ class BillingMappingIT extends AbstractIntegrationTest {
      */
     @Test
     void changeSubscription_evictsAgainOnceItsTransactionHasCompleted() {
-        Subscription concurrentlyCachedRow = inCommittedTx(() ->
-                subscriptionRepository.findActiveSubscriptionByUserId(SUBSCRIBED_USER).orElseThrow());
+        SubscriptionSnapshot concurrentlyCachedRow = inCommittedTx(() ->
+                BillingMapper.toSubscriptionSnapshot(subscriptionRepository
+                        .findActiveSubscriptionByUserId(SUBSCRIBED_USER).orElseThrow()));
 
         inCommittedTx(() -> {
             subscriptionService.changeSubscription(SUBSCRIBED_USER, TARGET_PLAN);

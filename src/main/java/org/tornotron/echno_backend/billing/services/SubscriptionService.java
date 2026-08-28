@@ -16,6 +16,8 @@ import org.tornotron.echno_backend.billing.enums.SubscriptionStatus;
 import org.tornotron.echno_backend.billing.repositories.PlanRepository;
 import org.tornotron.echno_backend.billing.repositories.SubscriptionRepository;
 import org.tornotron.echno_backend.billing.repositories.UsageRecordRepository;
+import org.tornotron.echno_backend.billing.snapshot.PlanFeatureSnapshot;
+import org.tornotron.echno_backend.billing.snapshot.SubscriptionSnapshot;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.NoActiveSubscriptionException;
 import org.tornotron.echno_backend.common.exception.PlanNotFoundException;
@@ -36,11 +38,13 @@ import java.util.Optional;
  * bucket). Creating, changing, and canceling a subscription each evict the user's cache
  * entry so the next access re-reads the current state.
  *
- * <p>Entities never leave this class. Every method that a caller can reach returns a DTO
- * built while the persistence context is still open, because {@code spring.jpa.open-in-view}
- * is off and {@link Subscription#getPlan()} and {@link Plan#getPlanFeatures()} are both lazy:
- * mapping a subscription anywhere outside a transaction throws
- * {@code LazyInitializationException}.
+ * <p>Entities never leave this class, and never reach the cache either. Every method that a
+ * caller can reach returns a DTO built while the persistence context is still open, because
+ * {@code spring.jpa.open-in-view} is off and {@link Subscription#getPlan()} and
+ * {@link Plan#getPlanFeatures()} are both lazy: mapping a subscription anywhere outside a
+ * transaction throws {@code LazyInitializationException}. Reads that go through the cache work
+ * on a {@link SubscriptionSnapshot}, an immutable copy taken inside the loading transaction,
+ * which is the only form of the row that is safe to hold once that transaction is gone.
  */
 @Service
 @Slf4j
@@ -76,33 +80,36 @@ public class SubscriptionService {
     }
 
     /**
-     * Loads the user's active subscription entity, serving it from the cache when present.
+     * Loads a snapshot of the user's active subscription, serving it from the cache when present.
      *
-     * <p>On a cache miss it queries the repository and, if found, populates the cache.
+     * <p>On a cache miss it queries the repository and, if a subscription is found, copies it and
+     * its plan into a snapshot before the transaction that loaded it ends, then caches that. The
+     * entity itself is never handed out and never cached, so nothing downstream can be holding a
+     * detached instance whose uninitialized parts throw {@code LazyInitializationException} in a
+     * later transaction that cannot reattach it.
      *
-     * <p>A cached instance is detached, so anything it left uninitialized throws
-     * {@code LazyInitializationException} on the next hit, in a later transaction that cannot
-     * reattach it. What keeps that from happening is that the graph is always initialized before
-     * the session that loaded it closes: {@code findActiveSubscriptionByUserId} fetch-joins the
-     * plan, its plan features and each feature, and every caller below then maps or walks the
-     * whole graph inside its own transaction anyway. Either alone would do; do not remove both.
-     * A new caller that caches a subscription without touching its plan would be relying on the
-     * fetch joins by itself.
+     * <p>Taking the copy is what the fetch joins on {@code findActiveSubscriptionByUserId} are
+     * for now. Without them the copy still comes out complete, because it is built inside the
+     * transaction and the lazy reads resolve there, but it costs a query per plan feature on
+     * every miss instead of one query for the graph. Weakening them is a performance regression
+     * rather than a correctness one, which is a change of kind: it used to be the thing standing
+     * between the cache and a 500.
      *
      * @param userId The ID of the user whose subscription to resolve.
-     * @return The active subscription, or empty if the user has none.
+     * @return A snapshot of the active subscription, or empty if the user has none.
      */
-    private Optional<Subscription> loadActiveSubscription(Long userId) {
+    private Optional<SubscriptionSnapshot> loadActiveSubscription(Long userId) {
 
-        Subscription cached = subscriptionCache.get(userId);
+        SubscriptionSnapshot cached = subscriptionCache.get(userId);
         if(cached != null) {
             return Optional.of(cached);
         }
 
-        Optional<Subscription> subscription = subscriptionRepository
-                .findActiveSubscriptionByUserId(userId);
+        Optional<SubscriptionSnapshot> subscription = subscriptionRepository
+                .findActiveSubscriptionByUserId(userId)
+                .map(BillingMapper::toSubscriptionSnapshot);
 
-        subscription.ifPresent(sub -> subscriptionCache.put(userId, sub));
+        subscription.ifPresent(snapshot -> subscriptionCache.put(userId, snapshot));
 
         return subscription;
     }
@@ -111,14 +118,15 @@ public class SubscriptionService {
      * Loads the user's active subscription entity for a caller that is about to change it,
      * always from the database and never from the cache.
      *
-     * <p>{@link #loadActiveSubscription(Long)} hands back the very instance the cache holds,
-     * which every concurrent reader of this user shares and which is detached from any
-     * persistence context. A write path must not touch that instance: mutating it publishes a
-     * half-finished change to every reader at once, and leaves the cache holding state that
-     * never reached the database if the write then fails. Reading fresh gives the caller a
-     * managed entity of its own, so the change is confined to its transaction and reaches
-     * other callers only through the eviction on
-     * {@link SubscriptionCache#evictOnWrite(Long)}.
+     * <p>{@link #loadActiveSubscription(Long)} answers from the cache, with a snapshot that is
+     * immutable and detached from any persistence context. Nothing a write path did to it would
+     * reach the database, and the shape of the change a write needs to make is a change to a
+     * managed entity. Reading fresh gives the caller one of its own, so the change is confined
+     * to its transaction and reaches other callers only through the eviction on
+     * {@link SubscriptionCache#evictOnWrite(Long)}. That the snapshot cannot be mutated in the
+     * first place is what closed the older hazard here, where the write path resolved its
+     * subscription through the cache and set fields straight onto the instance every concurrent
+     * reader of that user was sharing.
      *
      * <p>The read deliberately does not populate the cache either. The row is about to change,
      * so caching what it looks like now would only have to be undone.
@@ -144,26 +152,22 @@ public class SubscriptionService {
      */
     @Transactional(readOnly = true)
     public FeatureAccessResultDto checkFeatureAccess(Long userId, String featureCode) {
-        Optional<Subscription> subscriptionOptional = loadActiveSubscription(userId);
+        Optional<SubscriptionSnapshot> subscriptionOptional = loadActiveSubscription(userId);
 
         if(subscriptionOptional.isEmpty()) {
             return FeatureAccessResultDto.noSubscription();
         }
 
-        Subscription subscription = subscriptionOptional.get();
-        Plan plan = subscription.getPlan();
-
-        Optional<PlanFeature> planFeatureOptional = plan.getPlanFeatures().stream()
-                .filter(pf -> pf.getFeature().getCode().equals(featureCode))
-                .findFirst();
+        Optional<PlanFeatureSnapshot> planFeatureOptional =
+                subscriptionOptional.get().feature(featureCode);
 
         if(planFeatureOptional.isEmpty()) {
             return FeatureAccessResultDto.featureNotInPlan();
         }
 
-        PlanFeature planFeature = planFeatureOptional.get();
+        PlanFeatureSnapshot planFeature = planFeatureOptional.get();
 
-        if(planFeature.getFeature().getFeatureType() == FeatureType.BOOLEAN) {
+        if(planFeature.featureType() == FeatureType.BOOLEAN) {
             return planFeature.isFeatureEnabled()
                     ? FeatureAccessResultDto.allowed()
                     : FeatureAccessResultDto.featureDisabled();
@@ -176,15 +180,24 @@ public class SubscriptionService {
         return FeatureAccessResultDto.allowed();
     }
 
-    private FeatureAccessResultDto checkQuotaAccess(Long userId, PlanFeature planFeature) {
-        Long quotaLimit = planFeature.getQuotaLimit();
-        QuotaPeriod period = planFeature.getQuotaPeriod();
+    /**
+     * Counts what the user has already used of a metered feature in the current period and
+     * compares it against the plan's limit.
+     *
+     * <p>The count is always a query. Usage moves on every metered request and is the one input
+     * to an entitlement decision that could not be cached behind the subscription without being
+     * wrong almost immediately, so it is deliberately left out of the snapshot. The snapshot
+     * supplies the limit, the period and the feature id the usage rows are keyed on.
+     */
+    private FeatureAccessResultDto checkQuotaAccess(Long userId, PlanFeatureSnapshot planFeature) {
+        Long quotaLimit = planFeature.quotaLimit();
+        QuotaPeriod period = planFeature.quotaPeriod();
 
         Instant[] periodBounds = calculatePeriodBounds(period);
 
         Long currentUsage = usageRecordRepository.sumUsageForPeriod(
                 userId,
-                planFeature.getFeature().getId(),
+                planFeature.featureId(),
                 periodBounds[0],
                 periodBounds[1]
         );
@@ -245,7 +258,13 @@ public class SubscriptionService {
      *
      * <p>If the user has no active subscription or the feature is not in their plan, the call is
      * logged and ignored rather than raising. On success it writes a usage record for the
-     * feature's current period and evicts the user's cached subscription.
+     * feature's current period.
+     *
+     * <p>It does not evict the user's cached subscription, and used to. Nothing about the
+     * subscription or its plan changes here, and the usage this writes is not part of what the
+     * cache holds: {@link #checkQuotaAccess} sums it from the usage table on every check. The
+     * eviction bought no freshness and cost the entry, on the one path that runs on every
+     * metered request, which is where the cache is meant to earn its keep.
      *
      * @param userId The ID of the user consuming the feature.
      * @param featureCode The code of the feature being consumed.
@@ -253,46 +272,37 @@ public class SubscriptionService {
      */
     @Transactional
     public void recordUsage(Long userId, String featureCode, Long amount) {
-        Optional<Subscription> subscriptionOptional = loadActiveSubscription(userId);
+        Optional<SubscriptionSnapshot> subscriptionOptional = loadActiveSubscription(userId);
         if(subscriptionOptional.isEmpty()) {
             log.warn("Attempted to record usage for user without active subscription: {}", userId);
             return;
         }
 
-        Subscription subscription = subscriptionOptional.get();
+        SubscriptionSnapshot subscription = subscriptionOptional.get();
 
-        Feature feature = subscription.getPlan().getPlanFeatures().stream()
-                .map(PlanFeature::getFeature)
-                .filter(f -> f.getCode().equals(featureCode))
-                .findFirst()
-                .orElse(null);
+        PlanFeatureSnapshot planFeature = subscription.feature(featureCode).orElse(null);
 
-        if(feature == null) {
+        if(planFeature == null) {
             log.warn("Feature {} not found in user's plan", featureCode);
             return;
         }
-        Instant now = Instant.now();
-        QuotaPeriod period = subscription.getPlan().getPlanFeatures().stream()
-                .filter(pf -> pf.getFeature().getCode().equals(featureCode))
-                .map(PlanFeature::getQuotaPeriod)
-                .findFirst()
-                .orElse(QuotaPeriod.MONTHLY);
+
+        QuotaPeriod period = planFeature.quotaPeriod() != null
+                ? planFeature.quotaPeriod()
+                : QuotaPeriod.MONTHLY;
 
         Instant[] periodBounds = calculatePeriodBounds(period);
 
         UsageRecord usageRecord = UsageRecord.builder()
                 .userId(userId)
-                .subscriptionId(subscription.getId())
-                .featureId(feature.getId())
+                .subscriptionId(subscription.id())
+                .featureId(planFeature.featureId())
                 .usageAmount(amount)
                 .periodStart(periodBounds[0])
                 .periodEnd(periodBounds[1])
                 .build();
 
         usageRecordRepository.save(usageRecord);
-
-        subscriptionCache.evict(userId);
-
     }
 
     /**
