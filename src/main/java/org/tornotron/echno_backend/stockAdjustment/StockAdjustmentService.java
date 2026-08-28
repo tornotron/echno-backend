@@ -85,6 +85,13 @@ public class StockAdjustmentService {
     /** Status a document carries once its movements are on the ledger. */
     static final String POSTED_STATUS = "processed";
 
+    /**
+     * Below this, a line's movement is treated as none at all. A count matching the balance
+     * to the last decimal place can still leave floating-point residue, and a ledger entry
+     * for a movement of 1e-16 is a phantom row claiming stock moved when it did not.
+     */
+    private static final double NO_MOVEMENT = 1e-9;
+
     @Transactional
     public StockAdjustmentDto create(StockAdjustmentCreationDto creationDto) {
         Organization organization = tenantEntityHelper.resolveCurrentOrganization();
@@ -234,7 +241,8 @@ public class StockAdjustmentService {
             line.setSystemQuantity(balance);
             line.setAdjustmentQuantity(movement);
 
-            if (movement == 0.0) {
+            if (Math.abs(movement) < NO_MOVEMENT) {
+                line.setAdjustmentQuantity(0.0);
                 continue;
             }
             double closing = balance + movement;
