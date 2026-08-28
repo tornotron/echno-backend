@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The asset movement ledger: where every asset has been, who held it, and why it moved.
+
+        Append-only by design. Nothing updates or deletes a row; an entry made in error is
+        superseded by a CORRECTION that names it in corrects_movement_id, the same way a stock
+        correction is a further adjustment rather than an edit of the one that was wrong.
+
+        The from_/to_ names sit beside the from_/to_ ids on purpose. The foreign keys are
+        ON DELETE SET NULL so a project can still be removed, and a project can be renamed at
+        any time; history that evaporates when a project is tidied away is not history, so the
+        name as it read at the time is stored with the entry.
+    -->
+    <changeSet id="064-create-asset-movement" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="asset_movement"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="asset_movement">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="asset_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT"/>
+
+            <column name="movement_type" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="from_project_id" type="BIGINT"/>
+            <column name="from_project_name" type="VARCHAR(255)"/>
+            <column name="to_project_id" type="BIGINT"/>
+            <column name="to_project_name" type="VARCHAR(255)"/>
+
+            <column name="from_location_id" type="BIGINT"/>
+            <column name="from_location_name" type="VARCHAR(255)"/>
+            <column name="to_location_id" type="BIGINT"/>
+            <column name="to_location_name" type="VARCHAR(255)"/>
+
+            <column name="from_assigned_to_id" type="BIGINT"/>
+            <column name="from_assigned_to" type="VARCHAR(200)"/>
+            <column name="to_assigned_to_id" type="BIGINT"/>
+            <column name="to_assigned_to" type="VARCHAR(200)"/>
+
+            <column name="moved_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recorded_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="moved_by" type="BIGINT"/>
+
+            <column name="reason" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="TEXT"/>
+            <column name="reference_number" type="VARCHAR(100)"/>
+            <column name="corrects_movement_id" type="BIGINT"/>
+        </createTable>
+
+        <!--
+            RESTRICT, not CASCADE. Deleting an asset would otherwise take the record of where the
+            machine has been with it; the service refuses the delete and points at retiring the
+            asset instead, and this constraint is what makes that true at the database as well.
+        -->
+        <addForeignKeyConstraint baseTableName="asset_movement"
+                                 baseColumnNames="asset_id"
+                                 constraintName="fk_asset_movement_asset"
+                                 referencedTableName="asset"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint baseTableName="asset_movement"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_asset_movement_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint baseTableName="asset_movement"
+                                 baseColumnNames="from_project_id"
+                                 constraintName="fk_asset_movement_from_project"
+                                 referencedTableName="project"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint baseTableName="asset_movement"
+                                 baseColumnNames="to_project_id"
+                                 constraintName="fk_asset_movement_to_project"
+                                 referencedTableName="project"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint baseTableName="asset_movement"
+                                 baseColumnNames="from_location_id"
+                                 constraintName="fk_asset_movement_from_location"
+                                 referencedTableName="storage_location"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint baseTableName="asset_movement"
+                                 baseColumnNames="to_location_id"
+                                 constraintName="fk_asset_movement_to_location"
+                                 referencedTableName="storage_location"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint baseTableName="asset_movement"
+                                 baseColumnNames="corrects_movement_id"
+                                 constraintName="fk_asset_movement_corrects"
+                                 referencedTableName="asset_movement"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="asset_movement" indexName="idx_asset_movement_asset">
+            <column name="asset_id"/>
+            <column name="moved_at"/>
+        </createIndex>
+        <createIndex tableName="asset_movement" indexName="idx_asset_movement_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!--
+        The opening balance.
+
+        Every asset that is somewhere gets one REGISTRATION entry saying where it was when the
+        ledger was introduced, so the history is not blank for assets that already exist. It
+        cannot say when the asset arrived there, because nothing recorded that, so it is dated
+        from the asset's own created_at and says as much in its reason.
+
+        to_project_name is where the free text of an unresolved assigned_project survives: an
+        asset whose old string matched no project still has that string in its ledger, which is
+        the difference between migrating the data and losing it.
+    -->
+    <changeSet id="064-seed-asset-movement-opening-entries" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT count(*) FROM asset_movement</sqlCheck>
+        </preConditions>
+
+        <sql>
+            INSERT INTO asset_movement (
+                asset_id, organization_id, movement_type,
+                to_project_id, to_project_name,
+                to_location_id, to_location_name,
+                to_assigned_to_id, to_assigned_to,
+                moved_at, recorded_at, reason
+            )
+            SELECT a.id,
+                   a.organization_id,
+                   'REGISTRATION',
+                   a.assigned_project_id,
+                   COALESCE(p.project_name, NULLIF(btrim(a.assigned_project), '')),
+                   a.location_id,
+                   l.location_name,
+                   a.assigned_to_id,
+                   a.assigned_to,
+                   COALESCE(a.created_at, CURRENT_TIMESTAMP),
+                   CURRENT_TIMESTAMP,
+                   'Opening entry recorded when the asset movement ledger was introduced. Where the asset was before this date was not tracked.'
+            FROM asset a
+            LEFT JOIN project p ON p.id = a.assigned_project_id
+            LEFT JOIN storage_location l ON l.id = a.location_id
+            WHERE a.assigned_project_id IS NOT NULL
+               OR NULLIF(btrim(COALESCE(a.assigned_project, '')), '') IS NOT NULL
+               OR a.location_id IS NOT NULL
+               OR a.assigned_to_id IS NOT NULL
+               OR NULLIF(btrim(COALESCE(a.assigned_to, '')), '') IS NOT NULL;
+        </sql>
+        <rollback>
+            <sql>DELETE FROM asset_movement WHERE movement_type = 'REGISTRATION';</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

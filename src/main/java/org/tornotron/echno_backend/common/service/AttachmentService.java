@@ -7,10 +7,13 @@ import org.tornotron.echno_backend.common.dto.StoredFile;
 import org.tornotron.echno_backend.common.dto.PresignedUpload;
 import org.tornotron.echno_backend.common.dto.RegisterUploadRequest;
 import org.tornotron.echno_backend.common.dto.UploadRequest;
+import org.tornotron.echno_backend.common.dto.AttachmentDocumentMetadataDto;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
 import org.tornotron.echno_backend.issue.IssueRepository;
@@ -20,6 +23,7 @@ import org.tornotron.echno_backend.task.TaskRepository;
 import org.tornotron.echno_backend.user.UserRepository;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -36,6 +40,9 @@ public class AttachmentService {
     // a large file on a slow site connection, not long enough to be worth reusing.
     private static final java.time.Duration UPLOAD_URL_EXPIRY = java.time.Duration.ofMinutes(15);
 
+    /** Ceiling on the expiring-documents read, so the response stays bounded as history grows. */
+    private static final int MAX_EXPIRING_DOCUMENTS = 500;
+
     private final AttachmentRepository attachmentRepository;
     private final FileStorageService fileStorageService;
     private final OrganizationRepository organizationRepository;
@@ -45,8 +52,10 @@ public class AttachmentService {
     private final UserRepository userRepository;
     private final AttendanceRepository attendanceRepository;
     private final TenantEntityHelper tenantEntityHelper;
+    private final AttachmentMapper attachmentMapper;
 
-    public AttachmentService(AttachmentRepository attachmentRepository, FileStorageService fileStorageService, OrganizationRepository organizationRepository, ProjectRepository projectRepository, TaskRepository taskRepository, IssueRepository issueRepository, UserRepository userRepository, AttendanceRepository attendanceRepository, TenantEntityHelper tenantEntityHelper) {
+    public AttachmentService(AttachmentRepository attachmentRepository, FileStorageService fileStorageService, OrganizationRepository organizationRepository, ProjectRepository projectRepository, TaskRepository taskRepository, IssueRepository issueRepository, UserRepository userRepository, AttendanceRepository attendanceRepository, TenantEntityHelper tenantEntityHelper, AttachmentMapper attachmentMapper) {
+        this.attachmentMapper = attachmentMapper;
         this.attachmentRepository = attachmentRepository;
         this.fileStorageService = fileStorageService;
         this.organizationRepository = organizationRepository;
@@ -146,8 +155,56 @@ public class AttachmentService {
                     dto.setFileName(attachment.getOriginalFilename());
                     dto.setUrl(fileStorageService.generateDownloadUrl(attachment.getStorageKey(), Duration.ofHours(1)));
                     dto.setCreatedAt(attachment.getCreatedAt().toString());
+                    dto.setDocumentType(attachment.getDocumentType());
+                    dto.setIssuedOn(attachment.getIssuedOn());
+                    dto.setExpiresOn(attachment.getExpiresOn());
+                    AttachmentMapper.fillExpiry(attachment.getExpiresOn(), dto);
                     return dto;
                 }).toList();
+    }
+
+    /**
+     * Records what kind of document an uploaded file is and when it stops being valid.
+     *
+     * <p>Separate from the upload so it serves both upload paths and every entity that files
+     * documents, rather than being bolted onto the asset half of one of them. The two columns
+     * it writes are the only part of "documents with expiry tracking" the generic attachment
+     * table did not already have.
+     *
+     * @param attachmentId The attachment to annotate
+     * @param metadata     The document type and dates, any of which may be null to clear
+     * @return The updated attachment as a DTO
+     * @throws ResourceNotFoundException if no such attachment exists in the caller's organization
+     */
+    @Transactional
+    public AttachmentDto updateDocumentMetadata(Long attachmentId, AttachmentDocumentMetadataDto metadata) {
+        Attachment attachment = attachmentRepository
+                .findByIdAndOrganization_Id(attachmentId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attachment with ID " + attachmentId + " was not found in this organization"));
+        attachment.setDocumentType(metadata.getDocumentType());
+        attachment.setIssuedOn(metadata.getIssuedOn());
+        attachment.setExpiresOn(metadata.getExpiresOn());
+        return attachmentMapper.toDto(attachmentRepository.save(attachment));
+    }
+
+    /**
+     * Documents of one entity type expiring on or before a cutoff, soonest first, for the
+     * caller's organization. Already-expired documents are included.
+     *
+     * @param entityType The attachment entity type, for example ASSET_DOCUMENTS
+     * @param cutoff     The latest expiry date to include
+     * @return The matching documents, capped at {@link #MAX_EXPIRING_DOCUMENTS}
+     */
+    @Transactional(readOnly = true)
+    public List<AttachmentDto> getExpiringDocuments(String entityType, LocalDate cutoff) {
+        return attachmentRepository
+                .findByEntityTypeAndOrganization_IdAndExpiresOnLessThanEqualOrderByExpiresOnAscIdAsc(
+                        entityType, TenantContext.getCurrentOrgId(), cutoff,
+                        org.springframework.data.domain.PageRequest.of(0, MAX_EXPIRING_DOCUMENTS))
+                .stream()
+                .map(attachmentMapper::toDto)
+                .toList();
     }
 
     /**

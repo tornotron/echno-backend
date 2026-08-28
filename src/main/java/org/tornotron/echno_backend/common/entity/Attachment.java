@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.task.Task;
 import org.tornotron.echno_backend.user.User;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -28,7 +29,8 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @Table(name = "attachment", indexes = {
-        @Index(name = "idx_attachment_entity", columnList = "entity_type, entity_id")
+        @Index(name = "idx_attachment_entity", columnList = "entity_type, entity_id"),
+        @Index(name = "idx_attachment_expiry", columnList = "organization_id, entity_type, expires_on")
 })
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 public class Attachment implements TenantScopedEntity {
@@ -78,6 +80,28 @@ public class Attachment implements TenantScopedEntity {
      */
     @Column(name = "original_filename", length = 255)
     private String originalFilename;
+
+    /**
+     * What kind of document this file is, where the file is a document rather than a photo:
+     * {@code insurance}, {@code warranty}, {@code registration}, {@code certification},
+     * {@code service-record}, {@code purchase-invoice}. Free-form for the same reason
+     * {@link #entityType} is, and for the same reason the asset module stores its type and
+     * category as strings: the web client sends kebab-case values and validates them.
+     */
+    @Column(name = "document_type", length = 50)
+    private String documentType;
+
+    /** The date the document was issued, where that is worth recording. */
+    @Column(name = "issued_on")
+    private LocalDate issuedOn;
+
+    /**
+     * The date the document stops being valid. Null for a file that does not expire, which is
+     * most of them. This is the column that makes an insurance policy or a certification
+     * trackable rather than merely stored.
+     */
+    @Column(name = "expires_on")
+    private LocalDate expiresOn;
 
     /**
      * Timestamp when the attachment was created.

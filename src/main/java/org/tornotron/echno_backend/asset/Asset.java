@@ -8,6 +8,7 @@ import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.vendor.Vendor;
 
@@ -19,6 +20,12 @@ import java.time.LocalDateTime;
  * A fixed asset in the organization's asset register. Type/status/condition are stored as
  * plain strings because the web client sends kebab-case values (e.g. {@code heavy-equipment})
  * that are not valid Java enum identifiers; the frontend validates them.
+ *
+ * <p>Where the asset is and who holds it ({@link #assignedProject}, {@link #location},
+ * {@link #assignedTo}, {@link #assignedToId}) is not a second source of truth beside the
+ * movement ledger. Those four columns are a cache of the latest {@link AssetMovement}, and
+ * every write path goes through the one method that appends the entry and sets them together,
+ * so they cannot come to disagree with the history.
  */
 @Entity
 @Data
@@ -63,14 +70,34 @@ public class Asset implements TenantScopedEntity {
     @Column(name = "depreciation_rate")
     private Double depreciationRate;
 
+    /**
+     * Name of the current custodian. Ledger-derived: written only by
+     * {@code AssetService.applyPlacement}, alongside an {@link AssetMovement}.
+     */
     @Column(name = "assigned_to")
     private String assignedTo;
 
+    /** Id of the current custodian. Ledger-derived, as {@link #assignedTo}. */
     @Column(name = "assigned_to_id")
     private Long assignedToId;
 
-    @Column(name = "assigned_project")
-    private String assignedProject;
+    /**
+     * The project the asset is currently deployed on. Ledger-derived: written only by
+     * {@code AssetService.applyPlacement}, alongside an {@link AssetMovement}.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_project_id")
+    private Project assignedProject;
+
+    /**
+     * The free-text project name this asset carried before {@link #assignedProject} became a
+     * reference. Read-only: mapped {@code insertable = false, updatable = false} so nothing can
+     * write it again, which is what makes the reference migration reversible and keeps a value
+     * that matched no project from being lost. The same text is also copied into the asset's
+     * opening ledger entry.
+     */
+    @Column(name = "assigned_project", insertable = false, updatable = false)
+    private String legacyAssignedProject;
 
     @Column(name = "manufacturer")
     private String manufacturer;
@@ -121,6 +148,10 @@ public class Asset implements TenantScopedEntity {
     @JoinColumn(name = "vendor_id")
     private Vendor vendor;
 
+    /**
+     * The storage location the asset currently sits at. Ledger-derived, as
+     * {@link #assignedProject}.
+     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "location_id")
     private StorageLocation location;

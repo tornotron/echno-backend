@@ -47,8 +47,10 @@ public class AssetCreationDto {
     @Schema(description = "Id of the employee the asset is currently assigned to, stored alongside the "
             + "name so the asset list can be filtered by assignee.", example = "18")
     private Long assignedToId;
-    @Schema(description = "Name of the project the asset is currently deployed on.", example = "Marina Heights Towers")
-    private String assignedProject;
+    @Schema(description = "Id of the project the asset is deployed on. Changing it records a "
+            + "movement in the asset's ledger; the movement's reason comes from movementReason.",
+            example = "5")
+    private Long assignedProjectId;
     @Schema(description = "Manufacturer of the asset.", example = "JCB India")
     private String manufacturer;
     @Schema(description = "Model name or number.", example = "3DX")
@@ -81,6 +83,20 @@ public class AssetCreationDto {
     private String notes;
     @Schema(description = "Id of the vendor the asset was purchased from.", example = "3")
     private Long vendorId;
-    @Schema(description = "Id of the storage location the asset is stored at.", example = "7")
+    @Schema(description = "Id of the storage location the asset is stored at. Changing it records a "
+            + "movement in the asset's ledger.", example = "7")
     private Long locationId;
+
+    @Schema(description = "Why the asset is where this payload says it is. Recorded against the "
+            + "movement this create or update appends to the asset's ledger. Optional here so the "
+            + "existing asset form keeps working; when it is left out the entry says the movement "
+            + "was recorded from an asset edit rather than inventing a reason. Prefer the dedicated "
+            + "movements endpoint, which requires one.",
+            example = "Mobilised to the Marina Heights site for the piling phase")
+    private String movementReason;
+
+    @Schema(description = "When the asset actually moved, if that is not now. Recorded as the "
+            + "movement date so a movement entered late still sits in the right place in the ledger.",
+            example = "2026-08-20T09:00:00")
+    private java.time.LocalDateTime movedAt;
 }
