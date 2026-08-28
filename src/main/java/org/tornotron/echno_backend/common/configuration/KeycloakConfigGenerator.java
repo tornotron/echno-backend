@@ -18,6 +18,14 @@ public class KeycloakConfigGenerator {
     @Value("${keycloak.client-id}")
     private String clientId;
 
+    // Secret of the confidential backend client. It is written into the generated realm JSON so a
+    // freshly created realm is born with the secret this deployment already holds, rather than a
+    // Keycloak-generated random one that nothing else knows. Without it, KeycloakGroupService's
+    // client_credentials grant is rejected as unauthorized_client from the first boot of any rebuilt
+    // environment, and employee onboarding and org-role assignment fail for everyone.
+    @Value("${keycloak.secret}")
+    private String clientSecret;
+
     @Value("${keycloak.redirect-uri}")
     private String redirectUri;
 
@@ -86,6 +94,7 @@ public class KeycloakConfigGenerator {
 
         String config = template
                 .replace("${KEYCLOAK_CLIENT_ID}",clientId)
+                .replace("${KEYCLOAK_CLIENT_SECRET}",escapeJson(clientSecret))
                 .replace("${KEYCLOAK_REDIRECT_URI}",formatListString(redirectUri))
                 .replace("${KEYCLOAK_WEB_ORIGIN}",formatListString(webOrigin))
                 .replace("${KEYCLOAK_FRONTEND_CLIENT_ID}",frontendClientId)
@@ -128,6 +137,38 @@ public class KeycloakConfigGenerator {
 
         Path outputFile = outputDir.resolve(filename);
         Files.writeString(outputFile, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+    }
+
+    /**
+     * Escapes a value for embedding inside a JSON string literal. Configured values reach the
+     * templates verbatim, so a value carrying a quote or a backslash would otherwise produce a
+     * malformed realm file. Never log the argument or the result: this is used for secrets.
+     */
+    static String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            switch (c) {
+                case '"' -> sb.append("\\\"");
+                case '\\' -> sb.append("\\\\");
+                case '\b' -> sb.append("\\b");
+                case '\f' -> sb.append("\\f");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                default -> {
+                    if (c < 0x20) {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+                }
+            }
+        }
+        return sb.toString();
     }
 
     private String formatListString(String input) {

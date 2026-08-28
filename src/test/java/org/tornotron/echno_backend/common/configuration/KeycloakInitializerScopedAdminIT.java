@@ -49,6 +49,9 @@ class KeycloakInitializerScopedAdminIT {
     private static final String INIT_SECRET = "echno-initializer-it-secret";
     private static final String WRONG_SECRET = "deliberately-wrong-secret";
     private static final String APP_CLIENT_ID = "echno-backend";
+    // Matches the secret the staged realm fixture gives the backend client, i.e. what the
+    // deployment "knows". Placeholder only, nothing here resembles a real credential.
+    private static final String APP_CLIENT_SECRET = "echno-backend-it-secret";
     private static final String REALM_MANAGEMENT = "realm-management";
     private static final String REALM_ADMIN = "realm-admin";
     private static final String COMPOSITE_JOB_ROLE = "job-leadership";
@@ -144,6 +147,19 @@ class KeycloakInitializerScopedAdminIT {
                 .grantType(OAuth2Constants.CLIENT_CREDENTIALS)
                 .build()) {
             return scoped.tokenManager().getAccessTokenString();
+        }
+    }
+
+    /** Builds a client_credentials client for the backend client and returns the access token string. */
+    private String fetchAppToken(String secret) {
+        try (Keycloak app = KeycloakBuilder.builder()
+                .serverUrl(KEYCLOAK.getAuthServerUrl())
+                .realm(TEST_REALM)
+                .clientId(APP_CLIENT_ID)
+                .clientSecret(secret)
+                .grantType(OAuth2Constants.CLIENT_CREDENTIALS)
+                .build()) {
+            return app.tokenManager().getAccessTokenString();
         }
     }
 
@@ -252,5 +268,64 @@ class KeycloakInitializerScopedAdminIT {
         List<RoleRepresentation> saClientRoles = master.realm(TEST_REALM).users()
                 .get(serviceAccount.getId()).roles().clientLevel(realmMgmtUuid).listAll();
         assertThat(saClientRoles).extracting(RoleRepresentation::getName).contains(REALM_ADMIN);
+    }
+
+    /**
+     * The backend client's own secret, which is what KeycloakGroupService authenticates with on
+     * every employee-onboarding and org-role call. Two things are proven against a real Keycloak:
+     *
+     * <ol>
+     *   <li>A realm built from the generated JSON gives the backend client the secret the
+     *       deployment already holds, so the grant works from the very first boot rather than
+     *       against a Keycloak-generated random value nothing else knows.</li>
+     *   <li>When Keycloak's stored copy drifts, the reconcile repairs it in place, and the update it
+     *       sends is a complete representation: authorization services stay enabled and the client's
+     *       resource server survives. Sending only the secret is what disabled authorization
+     *       services and deleted the resource server live, failing every authenticated request.</li>
+     * </ol>
+     */
+    @Test
+    @Order(3)
+    void backendClientSecretDrift_isRepairedWithoutLosingAuthorizationServices() {
+        if (!realmExists()) {
+            newInitializer().init(false);
+        }
+
+        // (1) The realm was built from the JSON, so the configured secret already authenticates.
+        assertThatCode(() -> assertThat(fetchAppToken(APP_CLIENT_SECRET)).isNotBlank())
+                .as("a realm created from the generated JSON must accept the configured backend secret")
+                .doesNotThrowAnyException();
+
+        String appUuid = master.realm(TEST_REALM).clients().findByClientId(APP_CLIENT_ID).get(0).getId();
+        assertThat(master.realm(TEST_REALM).clients().get(appUuid).authorization().getSettings())
+                .as("the backend client starts with an authorization resource server")
+                .isNotNull();
+
+        // Drift the stored secret away from the configured one, exactly as happened live. This uses
+        // Keycloak's own regenerate endpoint, so it is a genuine drift and not a doctored fixture.
+        master.realm(TEST_REALM).clients().get(appUuid).generateNewSecret();
+        assertThatCode(() -> fetchAppToken(APP_CLIENT_SECRET))
+                .as("client_credentials must fail while the stored secret has drifted")
+                .isInstanceOf(Exception.class);
+
+        assertThatCode(() -> newInitializer().init(false)).doesNotThrowAnyException();
+
+        // (2a) The grant works again with the secret the deployment holds.
+        assertThatCode(() -> assertThat(fetchAppToken(APP_CLIENT_SECRET)).isNotBlank())
+                .as("the reconcile must restore the configured backend secret")
+                .doesNotThrowAnyException();
+
+        // (2b) The repair was an in-place update, not a delete and recreate.
+        ClientRepresentation repairedApp =
+                master.realm(TEST_REALM).clients().findByClientId(APP_CLIENT_ID).get(0);
+        assertThat(repairedApp.getId()).isEqualTo(appUuid);
+
+        // (2c) The update carried a complete representation, so neither capability was cleared and
+        // the resource server the whole authorization stack depends on is still there.
+        assertThat(repairedApp.getAuthorizationServicesEnabled()).isTrue();
+        assertThat(repairedApp.isServiceAccountsEnabled()).isTrue();
+        assertThat(master.realm(TEST_REALM).clients().get(appUuid).authorization().getSettings())
+                .as("the client's resource server must survive a secret repair")
+                .isNotNull();
     }
 }

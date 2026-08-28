@@ -16,6 +16,7 @@
     {
       "clientId": "${KEYCLOAK_CLIENT_ID}",
       "publicClient": false,
+      "secret": "${KEYCLOAK_CLIENT_SECRET}",
       "serviceAccountsEnabled": true,
       "authorizationServicesEnabled": true,
       "protocol": "openid-connect",
