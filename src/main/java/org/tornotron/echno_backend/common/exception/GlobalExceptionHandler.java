@@ -9,6 +9,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.authorization.ExpressionAuthorizationDecision;
 import org.springframework.validation.FieldError;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -219,11 +220,68 @@ public class GlobalExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "Invalid Invite Code", ex.getMessage(), request);
     }
 
+    /**
+     * A refused {@code @PreAuthorize}, answered with the permission that would have satisfied it.
+     *
+     * <p>Spring's own message is the fixed string "Access Denied", which tells a caller that
+     * something was refused but never what. The expression that refused it travels on the failure,
+     * and it is the one authoritative statement of the requirement, so it is read back out and
+     * named here. The role and permission names are also exposed as problem properties, so the
+     * frontend can act on them without parsing the sentence.
+     *
+     * <p>An expression this cannot describe falls back to Spring's message rather than to a guess.
+     */
     @ExceptionHandler(AuthorizationDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ProblemDetail handleAuthorizationDeniedException(AuthorizationDeniedException ex, WebRequest request) {
-        logger.error("Access denied: ", ex);
+        String expression = deniedExpression(ex);
+        AuthorizationRequirement requirement = AuthorizationRequirement.from(expression);
+        String described = requirement.describe();
+
+        logger.warn("Authorization denied on {} by expression [{}]", request.getDescription(false), expression);
+
+        String detail = described == null
+                ? ex.getMessage()
+                : "You do not have permission for this action. " + described;
+
+        ProblemDetail pd = problem(HttpStatus.FORBIDDEN, "Access Denied", detail, request);
+        if (!requirement.getOrganizationRoles().isEmpty()) {
+            pd.setProperty("requiredOrganizationRoles", requirement.getOrganizationRoles());
+        }
+        if (!requirement.getAuthorities().isEmpty()) {
+            pd.setProperty("requiredAuthorities", requirement.getAuthorities());
+        }
+        return pd;
+    }
+
+    /**
+     * Handles a refusal raised by our own code rather than by an annotation.
+     *
+     * <p>Services throw Spring Security's {@code AccessDeniedException} with a message that already
+     * says what was wrong ("Only the sender can edit this message"). Without this handler that
+     * exception fell through to the catch-all and came back as a 500, which is both the wrong
+     * status and the wrong story. The message is written for the caller, so it is passed through.
+     */
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ProblemDetail handleSecurityAccessDeniedException(
+            org.springframework.security.access.AccessDeniedException ex, WebRequest request) {
+        logger.warn("Access denied on {}: {}", request.getDescription(false), ex.getMessage());
         return problem(HttpStatus.FORBIDDEN, "Access Denied", ex.getMessage(), request);
+    }
+
+    /**
+     * The {@code @PreAuthorize} expression behind a denial, when the failure carries one.
+     *
+     * <p>Method security attaches an {@link ExpressionAuthorizationDecision} holding the very
+     * expression that was evaluated. Anything else (a denial from an {@code AuthorizationManager}
+     * written in Java, for instance) carries no expression and yields null.
+     */
+    private String deniedExpression(AuthorizationDeniedException ex) {
+        if (ex.getAuthorizationResult() instanceof ExpressionAuthorizationDecision decision) {
+            return decision.getExpression().getExpressionString();
+        }
+        return null;
     }
 
     @ExceptionHandler(DatabaseOperationException.class)

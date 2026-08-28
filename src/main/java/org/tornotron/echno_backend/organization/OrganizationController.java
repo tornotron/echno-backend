@@ -14,13 +14,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.tornotron.echno_backend.common.customAnnotation.RequireSubscription;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
-import org.tornotron.echno_backend.common.customAnnotation.RequireSubscription;
 
 import java.util.List;
 import java.util.Map;
@@ -57,22 +55,32 @@ public class OrganizationController {
 
     /**
      * Creates a new organization.
+     *
+     * <p>The guard is authentication alone, and deliberately so. Creating an organization is how a
+     * new account bootstraps itself: it starts a tenant of its own and touches no existing one, and
+     * the creator becomes that tenant's system-admin. Requiring an organization authority first
+     * meant a self-registered account could never obtain one, since the only endpoint that grants
+     * it was the one being guarded. The billing side of the same rule lives in
+     * {@code OrganizationService}, which exempts a user's first organization and charges the rest.
+     *
      *  organizationCreationDto DTO containing the details for the new organization.
      * @return A {@link ResponseEntity} with the created organization's simple DTO and HTTP status 201 (Created).
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('organization:create') or hasAuthority('organization:admin')")
-    @RequireSubscription(feature = "CREATE_ORGANIZATION", recordUsage = true)
+    @PreAuthorize("isAuthenticated()")
     @Operation(
             summary = "Create an organization",
             description = "Creates an organization from a multipart request. The data part carries the "
                     + "organization details as JSON and the optional attachments part carries supporting "
-                    + "files such as a logo. Counts against the CREATE_ORGANIZATION subscription feature."
+                    + "files such as a logo. The caller becomes the organization's system admin. A "
+                    + "user's first organization is part of signing up and needs no subscription; "
+                    + "each one after it counts against the CREATE_ORGANIZATION subscription feature."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Organization created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid organization JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the organization create or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "402", description = "Caller already has an organization and their plan does not cover another"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not authenticated")
     })
     public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") @Valid String data,
                                                                     @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {

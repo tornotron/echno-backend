@@ -14,7 +14,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.tornotron.echno_backend.common.customAnnotation.RequireSubscription;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
@@ -45,22 +44,30 @@ public class OrganizationWebController {
     /**
      * Creates a new organization.
      *
+     * <p>This is the endpoint a freshly registered account uses to bootstrap itself, so the guard
+     * is authentication alone: the caller starts a tenant of their own, touches no existing one,
+     * and becomes its system-admin. The billing rule lives in {@code OrganizationService}, which
+     * exempts a user's first organization from the CREATE_ORGANIZATION entitlement and charges
+     * every one after it. Gating the first creation on a subscription left a self-registered
+     * account with nothing it could do, which is what the onboarding screen walked into.
+     *
      * organizationCreationDto DTO containing the details for the new organization.
      * @return A {@link ResponseEntity} with the created organization's simple DTO and HTTP status 201 (Created).
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @RequireSubscription(feature = "CREATE_ORGANIZATION",recordUsage = true)
     @PreAuthorize("isAuthenticated()")
     @Operation(
             summary = "Create an organization",
             description = "Creates an organization from a multipart request. The data part carries the "
                     + "organization details as JSON and the optional attachments part carries supporting "
-                    + "files such as a logo. The caller becomes the organization's initial member. Counts "
-                    + "against the CREATE_ORGANIZATION subscription feature."
+                    + "files such as a logo. The caller becomes the organization's system admin. A "
+                    + "user's first organization is part of signing up and needs no subscription; "
+                    + "each one after it counts against the CREATE_ORGANIZATION subscription feature."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Organization created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid organization JSON, or a field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "402", description = "Caller already has an organization and their plan does not cover another"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not authenticated")
     })
     public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") @Valid String data,
