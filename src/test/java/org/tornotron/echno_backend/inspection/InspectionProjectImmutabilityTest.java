@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.inspection.dtos.UpdateInspectionRequest;
 import org.tornotron.echno_backend.inspection.mapper.InspectionMapper;
 import org.tornotron.echno_backend.inspection.repositories.InspectionRepository;
 import org.tornotron.echno_backend.inspection.service.ChecklistTemplateService;
+import org.tornotron.echno_backend.inspection.service.DefectAnnotationService;
 import org.tornotron.echno_backend.inspection.service.InspectionService;
 
 import java.time.LocalDate;
@@ -54,6 +55,10 @@ class InspectionProjectImmutabilityTest {
     private TenantEntityHelper tenantEntityHelper;
     @Mock
     private ChecklistTemplateService checklistTemplateService;
+    // The update path sweeps the photo annotations whose photo the payload dropped.
+    // Mocked away here: this test is about the project comparison, not the sweep.
+    @Mock
+    private DefectAnnotationService defectAnnotationService;
 
     @InjectMocks
     private InspectionService service;
