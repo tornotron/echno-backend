@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.KeycloakGroupService;
+import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
@@ -94,7 +95,15 @@ public class DevFixtureProvisioner {
         }
         User user = ensureUser(keycloakUserId, displayName, email);
         Organization organization = ensureOrganization(user);
+        if (organization == null) {
+            return;
+        }
         Long employeeId = ensureEmployee(user, organization);
+        // Reconciled on every pass rather than only at creation, so a run whose seeding failed after
+        // the organization row was written repairs itself on the next startup instead of leaving a
+        // permanently half-provisioned organization. Each seeder skips an organization that already
+        // has its data, so repeating this costs three lookups.
+        onboardingSeeder.seedFinanceDefaults(organization.getId());
         assignOrgRole(organization.getId(), employeeId);
         log.warn("Dev fixture identity ready: user {} is a {} of organization {} ('{}')",
                 user.getId(), DEV_ORG_ROLE.getGroupName(), organization.getId(), DEV_ORG_NAME);
@@ -123,43 +132,64 @@ public class DevFixtureProvisioner {
     }
 
     /**
-     * Finds or creates the fixture's own organization, together with its Keycloak group. The group
-     * has to exist before anyone joins it, and creating it here is what
-     * {@code OrganizationService.addOrganization} does for a real signup. The per-organization
-     * finance defaults are seeded afterwards so the finance screens are not empty.
+     * Finds or creates the fixture's own organization, or returns null when the name is taken by an
+     * organization that is not the fixture's.
+     *
+     * <p>The name alone cannot decide that. Where self-service registration is on, any authenticated
+     * user can create an organization and call it whatever they like, including this name, and
+     * adopting it would hand the fixture system-admin over somebody else's tenant: the exact failure
+     * this class exists to stop, reached from the other direction. So an existing organization is
+     * adopted only when it also carries the fixture's own contact address and was created by the
+     * fixture's user row, neither of which another tenant can set. Anything else is refused, and the
+     * fixture is left unprovisioned rather than pointed at a stranger's data.
      */
     private Organization ensureOrganization(User creator) {
-        return organizationRepository.findOrganizationByOrganizationName(DEV_ORG_NAME)
-                .orElseGet(() -> {
-                    Organization organization = new Organization();
-                    organization.setOrganizationName(DEV_ORG_NAME);
-                    organization.setOrganizationEmail(DEV_ORG_EMAIL);
-                    organization.setOrganizationAddress(DEV_ORG_ADDRESS);
-                    organization.setOrganizationPhone(DEV_ORG_PHONE);
-                    organization.setCreatedAt(LocalDateTime.now());
-                    organization.setCreatorId(creator.getId() == null ? null : creator.getId().intValue());
-                    organization.setIsActive(true);
-                    Organization saved = organizationRepository.save(organization);
+        Organization existing = organizationRepository.findOrganizationByOrganizationName(DEV_ORG_NAME)
+                .orElse(null);
+        if (existing != null) {
+            if (!isFixtureOrganization(existing, creator)) {
+                log.error("An organization named '{}' (id {}) already exists and is not the development "
+                                + "fixture's own, so it belongs to a real tenant. Leaving it alone and "
+                                + "skipping the fixture.",
+                        DEV_ORG_NAME, existing.getId());
+                return null;
+            }
+            return existing;
+        }
 
-                    keycloakGroupService.createOrganizationGroup(
-                            saved.getId().toString(), saved.getOrganizationName());
-                    onboardingSeeder.seedFinanceDefaults(saved.getId());
+        Organization organization = new Organization();
+        organization.setOrganizationName(DEV_ORG_NAME);
+        organization.setOrganizationEmail(DEV_ORG_EMAIL);
+        organization.setOrganizationAddress(DEV_ORG_ADDRESS);
+        organization.setOrganizationPhone(DEV_ORG_PHONE);
+        organization.setCreatedAt(LocalDateTime.now());
+        organization.setCreatorId(creator.getId() == null ? null : creator.getId().intValue());
+        organization.setIsActive(true);
+        Organization saved = organizationRepository.save(organization);
+        log.info("Created the dev fixture organization '{}' (id {})", DEV_ORG_NAME, saved.getId());
+        return saved;
+    }
 
-                    log.info("Created the dev fixture organization '{}' (id {})",
-                            DEV_ORG_NAME, saved.getId());
-                    return saved;
-                });
+    /** True only for an organization this class created for this fixture user. */
+    private static boolean isFixtureOrganization(Organization organization, User creator) {
+        return DEV_ORG_EMAIL.equalsIgnoreCase(organization.getOrganizationEmail())
+                && creator.getId() != null
+                && organization.getCreatorId() != null
+                && organization.getCreatorId().intValue() == creator.getId().intValue();
     }
 
     /**
      * Finds or creates the employee row. Creation goes through {@code joinOrganization}, which
      * writes the row and joins the parent {@code /org-{id}} group in one transaction, so the two
-     * halves cannot drift apart.
+     * halves cannot drift apart. The Keycloak group has to exist before that join, so it is ensured
+     * here rather than beside the organization row: a run that saved the row and then failed would
+     * otherwise never get its group, and every later startup would skip straight past it.
      */
     private Long ensureEmployee(User user, Organization organization) {
         return employeeRepository.findByUserIdAndOrganizationId(user.getId(), organization.getId())
-                .map(employee -> employee.getId())
+                .map(Employee::getId)
                 .orElseGet(() -> {
+                    ensureOrganizationGroup(organization);
                     EmployeeJoinOrgDto joinOrgDto = new EmployeeJoinOrgDto();
                     Long employeeId = employeeService
                             .joinOrganization(user.getId(), organization.getId(), joinOrgDto)
@@ -168,6 +198,23 @@ public class DevFixtureProvisioner {
                             employeeId, organization.getId());
                     return employeeId;
                 });
+    }
+
+    /**
+     * Makes sure the organization's Keycloak group tree exists. {@code createOrganizationGroup} has
+     * no create-if-absent form and rejects a name that is already taken, so a rejected create is how
+     * we learn the group is there. A genuine Keycloak failure is not hidden by this: the join that
+     * follows needs the group and reports it.
+     */
+    private void ensureOrganizationGroup(Organization organization) {
+        try {
+            keycloakGroupService.createOrganizationGroup(
+                    organization.getId().toString(), organization.getOrganizationName());
+            log.info("Created the Keycloak group for the dev fixture organization {}", organization.getId());
+        } catch (Exception e) {
+            log.info("Keycloak group for the dev fixture organization {} was not created now: {}",
+                    organization.getId(), e.getMessage());
+        }
     }
 
     /**

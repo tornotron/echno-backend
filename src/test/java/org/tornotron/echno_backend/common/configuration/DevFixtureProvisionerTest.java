@@ -77,10 +77,13 @@ class DevFixtureProvisionerTest {
         return user;
     }
 
+    /** An organization shaped the way this class creates one for the fixture user with id 7. */
     private static Organization organization(Long id) {
         Organization organization = new Organization();
         organization.setId(id);
         organization.setOrganizationName(DevFixtureProvisioner.DEV_ORG_NAME);
+        organization.setOrganizationEmail(DevFixtureProvisioner.DEV_ORG_EMAIL);
+        organization.setCreatorId(7);
         return organization;
     }
 
@@ -182,8 +185,76 @@ class DevFixtureProvisionerTest {
         verify(organizationRepository, never()).save(any(Organization.class));
         verify(keycloakGroupService, never()).createOrganizationGroup(any(), any());
         verify(employeeService, never()).joinOrganization(anyLong(), anyLong(), any(EmployeeJoinOrgDto.class));
-        // The role assignment is itself idempotent and is reapplied, so a membership removed by hand
-        // comes back on the next restart.
+        // The role assignment and the finance defaults are themselves idempotent and are reapplied,
+        // so a membership removed by hand or a seed that failed halfway comes back on the next start.
+        verify(employeeService).assignOrgRole(19L, OrgRole.SYSTEM_ADMIN);
+        verify(onboardingSeeder).seedFinanceDefaults(42L);
+    }
+
+    /**
+     * The name of the fixture's organization is not proof of ownership: where self-service
+     * registration is on, any user can create an organization and call it the same thing. Adopting it
+     * would hand the fixture system-admin over a real tenant, so it is refused instead.
+     */
+    @Test
+    void refusesAnOrganizationOfTheSameNameThatIsNotTheFixtures() {
+        when(userRepository.findUserByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(user(7L)));
+        Organization somebodyElses = new Organization();
+        somebodyElses.setId(3L);
+        somebodyElses.setOrganizationName(DevFixtureProvisioner.DEV_ORG_NAME);
+        somebodyElses.setOrganizationEmail("contact@a-real-tenant.example");
+        somebodyElses.setCreatorId(101);
+        when(organizationRepository.findOrganizationByOrganizationName(DevFixtureProvisioner.DEV_ORG_NAME))
+                .thenReturn(Optional.of(somebodyElses));
+
+        provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
+
+        verify(employeeService, never()).joinOrganization(anyLong(), anyLong(), any(EmployeeJoinOrgDto.class));
+        verify(employeeService, never()).assignOrgRole(anyLong(), any(OrgRole.class));
+        verify(onboardingSeeder, never()).seedFinanceDefaults(anyLong());
+        verify(keycloakGroupService, never()).createOrganizationGroup(any(), any());
+    }
+
+    /**
+     * A run that wrote the organization row and then failed before its Keycloak group existed used to
+     * be unrecoverable: the next startup found the row and skipped straight past the group. The group
+     * is ensured where it is needed, so the retry repairs it.
+     */
+    @Test
+    void createsTheMissingGroupWhenTheOrganizationRowSurvivedAFailedRun() {
+        when(userRepository.findUserByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(user(7L)));
+        when(organizationRepository.findOrganizationByOrganizationName(DevFixtureProvisioner.DEV_ORG_NAME))
+                .thenReturn(Optional.of(organization(42L)));
+        when(employeeRepository.findByUserIdAndOrganizationId(7L, 42L)).thenReturn(Optional.empty());
+        when(employeeService.joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class)))
+                .thenReturn(employeeDto(19L));
+
+        provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
+
+        verify(organizationRepository, never()).save(any(Organization.class));
+        verify(keycloakGroupService).createOrganizationGroup("42", DevFixtureProvisioner.DEV_ORG_NAME);
+        verify(employeeService).joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class));
+        verify(employeeService).assignOrgRole(19L, OrgRole.SYSTEM_ADMIN);
+    }
+
+    /**
+     * createOrganizationGroup has no create-if-absent form and rejects a name already taken, so a
+     * rejected create is how a present group announces itself. That must not abort the fixture.
+     */
+    @Test
+    void carriesOnWhenTheGroupAlreadyExists() {
+        when(userRepository.findUserByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(user(7L)));
+        when(organizationRepository.findOrganizationByOrganizationName(DevFixtureProvisioner.DEV_ORG_NAME))
+                .thenReturn(Optional.of(organization(42L)));
+        when(employeeRepository.findByUserIdAndOrganizationId(7L, 42L)).thenReturn(Optional.empty());
+        when(keycloakGroupService.createOrganizationGroup("42", DevFixtureProvisioner.DEV_ORG_NAME))
+                .thenThrow(new RuntimeException("Failed to create organization group 'org-42' (status 409)"));
+        when(employeeService.joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class)))
+                .thenReturn(employeeDto(19L));
+
+        provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
+
+        verify(employeeService).joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class));
         verify(employeeService).assignOrgRole(19L, OrgRole.SYSTEM_ADMIN);
     }
 
