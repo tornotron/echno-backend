@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentCreationDto;
 import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentDto;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
 
@@ -39,15 +40,14 @@ public class StockAdjustmentControllerWeb {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List all stock adjustments",
-            description = "Returns every stock adjustment document recorded for the organization, without "
-                    + "pagination."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustments returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
     })
     public ResponseEntity<List<StockAdjustmentDto>> readAllStockAdjustments() {
-        return new ResponseEntity<>(stockAdjustmentService.getAll(), HttpStatus.OK);
+        return UnpagedResultCap.respond(stockAdjustmentService.getAll(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/paginated")

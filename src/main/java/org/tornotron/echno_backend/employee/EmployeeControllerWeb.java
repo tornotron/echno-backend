@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.common.enums.OrgRole;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeLookupDto;
@@ -95,28 +96,34 @@ public class EmployeeControllerWeb {
     @Operation(
             summary = "List employees for pickers",
             description = "Returns a minimal, non-sensitive list of employees (id and name) for "
-                    + "populating selection widgets. Readable by any tenant member."
+                    + "populating selection widgets. Narrow the feed with search, which matches "
+                    + "name, email, phone or the employee id, and size it with limit, which is "
+                    + "capped at 500. X-Total-Count carries the true match count and "
+                    + "X-Result-Capped is set when rows were left out. Readable by any tenant member."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employees returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<EmployeeLookupDto>> lookupEmployees() {
-        return new ResponseEntity<>(employeeService.lookupEmployees(), HttpStatus.OK);
+    public ResponseEntity<List<EmployeeLookupDto>> lookupEmployees(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "500") int limit) {
+        return UnpagedResultCap.respond(employeeService.lookupEmployees(search, limit));
     }
 
     @GetMapping
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     @Operation(
             summary = "List all employees",
-            description = "Returns every employee in the current tenant, with their full details."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employees returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<EmployeeDto>> readAllEmployees() {
-        return new ResponseEntity<>(employeeService.displayAllEmployees(), HttpStatus.OK);
+        return UnpagedResultCap.respond(employeeService.displayAllEmployees(
+                0, UnpagedResultCap.MAX_ROWS, null, null, null));
     }
 
     @GetMapping("/paginated")

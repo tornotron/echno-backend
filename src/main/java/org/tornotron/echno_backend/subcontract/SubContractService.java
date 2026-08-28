@@ -16,7 +16,6 @@ import org.tornotron.echno_backend.subcontract.dto.SubContractDto;
 import org.tornotron.echno_backend.subcontract.mapper.SubContractMapper;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * CRUD + list for subcontracts. The subcontract is a header plus a list of
@@ -58,12 +57,6 @@ public class SubContractService {
         return subContractMapper.toDto(subContract);
     }
 
-    @Transactional(readOnly = true)
-    public List<SubContractDto> getAll() {
-        return subContractRepository.findAll().stream()
-                .map(subContractMapper::toDto)
-                .collect(Collectors.toList());
-    }
 
     @Transactional(readOnly = true)
     public Page<SubContractDto> getPaginated(int pageNo, int pageSize, String search, String status, String type) {

@@ -200,12 +200,6 @@ public class SiteTransferService {
         return siteTransferMapper.toDto(transfer);
     }
 
-    @Transactional(readOnly = true)
-    public List<SiteTransferDto> getAllSiteTransfers() {
-        return siteTransferRepository.findAll().stream()
-                .map(transfer -> siteTransferMapper.toDto(transfer))
-                .collect(Collectors.toList());
-    }
 
     /**
      * Retrieves site transfers one page at a time, newest first.

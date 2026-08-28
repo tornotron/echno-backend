@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.receipt.dto.ReceiptCreationDto;
 import org.tornotron.echno_backend.receipt.dto.ReceiptDto;
 import org.tornotron.echno_backend.receipt.dto.ReceiptUpdateDto;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
 
@@ -39,14 +40,15 @@ public class ReceiptControllerWeb {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List all receipts",
-            description = "Returns every receipt for the current tenant, unpaginated."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Receipts returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<ReceiptDto>> readAllReceipts() {
-        return new ResponseEntity<>(receiptService.getAll(), HttpStatus.OK);
+        return UnpagedResultCap.respond(receiptService.getPaginated(
+                0, UnpagedResultCap.MAX_ROWS, null, null));
     }
 
     @GetMapping("/paginated")

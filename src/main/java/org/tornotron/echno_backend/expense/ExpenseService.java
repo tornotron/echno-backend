@@ -16,8 +16,6 @@ import org.tornotron.echno_backend.expense.dto.ExpenseUpdateDto;
 import org.tornotron.echno_backend.expense.mapper.ExpenseMapper;
 import org.tornotron.echno_backend.organization.Organization;
 
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * CRUD + list for expenses. The expense is a flat header scoped to the current tenant;
@@ -70,12 +68,6 @@ public class ExpenseService {
         return expenseMapper.toDto(expense);
     }
 
-    @Transactional(readOnly = true)
-    public List<ExpenseDto> getAll() {
-        return expenseRepository.findAll().stream()
-                .map(expenseMapper::toDto)
-                .collect(Collectors.toList());
-    }
 
     @Transactional(readOnly = true)
     public Page<ExpenseDto> getPaginated(int pageNo, int pageSize, String search, String status) {

@@ -36,9 +36,9 @@ import org.tornotron.echno_backend.subcontract.SubContractService;
 import org.tornotron.echno_backend.task.TaskControllerWeb;
 import org.tornotron.echno_backend.task.TaskService;
 
-import java.util.List;
 import java.util.stream.Stream;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -119,12 +119,13 @@ class ReadWriteGuardSymmetryTest {
     @BeforeEach
     void stubEmptyResults() {
         // The handlers that page call getContent() on the result, so these cannot be left null.
-        when(assetService.getAllAssets()).thenReturn(List.of());
-        when(expenseService.getAll()).thenReturn(List.of());
-        when(receiptService.getAll()).thenReturn(List.of());
-        when(subContractService.getAll()).thenReturn(List.of());
-        when(stockAdjustmentService.getAll()).thenReturn(List.of());
-        when(issueService.getAllIssues()).thenReturn(List.of());
+        when(assetService.getAllAssets(anyInt(), anyInt())).thenReturn(Page.empty());
+        when(expenseService.getPaginated(anyInt(), anyInt(), any(), any())).thenReturn(Page.empty());
+        when(receiptService.getPaginated(anyInt(), anyInt(), any(), any())).thenReturn(Page.empty());
+        when(subContractService.getPaginated(anyInt(), anyInt(), any(), any(), any())).thenReturn(Page.empty());
+        when(stockAdjustmentService.getAll(anyInt(), anyInt())).thenReturn(Page.empty());
+        when(issueService.getAllIssuesPaginated(anyInt(), anyInt(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(Page.empty());
         when(categoryService.getAllCategories(anyInt(), anyInt())).thenReturn(Page.empty());
         when(taskService.getAllTasks(anyInt(), anyInt())).thenReturn(Page.empty());
         when(issueCommentService.getAllIssueComments(anyInt(), anyInt())).thenReturn(Page.empty());

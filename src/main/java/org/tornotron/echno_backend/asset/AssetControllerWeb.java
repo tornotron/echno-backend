@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.asset.dto.AssetCreationDto;
 import org.tornotron.echno_backend.asset.dto.AssetDto;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
 
@@ -38,14 +39,14 @@ public class AssetControllerWeb {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List all assets",
-            description = "Returns every asset in the caller's current tenant organization, unpaginated."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Assets returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
     })
     public ResponseEntity<List<AssetDto>> readAllAssets() {
-        return new ResponseEntity<>(assetService.getAllAssets(), HttpStatus.OK);
+        return UnpagedResultCap.respond(assetService.getAllAssets(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/paginated")

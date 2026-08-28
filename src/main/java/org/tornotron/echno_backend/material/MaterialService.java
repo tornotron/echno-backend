@@ -165,12 +165,6 @@ public class MaterialService {
         return materialMapper.toDto(material);
     }
 
-    @Transactional(readOnly = true)
-    public List<MaterialDto> getAllMaterials() {
-        return materialRepository.findAll().stream()
-                .map(material -> materialMapper.toDto(material))
-                .collect(Collectors.toList());
-    }
 
     /**
      * Retrieves materials one page at a time, ordered by name.

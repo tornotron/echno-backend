@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.expense.dto.ExpenseCreationDto;
 import org.tornotron.echno_backend.expense.dto.ExpenseDto;
 import org.tornotron.echno_backend.expense.dto.ExpenseUpdateDto;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
 
@@ -39,14 +40,15 @@ public class ExpenseControllerWeb {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List all expenses",
-            description = "Returns every expense for the current tenant, unpaginated."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Expenses returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<ExpenseDto>> readAllExpenses() {
-        return new ResponseEntity<>(expenseService.getAll(), HttpStatus.OK);
+        return UnpagedResultCap.respond(expenseService.getPaginated(
+                0, UnpagedResultCap.MAX_ROWS, null, null));
     }
 
     @GetMapping("/paginated")

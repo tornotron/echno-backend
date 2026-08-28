@@ -171,12 +171,6 @@ public class IndentService {
                 .map(indent -> indentMapper.toDto(indent));
     }
 
-    @Transactional(readOnly = true)
-    public List<IndentDto> getAllIndents() {
-        return indentRepository.findAll().stream()
-                .map(indent -> indentMapper.toDto(indent))
-                .toList();
-    }
 
     /**
      * Retrieves a single indent by its id within the current tenant.

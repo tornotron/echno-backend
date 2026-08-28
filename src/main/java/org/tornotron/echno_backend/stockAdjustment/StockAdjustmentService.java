@@ -22,7 +22,6 @@ import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * CRUD + list for stock-adjustment documents. MVP scope: the document is persisted
@@ -73,12 +72,6 @@ public class StockAdjustmentService {
         return stockAdjustmentMapper.toDto(stockAdjustment);
     }
 
-    @Transactional(readOnly = true)
-    public List<StockAdjustmentDto> getAll() {
-        return stockAdjustmentRepository.findAll().stream()
-                .map(stockAdjustmentMapper::toDto)
-                .collect(Collectors.toList());
-    }
 
     @Transactional(readOnly = true)
     public Page<StockAdjustmentDto> getAll(int pageNo, int pageSize) {

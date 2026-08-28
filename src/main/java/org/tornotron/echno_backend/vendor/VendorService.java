@@ -114,17 +114,6 @@ public class VendorService {
         return vendorMapper.toDto(vendor);
     }
 
-    /**
-     * Returns every vendor visible to the current organization.
-     *
-     * @return The list of vendor DTOs.
-     */
-    @Transactional(readOnly = true)
-    public List<VendorDto> getAllVendors() {
-        return vendorRepository.findAll().stream()
-                .map(vendor -> vendorMapper.toDto(vendor))
-                .collect(Collectors.toList());
-    }
 
     /**
      * Returns a page of vendors ordered by name.

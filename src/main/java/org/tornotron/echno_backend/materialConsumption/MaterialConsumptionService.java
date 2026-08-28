@@ -169,12 +169,6 @@ public class MaterialConsumptionService {
         return materialConsumptionMapper.toDto(consumption);
     }
 
-    @Transactional(readOnly = true)
-    public List<MaterialConsumptionDto> getAllMaterialConsumptions() {
-        return materialConsumptionRepository.findAll().stream()
-                .map(consumption -> materialConsumptionMapper.toDto(consumption))
-                .collect(Collectors.toList());
-    }
 
     /**
      * Retrieves consumption records one page at a time, newest first.

@@ -18,8 +18,6 @@ import org.tornotron.echno_backend.receipt.mapper.ReceiptMapper;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * CRUD + list for receipts. The receipt is a flat header scoped to the current tenant;
@@ -74,12 +72,6 @@ public class ReceiptService {
         return receiptMapper.toDto(receipt);
     }
 
-    @Transactional(readOnly = true)
-    public List<ReceiptDto> getAll() {
-        return receiptRepository.findAll().stream()
-                .map(receiptMapper::toDto)
-                .collect(Collectors.toList());
-    }
 
     @Transactional(readOnly = true)
     public Page<ReceiptDto> getPaginated(int pageNo, int pageSize, String search, String status) {

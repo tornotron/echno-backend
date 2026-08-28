@@ -237,12 +237,6 @@ public class GoodsReceivedNoteService {
         return goodsReceivedNoteMapper.toDto(grn);
     }
 
-    @Transactional(readOnly = true)
-    public List<GoodsReceivedNoteDto> getAllGrns() {
-        return goodsReceivedNoteRepository.findAll().stream()
-                .map(grn -> goodsReceivedNoteMapper.toDto(grn))
-                .collect(Collectors.toList());
-    }
 
     /**
      * Retrieves GRNs one page at a time, newest received first.

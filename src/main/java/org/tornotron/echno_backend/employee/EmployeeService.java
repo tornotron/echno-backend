@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.attendance.ShiftTimingRepository;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -217,33 +218,35 @@ public class EmployeeService {
 
 
     /**
-     * Retrieves a list of all employees.
+     * Retrieves employees as a minimal, non-sensitive lookup projection for pickers.
+     * Unlike {@link #displayAllEmployees(int, int, String, String, String)} this exposes
+     * no contact details, salary or personal data, so it can be read by any tenant member.
      *
-     * @return A list of all employee DTOs.
+     * <p>A picker feed is a search-and-limit read rather than a whole-table read: the
+     * caller narrows with {@code search} and takes only as many rows as the widget can
+     * show. The limit is clamped to {@link UnpagedResultCap#MAX_ROWS} so no caller can
+     * ask for the whole table by passing a large number.
+     *
+     * @param search Case-insensitive substring matched against name, email, phone or the
+     *               human-facing employee id, or null for no filter.
+     * @param limit  Most rows to return, clamped to at least one and at most
+     *               {@link UnpagedResultCap#MAX_ROWS}.
+     * @return A single page of lookup projections ordered by name, carrying the true
+     *         match count so a caller can tell it narrowed too little.
      */
     @Transactional(readOnly = true)
-    public List<EmployeeDto> displayAllEmployees() {
-        return employeeRepository.findAll().stream()
-                .map(employee -> employeeMapper.toDto(employee))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieves every employee as a minimal, non-sensitive lookup projection for
-     * dropdowns. Unlike {@link #displayAllEmployees()} this exposes no contact
-     * details, salary or personal data, so it can be read by any tenant member.
-     */
-    @Transactional(readOnly = true)
-    public List<EmployeeLookupDto> lookupEmployees() {
-        return employeeRepository.findAll().stream()
+    public Page<EmployeeLookupDto> lookupEmployees(String search, int limit) {
+        int size = Math.min(Math.max(limit, 1), UnpagedResultCap.MAX_ROWS);
+        Pageable pageable = PageRequest.of(0, size, Sort.by(Sort.Direction.ASC, "employeeName"));
+        String searchTerm = (search == null || search.isBlank()) ? null : "%" + search.trim().toLowerCase() + "%";
+        return employeeRepository.search(searchTerm, null, null, pageable)
                 .map(employee -> new EmployeeLookupDto(
                         employee.getId(),
                         employee.getEmployeeId(),
                         employee.getEmployeeName(),
                         employee.getDesignation(),
                         employee.getStatus(),
-                        employee.getOrganization() != null ? employee.getOrganization().getId() : null))
-                .collect(Collectors.toList());
+                        employee.getOrganization() != null ? employee.getOrganization().getId() : null));
     }
 
     /**

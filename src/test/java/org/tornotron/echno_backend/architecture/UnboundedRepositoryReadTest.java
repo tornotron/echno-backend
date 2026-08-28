@@ -45,7 +45,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * what they read, and the temporary ones are simply not fixed yet. Row counts today are not a
  * reason for either. On a per-client production model one tenant's small reference table is
  * another's long tail, so an entry earns the permanent half only when the ceiling comes from what
- * the table <em>is</em>.
+ * the table <em>is</em>. The temporary half is currently empty: every read that grew with a
+ * tenant's site activity was bounded under issue #473, so what is left is reference data.
  *
  * <p>Runs under {@code @AnalyzeClasses} rather than importing the class graph itself. ArchUnit
  * holds a graph of this size in memory, and the test JVM is capped at 1 GB while already caching
@@ -83,27 +84,13 @@ class UnboundedRepositoryReadTest {
             "FeatureService",
             // Leave types a tenant defines (annual, sick, casual): bounded by policy design, not by
             // headcount and not by elapsed time.
-            "LeavePolicyService",
+            "LeavePolicyService"
 
-            // --- Temporary. Genuinely unbounded, waiting on the client work that moves each caller
-            // onto the paginated endpoint that already exists. Tracked by issue #473. Every entry
-            // here is a table that grows with a tenant's site activity and never shrinks.
-
-            "AssetService",
-            "EmployeeService",
-            "ExpenseService",
-            "GoodsReceivedNoteService",
-            "IndentService",
-            "IssueService",
-            "MaterialConsumptionService",
-            "MaterialService",
-            "PurchaseOrderService",
-            "ReceiptService",
-            "SiteTransferService",
-            "StockAdjustmentService",
-            "StorageLocationService",
-            "SubContractService",
-            "VendorService"
+            // --- Temporary. Empty. The fifteen services that grew with a tenant's site activity
+            // were closed out under issue #473: each web listing now reads a single capped page
+            // through UnpagedResultCap and the unbounded service method behind it is gone. An
+            // entry belongs here only while a genuinely unbounded read is waiting on client work,
+            // and it comes out the moment that read is bounded.
     );
 
     private static final DescribedPredicate<JavaClass> NOT_ALLOWED =

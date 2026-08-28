@@ -17,8 +17,6 @@ import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.vendor.Vendor;
 import org.tornotron.echno_backend.vendor.VendorRepository;
 
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class AssetService {
@@ -56,12 +54,6 @@ public class AssetService {
         return assetMapper.toDto(asset);
     }
 
-    @Transactional(readOnly = true)
-    public List<AssetDto> getAllAssets() {
-        return assetRepository.findAll().stream()
-                .map(asset -> assetMapper.toDto(asset))
-                .collect(Collectors.toList());
-    }
 
     @Transactional(readOnly = true)
     public Page<AssetDto> getAllAssets(int pageNo, int pageSize) {
