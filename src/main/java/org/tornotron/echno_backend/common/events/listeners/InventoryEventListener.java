@@ -88,13 +88,17 @@ public class InventoryEventListener {
         MaterialConsumption consumption = event.getMaterialConsumption();
         logger.info("Handling material consumed event for consumption ID: {}", consumption.getId());
 
+        // Read the balance this movement actually draws down. With no storage location that
+        // is the project's unlocated row, not the project total: the total would put an
+        // opening and closing figure on the ledger entry that the row it moves never held.
         Double openingStock;
         if (consumption.getStorageLocation() != null) {
             openingStock = inventoryService.getStockAtLocation(
                     consumption.getMaterial().getId(), consumption.getProject().getId(),
                     consumption.getStorageLocation().getId());
         } else {
-            openingStock = inventoryService.getCurrentStock(consumption.getMaterial().getId(), consumption.getProject().getId());
+            openingStock = inventoryService.findUnlocatedStock(
+                    consumption.getMaterial().getId(), consumption.getProject().getId()).orElse(0.0);
         }
         Double quantityChanged = -consumption.getQuantity().doubleValue();
         Double closingStock = openingStock + quantityChanged;
