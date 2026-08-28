@@ -316,4 +316,7 @@
     <!-- v4.0 - Compliance: one inspection per rule per project, enforced in the schema -->
     <include file="db/changelog/v4.0/060-compliance-inspection-rule-ref-unique.xml"/>
 
+    <!-- v4.0 - Server-allocated document numbers, and per-tenant uniqueness for them -->
+    <include file="db/changelog/v4.0/061-document-number-sequences.xml"/>
+
 </databaseChangeLog>

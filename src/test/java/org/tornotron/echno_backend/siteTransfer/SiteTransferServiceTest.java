@@ -9,7 +9,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.tornotron.echno_backend.common.events.SiteTransferCreatedEvent;
-import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
@@ -23,6 +22,9 @@ import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferCreationDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferItemDto;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferStatus;
 import org.tornotron.echno_backend.siteTransfer.mapper.SiteTransferMapper;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
@@ -35,11 +37,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -75,15 +80,22 @@ class SiteTransferServiceTest {
     @Mock private EmployeeRepository employeeRepository;
     @Mock private ProjectRepository projectRepository;
     @Mock private StorageLocationRepository storageLocationRepository;
+    @Mock private DocumentNumberAllocator documentNumberAllocator;
+    @Mock private TransactionRetryTemplate retryTemplate;
 
     private SiteTransferService service;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         TenantContext.setCurrentOrgId(ORG);
         service = new SiteTransferService(siteTransferRepository, siteTransferItemRepository, userRepository,
                 materialRepository, inventoryService, eventPublisher, siteTransferMapper, tenantEntityHelper,
-                employeeRepository, projectRepository, storageLocationRepository);
+                employeeRepository, projectRepository, storageLocationRepository,
+                documentNumberAllocator, retryTemplate);
+        // The template's own behaviour is covered by its own tests; here it just runs the work.
+        lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
+                .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
     }
 
     @AfterEach
@@ -100,7 +112,8 @@ class SiteTransferServiceTest {
         receiving.setId(RECEIVING_PROJECT);
         Organization org = new Organization();
         org.setId(ORG);
-        lenient().when(siteTransferRepository.existsByTransferNumberAndOrganization_Id("ST-001", ORG)).thenReturn(false);
+        lenient().when(documentNumberAllocator.allocate(DocumentNumberType.SITE_TRANSFER, ORG))
+                .thenReturn("TRF-2026-000042");
         lenient().when(employeeRepository.findByIdAndOrganizationId(SENDER, ORG)).thenReturn(Optional.of(sender));
         lenient().when(projectRepository.findByIdAndOrganization_Id(SENDING_PROJECT, ORG)).thenReturn(Optional.of(sending));
         lenient().when(projectRepository.findByIdAndOrganization_Id(RECEIVING_PROJECT, ORG)).thenReturn(Optional.of(receiving));
@@ -123,7 +136,6 @@ class SiteTransferServiceTest {
 
     private SiteTransferCreationDto baseDto() {
         SiteTransferCreationDto dto = new SiteTransferCreationDto();
-        dto.setTransferNumber("ST-001");
         dto.setIssueDate(LocalDateTime.now());
         dto.setSendingPerson(SENDER);
         dto.setSendingProjectId(SENDING_PROJECT);
@@ -134,18 +146,19 @@ class SiteTransferServiceTest {
     }
 
     @Test
-    void create_duplicateTransferNumber_throws() {
-        when(siteTransferRepository.existsByTransferNumberAndOrganization_Id("ST-001", ORG)).thenReturn(true);
+    void create_takesItsNumberFromTheServerNotTheCaller() {
+        stubMasterLookups();
 
-        assertThatExceptionOfType(DuplicateResourceException.class)
-                .isThrownBy(() -> service.createSiteTransfer(baseDto()));
+        service.createSiteTransfer(baseDto());
 
-        verify(siteTransferRepository, never()).save(any());
+        ArgumentCaptor<SiteTransfer> captor = ArgumentCaptor.forClass(SiteTransfer.class);
+        verify(siteTransferRepository).save(captor.capture());
+        assertThat(captor.getValue().getTransferNumber()).isEqualTo("TRF-2026-000042");
+        verify(documentNumberAllocator).allocate(DocumentNumberType.SITE_TRANSFER, ORG);
     }
 
     @Test
     void create_unknownSendingProject_throwsNotFound() {
-        when(siteTransferRepository.existsByTransferNumberAndOrganization_Id("ST-001", ORG)).thenReturn(false);
         when(employeeRepository.findByIdAndOrganizationId(SENDER, ORG))
                 .thenReturn(Optional.of(new Employee()));
         when(projectRepository.findByIdAndOrganization_Id(SENDING_PROJECT, ORG)).thenReturn(Optional.empty());

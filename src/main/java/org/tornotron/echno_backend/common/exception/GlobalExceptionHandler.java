@@ -196,12 +196,27 @@ public class GlobalExceptionHandler {
                 "Database operation failed, Data Integrity violation", request);
     }
 
+    /**
+     * Reports the duplicate the service actually found.
+     *
+     * <p>This used to answer "Database operation failed, Data already exists" and throw
+     * {@code ex.getMessage()} away, which cost a QA pass on staging: the backend knew it had
+     * been handed a purchase order number it already held, said so in the exception, and the
+     * user was told only that something was a duplicate. It was reported as a double-submit
+     * bug rather than the numbering fault it was.
+     *
+     * <p>Every message this exception carries names the field and the value that clashed and is
+     * already written for a person to read, so passing it through leaks nothing a caller who
+     * just sent that value does not have.
+     */
     @ExceptionHandler(DuplicateResourceException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ProblemDetail handleDuplicateResourceException(DuplicateResourceException ex, WebRequest request) {
         logger.error("Duplicate resource: ", ex);
-        return problem(HttpStatus.CONFLICT, "Duplicate Resource",
-                "Database operation failed, Data already exists", request);
+        String detail = (ex.getMessage() == null || ex.getMessage().isBlank())
+                ? "Database operation failed, Data already exists"
+                : ex.getMessage();
+        return problem(HttpStatus.CONFLICT, "Duplicate Resource", detail, request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

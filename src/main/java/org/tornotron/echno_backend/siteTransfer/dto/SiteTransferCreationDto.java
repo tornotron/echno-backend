@@ -5,20 +5,16 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Schema(description = "Payload to create a site transfer moving materials from a sending project to a receiving project.")
+@Schema(description = "Payload to create a site transfer moving materials from a sending project "
+        + "to a receiving project. The transfer number is allocated by the server and returned on "
+        + "the created transfer; it is not part of this payload.")
 @Data
 public class SiteTransferCreationDto {
-
-    @Schema(description = "Unique transfer document number.", example = "ST-2026-0031")
-    @NotBlank(message = "transfer number is required")
-    @Size(min = 1, max = 50, message = "transfer number must be between 1 and 50 characters")
-    private String transferNumber;
 
     @Schema(description = "Date and time the transfer was issued.", example = "2026-01-15T09:30:00")
     @NotNull(message = "issue date is required")

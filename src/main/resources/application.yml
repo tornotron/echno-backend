@@ -173,6 +173,12 @@ echno:
       # which can differ from the internal URL the backend dials, so list every URL
       # the same realm may present.
       accepted-issuers: ${ECHNO_JWT_ACCEPTED_ISSUERS:}
+  document-number:
+    # Site transfer, purchase order, indent and GRN numbers carry the year they were issued in,
+    # and the counter behind them resets with it. The year is read in this zone rather than the
+    # container's, so a document raised at eight in the morning in Kerala is not stamped with
+    # the previous year because the server happens to run on UTC.
+    zone: ${ECHNO_DOCUMENT_NUMBER_ZONE:Asia/Kolkata}
   transaction:
     retry:
       # CockroachDB runs SERIALIZABLE and aborts one side of a read-write conflict with

@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="061-create-document-number-sequence" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="document_number_sequence"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            One counter row per tenant, document family and year. Site transfer, purchase order,
+            indent and GRN numbers were invented by the browser from the list it happened to have
+            loaded, so two people on the same screen proposed the same number and the second save
+            was rejected. The server issues them from here instead.
+
+            last_allocated holds the highest number handed out so far, so the allocator's single
+            INSERT ... ON CONFLICT DO UPDATE ... RETURNING statement inserts 1 for a new counter
+            and returns the value it has just written for an existing one.
+        </comment>
+
+        <createTable tableName="document_number_sequence">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="document_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="sequence_year" type="INT">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="last_allocated" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="document_number_sequence"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_document_number_sequence_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addUniqueConstraint tableName="document_number_sequence"
+                             columnNames="organization_id, document_type, sequence_year"
+                             constraintName="uk_document_number_sequence"/>
+
+        <rollback>
+            <dropTable tableName="document_number_sequence"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="061-seed-document-number-sequence" author="echno">
+        <comment>
+            Starts each counter above the numbers already in the table, so the first number the
+            server issues cannot collide with one the browser issued before it.
+
+            Only rows whose number is in the canonical PREFIX-YYYY-NNNNNN shape are counted, and
+            that is exactly the right set: a number in any other shape can never be produced by
+            the allocator, so it cannot be collided with. The year is read out of the number
+            rather than off created_at, because the number is what has to stay unique.
+
+            The positions are fixed rather than a capture group: CockroachDB's substring with a
+            regular expression returns the whole match, not the group, so the guard is the ~ test
+            and the extraction is by offset. PO- is three characters, TRF-, IND- and GRN- are
+            four, which is the only difference between the four statements.
+
+            ON CONFLICT DO NOTHING makes this re-runnable and keeps it from disturbing a counter
+            the running application has already advanced.
+        </comment>
+
+        <sql>
+            INSERT INTO document_number_sequence
+                (organization_id, document_type, sequence_year, last_allocated, created_at, updated_at)
+            SELECT organization_id,
+                   'PURCHASE_ORDER',
+                   CAST(substring(po_number, 4, 4) AS INT),
+                   MAX(CAST(substring(po_number, 9) AS INT)),
+                   current_timestamp, current_timestamp
+            FROM purchase_order
+            WHERE organization_id IS NOT NULL
+              AND po_number ~ '^PO-[0-9]{4}-[0-9]+$'
+            GROUP BY organization_id, CAST(substring(po_number, 4, 4) AS INT)
+            ON CONFLICT DO NOTHING;
+        </sql>
+
+        <sql>
+            INSERT INTO document_number_sequence
+                (organization_id, document_type, sequence_year, last_allocated, created_at, updated_at)
+            SELECT organization_id,
+                   'SITE_TRANSFER',
+                   CAST(substring(transfer_number, 5, 4) AS INT),
+                   MAX(CAST(substring(transfer_number, 10) AS INT)),
+                   current_timestamp, current_timestamp
+            FROM site_transfer
+            WHERE organization_id IS NOT NULL
+              AND transfer_number ~ '^TRF-[0-9]{4}-[0-9]+$'
+            GROUP BY organization_id, CAST(substring(transfer_number, 5, 4) AS INT)
+            ON CONFLICT DO NOTHING;
+        </sql>
+
+        <sql>
+            INSERT INTO document_number_sequence
+                (organization_id, document_type, sequence_year, last_allocated, created_at, updated_at)
+            SELECT organization_id,
+                   'INDENT',
+                   CAST(substring(indent_number, 5, 4) AS INT),
+                   MAX(CAST(substring(indent_number, 10) AS INT)),
+                   current_timestamp, current_timestamp
+            FROM indent
+            WHERE organization_id IS NOT NULL
+              AND indent_number ~ '^IND-[0-9]{4}-[0-9]+$'
+            GROUP BY organization_id, CAST(substring(indent_number, 5, 4) AS INT)
+            ON CONFLICT DO NOTHING;
+        </sql>
+
+        <sql>
+            INSERT INTO document_number_sequence
+                (organization_id, document_type, sequence_year, last_allocated, created_at, updated_at)
+            SELECT organization_id,
+                   'GOODS_RECEIVED_NOTE',
+                   CAST(substring(grn_number, 5, 4) AS INT),
+                   MAX(CAST(substring(grn_number, 10) AS INT)),
+                   current_timestamp, current_timestamp
+            FROM goods_received_note
+            WHERE organization_id IS NOT NULL
+              AND grn_number ~ '^GRN-[0-9]{4}-[0-9]+$'
+            GROUP BY organization_id, CAST(substring(grn_number, 5, 4) AS INT)
+            ON CONFLICT DO NOTHING;
+        </sql>
+
+        <rollback>
+            DELETE FROM document_number_sequence;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="061-add-per-org-document-number-uniqueness" author="echno">
+        <comment>
+            The application has always checked these numbers for a duplicate within the
+            organization while the schema enforced uniqueness across every organization at once.
+            With one tenant on staging the disagreement is invisible. With two it is a bug that
+            only the second client can trigger: their PO-2026-000001 passes the service check and
+            is then rejected by a constraint they share with a tenant they cannot see.
+
+            These constraints are what the service check has always meant. They are added before
+            the global ones are dropped, so the numbers are never unconstrained in between.
+        </comment>
+
+        <addUniqueConstraint tableName="purchase_order"
+                             columnNames="organization_id, po_number"
+                             constraintName="uk_purchase_order_org_number"/>
+
+        <addUniqueConstraint tableName="site_transfer"
+                             columnNames="organization_id, transfer_number"
+                             constraintName="uk_site_transfer_org_number"/>
+
+        <addUniqueConstraint tableName="indent"
+                             columnNames="organization_id, indent_number"
+                             constraintName="uk_indent_org_number"/>
+
+        <addUniqueConstraint tableName="goods_received_note"
+                             columnNames="organization_id, grn_number"
+                             constraintName="uk_grn_org_number"/>
+
+        <rollback>
+            <dropUniqueConstraint tableName="purchase_order" constraintName="uk_purchase_order_org_number"/>
+            <dropUniqueConstraint tableName="site_transfer" constraintName="uk_site_transfer_org_number"/>
+            <dropUniqueConstraint tableName="indent" constraintName="uk_indent_org_number"/>
+            <dropUniqueConstraint tableName="goods_received_note" constraintName="uk_grn_org_number"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="061-drop-global-document-number-uniqueness" author="echno">
+        <comment>
+            Removes the cross-tenant constraints now that the per-tenant ones above stand in their
+            place. DROP INDEX rather than DROP CONSTRAINT because CockroachDB backs a UNIQUE column
+            constraint with an index of the same name and that is how it is removed.
+
+            uk_intend_number is the name the constraint carried on databases built from the v1, v2
+            or v3 baselines, before the intend to indent rename; IF EXISTS covers whichever of the
+            two a given database has.
+        </comment>
+
+        <sql>
+            DROP INDEX IF EXISTS purchase_order@uk_purchase_order_number CASCADE;
+            DROP INDEX IF EXISTS site_transfer@uk_site_transfer_number CASCADE;
+            DROP INDEX IF EXISTS indent@uk_indent_number CASCADE;
+            DROP INDEX IF EXISTS indent@uk_intend_number CASCADE;
+            DROP INDEX IF EXISTS goods_received_note@uk_grn_number CASCADE;
+        </sql>
+
+        <rollback>
+            <comment>
+                Restoring a global unique constraint would fail on any data that has since made
+                use of the per-tenant scope, so the rollback does not pretend it can.
+            </comment>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -36,7 +36,12 @@ public class Indent implements TenantScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "indent_number", nullable = false, unique = true)
+    /**
+     * Allocated by the server, never by the client. Unique per organization rather than
+     * globally: the constraint that enforces it is {@code uk_indent_org_number} in the schema, and it
+     * is composite, so it cannot be declared here as a column-level unique.
+     */
+    @Column(name = "indent_number", nullable = false)
     private String indentNumber;
 
     @CreationTimestamp

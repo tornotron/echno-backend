@@ -9,7 +9,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.tornotron.echno_backend.common.events.GrnCreatedEvent;
-import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
@@ -24,6 +23,9 @@ import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderRepository;
@@ -36,10 +38,13 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -71,16 +76,23 @@ class GoodsReceivedNoteServiceTest {
     @Mock private ProjectRepository projectRepository;
     @Mock private StorageLocationRepository storageLocationRepository;
     @Mock private PurchaseOrderRepository purchaseOrderRepository;
+    @Mock private DocumentNumberAllocator documentNumberAllocator;
+    @Mock private TransactionRetryTemplate retryTemplate;
 
     private GoodsReceivedNoteService service;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         TenantContext.setCurrentOrgId(ORG);
         service = new GoodsReceivedNoteService(goodsReceivedNoteRepository, grnItemRepository,
                 vendorRepository, userRepository, materialRepository, eventPublisher,
                 goodsReceivedNoteMapper, tenantEntityHelper, employeeRepository, projectRepository,
-                storageLocationRepository, purchaseOrderRepository);
+                storageLocationRepository, purchaseOrderRepository,
+                documentNumberAllocator, retryTemplate);
+        // The template's own behaviour is covered by its own tests; here it just runs the work.
+        lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
+                .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
     }
 
     @AfterEach
@@ -106,6 +118,8 @@ class GoodsReceivedNoteServiceTest {
         lenient().when(tenantEntityHelper.resolveCurrentOrganization()).thenReturn(org);
         lenient().when(goodsReceivedNoteRepository.save(any(GoodsReceivedNote.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(documentNumberAllocator.allocate(DocumentNumberType.GOODS_RECEIVED_NOTE, ORG))
+                .thenReturn("GRN-2026-000042");
     }
 
     private GrnItemDto itemDto(Long materialId, int ordered, int received, String unitCost) {
@@ -119,7 +133,6 @@ class GoodsReceivedNoteServiceTest {
 
     private GoodsReceivedNoteCreationDto baseDto() {
         GoodsReceivedNoteCreationDto dto = new GoodsReceivedNoteCreationDto();
-        dto.setGrnNumber("GRN-001");
         dto.setReceivedOn(LocalDateTime.of(2026, 8, 3, 10, 0));
         dto.setReceivedByEmployeeId(7L);
         dto.setVendorId(5L);
@@ -136,19 +149,20 @@ class GoodsReceivedNoteServiceTest {
     }
 
     @Test
-    void create_duplicateGrnNumber_throws() {
-        when(goodsReceivedNoteRepository.existsByGrnNumber("GRN-001")).thenReturn(true);
+    void create_takesItsNumberFromTheServerNotTheCaller() {
+        stubMasterLookups();
+        when(materialRepository.findByIdAndOrganization_Id(11L, ORG)).thenReturn(Optional.of(material(11L)));
 
-        assertThatThrownBy(() -> service.createGoodsReceivedNote(baseDto()))
-                .isInstanceOf(DuplicateResourceException.class);
+        service.createGoodsReceivedNote(baseDto());
 
-        verify(goodsReceivedNoteRepository, never()).save(any());
-        verify(eventPublisher, never()).publishEvent(any());
+        ArgumentCaptor<GoodsReceivedNote> captor = ArgumentCaptor.forClass(GoodsReceivedNote.class);
+        verify(goodsReceivedNoteRepository).save(captor.capture());
+        assertThat(captor.getValue().getGrnNumber()).isEqualTo("GRN-2026-000042");
+        verify(documentNumberAllocator).allocate(DocumentNumberType.GOODS_RECEIVED_NOTE, ORG);
     }
 
     @Test
     void create_unknownPurchaseOrder_throwsNotFound() {
-        when(goodsReceivedNoteRepository.existsByGrnNumber("GRN-001")).thenReturn(false);
         Vendor vendor = new Vendor();
         vendor.setId(5L);
         Employee employee = new Employee();
@@ -168,7 +182,6 @@ class GoodsReceivedNoteServiceTest {
 
     @Test
     void create_buildsItemsSavesThemAndPublishesEvent() {
-        when(goodsReceivedNoteRepository.existsByGrnNumber("GRN-001")).thenReturn(false);
         stubMasterLookups();
         when(materialRepository.findByIdAndOrganization_Id(11L, ORG)).thenReturn(Optional.of(material(11L)));
 
@@ -191,14 +204,13 @@ class GoodsReceivedNoteServiceTest {
         ArgumentCaptor<GrnCreatedEvent> eventCaptor = ArgumentCaptor.forClass(GrnCreatedEvent.class);
         verify(eventPublisher).publishEvent(eventCaptor.capture());
         GoodsReceivedNote published = eventCaptor.getValue().getGoodsReceivedNote();
-        assertThat(published.getGrnNumber()).isEqualTo("GRN-001");
+        assertThat(published.getGrnNumber()).isEqualTo("GRN-2026-000042");
         assertThat(published.getItems()).hasSize(1);
         assertThat(published.getVendor().getId()).isEqualTo(5L);
     }
 
     @Test
     void create_unknownStorageLocation_throwsNotFound() {
-        when(goodsReceivedNoteRepository.existsByGrnNumber("GRN-001")).thenReturn(false);
         stubMasterLookups();
         when(storageLocationRepository.findByIdAndOrganization_Id(88L, ORG)).thenReturn(Optional.empty());
 
