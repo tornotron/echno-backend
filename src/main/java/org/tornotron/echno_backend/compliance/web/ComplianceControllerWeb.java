@@ -50,7 +50,9 @@ public class ComplianceControllerWeb {
             @ApiResponse(responseCode = "200", description = "Generation ran; the created inspections are returned (possibly empty when nothing new applied)"),
             @ApiResponse(responseCode = "400", description = "No organization context set (the X-Organization-Id header is required), or a precondition is unmet: the project has no type, its address carries no recognisable state, no rules are registered for its jurisdiction, or the AI service is not configured. The detail message states what to fix."),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
-            @ApiResponse(responseCode = "404", description = "No project with the given id in the current tenant")
+            @ApiResponse(responseCode = "404", description = "No project with the given id in the current tenant"),
+            @ApiResponse(responseCode = "409", description = "Another generation run for the same project kept winning the race to create the same compliances; nothing was created by this call and the request can be sent again"),
+            @ApiResponse(responseCode = "502", description = "The compliance AI endpoint could not be reached, returned an error, or returned an answer that was cut short by its token limit and so did not cover every candidate rule. Nothing was created; the detail message says which")
     })
     public List<InspectionDto> regenerate(@RequestParam Long projectId) {
         Long orgId = TenantContext.getCurrentOrgId();

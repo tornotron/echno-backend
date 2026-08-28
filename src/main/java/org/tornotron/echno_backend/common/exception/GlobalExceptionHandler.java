@@ -131,6 +131,27 @@ public class GlobalExceptionHandler {
         return pd;
     }
 
+    /**
+     * The compliance model produced nothing usable: unreachable, an error from the
+     * endpoint, or an answer cut short by its token limit. Answered as 502 because the
+     * request was well formed and the caller has nothing to correct, and marked retryable
+     * because the same request is worth sending again once the endpoint is behaving.
+     *
+     * <p>The detail is the exception's own message on purpose. It names which of those
+     * happened, and for a truncated answer it carries the token budget and what the model
+     * spent against it, which is what the operator needs to size the limit. Before this
+     * existed the same failures were absorbed into an empty result and reported to the
+     * user as a successful run that produced no compliances.
+     */
+    @ExceptionHandler(ComplianceAiException.class)
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    public ProblemDetail handleComplianceAiFailure(ComplianceAiException ex, WebRequest request) {
+        logger.error("Compliance AI generation failed: {}", ex.getMessage());
+        ProblemDetail pd = problem(HttpStatus.BAD_GATEWAY, "Compliance AI Unavailable", ex.getMessage(), request);
+        pd.setProperty("retryable", true);
+        return pd;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ProblemDetail handleValidationException(MethodArgumentNotValidException exception, WebRequest request) {

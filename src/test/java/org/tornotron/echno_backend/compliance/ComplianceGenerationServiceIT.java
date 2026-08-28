@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.compliance;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
@@ -9,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -16,6 +20,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
+import org.tornotron.echno_backend.common.retry.SqlStateDetector;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.compliance.ai.OpenAiCompatibleComplianceService;
 import org.tornotron.echno_backend.compliance.ai.ComplianceSuggestion;
@@ -34,6 +40,7 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -49,8 +56,22 @@ import static org.mockito.Mockito.when;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ComplianceGenerationService.class, InspectionMapperImpl.class,
-        TenantEntityHelper.class, EntryNumberGenerator.class, TransactionalWorkRunner.class})
+        TenantEntityHelper.class, EntryNumberGenerator.class, TransactionalWorkRunner.class,
+        TransactionRetryTemplate.class, ComplianceGenerationServiceIT.RetryMetrics.class})
 class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
+
+    /**
+     * The retry template counts its restarts, and a {@code @DataJpaTest} slice carries no
+     * metrics autoconfiguration, so the registry it needs is supplied here. Nothing reads the
+     * counters in this test; they simply have somewhere to go.
+     */
+    @TestConfiguration
+    static class RetryMetrics {
+        @Bean
+        MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
+        }
+    }
 
     private static final String RULE_PRE = "TN-BPA";        // pre-construction
     private static final String RULE_POST = "TN-OCC-CERT";  // post-construction
@@ -160,6 +181,42 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
                 .setParameter("org", orgAId)
                 .getSingleResult()).longValue();
         assertThat(total).isEqualTo(2L);
+    }
+
+    /**
+     * The half of the concurrency fix that only a real database can show: the unique index
+     * from changelog 060 exists, applies to this table, and rejects a second inspection for
+     * a rule that already has one on the project.
+     *
+     * <p>The insert is deliberately raw rather than a second call to the service, because
+     * what is under test is the schema's guarantee and not the application's check. Before
+     * the index this row was accepted, which is precisely how two overlapping runs each
+     * created their own compliance inspection for the same rule.
+     */
+    @Test
+    void theDatabaseRefusesASecondInspectionForTheSameRuleOnTheSameProject() {
+        service.generateForProject(projectId, orgAId);
+        entityManager.flush();
+
+        assertThatThrownBy(() -> {
+            entityManager.createNativeQuery(
+                            "INSERT INTO inspections (id, inspection_number, title, type, category, "
+                                    + "status, origin, project_id, compliance_rule_ref, organization_id, "
+                                    + "total_check_points, passed_check_points, failed_check_points, "
+                                    + "defects_found, created_at, updated_at) VALUES "
+                                    + "(gen_random_uuid(), 'INSP-DUPLICATE', 'Duplicate of an existing "
+                                    + "compliance', 'COMPLIANCE', 'COMPLIANCE', 'SUGGESTED', "
+                                    + "'AI_GENERATED', :project, :rule, :org, 0, 0, 0, 0, "
+                                    + "now()::timestamp, now()::timestamp)")
+                    .setParameter("project", projectId)
+                    .setParameter("rule", RULE_PRE)
+                    .setParameter("org", orgAId)
+                    .executeUpdate();
+            entityManager.flush();
+        }).satisfies(failure -> assertThat(
+                SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION))
+                .as("the insert must be rejected by a unique violation (SQLSTATE 23505)")
+                .isTrue());
     }
 
     private void inCommittedTx(Runnable work) {

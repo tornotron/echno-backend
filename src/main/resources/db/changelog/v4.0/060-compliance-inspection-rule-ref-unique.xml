@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="060-dedupe-compliance-inspection-rule-refs" author="echno">
+        <comment>
+            Clears the way for the unique index in the next changeset by removing duplicate
+            compliance inspections that the unguarded generation could already have created.
+
+            Only rows the user has not touched are removed: AI-generated and still SUGGESTED,
+            with no check items, defects, attendees or NCRs hanging off them. Of each duplicate
+            group the oldest row is kept, so the one a user is most likely to have already seen
+            is the survivor. A duplicate that someone has since scheduled, assigned or worked on
+            is left alone for a human to resolve, and the index changeset reports it rather than
+            failing the deploy.
+
+            The survivor is picked with row_number() rather than by comparing against min(created_at),
+            because two rows written by a race can carry the same timestamp: on a tie every row
+            would then be "not later than the first" and the whole group would survive, which is
+            the case this exists to clear. Ordering by (created_at, id) breaks the tie and leaves
+            exactly one row per group whatever the timestamps say.
+
+            Audited on the IITM staging database before writing this: 14 inspections, 8 with a
+            compliance rule reference, no duplicate (organization_id, project_id,
+            compliance_rule_ref) group at all, so this deletes nothing there.
+        </comment>
+
+        <sql>
+            DELETE FROM inspections
+            WHERE id IN (
+                SELECT ranked.id FROM (
+                    SELECT i.id,
+                           row_number() OVER (
+                               PARTITION BY i.organization_id, i.project_id, i.compliance_rule_ref
+                               ORDER BY i.created_at, i.id
+                           ) AS rank_in_group
+                    FROM inspections i
+                    WHERE i.compliance_rule_ref IS NOT NULL
+                      AND i.organization_id IS NOT NULL
+                      AND i.project_id IS NOT NULL
+                ) ranked
+                WHERE ranked.rank_in_group > 1
+            )
+            AND origin = 'AI_GENERATED'
+            AND status = 'SUGGESTED'
+            AND NOT EXISTS (SELECT 1 FROM inspection_check_items c WHERE c.inspection_id = inspections.id)
+            AND NOT EXISTS (SELECT 1 FROM inspection_defects f WHERE f.inspection_id = inspections.id)
+            AND NOT EXISTS (SELECT 1 FROM inspection_attendees a WHERE a.inspection_id = inspections.id)
+            AND NOT EXISTS (SELECT 1 FROM ncrs n WHERE n.inspection_id = inspections.id);
+        </sql>
+
+        <rollback>
+            <comment>
+                Rows deleted as duplicates are not recoverable from the changelog; the rollback
+                is a no-op rather than a lie about restoring them.
+            </comment>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="060-compliance-inspection-rule-ref-unique" author="echno">
+        <preConditions onFail="CONTINUE"
+                       onFailMessage="Duplicate compliance inspections remain, so the unique index
+                                      was not created and concurrent generation can still duplicate
+                                      them. List them with: SELECT organization_id, project_id,
+                                      compliance_rule_ref, count(*) FROM inspections WHERE
+                                      compliance_rule_ref IS NOT NULL GROUP BY 1, 2, 3 HAVING
+                                      count(*) > 1; resolve each group by hand, and this changeset
+                                      applies itself on the next startup.">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM (
+                    SELECT 1
+                    FROM inspections
+                    WHERE compliance_rule_ref IS NOT NULL
+                      AND organization_id IS NOT NULL
+                      AND project_id IS NOT NULL
+                    GROUP BY organization_id, project_id, compliance_rule_ref
+                    HAVING count(*) > 1
+                ) remaining_duplicates;
+            </sqlCheck>
+        </preConditions>
+
+        <comment>
+            Compliance generation is idempotent by intent: a rule that already has an inspection
+            on a project is skipped. That skip was an unlocked read with nothing behind it, so
+            two overlapping runs (two clicks on regenerate, or a manual regenerate racing the
+            automatic run on approval) both read "no such row" and both inserted. SERIALIZABLE
+            does not catch it, because the two transactions do not conflict: each inserts a
+            different row, with its own id and its own inspection number, so there is nothing
+            for the database to detect.
+
+            This index makes the invariant true in the schema instead. It is partial because
+            compliance_rule_ref is null on every manual inspection, and SQL treats each null as
+            distinct, so an ordinary unique constraint would index every manual row for nothing.
+            The rows it does not cover are the ones with no organization or no project, which
+            no compliance inspection has.
+
+            The loser of the race now has its insert rejected, which the generation service
+            handles by restarting its write transaction: the retried attempt's existence check
+            reads the committed row and skips it, so the user sees a successful run rather than
+            an error.
+
+            The precondition above keeps a deploy from failing on data this cannot be applied to.
+            Nothing is skipped silently: the message names the query that lists what is in the
+            way, and the changeset stays unapplied so it runs again once that is cleared.
+        </comment>
+
+        <sql>
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_inspections_org_project_compliance_rule
+            ON inspections (organization_id, project_id, compliance_rule_ref)
+            WHERE compliance_rule_ref IS NOT NULL;
+        </sql>
+
+        <rollback>
+            DROP INDEX IF EXISTS inspections@uk_inspections_org_project_compliance_rule;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

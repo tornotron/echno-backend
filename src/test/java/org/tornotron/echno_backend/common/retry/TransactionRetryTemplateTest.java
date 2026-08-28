@@ -138,6 +138,68 @@ class TransactionRetryTemplateTest {
         assertThat(counter("echno.transaction.retry.exhausted")).isZero();
     }
 
+    /**
+     * A caller may nominate a further failure as one a fresh attempt resolves. The case this
+     * exists for is a check-then-write made idempotent by a unique constraint: the check
+     * passes, a concurrent transaction commits the row, the insert is rejected, and the
+     * retried attempt's check now sees the committed row and skips it. Nominating it is what
+     * turns the loser of that race from a 500 into the skip the caller intended.
+     */
+    @Test
+    void restartsAConflictTheCallerNominatesAsRetryable() {
+        AtomicInteger attempts = new AtomicInteger();
+
+        String result = template.execute(OPERATION, TransactionRetryTemplateTest::isDuplicateKey, () -> {
+            if (attempts.incrementAndGet() == 1) {
+                throw duplicateKey();
+            }
+            return "committed";
+        });
+
+        assertThat(result).isEqualTo("committed");
+        assertThat(attempts).hasValue(2);
+        assertThat(transactionManager.begun).isEqualTo(2);
+        assertThat(transactionManager.rolledBack).isEqualTo(1);
+        assertThat(counter("echno.transaction.retry.attempts")).isEqualTo(1.0);
+    }
+
+    @Test
+    void leavesAFailureTheNominationDoesNotCoverAlone() {
+        // The predicate has to be narrow: a duplicate key a fresh read cannot resolve is a
+        // permanent error, and retrying every integrity failure would only delay it and then
+        // report it as a concurrency conflict instead of as itself.
+        AtomicInteger attempts = new AtomicInteger();
+        DataIntegrityViolationException notNull = new DataIntegrityViolationException(
+                "null value in column violates not-null constraint",
+                new SQLException("null value in column", "23502"));
+
+        assertThatExceptionOfType(DataIntegrityViolationException.class)
+                .isThrownBy(() -> template.execute(OPERATION, TransactionRetryTemplateTest::isDuplicateKey,
+                        () -> {
+                            attempts.incrementAndGet();
+                            throw notNull;
+                        }))
+                .isSameAs(notNull);
+
+        assertThat(attempts).hasValue(1);
+        assertThat(counter("echno.transaction.retry.attempts")).isZero();
+    }
+
+    @Test
+    void stillRestartsASerializationAbortWhenANominationIsGiven() {
+        AtomicInteger attempts = new AtomicInteger();
+
+        String result = template.execute(OPERATION, TransactionRetryTemplateTest::isDuplicateKey, () -> {
+            if (attempts.incrementAndGet() == 1) {
+                throw serializationFailure();
+            }
+            return "committed";
+        });
+
+        assertThat(result).isEqualTo("committed");
+        assertThat(attempts).hasValue(2);
+    }
+
     @Test
     void doesNotRetryInsideACallersTransaction() {
         // Nothing to restart: the boundary belongs to the caller and their transaction is
@@ -220,6 +282,16 @@ class TransactionRetryTemplateTest {
         assertThat(TransactionRetryTemplate.clampBackoff("initial-backoff-millis", -1L)).isZero();
         assertThat(TransactionRetryTemplate.clampBackoff("initial-backoff-millis", Long.MIN_VALUE))
                 .isZero();
+    }
+
+    /** A unique-index rejection in the shape Spring hands to application code. */
+    private static DataIntegrityViolationException duplicateKey() {
+        return new DataIntegrityViolationException("duplicate key value violates unique constraint",
+                new SQLException("duplicate key value violates unique constraint", "23505"));
+    }
+
+    private static boolean isDuplicateKey(Throwable failure) {
+        return SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION);
     }
 
     /** A CockroachDB serializable abort in the shape Spring hands to application code. */

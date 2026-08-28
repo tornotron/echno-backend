@@ -169,6 +169,16 @@ public class Inspection implements TenantScopedEntity {
     @Column(name = "resolution_options", columnDefinition = "TEXT")
     private String resolutionOptions;
 
+    /**
+     * The compliance rule this inspection was generated for, null on every manual
+     * inspection.
+     *
+     * <p>Carries a unique index across (organization_id, project_id, compliance_rule_ref)
+     * over the rows where it is set, so a project cannot hold two inspections for the same
+     * rule however many generation runs overlap. The index is partial and therefore lives
+     * only in changelog {@code 060}: JPA cannot express the {@code WHERE} clause, and
+     * without it every manual inspection's null would be indexed for nothing.
+     */
     @Column(name = "compliance_rule_ref", length = 100)
     private String complianceRuleRef;
 
