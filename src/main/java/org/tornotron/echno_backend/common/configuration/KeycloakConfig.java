@@ -60,6 +60,22 @@ public class KeycloakConfig {
                 .build();
     }
 
+    /**
+     * Builds a throwaway admin client that authenticates with the client-credentials grant as an
+     * arbitrary confidential client of the application realm. Used only to establish whether a given
+     * clientId/secret pair is the credential Keycloak currently validates, which is the check that
+     * distinguishes a drifted secret from a working one. The caller closes it.
+     */
+    public Keycloak buildClientCredentialsKeycloak(String clientId, String clientSecret) {
+        return KeycloakBuilder.builder()
+                .serverUrl(keycloakInitializerConfigurationProperties.getUrl())
+                .realm(keycloakInitializerConfigurationProperties.getApplicationRealm())
+                .clientId(clientId)
+                .clientSecret(clientSecret)
+                .grantType(OAuth2Constants.CLIENT_CREDENTIALS)
+                .build();
+    }
+
     public String getInitializerServiceClientId() {
         return initializerServiceClientId;
     }

@@ -442,8 +442,10 @@ public class KeycloakInitializer {
         }
     }
 
-    private void syncSingleClient(org.keycloak.representations.idm.ClientRepresentation clientFromConfig) {
+    void syncSingleClient(org.keycloak.representations.idm.ClientRepresentation clientFromConfig) {
         String clientId = clientFromConfig.getClientId();
+        // Read the configured secret before the representation is rewritten below.
+        String configuredSecret = clientFromConfig.getSecret();
         try {
             List<org.keycloak.representations.idm.ClientRepresentation> existingClients = admin.realm(REALM_ID).clients().findByClientId(clientId);
             if (existingClients.isEmpty()) {
@@ -454,16 +456,122 @@ public class KeycloakInitializer {
             org.keycloak.representations.idm.ClientRepresentation existingClient = existingClients.get(0);
             org.keycloak.admin.client.resource.ClientResource clientResource = admin.realm(REALM_ID).clients().get(existingClient.getId());
 
-            // Update fields from config on the existing client.
-            // We preserve the ID and Secret from the existing client so a rotated secret survives.
+            // Update fields from config on the existing client, keeping the live id.
             clientFromConfig.setId(existingClient.getId());
-            clientFromConfig.setSecret(existingClient.getSecret());
+            clientFromConfig.setSecret(resolveSecretForSync(clientId, configuredSecret, existingClient));
+            preserveUnsetCapabilities(clientFromConfig, existingClient);
 
             clientResource.update(clientFromConfig);
             log.info("Client '{}' configuration synced successfully.", clientId);
 
         } catch (Exception e) {
             log.error("Failed to sync client '{}': {}", clientId, e.getMessage());
+        }
+    }
+
+    /**
+     * Decides which secret a client sync should carry.
+     *
+     * <p>For every client except the backend one the live secret is preserved, so a secret rotated
+     * directly in Keycloak survives a deploy. That is a sound default wherever nothing outside
+     * Keycloak knows the value.
+     *
+     * <p>The backend client is the exception, because something outside Keycloak does know its
+     * value: {@code KeycloakGroupService} authenticates as this client with the configured secret on
+     * every employee-onboarding and org-role call. If Keycloak's stored copy drifts, the blanket
+     * preserve keeps the drift forever and those calls fail for every user. So the configured secret
+     * is proven the same way {@code verifyScoped} proves the initializer client: perform the real
+     * client_credentials grant. The configured value is pushed only when that grant fails, which
+     * leaves a deliberate rotation done through the vault working and repairs a drift automatically.
+     */
+    private String resolveSecretForSync(String clientId,
+                                        String configuredSecret,
+                                        org.keycloak.representations.idm.ClientRepresentation existingClient) {
+        if (!clientId.equals(appClientId)) {
+            return existingClient.getSecret();
+        }
+        if (configuredSecret == null || configuredSecret.isBlank()) {
+            log.warn("No secret configured for backend client '{}'; leaving the stored secret as it is. "
+                    + "Set keycloak.secret so a drifted secret can be repaired.", clientId);
+            return existingClient.getSecret();
+        }
+        if (clientCredentialsGrantSucceeds(clientId, configuredSecret)) {
+            log.info("Backend client '{}' accepted the configured secret; leaving the stored secret as it is.",
+                    clientId);
+            return existingClient.getSecret();
+        }
+        log.warn("Backend client '{}' rejected the configured secret (client_credentials returned "
+                + "unauthorized); restoring the configured secret onto the client so employee onboarding "
+                + "and org-role assignment keep working.", clientId);
+        return configuredSecret;
+    }
+
+    /**
+     * Performs the real client_credentials grant for a confidential client of the application realm
+     * and reports whether Keycloak accepted the secret. Mirrors {@link #verifyScoped(Keycloak)}: an
+     * assumption about a stored secret is worth nothing, so the grant is actually attempted.
+     */
+    private boolean clientCredentialsGrantSucceeds(String clientId, String secret) {
+        Keycloak probe = null;
+        try {
+            probe = keycloakConfig.buildClientCredentialsKeycloak(clientId, secret);
+            String token = probe.tokenManager().getAccessTokenString();
+            return token != null && !token.isBlank();
+        } catch (Exception e) {
+            // The message is the OAuth error (for example unauthorized_client), never the secret.
+            log.warn("client_credentials grant for '{}' did not succeed: {}", clientId, e.getMessage());
+            return false;
+        } finally {
+            closeQuietly(probe);
+        }
+    }
+
+    /**
+     * Copies onto {@code target} every capability flag the config representation leaves unset, taking
+     * the live client's value.
+     *
+     * <p>This exists because of a real outage. Keycloak's client update reads an absent boolean as
+     * false, so a representation that omits {@code authorizationServicesEnabled} does not leave it
+     * alone, it turns it OFF and deletes the client's resource server with it. Every authenticated
+     * request then fails until the backend is restarted and rebuilds the resource server. The same
+     * trap applies to {@code serviceAccountsEnabled}, which the client_credentials grant depends on:
+     * clearing it would break exactly the thing this reconcile is meant to protect. Whatever this
+     * class sends must therefore be a complete representation.
+     */
+    static void preserveUnsetCapabilities(org.keycloak.representations.idm.ClientRepresentation target,
+                                          org.keycloak.representations.idm.ClientRepresentation existing) {
+        if (target == null || existing == null) {
+            return;
+        }
+        if (target.getAuthorizationServicesEnabled() == null) {
+            target.setAuthorizationServicesEnabled(existing.getAuthorizationServicesEnabled());
+        }
+        if (target.isServiceAccountsEnabled() == null) {
+            target.setServiceAccountsEnabled(existing.isServiceAccountsEnabled());
+        }
+        if (target.isStandardFlowEnabled() == null) {
+            target.setStandardFlowEnabled(existing.isStandardFlowEnabled());
+        }
+        if (target.isDirectAccessGrantsEnabled() == null) {
+            target.setDirectAccessGrantsEnabled(existing.isDirectAccessGrantsEnabled());
+        }
+        if (target.isImplicitFlowEnabled() == null) {
+            target.setImplicitFlowEnabled(existing.isImplicitFlowEnabled());
+        }
+        if (target.isPublicClient() == null) {
+            target.setPublicClient(existing.isPublicClient());
+        }
+        if (target.isEnabled() == null) {
+            target.setEnabled(existing.isEnabled());
+        }
+        if (target.isBearerOnly() == null) {
+            target.setBearerOnly(existing.isBearerOnly());
+        }
+        if (target.isFrontchannelLogout() == null) {
+            target.setFrontchannelLogout(existing.isFrontchannelLogout());
+        }
+        if (target.getProtocol() == null) {
+            target.setProtocol(existing.getProtocol());
         }
     }
 
