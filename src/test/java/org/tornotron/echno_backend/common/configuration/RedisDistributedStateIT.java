@@ -18,9 +18,17 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+import org.tornotron.echno_backend.billing.enums.FeatureType;
+import org.tornotron.echno_backend.billing.enums.QuotaPeriod;
+import org.tornotron.echno_backend.billing.enums.SubscriptionStatus;
+import org.tornotron.echno_backend.billing.snapshot.PlanFeatureSnapshot;
+import org.tornotron.echno_backend.billing.snapshot.PlanSnapshot;
+import org.tornotron.echno_backend.billing.snapshot.SubscriptionSnapshot;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -106,6 +114,45 @@ class RedisDistributedStateIT {
         Cache.ValueWrapper fromReader = readerCache.get("user-42");
         assertThat(fromReader).isNotNull();
         assertThat(fromReader.get()).isEqualTo("premium-plan");
+    }
+
+    /**
+     * The {@code subscriptions} cache with the value it is sized for. A subscription snapshot is
+     * what the in-process cache holds, and moving it to the shared cache is what would make an
+     * eviction on one replica reach the others; that only works if the value survives Redis,
+     * which is the second reason the cache holds a snapshot and not the entity. Nothing about a
+     * detached entity graph with lazy proxies and a bidirectional plan-to-feature relation
+     * serializes.
+     *
+     * <p>It also pins the serializer configuration. The stock JSON value serializer has no
+     * {@code JavaTimeModule}, so it cannot write the period bounds this value is mostly made of,
+     * and the failure would only show the first time something real was cached.
+     */
+    @Test
+    void aSubscriptionSnapshotIsSharedAcrossTwoCacheManagersViaRedis() {
+        RedisCacheManager writerManager = redisConfig.cacheManager(newConnectionFactory());
+        writerManager.afterPropertiesSet();
+        RedisCacheManager readerManager = redisConfig.cacheManager(newConnectionFactory());
+        readerManager.afterPropertiesSet();
+
+        SubscriptionSnapshot snapshot = new SubscriptionSnapshot(
+                101L, 27L, SubscriptionStatus.TRIALING,
+                Instant.parse("2026-08-01T00:00:00Z"),
+                Instant.parse("2026-09-01T00:00:00Z"),
+                Instant.parse("2026-08-01T00:00:00Z"),
+                Instant.parse("2026-08-15T00:00:00Z"),
+                false, null, Instant.parse("2026-01-15T09:30:00Z"), null,
+                new PlanSnapshot(3L, "professional-monthly", "Professional", "For growing teams", 4,
+                        new BigDecimal("4999.00"), new BigDecimal("49990.00"), "INR",
+                        true, true, 14, 25, 2,
+                        List.of(new PlanFeatureSnapshot(7L, 9L, "report-export", "PDF Report Export",
+                                FeatureType.QUOTA, true, 500L, QuotaPeriod.MONTHLY))));
+
+        writerManager.getCache("subscriptions").put("subscription:27", snapshot);
+
+        Cache.ValueWrapper fromReader = readerManager.getCache("subscriptions").get("subscription:27");
+        assertThat(fromReader).isNotNull();
+        assertThat(fromReader.get()).isEqualTo(snapshot);
     }
 
     @Test

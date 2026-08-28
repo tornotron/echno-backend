@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.common.configuration;
 
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import lombok.extern.slf4j.Slf4j;
@@ -80,7 +82,7 @@ public class RedisConfig {
                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                         .fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(new GenericJackson2JsonRedisSerializer()));
+                        .fromSerializer(cacheValueSerializer()));
 
         Map<String, RedisCacheConfiguration> perCache = new HashMap<>();
         perCache.put("subscriptions", base.entryTtl(Duration.ofMinutes(5)));
@@ -89,6 +91,23 @@ public class RedisConfig {
                 .cacheDefaults(base)
                 .withInitialCacheConfigurations(perCache)
                 .build();
+    }
+
+    /**
+     * JSON serializer for cached values, with Java 8 date and time support registered.
+     *
+     * <p>The stock serializer's mapper has no {@code JavaTimeModule}, so it refuses to write an
+     * {@link java.time.Instant} at all. Every value worth caching here carries at least one:
+     * the subscription snapshot the {@code subscriptions} cache is sized for holds the billing
+     * period bounds and the trial window, which is exactly the state the entitlement flags are
+     * derived from. Dates are written as ISO-8601 strings rather than as numeric timestamps so
+     * an entry stays readable and keeps its precision.
+     */
+    private static GenericJackson2JsonRedisSerializer cacheValueSerializer() {
+        return new GenericJackson2JsonRedisSerializer()
+                .configure(mapper -> mapper
+                        .registerModule(new JavaTimeModule())
+                        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS));
     }
 
     /**
