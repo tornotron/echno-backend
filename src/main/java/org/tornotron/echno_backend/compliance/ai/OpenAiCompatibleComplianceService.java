@@ -1,15 +1,14 @@
 package org.tornotron.echno_backend.compliance.ai;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.tornotron.echno_backend.common.exception.ComplianceAiException;
 import org.tornotron.echno_backend.compliance.domain.ComplianceRule;
 import org.tornotron.echno_backend.project.Project;
 
@@ -25,18 +24,37 @@ import java.util.List;
  * default, or OpenAI, or a self-hosted OSS-model gateway), selected purely through
  * {@code compliance.ai.*} config.
  *
- * <p>The service is deliberately fail-soft: it never throws into the approval flow.
- * If the AI is disabled, has no API key, or the call/parse fails, it logs and
- * returns an empty list, and the caller generates nothing for that project (a
- * manual regenerate can be retried once the key is set).
+ * <h2>What an empty result means, and what it no longer means</h2>
+ *
+ * <p>The service stays fail-soft about being switched off: with the AI disabled, with no
+ * API key, or with no candidate rules it returns an empty list and the caller generates
+ * nothing. Those are configuration states rather than failures, and they must not break
+ * project approval.
+ *
+ * <p>Every other outcome now raises {@link ComplianceAiException}. An empty list used to
+ * stand for the call failing, the response being cut short by the token cap and the JSON
+ * failing to parse as well, so the worst outcome available (the rule catalogue outgrows
+ * the token budget, and from then on every run produces nothing) reached the user as a
+ * successful run in which no compliances happened to apply. A model that assessed every
+ * rule and found none applicable answers with one element per rule carrying
+ * {@code applies: false}, never with an empty array, so nothing legitimate is lost by
+ * treating an empty or short answer as a failure.
+ *
+ * <p>{@link ComplianceResponseReader} holds the checks that decide this, and its javadoc
+ * explains how a truncated answer is recognised from the response alone.
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class OpenAiCompatibleComplianceService {
 
     private final ComplianceAiProperties props;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ComplianceResponseReader responseReader;
+
+    public OpenAiCompatibleComplianceService(ComplianceAiProperties props) {
+        this.props = props;
+        this.responseReader = new ComplianceResponseReader(objectMapper, props.getMaxTokens());
+    }
 
     /**
      * Whether the AI service is switched on and has an API key, decided purely from
@@ -48,9 +66,14 @@ public class OpenAiCompatibleComplianceService {
     }
 
     /**
-     * Asks the model which of the candidate rules apply to the project. Returns one
-     * suggestion per rule the model reasoned about; an empty list means "generate
-     * nothing" (either the AI is off/unconfigured or the call failed).
+     * Asks the model which of the candidate rules apply to the project, returning one
+     * suggestion per candidate rule.
+     *
+     * <p>Returns an empty list only when there was nothing to ask: the AI is disabled or
+     * unconfigured, or there are no candidate rules.
+     *
+     * @throws ComplianceAiException when the call failed, or the answer was cut short,
+     *                               unparseable, or did not cover every candidate rule
      */
     public List<ComplianceSuggestion> suggestCompliances(Project project,
                                                          String state,
@@ -64,6 +87,17 @@ public class OpenAiCompatibleComplianceService {
             return List.of();
         }
 
+        String responseJson = callModel(project, state, candidateRules);
+        return responseReader.read(responseJson, candidateRules);
+    }
+
+    /**
+     * Issues the chat completion and returns the raw response body. Every way the call
+     * itself can fail (a connect or read timeout, a proxy refusing, a 4xx or 5xx from the
+     * endpoint) arrives here and leaves as a {@link ComplianceAiException}, so the caller
+     * is told the run failed instead of being handed an empty result to interpret.
+     */
+    private String callModel(Project project, String state, List<ComplianceRule> candidateRules) {
         try {
             String systemPrompt = buildSystemPrompt();
             String userPrompt = buildUserPrompt(project, state, candidateRules);
@@ -75,7 +109,7 @@ public class OpenAiCompatibleComplianceService {
                     .baseUrl(props.getBaseUrl())
                     .build();
 
-            String responseJson = client.post()
+            return client.post()
                     .uri("/chat/completions")
                     .header("Authorization", "Bearer " + props.getApiKey())
                     .contentType(MediaType.APPLICATION_JSON)
@@ -83,12 +117,11 @@ public class OpenAiCompatibleComplianceService {
                     .body(requestBody)
                     .retrieve()
                     .body(String.class);
-
-            String responseText = extractText(responseJson);
-            return parseSuggestions(responseText);
         } catch (Exception e) {
-            log.error("Compliance AI call failed for project {}: {}", project.getId(), e.getMessage());
-            return List.of();
+            log.error("Compliance AI call failed for project {}: {}", project.getId(), e.getMessage(), e);
+            throw new ComplianceAiException(
+                    "The compliance AI service could not be reached or returned an error, so no "
+                            + "compliances were generated. Try again in a moment. (" + e.getMessage() + ")", e);
         }
     }
 
@@ -131,7 +164,9 @@ public class OpenAiCompatibleComplianceService {
     private String buildSystemPrompt() {
         return "You are a construction-compliance assistant for India. Decide which statutory "
                 + "compliances apply to a construction project, reasoning ONLY over the candidate "
-                + "rules provided. Do not invent compliances outside this list.";
+                + "rules provided. Do not invent compliances outside this list. Assess every rule "
+                + "you are given, including the ones that do not apply, and keep each rationale to "
+                + "one short sentence so the whole answer fits within the response limit.";
     }
 
     private String buildUserPrompt(Project project, String state, List<ComplianceRule> rules) {
@@ -166,7 +201,9 @@ public class OpenAiCompatibleComplianceService {
                 .append("\"resolutionOptions\": array of short strings, ")
                 .append("\"rationale\": short string, ")
                 .append("\"phase\": one of [pre-construction, ongoing, post-construction]}. ")
-                .append("Include one element for every candidate rule.");
+                .append("Include one element for every candidate rule: the array must hold exactly ")
+                .append(rules.size())
+                .append(" elements, one per ruleCode listed above, and none may be omitted.");
         return sb.toString();
     }
 
@@ -175,34 +212,5 @@ public class OpenAiCompatibleComplianceService {
             return "";
         }
         return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ");
-    }
-
-    /** Pulls the assistant text out of {@code choices[0].message.content}. */
-    private String extractText(String responseJson) throws Exception {
-        if (responseJson == null || responseJson.isBlank()) {
-            return "";
-        }
-        JsonNode root = objectMapper.readTree(responseJson);
-        JsonNode content = root.path("choices").path(0).path("message").path("content");
-        return content.isTextual() ? content.asText() : "";
-    }
-
-    /**
-     * Parses the model's response into suggestions. Tolerates the model wrapping the
-     * array in prose or code fences by slicing from the first '[' to the last ']'.
-     */
-    private List<ComplianceSuggestion> parseSuggestions(String responseText) throws Exception {
-        if (responseText == null || responseText.isBlank()) {
-            return List.of();
-        }
-        int start = responseText.indexOf('[');
-        int end = responseText.lastIndexOf(']');
-        if (start < 0 || end <= start) {
-            log.warn("Compliance AI response contained no JSON array; got: {}", responseText);
-            return List.of();
-        }
-        String json = responseText.substring(start, end + 1);
-        ComplianceSuggestion[] parsed = objectMapper.readValue(json, ComplianceSuggestion[].class);
-        return List.of(parsed);
     }
 }

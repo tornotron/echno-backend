@@ -12,7 +12,7 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
-import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.compliance.ai.OpenAiCompatibleComplianceService;
 import org.tornotron.echno_backend.compliance.repository.ComplianceRuleRepository;
 import org.tornotron.echno_backend.inspection.mapper.InspectionMapper;
@@ -25,12 +25,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
@@ -60,20 +62,25 @@ class ComplianceGenerationServiceTest {
     @Mock
     private InspectionMapper inspectionMapper;
     @Mock
-    private TransactionalWorkRunner workRunner;
+    private TransactionRetryTemplate retryTemplate;
 
     @InjectMocks
     private ComplianceGenerationService service;
 
     /**
-     * The runner is the transaction boundary in production; here it only has to run the
-     * block it is handed, so the phase split is exercised without a database. Every test
-     * reaches at least the read phase, so this stub is always used.
+     * The retry template is the transaction boundary in production; here it only has to run
+     * the block it is handed, so the phase split is exercised without a database. The read
+     * phase every test reaches uses the two-argument form; the write phase uses the form
+     * that also nominates a unique violation as retryable, and only the tests that get past
+     * the model call reach it, so that stub is lenient.
      */
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void runWorkInline() {
-        when(workRunner.runInTransaction(any()))
-                .thenAnswer(invocation -> invocation.getArgument(0, Supplier.class).get());
+        when(retryTemplate.execute(anyString(), any(Supplier.class)))
+                .thenAnswer(invocation -> invocation.getArgument(1, Supplier.class).get());
+        lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
+                .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
     }
 
     private Project project(ProjectType type, String address) {
@@ -178,7 +185,7 @@ class ComplianceGenerationServiceTest {
      * external model call measured at 34 to 47 seconds. A {@code @Transactional} here would
      * put that call back inside a transaction and pin one of twenty pool connections for
      * its duration. The two transactions belong to the read and write phases, which reach
-     * them through {@code TransactionalWorkRunner}.
+     * them through {@code TransactionRetryTemplate}.
      */
     @Test
     @MockitoSettings(strictness = Strictness.LENIENT)

@@ -7,7 +7,8 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
-import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
+import org.tornotron.echno_backend.common.retry.SqlStateDetector;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.compliance.ai.OpenAiCompatibleComplianceService;
 import org.tornotron.echno_backend.compliance.ai.ComplianceSuggestion;
 import org.tornotron.echno_backend.compliance.domain.ComplianceRule;
@@ -44,6 +45,33 @@ import java.util.stream.Collectors;
  * only adds compliances that are missing. The document number series is shared with
  * manual inspections ({@code INSP}).
  *
+ * <h2>How that idempotence survives two runs at once</h2>
+ *
+ * <p>The skip is an ordinary read, and a read cannot be the guarantee: two overlapping
+ * runs both see "no such row" and both insert. They do not conflict in the database's
+ * eyes either, because each inserts a different row (its own id, its own inspection
+ * number), so {@code SERIALIZABLE} has nothing to abort. Two clicks on regenerate, or a
+ * regenerate started while approval's automatic run is still going, produced two
+ * compliance inspections for the same rule.
+ *
+ * <p>The guarantee is therefore in the schema: a unique index on
+ * {@code (organization_id, project_id, compliance_rule_ref)} over the rows that carry a
+ * rule reference (changelog {@code 060}). The loser of the race has its insert rejected
+ * rather than duplicated.
+ *
+ * <p>The rejection cannot be caught per rule and skipped. Calling {@code save} does not
+ * send the insert; Hibernate holds it until it next has to flush, which is the following
+ * rule's existence query or the commit, so by the time the constraint speaks the loop has
+ * moved on from the rule it is about. And wherever the failure lands, a failed statement
+ * leaves the transaction unusable, so there is nothing left to continue into either. The
+ * write phase is instead run through
+ * {@link TransactionRetryTemplate} with the unique violation nominated as retryable: the
+ * whole phase restarts, and on the restart the existence check reads the row the other
+ * run has now committed and skips it, which was the intended outcome all along. The
+ * request answers 200 with whatever this run genuinely created, and the user never learns
+ * there was a race. Only a run that keeps losing until its attempts are gone surfaces a
+ * 409, which is the honest answer at that point.
+ *
  * <h2>Why this class owns no transaction of its own</h2>
  *
  * <p>The model call takes 34 to 47 seconds today and grows with the size of the curated
@@ -53,8 +81,9 @@ import java.util.stream.Collectors;
  * three phases: read the inputs in one transaction, call the model with no transaction
  * and no connection held, then persist in a second transaction.
  *
- * <p>Both transactions are opened by calling {@link TransactionalWorkRunner}, and that
- * choice is load bearing rather than stylistic. {@code HibernateFilterConfig} advises
+ * <p>Both transactions are opened by calling {@link TransactionRetryTemplate}, which opens
+ * them through {@code TransactionalWorkRunner}, and that choice is load bearing rather
+ * than stylistic. {@code HibernateFilterConfig} advises
  * {@code @Transactional} methods in this package tree to enable the {@code orgFilter}
  * tenant filter on the session. A programmatic {@code TransactionTemplate} carries no
  * such annotation, so splitting the boundary that way would have run both phases with
@@ -79,7 +108,7 @@ public class ComplianceGenerationService {
     private final EntryNumberGenerator numberGen;
     private final TenantEntityHelper tenantEntityHelper;
     private final InspectionMapper inspectionMapper;
-    private final TransactionalWorkRunner workRunner;
+    private final TransactionRetryTemplate retryTemplate;
 
     /**
      * What the read phase hands to the phases after it. The entities are detached once the
@@ -111,24 +140,36 @@ public class ComplianceGenerationService {
      * @param orgId     the owning organization; must match the current tenant context
      */
     public List<InspectionDto> generateForProject(Long projectId, Long orgId) {
-        GenerationInputs inputs = workRunner.runInTransaction(() -> loadInputs(projectId, orgId));
+        GenerationInputs inputs = retryTemplate.execute(
+                "ComplianceGenerationService.loadInputs", () -> loadInputs(projectId, orgId));
 
         // Outside any transaction: this is the 34 to 47 second call, and it must not be
         // holding a pool connection while it waits.
         List<ComplianceSuggestion> suggestions = complianceAiService.suggestCompliances(
                 inputs.project(), inputs.state(), inputs.candidateRules());
 
+        // An empty list now means only "there was nothing to ask": the AI service raises a
+        // ComplianceAiException for a call that failed or answered with something unusable,
+        // rather than returning empty and letting a truncated response read as a clean run
+        // in which nothing applied. A model that assessed every rule and found none
+        // applicable still returns one element per rule.
         if (suggestions.isEmpty()) {
             if (!complianceAiService.isConfigured()) {
                 throw new InvalidRequestException(
                         "The compliance AI service is not configured, so suggestions cannot be "
                                 + "generated. Set the compliance AI key and try again.");
             }
-            log.info("Compliance AI returned no suggestions for project {}", projectId);
+            log.info("Compliance AI had nothing to assess for project {}", projectId);
             return List.of();
         }
 
-        return workRunner.runInTransaction(() -> persist(projectId, orgId, inputs, suggestions));
+        // Restarted on a unique violation as well as on a serialization abort: losing the
+        // race to another run is exactly the case the retry resolves, because the second
+        // attempt's existence check sees the row the winner committed.
+        return retryTemplate.execute(
+                "ComplianceGenerationService.persist",
+                failure -> SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION),
+                () -> persist(projectId, orgId, inputs, suggestions));
     }
 
     /**
@@ -181,6 +222,13 @@ public class ComplianceGenerationService {
      * inspection. The document-number sequence is locked here, inside the second
      * transaction, so it is held for the length of a few inserts rather than the length of
      * the model call.
+     *
+     * <p>Written to be safe to run from the start again, because the caller restarts it on
+     * a conflict: it holds no state across attempts, re-reads what already exists, and
+     * returns a list built fresh each time. Nothing outside the database has changed by the
+     * time a conflict can surface, which is the condition the retry template asks for. A restart re-draws document numbers, so an
+     * abandoned attempt leaves a gap in the {@code INSP} series; the series is a
+     * human-readable identifier and not a count, so a gap costs nothing.
      */
     private List<InspectionDto> persist(Long projectId,
                                         Long orgId,
@@ -205,6 +253,9 @@ public class ComplianceGenerationService {
         for (ComplianceSuggestion suggestion : ordered) {
             ComplianceRule rule = rulesByCode.get(suggestion.ruleCode());
 
+            // The fast path, and the one that makes a restarted attempt converge. It is not
+            // the guarantee: the unique index from changelog 060 is, and it is what a run
+            // that raced past this check collides with. See the class javadoc.
             if (inspectionRepository.existsByProjectIdAndComplianceRuleRefAndOrganization_Id(
                     projectId, rule.getCode(), orgId)) {
                 log.debug("Compliance {} already exists for project {}; skipping", rule.getCode(), projectId);

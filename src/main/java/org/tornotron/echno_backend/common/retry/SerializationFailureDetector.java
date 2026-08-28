@@ -14,19 +14,14 @@ import java.sql.SQLException;
  * the code varies between versions and carries transaction ids and node addresses, so matching
  * on it is brittle in exactly the situation where a false negative costs the user their write.
  *
- * <p>By the time the failure reaches application code Spring has wrapped it, typically as a
- * {@code CannotAcquireLockException} over a Hibernate exception over the driver's
- * {@link SQLException}, so the cause chain has to be walked. {@code SQLException} also keeps its
- * siblings on a second chain of its own ({@link SQLException#getNextException()}), which the
- * PostgreSQL driver uses for batch failures, so that chain is followed too.
+ * <p>Walking the wrapped exception to find that state is {@link SqlStateDetector}'s job, since
+ * the same walk serves any SQLSTATE; see its javadoc for why both the cause chain and
+ * {@link SQLException#getNextException()} have to be followed.
  */
 public final class SerializationFailureDetector {
 
     /** SQLSTATE class 40, code 001: serialization failure. */
-    public static final String SERIALIZATION_FAILURE_SQL_STATE = "40001";
-
-    /** Guards against a cause chain that loops back on itself. */
-    private static final int MAX_CHAIN_DEPTH = 32;
+    public static final String SERIALIZATION_FAILURE_SQL_STATE = SqlStateDetector.SERIALIZATION_FAILURE;
 
     private SerializationFailureDetector() {
     }
@@ -36,26 +31,6 @@ public final class SerializationFailureDetector {
      * caller may safely run again.
      */
     public static boolean isSerializationFailure(Throwable throwable) {
-        Throwable current = throwable;
-        for (int depth = 0; current != null && depth < MAX_CHAIN_DEPTH; depth++) {
-            if (current instanceof SQLException sqlException && carriesSerializationState(sqlException)) {
-                return true;
-            }
-            Throwable cause = current.getCause();
-            current = (cause == current) ? null : cause;
-        }
-        return false;
-    }
-
-    private static boolean carriesSerializationState(SQLException sqlException) {
-        SQLException current = sqlException;
-        for (int depth = 0; current != null && depth < MAX_CHAIN_DEPTH; depth++) {
-            if (SERIALIZATION_FAILURE_SQL_STATE.equals(current.getSQLState())) {
-                return true;
-            }
-            SQLException next = current.getNextException();
-            current = (next == current) ? null : next;
-        }
-        return false;
+        return SqlStateDetector.carriesSqlState(throwable, SERIALIZATION_FAILURE_SQL_STATE);
     }
 }

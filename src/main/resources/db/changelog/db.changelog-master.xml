@@ -313,4 +313,7 @@
     <!-- v4.0 - Inspection QA/QC: non-conformance reports and their assignment and closure trail -->
     <include file="db/changelog/v4.0/059-create-ncrs.xml"/>
 
+    <!-- v4.0 - Compliance: one inspection per rule per project, enforced in the schema -->
+    <include file="db/changelog/v4.0/060-compliance-inspection-rule-ref-unique.xml"/>
+
 </databaseChangeLog>

@@ -10,11 +10,14 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.tornotron.echno_backend.common.exception.TransactionRetriesExhaustedException;
 
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
  * Runs a unit of work in a transaction and starts it over when the database aborts it with a
- * serialization failure (SQLSTATE {@code 40001}).
+ * serialization failure (SQLSTATE {@code 40001}), or with any other conflict the call site
+ * nominates as one a fresh attempt resolves (see
+ * {@link #execute(String, java.util.function.Predicate, Supplier)}).
  *
  * <p>Under {@code SERIALIZABLE} an abort is the database telling the client that its snapshot
  * no longer holds and the whole transaction has to run again. Retrying a statement inside the
@@ -124,6 +127,27 @@ public class TransactionRetryTemplate {
      * @throws TransactionRetriesExhaustedException when every attempt was aborted
      */
     public <T> T execute(String operation, Supplier<T> work) {
+        return execute(operation, failure -> false, work);
+    }
+
+    /**
+     * As {@link #execute(String, Supplier)}, but also restarts the transaction when
+     * {@code alsoRestartOn} recognises the failure.
+     *
+     * <p>A serialization abort is not the only failure a fresh attempt resolves. Work made
+     * idempotent by a check-then-write against a unique constraint loses the race the same
+     * way: the check passes, a concurrent transaction commits the row, and this one's
+     * insert is rejected by the constraint (SQLSTATE {@code 23505},
+     * {@link SqlStateDetector#UNIQUE_VIOLATION}). The second attempt's check now sees the
+     * committed row and skips it, which is the outcome the caller wanted, so the request
+     * succeeds instead of answering 500 for a duplicate the user never asked to create.
+     *
+     * <p>The predicate is per call site rather than built in because a duplicate key is
+     * usually a permanent error: retrying one that a fresh read cannot resolve only delays
+     * the failure and reports it as a conflict instead of as itself. Pass a predicate only
+     * for work whose first act is to re-read the state the conflict changed.
+     */
+    public <T> T execute(String operation, Predicate<Throwable> alsoRestartOn, Supplier<T> work) {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             // A caller already owns the transaction, so there is no boundary here to restart:
             // an abort dooms their transaction, not one of ours. Run the work once and let the
@@ -136,16 +160,17 @@ public class TransactionRetryTemplate {
             try {
                 return runner.runInTransaction(work);
             } catch (RuntimeException failure) {
-                if (!SerializationFailureDetector.isSerializationFailure(failure)) {
+                if (!SerializationFailureDetector.isSerializationFailure(failure)
+                        && !alsoRestartOn.test(failure)) {
                     throw failure;
                 }
                 lastFailure = failure;
                 if (attempt == maxAttempts) {
                     break;
                 }
-                counter(ATTEMPTS_METRIC, "Transactions restarted after a database serialization failure",
+                counter(ATTEMPTS_METRIC, "Transactions restarted after a retryable database conflict",
                         operation).increment();
-                logger.info("Serialization failure on {}, restarting the transaction (attempt {} of {})",
+                logger.info("Retryable database conflict on {}, restarting the transaction (attempt {} of {})",
                         operation, attempt + 1, maxAttempts);
                 if (!backOff(attempt)) {
                     throw failure;
@@ -153,9 +178,9 @@ public class TransactionRetryTemplate {
             }
         }
 
-        counter(EXHAUSTED_METRIC, "Units of work abandoned after using up their serialization retries",
+        counter(EXHAUSTED_METRIC, "Units of work abandoned after using up their conflict retries",
                 operation).increment();
-        logger.warn("Gave up on {} after {} serialization failures", operation, maxAttempts, lastFailure);
+        logger.warn("Gave up on {} after {} database conflicts", operation, maxAttempts, lastFailure);
         throw new TransactionRetriesExhaustedException(
                 "The operation kept colliding with a concurrent change and was abandoned after "
                         + maxAttempts + " attempts", lastFailure);
