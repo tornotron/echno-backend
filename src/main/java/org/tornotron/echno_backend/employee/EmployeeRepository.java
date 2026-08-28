@@ -109,4 +109,23 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
             @Param("status") EmployeeStatus status,
             @Param("department") String department,
             Pageable pageable);
+
+    /**
+     * Paginated employee search for the picker feed, which any tenant member may
+     * read. Deliberately narrower than {@link #search}: it matches only the two
+     * fields a picker displays, the employee name and the human-facing employee
+     * id, and not the email or phone number. Matching a contact detail would let
+     * any member confirm a guessed address or number against a returned identity,
+     * which is a lookup the picker has no use for. The caller passes {@code search}
+     * already lower-cased and wrapped in {@code %} wildcards (or null); see
+     * {@link #search} for why the pattern is built in Java. The tenant orgFilter
+     * still applies.
+     */
+    @Query("""
+            SELECT e FROM Employee e WHERE
+              (:search IS NULL
+                 OR LOWER(e.employeeName) LIKE :search
+                 OR LOWER(e.employeeId) LIKE :search)
+            """)
+    Page<Employee> searchForLookup(@Param("search") String search, Pageable pageable);
 }

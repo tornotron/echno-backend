@@ -227,7 +227,12 @@ public class EmployeeService {
      * show. The limit is clamped to {@link UnpagedResultCap#MAX_ROWS} so no caller can
      * ask for the whole table by passing a large number.
      *
-     * @param search Case-insensitive substring matched against name, email, phone or the
+     * <p>The search matches only what the picker displays, the name and the human-facing
+     * employee id. It deliberately does not match email or phone, which the restricted
+     * listing does: matching a contact detail would turn a feed any member may read into
+     * a way of confirming a guessed address or number against a returned identity.
+     *
+     * @param search Case-insensitive substring matched against the employee name or the
      *               human-facing employee id, or null for no filter.
      * @param limit  Most rows to return, clamped to at least one and at most
      *               {@link UnpagedResultCap#MAX_ROWS}.
@@ -239,7 +244,7 @@ public class EmployeeService {
         int size = Math.min(Math.max(limit, 1), UnpagedResultCap.MAX_ROWS);
         Pageable pageable = PageRequest.of(0, size, Sort.by(Sort.Direction.ASC, "employeeName"));
         String searchTerm = (search == null || search.isBlank()) ? null : "%" + search.trim().toLowerCase() + "%";
-        return employeeRepository.search(searchTerm, null, null, pageable)
+        return employeeRepository.searchForLookup(searchTerm, pageable)
                 .map(employee -> new EmployeeLookupDto(
                         employee.getId(),
                         employee.getEmployeeId(),

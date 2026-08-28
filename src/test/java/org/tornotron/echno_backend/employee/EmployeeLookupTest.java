@@ -15,6 +15,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -42,19 +43,19 @@ class EmployeeLookupTest {
 
     private Pageable capturePageable() {
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(employeeRepository).search(any(), any(), any(), pageable.capture());
+        verify(employeeRepository).searchForLookup(any(), pageable.capture());
         return pageable.getValue();
     }
 
     private String captureSearchPattern() {
         ArgumentCaptor<String> pattern = ArgumentCaptor.forClass(String.class);
-        verify(employeeRepository).search(pattern.capture(), any(), any(), any());
+        verify(employeeRepository).searchForLookup(pattern.capture(), any());
         return pattern.getValue();
     }
 
     @Test
     void aLimitAboveTheCapIsClampedToIt() {
-        when(employeeRepository.search(any(), any(), any(), any())).thenReturn(Page.empty());
+        when(employeeRepository.searchForLookup(any(), any())).thenReturn(Page.empty());
 
         service().lookupEmployees(null, 100_000);
 
@@ -63,7 +64,7 @@ class EmployeeLookupTest {
 
     @Test
     void aLimitBelowOneIsRaisedToOne() {
-        when(employeeRepository.search(any(), any(), any(), any())).thenReturn(Page.empty());
+        when(employeeRepository.searchForLookup(any(), any())).thenReturn(Page.empty());
 
         service().lookupEmployees(null, 0);
 
@@ -72,7 +73,7 @@ class EmployeeLookupTest {
 
     @Test
     void theFeedAlwaysReadsTheFirstPage() {
-        when(employeeRepository.search(any(), any(), any(), any())).thenReturn(Page.empty());
+        when(employeeRepository.searchForLookup(any(), any())).thenReturn(Page.empty());
 
         service().lookupEmployees("mason", 25);
 
@@ -83,7 +84,7 @@ class EmployeeLookupTest {
 
     @Test
     void aBlankSearchLeavesTheFilterOff() {
-        when(employeeRepository.search(isNull(), any(), any(), any())).thenReturn(Page.empty());
+        when(employeeRepository.searchForLookup(isNull(), any())).thenReturn(Page.empty());
 
         service().lookupEmployees("   ", 50);
 
@@ -92,7 +93,7 @@ class EmployeeLookupTest {
 
     @Test
     void aSearchTermIsLowercasedAndWrapped() {
-        when(employeeRepository.search(any(), any(), any(), any())).thenReturn(Page.empty());
+        when(employeeRepository.searchForLookup(any(), any())).thenReturn(Page.empty());
 
         service().lookupEmployees("  Mason  ", 50);
 
@@ -100,12 +101,15 @@ class EmployeeLookupTest {
     }
 
     @Test
-    void theStatusAndDepartmentFiltersStayOff() {
-        when(employeeRepository.search(any(), isNull(), isNull(), any())).thenReturn(Page.empty());
+    void theFeedDoesNotSearchContactDetails() {
+        when(employeeRepository.searchForLookup(any(), any())).thenReturn(Page.empty());
 
         service().lookupEmployees("mason", 50);
 
-        verify(employeeRepository).search(any(), isNull(), isNull(), any());
+        // The restricted listing's search also matches email and phone. This feed is
+        // readable by any tenant member, so it must not become a way of confirming a
+        // guessed contact detail against a returned identity.
+        verify(employeeRepository, never()).search(any(), any(), any(), any());
     }
 
     @Test
@@ -115,7 +119,7 @@ class EmployeeLookupTest {
         employee.setEmployeeId("EMP-007");
         employee.setEmployeeName("Mason");
         employee.setDesignation("Site engineer");
-        when(employeeRepository.search(any(), any(), any(), any()))
+        when(employeeRepository.searchForLookup(any(), any()))
                 .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(employee)));
 
         Page<EmployeeLookupDto> page = service().lookupEmployees(null, 50);

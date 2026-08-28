@@ -97,7 +97,7 @@ public class EmployeeControllerWeb {
             summary = "List employees for pickers",
             description = "Returns a minimal, non-sensitive list of employees (id and name) for "
                     + "populating selection widgets. Narrow the feed with search, which matches "
-                    + "name, email, phone or the employee id, and size it with limit, which is "
+                    + "the employee name or the employee id, and size it with limit, which is "
                     + "capped at 500. X-Total-Count carries the true match count and "
                     + "X-Result-Capped is set when rows were left out. Readable by any tenant member."
     )
