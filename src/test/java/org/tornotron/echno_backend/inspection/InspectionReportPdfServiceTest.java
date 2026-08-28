@@ -19,6 +19,7 @@ import org.tornotron.echno_backend.project.ProjectService;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -77,6 +78,10 @@ class InspectionReportPdfServiceTest {
 
         assertThat(report.documentName()).isEqualTo("INSP-2026-0001");
         assertThat(new String(report.content(), 0, 5)).startsWith("%PDF-");
+        // the photograph really was embedded, not silently dropped: a data URI the
+        // renderer could not read would still produce a perfectly valid PDF
+        assertThat(new String(report.content(), StandardCharsets.ISO_8859_1))
+                .contains("/Subtype /Image");
     }
 
     @Test
