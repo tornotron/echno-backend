@@ -55,6 +55,26 @@ public final class IndianStateResolver {
                 "'" + trimmed + "' is not an Indian state or union territory");
     }
 
+    /**
+     * The state a project's compliance rules are keyed by: its own state field where it has one,
+     * and otherwise whatever its free-text address happens to name.
+     *
+     * <p>Both the approval gate that refuses a project with no determinable state and the
+     * generation that runs straight afterwards resolve it through here, so the gate cannot admit
+     * a project that generation would then turn away, and cannot refuse one that generation
+     * would have handled.
+     *
+     * @param projectState The project's own state field, canonical or blank.
+     * @param projectAddress The project's free-text address, scanned only when the field is blank.
+     * @return The canonical state name, or null when neither route yields one.
+     */
+    public static String forProject(String projectState, String projectAddress) {
+        if (projectState != null && !projectState.isBlank()) {
+            return projectState;
+        }
+        return resolve(projectAddress);
+    }
+
     /** The canonical state name found in the address, or null if none matches. */
     static String resolve(String address) {
         if (address == null || address.isBlank()) {
