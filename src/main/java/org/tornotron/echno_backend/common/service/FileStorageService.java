@@ -243,10 +243,17 @@ public class FileStorageService {
     /**
      * Reads an object back into memory, refusing anything above a size limit.
      *
-     * <p>The size is checked with a HEAD before the body is fetched, so an
-     * oversized object costs one metadata round trip rather than the transfer.
-     * Callers that embed objects in a rendered document need that: the limit is
-     * what stops one large site photo from deciding how much heap a report takes.
+     * <p>The size is checked with a HEAD first, so an object that is obviously too
+     * large costs one metadata round trip rather than the transfer. The HEAD alone
+     * is not the limit though: the object can be replaced between the two calls, and
+     * a cap that a race can exceed is not a cap. The GET therefore asks for one byte
+     * more than the limit and the returned length is checked again. Both halves are
+     * needed, and neither is redundant: the range bounds what can be allocated, and
+     * the length check is what turns an oversized object into a refusal instead of a
+     * truncated file the caller would render as a corrupt image.
+     *
+     * <p>Callers that embed objects in a rendered document depend on this: the limit
+     * is what stops one large site photo from deciding how much heap a report takes.
      *
      * @param key      Key of the object to read.
      * @param maxBytes Largest object to fetch. An object at or below this is
@@ -265,9 +272,20 @@ public class FileStorageService {
             }
 
             ResponseBytes<GetObjectResponse> object = s3Client.getObjectAsBytes(
-                    GetObjectRequest.builder().bucket(bucketName).key(key).build());
-            return Optional.of(new StoredObject(
-                    key, object.response().contentType(), object.asByteArray()));
+                    GetObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(key)
+                            // One past the cap, so an object that grew between the
+                            // HEAD and here comes back one byte too long and is
+                            // refused below rather than silently truncated.
+                            .range("bytes=0-" + maxBytes)
+                            .build());
+
+            byte[] content = object.asByteArray();
+            if (content.length > maxBytes) {
+                return Optional.empty();
+            }
+            return Optional.of(new StoredObject(key, object.response().contentType(), content));
         } catch (NoSuchKeyException e) {
             return Optional.empty();
         } catch (SdkException e) {

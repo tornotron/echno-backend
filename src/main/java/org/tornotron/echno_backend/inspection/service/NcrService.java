@@ -158,13 +158,22 @@ public class NcrService {
         return save(ncr, "verified");
     }
 
-    /** Re-inspected and not accepted: it goes back to the site engineer. */
+    /**
+     * Re-inspected and not accepted: it goes back to the site engineer.
+     *
+     * <p>Stamps the same three fields an acceptance does. They record the last
+     * re-inspection decision rather than an acceptance, and a rejection is one:
+     * leaving the time behind would either show a rejecting engineer with no date,
+     * or, on a report that had been accepted and reopened once already, show the
+     * rejection against the date of the earlier acceptance.
+     */
     @Transactional
     public NcrDto reject(UUID id, String remarks) {
         Ncr ncr = require(id);
         transition(ncr, NcrStatus.REJECTED);
         ncr.setVerificationRemarks(remarks);
         ncr.setVerifiedById(currentEmployeeId());
+        ncr.setVerifiedAt(LocalDateTime.now());
         return save(ncr, "rejected on re-inspection");
     }
 

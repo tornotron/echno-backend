@@ -300,6 +300,32 @@ class NcrServiceIT extends AbstractIntegrationTest {
         assertThat(reassigned.siteEngineerId()).isEqualTo(siteEngineerId);
     }
 
+    /**
+     * A rejection is a re-inspection decision, so it stamps the same fields an
+     * acceptance does. Without the time, a rejected report renders a re-inspector
+     * and no date; worse, on a report that had already been accepted and reopened
+     * once, it renders the rejection against the date of that earlier acceptance.
+     */
+    @Test
+    void aRejectionIsStampedLikeTheAcceptanceItRefuses() {
+        UUID id = assignedNcr();
+        service.markCorrectiveActionComplete(id, "Done");
+
+        NcrDto accepted = service.verify(id, "Accepted");
+        LocalDateTime acceptedAt = accepted.verifiedAt();
+        assertThat(acceptedAt).isNotNull();
+
+        service.reopen(id, "Same honeycombing found again");
+        service.assign(id, new AssignNcrRequest(siteEngineerId, null));
+        service.markCorrectiveActionComplete(id, "Done again");
+        NcrDto rejected = service.reject(id, "Cover still short at grid C5");
+
+        assertThat(rejected.verifiedAt())
+                .as("the rejection carries its own time, not the earlier acceptance's")
+                .isNotNull()
+                .isAfter(acceptedAt);
+    }
+
     @Test
     void reopeningAClosedReportClearsItsClosure() {
         UUID id = assignedNcr();
