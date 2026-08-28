@@ -1,12 +1,14 @@
 package org.tornotron.echno_backend.issue.dto;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import org.tornotron.echno_backend.issue.enums.IssueStatus;
 
 @Data
 public class IssueCreationDto {
@@ -34,9 +36,19 @@ public class IssueCreationDto {
     @JsonAlias("issueType")
     private String type;
 
-    @NotNull
-    @Enumerated(EnumType.STRING)
-    private String status;
+    /**
+     * The state the issue starts in. Optional, and {@code open} is the only value accepted:
+     * raising an issue is open to every member of the tenant, while moving one is not, so any
+     * other starting value would be a state the same caller could not have reached by asking
+     * for it. See {@code IssueService.addIssue}.
+     */
+    @Schema(description = "State the issue starts in. Optional, and open is the only value "
+            + "accepted, so leaving it out is the same as sending open. Every later state change "
+            + "goes through PATCH /issues/{id}, which only a system-admin or project-manager may "
+            + "call; being able to raise an issue that is already resolved or closed would hand "
+            + "every member the one move that endpoint exists to withhold.",
+            example = "open", allowableValues = {"open"})
+    private IssueStatus status;
 
     private Long createdById;
 

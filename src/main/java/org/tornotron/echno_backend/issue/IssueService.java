@@ -37,6 +37,12 @@ public class IssueService {
 
     private static final String ISSUES_FOLDER = "issues";
 
+    /**
+     * The state an issue starts in, and the only one create accepts. It is what the web client's
+     * issue form already defaults to.
+     */
+    private static final IssueStatus CREATION_STATUS = IssueStatus.open;
+
     private final IssueRepository issueRepository;
     private final TaskRepository taskRepository;
     private final AttachmentService attachmentService;
@@ -66,16 +72,21 @@ public class IssueService {
     /**
      * Creates a new issue against a task, with any attachments that came with it.
      *
+     * <p>The issue starts {@link IssueStatus#open}, whether the payload says so or says nothing,
+     * and any other starting value is refused: see {@link #requireCreatableStatus}.
+     *
      * @param issueCreationDto DTO containing the details for the new issue.
      * @param attachments      Files uploaded with the issue, or null when there are none.
      * @return The created issue.
      * @throws ConstraintViolationException if the payload fails its own constraints.
+     * @throws InvalidRequestException if the payload asks for a status other than open.
      * @throws ResourceNotFoundException if the task, the creator or the assignee is not found in
      *                                   this organization.
      */
     @Transactional
     public IssueSimpleDto addIssue(IssueCreationDto issueCreationDto, List<MultipartFile> attachments) {
         payloadValidator.requireValid(issueCreationDto);
+        requireCreatableStatus(issueCreationDto.getStatus());
         Task task = taskRepository.findByIdAndOrganization_Id(issueCreationDto.getTaskId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Task with ID " + issueCreationDto.getTaskId() + " was not found in this organization"));
         Employee creator = employeeRepository.findByIdAndOrganizationId(issueCreationDto.getCreatedById(), TenantContext.getCurrentOrgId())
@@ -84,7 +95,7 @@ public class IssueService {
         issue.setTitle(issueCreationDto.getTitle());
         issue.setDescription(issueCreationDto.getDescription());
         issue.setType(parseIssueType(issueCreationDto.getType()));
-        issue.setStatus(parseIssueStatus(issueCreationDto.getStatus()));
+        issue.setStatus(CREATION_STATUS);
         issue.setCreatedBy(creator);
         issue.setTask(task);
         issue.setOrganization(task.getOrganization());
@@ -161,6 +172,33 @@ public class IssueService {
             return IssueType.valueOf(type);
         } catch (IllegalArgumentException e) {
             throw new InvalidRequestException("'" + type + "' is not a valid issue type");
+        }
+    }
+
+    /**
+     * Refuses an issue asked to be created in any state but {@link #CREATION_STATUS}.
+     *
+     * <p>Raising an issue is open to every member of the tenant
+     * ({@code IssueControllerWeb.createIssue}), while changing one is not: the patch endpoint
+     * wants {@code system-admin} or {@code project-manager}. A create that copied the payload's
+     * status therefore handed every member the moves that gate was written to withhold, and
+     * {@code resolved} and {@code closed} most of all, since an issue nobody with the authority to
+     * close it ever closed reads exactly like one that was properly dealt with.
+     *
+     * <p>This is the rule {@code PurchaseOrderService.createPurchaseOrder} applies: a create may
+     * not reach a state whose transition carries a check or an event. Here the patch endpoint
+     * gates every transition, so {@code open} is all that is left.
+     *
+     * @param status The status the create payload asked for, or null when it asked for none.
+     * @throws InvalidRequestException if that status is anything but {@link #CREATION_STATUS}.
+     */
+    private void requireCreatableStatus(IssueStatus status) {
+        if (status != null && status != CREATION_STATUS) {
+            throw new InvalidRequestException(
+                    "An issue is raised as " + CREATION_STATUS + " and cannot be created as "
+                            + status + ". Raise it first, then move it with the issue update "
+                            + "endpoint, which is where the authority to change an issue's status "
+                            + "is checked.");
         }
     }
 

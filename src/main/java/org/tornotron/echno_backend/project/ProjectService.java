@@ -46,6 +46,13 @@ public class ProjectService {
 
     private static final String PROJECTS_FOLDER = "projects";
 
+    /**
+     * The state a project starts in when the create payload names none. It is what the web
+     * client's create form already defaults to, and what {@code echno-core} documents the server
+     * as defaulting to, so making it explicit here settles a contract both sides had assumed.
+     */
+    private static final ProjectCreationStatus DEFAULT_CREATION_STATUS = ProjectCreationStatus.upcoming;
+
     private final ProjectRepository repository;
     private final OrganizationRepository organizationRepository;
     private final EmployeeRepository employeeRepository;
@@ -88,13 +95,19 @@ public class ProjectService {
     /**
      * Creates a new project.
      *
+     * <p>The project starts in the status the payload names, or {@link #DEFAULT_CREATION_STATUS}
+     * when it names none. {@code approved} is the one value refused, because approval is a
+     * transition and not a starting value: see {@link #requireNotApprovedOnCreate}.
+     *
      * @param projectDto DTO containing the details for the new project.
      * @return A simple DTO of the newly created project.
+     * @throws InvalidRequestException if the payload asks for a project that is already approved.
      * @throws ResourceNotFoundException if the organization specified in the DTO does not exist.
      */
     @Transactional
     public ProjectSimpleDto addProject(ProjectCreationDto projectDto,List<MultipartFile> attachments) {
             payloadValidator.requireValid(projectDto);
+            requireNotApprovedOnCreate(projectDto.getStatus());
             Long orgId = TenantContext.getCurrentOrgId();
             Organization organization = organizationRepository.findById(orgId)
                     .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
@@ -110,7 +123,9 @@ public class ProjectService {
             project.setCreatedAt(LocalDateTime.now());
             project.setProjectLatitude(projectDto.getProjectLatitude());
             project.setProjectLongitude(projectDto.getProjectLongitude());
-            project.setStatus(ProjectCreationStatus.valueOf(projectDto.getStatus()));
+            project.setStatus(projectDto.getStatus() != null
+                    ? projectDto.getStatus()
+                    : DEFAULT_CREATION_STATUS);
             if (projectDto.getProjectType() != null && !projectDto.getProjectType().isBlank()) {
                 project.setProjectType(ProjectType.valueOf(projectDto.getProjectType()));
             }
@@ -313,6 +328,37 @@ public class ProjectService {
         Long orgId = project.getOrganization() != null ? project.getOrganization().getId() : null;
         // The listener runs AFTER_COMMIT, so the row is durable before the AI flow reads it.
         eventPublisher.publishEvent(new ProjectApprovedEvent(this, project.getId(), orgId));
+    }
+
+    /**
+     * Refuses a project asked to be created already approved.
+     *
+     * <p>Approval is the only project transition with anything behind it. {@link #onApproval}
+     * checks that the project's state is known and publishes {@link ProjectApprovedEvent}, which
+     * is what draws up the project's compliance inspections. Both run on the patch path, so a
+     * create that wrote {@code approved} straight onto the row skipped them, and no later patch
+     * could make up for it: {@link #onApproval} fires only on the transition INTO approved, and a
+     * project that was born approved never makes that transition. The project stays approved for
+     * good with no compliance work ever drawn up, and its only outward sign is an absence.
+     *
+     * <p>Every other status is a label with no transition behind it, so create still accepts them
+     * all. This is the same rule {@code PurchaseOrderService.createPurchaseOrder} applies: a
+     * create may not reach a state whose transition carries a check or an event; the set of
+     * states that leaves is whatever each entity's state machine happens to gate.
+     *
+     * @param status The status the create payload asked for, or null when it asked for none.
+     * @throws InvalidRequestException if that status is {@code approved}.
+     */
+    private void requireNotApprovedOnCreate(ProjectCreationStatus status) {
+        if (status == ProjectCreationStatus.approved) {
+            throw new InvalidRequestException(
+                    "A project cannot be created already approved. Approval draws up the project's "
+                            + "compliance inspections from the regulations of the state it is built "
+                            + "in, and a project created as approved never makes that transition, so "
+                            + "those inspections would never be drawn up and nothing later could put "
+                            + "it right. Create the project, then approve it with "
+                            + "PATCH /projects/{id}.");
+        }
     }
 
     /**

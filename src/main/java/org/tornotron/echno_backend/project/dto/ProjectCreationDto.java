@@ -3,13 +3,12 @@ package org.tornotron.echno_backend.project.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.OptBoolean;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -53,11 +52,19 @@ public class ProjectCreationDto {
     @Schema(description = "Creation timestamp, set server side when omitted.", example = "2026-08-01T09:00:00")
     private LocalDateTime createdAt;
 
-    @Schema(description = "Initial project status.", example = "IN_PROGRESS")
-    @NotBlank(message = "status is required")
-    @Size(min = 3,max = 50,message = "status must be between 3 and 50 characters")
-    @Enumerated(EnumType.STRING)
-    private String status;
+    /**
+     * The state the project starts in. Optional, and {@code approved} is refused: approval draws
+     * up the project's compliance inspections, so it is a transition rather than a starting
+     * value. See {@code ProjectService.addProject}.
+     */
+    @Schema(description = "State the project starts in. Optional, and upcoming when left out. "
+            + "Every value except approved is accepted. A project is approved through "
+            + "PATCH /projects/{id}, which is what checks that its state is known and draws up its "
+            + "compliance inspections; approving it on the create form would skip both, and nothing "
+            + "later can put that right because the project is already approved by then.",
+            example = "upcoming",
+            allowableValues = {"open", "closed", "upcoming", "completed", "dropped", "onHold", "cancelled"})
+    private ProjectCreationStatus status;
 
     /** Optional construction category (e.g. RESIDENTIAL, COMMERCIAL). Drives compliance matching. */
     @Schema(description = "Optional construction category. Drives compliance matching.", example = "RESIDENTIAL")
