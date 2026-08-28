@@ -11,6 +11,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.common.conversions.DateConversion;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.project.mapper.ProjectMapper;
 import org.tornotron.echno_backend.common.entity.Attachment;
@@ -263,6 +264,12 @@ public class ProjectService {
                                 ? project.getOrganization().getId() : null;
                         eventPublisher.publishEvent(new ProjectApprovedEvent(this, project.getId(), orgId));
                     }
+                    break;
+                case "startDate":
+                    project.setStartDate(DateConversion.parseLocalDateTime(value));
+                    break;
+                case "endDate":
+                    project.setEndDate(DateConversion.parseLocalDateTime(value));
                     break;
                 case "projectType":
                     project.setProjectType(value != null ? ProjectType.valueOf((String) value) : null);
