@@ -20,6 +20,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 
 /**
  * The multipart send takes its payload as the JSON string part of the request and deserializes
@@ -43,8 +45,9 @@ class ChatMessageValidationTest {
     void setUp() {
         factory = Validation.buildDefaultValidatorFactory();
         Validator validator = factory.getValidator();
-        controller = new ChatControllerWeb(chatService, new ObjectMapper(), chatStreamService,
-                validator);
+        controller = new ChatControllerWeb(chatService,
+                new JsonPartBinder(new ObjectMapper(), new PayloadValidator(validator)),
+                chatStreamService);
     }
 
     @AfterAll

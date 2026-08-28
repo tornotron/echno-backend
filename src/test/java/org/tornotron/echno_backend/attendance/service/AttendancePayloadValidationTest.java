@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
  * All four check-in and clock-event handlers take their payload as the JSON part of a multipart
@@ -68,7 +69,7 @@ class AttendancePayloadValidationTest {
         service = new AttendanceService(attendanceRepository, shiftTimingRepository,
                 employeeRepository, organizationRepository, projectRepository, settingsService,
                 calculationService, sequenceValidator, attendanceMapper, attachmentService,
-                fileStorageService, userContextService, validator);
+                fileStorageService, userContextService, new PayloadValidator(validator));
     }
 
     @AfterAll

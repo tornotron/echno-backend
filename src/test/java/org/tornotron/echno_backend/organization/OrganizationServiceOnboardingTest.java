@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
  * Self-service onboarding wiring for {@code addOrganization}: the creator of an organization must be
@@ -61,7 +62,7 @@ class OrganizationServiceOnboardingTest {
         return new OrganizationService(repository, attachmentService, fileStorageService,
                 keycloakGroupService, subscriptionService, userContextService, employeeService,
                 organizationMapper, orgSecurity, onboardingSeeder,
-                Validation.buildDefaultValidatorFactory().getValidator());
+                new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
     }
 
     private OrganizationCreationDto creationDto() {

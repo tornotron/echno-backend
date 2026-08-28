@@ -1,12 +1,10 @@
 package org.tornotron.echno_backend.organization;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,10 +33,10 @@ import java.util.Map;
 public class OrganizationWebController {
 
     private final OrganizationService service;
-    private final ObjectMapper objectMapper;
+    private final JsonPartBinder jsonPartBinder;
 
-    public OrganizationWebController(OrganizationService service, ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public OrganizationWebController(OrganizationService service, JsonPartBinder jsonPartBinder) {
+        this.jsonPartBinder = jsonPartBinder;
         this.service = service;
     }
     /**
@@ -70,9 +68,9 @@ public class OrganizationWebController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "402", description = "Caller already has an organization and their plan does not cover another"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not authenticated")
     })
-    public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") @Valid String data,
+    public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") String data,
                                                                     @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
-        OrganizationCreationDto dto = objectMapper.readValue(data, OrganizationCreationDto.class);
+        OrganizationCreationDto dto = jsonPartBinder.read(data, OrganizationCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addOrganization(dto,attachments));
     }
 
@@ -155,8 +153,7 @@ public class OrganizationWebController {
             @PathVariable Long id,
             @RequestParam(value = "attachments",required = false) List<MultipartFile> attachments,
             @RequestParam(value = "entityType",required = false,defaultValue = "ORGANIZATION_LOGO") String entityType) throws JsonProcessingException{
-        Map<String ,Object> updates = data != null
-                ? objectMapper.readValue(data, new TypeReference<>() {}) : Map.of();
+        Map<String, Object> updates = jsonPartBinder.readUpdates(data);
         return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAnOrganization(updates,id,attachments,entityType));
     }
 

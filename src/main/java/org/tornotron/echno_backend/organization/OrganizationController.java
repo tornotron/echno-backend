@@ -1,7 +1,7 @@
 package org.tornotron.echno_backend.organization;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,15 +41,15 @@ import java.util.Map;
 public class OrganizationController {
 
     private final OrganizationService service;
-    private final ObjectMapper objectMapper;
+    private final JsonPartBinder jsonPartBinder;
 
     /**
      * Constructs an OrganizationController with the given OrganizationService.
      *
      * @param service The service to handle organization-related business logic.
      */
-    public OrganizationController(OrganizationService service,ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public OrganizationController(OrganizationService service,JsonPartBinder jsonPartBinder) {
+        this.jsonPartBinder = jsonPartBinder;
         this.service = service;
     }
 
@@ -82,9 +82,9 @@ public class OrganizationController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "402", description = "Caller already has an organization and their plan does not cover another"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not authenticated")
     })
-    public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") @Valid String data,
+    public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") String data,
                                                                     @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
-        OrganizationCreationDto dto = objectMapper.readValue(data, OrganizationCreationDto.class);
+        OrganizationCreationDto dto = jsonPartBinder.read(data, OrganizationCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addOrganization(dto,attachments));
     }
     /**

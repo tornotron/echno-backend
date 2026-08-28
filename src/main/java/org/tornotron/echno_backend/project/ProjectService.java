@@ -1,8 +1,6 @@
 package org.tornotron.echno_backend.project;
 
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.Validator;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -36,7 +34,6 @@ import org.tornotron.echno_backend.project.enums.ProjectType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -57,7 +54,7 @@ public class ProjectService {
     private final EmployeeMapper employeeMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final CustomerRepository customerRepository;
-    private final Validator validator;
+    private final PayloadValidator payloadValidator;
 
     /**
      * Constructs a ProjectService with the necessary repositories.
@@ -67,7 +64,7 @@ public class ProjectService {
      * @param employeeRepository     The repository for employee data access.
      * @param attachmentService      The service for attachment operations.
      * @param customerRepository     The repository used to validate the project's client.
-     * @param validator              Bean validator applied to the create payload.
+     * @param payloadValidator       Runs the create payload's own constraints.
      */
     public ProjectService(ProjectRepository repository,
                           OrganizationRepository organizationRepository,
@@ -76,7 +73,7 @@ public class ProjectService {
                           EmployeeMapper employeeMapper,
                           ApplicationEventPublisher eventPublisher,
                           CustomerRepository customerRepository,
-                          Validator validator) {
+                          PayloadValidator payloadValidator) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
         this.employeeRepository = employeeRepository;
@@ -85,7 +82,7 @@ public class ProjectService {
         this.employeeMapper = employeeMapper;
         this.eventPublisher = eventPublisher;
         this.customerRepository = customerRepository;
-        this.validator = validator;
+        this.payloadValidator = payloadValidator;
     }
 
     /**
@@ -97,7 +94,7 @@ public class ProjectService {
      */
     @Transactional
     public ProjectSimpleDto addProject(ProjectCreationDto projectDto,List<MultipartFile> attachments) {
-            requireValid(projectDto);
+            payloadValidator.requireValid(projectDto);
             Long orgId = TenantContext.getCurrentOrgId();
             Organization organization = organizationRepository.findById(orgId)
                     .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
@@ -344,24 +341,6 @@ public class ProjectService {
                             + "is built in, and neither the project's state nor its address names "
                             + "one. Set the project's state (for example Tamil Nadu) and approve it "
                             + "again.");
-        }
-    }
-
-    /**
-     * Runs bean validation over the create payload.
-     *
-     * <p>Both project controllers take the payload as the JSON string part of a multipart
-     * request and deserialize it by hand, so Spring never sees a bean to validate and the
-     * constraints on {@link ProjectCreationDto} would otherwise never fire. Doing it here covers
-     * both entry points at once, and covers any later caller by construction.
-     *
-     * @param projectDto The payload as deserialized from the request.
-     * @throws ConstraintViolationException if any constraint on the payload fails.
-     */
-    private void requireValid(ProjectCreationDto projectDto) {
-        Set<ConstraintViolation<ProjectCreationDto>> violations = validator.validate(projectDto);
-        if (!violations.isEmpty()) {
-            throw new ConstraintViolationException(violations);
         }
     }
 

@@ -30,6 +30,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
  * The billing rule on creating an organization.
@@ -68,7 +69,7 @@ class OrganizationServiceEntitlementTest {
         return new OrganizationService(repository, attachmentService, fileStorageService,
                 keycloakGroupService, subscriptionService, userContextService, employeeService,
                 organizationMapper, orgSecurity, onboardingSeeder,
-                Validation.buildDefaultValidatorFactory().getValidator());
+                new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
     }
 
     private OrganizationCreationDto creationDto() {

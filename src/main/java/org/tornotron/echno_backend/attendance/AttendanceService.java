@@ -1,9 +1,7 @@
 package org.tornotron.echno_backend.attendance;
 
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import jakarta.validation.ValidationException;
-import jakarta.validation.Validator;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +33,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -67,7 +64,7 @@ public class AttendanceService {
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
     private final UserContextService userContextService;
-    private final Validator validator;
+    private final PayloadValidator payloadValidator;
 
     public AttendanceService(AttendanceRepository attendanceRepository,
                              ShiftTimingRepository shiftTimingRepository,
@@ -81,7 +78,7 @@ public class AttendanceService {
                              AttachmentService attachmentService,
                              FileStorageService fileStorageService,
                              UserContextService userContextService,
-                             Validator validator) {
+                             PayloadValidator payloadValidator) {
         this.attendanceRepository = attendanceRepository;
         this.shiftTimingRepository = shiftTimingRepository;
         this.employeeRepository = employeeRepository;
@@ -94,26 +91,7 @@ public class AttendanceService {
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
         this.userContextService = userContextService;
-        this.validator = validator;
-    }
-
-    /**
-     * Runs bean validation over a payload the controller deserialized itself.
-     *
-     * <p>All four check-in and clock-event handlers take their payload as the JSON string part of
-     * a multipart request and read it by hand, so Spring never binds a bean and never validates
-     * one, and the constraints on these payloads would otherwise never fire. Doing it here covers
-     * the /web twin and the base controller at once, and any later caller by construction.
-     *
-     * @param payload The payload as deserialized from the request.
-     * @param <T> The payload type.
-     * @throws ConstraintViolationException if any constraint on the payload fails.
-     */
-    private <T> void requireValid(T payload) {
-        Set<ConstraintViolation<T>> violations = validator.validate(payload);
-        if (!violations.isEmpty()) {
-            throw new ConstraintViolationException(violations);
-        }
+        this.payloadValidator = payloadValidator;
     }
 
     /**
@@ -132,7 +110,7 @@ public class AttendanceService {
      */
     @Transactional
     public AttendanceResponseDto checkIn(AttendanceCheckInDto dto, MultipartFile photo) {
-        requireValid(dto);
+        payloadValidator.requireValid(dto);
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
@@ -270,7 +248,7 @@ public class AttendanceService {
      */
     @Transactional
     public AttendanceResponseDto recordClockEvent(AttendanceClockEventDto dto, MultipartFile photo) {
-        requireValid(dto);
+        payloadValidator.requireValid(dto);
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));

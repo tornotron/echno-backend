@@ -22,6 +22,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
  * Web-slice authorization tests for the read endpoints on ProjectControllerWeb.
@@ -35,7 +37,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * membership only, the role-without-membership test fails.
  */
 @WebMvcTest(ProjectControllerWeb.class)
-@Import(ProjectControllerWebAuthzTest.TestSecurityConfig.class)
+@Import({ProjectControllerWebAuthzTest.TestSecurityConfig.class, JsonPartBinder.class,
+        PayloadValidator.class})
 class ProjectControllerWebAuthzTest {
 
     @Autowired

@@ -27,6 +27,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
  * Web-slice authorization test for the organization list endpoint, the screen that populates
@@ -43,7 +45,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * OrganizationServiceScopingTest covers that filtering.
  */
 @WebMvcTest(OrganizationWebController.class)
-@Import(OrganizationWebControllerAuthzTest.TestSecurityConfig.class)
+@Import({OrganizationWebControllerAuthzTest.TestSecurityConfig.class, JsonPartBinder.class,
+        PayloadValidator.class})
 class OrganizationWebControllerAuthzTest {
 
     @Autowired

@@ -31,6 +31,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
  * Unit tests for the approval attribution in {@link AttendanceService#approveAttendance}. The focus
@@ -68,7 +69,8 @@ class AttendanceServiceApprovalTest {
         service = new AttendanceService(attendanceRepository, shiftTimingRepository, employeeRepository,
                 organizationRepository, projectRepository, settingsService, calculationService,
                 sequenceValidator, attendanceMapper, attachmentService, fileStorageService,
-                userContextService, Validation.buildDefaultValidatorFactory().getValidator());
+                userContextService,
+                new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
     }
 
     @AfterEach

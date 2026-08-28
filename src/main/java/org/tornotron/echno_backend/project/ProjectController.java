@@ -1,7 +1,7 @@
 package org.tornotron.echno_backend.project;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,6 +43,7 @@ import java.util.Map;
 public class ProjectController {
 
     private final ProjectService service;
+    private final JsonPartBinder jsonPartBinder;
     /** Logger for this class. */
     private static final Logger logger = LoggerFactory.getLogger(ProjectController.class);
 
@@ -50,9 +51,11 @@ public class ProjectController {
      * Constructs a ProjectController with the given ProjectService.
      *
      * @param service The service to handle project-related business logic.
+     * @param jsonPartBinder Reads and validates the JSON part of a multipart request.
      */
-    public ProjectController(ProjectService service) {
+    public ProjectController(ProjectService service, JsonPartBinder jsonPartBinder) {
         this.service = service;
+        this.jsonPartBinder = jsonPartBinder;
     }
 
     /**
@@ -74,9 +77,9 @@ public class ProjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid project JSON, or a field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the project create or admin authority")
     })
-    public ResponseEntity<ProjectSimpleDto> createProject(@RequestPart("data") @Valid String data,
+    public ResponseEntity<ProjectSimpleDto> createProject(@RequestPart("data") String data,
                                                           @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments) throws JsonProcessingException {
-        ProjectCreationDto dto = new ObjectMapper().readValue(data, ProjectCreationDto.class);
+        ProjectCreationDto dto = jsonPartBinder.read(data, ProjectCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addProject(dto, attachments));
     }
 

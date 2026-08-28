@@ -23,6 +23,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
  * Both task controllers take the create payload as the JSON string part of a multipart request
@@ -60,7 +61,7 @@ class TaskCreationValidationTest {
         factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
         service = new TaskService(taskRepository, employeeRepository, projectRepository,
-                categoryRepository, attachmentService, taskMapper, validator);
+                categoryRepository, attachmentService, taskMapper, new PayloadValidator(validator));
     }
 
     @AfterAll

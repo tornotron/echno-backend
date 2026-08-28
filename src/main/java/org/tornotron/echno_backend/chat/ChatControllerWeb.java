@@ -1,15 +1,12 @@
 package org.tornotron.echno_backend.chat;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import jakarta.servlet.http.HttpServletResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Valid;
-import jakarta.validation.Validator;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -29,7 +26,6 @@ import org.tornotron.echno_backend.chat.dto.ReactionRequestDto;
 import org.tornotron.echno_backend.chat.dto.SendMessageDto;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  * Employee-facing chat: rooms an employee belongs to and the messages within them. Every
@@ -48,35 +44,14 @@ import java.util.Set;
 public class ChatControllerWeb {
 
     private final ChatService chatService;
-    private final ObjectMapper objectMapper;
+    private final JsonPartBinder jsonPartBinder;
     private final ChatStreamService chatStreamService;
-    private final Validator validator;
 
-    public ChatControllerWeb(ChatService chatService, ObjectMapper objectMapper,
-                             ChatStreamService chatStreamService, Validator validator) {
+    public ChatControllerWeb(ChatService chatService, JsonPartBinder jsonPartBinder,
+                             ChatStreamService chatStreamService) {
         this.chatService = chatService;
-        this.objectMapper = objectMapper;
+        this.jsonPartBinder = jsonPartBinder;
         this.chatStreamService = chatStreamService;
-        this.validator = validator;
-    }
-
-    /**
-     * Runs bean validation over a payload this class deserialized itself.
-     *
-     * <p>The multipart send takes its payload as the JSON string part of the request and reads it
-     * by hand, so Spring never binds a bean and never validates one. The JSON send next to it
-     * takes a bound {@code @Valid @RequestBody}, which Spring does validate, so this is the only
-     * place a {@link SendMessageDto} arrives unchecked. It cannot move into the service, which
-     * takes the message fields as separate arguments rather than the payload.
-     *
-     * @param dto The payload as deserialized from the request.
-     * @throws ConstraintViolationException if any constraint on the payload fails.
-     */
-    private void requireValid(SendMessageDto dto) {
-        Set<ConstraintViolation<SendMessageDto>> violations = validator.validate(dto);
-        if (!violations.isEmpty()) {
-            throw new ConstraintViolationException(violations);
-        }
     }
 
     @GetMapping("/rooms/web")
@@ -196,11 +171,10 @@ public class ChatControllerWeb {
     })
     public ResponseEntity<ChatMessageDto> sendMessageWithAttachments(
             @PathVariable Long roomId,
-            @RequestPart("data") @Valid String data,
+            @RequestPart("data") String data,
             @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments)
             throws JsonProcessingException {
-        SendMessageDto dto = objectMapper.readValue(data, SendMessageDto.class);
-        requireValid(dto);
+        SendMessageDto dto = jsonPartBinder.read(data, SendMessageDto.class);
         return new ResponseEntity<>(
                 chatService.sendMessage(roomId, dto.getContent(), dto.getReplyToId(), attachments),
                 HttpStatus.CREATED);

@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -38,11 +38,11 @@ import java.util.List;
 public class AttendanceControllerWeb {
 
     private final AttendanceService attendanceService;
-    private final ObjectMapper objectMapper;
+    private final JsonPartBinder jsonPartBinder;
 
-    public AttendanceControllerWeb(AttendanceService attendanceService, ObjectMapper objectMapper) {
+    public AttendanceControllerWeb(AttendanceService attendanceService, JsonPartBinder jsonPartBinder) {
         this.attendanceService = attendanceService;
-        this.objectMapper = objectMapper;
+        this.jsonPartBinder = jsonPartBinder;
     }
 
     @PostMapping(value = "/check-in",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -58,9 +58,9 @@ public class AttendanceControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid check-in JSON, or a field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
     })
-    public ResponseEntity<AttendanceResponseDto> checkIn(@RequestParam("data") @Valid String data,
+    public ResponseEntity<AttendanceResponseDto> checkIn(@RequestParam("data") String data,
                                                          @RequestParam(value = "photo", required = false)MultipartFile photo) throws JsonProcessingException {
-        AttendanceCheckInDto dto = objectMapper.readValue(data, AttendanceCheckInDto.class);
+        AttendanceCheckInDto dto = jsonPartBinder.read(data, AttendanceCheckInDto.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(attendanceService.checkIn(dto,photo));
     }
 
@@ -78,9 +78,9 @@ public class AttendanceControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No attendance record with the given id")
     })
-    public ResponseEntity<AttendanceResponseDto> recordClockEvent(@RequestParam("data") @Valid String data,
+    public ResponseEntity<AttendanceResponseDto> recordClockEvent(@RequestParam("data") String data,
                                                                     @RequestParam(value = "photo", required = false) MultipartFile photo) throws JsonProcessingException {
-        AttendanceClockEventDto dto = objectMapper.readValue(data, AttendanceClockEventDto.class);
+        AttendanceClockEventDto dto = jsonPartBinder.read(data, AttendanceClockEventDto.class);
         return ResponseEntity.ok(attendanceService.recordClockEvent(dto,photo));
     }
 
