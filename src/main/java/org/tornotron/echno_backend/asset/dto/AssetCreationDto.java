@@ -51,6 +51,16 @@ public class AssetCreationDto {
             + "movement in the asset's ledger; the movement's reason comes from movementReason.",
             example = "5")
     private Long assignedProjectId;
+
+    @Schema(description = "Name of the project the asset is deployed on. Superseded by "
+            + "assignedProjectId and kept only so a client that has not been updated yet does not "
+            + "unassign an asset every time it saves one. Used only when assignedProjectId is "
+            + "absent, and resolved by the same rule the reference migration used: per "
+            + "organization, trimmed, case-insensitive, and only where exactly one project carries "
+            + "the name. A name that resolves to nothing is refused rather than quietly clearing "
+            + "the asset's project.",
+            example = "Marina Heights Towers")
+    private String assignedProject;
     @Schema(description = "Manufacturer of the asset.", example = "JCB India")
     private String manufacturer;
     @Schema(description = "Model name or number.", example = "3DX")
