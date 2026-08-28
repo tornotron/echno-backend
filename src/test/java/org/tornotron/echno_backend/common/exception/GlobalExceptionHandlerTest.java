@@ -1,8 +1,11 @@
 package org.tornotron.echno_backend.common.exception;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.expression.Expression;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.authorization.ExpressionAuthorizationDecision;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -99,6 +102,68 @@ class GlobalExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
         assertThat(pd.getTitle()).isEqualTo("Internal Server Error");
         assertThat(pd.getDetail()).isEqualTo("An unexpected error occurred: boom");
+    }
+
+    @Test
+    void authorizationDenied_namesTheRoleTheEndpointWanted() {
+        // Spring's own message here is the fixed string "Access Denied", which is exactly the
+        // problem: the caller learns nothing about what would have let them through.
+        ProblemDetail pd = handler.handleAuthorizationDeniedException(
+                deniedBy("@orgSecurity.hasAnyOrgRole(#id, 'system-admin', 'hr-admin')"),
+                requestWithPath("uri=/api/v1/organization/web/3"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+        assertThat(pd.getTitle()).isEqualTo("Access Denied");
+        assertThat(pd.getDetail())
+                .startsWith("You do not have permission for this action.")
+                .contains("the 'system-admin' or 'hr-admin' roles in this organization");
+        assertThat(pd.getProperties())
+                .containsEntry("requiredOrganizationRoles", List.of("system-admin", "hr-admin"));
+    }
+
+    @Test
+    void authorizationDenied_exposesTheRequiredAuthoritiesForTheFrontend() {
+        ProblemDetail pd = handler.handleAuthorizationDeniedException(
+                deniedBy("hasAuthority('organization:admin')"),
+                requestWithPath("uri=/api/v1/organization/creator/4"));
+
+        assertThat(pd.getProperties()).containsEntry("requiredAuthorities", List.of("organization:admin"));
+        assertThat(pd.getProperties()).doesNotContainKey("requiredOrganizationRoles");
+    }
+
+    @Test
+    void authorizationDenied_fallsBackToSpringsMessageWhenNoExpressionIsAttached() {
+        // A denial raised by an AuthorizationManager written in Java carries no expression, so
+        // there is nothing to name and nothing should be invented.
+        ProblemDetail pd = handler.handleAuthorizationDeniedException(
+                new AuthorizationDeniedException("Access Denied"), requestWithPath("uri=/api/v1/x"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+        assertThat(pd.getDetail()).isEqualTo("Access Denied");
+        assertThat(pd.getProperties()).doesNotContainKey("requiredOrganizationRoles");
+    }
+
+    @Test
+    void securityAccessDenied_isA403CarryingTheServicesOwnMessage() {
+        // Services throw this with a message written for the caller. It used to reach the
+        // catch-all handler and come back as a 500, hiding both the status and the reason.
+        ProblemDetail pd = handler.handleSecurityAccessDeniedException(
+                new org.springframework.security.access.AccessDeniedException(
+                        "Only the sender can edit this message"),
+                requestWithPath("uri=/api/v1/chat/messages/9"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+        assertThat(pd.getTitle()).isEqualTo("Access Denied");
+        assertThat(pd.getDetail()).isEqualTo("Only the sender can edit this message");
+        assertThat(pd.getProperties()).containsEntry("message", "Only the sender can edit this message");
+    }
+
+    /** A method-security denial carrying the expression that refused it, as Spring builds one. */
+    private AuthorizationDeniedException deniedBy(String expression) {
+        Expression parsed = mock(Expression.class);
+        when(parsed.getExpressionString()).thenReturn(expression);
+        return new AuthorizationDeniedException("Access Denied",
+                new ExpressionAuthorizationDecision(false, parsed));
     }
 
     @Test

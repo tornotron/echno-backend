@@ -33,6 +33,14 @@ public interface OrganizationRepository extends JpaRepository<Organization, Long
 
     boolean existsByOrganizationEmail(String organizationEmail);
 
+    /**
+     * Whether the given user has ever created an organization.
+     *
+     * @param creatorId The ID of the user to check.
+     * @return {@code true} if at least one organization records them as its creator.
+     */
+    boolean existsByCreatorId(Integer creatorId);
+
     @Query(
             "SELECT DISTINCT o FROM Organization o " +
                     "JOIN o.employees e " +

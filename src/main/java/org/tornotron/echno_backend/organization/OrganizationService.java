@@ -7,10 +7,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.billing.dto.FeatureAccessResultDto;
 import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.common.exception.SubscriptionAccessDeniedException;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
@@ -48,6 +51,9 @@ import java.util.stream.Collectors;
 public class OrganizationService {
 
     private static final String ORGANIZATION_FOLDER = "organizations";
+
+    /** The billing feature that covers creating an organization. */
+    private static final String CREATE_ORGANIZATION_FEATURE = "CREATE_ORGANIZATION";
 
     private final OrganizationRepository repository;
     private final AttachmentService attachmentService;
@@ -105,6 +111,36 @@ public class OrganizationService {
     }
 
     /**
+     * Applies the CREATE_ORGANIZATION entitlement, exempting the caller's very first organization.
+     *
+     * <p>Creating an organization is how a new account bootstraps itself: a self-registered user
+     * holds no subscription and belongs to nothing, so billing the first creation leaves the
+     * account with no action it can take and no way to buy one. The first organization is therefore
+     * part of signing up and is not gated; every organization after it goes through the normal
+     * feature check.
+     *
+     * <p>This lives in the service rather than on the controllers because both entry points, web
+     * and mobile, create through here, and the fact the rule turns on (whether this user has
+     * created an organization before) is only known at this level.
+     *
+     * @param currentUser The user creating the organization.
+     * @throws SubscriptionAccessDeniedException if this is not their first and their plan does not
+     *         cover it.
+     */
+    private void requireCreateOrganizationEntitlement(User currentUser) {
+        if (!repository.existsByCreatorId(currentUser.getId().intValue())) {
+            log.info("User {} is creating their first organization; no subscription required", currentUser.getId());
+            return;
+        }
+
+        FeatureAccessResultDto access = subscriptionService.checkFeatureAccess(currentUser.getId(), CREATE_ORGANIZATION_FEATURE);
+        if (!access.isAllowed()) {
+            String message = access.getMessage() != null ? access.getMessage() : access.getReason();
+            throw new SubscriptionAccessDeniedException(message, CREATE_ORGANIZATION_FEATURE, access);
+        }
+    }
+
+    /**
      * Creates and persists a new organization based on the provided data.
      * @param organizationCreationDto A DTO containing the details for the new organization.
      * @return An {@link OrganizationSimpleDto} representing the newly created organization.
@@ -117,6 +153,11 @@ public class OrganizationService {
             throw new DuplicateResourceException("Organization with email '" + organizationCreationDto.getOrganizationEmail() + "' already exists");
         }
         User currentUser = userContextService.getCurrentUser();
+        if (currentUser == null) {
+            throw new AccessDeniedException(
+                    "Your account is not provisioned yet, so an organization cannot be created for it");
+        }
+        requireCreateOrganizationEntitlement(currentUser);
         Organization organization = new Organization();
         organization.setOrganizationName(organizationCreationDto.getOrganizationName());
         organization.setOrganizationAddress(organizationCreationDto.getOrganizationAddress());
@@ -157,7 +198,27 @@ public class OrganizationService {
         // idempotent seeder see the committed org and run in its own transaction.
         scheduleFinanceSeeding(savedOrganization.getId());
 
+        // Count the creation against the user's CREATE_ORGANIZATION quota, after commit for the
+        // same reason as the seeding: a usage-recording failure must not lose the organization.
+        // The first organization is exempt from the check above but still counted, so the quota
+        // stays an honest record of what was created.
+        afterCommit(() -> recordOrganizationCreated(currentUser.getId()));
+
         return organizationMapper.toSimpleDto(savedOrganization);
+    }
+
+    /**
+     * Records one CREATE_ORGANIZATION usage, swallowing any failure.
+     *
+     * <p>Usage accounting is bookkeeping, not part of the creation: an organization that exists
+     * must not be reported as failed because its meter could not be written.
+     */
+    private void recordOrganizationCreated(Long userId) {
+        try {
+            subscriptionService.recordUsage(userId, CREATE_ORGANIZATION_FEATURE, 1L);
+        } catch (Exception e) {
+            log.error("Failed to record organization creation usage for user {}", userId, e);
+        }
     }
 
     /**
@@ -166,16 +227,24 @@ public class OrganizationService {
      * there is no active transaction (the seeding is idempotent and independently guarded either way).
      */
     private void scheduleFinanceSeeding(Long organizationId) {
+        afterCommit(() -> onboardingSeeder.seedFinanceDefaults(organizationId));
+    }
+
+    /**
+     * Defers work until the current transaction commits, or runs it inline when there is no
+     * transaction to wait for (which is the case in unit tests and in any direct call).
+     */
+    private void afterCommit(Runnable action) {
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                     new org.springframework.transaction.support.TransactionSynchronization() {
                         @Override
                         public void afterCommit() {
-                            onboardingSeeder.seedFinanceDefaults(organizationId);
+                            action.run();
                         }
                     });
         } else {
-            onboardingSeeder.seedFinanceDefaults(organizationId);
+            action.run();
         }
     }
 
@@ -335,7 +404,7 @@ public class OrganizationService {
 
         if (creatorId != null) {
             try {
-                subscriptionService.recordUsage(creatorId.longValue(), "CREATE_ORGANIZATION", -1L);
+                subscriptionService.recordUsage(creatorId.longValue(), CREATE_ORGANIZATION_FEATURE, -1L);
             } catch (Exception e) {
                 log.warn("Failed to decrement organization usage for user {}", creatorId);
             }

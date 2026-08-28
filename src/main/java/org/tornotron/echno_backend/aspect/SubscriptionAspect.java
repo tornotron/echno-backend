@@ -38,10 +38,14 @@ public class SubscriptionAspect {
 
         if(!accessResultDto.isAllowed()) {
 
+            // The feature code is passed through so the refusal names the entitlement that was
+            // missing. Without it the response carried no feature at all and the log line read
+            // "Feature: null", leaving nobody able to tell which entitlement to look at.
             throw new SubscriptionAccessDeniedException(
                     requireSubscription.errorMessage().isEmpty()
                     ? (accessResultDto.getMessage() != null ? accessResultDto.getMessage() : accessResultDto.getReason())
                             : requireSubscription.errorMessage(),
+                    featureCode,
                     accessResultDto
             );
         }
