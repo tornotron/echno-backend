@@ -15,6 +15,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.billing.components.SubscriptionCache;
 import org.tornotron.echno_backend.billing.dto.BillingMapper;
@@ -179,6 +181,109 @@ class BillingMappingIT extends AbstractIntegrationTest {
         SubscriptionDto dto = subscriptionService.changeSubscription(SUBSCRIBED_USER, TARGET_PLAN);
 
         assertFullyMapped(dto, TARGET_PLAN);
+    }
+
+    /**
+     * The counterpart to the test above, and the reason the cache may hold entities at all.
+     * {@code findActiveSubscriptionByUserId} fetch-joins the plan, its plan features and each
+     * feature, so what it returns is still mappable once its session has closed, which is the
+     * state every cache hit sees. Weaken those fetch joins and this fails where the query above
+     * already fails.
+     *
+     * <p>Nothing in the type system says the query has to keep them, and the cache is what makes
+     * it matter: an ordinary caller would notice a missing fetch join as extra queries, a caller
+     * served from the cache would notice it as a 500.
+     */
+    @Test
+    void theQueryBehindTheCacheReturnsAGraphThatOutlivesItsSession() {
+        Subscription subscription = inCommittedTx(() ->
+                subscriptionRepository.findActiveSubscriptionByUserId(SUBSCRIBED_USER).orElseThrow());
+
+        assertFullyMapped(BillingMapper.toSubscriptionDto(subscription), CURRENT_PLAN);
+    }
+
+    /**
+     * The invariant the one above is only half of. What has to hold is that whatever reaches the
+     * cache is fully initialized by the time its session closes, which the fetch joins secure at
+     * the query and every current caller secures again by mapping or walking the graph inside its
+     * own transaction. This asserts it end to end, on the instance the cache is actually holding.
+     */
+    @Test
+    void whatTheCacheHoldsIsStillMappableOnceItsSessionHasClosed() {
+        subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow();
+
+        Subscription cached = subscriptionCache.get(SUBSCRIBED_USER);
+        assertThat(cached).as("the read should have populated the cache").isNotNull();
+
+        assertFullyMapped(BillingMapper.toSubscriptionDto(cached), CURRENT_PLAN);
+    }
+
+    /**
+     * The cached instance is shared by every concurrent reader of this user, so a write path
+     * must not change it in place. changeSubscription used to resolve its subscription through
+     * the cache and call setPlan on whatever came back, which published the new plan to every
+     * reader before the transaction had committed, and left the cache holding it if the
+     * transaction then rolled back.
+     */
+    @Test
+    void changeSubscription_leavesTheCachedInstanceAlone() {
+        subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow();
+        Subscription cached = subscriptionCache.get(SUBSCRIBED_USER);
+        assertThat(cached.getPlan().getCode()).isEqualTo(CURRENT_PLAN);
+
+        subscriptionService.changeSubscription(SUBSCRIBED_USER, TARGET_PLAN);
+
+        assertThat(cached.getPlan().getCode())
+                .as("the write must not have mutated the shared cached instance")
+                .isEqualTo(CURRENT_PLAN);
+    }
+
+    /**
+     * The same hazard on the cancellation path, which used to set the status and the
+     * cancellation timestamp straight onto the cached instance.
+     */
+    @Test
+    void cancelSubscription_leavesTheCachedInstanceAlone() {
+        subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow();
+        Subscription cached = subscriptionCache.get(SUBSCRIBED_USER);
+        assertThat(cached.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+
+        subscriptionService.cancelSubscription(SUBSCRIBED_USER, true);
+
+        assertThat(cached.getStatus())
+                .as("the write must not have mutated the shared cached instance")
+                .isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(cached.getCanceledAt()).isNull();
+    }
+
+    /**
+     * Evicting at the point of the write is not enough on its own: between that eviction and
+     * the commit, a concurrent read still sees the old row and caches it for the rest of the
+     * TTL, so a user who has just changed plan keeps the old entitlement for five minutes.
+     *
+     * <p>A race is not reproducible, so the concurrent read is stood in for by a
+     * synchronization that repopulates the cache during the same commit, which puts the entry
+     * back at precisely the point the real race would. Nothing may survive completion.
+     */
+    @Test
+    void changeSubscription_evictsAgainOnceItsTransactionHasCompleted() {
+        Subscription concurrentlyCachedRow = inCommittedTx(() ->
+                subscriptionRepository.findActiveSubscriptionByUserId(SUBSCRIBED_USER).orElseThrow());
+
+        inCommittedTx(() -> {
+            subscriptionService.changeSubscription(SUBSCRIBED_USER, TARGET_PLAN);
+
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void beforeCommit(boolean readOnly) {
+                    subscriptionCache.put(SUBSCRIBED_USER, concurrentlyCachedRow);
+                }
+            });
+        });
+
+        assertThat(subscriptionCache.get(SUBSCRIBED_USER))
+                .as("a read that landed mid-write must not leave a stale entry behind")
+                .isNull();
     }
 
     /**
