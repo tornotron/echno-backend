@@ -24,6 +24,7 @@ import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
+import org.tornotron.echno_backend.storageLocation.StorageLocationScope;
 import org.tornotron.echno_backend.task.Task;
 import org.tornotron.echno_backend.task.TaskRepository;
 import org.tornotron.echno_backend.user.User;
@@ -36,10 +37,14 @@ import java.util.stream.Collectors;
 /**
  * Records material consumption and exposes queries over past consumption.
  *
- * <p>Recording a consumption first checks that enough stock is available (at the storage
- * location when one is given, otherwise across the project), then persists the record and
- * publishes a {@link MaterialConsumedEvent} so the inventory ledger draws the stock down in
- * the same transaction.
+ * <p>Recording a consumption first checks that enough stock is available on the balance row
+ * the draw-down will write: the storage location's row when a location is given, otherwise
+ * the project's unlocated row. It then persists the record and publishes a
+ * {@link MaterialConsumedEvent} so the inventory ledger draws the stock down.
+ *
+ * <p>A storage location on another project is refused, and an organisation-level location
+ * (one that names no project) is accepted from any project. See
+ * {@link org.tornotron.echno_backend.storageLocation.StorageLocationScope}.
  */
 @Service
 public class MaterialConsumptionService {
@@ -80,15 +85,17 @@ public class MaterialConsumptionService {
     /**
      * Records a material consumption after checking stock, and triggers the stock decrease.
      *
-     * <p>Resolves the material, creator, and project, then validates sufficient stock at the
-     * storage location when one is supplied or across the project otherwise. An optional task
-     * must belong to the same project. After saving, a {@link MaterialConsumedEvent} is
-     * published so inventory is reduced.
+     * <p>Resolves the material, creator, project and storage location, checks that the
+     * location may be used from that project, then validates sufficient stock on the balance
+     * row the draw-down will write: the location's row when a location is supplied, the
+     * project's unlocated row otherwise. An optional task must belong to the same project.
+     * After saving, a {@link MaterialConsumedEvent} is published so inventory is reduced.
      *
      * @param creationDto The consumption details, including material, quantity, project, and optional storage location and task.
      * @return The created consumption record as a DTO.
      * @throws ResourceNotFoundException if the material, creator, project, storage location, or task is not found in this organization.
-     * @throws InsufficientStockException if the available stock is below the consumed quantity.
+     * @throws org.tornotron.echno_backend.common.exception.InvalidRequestException if the storage location belongs to a different project.
+     * @throws InsufficientStockException if there is no balance to draw on, or it is below the consumed quantity.
      * @throws IllegalArgumentException if the given task does not belong to the given project.
      */
     @Transactional
@@ -104,14 +111,31 @@ public class MaterialConsumptionService {
         Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + creationDto.getProjectId() + " was not found in this organization"));
 
-        // CRITICAL: Validate sufficient stock before consumption
-        // Use storage-location-level validation when a storage location is specified
+        // Resolve the storage location before the stock check, because the location decides
+        // which balance row the check has to read: the consumption draws down exactly one row
+        // and the check has to be asked about that same row.
+        StorageLocation storageLocation = null;
         if (creationDto.getStorageLocationId() != null) {
+            storageLocation = storageLocationRepository.findByIdAndOrganization_Id(
+                            creationDto.getStorageLocationId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Storage location with ID " + creationDto.getStorageLocationId() + " was not found in this organization"));
+            // Nothing used to check the location against the project, so a location on another
+            // project (or none) could be booked here and the balance row could never exist.
+            StorageLocationScope.requireUsableFromProject(storageLocation, project.getId());
+        }
+
+        // CRITICAL: Validate sufficient stock before consumption, against the row the
+        // consumption will write. With no location that is the project's unlocated row, not
+        // the project total, which would pass on stock held in locations this write cannot
+        // reach and drive the unlocated balance negative.
+        if (storageLocation != null) {
             inventoryService.validateSufficientStockAtLocation(
-                    creationDto.getMaterialId(), project.getId(),
-                    creationDto.getStorageLocationId(), creationDto.getQuantity().doubleValue());
+                    material.getId(), project.getId(),
+                    storageLocation.getId(), creationDto.getQuantity().doubleValue());
         } else {
-            inventoryService.validateSufficientStock(creationDto.getMaterialId(), project.getId(), creationDto.getQuantity().doubleValue());
+            inventoryService.validateSufficientUnlocatedStock(
+                    material.getId(), project.getId(), creationDto.getQuantity().doubleValue());
         }
 
         // Create material consumption
@@ -124,14 +148,7 @@ public class MaterialConsumptionService {
         consumption.setCreatedBy(createdBy);
         consumption.setProject(project);
 
-        // Validate and set storage location (optional)
-        if (creationDto.getStorageLocationId() != null) {
-            StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(
-                            creationDto.getStorageLocationId(), TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Storage location with ID " + creationDto.getStorageLocationId() + " was not found in this organization"));
-            consumption.setStorageLocation(storageLocation);
-        }
+        consumption.setStorageLocation(storageLocation);
 
         // Validate and set task (optional)
         if (creationDto.getTaskId() != null) {

@@ -73,6 +73,10 @@ public class InventoryService {
     /**
      * Returns current stock for a material at one storage location within a project.
      *
+     * <p>Flattens a missing balance row to zero. Use {@link #findStockAtLocation} where the
+     * difference matters: a material that has never been stocked at a location and a location
+     * that has genuinely run out are different situations and deserve different messages.
+     *
      * @param materialId The material to look up.
      * @param projectId The project the location belongs to.
      * @param storageLocationId The storage location to read.
@@ -80,10 +84,43 @@ public class InventoryService {
      */
     @Transactional(readOnly = true)
     public Double getStockAtLocation(Long materialId, Long projectId, Long storageLocationId) {
+        return findStockAtLocation(materialId, projectId, storageLocationId).orElse(0.0);
+    }
+
+    /**
+     * Returns the balance for a material at one storage location, empty when no row exists.
+     *
+     * <p>The empty result means "this material has never been stocked here", which reads the
+     * same as a zero balance once flattened but is a different fact about the data.
+     *
+     * @param materialId The material to look up.
+     * @param projectId The project the location belongs to.
+     * @param storageLocationId The storage location to read.
+     * @return The quantity on hand, or empty when the balance row does not exist.
+     */
+    @Transactional(readOnly = true)
+    public Optional<Double> findStockAtLocation(Long materialId, Long projectId, Long storageLocationId) {
         return currentStockRepository
                 .findByMaterialIdAndProjectIdAndStorageLocationId(materialId, projectId, storageLocationId)
-                .map(CurrentStock::getCurrentQuantity)
-                .orElse(0.0);
+                .map(CurrentStock::getCurrentQuantity);
+    }
+
+    /**
+     * Returns the project balance held against no storage location, empty when no row exists.
+     *
+     * <p>This is the row a movement with no storage location reads and writes. It is not the
+     * project total: stock booked into a storage location lives in its own row and is not
+     * reachable from here.
+     *
+     * @param materialId The material to look up.
+     * @param projectId The project to read.
+     * @return The unlocated quantity on hand, or empty when the balance row does not exist.
+     */
+    @Transactional(readOnly = true)
+    public Optional<Double> findUnlocatedStock(Long materialId, Long projectId) {
+        return currentStockRepository
+                .findByMaterialIdAndProjectIdAndStorageLocationIsNull(materialId, projectId)
+                .map(CurrentStock::getCurrentQuantity);
     }
 
     /**
@@ -123,18 +160,64 @@ public class InventoryService {
     /**
      * Checks that a storage location holds at least the required quantity of a material.
      *
+     * <p>A balance row that does not exist is reported separately from a row that has run
+     * down to zero. Both leave nothing to draw on, but only the second is a stock-out; the
+     * first means the material has never been received into that location, which is a
+     * different thing to tell the user and a different thing for them to fix.
+     *
      * @param materialId The material to check.
      * @param projectId The project the location belongs to.
      * @param storageLocationId The storage location to check.
      * @param requiredQuantity The quantity that must be available.
-     * @throws InsufficientStockException if the quantity on hand at the location is below the required amount.
+     * @throws InsufficientStockException if no balance exists at the location, or the quantity on hand is below the required amount.
      */
     public void validateSufficientStockAtLocation(Long materialId, Long projectId, Long storageLocationId, Double requiredQuantity) {
-        Double currentStock = getStockAtLocation(materialId, projectId, storageLocationId);
+        Optional<Double> balance = findStockAtLocation(materialId, projectId, storageLocationId);
+        if (balance.isEmpty() && requiredQuantity > 0) {
+            throw new InsufficientStockException(
+                String.format("No stock of material ID %d has ever been held at project ID %d, storage location ID %d, "
+                        + "so there is none to draw on. Required: %.2f. Receive the material into this location with a "
+                        + "goods receipt or a transfer in, or record a stock adjustment, before drawing from it.",
+                    materialId, projectId, storageLocationId, requiredQuantity)
+            );
+        }
+        Double currentStock = balance.orElse(0.0);
         if (currentStock < requiredQuantity) {
             throw new InsufficientStockException(
                 String.format("Insufficient stock for material ID %d at project ID %d, storage location ID %d. Required: %.2f, Available: %.2f",
                     materialId, projectId, storageLocationId, requiredQuantity, currentStock)
+            );
+        }
+    }
+
+    /**
+     * Checks the project balance held against no storage location.
+     *
+     * <p>This is the check for a movement that names no location, because that is the row the
+     * movement goes on to write. {@link #validateSufficientStock} is deliberately not used
+     * here: it sums every row on the project, so it passes on stock sitting in storage
+     * locations that the unlocated write will never touch, and the balance goes negative.
+     *
+     * @param materialId The material to check.
+     * @param projectId The project to check within.
+     * @param requiredQuantity The quantity that must be available.
+     * @throws InsufficientStockException if no unlocated balance exists, or it is below the required amount.
+     */
+    public void validateSufficientUnlocatedStock(Long materialId, Long projectId, Double requiredQuantity) {
+        Optional<Double> balance = findUnlocatedStock(materialId, projectId);
+        if (balance.isEmpty() && requiredQuantity > 0) {
+            throw new InsufficientStockException(
+                String.format("Material ID %d holds no stock at project ID %d outside a storage location. Required: %.2f. "
+                        + "Any stock the project holds sits in its storage locations, so name the location to draw from.",
+                    materialId, projectId, requiredQuantity)
+            );
+        }
+        Double currentStock = balance.orElse(0.0);
+        if (currentStock < requiredQuantity) {
+            throw new InsufficientStockException(
+                String.format("Insufficient stock for material ID %d at project ID %d outside a storage location. "
+                        + "Required: %.2f, Available: %.2f",
+                    materialId, projectId, requiredQuantity, currentStock)
             );
         }
     }
@@ -155,8 +238,16 @@ public class InventoryService {
         for (Map.Entry<Long, Double> entry : requiredQuantities.entrySet()) {
             Long materialId = entry.getKey();
             Double required = entry.getValue();
-            Double available = getStockAtLocation(materialId, projectId, storageLocationId);
+            Optional<Double> balance = findStockAtLocation(materialId, projectId, storageLocationId);
 
+            if (balance.isEmpty() && required > 0) {
+                insufficientItems.add(
+                    String.format("Material ID %d: Required %.2f, never stocked at this location",
+                        materialId, required)
+                );
+                continue;
+            }
+            Double available = balance.orElse(0.0);
             if (available < required) {
                 insufficientItems.add(
                     String.format("Material ID %d: Required %.2f, Available %.2f",

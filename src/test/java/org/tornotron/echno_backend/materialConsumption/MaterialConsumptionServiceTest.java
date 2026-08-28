@@ -139,12 +139,15 @@ class MaterialConsumptionServiceTest {
     }
 
     @Test
-    void create_withoutStorageLocation_usesProjectScopedStockCheck() {
+    void create_withoutStorageLocation_checksTheProjectsUnlocatedBalance() {
         stubMasterLookups();
 
         service.createMaterialConsumption(baseDto());
 
-        verify(inventoryService).validateSufficientStock(MATERIAL, PROJECT, 5.0);
+        // The unlocated row, not the project total: the draw-down writes that row, so summing
+        // every row on the project would pass on stock this write cannot reach.
+        verify(inventoryService).validateSufficientUnlocatedStock(MATERIAL, PROJECT, 5.0);
+        verify(inventoryService, never()).validateSufficientStock(anyLong(), anyLong(), anyDouble());
         verify(inventoryService, never()).validateSufficientStockAtLocation(anyLong(), anyLong(), anyLong(), anyDouble());
     }
 

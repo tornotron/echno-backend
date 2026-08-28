@@ -23,6 +23,7 @@ import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
+import org.tornotron.echno_backend.storageLocation.StorageLocationScope;
 import org.tornotron.echno_backend.user.UserContextService;
 
 import java.math.BigDecimal;
@@ -122,6 +123,9 @@ public class MaterialService {
                                 creationDto.getStorageLocationId(), TenantContext.getCurrentOrgId())
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "Storage location with ID " + creationDto.getStorageLocationId() + " was not found in this organization"));
+                // The project and the location were resolved independently, so an opening
+                // balance could be seeded onto a location belonging to another project.
+                StorageLocationScope.requireUsableFromProject(storageLocation, project.getId());
             }
 
             Double quantity = creationDto.getOpeningStock().doubleValue();

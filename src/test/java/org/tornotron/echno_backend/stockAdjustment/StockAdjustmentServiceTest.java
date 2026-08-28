@@ -10,6 +10,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryTransactionRepository;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.organization.Organization;
@@ -20,6 +22,7 @@ import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentLineItemCr
 import org.tornotron.echno_backend.stockAdjustment.mapper.StockAdjustmentMapper;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,13 +36,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for StockAdjustmentService. The MVP service persists the document only (it
- * does not yet move stock), so the logic worth pinning is the reference resolution it
- * owns: an id that names nothing in the current tenant is rejected, a null id resolves to
- * no association rather than an error, line items are wired to their parent and stamped
- * with the organization, and an update replaces the whole line-item collection. The
- * repositories, mapper, and tenant helper are mocked; assertions read the entity captured
- * on saveAndFlush.
+ * Unit tests for the drafting half of StockAdjustmentService: an id that names nothing in
+ * the current tenant is rejected, a null id resolves to no association rather than an
+ * error, line items are wired to their parent and stamped with the organization, and an
+ * update replaces the whole line-item collection. The repositories, mapper, and tenant
+ * helper are mocked; assertions read the entity captured on saveAndFlush. Posting to the
+ * stock ledger is covered by {@link StockAdjustmentApprovalTest}.
  */
 @ExtendWith(MockitoExtension.class)
 class StockAdjustmentServiceTest {
@@ -55,6 +57,9 @@ class StockAdjustmentServiceTest {
     @Mock private MaterialRepository materialRepository;
     @Mock private StorageLocationRepository storageLocationRepository;
     @Mock private ProjectRepository projectRepository;
+    @Mock private InventoryService inventoryService;
+    @Mock private InventoryTransactionRepository inventoryTransactionRepository;
+    @Mock private UserContextService userContextService;
 
     private StockAdjustmentService service;
 
@@ -62,7 +67,8 @@ class StockAdjustmentServiceTest {
     void setUp() {
         TenantContext.setCurrentOrgId(ORG);
         service = new StockAdjustmentService(stockAdjustmentRepository, stockAdjustmentMapper,
-                tenantEntityHelper, materialRepository, storageLocationRepository, projectRepository);
+                tenantEntityHelper, materialRepository, storageLocationRepository, projectRepository,
+                inventoryService, inventoryTransactionRepository, userContextService);
         lenient().when(tenantEntityHelper.resolveCurrentOrganization()).thenAnswer(inv -> {
             Organization org = new Organization();
             org.setId(ORG);
