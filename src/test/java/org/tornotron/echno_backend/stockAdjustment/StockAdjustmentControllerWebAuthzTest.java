@@ -23,6 +23,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -30,8 +31,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * the guard: any member of the current tenant may read, but only a system-admin or
  * project-manager may write. This pins both halves and, crucially, that a plain member
  * who holds neither role is refused a write. If the write guard were ever loosened to
- * membership, the member-without-role delete test fails. @orgSecurity is mocked so each
- * branch is exercised independently.
+ * membership, the member-without-role delete test fails. Approving is held to the same
+ * bar: it is the action that moves a stock balance, so a plain member must not reach it.
+ * @orgSecurity is mocked so each branch is exercised independently.
  */
 @WebMvcTest(StockAdjustmentControllerWeb.class)
 @Import(StockAdjustmentControllerWebAuthzTest.TestSecurityConfig.class)
@@ -87,6 +89,25 @@ class StockAdjustmentControllerWebAuthzTest {
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
 
         mockMvc.perform(delete("/api/v1/stock-adjustments/web/1").with(jwt()).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void approve_isOk_forAnElevatedRoleHolder() throws Exception {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+
+        mockMvc.perform(post("/api/v1/stock-adjustments/web/1/approve").with(jwt()).with(csrf()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void approve_isForbidden_forAPlainMemberWithoutAnElevatedRole() throws Exception {
+        // Approving posts to the stock ledger and moves a balance. Letting any member do that
+        // silently is the governance hole this endpoint exists to close, not to open.
+        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+
+        mockMvc.perform(post("/api/v1/stock-adjustments/web/1/approve").with(jwt()).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 

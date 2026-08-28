@@ -1,0 +1,287 @@
+package org.tornotron.echno_backend.stockAdjustment;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryTransactionRepository;
+import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
+import org.tornotron.echno_backend.material.Material;
+import org.tornotron.echno_backend.material.MaterialRepository;
+import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentCreationDto;
+import org.tornotron.echno_backend.stockAdjustment.mapper.StockAdjustmentMapper;
+import org.tornotron.echno_backend.storageLocation.StorageLocation;
+import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
+import org.tornotron.echno_backend.user.UserContextService;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Approving a stock adjustment is the only way to set or correct a balance, so this covers
+ * what that has to guarantee: a ledger entry carrying the reason is written before the
+ * balance moves, a physical count lands the balance on the counted figure, a movement with
+ * no stated reason is refused, an adjustment cannot be posted twice or edited afterwards,
+ * and it cannot be used to book stock onto a location belonging to another project or to
+ * push a balance below zero.
+ */
+@ExtendWith(MockitoExtension.class)
+class StockAdjustmentApprovalTest {
+
+    private static final Long ORG = 100L;
+    private static final Long ADJUSTMENT = 5L;
+    private static final Long MATERIAL = 8L;
+    private static final Long PROJECT = 7L;
+    private static final Long LOCATION = 14L;
+    private static final Long OTHER_PROJECT = 9L;
+    private static final Long APPROVER = 42L;
+
+    @Mock private StockAdjustmentRepository stockAdjustmentRepository;
+    @Mock private StockAdjustmentMapper stockAdjustmentMapper;
+    @Mock private TenantEntityHelper tenantEntityHelper;
+    @Mock private MaterialRepository materialRepository;
+    @Mock private StorageLocationRepository storageLocationRepository;
+    @Mock private ProjectRepository projectRepository;
+    @Mock private InventoryService inventoryService;
+    @Mock private InventoryTransactionRepository inventoryTransactionRepository;
+    @Mock private UserContextService userContextService;
+
+    private StockAdjustmentService service;
+    private Organization organization;
+    private Project project;
+    private Material material;
+
+    @BeforeEach
+    void setUp() {
+        TenantContext.setCurrentOrgId(ORG);
+        service = new StockAdjustmentService(stockAdjustmentRepository, stockAdjustmentMapper,
+                tenantEntityHelper, materialRepository, storageLocationRepository, projectRepository,
+                inventoryService, inventoryTransactionRepository, userContextService);
+
+        organization = new Organization();
+        organization.setId(ORG);
+        project = new Project();
+        project.setId(PROJECT);
+        material = new Material();
+        material.setId(MATERIAL);
+
+        lenient().when(userContextService.getCurrentUserId()).thenReturn(APPROVER);
+        lenient().when(stockAdjustmentRepository.saveAndFlush(any(StockAdjustment.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(inventoryService.getAverageCost(any(), any(), any())).thenReturn(BigDecimal.ZERO);
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
+
+    private StorageLocation location(Long id, Long owningProjectId) {
+        StorageLocation location = new StorageLocation();
+        location.setId(id);
+        if (owningProjectId != null) {
+            Project owner = new Project();
+            owner.setId(owningProjectId);
+            location.setProject(owner);
+        }
+        return location;
+    }
+
+    private StockAdjustment adjustment(StorageLocation headerLocation) {
+        StockAdjustment adjustment = new StockAdjustment();
+        adjustment.setId(ADJUSTMENT);
+        adjustment.setAdjustmentNumber("SA-2026-0005");
+        adjustment.setOrganization(organization);
+        adjustment.setProject(project);
+        adjustment.setLocation(headerLocation);
+        adjustment.setPrimaryReason("physical_count");
+        when(stockAdjustmentRepository.findByIdAndOrganization_Id(ADJUSTMENT, ORG))
+                .thenReturn(Optional.of(adjustment));
+        return adjustment;
+    }
+
+    private StockAdjustmentLineItem line(StockAdjustment adjustment, Double physical, Double delta, String reason) {
+        StockAdjustmentLineItem line = new StockAdjustmentLineItem();
+        line.setMaterial(material);
+        line.setPhysicalQuantity(physical);
+        line.setAdjustmentQuantity(delta);
+        line.setReason(reason);
+        line.setOrganization(organization);
+        adjustment.addLineItem(line);
+        return line;
+    }
+
+    private void balanceAtLocation(double quantity) {
+        when(inventoryService.findStockAtLocation(MATERIAL, PROJECT, LOCATION))
+                .thenReturn(Optional.of(quantity));
+    }
+
+    @Test
+    void aCountedLineWritesALedgerEntryCarryingItsReasonAndLandsTheBalanceOnTheCount() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        StockAdjustmentLineItem line = line(adjustment, 46.0, null, "damage");
+        line.setReasonDetails("bags damaged by moisture");
+        balanceAtLocation(48.0);
+
+        service.approve(ADJUSTMENT);
+
+        ArgumentCaptor<InventoryTransaction> captor = ArgumentCaptor.forClass(InventoryTransaction.class);
+        verify(inventoryTransactionRepository).save(captor.capture());
+        InventoryTransaction posted = captor.getValue();
+        assertThat(posted.getTransactionType()).isEqualTo(InventoryTransactionType.ADJUST);
+        assertThat(posted.getReferenceNumber()).isEqualTo("SA-2026-0005");
+        assertThat(posted.getOpeningStock()).isEqualTo(48.0);
+        assertThat(posted.getQuantityChanged()).isEqualTo(-2.0);
+        assertThat(posted.getClosingStock()).isEqualTo(46.0);
+        assertThat(posted.getRemarks()).contains("damage").contains("bags damaged by moisture");
+        assertThat(posted.getProject()).isSameAs(project);
+
+        verify(inventoryService).updateCurrentStock(eq(material), eq(project), any(StorageLocation.class),
+                eq(organization), eq(-2.0), isNull());
+        assertThat(line.getSystemQuantity()).isEqualTo(48.0);
+        assertThat(line.getAdjustmentQuantity()).isEqualTo(-2.0);
+        assertThat(adjustment.getTotalVarianceQuantity()).isEqualTo(-2.0);
+        assertThat(adjustment.getStatus()).isEqualTo("processed");
+        assertThat(adjustment.getApprovedBy()).isEqualTo(APPROVER);
+        assertThat(adjustment.getProcessedBy()).isEqualTo(APPROVER);
+        assertThat(adjustment.getProcessedAt()).isNotNull();
+    }
+
+    @Test
+    void aCountIsPostedAgainstTheBalanceAsItStandsNotTheSystemQuantityOnTheCountSheet() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        StockAdjustmentLineItem line = line(adjustment, 46.0, null, "damage");
+        // The count sheet was written when the system said 48; a receipt has since taken it to 50.
+        line.setSystemQuantity(48.0);
+        balanceAtLocation(50.0);
+
+        service.approve(ADJUSTMENT);
+
+        ArgumentCaptor<InventoryTransaction> captor = ArgumentCaptor.forClass(InventoryTransaction.class);
+        verify(inventoryTransactionRepository).save(captor.capture());
+        assertThat(captor.getValue().getQuantityChanged()).isEqualTo(-4.0);
+        assertThat(captor.getValue().getClosingStock()).isEqualTo(46.0);
+    }
+
+    @Test
+    void aNegativeBalanceCanBeCorrectedBackToZero() {
+        // Row 15 on staging: material 8, project 7, no storage location, quantity -30.
+        StockAdjustment adjustment = adjustment(null);
+        line(adjustment, 0.0, null, "correcting a negative balance");
+        when(inventoryService.findUnlocatedStock(MATERIAL, PROJECT)).thenReturn(Optional.of(-30.0));
+
+        service.approve(ADJUSTMENT);
+
+        ArgumentCaptor<InventoryTransaction> captor = ArgumentCaptor.forClass(InventoryTransaction.class);
+        verify(inventoryTransactionRepository).save(captor.capture());
+        assertThat(captor.getValue().getQuantityChanged()).isEqualTo(30.0);
+        assertThat(captor.getValue().getClosingStock()).isEqualTo(0.0);
+        verify(inventoryService).updateCurrentStock(eq(material), eq(project), isNull(), eq(organization),
+                eq(30.0), any(BigDecimal.class));
+    }
+
+    @Test
+    void aMovementWithNoReasonAnywhereIsRefused() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        adjustment.setPrimaryReason(null);
+        line(adjustment, null, -5.0, null);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.approve(ADJUSTMENT))
+                .withMessageContaining("must say why it happened");
+
+        verify(inventoryTransactionRepository, never()).save(any());
+        verify(inventoryService, never()).updateCurrentStock(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void aLineOnALocationBelongingToAnotherProjectIsRefused() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, OTHER_PROJECT));
+        line(adjustment, null, -5.0, "damage");
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.approve(ADJUSTMENT))
+                .withMessageContaining("belongs to project with ID 9");
+
+        verify(inventoryTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    void anAdjustmentThatWouldTakeABalanceBelowZeroIsRefused() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        line(adjustment, null, -20.0, "write off");
+        balanceAtLocation(5.0);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.approve(ADJUSTMENT))
+                .withMessageContaining("cannot take it below zero");
+
+        verify(inventoryTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    void aLineThatComesOutAtNoMovementWritesNoLedgerEntry() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        line(adjustment, 48.0, null, "physical count");
+        balanceAtLocation(48.0);
+
+        service.approve(ADJUSTMENT);
+
+        verify(inventoryTransactionRepository, never()).save(any());
+        verify(inventoryService, never()).updateCurrentStock(any(), any(), any(), any(), any(), any());
+        assertThat(adjustment.getProcessedAt()).isNotNull();
+    }
+
+    @Test
+    void anAdjustmentWithNoProjectHasNoBalanceToCorrect() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        adjustment.setProject(null);
+        line(adjustment, null, -5.0, "damage");
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.approve(ADJUSTMENT))
+                .withMessageContaining("names no project");
+    }
+
+    @Test
+    void aPostedAdjustmentCannotBePostedEditedOrDeletedAgain() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        line(adjustment, null, -5.0, "damage");
+        adjustment.setProcessedAt(LocalDateTime.now());
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.approve(ADJUSTMENT))
+                .withMessageContaining("posted again");
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.update(ADJUSTMENT, new StockAdjustmentCreationDto()))
+                .withMessageContaining("cannot be edited");
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.delete(ADJUSTMENT))
+                .withMessageContaining("cannot be deleted");
+
+        verify(inventoryTransactionRepository, never()).save(any());
+        verify(stockAdjustmentRepository, never()).delete(any());
+    }
+}

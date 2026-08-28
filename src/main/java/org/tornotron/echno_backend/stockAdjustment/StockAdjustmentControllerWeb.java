@@ -24,9 +24,12 @@ import java.util.List;
         name = "Stock Adjustments (Web)",
         description = "Documents that correct the recorded on-hand quantity of materials at a storage "
                 + "location against a physical count, capturing the variance, its reason and justification "
-                + "per line item. Endpoints cover creating, updating, browsing and deleting stock "
-                + "adjustment documents for the caller's current tenant. Read endpoints require tenant "
-                + "membership; write endpoints require the system-admin or project-manager role."
+                + "per line item. This is the controlled way to set or correct a stock balance: approving "
+                + "a document posts its lines to the inventory ledger and moves the balance, so the "
+                + "resulting figure stays explainable. Endpoints cover creating, updating, browsing, "
+                + "approving and deleting stock adjustment documents for the caller's current tenant. "
+                + "Read endpoints require tenant membership; write and approval endpoints require the "
+                + "system-admin or project-manager role."
 )
 public class StockAdjustmentControllerWeb {
 
@@ -88,9 +91,8 @@ public class StockAdjustmentControllerWeb {
     @Operation(
             summary = "Create a stock adjustment",
             description = "Records a stock adjustment document capturing the counted and system quantities, "
-                    + "variance and justification for one or more materials at a location. In the current "
-                    + "scope the document is persisted as a record only; it does not yet post inventory "
-                    + "transactions or change the current stock balance."
+                    + "variance and justification for one or more materials at a location. The document is "
+                    + "created as a draft: it does not change any stock balance until it is approved."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Stock adjustment created"),
@@ -107,7 +109,8 @@ public class StockAdjustmentControllerWeb {
     @Operation(
             summary = "Update a stock adjustment",
             description = "Replaces the header fields and line items of an existing stock adjustment with "
-                    + "the given values."
+                    + "the given values. Refused once the adjustment has been approved and posted, since "
+                    + "the ledger entries would then describe a document that no longer exists."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustment updated"),
@@ -120,11 +123,37 @@ public class StockAdjustmentControllerWeb {
         return new ResponseEntity<>(stockAdjustmentService.update(id, creationDto), HttpStatus.OK);
     }
 
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(
+            summary = "Approve a stock adjustment and post it to the stock ledger",
+            description = "Approves the adjustment and posts each of its lines as an inventory "
+                    + "transaction, then moves the balance for that material, project and storage "
+                    + "location. A line carrying a counted physical quantity is posted as the movement "
+                    + "needed to reach that count from the balance as it stands at approval; a line "
+                    + "without one uses its signed adjustment quantity. Every line must carry a reason, "
+                    + "or the document must give a primary reason to fall back on, because the reason is "
+                    + "what the resulting balance is explained by. This is the only path that sets or "
+                    + "corrects a balance, and it is restricted to the system-admin and project-manager "
+                    + "roles. It runs once: an approved document is frozen against further posting, "
+                    + "editing and deletion, and a mistake is corrected by raising another adjustment."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustment approved and posted"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The adjustment is already posted, names no project, has no lines, or a line is missing a material, a reason or a quantity, or would take a balance below zero"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No stock adjustment with the given id")
+    })
+    public ResponseEntity<StockAdjustmentDto> approveStockAdjustment(@PathVariable Long id) {
+        return new ResponseEntity<>(stockAdjustmentService.approve(id), HttpStatus.OK);
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Delete a stock adjustment",
-            description = "Deletes the stock adjustment with the given id."
+            description = "Deletes the stock adjustment with the given id. Refused once the adjustment "
+                    + "has been approved and posted; raise a further adjustment instead."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustment deleted"),

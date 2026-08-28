@@ -24,8 +24,10 @@ import java.util.List;
  * values (e.g. {@code write_off}, {@code physical_count}) that are not valid Java enum
  * identifiers; the frontend validates them.
  *
- * <p>MVP scope: this document is persisted only. It does not mutate {@code CurrentStock}
- * or post inventory transactions; that integration is deferred.
+ * <p>The document is a draft until it is approved. Approval posts each line to the stock
+ * ledger and moves the balance, and stamps {@code processedAt}, which is what marks the
+ * document as posted: a posted document cannot be posted again, edited, or deleted. See
+ * {@link StockAdjustmentService#approve}.
  */
 @Entity
 @Table(name = "stock_adjustment")
