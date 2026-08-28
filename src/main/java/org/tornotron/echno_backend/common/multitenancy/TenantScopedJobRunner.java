@@ -25,8 +25,14 @@ import java.util.function.Supplier;
  *
  * <p>Background work that skipped the context would therefore read every organization's
  * rows and look entirely healthy doing it. {@link #callForTenant} refuses a null org id
- * instead, which turns that silent leak into a failure at the call site. The wider problem
- * is tracked separately; this is the local answer for work we own.
+ * instead, which turns that silent leak into a failure at the call site.
+ *
+ * <p>{@link UnscopedAccessGuard} has since closed the wider hole (#507), so an undeclared
+ * scope is refused at the load boundary rather than ignored. This runner is still the entry
+ * point background work should use, and is the earlier and better failure of the two: it
+ * names the missing organization before any work runs, rather than at whatever row happens
+ * to be read first. Work that belongs to no organization says so with {@link WithoutTenant}
+ * instead, which is a different statement and a much weaker one.
  *
  * <p>{@link TenantContext} is backed by {@link ThreadLocal}s, so two further things matter
  * on a pooled thread and both are handled here. The context is restored in a
@@ -64,9 +70,15 @@ public class TenantScopedJobRunner {
 
         Long previousOrgId = TenantContext.getCurrentOrgId();
         boolean previousBypass = TenantContext.isBypassed();
+        String previousUnscopedReason = TenantContext.getUnscopedReason();
 
         TenantContext.setCurrentOrgId(orgId);
         TenantContext.setBypass(false);
+        // An unscoped declaration inherited from an enclosing method, or left on a pooled thread,
+        // would sit alongside a real organization id and say the opposite of what is true here.
+        // The id already wins wherever the two are read together, so this is about the state not
+        // lying rather than about what the isolation mechanisms do with it.
+        TenantContext.clearUnscoped();
         try {
             return work.get();
         } finally {
@@ -76,6 +88,9 @@ public class TenantScopedJobRunner {
             }
             if (previousBypass) {
                 TenantContext.setBypass(true);
+            }
+            if (previousUnscopedReason != null) {
+                TenantContext.declareUnscoped(previousUnscopedReason);
             }
         }
     }

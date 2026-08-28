@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.multitenancy.WithoutTenant;
 import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -87,6 +88,8 @@ public class DevFixtureProvisioner {
      * @param displayName    the name to store on the user row and copy onto the employee row.
      * @param email          the address the organization picker matches on.
      */
+    @WithoutTenant("The dev fixture creates the organization it then works inside, so the first "
+            + "steps run before any tenant exists")
     public void provision(String keycloakUserId, String displayName, String email) {
         if (keycloakUserId == null || keycloakUserId.isBlank()) {
             log.error("No Keycloak id for the dev fixture account; skipping its application identity. "
