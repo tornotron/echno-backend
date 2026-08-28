@@ -1,8 +1,7 @@
 package org.tornotron.echno_backend.user;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,18 +36,18 @@ import java.util.Map;
 public class UserControllerWeb {
 
     private final UserService userService;
-    private final ObjectMapper objectMapper;
+    private final JsonPartBinder jsonPartBinder;
     private final UserContextService userContextService;
 
     /**
      * Constructs a UserController with the given UserService.
      *
      * @param userService The service for handling user-related business logic.
-     * @param objectMapper The ObjectMapper for JSON processing.
+     * @param jsonPartBinder Reads and validates the JSON part of a multipart request.
      */
-    public UserControllerWeb(UserService userService, ObjectMapper objectMapper, UserContextService userContextService) {
+    public UserControllerWeb(UserService userService, JsonPartBinder jsonPartBinder, UserContextService userContextService) {
         this.userService = userService;
-        this.objectMapper = objectMapper;
+        this.jsonPartBinder = jsonPartBinder;
         this.userContextService = userContextService;
     }
 
@@ -180,10 +179,7 @@ public class UserControllerWeb {
             @PathVariable Long id,
             @RequestParam(value = "profilePicture", required = false) MultipartFile profilePicture,
             @RequestParam(value = "cv", required = false) MultipartFile cv) throws JsonProcessingException {
-        Map<String, Object> updates = data != null
-                ? objectMapper.readValue(data, new TypeReference<>() {
-        })
-                : Map.of();
+        Map<String, Object> updates = jsonPartBinder.readUpdates(data);
         return ResponseEntity.status(HttpStatus.OK).body(userService.partialUpdateAnUser(updates, id, profilePicture, cv));
     }
     /**

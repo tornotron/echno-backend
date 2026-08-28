@@ -44,6 +44,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
  * Locks in read/write guard symmetry across the controllers that carried the asymmetry fixed
@@ -72,7 +74,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         IssueControllerWeb.class,
         IssueCommentControllerWeb.class
 })
-@Import(ReadWriteGuardSymmetryTest.TestSecurityConfig.class)
+@Import({ReadWriteGuardSymmetryTest.TestSecurityConfig.class, JsonPartBinder.class, PayloadValidator.class})
 class ReadWriteGuardSymmetryTest {
 
     @Autowired

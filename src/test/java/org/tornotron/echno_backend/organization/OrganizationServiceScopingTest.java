@@ -5,7 +5,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import jakarta.validation.Validator;
 import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
@@ -24,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
  * Unit tests for the row filtering behind the organization picker.
@@ -48,7 +48,7 @@ class OrganizationServiceScopingTest {
     @Mock private OrganizationSecurityService orgSecurity;
     @Mock private OrganizationOnboardingSeeder onboardingSeeder;
 
-    @Mock private Validator validator;
+    @Mock private PayloadValidator payloadValidator;
 
     @InjectMocks private OrganizationService service;
 

@@ -1,8 +1,7 @@
 package org.tornotron.echno_backend.task;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,7 +40,7 @@ import java.util.Map;
 public class TaskControllerWeb {
 
     private final TaskService service;
-    private final ObjectMapper objectMapper;
+    private final JsonPartBinder jsonPartBinder;
     /** Logger for this class. */
     private static final Logger logger = LoggerFactory.getLogger(TaskController.class);
 
@@ -50,8 +49,8 @@ public class TaskControllerWeb {
      *
      * @param service The service for handling task-related business logic.
      */
-    public TaskControllerWeb(TaskService service,ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public TaskControllerWeb(TaskService service,JsonPartBinder jsonPartBinder) {
+        this.jsonPartBinder = jsonPartBinder;
         this.service = service;
     }
 
@@ -74,9 +73,9 @@ public class TaskControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid task JSON, or a field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<TaskSimpleDto> createTask(@RequestPart @Valid String data,
+    public ResponseEntity<TaskSimpleDto> createTask(@RequestPart String data,
                                                     @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
-        TaskCreationDto dto = objectMapper.readValue(data, TaskCreationDto.class);
+        TaskCreationDto dto = jsonPartBinder.read(data, TaskCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addTask(dto,attachments));
     }
 
@@ -210,8 +209,7 @@ public class TaskControllerWeb {
                                                             @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments,
                                                             @RequestParam(value = "entityType", required = false, defaultValue = "TASK_ATTACHMENTS") String entityType) throws JsonProcessingException
     {
-        Map<String, Object> updates = data != null
-                ? objectMapper.readValue(data, new TypeReference<>() {}) : Map.of();
+        Map<String, Object> updates = jsonPartBinder.readUpdates(data);
         return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateATask(updates, id,attachments, entityType));
     }
 

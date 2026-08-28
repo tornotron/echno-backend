@@ -21,6 +21,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
  * Both project controllers take the create payload as the JSON string part of a multipart
@@ -62,7 +63,7 @@ class ProjectCreationValidationTest {
         validator = factory.getValidator();
         service = new ProjectService(repository, organizationRepository, employeeRepository,
                 attachmentService, projectMapper, employeeMapper, eventPublisher,
-                customerRepository, validator);
+                customerRepository, new PayloadValidator(validator));
     }
 
     private ProjectCreationDto validDto() {

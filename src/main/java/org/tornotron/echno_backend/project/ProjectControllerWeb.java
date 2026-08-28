@@ -1,8 +1,7 @@
 package org.tornotron.echno_backend.project;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,7 +40,7 @@ public class ProjectControllerWeb {
 
     private final ProjectService service;
 
-    private final ObjectMapper objectMapper;
+    private final JsonPartBinder jsonPartBinder;
     /** Logger for this class. */
     private static final Logger logger = LoggerFactory.getLogger(ProjectControllerWeb.class);
 
@@ -50,9 +49,9 @@ public class ProjectControllerWeb {
      *
      * @param service The service to handle project-related business logic.
      */
-    public ProjectControllerWeb(ProjectService service, ObjectMapper objectMapper) {
+    public ProjectControllerWeb(ProjectService service, JsonPartBinder jsonPartBinder) {
         this.service = service;
-        this.objectMapper = objectMapper;
+        this.jsonPartBinder = jsonPartBinder;
     }
 
     /**
@@ -75,9 +74,9 @@ public class ProjectControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid project JSON, or a field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<ProjectSimpleDto> createProject(@RequestPart("data") @Valid String data,
+    public ResponseEntity<ProjectSimpleDto> createProject(@RequestPart("data") String data,
                                                           @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments) throws JsonProcessingException {
-        ProjectCreationDto dto = objectMapper.readValue(data, ProjectCreationDto.class);
+        ProjectCreationDto dto = jsonPartBinder.read(data, ProjectCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addProject(dto, attachments));
     }
     /**
@@ -197,8 +196,7 @@ public class ProjectControllerWeb {
             @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments,
             @RequestParam(value = "entityType", required = false,defaultValue = "PROJECT_ATTACHMENTS") String entityType) throws JsonProcessingException
      {
-        Map<String, Object> updates = data != null
-                ? objectMapper.readValue(data, new TypeReference<>() {}) : Map.of();
+        Map<String, Object> updates = jsonPartBinder.readUpdates(data);
         return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAProject(updates,id,attachments,entityType));
     }
 

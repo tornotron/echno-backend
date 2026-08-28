@@ -1,7 +1,7 @@
 package org.tornotron.echno_backend.task;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,7 +42,7 @@ import java.util.Map;
 public class TaskController {
 
     private final TaskService service;
-    private final ObjectMapper objectMapper;
+    private final JsonPartBinder jsonPartBinder;
     /** Logger for this class. */
     private static final Logger logger = LoggerFactory.getLogger(TaskController.class);
 
@@ -51,9 +51,9 @@ public class TaskController {
      *
      * @param service The service for handling task-related business logic.
      */
-    public TaskController(TaskService service, ObjectMapper objectMapper) {
+    public TaskController(TaskService service, JsonPartBinder jsonPartBinder) {
         this.service = service;
-        this.objectMapper = objectMapper;
+        this.jsonPartBinder = jsonPartBinder;
     }
 
     /**
@@ -76,9 +76,9 @@ public class TaskController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid task JSON, or a field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task create or admin authority")
     })
-    public ResponseEntity<TaskSimpleDto> createTask(@RequestPart @Valid String data,
+    public ResponseEntity<TaskSimpleDto> createTask(@RequestPart String data,
                                                     @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
-        TaskCreationDto dto = objectMapper.readValue(data, TaskCreationDto.class);
+        TaskCreationDto dto = jsonPartBinder.read(data, TaskCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addTask(dto,attachments));
     }
 

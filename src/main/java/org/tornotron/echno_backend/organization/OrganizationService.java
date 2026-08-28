@@ -1,8 +1,7 @@
 package org.tornotron.echno_backend.organization;
 
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.Validator;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -37,7 +36,6 @@ import org.tornotron.echno_backend.user.UserContextService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -65,7 +63,7 @@ public class OrganizationService {
     private final org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper;
     private final org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity;
     private final OrganizationOnboardingSeeder onboardingSeeder;
-    private final Validator validator;
+    private final PayloadValidator payloadValidator;
 
     /**
      * Constructs an {@code OrganizationService} with the necessary dependencies.
@@ -75,9 +73,9 @@ public class OrganizationService {
      * @param keycloakGroupService The service for managing Keycloak groups.
      * @param subscriptionService The service for handling subscription billing.
      * @param onboardingSeeder Seeds the per-organization finance defaults for a new organization.
-     * @param validator Bean validator applied to the create payload.
+     * @param payloadValidator Runs the create payload's own constraints.
      */
-    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, OrganizationOnboardingSeeder onboardingSeeder, Validator validator) {
+    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, OrganizationOnboardingSeeder onboardingSeeder, PayloadValidator payloadValidator) {
         this.repository = repository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
@@ -88,26 +86,7 @@ public class OrganizationService {
         this.organizationMapper = organizationMapper;
         this.orgSecurity = orgSecurity;
         this.onboardingSeeder = onboardingSeeder;
-        this.validator = validator;
-    }
-
-    /**
-     * Runs bean validation over the create payload.
-     *
-     * <p>Both organization controllers take the payload as the JSON string part of a multipart
-     * request and deserialize it by hand, so Spring never binds a bean and never validates one,
-     * and the constraints on {@link OrganizationCreationDto} would otherwise never fire. Doing it
-     * here covers both entry points at once, and covers any later caller by construction.
-     *
-     * @param organizationCreationDto The payload as deserialized from the request.
-     * @throws ConstraintViolationException if any constraint on the payload fails.
-     */
-    private void requireValid(OrganizationCreationDto organizationCreationDto) {
-        Set<ConstraintViolation<OrganizationCreationDto>> violations =
-                validator.validate(organizationCreationDto);
-        if (!violations.isEmpty()) {
-            throw new ConstraintViolationException(violations);
-        }
+        this.payloadValidator = payloadValidator;
     }
 
     /**
@@ -159,7 +138,7 @@ public class OrganizationService {
      */
     @Transactional
     public OrganizationSimpleDto addOrganization(OrganizationCreationDto organizationCreationDto, List<MultipartFile> attachments) {
-        requireValid(organizationCreationDto);
+        payloadValidator.requireValid(organizationCreationDto);
         if(repository.existsByOrganizationEmail(organizationCreationDto.getOrganizationEmail())){
             throw new DuplicateResourceException("Organization with email '" + organizationCreationDto.getOrganizationEmail() + "' already exists");
         }

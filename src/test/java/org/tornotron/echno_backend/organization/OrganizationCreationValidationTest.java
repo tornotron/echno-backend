@@ -24,6 +24,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
  * Both organization controllers take the create payload as the JSON string part of a multipart
@@ -69,7 +70,7 @@ class OrganizationCreationValidationTest {
         validator = factory.getValidator();
         service = new OrganizationService(repository, attachmentService, fileStorageService,
                 keycloakGroupService, subscriptionService, userContextService, employeeService,
-                organizationMapper, orgSecurity, onboardingSeeder, validator);
+                organizationMapper, orgSecurity, onboardingSeeder, new PayloadValidator(validator));
     }
 
     @AfterAll

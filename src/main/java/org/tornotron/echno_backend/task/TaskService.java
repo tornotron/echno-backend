@@ -1,8 +1,7 @@
 package org.tornotron.echno_backend.task;
 
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.Validator;
+import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -51,8 +50,7 @@ public class TaskService {
     private final CategoryRepository categoryRepository;
     private final AttachmentService attachmentService;
     private final TaskMapper taskMapper;
-    private final Validator validator;
-
+    private final PayloadValidator payloadValidator;
 
     /**
      * Constructs a TaskService with the necessary repositories.
@@ -63,7 +61,7 @@ public class TaskService {
      * @param categoryRepository The repository for category data access.
      * @param attachmentService  The service for attachment operations.
      * @param taskMapper         The mapper between tasks and their DTOs.
-     * @param validator          Bean validator applied to the create payload.
+     * @param payloadValidator   Runs the create payload's own constraints.
      */
     public TaskService(TaskRepository taskRepository,
                        EmployeeRepository employeeRepository,
@@ -71,40 +69,21 @@ public class TaskService {
                        CategoryRepository categoryRepository,
                        AttachmentService attachmentService,
                        TaskMapper taskMapper,
-                       Validator validator) {
+                       PayloadValidator payloadValidator) {
         this.taskRepository = taskRepository;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.categoryRepository = categoryRepository;
         this.attachmentService = attachmentService;
         this.taskMapper = taskMapper;
-        this.validator = validator;
+        this.payloadValidator = payloadValidator;
     }
-
-    /**
-     * Runs bean validation over the create payload.
-     *
-     * <p>Both task controllers take the payload as the JSON string part of a multipart request
-     * and deserialize it by hand, so Spring never binds a bean and never validates one, and the
-     * constraints on {@link TaskCreationDto} would otherwise never fire. Doing it here covers
-     * both entry points at once, and covers any later caller by construction.
-     *
-     * @param taskCreationDto The payload as deserialized from the request.
-     * @throws ConstraintViolationException if any constraint on the payload fails.
-     */
-    private void requireValid(TaskCreationDto taskCreationDto) {
-        Set<ConstraintViolation<TaskCreationDto>> violations = validator.validate(taskCreationDto);
-        if (!violations.isEmpty()) {
-            throw new ConstraintViolationException(violations);
-        }
-    }
-
 
     /**
      * Creates a new task.
      *
      * @param taskCreationDto DTO containing the details for the new task.
-     * @throws jakarta.validation.ConstraintViolationException if the payload fails its own constraints.
+     * @throws ConstraintViolationException if the payload fails its own constraints.
      * @throws ResourceNotFoundException if the creator, project, or category is not found.
      * @throws InvalidRequestException if required fields like creatorId, projectId, or categoryId are missing,
      *                                 or if assigned employees do not belong to the project's organization.
@@ -112,7 +91,7 @@ public class TaskService {
      */
     @Transactional
     public TaskSimpleDto addTask(TaskCreationDto taskCreationDto, List<MultipartFile> attachments) {
-        requireValid(taskCreationDto);
+        payloadValidator.requireValid(taskCreationDto);
         Task task = new Task();
         task.setTitle(taskCreationDto.getTitle());
         task.setStartDate(taskCreationDto.getStartDate());

@@ -1,11 +1,10 @@
 package org.tornotron.echno_backend.issue;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -37,11 +36,11 @@ import java.util.Map;
 public class IssueControllerWeb {
 
     private final IssueService issueService;
-    private final ObjectMapper objectMapper;
+    private final JsonPartBinder jsonPartBinder;
 
-    public IssueControllerWeb(IssueService issueService,ObjectMapper objectMapper) {
+    public IssueControllerWeb(IssueService issueService,JsonPartBinder jsonPartBinder) {
         this.issueService = issueService;
-        this.objectMapper = objectMapper;
+        this.jsonPartBinder = jsonPartBinder;
     }
 
     @GetMapping
@@ -147,9 +146,9 @@ public class IssueControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid issue JSON, or a field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<IssueSimpleDto> createIssue(@RequestPart("data") @Valid String data,
+    public ResponseEntity<IssueSimpleDto> createIssue(@RequestPart("data") String data,
                                                       @RequestParam(value = "attachments",required = false) List<MultipartFile> attachments) throws JsonProcessingException {
-        IssueCreationDto dto = objectMapper.readValue(data, IssueCreationDto.class);
+        IssueCreationDto dto = jsonPartBinder.read(data, IssueCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(issueService.addIssue(dto,attachments));
     }
@@ -173,8 +172,7 @@ public class IssueControllerWeb {
             @PathVariable Long id,
             @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments,
             @RequestParam(value = "entityType", required = false, defaultValue = "ISSUE_ATTACHMENTS") String entityType) throws JsonProcessingException {
-        Map<String, Object> updates = data != null
-                ? objectMapper.readValue(data, new com.fasterxml.jackson.core.type.TypeReference<>() {}) : Map.of();
+        Map<String, Object> updates = jsonPartBinder.readUpdates(data);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(issueService.partialUpdateAnIssue(updates, id, attachments, entityType));
     }
