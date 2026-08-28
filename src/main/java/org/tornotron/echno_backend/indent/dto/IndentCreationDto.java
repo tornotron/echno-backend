@@ -4,21 +4,17 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemCreationDto;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Schema(description = "Payload to raise a material indent on a project, with its requested items.")
+@Schema(description = "Payload to raise a material indent on a project, with its requested items. "
+        + "The indent number is allocated by the server and returned on the created indent; it is "
+        + "not part of this payload.")
 @Data
 public class IndentCreationDto {
-
-    @Schema(description = "Indent number, unique per organization.", example = "IND-2026-0015")
-    @NotBlank(message = "indentNumber is required(type: String)")
-    @Size(min = 1, max = 50, message = "indentNumber must be between 1 and 50 characters")
-    private String indentNumber;
 
     @Schema(description = "Id of the project the indent is raised for.", example = "3")
     @NotNull(message = "project ID is required")

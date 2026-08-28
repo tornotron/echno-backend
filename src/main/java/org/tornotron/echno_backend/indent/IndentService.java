@@ -8,7 +8,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.indentItem.mapper.IndentItemMapper;
 import org.tornotron.echno_backend.indent.mapper.IndentMapper;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.common.retry.SqlStateDetector;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -50,11 +54,15 @@ public class IndentService {
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
     private final IndentItemMapper indentItemMapper;
+    private final DocumentNumberAllocator documentNumberAllocator;
+    private final TransactionRetryTemplate retryTemplate;
 
     public IndentService(IndentRepository indentRepository, IndentItemRepository indentItemRepository,
                          MaterialRepository materialRepository, IndentMapper indentMapper,
                          TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository,
-                         ProjectRepository projectRepository, IndentItemMapper indentItemMapper) {
+                         ProjectRepository projectRepository, IndentItemMapper indentItemMapper,
+                         DocumentNumberAllocator documentNumberAllocator,
+                         TransactionRetryTemplate retryTemplate) {
         this.indentRepository = indentRepository;
         this.indentItemRepository = indentItemRepository;
         this.materialRepository = materialRepository;
@@ -63,6 +71,8 @@ public class IndentService {
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.indentItemMapper = indentItemMapper;
+        this.documentNumberAllocator = documentNumberAllocator;
+        this.retryTemplate = retryTemplate;
     }
 
     // ==================== Indent CRUD ====================
@@ -121,15 +131,26 @@ public class IndentService {
     /**
      * Creates an indent with any nested line items.
      *
-     * <p>Resolves the creating employee and project, sets the header fields, and attaches
-     * each supplied item, resolving its material.
+     * <p>Allocates the indent number, resolves the creating employee and project, sets the
+     * header fields, and attaches each supplied item, resolving its material.
+     *
+     * <p>The transaction is restarted on a serialization abort, and also on a unique
+     * violation: the counter behind the indent number is the row two concurrent creates
+     * contend on, and a fresh attempt allocates the next number rather than reporting a
+     * collision the user did not cause.
      *
      * @param indentCreationDto The indent header fields and optional list of items.
      * @return The created indent as a DTO.
      * @throws ResourceNotFoundException if the creator, project, or a line's material is not found in this organization.
      */
-    @Transactional
     public IndentDto addIndent(IndentCreationDto indentCreationDto) {
+        return retryTemplate.execute(
+                "IndentService.addIndent",
+                failure -> SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION),
+                () -> addIndentInTransaction(indentCreationDto));
+    }
+
+    private IndentDto addIndentInTransaction(IndentCreationDto indentCreationDto) {
         Indent indent = new Indent();
         Employee employee = employeeRepository.findByIdAndOrganizationId(indentCreationDto.getCreatedByEmployeeId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + indentCreationDto.getCreatedByEmployeeId() + " was not found in this organization"));
@@ -139,7 +160,8 @@ public class IndentService {
 
         indent.setCreatedBy(employee);
         indent.setProject(project);
-        indent.setIndentNumber(indentCreationDto.getIndentNumber());
+        indent.setIndentNumber(
+                documentNumberAllocator.allocate(DocumentNumberType.INDENT, TenantContext.getCurrentOrgId()));
         indent.setStatus(IndentStatus.valueOf(indentCreationDto.getStatus()));
         indent.setExpectedOn(indentCreationDto.getExpectedOn());
         indent.setRemarks(indentCreationDto.getRemarks());

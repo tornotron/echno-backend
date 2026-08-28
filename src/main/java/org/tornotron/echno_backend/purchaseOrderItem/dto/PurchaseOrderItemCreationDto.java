@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.purchaseOrderItem.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -26,10 +27,16 @@ public class PurchaseOrderItemCreationDto {
     @Min(value = 1, message = "Ordered quantity must be at least 1")
     private Integer orderedQuantity;
 
-    @Schema(description = "Unit price in INR.", example = "62.50")
+    @Schema(description = "Unit price in INR. Required. Zero is allowed, for a line supplied free "
+            + "of charge, but it has to be sent deliberately: an empty price field is rejected "
+            + "rather than treated as zero, which is how orders were being saved with a total of "
+            + "nothing.", example = "62.50")
+    @NotNull(message = "Unit price is required")
+    @PositiveOrZero(message = "Unit price cannot be negative")
     private BigDecimal unitPrice;
 
-    @Schema(description = "Total price for this line in INR.", example = "31250.00")
+    @Schema(description = "Total price for this line in INR. Ignored: the server computes it as "
+            + "unit price times ordered quantity.", example = "31250.00")
     private BigDecimal totalPrice;
 
     @Schema(description = "Free-text remarks on this line item.", example = "IS 1786 grade, mill test certificate required")

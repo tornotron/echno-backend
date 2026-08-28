@@ -34,7 +34,12 @@ public class SiteTransfer implements TenantScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "transfer_number", nullable = false, unique = true)
+    /**
+     * Allocated by the server, never by the client. Unique per organization rather than
+     * globally: the constraint that enforces it is {@code uk_site_transfer_org_number} in the schema, and it
+     * is composite, so it cannot be declared here as a column-level unique.
+     */
+    @Column(name = "transfer_number", nullable = false)
     private String transferNumber;
 
     @Column(name = "issue_date")

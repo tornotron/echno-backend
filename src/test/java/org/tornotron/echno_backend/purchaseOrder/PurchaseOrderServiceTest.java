@@ -7,8 +7,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.employee.Employee;
@@ -33,10 +36,13 @@ import org.tornotron.echno_backend.vendor.VendorRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -64,15 +70,22 @@ class PurchaseOrderServiceTest {
     @Mock private PurchaseOrderItemRepository purchaseOrderItemRepository;
     @Mock private MaterialRepository materialRepository;
     @Mock private IndentItemRepository indentItemRepository;
+    @Mock private DocumentNumberAllocator documentNumberAllocator;
+    @Mock private TransactionRetryTemplate retryTemplate;
 
     private PurchaseOrderService service;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         TenantContext.setCurrentOrgId(ORG);
         service = new PurchaseOrderService(purchaseOrderRepository, vendorRepository, indentRepository,
                 purchaseOrderMapper, tenantEntityHelper, employeeRepository, projectRepository,
-                purchaseOrderItemRepository, materialRepository, indentItemRepository);
+                purchaseOrderItemRepository, materialRepository, indentItemRepository,
+                documentNumberAllocator, retryTemplate);
+        // The template's own behaviour is covered by its own tests; here it just runs the work.
+        lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
+                .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
     }
 
     @AfterEach
@@ -95,15 +108,16 @@ class PurchaseOrderServiceTest {
         lenient().when(tenantEntityHelper.resolveCurrentOrganization()).thenReturn(org);
         lenient().when(purchaseOrderRepository.save(any(PurchaseOrder.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(documentNumberAllocator.allocate(DocumentNumberType.PURCHASE_ORDER, ORG))
+                .thenReturn("PO-2026-000042");
     }
 
     private PurchaseOrderCreationDto baseDto() {
         PurchaseOrderCreationDto dto = new PurchaseOrderCreationDto();
-        dto.setPoNumber("PO-001");
         dto.setVendorId(5L);
         dto.setCreatedBy(7L);
         dto.setProjectId(9L);
-        dto.setStatus("DRAFT");
+        dto.setStatus(PurchaseOrderStatus.DRAFT);
         return dto;
     }
 
@@ -122,18 +136,60 @@ class PurchaseOrderServiceTest {
     }
 
     @Test
-    void createPurchaseOrder_duplicatePoNumber_throws() {
-        when(purchaseOrderRepository.existsByPoNumberAndOrganization_Id("PO-001", ORG)).thenReturn(true);
+    void createPurchaseOrder_takesItsNumberFromTheServerNotTheCaller() {
+        stubMasterLookups();
 
-        assertThatThrownBy(() -> service.createPurchaseOrder(baseDto()))
-                .isInstanceOf(DuplicateResourceException.class);
+        service.createPurchaseOrder(baseDto());
 
+        ArgumentCaptor<PurchaseOrder> captor = ArgumentCaptor.forClass(PurchaseOrder.class);
+        verify(purchaseOrderRepository).save(captor.capture());
+        assertThat(captor.getValue().getPoNumber()).isEqualTo("PO-2026-000042");
+        verify(documentNumberAllocator).allocate(DocumentNumberType.PURCHASE_ORDER, ORG);
+    }
+
+    @Test
+    void createPurchaseOrder_asApproved_isRefused() {
+        PurchaseOrderCreationDto dto = baseDto();
+        dto.setStatus(PurchaseOrderStatus.APPROVED);
+
+        assertThatThrownBy(() -> service.createPurchaseOrder(dto))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("APPROVED");
+
+        verify(purchaseOrderRepository, never()).save(any());
+        verify(documentNumberAllocator, never()).allocate(any(), any());
+    }
+
+    @Test
+    void createPurchaseOrder_asAnyOtherLaterState_isRefused() {
+        for (PurchaseOrderStatus status : PurchaseOrderStatus.values()) {
+            if (status == PurchaseOrderStatus.DRAFT) {
+                continue;
+            }
+            PurchaseOrderCreationDto dto = baseDto();
+            dto.setStatus(status);
+            assertThatThrownBy(() -> service.createPurchaseOrder(dto))
+                    .as("creating a purchase order as %s", status)
+                    .isInstanceOf(InvalidRequestException.class);
+        }
         verify(purchaseOrderRepository, never()).save(any());
     }
 
     @Test
+    void createPurchaseOrder_withNoStatus_startsAsDraft() {
+        stubMasterLookups();
+        PurchaseOrderCreationDto dto = baseDto();
+        dto.setStatus(null);
+
+        service.createPurchaseOrder(dto);
+
+        ArgumentCaptor<PurchaseOrder> captor = ArgumentCaptor.forClass(PurchaseOrder.class);
+        verify(purchaseOrderRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(PurchaseOrderStatus.DRAFT);
+    }
+
+    @Test
     void createPurchaseOrder_unknownVendor_throwsNotFound() {
-        when(purchaseOrderRepository.existsByPoNumberAndOrganization_Id("PO-001", ORG)).thenReturn(false);
         when(vendorRepository.findByIdAndOrganization_Id(5L, ORG)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.createPurchaseOrder(baseDto()))
@@ -142,7 +198,6 @@ class PurchaseOrderServiceTest {
 
     @Test
     void createPurchaseOrder_withoutItems_totalIsZero() {
-        when(purchaseOrderRepository.existsByPoNumberAndOrganization_Id("PO-001", ORG)).thenReturn(false);
         stubMasterLookups();
 
         service.createPurchaseOrder(baseDto());
@@ -157,7 +212,6 @@ class PurchaseOrderServiceTest {
 
     @Test
     void createPurchaseOrder_withItems_computesLineAndOrderTotals() {
-        when(purchaseOrderRepository.existsByPoNumberAndOrganization_Id("PO-001", ORG)).thenReturn(false);
         stubMasterLookups();
         when(materialRepository.findByIdAndOrganization_Id(11L, ORG)).thenReturn(Optional.of(material(11L)));
         when(materialRepository.findByIdAndOrganization_Id(12L, ORG)).thenReturn(Optional.of(material(12L)));
@@ -183,7 +237,6 @@ class PurchaseOrderServiceTest {
 
     @Test
     void createPurchaseOrder_itemFromIndentItem_marksItConverted() {
-        when(purchaseOrderRepository.existsByPoNumberAndOrganization_Id("PO-001", ORG)).thenReturn(false);
         stubMasterLookups();
         when(materialRepository.findByIdAndOrganization_Id(11L, ORG)).thenReturn(Optional.of(material(11L)));
         IndentItem indentItem = new IndentItem();

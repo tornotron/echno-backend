@@ -11,8 +11,11 @@ import org.tornotron.echno_backend.siteTransfer.mapper.SiteTransferMapper;
 import org.tornotron.echno_backend.common.events.SiteTransferCreatedEvent;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
-import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.retry.SqlStateDetector;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
@@ -61,6 +64,8 @@ public class SiteTransferService {
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
     private final StorageLocationRepository storageLocationRepository;
+    private final DocumentNumberAllocator documentNumberAllocator;
+    private final TransactionRetryTemplate retryTemplate;
 
     public SiteTransferService(SiteTransferRepository siteTransferRepository,
                                SiteTransferItemRepository siteTransferItemRepository,
@@ -72,7 +77,9 @@ public class SiteTransferService {
                                TenantEntityHelper tenantEntityHelper,
                                EmployeeRepository employeeRepository,
                                ProjectRepository projectRepository,
-                               StorageLocationRepository storageLocationRepository) {
+                               StorageLocationRepository storageLocationRepository,
+                               DocumentNumberAllocator documentNumberAllocator,
+                               TransactionRetryTemplate retryTemplate) {
         this.siteTransferRepository = siteTransferRepository;
         this.siteTransferItemRepository = siteTransferItemRepository;
         this.userRepository = userRepository;
@@ -84,29 +91,37 @@ public class SiteTransferService {
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
         this.storageLocationRepository = storageLocationRepository;
+        this.documentNumberAllocator = documentNumberAllocator;
+        this.retryTemplate = retryTemplate;
     }
 
     /**
      * Creates a site transfer with its items after checking sending-side stock.
      *
-     * <p>Rejects a duplicate transfer number and resolves the sending person and the sending
-     * and receiving projects (plus optional storage locations). Requested quantities are
-     * totalled per material and validated against the sending side. After saving the transfer
-     * and its items, a {@link SiteTransferCreatedEvent} is published so inventory moves.
+     * <p>Allocates the transfer number and resolves the sending person and the sending and
+     * receiving projects (plus optional storage locations). Requested quantities are totalled
+     * per material and validated against the sending side. After saving the transfer and its
+     * items, a {@link SiteTransferCreatedEvent} is published so inventory moves.
+     *
+     * <p>The transaction is restarted on a serialization abort, and also on a unique
+     * violation: the counter behind the transfer number is the row two concurrent creates
+     * contend on, and a fresh attempt allocates the next number rather than reporting a
+     * collision the user did not cause. The inventory listener runs after commit, so only the
+     * attempt that commits moves stock.
      *
      * @param creationDto The transfer header fields and the list of items to move.
      * @return The created site transfer as a DTO.
-     * @throws DuplicateResourceException if the transfer number already exists in this organization.
      * @throws ResourceNotFoundException if the sending person, either project, a storage location, or a line's material is not found in this organization.
      * @throws org.tornotron.echno_backend.common.exception.InsufficientStockException if the sending side does not hold enough of any requested material.
      */
-    @Transactional
     public SiteTransferDto createSiteTransfer(SiteTransferCreationDto creationDto) {
-        // Check for duplicate transfer number
-        if (siteTransferRepository.existsByTransferNumberAndOrganization_Id(creationDto.getTransferNumber(),TenantContext.getCurrentOrgId())) {
-            throw new DuplicateResourceException("Site transfer with number " + creationDto.getTransferNumber() + " already exists");
-        }
+        return retryTemplate.execute(
+                "SiteTransferService.createSiteTransfer",
+                failure -> SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION),
+                () -> createSiteTransferInTransaction(creationDto));
+    }
 
+    private SiteTransferDto createSiteTransferInTransaction(SiteTransferCreationDto creationDto) {
         Employee sendingPerson = employeeRepository.findByIdAndOrganizationId(creationDto.getSendingPerson(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sending person (employee) with ID " + creationDto.getSendingPerson() + " was not found in this organization"));
 
@@ -133,7 +148,8 @@ public class SiteTransferService {
 
         // Create site transfer
         SiteTransfer transfer = new SiteTransfer();
-        transfer.setTransferNumber(creationDto.getTransferNumber());
+        transfer.setTransferNumber(
+                documentNumberAllocator.allocate(DocumentNumberType.SITE_TRANSFER, TenantContext.getCurrentOrgId()));
         transfer.setIssueDate(creationDto.getIssueDate());
         transfer.setSendingPerson(sendingPerson);
         transfer.setSendingProject(sendingProject);

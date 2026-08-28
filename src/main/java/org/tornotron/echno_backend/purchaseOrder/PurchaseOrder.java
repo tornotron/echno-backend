@@ -40,7 +40,12 @@ public class PurchaseOrder implements TenantScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "po_number", nullable = false, unique = true)
+    /**
+     * Allocated by the server, never by the client. Unique per organization rather than
+     * globally: the constraint that enforces it is {@code uk_purchase_order_org_number} in the schema, and it
+     * is composite, so it cannot be declared here as a column-level unique.
+     */
+    @Column(name = "po_number", nullable = false)
     private String poNumber;
 
     @ManyToOne

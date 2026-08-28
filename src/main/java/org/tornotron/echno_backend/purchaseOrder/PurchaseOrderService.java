@@ -7,10 +7,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.purchaseOrder.mapper.PurchaseOrderMapper;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
-import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.retry.SqlStateDetector;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.indent.Indent;
@@ -28,6 +32,7 @@ import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
 import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItem;
 import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItemRepository;
 import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemCreationDto;
+import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.vendor.Vendor;
 import org.tornotron.echno_backend.vendor.VendorRepository;
 
@@ -38,10 +43,16 @@ import java.util.stream.Collectors;
 /**
  * CRUD, status changes, and total maintenance for purchase orders.
  *
- * <p>Creating a purchase order validates the vendor, creator, project, and optional indent,
- * builds its line items, and sums their line totals into the order total. When an item is
- * raised from an indent item, that indent item is flagged as converted to a purchase order.
- * The total can be recomputed from the persisted lines after they change.
+ * <p>Creating a purchase order allocates its PO number, validates the vendor, creator,
+ * project, and optional indent, builds its line items, and sums their line totals into the
+ * order total. When an item is raised from an indent item, that indent item is flagged as
+ * converted to a purchase order. The total can be recomputed from the persisted lines after
+ * they change.
+ *
+ * <p>An order is always created in {@link PurchaseOrderStatus#DRAFT}. Approving it, sending it
+ * to the vendor and every later state change go through the status endpoint, so that approval
+ * is a separate act on an order that already exists rather than a value the create form can
+ * choose for itself.
  */
 @Service
 public class PurchaseOrderService {
@@ -56,6 +67,8 @@ public class PurchaseOrderService {
     private final PurchaseOrderItemRepository purchaseOrderItemRepository;
     private final MaterialRepository materialRepository;
     private final IndentItemRepository indentItemRepository;
+    private final DocumentNumberAllocator documentNumberAllocator;
+    private final TransactionRetryTemplate retryTemplate;
 
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                                 VendorRepository vendorRepository,
@@ -66,7 +79,9 @@ public class PurchaseOrderService {
                                 ProjectRepository projectRepository,
                                 PurchaseOrderItemRepository purchaseOrderItemRepository,
                                 MaterialRepository materialRepository,
-                                IndentItemRepository indentItemRepository) {
+                                IndentItemRepository indentItemRepository,
+                                DocumentNumberAllocator documentNumberAllocator,
+                                TransactionRetryTemplate retryTemplate) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.vendorRepository = vendorRepository;
         this.indentRepository = indentRepository;
@@ -77,26 +92,42 @@ public class PurchaseOrderService {
         this.purchaseOrderItemRepository = purchaseOrderItemRepository;
         this.materialRepository = materialRepository;
         this.indentItemRepository = indentItemRepository;
+        this.documentNumberAllocator = documentNumberAllocator;
+        this.retryTemplate = retryTemplate;
     }
 
     /**
      * Creates a purchase order with its line items and computed total.
      *
-     * <p>Rejects a duplicate PO number and resolves the vendor, creator, project, and
-     * optional indent. Each supplied item is built, its line total added to the order total,
-     * and any linked indent item is marked as converted to a purchase order.
+     * <p>Allocates the PO number and resolves the vendor, creator, project, and optional
+     * indent. Each supplied item is built, its line total added to the order total, and any
+     * linked indent item is marked as converted to a purchase order.
+     *
+     * <p>The transaction is restarted on a serialization abort, and also on a unique
+     * violation: the counter behind the PO number is the row two concurrent creates contend
+     * on, and a fresh attempt allocates the next number rather than reporting a collision the
+     * user did not cause. See {@link DocumentNumberAllocator} for why that is enough.
      *
      * @param creationDto The order header fields and the list of line items.
      * @return The created purchase order as a DTO.
-     * @throws DuplicateResourceException if the PO number already exists in this organization.
+     * @throws InvalidRequestException if a status other than DRAFT is asked for on create.
      * @throws ResourceNotFoundException if the vendor, creator, project, indent, or a line's material or indent item is not found in this organization.
      */
-    @Transactional
     public PurchaseOrderDto createPurchaseOrder(PurchaseOrderCreationDto creationDto) {
-        if (purchaseOrderRepository.existsByPoNumberAndOrganization_Id(creationDto.getPoNumber(),TenantContext.getCurrentOrgId())) {
-            throw new DuplicateResourceException("Purchase Order with PO number " + creationDto.getPoNumber() + " already exists");
+        if (creationDto.getStatus() != null && creationDto.getStatus() != PurchaseOrderStatus.DRAFT) {
+            throw new InvalidRequestException(
+                    "A purchase order is created as " + PurchaseOrderStatus.DRAFT + " and cannot be "
+                            + "created as " + creationDto.getStatus() + ". Create it first, then move "
+                            + "it with the purchase order status endpoint.");
         }
 
+        return retryTemplate.execute(
+                "PurchaseOrderService.createPurchaseOrder",
+                failure -> SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION),
+                () -> createPurchaseOrderInTransaction(creationDto));
+    }
+
+    private PurchaseOrderDto createPurchaseOrderInTransaction(PurchaseOrderCreationDto creationDto) {
         Vendor vendor = vendorRepository.findByIdAndOrganization_Id(creationDto.getVendorId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vendor with ID " + creationDto.getVendorId() + " was not found in this organization"));
 
@@ -112,17 +143,20 @@ public class PurchaseOrderService {
                     .orElseThrow(() -> new ResourceNotFoundException("Indent with ID " + creationDto.getIndentId() + " was not found in this organization"));
         }
 
+        Organization organization = tenantEntityHelper.resolveCurrentOrganization();
+
         PurchaseOrder purchaseOrder = new PurchaseOrder();
-        purchaseOrder.setPoNumber(creationDto.getPoNumber());
+        purchaseOrder.setPoNumber(
+                documentNumberAllocator.allocate(DocumentNumberType.PURCHASE_ORDER, TenantContext.getCurrentOrgId()));
         purchaseOrder.setVendor(vendor);
         purchaseOrder.setIndent(indent);
-        purchaseOrder.setStatus(PurchaseOrderStatus.valueOf(creationDto.getStatus()));
+        purchaseOrder.setStatus(PurchaseOrderStatus.DRAFT);
         purchaseOrder.setCreatedBy(createdBy);
         purchaseOrder.setProject(project);
         purchaseOrder.setExpectedDeliveryDate(creationDto.getExpectedDeliveryDate());
         purchaseOrder.setRemarks(creationDto.getRemarks());
         purchaseOrder.setTotalAmount(BigDecimal.ZERO);
-        purchaseOrder.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
+        purchaseOrder.setOrganization(organization);
 
         // Add nested purchase order items if provided
         if (creationDto.getItems() != null) {

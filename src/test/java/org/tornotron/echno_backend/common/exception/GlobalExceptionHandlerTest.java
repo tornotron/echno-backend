@@ -95,6 +95,28 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void duplicateResource_reportsTheDuplicateItActuallyFound() {
+        ProblemDetail pd = handler.handleDuplicateResourceException(
+                new DuplicateResourceException("Purchase Order with PO number PO-2026-000001 already exists"),
+                requestWithPath("uri=/api/v1/purchase-orders"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(pd.getTitle()).isEqualTo("Duplicate Resource");
+        assertThat(pd.getDetail()).isEqualTo("Purchase Order with PO number PO-2026-000001 already exists");
+        assertThat(pd.getProperties())
+                .containsEntry("message", "Purchase Order with PO number PO-2026-000001 already exists");
+    }
+
+    @Test
+    void duplicateResource_withNoMessage_stillSaysSomethingUseful() {
+        ProblemDetail pd = handler.handleDuplicateResourceException(
+                new DuplicateResourceException(null), requestWithPath("uri=/api/v1/purchase-orders"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(pd.getDetail()).isEqualTo("Database operation failed, Data already exists");
+    }
+
+    @Test
     void unknownException_isA500Problem() {
         ProblemDetail pd = handler.handleAllUncaughtException(
                 new RuntimeException("boom"), requestWithPath("uri=/api/v1/x"));

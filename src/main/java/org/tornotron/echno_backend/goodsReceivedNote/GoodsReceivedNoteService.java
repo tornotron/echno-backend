@@ -11,8 +11,11 @@ import org.tornotron.echno_backend.goodsReceivedNote.mapper.GoodsReceivedNoteMap
 import org.tornotron.echno_backend.common.events.GrnCreatedEvent;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
-import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.retry.SqlStateDetector;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteCreationDto;
@@ -61,6 +64,8 @@ public class GoodsReceivedNoteService {
     private final ProjectRepository projectRepository;
     private final StorageLocationRepository storageLocationRepository;
     private final PurchaseOrderRepository purchaseOrderRepository;
+    private final DocumentNumberAllocator documentNumberAllocator;
+    private final TransactionRetryTemplate retryTemplate;
 
     public GoodsReceivedNoteService(GoodsReceivedNoteRepository goodsReceivedNoteRepository,
                                     GrnItemRepository grnItemRepository,
@@ -72,7 +77,10 @@ public class GoodsReceivedNoteService {
                                     TenantEntityHelper tenantEntityHelper,
                                     EmployeeRepository employeeRepository,
                                     ProjectRepository projectRepository,
-                                    StorageLocationRepository storageLocationRepository, PurchaseOrderRepository purchaseOrderRepository) {
+                                    StorageLocationRepository storageLocationRepository,
+                                    PurchaseOrderRepository purchaseOrderRepository,
+                                    DocumentNumberAllocator documentNumberAllocator,
+                                    TransactionRetryTemplate retryTemplate) {
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.grnItemRepository = grnItemRepository;
         this.vendorRepository = vendorRepository;
@@ -84,29 +92,36 @@ public class GoodsReceivedNoteService {
         this.projectRepository = projectRepository;
         this.storageLocationRepository = storageLocationRepository;
         this.purchaseOrderRepository = purchaseOrderRepository;
+        this.documentNumberAllocator = documentNumberAllocator;
+        this.retryTemplate = retryTemplate;
     }
 
     /**
      * Creates a Goods Received Note with its line items and triggers the stock increase.
      *
-     * <p>Rejects a duplicate GRN number, resolves the vendor, receiving employee, project,
-     * and purchase order (plus an optional storage location) within the current tenant, and
+     * <p>Allocates the GRN number, resolves the vendor, receiving employee, project, and
+     * purchase order (plus an optional storage location) within the current tenant, and
      * resolves each line's material. After saving, a {@link GrnCreatedEvent} is published so
      * inventory is updated for the received goods.
      *
+     * <p>The transaction is restarted on a serialization abort, and also on a unique
+     * violation: the counter behind the GRN number is the row two concurrent creates contend
+     * on, and a fresh attempt allocates the next number rather than reporting a collision the
+     * user did not cause. The inventory listener runs after commit, so only the attempt that
+     * commits raises stock.
+     *
      * @param creationDto The GRN header fields and the list of received line items.
      * @return The created GRN as a DTO.
-     * @throws DuplicateResourceException if the GRN number is already used in this organization.
      * @throws ResourceNotFoundException if any referenced vendor, employee, project, purchase order, storage location, or material is not found in this organization.
      */
-    @Transactional
     public GoodsReceivedNoteDto createGoodsReceivedNote(GoodsReceivedNoteCreationDto creationDto) {
-        // Check for duplicate GRN number
-        if (goodsReceivedNoteRepository.existsByGrnNumber(creationDto.getGrnNumber())) {
-            throw new DuplicateResourceException("GRN number '" + creationDto.getGrnNumber() + "' is already in use in this organization");
-        }
+        return retryTemplate.execute(
+                "GoodsReceivedNoteService.createGoodsReceivedNote",
+                failure -> SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION),
+                () -> createGoodsReceivedNoteInTransaction(creationDto));
+    }
 
-
+    private GoodsReceivedNoteDto createGoodsReceivedNoteInTransaction(GoodsReceivedNoteCreationDto creationDto) {
         // Validate vendor
         Vendor vendor = vendorRepository.findByIdAndOrganization_Id(creationDto.getVendorId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vendor with ID " + creationDto.getVendorId() + " was not found in this organization"));
@@ -123,7 +138,8 @@ public class GoodsReceivedNoteService {
 
         // Create GRN
         GoodsReceivedNote grn = new GoodsReceivedNote();
-        grn.setGrnNumber(creationDto.getGrnNumber());
+        grn.setGrnNumber(
+                documentNumberAllocator.allocate(DocumentNumberType.GOODS_RECEIVED_NOTE, TenantContext.getCurrentOrgId()));
         grn.setReceivedOn(creationDto.getReceivedOn());
         grn.setReceivedBy(receivedBy);
         grn.setVendor(vendor);

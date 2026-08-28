@@ -2,24 +2,20 @@ package org.tornotron.echno_backend.purchaseOrder.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
+import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
 import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemCreationDto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Schema(description = "Payload to raise a purchase order against a vendor, with its line items.")
+@Schema(description = "Payload to raise a purchase order against a vendor, with its line items. "
+        + "The PO number is allocated by the server and returned on the created order; it is not "
+        + "part of this payload.")
 @Data
 public class PurchaseOrderCreationDto {
-
-    @Schema(description = "Purchase order number, unique per organization.", example = "PO-2026-0042")
-    @NotBlank(message = "PO number is required")
-    @Size(min = 1, max = 50, message = "PO number must be between 1 and 50 characters")
-    private String poNumber;
 
     @Schema(description = "Id of the vendor the order is raised against.", example = "12")
     @NotNull(message = "vendor ID is required")
@@ -28,9 +24,12 @@ public class PurchaseOrderCreationDto {
     @Schema(description = "Id of the indent this order was converted from, if any.", example = "7")
     private Long indentId;
 
-    @Schema(description = "Lifecycle status of the purchase order.", example = "DRAFT")
-    @NotBlank(message = "status is required")
-    private String status;
+    @Schema(description = "Status the order starts in. Optional, and DRAFT is the only value "
+            + "accepted, so leaving it out is the same as sending DRAFT. Approval and every later "
+            + "state change go through PATCH /purchase-orders/{id}/status, which is what makes "
+            + "approving an order a deliberate act rather than a field on the create form.",
+            example = "DRAFT", allowableValues = {"DRAFT"})
+    private PurchaseOrderStatus status;
 
     @Schema(description = "Id of the project the materials are for.", example = "3")
     @NotNull(message = "project ID is required")
@@ -46,7 +45,8 @@ public class PurchaseOrderCreationDto {
     @Schema(description = "Free-text remarks on the order.", example = "Deliver to Perumbavoor site, second gate")
     private String remarks;
 
-    @Schema(description = "Total value of the purchase order in INR.", example = "485000.00")
+    @Schema(description = "Total value of the purchase order in INR. Ignored on create: the total "
+            + "is the sum of the line totals the server computes.", example = "485000.00")
     private BigDecimal totalAmount;
 
     @Schema(description = "Line items being ordered.")

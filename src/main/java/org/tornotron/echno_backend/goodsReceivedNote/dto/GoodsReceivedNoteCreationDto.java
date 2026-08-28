@@ -2,7 +2,6 @@ package org.tornotron.echno_backend.goodsReceivedNote.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -13,13 +12,9 @@ import java.util.List;
 
 @Data
 @Schema(description = "Payload to record a goods received note. The received quantities on the items are "
-        + "posted into stock at the given storage location.")
+        + "posted into stock at the given storage location. The GRN number is allocated by the server "
+        + "and returned on the created note; it is not part of this payload.")
 public class GoodsReceivedNoteCreationDto {
-
-    @Schema(description = "Goods received note number, unique within the tenant.", example = "GRN-2026-0042")
-    @NotBlank(message = "GRN number is required")
-    @Size(min = 1, max = 50, message = "GRN number must be between 1 and 50 characters")
-    private String grnNumber;
 
     @Schema(description = "When the goods were received.", example = "2026-08-01T10:30:00")
     @NotNull(message = "received on date is required")
