@@ -11,17 +11,28 @@
             compliance inspections that the unguarded generation could already have created.
 
             Only rows the user has not touched are removed: AI-generated and still SUGGESTED,
-            with no check items, defects, attendees or NCRs hanging off them. Of each duplicate
-            group the oldest row is kept, so the one a user is most likely to have already seen
-            is the survivor. A duplicate that someone has since scheduled, assigned or worked on
-            is left alone for a human to resolve, and the index changeset reports it rather than
+            with no check items, defects, attendees or NCRs hanging off them. Anything else is
+            left alone for a human to resolve, and the index changeset reports it rather than
             failing the deploy.
 
-            The survivor is picked with row_number() rather than by comparing against min(created_at),
-            because two rows written by a race can carry the same timestamp: on a tie every row
-            would then be "not later than the first" and the whole group would survive, which is
-            the case this exists to clear. Ordering by (created_at, id) breaks the tie and leaves
-            exactly one row per group whatever the timestamps say.
+            Which row survives is decided by ranking each group and deleting the untouched rows
+            below rank one. Two details in that ranking are load bearing.
+
+            Protected rows rank first, so a group whose oldest row is an untouched suggestion and
+            whose newer row someone has since scheduled still resolves: the untouched row goes and
+            the one carrying the user's work stays. Ranking purely by age would have kept the
+            untouched row, found the newer one ineligible, and left the duplicate standing for no
+            gain.
+
+            Then age, then id. row_number() rather than a comparison against min(created_at),
+            because two rows written by a race can carry the same timestamp: on a tie every row is
+            "not later than the first", so a min-comparison would spare the whole group, which is
+            the case this exists to clear. The id breaks a remaining tie so exactly one row per
+            group survives whatever the timestamps say.
+
+            The eligibility conditions are repeated on the DELETE itself rather than trusted to the
+            ranking. A group of two protected rows ranks them one and two, and the second must not
+            be deleted just for ranking below the first.
 
             Audited on the IITM staging database before writing this: 14 inspections, 8 with a
             compliance rule reference, no duplicate (organization_id, project_id,
@@ -32,17 +43,27 @@
             DELETE FROM inspections
             WHERE id IN (
                 SELECT ranked.id FROM (
-                    SELECT i.id,
+                    SELECT flagged.id,
                            row_number() OVER (
-                               PARTITION BY i.organization_id, i.project_id, i.compliance_rule_ref
-                               ORDER BY i.created_at, i.id
+                               PARTITION BY flagged.organization_id, flagged.project_id,
+                                            flagged.compliance_rule_ref
+                               ORDER BY flagged.is_protected DESC, flagged.created_at, flagged.id
                            ) AS rank_in_group
-                    FROM inspections i
-                    WHERE i.compliance_rule_ref IS NOT NULL
-                      AND i.organization_id IS NOT NULL
-                      AND i.project_id IS NOT NULL
+                    FROM (
+                        SELECT i.id, i.organization_id, i.project_id, i.compliance_rule_ref, i.created_at,
+                               (i.origin &lt;&gt; 'AI_GENERATED'
+                                OR i.status &lt;&gt; 'SUGGESTED'
+                                OR EXISTS (SELECT 1 FROM inspection_check_items c WHERE c.inspection_id = i.id)
+                                OR EXISTS (SELECT 1 FROM inspection_defects f WHERE f.inspection_id = i.id)
+                                OR EXISTS (SELECT 1 FROM inspection_attendees a WHERE a.inspection_id = i.id)
+                                OR EXISTS (SELECT 1 FROM ncrs n WHERE n.inspection_id = i.id)) AS is_protected
+                        FROM inspections i
+                        WHERE i.compliance_rule_ref IS NOT NULL
+                          AND i.organization_id IS NOT NULL
+                          AND i.project_id IS NOT NULL
+                    ) flagged
                 ) ranked
-                WHERE ranked.rank_in_group > 1
+                WHERE ranked.rank_in_group &gt; 1
             )
             AND origin = 'AI_GENERATED'
             AND status = 'SUGGESTED'

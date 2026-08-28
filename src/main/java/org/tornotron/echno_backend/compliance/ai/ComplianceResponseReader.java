@@ -2,12 +2,15 @@ package org.tornotron.echno_backend.compliance.ai;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.tornotron.echno_backend.common.exception.ComplianceAiException;
 import org.tornotron.echno_backend.compliance.domain.ComplianceRule;
 
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -47,12 +50,13 @@ import java.util.Set;
  * so the per-rule token cost can be read off a real failure rather than measured
  * separately.
  */
+@Slf4j
 final class ComplianceResponseReader {
 
     /** Stop reasons that mean the model was cut off at the token cap, lower-cased. */
     private static final Set<String> TRUNCATED_STOP_REASONS = Set.of("length", "max_tokens");
 
-    /** How many missing rule codes to name in a coverage failure before trailing off. */
+    /** How many rule codes to name in a coverage failure before trailing off. */
     private static final int MAX_MISSING_CODES_REPORTED = 5;
 
     /** Longest excerpt of the model's own words to put in an error message. */
@@ -81,7 +85,8 @@ final class ComplianceResponseReader {
     List<ComplianceSuggestion> read(String responseJson, List<ComplianceRule> candidateRules) {
         Envelope envelope = parseEnvelope(responseJson);
         rejectTruncatedStopReason(envelope, candidateRules.size());
-        List<ComplianceSuggestion> suggestions = parseSuggestions(envelope);
+        List<ComplianceSuggestion> suggestions =
+                canonicaliseRuleCodes(parseSuggestions(envelope), candidateRules);
         rejectIncompleteCoverage(suggestions, candidateRules, envelope);
         return suggestions;
     }
@@ -97,9 +102,10 @@ final class ComplianceResponseReader {
         try {
             root = objectMapper.readTree(responseJson);
         } catch (Exception e) {
+            log.warn("Compliance AI response body was not JSON: {}", e.getMessage());
             throw new ComplianceAiException(
                     "The compliance AI service returned a response that is not JSON, so no "
-                            + "compliances were generated. (" + e.getMessage() + ")", e);
+                            + "compliances were generated.", e);
         }
 
         JsonNode choice = root.path("choices").path(0);
@@ -142,6 +148,15 @@ final class ComplianceResponseReader {
      * array in prose or a code fence. The tolerance now stops at the array's own closing
      * bracket instead of the last bracket anywhere in the text, and a parse failure is
      * reported rather than absorbed.
+     *
+     * <p>Every {@code [} in the text is tried in turn, not just the first, because the prose
+     * a model wraps its answer in can contain one of its own ("based on the rules [1] above")
+     * and anchoring on that would slice out the citation and refuse a perfectly complete
+     * answer. The first candidate whose matched slice actually parses is the answer.
+     *
+     * <p>A candidate with no matching bracket ends the search rather than being skipped: the
+     * text ran out inside that array, so anything after it is nested within it and cannot be
+     * the answer either. That is the truncation, and it is reported as such.
      */
     private List<ComplianceSuggestion> parseSuggestions(Envelope envelope) {
         String responseText = envelope.text();
@@ -151,54 +166,126 @@ final class ComplianceResponseReader {
                             + tokenBudgetHint(envelope));
         }
 
-        int start = responseText.indexOf('[');
-        if (start < 0) {
+        Exception lastParseFailure = null;
+        for (int start = responseText.indexOf('['); start >= 0; start = responseText.indexOf('[', start + 1)) {
+            int end = findMatchingArrayEnd(responseText, start);
+            if (end < 0) {
+                throw new ComplianceAiException(
+                        "The compliance AI response opened a JSON array that never closes, so it was "
+                                + "cut off before it finished and no compliances were generated. "
+                                + tokenBudgetHint(envelope));
+            }
+            try {
+                ComplianceSuggestion[] parsed = objectMapper.readValue(
+                        responseText.substring(start, end + 1), ComplianceSuggestion[].class);
+                return List.of(parsed);
+            } catch (Exception e) {
+                lastParseFailure = e;
+            }
+        }
+
+        if (lastParseFailure == null) {
             throw new ComplianceAiException(
                     "The compliance AI response contained no JSON array of assessments, so no "
                             + "compliances were generated. The model answered: " + excerpt(responseText));
         }
-
-        int end = findMatchingArrayEnd(responseText, start);
-        if (end < 0) {
-            throw new ComplianceAiException(
-                    "The compliance AI response opened a JSON array that never closes, so it was cut "
-                            + "off before it finished and no compliances were generated. "
-                            + tokenBudgetHint(envelope));
-        }
-
-        String json = responseText.substring(start, end + 1);
-        try {
-            ComplianceSuggestion[] parsed = objectMapper.readValue(json, ComplianceSuggestion[].class);
-            return List.of(parsed);
-        } catch (Exception e) {
-            throw new ComplianceAiException(
-                    "The compliance AI response was not a readable array of assessments, so no "
-                            + "compliances were generated. " + tokenBudgetHint(envelope)
-                            + " (" + e.getMessage() + ")", e);
-        }
+        // The parser's own message quotes the fragment it choked on, which belongs in the log
+        // rather than in an API response body.
+        log.warn("Compliance AI response held no readable array of assessments: {}",
+                lastParseFailure.getMessage());
+        throw new ComplianceAiException(
+                "The compliance AI response was not a readable array of assessments, so no "
+                        + "compliances were generated. " + tokenBudgetHint(envelope), lastParseFailure);
     }
 
     /**
-     * Refuses a response that left some candidate rule unassessed. This catches the
-     * truncation the other two checks cannot see: an answer that happens to stop on a
-     * valid closing bracket, from a provider that reports no stop reason. Codes the model
-     * invented are ignored (the generation service already drops them); only unassessed
-     * candidates are a failure.
+     * Puts a rule code the model echoed back in a different case, or with whitespace around
+     * it, onto the candidate's exact spelling.
+     *
+     * <p>Both checks downstream match codes by exact string equality: coverage here, and the
+     * generation service's own {@code rulesByCode} lookup when it decides what to create. A
+     * code of " tn-bpa " would therefore fail coverage as an unassessed rule, and if coverage
+     * were relaxed instead it would sail through and then be dropped without a word when the
+     * inspection was built. Normalising once, at the edge, keeps both from happening.
+     *
+     * <p>Only spelling is normalised. A code that matches no candidate at all is left as it
+     * is, so an invented compliance stays visibly invented.
+     */
+    private List<ComplianceSuggestion> canonicaliseRuleCodes(List<ComplianceSuggestion> suggestions,
+                                                             List<ComplianceRule> candidateRules) {
+        Map<String, String> canonicalByNormalised = new LinkedHashMap<>();
+        for (ComplianceRule rule : candidateRules) {
+            String code = rule.getCode();
+            if (code != null) {
+                canonicalByNormalised.putIfAbsent(normalise(code), code);
+            }
+        }
+
+        List<ComplianceSuggestion> canonicalised = new ArrayList<>(suggestions.size());
+        for (ComplianceSuggestion suggestion : suggestions) {
+            String canonical = suggestion.ruleCode() == null
+                    ? null
+                    : canonicalByNormalised.get(normalise(suggestion.ruleCode()));
+            if (canonical == null || canonical.equals(suggestion.ruleCode())) {
+                canonicalised.add(suggestion);
+                continue;
+            }
+            log.debug("Compliance AI returned rule code '{}' for candidate '{}'; using the candidate's",
+                    suggestion.ruleCode(), canonical);
+            canonicalised.add(new ComplianceSuggestion(canonical, suggestion.applies(),
+                    suggestion.riskLevel(), suggestion.resolutionOptions(), suggestion.rationale(),
+                    suggestion.phase()));
+        }
+        return List.copyOf(canonicalised);
+    }
+
+    private static String normalise(String code) {
+        return code.strip().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Refuses a response that did not assess each candidate rule exactly once.
+     *
+     * <p>Missing candidates catch the truncation the other two checks cannot see: an answer
+     * that happens to stop on a valid closing bracket, from a provider that reports no stop
+     * reason. Codes the model invented are ignored, since the generation service already
+     * drops them; only unassessed candidates are a failure.
+     *
+     * <p>Repeated candidates are refused too, and for a different reason. Counting distinct
+     * codes would let a response that says {@code TN-1} does not apply and then that
+     * {@code TN-1} does apply satisfy coverage, and the generation service, which stops at
+     * the first element it can use, would create an inspection off one half of a
+     * contradiction without anyone seeing the other half. An answer that cannot make up its
+     * mind is not a result to act on.
      */
     private void rejectIncompleteCoverage(List<ComplianceSuggestion> suggestions,
                                           List<ComplianceRule> candidateRules,
                                           Envelope envelope) {
-        Set<String> assessed = new LinkedHashSet<>();
+        Map<String, Integer> assessmentsByCode = new LinkedHashMap<>();
         for (ComplianceSuggestion suggestion : suggestions) {
             if (suggestion.ruleCode() != null) {
-                assessed.add(suggestion.ruleCode());
+                assessmentsByCode.merge(suggestion.ruleCode(), 1, Integer::sum);
             }
         }
 
-        List<String> missing = candidateRules.stream()
-                .map(ComplianceRule::getCode)
-                .filter(code -> !assessed.contains(code))
-                .toList();
+        List<String> missing = new ArrayList<>();
+        List<String> repeated = new ArrayList<>();
+        for (ComplianceRule rule : candidateRules) {
+            int count = assessmentsByCode.getOrDefault(rule.getCode(), 0);
+            if (count == 0) {
+                missing.add(rule.getCode());
+            } else if (count > 1) {
+                repeated.add(rule.getCode());
+            }
+        }
+
+        if (!repeated.isEmpty()) {
+            throw new ComplianceAiException(
+                    "The compliance AI returned more than one assessment for " + repeated.size()
+                            + " rule(s) (" + nameSome(repeated) + "), so its answer contradicts itself "
+                            + "and no compliances were generated.");
+        }
+
         if (missing.isEmpty()) {
             return;
         }
@@ -206,15 +293,16 @@ final class ComplianceResponseReader {
         int covered = candidateRules.size() - missing.size();
         throw new ComplianceAiException(
                 "The compliance AI assessed only " + covered + " of " + candidateRules.size()
-                        + " rules, leaving " + missing.size() + " unassessed (" + nameMissing(missing)
+                        + " rules, leaving " + missing.size() + " unassessed (" + nameSome(missing)
                         + "), so the result is incomplete and no compliances were generated. "
                         + tokenBudgetHint(envelope));
     }
 
-    private static String nameMissing(List<String> missing) {
-        String named = String.join(", ", missing.subList(0, Math.min(missing.size(), MAX_MISSING_CODES_REPORTED)));
-        if (missing.size() > MAX_MISSING_CODES_REPORTED) {
-            named = named + ", and " + (missing.size() - MAX_MISSING_CODES_REPORTED) + " more";
+    /** Names the first few codes and counts the rest, so a big catalogue does not fill the message. */
+    private static String nameSome(List<String> codes) {
+        String named = String.join(", ", codes.subList(0, Math.min(codes.size(), MAX_MISSING_CODES_REPORTED)));
+        if (codes.size() > MAX_MISSING_CODES_REPORTED) {
+            named = named + ", and " + (codes.size() - MAX_MISSING_CODES_REPORTED) + " more";
         }
         return named;
     }

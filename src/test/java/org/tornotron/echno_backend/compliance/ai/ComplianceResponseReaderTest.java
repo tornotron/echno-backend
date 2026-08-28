@@ -113,12 +113,13 @@ class ComplianceResponseReaderTest {
      */
     @Test
     void refusesAnAnswerTheProviderSaysItCutOffAtTheTokenLimit() {
-        // Deliberately well formed JSON: only the stop reason gives the truncation away, so
-        // this fails unless finish_reason is actually being read.
+        // Deliberately well formed JSON that covers every rule asked about, so neither the
+        // shape check nor the coverage check has anything to catch: this fails unless
+        // finish_reason is actually being read.
         String json = envelope(completeAnswer(3), "length", MAX_TOKENS);
 
         assertThatExceptionOfType(ComplianceAiException.class)
-                .isThrownBy(() -> reader.read(json, rules(30)))
+                .isThrownBy(() -> reader.read(json, rules(3)))
                 .withMessageContaining("cut short")
                 .withMessageContaining("length")
                 .withMessageContaining(String.valueOf(MAX_TOKENS));
@@ -160,7 +161,7 @@ class ComplianceResponseReaderTest {
 
         assertThatExceptionOfType(ComplianceAiException.class)
                 .isThrownBy(() -> reader.read(envelope(content, null, 120), rules(2)))
-                .withMessageContaining("not a readable array");
+                .withMessageContaining("not a readable array of assessments");
     }
 
     /**
@@ -238,6 +239,64 @@ class ComplianceResponseReaderTest {
 
         assertThat(suggestions).hasSize(2);
         assertThat(suggestions.get(0).rationale()).contains("section 3[b]");
+    }
+
+    /**
+     * The prose a model wraps its answer in can contain a bracket of its own. Anchoring on
+     * the first one in the text would slice out the citation, fail to parse it, and refuse a
+     * complete answer, so every candidate opening bracket is tried.
+     */
+    @Test
+    void findsTheArrayWhenTheProseBeforeItContainsABracketOfItsOwn() {
+        String content = "Based on the rules [1] and [2] listed above, here is the assessment:\n"
+                + completeAnswer(3);
+
+        assertThat(reader.read(envelope(content, "stop", 500), rules(3))).hasSize(3);
+    }
+
+    /**
+     * A response that says a rule both does and does not apply is not a result to act on.
+     * Counting distinct codes would let it satisfy coverage, and the generation service stops
+     * at the first element it can use, so it would create an inspection off one half of a
+     * contradiction with nobody seeing the other half.
+     */
+    @Test
+    void refusesAnAnswerThatAssessesTheSameRuleTwice() {
+        String content = "[{\"ruleCode\":\"TN-1\",\"applies\":false,\"rationale\":\"Not applicable.\"},"
+                + element("TN-1") + "," + element("TN-2") + "]";
+
+        assertThatExceptionOfType(ComplianceAiException.class)
+                .isThrownBy(() -> reader.read(envelope(content, "stop", 400), rules(2)))
+                .withMessageContaining("more than one assessment")
+                .withMessageContaining("TN-1");
+    }
+
+    /**
+     * A code echoed back in a different case or with whitespace is put back on the
+     * candidate's spelling. Both the coverage check here and the generation service's own
+     * lookup match codes exactly, so left alone it would either fail coverage as a missing
+     * rule or, if coverage were relaxed instead, pass and then be dropped without a word when
+     * the inspection was built.
+     */
+    @Test
+    void putsARuleCodeReturnedInADifferentCaseBackOnTheCandidateSpelling() {
+        String content = "[{\"ruleCode\":\" tn-1 \",\"applies\":true,\"riskLevel\":\"high\","
+                + "\"rationale\":\"Required.\"},{\"ruleCode\":\"TN-2\",\"applies\":false,"
+                + "\"rationale\":\"Not applicable.\"}]";
+
+        List<ComplianceSuggestion> suggestions = reader.read(envelope(content, "stop", 200), rules(2));
+
+        assertThat(suggestions).extracting(ComplianceSuggestion::ruleCode)
+                .containsExactly("TN-1", "TN-2");
+    }
+
+    @Test
+    void leavesAnInventedCodeAsTheModelSpeltIt() {
+        String content = "[" + element("TN-1") + "," + element("TN-2") + "," + element("XX-MADE-UP") + "]";
+
+        assertThat(reader.read(envelope(content, "stop", 400), rules(2)))
+                .extracting(ComplianceSuggestion::ruleCode)
+                .containsExactly("TN-1", "TN-2", "XX-MADE-UP");
     }
 
     @Test

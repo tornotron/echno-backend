@@ -118,10 +118,14 @@ public class OpenAiCompatibleComplianceService {
                     .retrieve()
                     .body(String.class);
         } catch (Exception e) {
+            // The message stays out of the response body on purpose: for an HTTP error the
+            // RestClient exception carries the provider's own response text, which names the
+            // endpoint and is more of the upstream than an API client has any use for. The log
+            // is where it belongs, and the cause chain keeps it for whoever is debugging.
             log.error("Compliance AI call failed for project {}: {}", project.getId(), e.getMessage(), e);
             throw new ComplianceAiException(
                     "The compliance AI service could not be reached or returned an error, so no "
-                            + "compliances were generated. Try again in a moment. (" + e.getMessage() + ")", e);
+                            + "compliances were generated. Try again in a moment.", e);
         }
     }
 
