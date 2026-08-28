@@ -12,8 +12,10 @@ import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.inspection.domain.InspectionDefect;
 import org.tornotron.echno_backend.inspection.mapper.ChecklistTemplateMapperImpl;
 import org.tornotron.echno_backend.inspection.mapper.InspectionMapperImpl;
+import org.tornotron.echno_backend.inspection.mapper.DefectPhotoAnnotationMapperImpl;
 import org.tornotron.echno_backend.inspection.mapper.NcrMapperImpl;
 import org.tornotron.echno_backend.inspection.service.ChecklistTemplateService;
+import org.tornotron.echno_backend.inspection.service.DefectAnnotationService;
 import org.tornotron.echno_backend.inspection.service.InspectionService;
 import org.tornotron.echno_backend.inspection.service.NcrService;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
@@ -52,7 +54,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({InspectionService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
-        NcrService.class, NcrMapperImpl.class, UserContextService.class,
+        NcrService.class, NcrMapperImpl.class,
+        DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
+        UserContextService.class,
         TenantEntityHelper.class, EntryNumberGenerator.class})
 class InspectionTaxonomyMigrationIT extends AbstractIntegrationTest {
 

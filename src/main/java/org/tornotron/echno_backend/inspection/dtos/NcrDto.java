@@ -24,6 +24,7 @@ public record NcrDto(
         Long siteEngineerId,
         LocalDate targetDate,
         Long raisedById,
+        Long verifiedById,
         Long closedById,
         String correctiveActionRemarks,
         String verificationRemarks,

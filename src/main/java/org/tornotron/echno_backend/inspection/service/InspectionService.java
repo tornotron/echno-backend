@@ -42,6 +42,12 @@ import java.util.UUID;
  * template for starts it from a copy of that template's check points, so an
  * inspector opens a ready checklist instead of an empty one. See
  * {@link #applyChildrenAndCounts} for when the template is consulted.
+ *
+ * <p>An update rebuilds the check items and defects wholesale from the payload, so
+ * every child row is deleted and reinserted under a new id. That is why the marks
+ * drawn over defect photos are not children of the defect row, and why the update
+ * path has to sweep the ones whose photo the payload no longer carries. See
+ * {@code DefectPhotoAnnotation}.
  */
 @Slf4j
 @Service
@@ -55,6 +61,7 @@ public class InspectionService {
     private final InspectionMapper mapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final ChecklistTemplateService checklistTemplateService;
+    private final DefectAnnotationService defectAnnotationService;
 
     @Transactional(readOnly = true)
     public InspectionDto findById(UUID id) {
@@ -161,6 +168,7 @@ public class InspectionService {
         applyChildrenAndCounts(inspection, req.checkItems(), req.defects());
 
         Inspection saved = inspectionRepo.saveAndFlush(inspection);
+        defectAnnotationService.removeOrphaned(saved);
         log.info("Updated inspection {}", saved.getInspectionNumber());
         return mapper.toDto(saved);
     }

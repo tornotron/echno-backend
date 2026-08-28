@@ -1,23 +1,20 @@
 package org.tornotron.echno_backend.finance.construction.pdf;
 
-import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceDto;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceLineDto;
+import org.tornotron.echno_backend.pdfGeneration.PdfRenderer;
+import org.tornotron.echno_backend.pdfGeneration.ReportText;
 import org.tornotron.echno_backend.project.ProjectService;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.vendor.VendorService;
 import org.tornotron.echno_backend.vendor.dto.VendorDto;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 
@@ -25,25 +22,22 @@ import java.util.Locale;
  * Renders a construction invoice into a downloadable PDF. The invoice data is formatted
  * into display-ready strings here (currency, dates, humanised enum labels, resolved vendor
  * and project names) so the Thymeleaf template stays free of formatting logic, and the
- * result is rendered with the same openhtmltopdf engine used by the site progress report.
+ * result goes through the shared {@link PdfRenderer}.
  */
 @Service
 public class ConstructionInvoicePdfService {
 
-    private static final String DASH = "—";
-    private static final DateTimeFormatter DATE_FMT =
-            DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH);
-    private static final DateTimeFormatter STAMP_FMT =
-            DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale.ENGLISH);
-
     private final SpringTemplateEngine pdfTemplateEngine;
+    private final PdfRenderer pdfRenderer;
     private final VendorService vendorService;
     private final ProjectService projectService;
 
     public ConstructionInvoicePdfService(@Qualifier("pdfTemplateEngine") SpringTemplateEngine pdfTemplateEngine,
+                                         PdfRenderer pdfRenderer,
                                          VendorService vendorService,
                                          ProjectService projectService) {
         this.pdfTemplateEngine = pdfTemplateEngine;
+        this.pdfRenderer = pdfRenderer;
         this.vendorService = vendorService;
         this.projectService = projectService;
     }
@@ -58,38 +52,30 @@ public class ConstructionInvoicePdfService {
     public byte[] render(ConstructionInvoiceDto invoice) throws IOException {
         Context ctx = populateContext(invoice);
         String html = pdfTemplateEngine.process("invoice/invoice", ctx);
-
-        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-            PdfRendererBuilder builder = new PdfRendererBuilder();
-            builder.useFastMode();
-            builder.withHtmlContent(html, "classpath:/templates/");
-            builder.toStream(os);
-            builder.run();
-            return os.toByteArray();
-        }
+        return pdfRenderer.render(html);
     }
 
     private Context populateContext(ConstructionInvoiceDto inv) {
         Context ctx = new Context();
-        ctx.setVariable("invoiceNumber", orDash(inv.invoiceNumber()));
-        ctx.setVariable("typeLabel", humanise(inv.type() == null ? null : inv.type().name()));
-        ctx.setVariable("statusLabel", humanise(inv.status() == null ? null : inv.status().name()));
+        ctx.setVariable("invoiceNumber", ReportText.orDash(inv.invoiceNumber()));
+        ctx.setVariable("typeLabel", ReportText.humanise(inv.type() == null ? null : inv.type().name()));
+        ctx.setVariable("statusLabel", ReportText.humanise(inv.status() == null ? null : inv.status().name()));
         ctx.setVariable("paymentStatusLabel",
-                humanise(inv.paymentStatus() == null ? null : inv.paymentStatus().name()));
+                ReportText.humanise(inv.paymentStatus() == null ? null : inv.paymentStatus().name()));
 
         ctx.setVariable("vendorName", resolveVendorName(inv.vendorId()));
         ctx.setVariable("projectName", resolveProjectName(inv.projectId()));
 
-        ctx.setVariable("issueDate", date(inv.issueDate()));
-        ctx.setVariable("dueDate", date(inv.dueDate()));
-        ctx.setVariable("paymentDate", date(inv.paymentDate()));
+        ctx.setVariable("issueDate", ReportText.date(inv.issueDate()));
+        ctx.setVariable("dueDate", ReportText.date(inv.dueDate()));
+        ctx.setVariable("paymentDate", ReportText.date(inv.paymentDate()));
 
-        ctx.setVariable("gstNumber", nullToEmpty(inv.gstNumber()));
-        ctx.setVariable("taxType", nullToEmpty(inv.taxType()));
-        ctx.setVariable("paymentTerms", orDash(inv.paymentTerms()));
-        ctx.setVariable("paymentMethod", orDash(inv.paymentMethod()));
-        ctx.setVariable("notes", nullToEmpty(inv.notes()));
-        ctx.setVariable("termsAndConditions", nullToEmpty(inv.termsAndConditions()));
+        ctx.setVariable("gstNumber", ReportText.nullToEmpty(inv.gstNumber()));
+        ctx.setVariable("taxType", ReportText.nullToEmpty(inv.taxType()));
+        ctx.setVariable("paymentTerms", ReportText.orDash(inv.paymentTerms()));
+        ctx.setVariable("paymentMethod", ReportText.orDash(inv.paymentMethod()));
+        ctx.setVariable("notes", ReportText.nullToEmpty(inv.notes()));
+        ctx.setVariable("termsAndConditions", ReportText.nullToEmpty(inv.termsAndConditions()));
 
         ctx.setVariable("subtotal", money(inv.subtotal()));
         ctx.setVariable("taxAmount", money(inv.taxAmount()));
@@ -99,7 +85,7 @@ public class ConstructionInvoicePdfService {
         ctx.setVariable("balanceAmount", money(inv.balanceAmount()));
 
         ctx.setVariable("lines", toLineRows(inv.lines()));
-        ctx.setVariable("generatedOn", STAMP_FMT.format(LocalDateTime.now()));
+        ctx.setVariable("generatedOn", ReportText.generatedNow());
         return ctx;
     }
 
@@ -109,8 +95,8 @@ public class ConstructionInvoicePdfService {
         }
         return lines.stream()
                 .map(l -> new PdfLine(
-                        orDash(l.description()),
-                        orDash(l.unit()),
+                        ReportText.orDash(l.description()),
+                        ReportText.orDash(l.unit()),
                         plain(l.quantity()),
                         money(l.unitPrice()),
                         percent(l.taxRate()),
@@ -121,7 +107,7 @@ public class ConstructionInvoicePdfService {
 
     private String resolveVendorName(Long vendorId) {
         if (vendorId == null) {
-            return DASH;
+            return ReportText.DASH;
         }
         try {
             VendorDto vendor = vendorService.getVendorById(vendorId);
@@ -136,7 +122,7 @@ public class ConstructionInvoicePdfService {
 
     private String resolveProjectName(Long projectId) {
         if (projectId == null) {
-            return DASH;
+            return ReportText.DASH;
         }
         try {
             ProjectDto project = projectService.getAProject(projectId);
@@ -163,39 +149,9 @@ public class ConstructionInvoicePdfService {
 
     private static String plain(BigDecimal value) {
         if (value == null) {
-            return DASH;
+            return ReportText.DASH;
         }
         return value.stripTrailingZeros().toPlainString();
-    }
-
-    private static String date(LocalDate value) {
-        return value == null ? DASH : DATE_FMT.format(value);
-    }
-
-    private static String humanise(String enumName) {
-        if (enumName == null || enumName.isBlank()) {
-            return DASH;
-        }
-        String[] parts = enumName.toLowerCase(Locale.ENGLISH).split("_");
-        StringBuilder sb = new StringBuilder();
-        for (String part : parts) {
-            if (part.isEmpty()) {
-                continue;
-            }
-            if (sb.length() > 0) {
-                sb.append(' ');
-            }
-            sb.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
-        }
-        return sb.toString();
-    }
-
-    private static String orDash(String value) {
-        return value == null || value.isBlank() ? DASH : value;
-    }
-
-    private static String nullToEmpty(String value) {
-        return value == null ? "" : value;
     }
 
     /** Display-ready projection of a single invoice line for the template. */

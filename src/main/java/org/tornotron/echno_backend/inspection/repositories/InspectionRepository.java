@@ -23,6 +23,16 @@ public interface InspectionRepository
     Optional<Inspection> findByIdScoped(@Param("id") UUID id);
 
     /**
+     * The document number of one inspection, without the inspection.
+     *
+     * <p>For the places that only need to name an inspection, such as the header of
+     * an NCR report. {@link #findByIdScoped} would load every check point and defect
+     * the inspection carries to produce one string.
+     */
+    @Query("SELECT i.inspectionNumber FROM Inspection i WHERE i.id = :id")
+    Optional<String> findNumberByIdScoped(@Param("id") UUID id);
+
+    /**
      * Dedupe guard for AI compliance generation: true when a compliance inspection
      * for this project already references the given rule in this organization. The
      * organization is included explicitly so the check is correct even if the

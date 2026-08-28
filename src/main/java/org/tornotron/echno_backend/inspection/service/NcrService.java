@@ -153,6 +153,7 @@ public class NcrService {
         Ncr ncr = require(id);
         transition(ncr, NcrStatus.VERIFIED);
         ncr.setVerificationRemarks(remarks);
+        ncr.setVerifiedById(currentEmployeeId());
         ncr.setVerifiedAt(LocalDateTime.now());
         return save(ncr, "verified");
     }
@@ -163,6 +164,7 @@ public class NcrService {
         Ncr ncr = require(id);
         transition(ncr, NcrStatus.REJECTED);
         ncr.setVerificationRemarks(remarks);
+        ncr.setVerifiedById(currentEmployeeId());
         return save(ncr, "rejected on re-inspection");
     }
 
