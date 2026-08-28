@@ -103,6 +103,10 @@ public class Ncr implements TenantScopedEntity {
      * because a trail that says the work was verified without saying by whom is not
      * a trail: the whole reason sign-off is role-gated is that it matters which
      * qualified person accepted it.
+     *
+     * <p>This and {@link #verifiedAt} record the last re-inspection decision, not
+     * only an acceptance. Both are written on accept and on reject, and the status
+     * plus {@link #verificationRemarks} say which it was.
      */
     @Column(name = "verified_by_id")
     private Long verifiedById;

@@ -18,6 +18,11 @@ import java.util.List;
  * <p>The size limit is on the request rather than on what the report will print.
  * It bounds what a single call can write, which the report caps are not able to do
  * afterwards.
+ *
+ * <p>The element carries {@code @NotNull} as well as {@code @Valid}. Cascading
+ * validation skips a null container element rather than failing it, so without the
+ * {@code @NotNull} a payload of {@code {"annotations": [null]}} passes validation
+ * and the service dereferences it, turning a bad request into a 500.
  */
 @Schema(description = "Every mark drawn across an inspection's defect photos, replacing what is stored.")
 public record ReplaceAnnotationsRequest(
@@ -25,7 +30,8 @@ public record ReplaceAnnotationsRequest(
         @NotNull
         @Size(max = MAX_ANNOTATIONS,
                 message = "An inspection may carry at most " + MAX_ANNOTATIONS + " photo annotations")
-        List<@Valid DefectPhotoAnnotationRequest> annotations
+        List<@NotNull(message = "An annotation entry must not be null") @Valid
+                DefectPhotoAnnotationRequest> annotations
 ) {
     /**
      * Most marks one inspection may carry.
