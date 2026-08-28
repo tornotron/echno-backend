@@ -19,8 +19,22 @@ import org.tornotron.echno_backend.organization.Organization;
  * so under an active tenant context it is denied rather than leaked. Every create
  * path sets the organization, so a null here is legacy data pending backfill, and
  * denying is the safe failure.
+ *
+ * <p>Work that belongs to no organization at all declares that with {@link WithoutTenant}
+ * or {@code TenantContext.declareUnscoped}, and is let through the same way a bypass is.
+ * What is no longer let through is work that declares nothing: until #507 this listener
+ * returned early on a null organization id, which is the same condition
+ * {@link HibernateFilterConfig} skips the {@code orgFilter} on, so the two mechanisms that
+ * read as defence in depth in fact failed together on identical input. That case now goes
+ * to {@link UnscopedAccessGuard}, which denies it by default.
  */
 public class TenantIsolationLoadListener implements PostLoadEventListener {
+
+    private final UnscopedAccessGuard unscopedAccessGuard;
+
+    public TenantIsolationLoadListener(UnscopedAccessGuard unscopedAccessGuard) {
+        this.unscopedAccessGuard = unscopedAccessGuard;
+    }
 
     @Override
     public void onPostLoad(PostLoadEvent event) {
@@ -28,8 +42,17 @@ public class TenantIsolationLoadListener implements PostLoadEventListener {
             return;
         }
 
+        if (TenantContext.isBypassed()) {
+            return;
+        }
+
         Long contextOrgId = TenantContext.getCurrentOrgId();
-        if (contextOrgId == null || TenantContext.isBypassed()) {
+        if (contextOrgId == null) {
+            if (!TenantContext.isUnscopedDeclared()) {
+                unscopedAccessGuard.onUnscopedLoad(event.getEntity().getClass());
+            }
+            // Under an unscoped declaration, or a policy that only observes, there is no
+            // organization to compare the row against, so nothing more can be checked here.
             return;
         }
 

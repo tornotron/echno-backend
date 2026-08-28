@@ -89,4 +89,26 @@ class TenantScopedJobRunnerTest {
         assertThat(bypassedDuringWork.get()).isFalse();
         assertThat(TenantContext.isBypassed()).isTrue();
     }
+
+    @Test
+    void withdrawsAnUnscopedDeclarationForTheWorkAndRestoresIt() {
+        // An inherited or leaked "this work has no tenant" would sit alongside a real
+        // organization id and say the opposite of what is true for the duration of the job.
+        TenantContext.declareUnscoped("an enclosing method that belongs to no organization");
+        AtomicReference<String> reasonDuringWork = new AtomicReference<>("unset");
+
+        runner.runForTenant(ORG_ID, () -> reasonDuringWork.set(TenantContext.getUnscopedReason()));
+
+        assertThat(reasonDuringWork.get()).isNull();
+        assertThat(TenantContext.getUnscopedReason())
+                .isEqualTo("an enclosing method that belongs to no organization");
+    }
+
+    @Test
+    void leavesNoUnscopedDeclarationBehindOnAThreadThatHadNone() {
+        runner.runForTenant(ORG_ID, () -> {});
+
+        assertThat(TenantContext.isUnscopedDeclared()).isFalse();
+        assertThat(TenantContext.isScopeDeclared()).isFalse();
+    }
 }

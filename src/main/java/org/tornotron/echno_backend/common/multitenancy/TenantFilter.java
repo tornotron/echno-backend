@@ -32,6 +32,21 @@ public class TenantFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         try {
+            // Pre-tenant endpoints, declared rather than merely skipped. These run before a
+            // tenant exists or deliberately outside one, and at least /user/web materializes
+            // Attachment, which is tenant-scoped. Declaring it here is what keeps that a
+            // recorded decision instead of the missing-scope failure the guard now raises.
+            // Nothing else about these requests changes: no membership check, no bypass, no
+            // organization id, exactly as when they were skipped outright.
+            String preTenantReason = preTenantReason(request);
+            if (preTenantReason != null) {
+                TenantContext.declareUnscoped(preTenantReason);
+                log.debug("[TenantFilter] {} runs with no tenant: {}",
+                        request.getRequestURI(), preTenantReason);
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
             log.debug("[TenantFilter] path={}, auth={}, authorities={}",
@@ -41,6 +56,7 @@ public class TenantFilter extends OncePerRequestFilter {
 
             if (authentication == null || !authentication.isAuthenticated()) {
                 log.debug("[TenantFilter] No authentication, skipping");
+                TenantContext.declareUnscoped("Unauthenticated request to " + request.getRequestURI());
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -94,8 +110,18 @@ public class TenantFilter extends OncePerRequestFilter {
                     sendError(response, HttpServletResponse.SC_BAD_REQUEST,
                             "X-Organization-Id header required when user belongs to multiple organizations");
                     return;
+                } else {
+                    // No ORG_MEMBER_ authority at all. This is the state a user is in between
+                    // signing up and joining or creating an organization, and the endpoints that
+                    // get them out of it (the profile lookup, organization creation, invite-code
+                    // redemption) read and write tenant-scoped rows on the way. Their scoping
+                    // comes from the queries themselves, which are keyed on the caller's own user
+                    // id or on an invite code, and not from the tenant layer. Saying so here is
+                    // what separates it from a request that lost its organization by accident.
+                    TenantContext.declareUnscoped(
+                            "Authenticated user holds no organization membership");
+                    log.debug("[TenantFilter] No organization membership, running with no tenant");
                 }
-                // orgIds.isEmpty() — user has no org memberships, no tenant context set
             }
 
             filterChain.doFilter(request, response);
@@ -107,17 +133,41 @@ public class TenantFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
+        // Actuator is the one path the filter does not run on at all. It is served entirely by
+        // Spring Boot's own endpoints, reaches no entity, and a health check should not pay for
+        // a tenant decision. Everything else, including the three pre-tenant API paths that used
+        // to be listed here, now runs through doFilterInternal so the absence of a tenant is
+        // declared rather than merely implied by the filter never having run.
+        return request.getRequestURI().startsWith("/actuator");
+    }
+
+    /**
+     * The API paths that deliberately carry no tenant, and why. These were previously skipped by
+     * {@link #shouldNotFilter}, which had the same effect on the request and left nothing behind
+     * to say it was intended.
+     *
+     * <p>The organization and user endpoints in general are intentionally filtered: they rely on
+     * per-id membership checks, not a blanket exemption. Only the exact {@code /user/web} lookup
+     * is listed, not the paths beneath it. (Two earlier patterns, {@code /organizations} and
+     * {@code /users/profile}, never matched the real singular paths and were removed to avoid the
+     * false impression that those endpoints are unfiltered.)
+     *
+     * @return the reason to record, or null if this request is an ordinary tenant-scoped one
+     */
+    private String preTenantReason(HttpServletRequest request) {
         String path = request.getRequestURI();
-        // The organization and user endpoints are intentionally filtered: they
-        // rely on per-id membership checks, not a blanket bypass. Only the exact
-        // /user/web lookup and the pre-tenant / infra paths below skip the filter.
-        // (Two earlier patterns, /organizations and /users/profile, never matched
-        // the real singular paths and were removed to avoid the false impression
-        // that those endpoints are unfiltered.)
-        return path.startsWith("/actuator")
-                || path.equals("/api/" + backendVersion + "/auth/register")
-                || path.equals("/api/" + backendVersion + "/user/web")
-                || path.startsWith("/api/" + backendVersion + "/billing");
+        String apiRoot = "/api/" + backendVersion;
+
+        if (path.equals(apiRoot + "/auth/register")) {
+            return "Self-registration runs before the caller belongs to any organization";
+        }
+        if (path.equals(apiRoot + "/user/web")) {
+            return "The current-user lookup answers across every organization the caller belongs to";
+        }
+        if (path.startsWith(apiRoot + "/billing")) {
+            return "Billing is keyed on the user rather than the organization";
+        }
+        return null;
     }
 
     private boolean hasAuthority(Authentication authentication, String authority) {

@@ -179,6 +179,25 @@ echno:
     # container's, so a document raised at eight in the morning in Kerala is not stamped with
     # the previous year because the server happens to run on UTC.
     zone: ${ECHNO_DOCUMENT_NUMBER_ZONE:Asia/Kolkata}
+  multitenancy:
+    # What happens when work reaches tenant-scoped data with no tenant scope declared at all:
+    # no organization id, no @BypassTenantFilter, no @WithoutTenant. ALLOW proceeds silently,
+    # which is the pre-#507 behaviour and is kept only as the incident escape hatch. WARN
+    # proceeds but counts the event under echno.multitenancy.unscoped and logs the call site
+    # (rate limited per call site, see warn-interval-seconds). DENY refuses the work.
+    #
+    # The two boundaries differ because they are not equally precise. The load boundary fires
+    # when a tenant-scoped entity is actually read, which is the leak itself, so it denies. The
+    # transaction boundary fires on every @Transactional method in the package tree, including
+    # the many that touch no tenant-scoped entity at all (users, organizations, plans,
+    # subscriptions), so it observes rather than refuses until that list has been worked
+    # through on a real deployment.
+    load-boundary: ${ECHNO_TENANT_LOAD_BOUNDARY:DENY}
+    transaction-boundary: ${ECHNO_TENANT_TRANSACTION_BOUNDARY:WARN}
+    # How long to suppress repeat warnings for the same call site. An unscoped read inside a
+    # loop would otherwise produce one line per row and bury what it is reporting. The metric
+    # is never suppressed, so the count stays true whatever this is set to. Zero logs every one.
+    warn-interval-seconds: ${ECHNO_TENANT_WARN_INTERVAL_SECONDS:60}
   transaction:
     retry:
       # CockroachDB runs SERIALIZABLE and aborts one side of a read-write conflict with

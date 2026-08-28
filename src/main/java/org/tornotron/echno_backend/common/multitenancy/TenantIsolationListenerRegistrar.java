@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 public class TenantIsolationListenerRegistrar {
 
     private final EntityManagerFactory entityManagerFactory;
+    private final UnscopedAccessGuard unscopedAccessGuard;
 
     @PostConstruct
     public void registerListener() {
@@ -24,6 +25,7 @@ public class TenantIsolationListenerRegistrar {
                 entityManagerFactory.unwrap(SessionFactoryImplementor.class);
         EventListenerRegistry registry =
                 sessionFactory.getServiceRegistry().getService(EventListenerRegistry.class);
-        registry.appendListeners(EventType.POST_LOAD, new TenantIsolationLoadListener());
+        registry.appendListeners(EventType.POST_LOAD,
+                new TenantIsolationLoadListener(unscopedAccessGuard));
     }
 }
