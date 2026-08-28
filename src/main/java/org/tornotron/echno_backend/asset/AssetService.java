@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.asset;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -31,6 +32,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -254,12 +256,17 @@ public class AssetService {
      * the point of an append-only ledger: what was believed at the time is still legible.
      */
     @Transactional(readOnly = true)
-    public List<AssetPlacementSpanDto> getPlacementHistory(Long assetId) {
+    public Page<AssetPlacementSpanDto> getPlacementHistory(Long assetId) {
         requireAsset(assetId);
-        List<AssetMovement> movements = assetMovementRepository
-                .findByAsset_IdAndOrganization_IdOrderByMovedAtAscIdAsc(
+        Page<AssetMovement> page = assetMovementRepository
+                .findByAsset_IdAndOrganization_IdOrderByMovedAtDescIdDesc(
                         assetId, TenantContext.getCurrentOrgId(),
                         PageRequest.of(0, MAX_HISTORY_ENTRIES));
+        // Read newest-first so the cap drops the oldest entries, then turn it back into
+        // chronological order to build the spans. Capping the oldest end instead would leave
+        // whichever entry the cap stopped at looking like the placement the asset is still in.
+        List<AssetMovement> movements = new ArrayList<>(page.getContent());
+        Collections.reverse(movements);
 
         LocalDateTime now = LocalDateTime.now();
         List<AssetPlacementSpanDto> spans = new ArrayList<>(movements.size());
@@ -283,7 +290,9 @@ public class AssetService {
             span.setDays(Duration.between(movement.getMovedAt(), end != null ? end : now).toDays());
             spans.add(span);
         }
-        return spans;
+        // The total is the whole ledger, not the window, so a capped read says so in its headers
+        // rather than reading as a complete history that happens to be short.
+        return new PageImpl<>(spans, PageRequest.of(0, MAX_HISTORY_ENTRIES), page.getTotalElements());
     }
 
     /**
@@ -365,6 +374,7 @@ public class AssetService {
                     + " cannot be dated " + when + ", which is in the future. A ledger records what"
                     + " has happened, not what is planned.");
         }
+        requireNotBeforeTheLatestEntry(asset, when);
 
         AssetMovement movement = new AssetMovement();
         movement.setAsset(asset);
@@ -397,6 +407,36 @@ public class AssetService {
         asset.setAssignedTo(toAssignedTo);
 
         return appended;
+    }
+
+    /**
+     * Refuses an entry dated before the one already at the end of the ledger.
+     *
+     * <p>A movement may be backdated, for one entered a few days after the machine actually
+     * moved, but not past the last thing recorded. This is what keeps the asset's placement
+     * columns honest: they are set from the entry being appended, so if an entry could land
+     * before an existing later one, the asset would end up showing the older placement while
+     * the ledger's last entry said something else, and the cache and the history would disagree.
+     * That is precisely the failure this whole change exists to remove.
+     *
+     * <p>A movement that really did happen before the last recorded one is entered as a
+     * correction of that entry, which states where the asset is and says what it supersedes.
+     *
+     * @throws InvalidRequestException if the entry is dated before the latest one on the ledger.
+     */
+    private void requireNotBeforeTheLatestEntry(Asset asset, LocalDateTime when) {
+        assetMovementRepository
+                .findFirstByAsset_IdAndOrganization_IdOrderByMovedAtDescIdDesc(
+                        asset.getId(), TenantContext.getCurrentOrgId())
+                .filter(latest -> when.isBefore(latest.getMovedAt()))
+                .ifPresent(latest -> {
+                    throw new InvalidRequestException("A movement of asset with ID " + asset.getId()
+                            + " cannot be dated " + when + ", which is before the last entry on its"
+                            + " ledger at " + latest.getMovedAt() + ". Entries are appended in the"
+                            + " order things happened, and the asset's current placement is read off"
+                            + " the last of them. Record a correction of entry " + latest.getId()
+                            + " instead.");
+                });
     }
 
     /** The kind of entry the change amounts to. A correction is always a correction. */

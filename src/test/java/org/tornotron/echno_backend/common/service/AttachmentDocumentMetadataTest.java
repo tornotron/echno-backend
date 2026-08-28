@@ -98,11 +98,12 @@ class AttachmentDocumentMetadataTest {
         when(attachmentRepository.findByIdAndOrganization_Id(ATTACHMENT, ORG))
                 .thenReturn(Optional.of(attachment));
 
-        AttachmentDto dto = service.updateDocumentMetadata(ATTACHMENT,
-                metadata("insurance", LocalDate.now().plusDays(285)));
+        LocalDate expiry = LocalDate.now().plusDays(285);
+
+        AttachmentDto dto = service.updateDocumentMetadata(ATTACHMENT, metadata("insurance", expiry));
 
         assertThat(attachment.getDocumentType()).isEqualTo("insurance");
-        assertThat(dto.getExpiresOn()).isEqualTo(LocalDate.now().plusDays(285));
+        assertThat(dto.getExpiresOn()).isEqualTo(expiry);
         verify(attachmentRepository).save(attachment);
         // Resolved through the tenant-scoped finder, not the unscoped findById.
         verify(attachmentRepository).findByIdAndOrganization_Id(ATTACHMENT, ORG);

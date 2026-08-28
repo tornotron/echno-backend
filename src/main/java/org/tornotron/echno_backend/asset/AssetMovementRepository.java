@@ -4,7 +4,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.Repository;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -25,13 +24,25 @@ public interface AssetMovementRepository extends Repository<AssetMovement, Long>
     /** One entry by id, refusing to cross tenants. */
     Optional<AssetMovement> findByIdAndOrganization_Id(Long id, Long organizationId);
 
-    /** The ledger for one asset, newest first, for the history screen. */
+    /**
+     * The ledger for one asset, newest first. Serves both the history screen and the placement
+     * spans read off it.
+     *
+     * <p>Newest first rather than oldest on purpose: a capped read of the oldest entries would
+     * mark whichever entry the cap stopped at as the placement the asset is still in, which is a
+     * plain untruth about where the machine is. The page also carries the whole ledger's size, so
+     * a shortened read can say that it was shortened.
+     */
     Page<AssetMovement> findByAsset_IdAndOrganization_IdOrderByMovedAtDescIdDesc(
             Long assetId, Long organizationId, Pageable pageable);
 
-    /** The ledger for one asset, oldest first, for working out how long each placement lasted. */
-    List<AssetMovement> findByAsset_IdAndOrganization_IdOrderByMovedAtAscIdAsc(
-            Long assetId, Long organizationId, Pageable pageable);
+    /**
+     * The latest entry on one asset's ledger, which is the one the asset's placement columns
+     * cache. Used to refuse an entry dated before it, so appended order and chronological order
+     * stay the same thing.
+     */
+    Optional<AssetMovement> findFirstByAsset_IdAndOrganization_IdOrderByMovedAtDescIdDesc(
+            Long assetId, Long organizationId);
 
     /** Whether an asset has any recorded history, which is what makes it undeletable. */
     boolean existsByAsset_IdAndOrganization_Id(Long assetId, Long organizationId);
