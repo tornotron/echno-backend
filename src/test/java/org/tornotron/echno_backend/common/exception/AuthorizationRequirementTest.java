@@ -47,7 +47,10 @@ class AuthorizationRequirementTest {
 
     @Test
     void readsEveryAlternativeOfACompositeExpression() {
-        // OrganizationController.deleteOrganization, the widest guard in the codebase.
+        // OrganizationController.deleteOrganization, the widest guard in the codebase, and the one
+        // that matters most for this: its middle branch needs the permission AND membership
+        // together. Offering them as two separate routes would send a caller holding only
+        // 'organization:delete' back for a second refusal.
         AuthorizationRequirement requirement = AuthorizationRequirement.from(
                 "@orgSecurity.hasOrgRole(#id, 'system-admin') or "
                         + "(hasAuthority('organization:delete') and @orgSecurity.isMember(#id)) or "
@@ -56,10 +59,36 @@ class AuthorizationRequirementTest {
         assertThat(requirement.getOrganizationRoles()).containsExactly("system-admin");
         assertThat(requirement.getAuthorities()).containsExactly("organization:delete", "organization:admin");
 
-        String described = requirement.describe();
-        assertThat(described).contains("the 'system-admin' role in this organization");
-        assertThat(described).contains("the 'organization:delete' or 'organization:admin' permissions");
-        assertThat(described).contains("membership of this organization");
+        assertThat(requirement.describe()).startsWith(
+                "This action requires the 'system-admin' role in this organization, "
+                        + "or the 'organization:delete' permission and membership of this organization, "
+                        + "or the 'organization:admin' permission.");
+    }
+
+    @Test
+    void keepsAConjunctionTogetherRatherThanOfferingItAsTwoRoutes() {
+        // Nothing here is optional, so nothing should read as an alternative.
+        String described = AuthorizationRequirement
+                .from("hasAuthority('organization:delete') and @orgSecurity.isMember(#id)")
+                .describe();
+
+        assertThat(described).isEqualTo(
+                "This action requires the 'organization:delete' permission and membership of this "
+                        + "organization. Your roles are read from the session you signed in with, so if "
+                        + "one was granted just now, sign out and back in to pick it up.");
+        assertThat(described).doesNotContain(", or ");
+    }
+
+    @Test
+    void doesNotSplitOnAnOrNestedInsideBrackets() {
+        // The nested 'or' belongs to the bracketed clause; splitting on it would break the
+        // surrounding 'and' apart and turn "both of these" into "either of these".
+        String described = AuthorizationRequirement
+                .from("(hasAuthority('a') or hasAuthority('b')) and @orgSecurity.isMemberOfCurrentTenant()")
+                .describe();
+
+        assertThat(described).contains("the 'a' or 'b' permissions and membership of this organization");
+        assertThat(described).doesNotContain(", or ");
     }
 
     @Test
