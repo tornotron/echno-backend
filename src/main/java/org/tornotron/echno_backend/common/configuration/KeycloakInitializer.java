@@ -79,9 +79,11 @@ public class KeycloakInitializer {
     @Value("${keycloak.client-id}")
     private String appClientId;
 
-    // Local-dev convenience client + account (issue #451). Gated OFF by default so a real production
-    // realm never carries a localhost redirect. A deploy that wants local login against its realm
-    // (staging only) sets keycloak.dev-client-enabled=true. See ensureDevClient().
+    // Local-dev convenience client + account + development organization (issue #451). Gated OFF by
+    // default so a real production realm never carries a localhost redirect. A deploy that wants
+    // local login against its realm (staging only) sets keycloak.dev-client-enabled=true. This flag
+    // is the whole guard, so see ensureDevClient() for what a mistaken enable would and would not
+    // expose.
     @Value("${keycloak.dev-client-enabled:false}")
     private boolean devClientEnabled;
 
@@ -95,19 +97,33 @@ public class KeycloakInitializer {
     private static final String DEV_CLIENT_ID = "echno-web-local";
     private static final String DEV_REDIRECT_URI = "http://localhost:3000/*";
     private static final String DEV_WEB_ORIGIN = "http://localhost:3000";
-    private static final String DEV_USERNAME = "amelia-price";
-    private static final String DEV_USER_EMAIL = "amelia.price@echno.local";
-    private static final String DEV_USER_FIRST_NAME = "Amelia";
-    private static final String DEV_USER_LAST_NAME = "Price";
+
+    // The fixture account. The name is deliberately not a person's: it used to be 'amelia-price',
+    // which is one of the 28 QA personas the deployment's seed playbook imports. On any seeded
+    // environment the create below came back 409 and the fixture silently became that persona,
+    // inheriting her groups and data and dropping its own email, name and password on the floor.
+    // A name no seed uses keeps the two apart.
+    static final String DEV_USERNAME = "echno-local-dev";
+    private static final String DEV_USER_EMAIL = "local-dev@echno.local";
+    private static final String DEV_USER_FIRST_NAME = "Local";
+    private static final String DEV_USER_LAST_NAME = "Dev";
+    private static final String DEV_USER_DISPLAY_NAME = DEV_USER_FIRST_NAME + " " + DEV_USER_LAST_NAME;
+
+    // Provisions the application half of the fixture's identity (user row, development organization,
+    // employee row, org role). Keycloak alone cannot make the fixture usable: the organization picker
+    // reads the employee table, not the token.
+    private final DevFixtureProvisioner devFixtureProvisioner;
 
     public KeycloakInitializer(Keycloak masterKeycloak,
                                KeycloakInitializerConfigurationProperties keycloakInitializerConfigurationProperties,
                                ObjectMapper objectMapper,
-                               KeycloakConfig keycloakConfig) {
+                               KeycloakConfig keycloakConfig,
+                               DevFixtureProvisioner devFixtureProvisioner) {
         this.masterKeycloak = masterKeycloak;
         this.keycloakInitializerConfigurationProperties = keycloakInitializerConfigurationProperties;
         this.mapper = objectMapper;
         this.keycloakConfig = keycloakConfig;
+        this.devFixtureProvisioner = devFixtureProvisioner;
     }
 
 
@@ -1011,8 +1027,16 @@ public class KeycloakInitializer {
      * a localhost redirect, so nothing is created unless a deploy (staging only) explicitly opts in.
      * When enabled it is fully idempotent and guarded so a failure only logs and never aborts startup:
      * the public 'echno-web-local' client mirrors the real web client (standard flow, PKCE S256, the
-     * groups mapper) but redirects to localhost, and the 'amelia-price' account is a throwaway login
-     * with a public dev password.
+     * groups mapper) but redirects to localhost, and the fixture account is a throwaway login with a
+     * public dev password.
+     *
+     * <p>That flag is the only thing standing between this fixture and a client's production realm,
+     * and it is a plain boolean nothing cross-checks, so the reconcile is built to be survivable if
+     * it is ever set by mistake. It is announced at WARN rather than INFO, so an accidental enable is
+     * visible in a production log instead of buried; the account holds no realm admin role; and the
+     * only organization it can administer is one this code creates for it, which holds no real data.
+     * The remaining exposure of a mistaken enable is the localhost redirect on the dev client, which
+     * is why the flag must stay off everywhere except a development or staging deployment.
      */
     private void ensureDevClient() {
         if (!devClientEnabled) {
@@ -1021,10 +1045,16 @@ public class KeycloakInitializer {
             return;
         }
         try {
-            log.info("Ensuring local-dev client '{}' and account '{}' (keycloak.dev-client-enabled=true)",
-                    DEV_CLIENT_ID, DEV_USERNAME);
+            log.warn("Provisioning the local-development fixture in realm '{}' "
+                            + "(keycloak.dev-client-enabled=true): client '{}' with a localhost redirect, "
+                            + "account '{}', and its own development organization. This must never be a "
+                            + "client production realm.",
+                    REALM_ID, DEV_CLIENT_ID, DEV_USERNAME);
             ensureDevWebLocalClient();
-            ensureDevUser();
+            String devUserId = ensureDevUser();
+            if (devUserId != null) {
+                devFixtureProvisioner.provision(devUserId, DEV_USER_DISPLAY_NAME, DEV_USER_EMAIL);
+            }
             log.info("Local-dev client reconcile complete");
         } catch (Exception e) {
             log.error("Failed to ensure local-dev client/account: {}", e.getMessage(), e);
@@ -1068,8 +1098,13 @@ public class KeycloakInitializer {
                 }
             } else {
                 // Keep the existing client's desired config in sync (public client, no secret to preserve).
-                String uuid = existing.get(0).getId();
+                // The representation above leaves several capability flags unset, and Keycloak reads an
+                // absent boolean on update as false, so it goes through preserveUnsetCapabilities like
+                // every other client update in this class rather than around it.
+                org.keycloak.representations.idm.ClientRepresentation existingClient = existing.get(0);
+                String uuid = existingClient.getId();
                 rep.setId(uuid);
+                preserveUnsetCapabilities(rep, existingClient);
                 realm.clients().get(uuid).update(rep);
                 log.info("Local-dev client '{}' already exists (id={}); config synced", DEV_CLIENT_ID, uuid);
             }
@@ -1078,16 +1113,92 @@ public class KeycloakInitializer {
         }
     }
 
-    /** Creates the throwaway 'amelia-price' dev account (with the 'user' role) idempotently. */
-    private void ensureDevUser() {
-        UserKeycloakDto devUser = new UserKeycloakDto();
-        devUser.setUserName(DEV_USERNAME);
-        devUser.setEmailId(DEV_USER_EMAIL);
-        devUser.setFirstName(DEV_USER_FIRST_NAME);
-        devUser.setLastName(DEV_USER_LAST_NAME);
-        devUser.setPassword(devUserPassword);
-        devUser.setAdmin(false);
-        initKeycloakUser(devUser);
+    /**
+     * Creates the throwaway fixture account idempotently and returns its Keycloak id, which is what
+     * the application resolves a user row by.
+     *
+     * <p>This does not reuse {@link #initKeycloakUser}, which cannot serve the fixture. That method
+     * treats a 409 as "already fine" and only adds a realm role, so it never learns whether the
+     * account it found is the one it meant to create, never applies the configured password to it,
+     * and returns nothing the caller can identify the account with. All three mattered here: the
+     * fixture used to carry a seeded QA persona's username, so on staging the 409 branch handed a
+     * developer a real QA account whose password was not the documented dev one.
+     *
+     * <p>So an account that already carries the fixture username is adopted only when its email is
+     * the fixture's own. Anything else is left untouched and the fixture is skipped, because a name
+     * collision with a real account is not a reason to reset that account's password. The email is
+     * the identifying mark rather than a custom attribute because Keycloak's declarative user profile
+     * discards unmanaged attributes by default, which would make the mark vanish between restarts.
+     * The fixture holds the flat 'user' realm role and nothing else; the role that gives it access to
+     * anything is org-scoped and granted by the provisioner.
+     */
+    private String ensureDevUser() {
+        RealmResource realm = admin.realm(REALM_ID);
+
+        List<UserRepresentation> existing = realm.users().search(DEV_USERNAME, true);
+        UserRepresentation match = existing.stream()
+                .filter(u -> DEV_USERNAME.equals(u.getUsername()))
+                .findFirst()
+                .orElse(null);
+
+        if (match != null) {
+            if (!isDevFixtureAccount(match)) {
+                log.error("An account named '{}' already exists in realm '{}' and was not created as a "
+                                + "development fixture, so it belongs to somebody else. Leaving it alone and "
+                                + "skipping the fixture; change the fixture username if this is deliberate.",
+                        DEV_USERNAME, REALM_ID);
+                return null;
+            }
+            // Reapply the configured password so the documented dev credential always works, even
+            // after it has been changed in the realm or the environment's value has been rotated.
+            resetDevUserPassword(realm, match.getId());
+            log.info("Dev fixture account '{}' already exists (id={}); password reapplied",
+                    DEV_USERNAME, match.getId());
+            return match.getId();
+        }
+
+        UserRepresentation rep = new UserRepresentation();
+        rep.setUsername(DEV_USERNAME);
+        rep.setEmail(DEV_USER_EMAIL);
+        rep.setFirstName(DEV_USER_FIRST_NAME);
+        rep.setLastName(DEV_USER_LAST_NAME);
+        rep.setEnabled(true);
+        rep.setEmailVerified(true);
+        rep.setCredentials(List.of(devPasswordCredential()));
+
+        try (Response response = realm.users().create(rep)) {
+            if (response.getStatus() != 201) {
+                log.error("Failed to create dev fixture account '{}'. Status: {}. Reason: {}",
+                        DEV_USERNAME, response.getStatus(), response.getStatusInfo().getReasonPhrase());
+                return null;
+            }
+            String userId = CreatedResponseUtil.getCreatedId(response);
+            realm.users().get(userId).roles().realmLevel()
+                    .add(Collections.singletonList(realm.roles().get("user").toRepresentation()));
+            log.info("Created dev fixture account '{}' with id {}", DEV_USERNAME, userId);
+            return userId;
+        }
+    }
+
+    /** True when the account found under the fixture username is the fixture's own, not a real one. */
+    static boolean isDevFixtureAccount(UserRepresentation user) {
+        return user != null && DEV_USER_EMAIL.equalsIgnoreCase(user.getEmail());
+    }
+
+    private void resetDevUserPassword(RealmResource realm, String userId) {
+        try {
+            realm.users().get(userId).resetPassword(devPasswordCredential());
+        } catch (Exception e) {
+            log.warn("Could not reapply the dev fixture password for '{}': {}", DEV_USERNAME, e.getMessage());
+        }
+    }
+
+    private CredentialRepresentation devPasswordCredential() {
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setTemporary(false);
+        credential.setValue(devUserPassword);
+        return credential;
     }
 
     /** The standard 'groups' membership mapper shared by the web clients. */
