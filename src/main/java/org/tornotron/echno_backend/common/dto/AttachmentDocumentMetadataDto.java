@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.common.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -25,4 +26,17 @@ public class AttachmentDocumentMetadataDto {
     @Schema(description = "Date the document stops being valid. Send null for a document that does "
             + "not expire.", example = "2027-06-10")
     private LocalDate expiresOn;
+
+    /**
+     * A document cannot stop being valid before it was issued. Checked here rather than in the
+     * service because it is a property of the payload, and a document period the wrong way round
+     * is a typo in the form rather than a state the system should ever hold.
+     *
+     * @return Whether the two dates are in a possible order, or either is absent.
+     */
+    @AssertTrue(message = "expiresOn must not be before issuedOn")
+    @Schema(hidden = true)
+    public boolean isDocumentPeriodInOrder() {
+        return issuedOn == null || expiresOn == null || !expiresOn.isBefore(issuedOn);
+    }
 }

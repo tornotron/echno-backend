@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -153,8 +154,8 @@ public class AssetControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No asset with the given id")
     })
     public ResponseEntity<Page<AssetMovementDto>> readMovements(@PathVariable Long id,
-                                                                @RequestParam(defaultValue = "0") int pageNo,
-                                                                @RequestParam(defaultValue = "20") int pageSize) {
+                                                                @RequestParam(defaultValue = "0") @Min(0) int pageNo,
+                                                                @RequestParam(defaultValue = "20") @Min(1) int pageSize) {
         return new ResponseEntity<>(assetService.getMovements(id, pageNo, pageSize), HttpStatus.OK);
     }
 
@@ -165,8 +166,10 @@ public class AssetControllerWeb {
             description = "Turns consecutive ledger entries into the stretches of time the asset "
                     + "spent in one place, oldest first, with the number of whole days each lasted "
                     + "and the last one left open. Derived from the ledger on every read, so it "
-                    + "cannot drift from it. Reads at most the 500 oldest entries; use the movements "
-                    + "endpoint for an asset with a longer history than that."
+                    + "cannot drift from it. Reads at most the 500 most recent entries: "
+                    + "X-Total-Count carries the true number of movements and X-Result-Capped is "
+                    + "set when older ones were left out, in which case the movements endpoint has "
+                    + "the rest."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Placement history returned"),
@@ -174,7 +177,7 @@ public class AssetControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No asset with the given id")
     })
     public ResponseEntity<List<AssetPlacementSpanDto>> readPlacementHistory(@PathVariable Long id) {
-        return new ResponseEntity<>(assetService.getPlacementHistory(id), HttpStatus.OK);
+        return UnpagedResultCap.respond(assetService.getPlacementHistory(id));
     }
 
     @GetMapping("/{id}/documents")

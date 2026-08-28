@@ -368,6 +368,52 @@ class AssetMovementLedgerTest {
     }
 
     @Test
+    void recordMovement_datedBeforeTheLastEntryOnTheLedger_isRefused() {
+        Asset asset = existingAsset();
+        when(assetRepository.findByIdAndOrganization_Id(ASSET, ORG)).thenReturn(Optional.of(asset));
+        when(projectRepository.findByIdAndOrganization_Id(PROJECT_B, ORG))
+                .thenReturn(Optional.of(project(PROJECT_B, "Silver Oak Residences")));
+
+        AssetMovement latest = new AssetMovement();
+        latest.setId(409L);
+        latest.setMovedAt(LocalDateTime.now().minusDays(2));
+        when(assetMovementRepository.findFirstByAsset_IdAndOrganization_IdOrderByMovedAtDescIdDesc(ASSET, ORG))
+                .thenReturn(Optional.of(latest));
+
+        AssetMovementCreationDto dto = movementDto(PROJECT_B, "Entered late");
+        dto.setMovedAt(LocalDateTime.now().minusDays(9));
+
+        // Appending behind an existing entry would leave the asset showing the older placement
+        // while the ledger's last entry said otherwise.
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.recordMovement(ASSET, dto))
+                .withMessageContaining("before the last entry on its ledger");
+        verify(assetMovementRepository, never()).save(any(AssetMovement.class));
+    }
+
+    @Test
+    void recordMovement_backdatedButStillAfterTheLastEntry_isAccepted() {
+        Asset asset = existingAsset();
+        when(assetRepository.findByIdAndOrganization_Id(ASSET, ORG)).thenReturn(Optional.of(asset));
+        when(projectRepository.findByIdAndOrganization_Id(PROJECT_B, ORG))
+                .thenReturn(Optional.of(project(PROJECT_B, "Silver Oak Residences")));
+
+        AssetMovement latest = new AssetMovement();
+        latest.setId(409L);
+        latest.setMovedAt(LocalDateTime.now().minusDays(9));
+        when(assetMovementRepository.findFirstByAsset_IdAndOrganization_IdOrderByMovedAtDescIdDesc(ASSET, ORG))
+                .thenReturn(Optional.of(latest));
+
+        LocalDateTime when = LocalDateTime.now().minusDays(2);
+        AssetMovementCreationDto dto = movementDto(PROJECT_B, "Entered two days after the machine moved");
+        dto.setMovedAt(when);
+
+        service.recordMovement(ASSET, dto);
+
+        assertThat(captureMovement().getMovedAt()).isEqualTo(when);
+    }
+
+    @Test
     void recordMovement_correctingAnEarlierEntry_appendsACorrectionRatherThanEditingIt() {
         Asset asset = existingAsset();
         Project onSite = project(PROJECT_A, "Central Yard");

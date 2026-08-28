@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.tornotron.echno_backend.asset.dto.AssetPlacementSpanDto;
 import org.tornotron.echno_backend.asset.mapper.AssetMapper;
@@ -89,10 +92,10 @@ class AssetPlacementHistoryTest {
                 entry(1L, "Central Yard", now.minusDays(59), "Registered"),
                 entry(2L, "Silver Oak Residences", now.minusDays(45), "Mobilised for the piling phase"),
                 entry(3L, "Marina Heights Towers", now.minusDays(10), "Moved to the tower crane base"));
-        when(assetMovementRepository.findByAsset_IdAndOrganization_IdOrderByMovedAtAscIdAsc(
-                eq(ASSET), eq(ORG), any(Pageable.class))).thenReturn(ledger);
+        // The repository answers newest first; the service turns it back into reading order.
+        stubLedger(List.of(ledger.get(2), ledger.get(1), ledger.get(0)), 3L);
 
-        List<AssetPlacementSpanDto> spans = service.getPlacementHistory(ASSET);
+        List<AssetPlacementSpanDto> spans = service.getPlacementHistory(ASSET).getContent();
 
         assertThat(spans).hasSize(3);
         assertThat(spans).extracting(AssetPlacementSpanDto::getProjectName)
@@ -108,11 +111,9 @@ class AssetPlacementHistoryTest {
     @Test
     void aSingleEntryIsOneOpenStretchCountedToNow() {
         LocalDateTime now = LocalDateTime.now();
-        when(assetMovementRepository.findByAsset_IdAndOrganization_IdOrderByMovedAtAscIdAsc(
-                eq(ASSET), eq(ORG), any(Pageable.class)))
-                .thenReturn(List.of(entry(1L, "Central Yard", now.minusDays(21), "Registered")));
+        stubLedger(List.of(entry(1L, "Central Yard", now.minusDays(21), "Registered")), 1L);
 
-        List<AssetPlacementSpanDto> spans = service.getPlacementHistory(ASSET);
+        List<AssetPlacementSpanDto> spans = service.getPlacementHistory(ASSET).getContent();
 
         assertThat(spans).hasSize(1);
         assertThat(spans.get(0).getDays()).isEqualTo(21L);
@@ -122,9 +123,32 @@ class AssetPlacementHistoryTest {
 
     @Test
     void anAssetWithNoLedgerHasNoHistoryRatherThanAnInventedOne() {
-        when(assetMovementRepository.findByAsset_IdAndOrganization_IdOrderByMovedAtAscIdAsc(
-                eq(ASSET), eq(ORG), any(Pageable.class))).thenReturn(List.of());
+        stubLedger(List.of(), 0L);
 
         assertThat(service.getPlacementHistory(ASSET)).isEmpty();
+    }
+
+    @Test
+    void aCappedReadKeepsTheNewestEntriesAndReportsTheWholeLedgerAsTheTotal() {
+        LocalDateTime now = LocalDateTime.now();
+        // Two entries returned out of eight hundred: the cap dropped the oldest, not the newest,
+        // so the placement marked current is genuinely where the asset is.
+        stubLedger(List.of(
+                entry(800L, "Marina Heights Towers", now.minusDays(4), "Moved to the tower crane base"),
+                entry(799L, "Silver Oak Residences", now.minusDays(30), "Mobilised for the piling phase")),
+                800L);
+
+        Page<AssetPlacementSpanDto> history = service.getPlacementHistory(ASSET);
+
+        assertThat(history.getContent()).extracting(AssetPlacementSpanDto::getProjectName)
+                .containsExactly("Silver Oak Residences", "Marina Heights Towers");
+        assertThat(history.getContent().get(1).isCurrent()).isTrue();
+        assertThat(history.getTotalElements()).isEqualTo(800L);
+    }
+
+    private void stubLedger(List<AssetMovement> newestFirst, long total) {
+        when(assetMovementRepository.findByAsset_IdAndOrganization_IdOrderByMovedAtDescIdDesc(
+                eq(ASSET), eq(ORG), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(newestFirst, PageRequest.of(0, 500), total));
     }
 }
