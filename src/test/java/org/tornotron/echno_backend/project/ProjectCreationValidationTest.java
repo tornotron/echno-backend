@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.finance.ledger.repositories.CustomerRepository;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
+import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.project.mapper.ProjectMapper;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -70,7 +71,7 @@ class ProjectCreationValidationTest {
         ProjectCreationDto dto = new ProjectCreationDto();
         dto.setProjectName("Riverside Tower");
         dto.setProjectAddress("12 Mount Road, Mylapore");
-        dto.setStatus("upcoming");
+        dto.setStatus(ProjectCreationStatus.upcoming);
         return dto;
     }
 

@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.issue.dto.IssueCreationDto;
+import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.mapper.IssueMapper;
 import org.tornotron.echno_backend.task.TaskRepository;
 
@@ -70,7 +71,7 @@ class IssueCreationValidationTest {
         dto.setTitle("Honeycombing on the block A raft");
         dto.setDescription("Voids visible along the north edge of the pour after stripping.");
         dto.setType("quality");
-        dto.setStatus("open");
+        dto.setStatus(IssueStatus.open);
         dto.setTaskId(11L);
         dto.setCreatedById(5L);
         return dto;
@@ -113,15 +114,6 @@ class IssueCreationValidationTest {
     void addIssue_rejectsAMissingType() {
         IssueCreationDto dto = validDto();
         dto.setType(null);
-
-        assertThatThrownBy(() -> service.addIssue(dto, null))
-                .isInstanceOf(ConstraintViolationException.class);
-    }
-
-    @Test
-    void addIssue_rejectsAMissingStatus() {
-        IssueCreationDto dto = validDto();
-        dto.setStatus(null);
 
         assertThatThrownBy(() -> service.addIssue(dto, null))
                 .isInstanceOf(ConstraintViolationException.class);
