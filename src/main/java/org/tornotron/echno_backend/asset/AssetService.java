@@ -32,6 +32,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 
@@ -105,7 +106,7 @@ public class AssetService {
         Asset saved = assetRepository.save(asset);
 
         applyPlacement(saved,
-                resolveProject(creationDto.getAssignedProjectId()),
+                resolveAssignedProject(saved, creationDto),
                 resolveLocation(creationDto.getLocationId()),
                 creationDto.getAssignedToId(),
                 creationDto.getAssignedTo(),
@@ -144,7 +145,7 @@ public class AssetService {
         applyFields(asset, creationDto);
 
         applyPlacement(asset,
-                resolveProject(creationDto.getAssignedProjectId()),
+                resolveAssignedProject(asset, creationDto),
                 resolveLocation(creationDto.getLocationId()),
                 creationDto.getAssignedToId(),
                 creationDto.getAssignedTo(),
@@ -432,6 +433,57 @@ public class AssetService {
     private Asset requireAsset(Long id) {
         return assetRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Asset with ID " + id + " was not found in this organization"));
+    }
+
+    /**
+     * The project a create or update payload puts the asset on.
+     *
+     * <p>{@code assignedProjectId} is the field to send. The legacy {@code assignedProject} name
+     * is honoured only when no id is given, and only because the deployed web client still sends
+     * it: without this, the first save of an asset from an un-updated client would take the asset
+     * off its project and record a movement to nowhere for it. The name is resolved by the rule
+     * the reference migration used, so it resolves at runtime exactly as it did in the backfill.
+     *
+     * <p>A name the payload did not change leaves the asset where it is, whether or not it ever
+     * resolved. A changed name that resolves to nothing, or to more than one project, is refused:
+     * the caller is told to send an id rather than having the asset's project quietly cleared.
+     *
+     * @throws InvalidRequestException if a changed name resolves to no project or to several.
+     */
+    private Project resolveAssignedProject(Asset asset, AssetCreationDto dto) {
+        if (dto.getAssignedProjectId() != null) {
+            return resolveProject(dto.getAssignedProjectId());
+        }
+        String name = dto.getAssignedProject();
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        if (namesTheAssetsCurrentProject(asset, name)) {
+            return asset.getAssignedProject();
+        }
+        List<Project> matches = projectRepository.findByNormalisedName(
+                TenantContext.getCurrentOrgId(), name.trim().toLowerCase(Locale.ROOT));
+        if (matches.size() != 1) {
+            throw new InvalidRequestException("The project name \"" + name + "\" "
+                    + (matches.isEmpty() ? "names no project in this organization"
+                            : "names " + matches.size() + " projects in this organization")
+                    + ". Send assignedProjectId instead, so the asset is put on a project that"
+                    + " actually exists rather than on a guess.");
+        }
+        return matches.get(0);
+    }
+
+    /** Whether the name the payload sent is the one the asset already reads as, unchanged. */
+    private boolean namesTheAssetsCurrentProject(Asset asset, String name) {
+        String trimmed = name.trim();
+        if (asset.getAssignedProject() != null) {
+            return trimmed.equalsIgnoreCase(safeTrim(asset.getAssignedProject().getProjectName()));
+        }
+        return trimmed.equalsIgnoreCase(safeTrim(asset.getLegacyAssignedProject()));
+    }
+
+    private String safeTrim(String value) {
+        return value != null ? value.trim() : null;
     }
 
     private Project resolveProject(Long projectId) {

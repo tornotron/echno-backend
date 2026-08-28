@@ -25,6 +25,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 import org.tornotron.echno_backend.vendor.VendorRepository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -191,6 +192,88 @@ class AssetMovementLedgerTest {
         service.updateAsset(ASSET, dto);
 
         verify(assetMovementRepository, never()).save(any(AssetMovement.class));
+    }
+
+    @Test
+    void update_fromAClientStillSendingTheProjectName_resolvesItRatherThanUnassigningTheAsset() {
+        Asset asset = existingAsset();
+        Project central = project(PROJECT_A, "Central Yard");
+        asset.setAssignedProject(central);
+        when(assetRepository.findByIdAndOrganization_Id(ASSET, ORG)).thenReturn(Optional.of(asset));
+
+        AssetCreationDto dto = creationDto();
+        dto.setAssignedProject("Silver Oak Residences");
+        when(projectRepository.findByNormalisedName(ORG, "silver oak residences"))
+                .thenReturn(List.of(project(PROJECT_B, "Silver Oak Residences")));
+
+        service.updateAsset(ASSET, dto);
+
+        assertThat(captureMovement().getToProject().getId()).isEqualTo(PROJECT_B);
+        assertThat(asset.getAssignedProject().getId()).isEqualTo(PROJECT_B);
+    }
+
+    @Test
+    void update_thatDidNotTouchTheProjectName_leavesTheAssetWhereItIs() {
+        Asset asset = existingAsset();
+        asset.setAssignedProject(project(PROJECT_A, "Central Yard"));
+        when(assetRepository.findByIdAndOrganization_Id(ASSET, ORG)).thenReturn(Optional.of(asset));
+
+        AssetCreationDto dto = creationDto();
+        dto.setAssignedProject("Central Yard");
+        dto.setSerialNumber("JCB3DX2023-0456");
+
+        service.updateAsset(ASSET, dto);
+
+        verify(assetMovementRepository, never()).save(any(AssetMovement.class));
+        assertThat(asset.getAssignedProject().getId()).isEqualTo(PROJECT_A);
+    }
+
+    @Test
+    void update_resendingTextThatNeverResolved_leavesTheAssetWhereItIs() {
+        Asset asset = existingAsset();
+        asset.setLegacyAssignedProject("Marina Hts - phase 2 (old sheet)");
+        when(assetRepository.findByIdAndOrganization_Id(ASSET, ORG)).thenReturn(Optional.of(asset));
+
+        AssetCreationDto dto = creationDto();
+        dto.setAssignedProject("Marina Hts - phase 2 (old sheet)");
+
+        service.updateAsset(ASSET, dto);
+
+        verify(assetMovementRepository, never()).save(any(AssetMovement.class));
+        assertThat(asset.getAssignedProject()).isNull();
+    }
+
+    @Test
+    void update_withAChangedProjectNameThatResolvesToNothing_isRefusedRatherThanClearing() {
+        Asset asset = existingAsset();
+        Project central = project(PROJECT_A, "Central Yard");
+        asset.setAssignedProject(central);
+        when(assetRepository.findByIdAndOrganization_Id(ASSET, ORG)).thenReturn(Optional.of(asset));
+        when(projectRepository.findByNormalisedName(ORG, "somewhere that does not exist"))
+                .thenReturn(List.of());
+
+        AssetCreationDto dto = creationDto();
+        dto.setAssignedProject("Somewhere that does not exist");
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.updateAsset(ASSET, dto))
+                .withMessageContaining("Send assignedProjectId instead");
+        assertThat(asset.getAssignedProject()).isSameAs(central);
+    }
+
+    @Test
+    void update_withAnAmbiguousProjectName_isRefusedRatherThanGuessing() {
+        Asset asset = existingAsset();
+        when(assetRepository.findByIdAndOrganization_Id(ASSET, ORG)).thenReturn(Optional.of(asset));
+        when(projectRepository.findByNormalisedName(ORG, "phase 1"))
+                .thenReturn(List.of(project(PROJECT_A, "Phase 1"), project(PROJECT_B, "Phase 1")));
+
+        AssetCreationDto dto = creationDto();
+        dto.setAssignedProject("Phase 1");
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.updateAsset(ASSET, dto))
+                .withMessageContaining("names 2 projects");
     }
 
     @Test

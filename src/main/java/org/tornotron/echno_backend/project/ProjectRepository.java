@@ -53,4 +53,24 @@ public interface ProjectRepository extends JpaRepository<Project,Long> {
             WHERE :search IS NULL OR LOWER(p.projectName) LIKE :search ESCAPE '\\'
             """)
     Page<Project> search(@Param("search") String search, Pageable pageable);
+
+    /**
+     * Projects in one organization whose trimmed, lower-cased name equals the given key.
+     *
+     * <p>Returns a list rather than one project on purpose: two projects in an organization may
+     * share a name, and a caller resolving a name to a reference has to be able to tell an
+     * unambiguous match from a guess. It matches the rule the asset reference migration uses, so
+     * a name resolves the same way at runtime as it did during the backfill.
+     *
+     * @param organizationId The organization to search within.
+     * @param name           The project name, already trimmed and lower-cased by the caller.
+     * @return Every project in that organization carrying the name.
+     */
+    @Query("""
+            SELECT p FROM Project p
+            WHERE p.organization.id = :organizationId
+              AND LOWER(TRIM(p.projectName)) = :name
+            """)
+    List<Project> findByNormalisedName(@Param("organizationId") Long organizationId,
+                                       @Param("name") String name);
 }
