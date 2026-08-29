@@ -156,8 +156,14 @@ class MaterialConsumptionStockScopeTest {
     }
 
     @Test
-    void aStorageLocationBelongingToAnotherProjectIsRefused() {
+    void aStorageLocationBelongingToAnotherProjectIsRefusedEvenWhenItAlreadyHoldsABalance() {
+        // The stock-adjustment path accepts a location a balance already sits at, because
+        // correcting that pairing is what an adjustment is for. Recording a new consumption is
+        // not, so the strict rule still applies here whether a balance row exists or not.
         location(LOCATION, OTHER_PROJECT);
+        lenient().when(currentStockRepository
+                        .findByMaterialIdAndProjectIdAndStorageLocationId(MATERIAL, PROJECT, LOCATION))
+                .thenReturn(Optional.of(stockRow(60.0)));
 
         assertThatExceptionOfType(InvalidRequestException.class)
                 .isThrownBy(() -> service.createMaterialConsumption(dto(LOCATION)))

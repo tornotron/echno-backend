@@ -46,8 +46,10 @@ import static org.mockito.Mockito.when;
  * what that has to guarantee: a ledger entry carrying the reason is written before the
  * balance moves, a physical count lands the balance on the counted figure, a movement with
  * no stated reason is refused, an adjustment cannot be posted twice or edited afterwards,
- * and it cannot be used to book stock onto a location belonging to another project or to
- * push a balance below zero. Segregation of duties is covered here too: the person who
+ * and it cannot be used to book stock onto a location belonging to another project that
+ * holds no balance for it, or to push a balance below zero. The one relaxation the
+ * adjustment path carries is covered too: a balance that already sits on another project's
+ * location can be corrected, because that pairing is what the document exists to fix. Segregation of duties is covered here too: the person who
  * raised the document cannot approve it, and a system administrator who does is recorded
  * as having self-approved on the ledger entry itself.
  */
@@ -224,15 +226,45 @@ class StockAdjustmentApprovalTest {
     }
 
     @Test
-    void aLineOnALocationBelongingToAnotherProjectIsRefused() {
+    void aLineOnAnotherProjectsLocationHoldingNoBalanceIsRefused() {
+        // Nothing has ever been booked here, so there is no wrong pairing to correct and the
+        // adjustment would be inventing one. The strict rule still applies.
         StockAdjustment adjustment = adjustment(location(LOCATION, OTHER_PROJECT));
         line(adjustment, null, -5.0, "damage");
+        when(inventoryService.findStockAtLocation(MATERIAL, PROJECT, LOCATION))
+                .thenReturn(Optional.empty());
 
         assertThatExceptionOfType(InvalidRequestException.class)
                 .isThrownBy(() -> service.approve(ADJUSTMENT))
-                .withMessageContaining("belongs to project with ID 9");
+                .withMessageContaining("belongs to project with ID 9")
+                .withMessageContaining("holds no balance");
 
         verify(inventoryTransactionRepository, never()).save(any());
+        verify(inventoryService, never()).updateCurrentStock(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void aBalanceAlreadySittingOnAnotherProjectsLocationCanBeCorrected() {
+        // Issue #563. current_stock row 6 on staging is material 8 at project 7, storage
+        // location 2, holding 400; location 2 belongs to project 3. The wrong pairing is the
+        // thing being fixed, so the adjustment path has to reach it. MC-1 took 30 out of it,
+        // so the true figure is 370.
+        StockAdjustment adjustment = adjustment(null);
+        StockAdjustmentLineItem line = line(adjustment, 370.0, null, "Data correction");
+        line.setLocation(location(LOCATION, OTHER_PROJECT));
+        balanceAtLocation(400.0);
+
+        service.approve(ADJUSTMENT);
+
+        ArgumentCaptor<InventoryTransaction> captor = ArgumentCaptor.forClass(InventoryTransaction.class);
+        verify(inventoryTransactionRepository).save(captor.capture());
+        InventoryTransaction posted = captor.getValue();
+        assertThat(posted.getOpeningStock()).isEqualTo(400.0);
+        assertThat(posted.getQuantityChanged()).isEqualTo(-30.0);
+        assertThat(posted.getClosingStock()).isEqualTo(370.0);
+        assertThat(posted.getStorageLocation().getId()).isEqualTo(LOCATION);
+        verify(inventoryService).updateCurrentStock(eq(material), eq(project), any(StorageLocation.class),
+                eq(organization), eq(-30.0), isNull());
     }
 
     @Test
