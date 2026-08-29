@@ -168,7 +168,7 @@ class StockAdjustmentServiceTest {
 
     @Test
     void update_unknownDocument_throwsNotFound() {
-        when(stockAdjustmentRepository.findByIdAndOrganization_Id(5L, ORG)).thenReturn(Optional.empty());
+        when(stockAdjustmentRepository.lockByIdAndOrganizationId(5L, ORG)).thenReturn(Optional.empty());
 
         assertThatExceptionOfType(ResourceNotFoundException.class)
                 .isThrownBy(() -> service.update(5L, baseDto()));
@@ -185,7 +185,7 @@ class StockAdjustmentServiceTest {
         existing.setOrganization(org);
         StockAdjustmentLineItem stale = new StockAdjustmentLineItem();
         existing.addLineItem(stale);
-        when(stockAdjustmentRepository.findByIdAndOrganization_Id(5L, ORG)).thenReturn(Optional.of(existing));
+        when(stockAdjustmentRepository.lockByIdAndOrganizationId(5L, ORG)).thenReturn(Optional.of(existing));
 
         StockAdjustmentCreationDto dto = baseDto();
         dto.setLineItems(List.of(line(MATERIAL, null)));
@@ -202,7 +202,7 @@ class StockAdjustmentServiceTest {
 
     @Test
     void delete_unknownDocument_throwsNotFound() {
-        when(stockAdjustmentRepository.findByIdAndOrganization_Id(5L, ORG)).thenReturn(Optional.empty());
+        when(stockAdjustmentRepository.lockByIdAndOrganizationId(5L, ORG)).thenReturn(Optional.empty());
 
         assertThatExceptionOfType(ResourceNotFoundException.class)
                 .isThrownBy(() -> service.delete(5L));
@@ -213,7 +213,7 @@ class StockAdjustmentServiceTest {
     @Test
     void delete_existingDocument_deletes() {
         StockAdjustment existing = new StockAdjustment();
-        when(stockAdjustmentRepository.findByIdAndOrganization_Id(5L, ORG)).thenReturn(Optional.of(existing));
+        when(stockAdjustmentRepository.lockByIdAndOrganizationId(5L, ORG)).thenReturn(Optional.of(existing));
 
         service.delete(5L);
 
@@ -244,7 +244,7 @@ class StockAdjustmentServiceTest {
         StockAdjustment existing = new StockAdjustment();
         existing.setId(4L);
         existing.setSubmittedBy(SESSION_USER);
-        when(stockAdjustmentRepository.findByIdAndOrganization_Id(4L, ORG))
+        when(stockAdjustmentRepository.lockByIdAndOrganizationId(4L, ORG))
                 .thenReturn(Optional.of(existing));
         StockAdjustmentCreationDto dto = baseDto();
         dto.setSubmittedBy(999L);

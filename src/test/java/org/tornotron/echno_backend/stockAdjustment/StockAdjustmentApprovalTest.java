@@ -126,7 +126,7 @@ class StockAdjustmentApprovalTest {
         adjustment.setProject(project);
         adjustment.setLocation(headerLocation);
         adjustment.setPrimaryReason("physical_count");
-        when(stockAdjustmentRepository.findByIdAndOrganization_Id(ADJUSTMENT, ORG))
+        when(stockAdjustmentRepository.lockByIdAndOrganizationId(ADJUSTMENT, ORG))
                 .thenReturn(Optional.of(adjustment));
         return adjustment;
     }
