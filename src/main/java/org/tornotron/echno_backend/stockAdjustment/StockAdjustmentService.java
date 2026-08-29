@@ -32,6 +32,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Stock-adjustment documents: draft, browse, edit, and post to the stock ledger.
@@ -218,6 +219,13 @@ public class StockAdjustmentService {
      * document, unless they hold the break-glass role, in which case the posting is allowed and
      * the ledger entries say they were self-approved. See {@link SelfApprovalPolicy}.
      *
+     * <p>The location on a line is scoped through
+     * {@link StorageLocationScope#requireUsableForBalanceCorrection}, not the strict rule the
+     * other stock paths use. A location belonging to another project is still refused, unless a
+     * balance row already sits at that (material, project, location), which is the one pairing an
+     * adjustment exists to correct: the strict rule is written for a new movement, and applying it
+     * here would leave a wrongly located balance with no route back at all.
+     *
      * <p>Every posted line writes an {@code ADJUST} {@link InventoryTransaction} whose
      * remarks carry the reason, so the balance stays explainable, and only then moves the
      * balance. Both happen in this transaction: an approval that recorded no movement is the
@@ -227,7 +235,7 @@ public class StockAdjustmentService {
      * @param id The document to approve and post.
      * @return The posted document as a DTO.
      * @throws ResourceNotFoundException if no such document exists in this organization.
-     * @throws InvalidRequestException if the document is already posted, is being approved by whoever raised it without the break-glass role, names no project, has no lines, or a line is missing a material, a reason, or a quantity, or would drive a balance negative.
+     * @throws InvalidRequestException if the document is already posted, is being approved by whoever raised it without the break-glass role, names no project, has no lines, or a line is missing a material, a reason, or a quantity, names a location on another project that holds no balance for it, or would drive a balance negative.
      */
     @Transactional
     public StockAdjustmentDto approve(Long id) {
@@ -270,12 +278,13 @@ public class StockAdjustmentService {
             StorageLocation location = line.getLocation() != null
                     ? line.getLocation()
                     : stockAdjustment.getLocation();
-            StorageLocationScope.requireUsableFromProject(location, project.getId());
 
-            Double balance = (location != null
+            Optional<Double> existingBalance = location != null
                     ? inventoryService.findStockAtLocation(material.getId(), project.getId(), location.getId())
-                    : inventoryService.findUnlocatedStock(material.getId(), project.getId()))
-                    .orElse(0.0);
+                    : inventoryService.findUnlocatedStock(material.getId(), project.getId());
+            StorageLocationScope.requireUsableForBalanceCorrection(location, project.getId(),
+                    existingBalance::isPresent);
+            Double balance = existingBalance.orElse(0.0);
             Double movement = resolveMovement(line, balance, material, id);
 
             // Record what was actually posted, so the document and the ledger agree.

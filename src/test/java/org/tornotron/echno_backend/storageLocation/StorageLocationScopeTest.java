@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.project.Project;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -14,6 +16,9 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  * stock. The rule: no project means an organisation-level store, usable from every
  * project; a named project means that project alone. The web client holds the same rule
  * in {@code features/material-consumptions/storage-location-scope.ts}.
+ *
+ * <p>The stock-adjustment exception is pinned here too: correcting a balance that already
+ * sits on a location owned by another project is allowed, and inventing one is not.
  */
 class StorageLocationScopeTest {
 
@@ -60,6 +65,41 @@ class StorageLocationScopeTest {
                 .withMessageContaining("Storage location with ID 7")
                 .withMessageContaining("belongs to project with ID 9")
                 .withMessageContaining("project with ID 3");
+    }
+
+    @Test
+    void aBalanceAlreadySittingOnAnotherProjectsLocationCanBeCorrected() {
+        StorageLocation site = location(7L, OTHER_PROJECT);
+
+        assertThatCode(() -> StorageLocationScope
+                .requireUsableForBalanceCorrection(site, PROJECT, () -> true))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void anAdjustmentCannotInventABalanceOnAnotherProjectsLocation() {
+        StorageLocation site = location(7L, OTHER_PROJECT);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> StorageLocationScope
+                        .requireUsableForBalanceCorrection(site, PROJECT, () -> false))
+                .withMessageContaining("Storage location with ID 7")
+                .withMessageContaining("belongs to project with ID 9")
+                .withMessageContaining("holds no balance")
+                .withMessageContaining("cannot create one");
+    }
+
+    @Test
+    void aLocationTheStrictRuleAlreadyAllowsIsNotLookedUpAtAll() {
+        StorageLocation site = location(7L, PROJECT);
+        AtomicBoolean lookedUp = new AtomicBoolean(false);
+
+        assertThatCode(() -> StorageLocationScope.requireUsableForBalanceCorrection(site, PROJECT, () -> {
+            lookedUp.set(true);
+            return false;
+        })).doesNotThrowAnyException();
+
+        assertThat(lookedUp).isFalse();
     }
 
     @Test

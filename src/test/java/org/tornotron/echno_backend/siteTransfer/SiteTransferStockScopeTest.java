@@ -10,6 +10,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
 import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
 import org.tornotron.echno_backend.common.exception.InsufficientStockException;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
@@ -162,6 +163,29 @@ class SiteTransferStockScopeTest {
         location.setProject(owner);
         lenient().when(storageLocationRepository.findByIdAndOrganization_Id(SENDING_LOCATION, ORG))
                 .thenReturn(Optional.of(location));
+    }
+
+    @Test
+    void aSendingLocationBelongingToAnotherProjectIsRefusedEvenWhenItAlreadyHoldsABalance() {
+        // The stock-adjustment path accepts a location a balance already sits at, because
+        // correcting that pairing is what an adjustment is for. A transfer records a new
+        // movement, so the strict rule still applies here whether a balance row exists or not.
+        StorageLocation location = new StorageLocation();
+        location.setId(SENDING_LOCATION);
+        Project owner = new Project();
+        owner.setId(RECEIVING_PROJECT);
+        location.setProject(owner);
+        when(storageLocationRepository.findByIdAndOrganization_Id(SENDING_LOCATION, ORG))
+                .thenReturn(Optional.of(location));
+        lenient().when(currentStockRepository
+                        .findByMaterialIdAndProjectIdAndStorageLocationId(MATERIAL, SENDING_PROJECT, SENDING_LOCATION))
+                .thenReturn(Optional.of(stockRow(60.0)));
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.createSiteTransfer(dto(SENDING_LOCATION)))
+                .withMessageContaining("belongs to project with ID " + RECEIVING_PROJECT);
+
+        verify(siteTransferRepository, never()).save(any());
     }
 
     @Test
