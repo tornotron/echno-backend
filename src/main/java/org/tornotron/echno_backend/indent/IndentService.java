@@ -27,13 +27,17 @@ import org.tornotron.echno_backend.indentItem.dto.IndentItemUpdateDto;
 import org.tornotron.echno_backend.indent.dto.IndentCreationDto;
 import org.tornotron.echno_backend.indent.dto.IndentDto;
 import org.tornotron.echno_backend.indent.enums.IndentStatus;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
+import org.tornotron.echno_backend.inventoryTransaction.MaterialStockLookup;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 
+import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * CRUD for material indents and their line items.
@@ -56,13 +60,14 @@ public class IndentService {
     private final IndentItemMapper indentItemMapper;
     private final DocumentNumberAllocator documentNumberAllocator;
     private final TransactionRetryTemplate retryTemplate;
+    private final InventoryService inventoryService;
 
     public IndentService(IndentRepository indentRepository, IndentItemRepository indentItemRepository,
                          MaterialRepository materialRepository, IndentMapper indentMapper,
                          TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository,
                          ProjectRepository projectRepository, IndentItemMapper indentItemMapper,
                          DocumentNumberAllocator documentNumberAllocator,
-                         TransactionRetryTemplate retryTemplate) {
+                         TransactionRetryTemplate retryTemplate, InventoryService inventoryService) {
         this.indentRepository = indentRepository;
         this.indentItemRepository = indentItemRepository;
         this.materialRepository = materialRepository;
@@ -73,6 +78,7 @@ public class IndentService {
         this.indentItemMapper = indentItemMapper;
         this.documentNumberAllocator = documentNumberAllocator;
         this.retryTemplate = retryTemplate;
+        this.inventoryService = inventoryService;
     }
 
     // ==================== Indent CRUD ====================
@@ -125,7 +131,8 @@ public class IndentService {
             indent.setRemarks(indentDto.getRemarks());
         }
 
-        return indentMapper.toDto(indentRepository.save(indent));
+        Indent saved = indentRepository.save(indent);
+        return indentMapper.toDto(saved, stockForIndents(List.of(saved)));
     }
 
     /**
@@ -176,7 +183,8 @@ public class IndentService {
             }
         }
 
-        return indentMapper.toDto(indentRepository.save(indent));
+        Indent saved = indentRepository.save(indent);
+        return indentMapper.toDto(saved, stockForIndents(List.of(saved)));
     }
 
     /**
@@ -189,8 +197,9 @@ public class IndentService {
     @Transactional(readOnly = true)
     public Page<IndentDto> getAllIndents(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
-        return indentRepository.findAll(pageable)
-                .map(indent -> indentMapper.toDto(indent));
+        Page<Indent> indents = indentRepository.findAll(pageable);
+        MaterialStockLookup stock = stockForIndents(indents.getContent());
+        return indents.map(indent -> indentMapper.toDto(indent, stock));
     }
 
 
@@ -204,7 +213,7 @@ public class IndentService {
     @Transactional(readOnly = true)
     public IndentDto getAnIndent(Long id) {
         return indentRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .map(indent -> indentMapper.toDto(indent))
+                .map(indent -> indentMapper.toDto(indent, stockForIndents(List.of(indent))))
                 .orElseThrow(() -> new ResourceNotFoundException("Indent with ID " + id + " was not found in this organization"));
     }
 
@@ -234,9 +243,11 @@ public class IndentService {
     @Transactional(readOnly = true)
     public List<IndentItemDto> getItemsByIndentId(Long indentId) {
         findIndentById(indentId);
-        return indentItemRepository.findByIndentId(indentId).stream()
-                .map(item -> indentItemMapper.toDto(item))
-                .collect(Collectors.toList());
+        List<IndentItem> items = indentItemRepository.findByIndentId(indentId);
+        MaterialStockLookup stock = stockForItems(items);
+        return items.stream()
+                .map(item -> indentItemMapper.toDto(item, stock))
+                .toList();
     }
 
     /**
@@ -254,7 +265,7 @@ public class IndentService {
         item.setOrganization(indent.getOrganization());
         indent.addItem(item);
         indentRepository.save(indent);
-        return indentItemMapper.toDto(item);
+        return indentItemMapper.toDto(item, stockForItems(List.of(item)));
     }
 
     /**
@@ -301,7 +312,7 @@ public class IndentService {
         }
 
         item = indentItemRepository.save(item);
-        return indentItemMapper.toDto(item);
+        return indentItemMapper.toDto(item, stockForItems(List.of(item)));
     }
 
     /**
@@ -344,5 +355,35 @@ public class IndentService {
         item.setRemarks(dto.getRemarks());
         item.setConvertedToPurchaseOrder(false);
         return item;
+    }
+
+    /**
+     * Reads the aggregate stock for every material on the given indents, in one query.
+     *
+     * <p>An indent line carries a full material DTO, so while the material mapper fetched its own
+     * stock a ten-line indent cost twenty aggregate reads and a page of indents multiplied that by
+     * the page size. One call now covers the page.
+     *
+     * @param indents The indents being converted.
+     * @return The stock for their materials, with anything unstocked reading as zero.
+     */
+    private MaterialStockLookup stockForIndents(Collection<Indent> indents) {
+        return stockForItems(indents.stream()
+                .flatMap(indent -> indent.getItems() == null ? Stream.<IndentItem>empty() : indent.getItems().stream())
+                .toList());
+    }
+
+    /**
+     * Reads the aggregate stock for the materials on the given indent lines, in one query.
+     *
+     * @param items The lines being converted.
+     * @return The stock for their materials, with anything unstocked reading as zero.
+     */
+    private MaterialStockLookup stockForItems(Collection<IndentItem> items) {
+        return inventoryService.aggregateStockFor(items.stream()
+                .map(IndentItem::getMaterial)
+                .filter(Objects::nonNull)
+                .map(Material::getId)
+                .toList());
     }
 }

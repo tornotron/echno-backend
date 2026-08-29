@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -78,11 +79,47 @@ public interface CurrentStockRepository extends JpaRepository<CurrentStock, Long
     @Query("SELECT COALESCE(SUM(cs.stockValue), 0) FROM CurrentStock cs WHERE cs.material.id = :materialId")
     BigDecimal sumStockValueByMaterial(@Param("materialId") Long materialId);
 
+    /**
+     * Totals quantity and value for many materials in one grouped read.
+     *
+     * <p>The batched form of {@link #sumCurrentQuantityByMaterial} and
+     * {@link #sumStockValueByMaterial}, which cost two queries per material and were being called
+     * once per row from inside a mapper. Both aggregates come back together because a caller that
+     * wants one always wants the other.
+     *
+     * <p>A material with no stock row produces no group, so the caller supplies the zero. Pass a
+     * non-empty collection: {@code IN ()} is not valid SQL.
+     */
+    @Query("""
+            SELECT new org.tornotron.echno_backend.inventoryTransaction.MaterialStockTotals(
+                       cs.material.id,
+                       COALESCE(SUM(cs.currentQuantity), 0.0),
+                       COALESCE(SUM(cs.stockValue), 0))
+            FROM CurrentStock cs
+            WHERE cs.material.id IN :materialIds
+            GROUP BY cs.material.id
+            """)
+    List<MaterialStockTotals> sumStockByMaterialIds(@Param("materialIds") Collection<Long> materialIds);
+
+    /**
+     * Counts distinct materials for many storage locations in one grouped read.
+     *
+     * <p>Replaces a per-location count that ran once per row on four listing paths. A location
+     * holding nothing produces no group, so the caller supplies the zero. Pass a non-empty
+     * collection: {@code IN ()} is not valid SQL.
+     */
+    @Query("""
+            SELECT new org.tornotron.echno_backend.inventoryTransaction.StorageLocationItemCount(
+                       cs.storageLocation.id, COUNT(DISTINCT cs.material.id))
+            FROM CurrentStock cs
+            WHERE cs.storageLocation.id IN :storageLocationIds AND cs.organization.id = :organizationId
+            GROUP BY cs.storageLocation.id
+            """)
+    List<StorageLocationItemCount> countDistinctMaterialsByStorageLocationIds(
+            @Param("storageLocationIds") Collection<Long> storageLocationIds,
+            @Param("organizationId") Long organizationId);
+
     List<CurrentStock> findByMaterialIdAndOrganization_Id(Long materialId, Long organizationId);
 
     List<CurrentStock> findByProjectId(Long projectId);
-
-    @Query("SELECT COUNT(DISTINCT cs.material.id) FROM CurrentStock cs WHERE cs.storageLocation.id = :storageLocationId AND cs.organization.id = :organizationId")
-    Long countDistinctMaterialsByStorageLocationIdAndOrganizationId(
-            @Param("storageLocationId") Long storageLocationId, @Param("organizationId") Long organizationId);
 }
