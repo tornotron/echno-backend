@@ -116,7 +116,7 @@ class StockAdjustmentRejectionTest {
         line.setOrganization(organization);
         adjustment.addLineItem(line);
 
-        lenient().when(stockAdjustmentRepository.findByIdAndOrganization_Id(ADJUSTMENT, ORG))
+        lenient().when(stockAdjustmentRepository.lockByIdAndOrganizationId(ADJUSTMENT, ORG))
                 .thenReturn(Optional.of(adjustment));
         return adjustment;
     }

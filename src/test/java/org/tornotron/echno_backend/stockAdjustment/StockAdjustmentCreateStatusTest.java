@@ -134,7 +134,7 @@ class StockAdjustmentCreateStatusTest {
         StockAdjustment existing = new StockAdjustment();
         existing.setId(4L);
         existing.setStatus(StockAdjustmentService.DRAFT_STATUS);
-        lenient().when(stockAdjustmentRepository.findByIdAndOrganization_Id(4L, ORG))
+        lenient().when(stockAdjustmentRepository.lockByIdAndOrganizationId(4L, ORG))
                 .thenReturn(Optional.of(existing));
 
         assertThatExceptionOfType(InvalidRequestException.class)

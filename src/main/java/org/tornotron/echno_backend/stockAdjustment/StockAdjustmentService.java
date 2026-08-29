@@ -63,6 +63,13 @@ import java.util.Optional;
  * applies: {@link #create} records who raised the document from the session, and
  * {@link #approve} refuses an approval by that same person unless they hold the break-glass
  * role. See {@link SelfApprovalPolicy}. {@link #reject} is deliberately outside that rule.
+ *
+ * <p>Every write path here reads the document, decides on its state, and then writes, so all
+ * four load it through {@link StockAdjustmentRepository#lockByIdAndOrganizationId} rather than
+ * the plain lookup. Without that, two callers acting at once would each read the state as it
+ * stood before the other and both pass the guard: concurrent approvals would post the same
+ * movement to the ledger twice, and an approval racing a rejection would post the movement and
+ * then record the document as refused. Reads that only display the document are not locked.
  */
 @Service
 public class StockAdjustmentService {
@@ -180,7 +187,7 @@ public class StockAdjustmentService {
     @Transactional
     public StockAdjustmentDto update(Long id, StockAdjustmentCreationDto creationDto) {
         StockAdjustment stockAdjustment = stockAdjustmentRepository
-                .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .lockByIdAndOrganizationId(id, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Stock adjustment with ID " + id + " was not found in this organization"));
         requireNotPosted(stockAdjustment, "edited");
@@ -210,7 +217,7 @@ public class StockAdjustmentService {
     @Transactional
     public void delete(Long id) {
         StockAdjustment stockAdjustment = stockAdjustmentRepository
-                .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .lockByIdAndOrganizationId(id, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Stock adjustment with ID " + id + " was not found in this organization"));
         requireNotPosted(stockAdjustment, "deleted");
@@ -256,7 +263,7 @@ public class StockAdjustmentService {
     @Transactional
     public StockAdjustmentDto approve(Long id) {
         StockAdjustment stockAdjustment = stockAdjustmentRepository
-                .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .lockByIdAndOrganizationId(id, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Stock adjustment with ID " + id + " was not found in this organization"));
         requireNotPosted(stockAdjustment, "posted again");
@@ -401,7 +408,7 @@ public class StockAdjustmentService {
     @Transactional
     public StockAdjustmentDto reject(Long id, String reason) {
         StockAdjustment stockAdjustment = stockAdjustmentRepository
-                .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .lockByIdAndOrganizationId(id, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Stock adjustment with ID " + id + " was not found in this organization"));
         requireNotPosted(stockAdjustment, "rejected");
