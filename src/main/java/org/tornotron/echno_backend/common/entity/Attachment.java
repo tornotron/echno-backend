@@ -16,6 +16,7 @@ import org.tornotron.echno_backend.user.User;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Generic attachment entity for storing file references across different modules.
@@ -30,6 +31,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Table(name = "attachment", indexes = {
         @Index(name = "idx_attachment_entity", columnList = "entity_type, entity_id"),
+        @Index(name = "idx_attachment_entity_uuid", columnList = "organization_id, entity_type, entity_uuid"),
         @Index(name = "idx_attachment_expiry", columnList = "organization_id, entity_type, expires_on")
 })
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
@@ -46,10 +48,27 @@ public class Attachment implements TenantScopedEntity {
     private String entityType;
 
     /**
-     * The ID of the entity this attachment belongs to.
+     * The numeric id of the entity this attachment belongs to, for the modules keyed that way.
+     *
+     * <p>Null on a file filed against a UUID-keyed record; {@link #entityUuid} carries the key
+     * instead. A database check constraint requires exactly one of the two, so a file cannot
+     * arrive naming neither and become invisible to every read while still occupying storage.
      */
-    @Column(name = "entity_id", nullable = false)
+    @Column(name = "entity_id")
     private Long entityId;
+
+    /**
+     * The UUID of the entity this attachment belongs to, for the modules keyed that way.
+     *
+     * <p>The inspection module is keyed by UUID throughout, and a UUID does not fit the BIGINT
+     * {@link #entityId}, so before this column an inspection had nowhere to file evidence at all.
+     * It sits on the shared table rather than inspections getting an evidence table of their own,
+     * for the reason the document columns do: the upload, presign, register, list and delete
+     * plumbing is already generic, so every UUID-keyed module inherits the fix rather than
+     * reimplementing it.
+     */
+    @Column(name = "entity_uuid")
+    private UUID entityUuid;
 
     /**
      * The unique key/path of the file in the storage bucket.

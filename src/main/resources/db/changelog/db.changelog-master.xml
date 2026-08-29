@@ -337,4 +337,7 @@
     <!-- v4.0 - Inspection reports: who accepted the corrective work, for the NCR trail -->
     <include file="db/changelog/v4.0/067-add-ncr-verified-by.xml"/>
 
+    <!-- v4.0 - Attachments: a second key, so a UUID-keyed record can carry files too -->
+    <include file="db/changelog/v4.0/068-add-attachment-entity-uuid.xml"/>
+
 </databaseChangeLog>

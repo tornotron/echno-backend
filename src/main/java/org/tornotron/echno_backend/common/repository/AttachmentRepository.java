@@ -9,6 +9,7 @@ import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Repository for managing Attachment entities.
@@ -45,6 +46,28 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
 
     boolean existsByEntityTypeAndEntityIdAndOriginalFilenameAndFileSize(
             String entityType, Long entityId, String originalFilename, Long fileSize);
+
+    /**
+     * Every file filed against a UUID-keyed record, oldest first.
+     *
+     * @param entityType The attachment entity type, for example INSPECTION_EVIDENCE
+     * @param entityUuid The record's UUID
+     * @return The attachments, in the order they were recorded
+     */
+    List<Attachment> findByEntityTypeAndEntityUuidOrderByIdAsc(String entityType, UUID entityUuid);
+
+    /**
+     * Whether a UUID-keyed record already carries a file of this name and size. The same
+     * duplicate guard the numeric path applies, keyed on the other column.
+     *
+     * @param entityType       The attachment entity type
+     * @param entityUuid       The record's UUID
+     * @param originalFilename The uploaded filename
+     * @param fileSize         The uploaded size in bytes
+     * @return true when an identical file is already filed against that record
+     */
+    boolean existsByEntityTypeAndEntityUuidAndOriginalFilenameAndFileSize(
+            String entityType, UUID entityUuid, String originalFilename, Long fileSize);
 
     /**
      * One attachment by id, refusing to cross tenants. The unscoped {@code findById} lets a

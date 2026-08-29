@@ -8,6 +8,7 @@ import org.tornotron.echno_backend.common.dto.PresignedUpload;
 import org.tornotron.echno_backend.common.dto.RegisterUploadRequest;
 import org.tornotron.echno_backend.common.dto.UploadRequest;
 import org.tornotron.echno_backend.common.dto.AttachmentDocumentMetadataDto;
+import org.tornotron.echno_backend.common.dto.AttachmentOwner;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Service for managing attachments across different modules.
@@ -78,12 +80,25 @@ public class AttachmentService {
      */
     @Transactional
     public List<Attachment> uploadAttachments(List<MultipartFile> files, String entityType, Long entityId, String folder) {
+        return uploadAttachments(files, AttachmentOwner.of(entityType, entityId), folder);
+    }
+
+    /**
+     * Uploads files and creates attachment records against a record identified by either key.
+     *
+     * @param files  The files to upload
+     * @param owner  The record the files belong to
+     * @param folder The storage folder for the files
+     * @return List of created Attachment entities
+     */
+    @Transactional
+    public List<Attachment> uploadAttachments(List<MultipartFile> files, AttachmentOwner owner, String folder) {
         if (files == null || files.isEmpty()) {
             return List.of();
         }
 
         validateNoDuplicateFiles(files);
-        validateNoExistingAttachments(files, entityType, entityId);
+        validateNoExistingAttachments(files, owner);
 
         List<Attachment> attachments = new ArrayList<>();
         List<StoredFile> storedFiles = fileStorageService.uploadFiles(files, folder);
@@ -93,13 +108,12 @@ public class AttachmentService {
             MultipartFile originalFile = files.get(i);
 
             Attachment attachment = new Attachment();
-            attachment.setEntityType(entityType);
-            attachment.setEntityId(entityId);
+            applyOwner(attachment, owner);
             attachment.setStorageKey(storedFile.key());
             attachment.setContentType(storedFile.contentType());
             attachment.setFileSize(storedFile.size());
             attachment.setOriginalFilename(originalFile.getOriginalFilename());
-            linkToEntity(attachment, folder, entityId);
+            linkToEntity(attachment, folder, owner.entityId());
             attachment.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
             attachments.add(attachmentRepository.save(attachment));
         }
@@ -118,13 +132,13 @@ public class AttachmentService {
      */
     @Transactional
     public Attachment uploadAttachment(MultipartFile file, String entityType, Long entityId, String folder) {
-        validateNoExistingAttachments(List.of(file), entityType, entityId);
+        AttachmentOwner owner = AttachmentOwner.of(entityType, entityId);
+        validateNoExistingAttachments(List.of(file), owner);
 
         StoredFile storedFile = fileStorageService.uploadFile(file, folder);
 
         Attachment attachment = new Attachment();
-        attachment.setEntityType(entityType);
-        attachment.setEntityId(entityId);
+        applyOwner(attachment, owner);
         attachment.setStorageKey(storedFile.key());
         attachment.setContentType(storedFile.contentType());
         attachment.setFileSize(storedFile.size());
@@ -144,8 +158,23 @@ public class AttachmentService {
      */
     @Transactional(readOnly = true)
     public List<AttachmentDto> getAttachments(String entityType, Long entityId) {
-        return attachmentRepository.findByEntityTypeAndEntityId(entityType, entityId)
-                .stream()
+        return toDtos(attachmentRepository.findByEntityTypeAndEntityId(entityType, entityId));
+    }
+
+    /**
+     * Retrieves all attachments filed against a UUID-keyed record.
+     *
+     * @param entityType The type of entity
+     * @param entityUuid The UUID of the entity
+     * @return List of attachments, oldest first
+     */
+    @Transactional(readOnly = true)
+    public List<AttachmentDto> getAttachments(String entityType, UUID entityUuid) {
+        return toDtos(attachmentRepository.findByEntityTypeAndEntityUuidOrderByIdAsc(entityType, entityUuid));
+    }
+
+    private List<AttachmentDto> toDtos(List<Attachment> attachments) {
+        return attachments.stream()
                 .map(attachment -> {
                     AttachmentDto dto = new AttachmentDto();
                     dto.setId(attachment.getId());
@@ -218,6 +247,35 @@ public class AttachmentService {
             fileStorageService.deleteFile(attachment.getStorageKey());
             attachmentRepository.delete(attachment);
         });
+    }
+
+    /**
+     * Deletes one attachment that is filed against a particular record, including its stored file.
+     *
+     * <p>Stricter than {@link #deleteAttachment(Long)}, which resolves by numeric id alone and so
+     * lets a caller in one organization delete another's file, and lets a caller who may edit one
+     * record delete a file belonging to a different one. This resolves the attachment through the
+     * tenant-scoped finder and then checks it is actually the named record's, so the id in the
+     * path has to agree with the record in the path.
+     *
+     * @param owner        The record the file must belong to
+     * @param attachmentId The attachment to delete
+     * @throws ResourceNotFoundException if no such attachment is filed against that record in the
+     *                                   caller's organization
+     */
+    @Transactional
+    public void deleteAttachmentOf(AttachmentOwner owner, Long attachmentId) {
+        Attachment attachment = attachmentRepository
+                .findByIdAndOrganization_Id(attachmentId, TenantContext.getCurrentOrgId())
+                .filter(candidate -> owner.entityType().equals(candidate.getEntityType()))
+                .filter(candidate -> owner.entityUuid() != null
+                        ? owner.entityUuid().equals(candidate.getEntityUuid())
+                        : owner.entityId().equals(candidate.getEntityId()))
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attachment with ID " + attachmentId + " is not filed against "
+                                + owner.entityType() + " " + owner.keyAsText()));
+        fileStorageService.deleteFile(attachment.getStorageKey());
+        attachmentRepository.delete(attachment);
     }
 
     /**
@@ -297,6 +355,18 @@ public class AttachmentService {
      * entirely; the client uploads to storage and then calls registerUploads.
      */
     public List<PresignedUpload> presignUploads(List<UploadRequest> requests, String entityType, Long entityId, String folder) {
+        return presignUploads(requests, AttachmentOwner.of(entityType, entityId), folder);
+    }
+
+    /**
+     * Issues pre-signed upload URLs for a record identified by either key.
+     *
+     * @param requests The files the client intends to upload
+     * @param owner    The record the files will belong to
+     * @param folder   The storage folder for the files
+     * @return One short-lived upload URL per declared file
+     */
+    public List<PresignedUpload> presignUploads(List<UploadRequest> requests, AttachmentOwner owner, String folder) {
         if (requests == null || requests.isEmpty()) {
             return List.of();
         }
@@ -312,10 +382,10 @@ public class AttachmentService {
                 throw new IllegalArgumentException(
                         "Upload request contains a duplicate file: '" + request.filename() + "'");
             }
-            if (attachmentRepository.existsByEntityTypeAndEntityIdAndOriginalFilenameAndFileSize(
-                    entityType, entityId, request.filename(), request.fileSize())) {
+            if (alreadyFiled(owner, request.filename(), request.fileSize())) {
                 throw new IllegalArgumentException(
-                        "An attachment named '" + request.filename() + "' already exists for this " + entityType.toLowerCase());
+                        "An attachment named '" + request.filename() + "' already exists for this "
+                                + owner.entityType().toLowerCase());
             }
             presigned.add(fileStorageService.generateUploadUrl(
                     folder, request.filename(), request.contentType(), UPLOAD_URL_EXPIRY));
@@ -332,6 +402,18 @@ public class AttachmentService {
      * uploaded.
      */
     public List<Attachment> registerUploads(List<RegisterUploadRequest> requests, String entityType, Long entityId, String folder) {
+        return registerUploads(requests, AttachmentOwner.of(entityType, entityId), folder);
+    }
+
+    /**
+     * Records attachments uploaded directly to storage for a record identified by either key.
+     *
+     * @param requests The storage keys the client says it has uploaded
+     * @param owner    The record the files belong to
+     * @param folder   The storage folder the files went into
+     * @return The recorded attachments
+     */
+    public List<Attachment> registerUploads(List<RegisterUploadRequest> requests, AttachmentOwner owner, String folder) {
         if (requests == null || requests.isEmpty()) {
             return List.of();
         }
@@ -348,24 +430,43 @@ public class AttachmentService {
             }
 
             Attachment attachment = new Attachment();
-            attachment.setEntityType(entityType);
-            attachment.setEntityId(entityId);
+            applyOwner(attachment, owner);
             attachment.setStorageKey(request.key());
             attachment.setContentType(request.contentType());
             attachment.setFileSize(request.fileSize());
             attachment.setOriginalFilename(request.filename());
-            linkToEntity(attachment, folder, entityId);
+            linkToEntity(attachment, folder, owner.entityId());
             attachment.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
             attachments.add(attachmentRepository.save(attachment));
         }
         return attachments;
     }
 
-    private void validateNoExistingAttachments(List<MultipartFile> files, String entityType, Long entityId) {
+    /**
+     * Writes the owning record onto an attachment. The single place either key is set, so the
+     * "exactly one of the two" rule the check constraint enforces cannot be broken by a path
+     * that forgets to clear the other.
+     */
+    private static void applyOwner(Attachment attachment, AttachmentOwner owner) {
+        attachment.setEntityType(owner.entityType());
+        attachment.setEntityId(owner.entityId());
+        attachment.setEntityUuid(owner.entityUuid());
+    }
+
+    /** Whether the record already carries a file of this name and size, on whichever key it uses. */
+    private boolean alreadyFiled(AttachmentOwner owner, String filename, Long fileSize) {
+        if (owner.entityUuid() != null) {
+            return attachmentRepository.existsByEntityTypeAndEntityUuidAndOriginalFilenameAndFileSize(
+                    owner.entityType(), owner.entityUuid(), filename, fileSize);
+        }
+        return attachmentRepository.existsByEntityTypeAndEntityIdAndOriginalFilenameAndFileSize(
+                owner.entityType(), owner.entityId(), filename, fileSize);
+    }
+
+    private void validateNoExistingAttachments(List<MultipartFile> files, AttachmentOwner owner) {
         List<String> existing = new ArrayList<>();
         for (MultipartFile file : files) {
-            if (attachmentRepository.existsByEntityTypeAndEntityIdAndOriginalFilenameAndFileSize(
-                    entityType, entityId, file.getOriginalFilename(), file.getSize())) {
+            if (alreadyFiled(owner, file.getOriginalFilename(), file.getSize())) {
                 existing.add(file.getOriginalFilename());
             }
         }
