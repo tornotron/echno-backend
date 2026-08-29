@@ -37,6 +37,13 @@ public class SecurityConfig {
     @Value("${keycloak.frontend.web-origin}")
     private List<String> allowedOrigins;
 
+    /**
+     * Whether the API docs are served to an unauthenticated caller. Closed unless an
+     * environment opts in (SWAGGER_PUBLIC_ACCESS=true), because the OpenAPI document is
+     * the entire endpoint surface in one download. Both the fallback here and the value
+     * shipped in application.yml are false, so an ingress that reaches this application
+     * without passing an edge rule still gets 401 on the docs paths. See issue #569.
+     */
     @Value("${springdoc.swagger-ui.public-access:false}")
     private boolean swaggerPublicAccess;
 

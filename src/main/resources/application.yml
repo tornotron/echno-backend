@@ -21,7 +21,15 @@ management:
     prometheus:
       access: unrestricted
     health:
-      show-details: always
+      # /actuator is permitAll (kubelet probes and the compose healthcheck reach it
+      # without a credential), so whatever this value is, it is served to whoever can
+      # reach the port. "always" would put every component's detail there: database
+      # url, disk paths, broker addresses. "when_authorized" keeps the aggregate
+      # status the probes need and withholds the breakdown from an anonymous caller.
+      # Both deployed environments already set this to when_authorized by env var; the
+      # shipped default now matches, so a developer run and any future deployment
+      # shape inherit it too.
+      show-details: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:when_authorized}
   endpoints:
     web:
       exposure:
@@ -312,7 +320,23 @@ spring:
 
 springdoc:
   swagger-ui:
-    public-access: true
+    # Whether /swagger-ui/**, /swagger-ui.html and /v3/api-docs/** are served to an
+    # unauthenticated caller. Off by default: the OpenAPI document is the whole
+    # endpoint surface, every path, parameter and DTO schema in one download, which is
+    # the reconnaissance step for finding the endpoint whose authorization is weakest.
+    #
+    # This used to ship as true, and what kept it private was a rule on the compose
+    # edge vhost that 404s the docs paths. That rule is still there and still right,
+    # but it only ever covered one ingress: the k8s ingress carries no equivalent, so
+    # for as long as it has existed the document has been a public download on
+    # backend-k8s.echno.in. The default belongs here, where every ingress inherits it,
+    # rather than in a rule each new front door has to remember. See issue #569.
+    #
+    # Turn it on where the docs are wanted (a developer's own run, or a staging the
+    # team reads them on) by setting SWAGGER_PUBLIC_ACCESS=true for that environment.
+    # With it off, the paths answer 401 rather than 404: springdoc still builds the
+    # document, Spring Security just refuses to hand it to an anonymous caller.
+    public-access: ${SWAGGER_PUBLIC_ACCESS:false}
 
 server:
   tomcat:

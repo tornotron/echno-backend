@@ -62,6 +62,14 @@ Once the service is running, the live, generated API reference is available at `
 (OpenAPI JSON at `/v3/api-docs`). Controllers and DTOs carry OpenAPI annotations, so the Swagger UI
 groups endpoints by module and documents request and response fields.
 
+Those paths are closed to unauthenticated callers by default, because the OpenAPI document is the
+whole endpoint surface in one file. Set `SWAGGER_PUBLIC_ACCESS=true` to open them for an environment
+where the docs are wanted, such as your own run:
+
+```bash
+SWAGGER_PUBLIC_ACCESS=true ./gradlew bootRun
+```
+
 ## Getting Started
 
 ### Prerequisites
