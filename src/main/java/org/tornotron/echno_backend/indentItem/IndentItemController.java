@@ -4,12 +4,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemCreationDto;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
@@ -90,8 +92,7 @@ public class IndentItemController {
      * caller no way to ask for the rest. Here the {@link Page} reaches the response, so
      * {@code totalElements}, {@code totalPages} and the page index travel with the content.
      *
-     * @param pageNo   Zero-based page index.
-     * @param pageSize Rows per page, clamped to the result cap.
+     * @param pageQuery Page index and page size, bounded by {@link PageQuery}.
      * @return A {@link ResponseEntity} containing the page of indent items.
      */
     @GetMapping("/paginated")
@@ -106,9 +107,8 @@ public class IndentItemController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent-item read or admin authority")
     })
     public ResponseEntity<Page<IndentItemDto>> getIndentItemsPaginated(
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "20") int pageSize) {
-        return ResponseEntity.ok(indentItemService.getIndentItemsPaginated(pageNo, pageSize));
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.ok(indentItemService.getIndentItemsPaginated(pageQuery.getPageNo(), pageQuery.pageSizeOr(20)));
     }
 
     @GetMapping("/indent/{indentId}")

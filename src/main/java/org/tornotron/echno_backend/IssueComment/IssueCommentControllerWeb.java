@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.IssueComment.dto.IssueCommentCreationDto;
 import org.tornotron.echno_backend.IssueComment.dto.IssueCommentDto;
 import org.tornotron.echno_backend.IssueComment.dto.IssueCommentSimpleDto;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 
 import java.util.List;
@@ -63,9 +65,8 @@ public class IssueCommentControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of comments returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<IssueCommentDto>> readAllIssueComments(@RequestParam(defaultValue = "0") int pageNo,
-                                                                      @RequestParam(defaultValue = "10") int pageSize) {
-        Page<IssueCommentDto> issueComments = issueCommentService.getAllIssueComments(pageNo,pageSize);
+    public ResponseEntity<List<IssueCommentDto>> readAllIssueComments(@Valid @ParameterObject PageQuery pageQuery) {
+        Page<IssueCommentDto> issueComments = issueCommentService.getAllIssueComments(pageQuery.getPageNo(),pageQuery.getPageSize());
         return ResponseEntity.status(HttpStatus.OK).body(issueComments.getContent());
     }
 

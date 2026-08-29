@@ -4,12 +4,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.payable.dto.PayableCreationDto;
 import org.tornotron.echno_backend.payable.dto.PayableDto;
 import org.tornotron.echno_backend.payable.dto.PaymentRecordDto;
@@ -113,10 +115,9 @@ public class PayableController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the payable read or admin authority")
     })
     public ResponseEntity<Page<PayableDto>> getAllPayablesPaginated(
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize
+            @Valid @ParameterObject PageQuery pageQuery
     ) {
-        Page<PayableDto> payables = payableService.getAllPayables(pageNo, pageSize);
+        Page<PayableDto> payables = payableService.getAllPayables(pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(payables);
     }
 

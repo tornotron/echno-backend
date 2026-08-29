@@ -228,6 +228,15 @@ spring:
       # the redis provider booting cleanly with no repository infrastructure.
       repositories:
         enabled: false
+    # The newer endpoints take a Spring Data Pageable rather than the pageNo/pageSize pair,
+    # so their page size is bounded by the resolver rather than by PageQuery. Spring's own
+    # default ceiling is 2000, which is four times the row cap the rest of the API applies;
+    # bringing it down to UnpagedResultCap.MAX_ROWS makes one ceiling hold whichever way an
+    # endpoint declares its paging. The resolver clamps rather than refusing, which is its
+    # behaviour and not ours to change.
+    web:
+      pageable:
+        max-page-size: 500
   cache:
     cache-names:
       - rate-limit-buckets

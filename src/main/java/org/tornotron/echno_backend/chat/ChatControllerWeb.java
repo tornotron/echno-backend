@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.chat;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.springdoc.core.annotations.ParameterObject;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import jakarta.servlet.http.HttpServletResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -130,9 +132,8 @@ public class ChatControllerWeb {
     })
     public ResponseEntity<Page<ChatMessageDto>> readMessages(
             @PathVariable Long roomId,
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "30") int pageSize) {
-        return new ResponseEntity<>(chatService.getMessages(roomId, pageNo, pageSize), HttpStatus.OK);
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return new ResponseEntity<>(chatService.getMessages(roomId, pageQuery.getPageNo(), pageQuery.pageSizeOr(30)), HttpStatus.OK);
     }
 
     @PostMapping(value = "/rooms/web/{roomId}/messages", consumes = MediaType.APPLICATION_JSON_VALUE)

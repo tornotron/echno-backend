@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.task;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.springdoc.core.annotations.ParameterObject;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -86,8 +88,7 @@ public class TaskController {
     /**
      * Retrieves a paginated list of all tasks.
      *
-     * @param pageNo   The page number to retrieve (default is 0).
-     * @param pageSize The number of tasks per page (default is 10).
+     * @param pageQuery Page index and page size, bounded by {@link PageQuery}.
      * @return A {@link ResponseEntity} containing the list of task DTOs and HTTP status 200 (OK).
      */
     @GetMapping
@@ -101,9 +102,8 @@ public class TaskController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of tasks returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task read or admin authority")
     })
-    public ResponseEntity<List<TaskDto>> readAllTasks(@RequestParam(defaultValue = "0") int pageNo,
-                                                      @RequestParam(defaultValue = "10") int pageSize) {
-        Page<TaskDto> tasks = service.getAllTasks(pageNo, pageSize);
+    public ResponseEntity<List<TaskDto>> readAllTasks(@Valid @ParameterObject PageQuery pageQuery) {
+        Page<TaskDto> tasks = service.getAllTasks(pageQuery.getPageNo(), pageQuery.getPageSize());
         logger.info("All Tasks Retrieved Successfully");
         return new ResponseEntity<>(tasks.getContent(), HttpStatus.OK);
     }

@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.category.dto.CategoryCreationDto;
 import org.tornotron.echno_backend.category.dto.CategoryDto;
 import org.tornotron.echno_backend.category.dto.CategorySimpleDto;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 
 import java.util.List;
@@ -76,8 +78,7 @@ public class CategoryController {
     /**
      * Retrieves a paginated list of all categories.
      *
-     * @param pageNo   The page number to retrieve (default is 0).
-     * @param pageSize The number of categories per page (default is 10).
+     * @param pageQuery Page index and page size, bounded by {@link PageQuery}.
      * @return A {@link ResponseEntity} containing the list of category DTOs and HTTP status 200 (OK).
      */
     @GetMapping
@@ -91,9 +92,8 @@ public class CategoryController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of categories returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the category read or admin authority")
     })
-    public ResponseEntity<List<CategoryDto>> readAllCategories(@RequestParam(defaultValue = "0") int pageNo,
-                                                          @RequestParam(defaultValue = "10") int pageSize) {
-        Page<CategoryDto> categories = categoryService.getAllCategories(pageNo, pageSize);
+    public ResponseEntity<List<CategoryDto>> readAllCategories(@Valid @ParameterObject PageQuery pageQuery) {
+        Page<CategoryDto> categories = categoryService.getAllCategories(pageQuery.getPageNo(), pageQuery.getPageSize());
         logger.info("All Categories Retrieved Successfully");
         return new ResponseEntity<>(categories.getContent(), HttpStatus.OK);
 

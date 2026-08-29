@@ -4,11 +4,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.labour.dto.LabourCreationDto;
 import org.tornotron.echno_backend.labour.dto.LabourDto;
@@ -62,9 +64,8 @@ public class LabourControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of labour records returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<LabourDto>> getAllLabours(@RequestParam(defaultValue = "0") int pageNo,
-                                                         @RequestParam(defaultValue = "10") int pageSize) {
-        return ResponseEntity.status(HttpStatus.OK).body(labourService.getAllLabours(pageNo, pageSize).getContent());
+    public ResponseEntity<List<LabourDto>> getAllLabours(@Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.status(HttpStatus.OK).body(labourService.getAllLabours(pageQuery.getPageNo(), pageQuery.getPageSize()).getContent());
     }
 
     @GetMapping("{id}")

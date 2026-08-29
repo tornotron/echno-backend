@@ -1,6 +1,9 @@
 package org.tornotron.echno_backend.issue;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -72,15 +75,14 @@ public class IssueControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<IssueDto>> readAllIssuesPaginated(
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize,
+            @Valid @ParameterObject PageQuery pageQuery,
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) Long assigneeId,
             @RequestParam(required = false) Long creatorId) {
-        Page<IssueDto> issues = issueService.getAllIssuesPaginated(pageNo, pageSize, projectId, search, status, type, assigneeId, creatorId);
+        Page<IssueDto> issues = issueService.getAllIssuesPaginated(pageQuery.getPageNo(), pageQuery.getPageSize(), projectId, search, status, type, assigneeId, creatorId);
         return new ResponseEntity<>(issues, HttpStatus.OK);
     }
 

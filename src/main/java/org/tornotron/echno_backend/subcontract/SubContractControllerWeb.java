@@ -4,12 +4,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.subcontract.dto.SubContractCreationDto;
 import org.tornotron.echno_backend.subcontract.dto.SubContractDto;
@@ -62,12 +64,11 @@ public class SubContractControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<SubContractDto>> readAllSubContractsPaginated(
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize,
+            @Valid @ParameterObject PageQuery pageQuery,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String type) {
-        return new ResponseEntity<>(subContractService.getPaginated(pageNo, pageSize, search, status, type), HttpStatus.OK);
+        return new ResponseEntity<>(subContractService.getPaginated(pageQuery.getPageNo(), pageQuery.getPageSize(), search, status, type), HttpStatus.OK);
     }
 
     @GetMapping("/{id}")

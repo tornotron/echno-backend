@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.task.dto.TaskDto;
 
@@ -152,7 +153,7 @@ class TaskControllerWebListingTest {
         Page<TaskDto> page = new PageImpl<>(tasks(20), PageRequest.of(1, 20), 137);
         when(service.getTasksPaginated(eq(1), eq(20), isNull(), isNull())).thenReturn(page);
 
-        ResponseEntity<Page<TaskDto>> response = controller.readAllTasksPaginated(1, 20, null, null);
+        ResponseEntity<Page<TaskDto>> response = controller.readAllTasksPaginated(page(1, 20), null, null);
 
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getTotalElements()).isEqualTo(137);
@@ -163,8 +164,16 @@ class TaskControllerWebListingTest {
     void thePaginatedListingPassesTheProjectAndSearchFiltersThrough() {
         when(service.getTasksPaginated(anyInt(), anyInt(), any(), any())).thenReturn(Page.empty());
 
-        controller.readAllTasksPaginated(0, 20, 7L, "slab");
+        controller.readAllTasksPaginated(page(0, 20), 7L, "slab");
 
         verify(service).getTasksPaginated(0, 20, 7L, "slab");
+    }
+
+    /** The page the request would have bound, built by hand for a direct controller call. */
+    private static PageQuery page(int pageNo, int pageSize) {
+        PageQuery pageQuery = new PageQuery();
+        pageQuery.setPageNo(pageNo);
+        pageQuery.setPageSize(pageSize);
+        return pageQuery;
     }
 }
