@@ -1,0 +1,2 @@
+# Auto-registers the heap headroom measurement with every test JVM the build starts.
+org.tornotron.echno_backend.support.TestHeapHeadroomListener
