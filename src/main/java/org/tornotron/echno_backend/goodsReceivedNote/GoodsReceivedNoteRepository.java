@@ -15,6 +15,4 @@ public interface GoodsReceivedNoteRepository extends JpaRepository<GoodsReceived
     List<GoodsReceivedNote> findByVendorId(Long vendorId);
 
     List<GoodsReceivedNote> findByReceivedOnBetween(LocalDateTime startDate, LocalDateTime endDate);
-
-    boolean existsByGrnNumber(String grnNumber);
 }

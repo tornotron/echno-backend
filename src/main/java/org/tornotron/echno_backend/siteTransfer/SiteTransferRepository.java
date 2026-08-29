@@ -19,7 +19,5 @@ public interface SiteTransferRepository extends JpaRepository<SiteTransfer, Long
 
     List<SiteTransfer> findByIssueDateBetween(LocalDateTime startDate, LocalDateTime endDate);
 
-    boolean existsByTransferNumberAndOrganization_Id(String transferNumber, Long organizationId);
-
     Optional<SiteTransfer> findByIdAndOrganization_Id(Long id, Long organizationId);
 }
