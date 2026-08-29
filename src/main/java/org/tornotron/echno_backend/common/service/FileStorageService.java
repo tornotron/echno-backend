@@ -358,17 +358,6 @@ public class FileStorageService {
     }
 
     /**
-     * Builds the public URL for a stored file.
-     *
-     * @param key The storage key
-     * @return The public URL
-     */
-    private String buildFileUrl(String key) {
-        String endpoint = cdnEndpoint.endsWith("/") ? cdnEndpoint : cdnEndpoint + "/";
-        return endpoint + key;
-    }
-
-    /**
      * Rolls back uploaded files by deleting them.
      *
      * @param keys The keys of files to delete
