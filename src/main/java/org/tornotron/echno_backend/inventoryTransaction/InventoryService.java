@@ -124,22 +124,6 @@ public class InventoryService {
     }
 
     /**
-     * Returns current stock for several materials at a project in one call.
-     *
-     * @param materialIds The materials to total.
-     * @param projectId The project to total within.
-     * @return A map from material id to quantity on hand at the project.
-     */
-    @Transactional(readOnly = true)
-    public Map<Long, Double> getCurrentStockForMaterials(List<Long> materialIds, Long projectId) {
-        Map<Long, Double> stockMap = new HashMap<>();
-        for (Long materialId : materialIds) {
-            stockMap.put(materialId, getCurrentStock(materialId, projectId));
-        }
-        return stockMap;
-    }
-
-    /**
      * Checks that a project holds at least the required quantity of a material.
      *
      * @param materialId The material to check.
@@ -265,6 +249,54 @@ public class InventoryService {
     }
 
     /**
+     * Checks the project's unlocated balance holds enough of every requested material.
+     *
+     * <p>The multiple-item form of {@link #validateSufficientUnlocatedStock}, for a movement
+     * that names no storage location and so reads and writes the project's unlocated row.
+     * A check that sums every row on the project is deliberately not used here: it would
+     * authorise a draw against stock sitting in storage locations that the unlocated write
+     * never touches, and the balance would go negative.
+     *
+     * <p>All shortfalls are collected so the failure lists every insufficient material
+     * rather than stopping at the first.
+     *
+     * @param requiredQuantities A map from material id to the quantity needed.
+     * @param projectId The project to check within.
+     * @throws InsufficientStockException if any material falls short, naming each shortfall.
+     */
+    public void validateSufficientUnlocatedStockForMultipleItems(Map<Long, Double> requiredQuantities, Long projectId) {
+        List<String> insufficientItems = new ArrayList<>();
+        for (Map.Entry<Long, Double> entry : requiredQuantities.entrySet()) {
+            Long materialId = entry.getKey();
+            Double required = entry.getValue();
+            Optional<Double> balance = findUnlocatedStock(materialId, projectId);
+
+            if (balance.isEmpty() && required > 0) {
+                insufficientItems.add(
+                    String.format("Material ID %d: Required %.2f, none held outside a storage location",
+                        materialId, required)
+                );
+                continue;
+            }
+            Double available = balance.orElse(0.0);
+            if (available < required) {
+                insufficientItems.add(
+                    String.format("Material ID %d: Required %.2f, Available %.2f",
+                        materialId, required, available)
+                );
+            }
+        }
+
+        if (!insufficientItems.isEmpty()) {
+            throw new InsufficientStockException(
+                "Insufficient stock at project ID " + projectId + " outside a storage location for items: "
+                    + String.join("; ", insufficientItems)
+                    + ". Any stock the project holds sits in its storage locations, so name the location to draw from."
+            );
+        }
+    }
+
+    /**
      * Returns the stock of every material held at a storage location, with totals.
      *
      * @param storageLocationId The storage location to report on.
@@ -344,41 +376,6 @@ public class InventoryService {
         result.setTotalStock(totalStock);
         result.setTotalStockValue(totalStockValue);
         return result;
-    }
-
-    /**
-     * Checks that a project holds enough of every requested material across its locations.
-     *
-     * <p>All shortfalls are collected so the failure lists every insufficient material
-     * rather than stopping at the first.
-     *
-     * @param requiredQuantities A map from material id to the quantity needed.
-     * @param projectId The project to check within.
-     * @throws InsufficientStockException if any material falls short, naming each shortfall.
-     */
-    public void validateSufficientStockForMultipleItems(Map<Long, Double> requiredQuantities, Long projectId) {
-        Map<Long, Double> currentStock = getCurrentStockForMaterials(
-                new ArrayList<>(requiredQuantities.keySet()), projectId);
-
-        List<String> insufficientItems = new ArrayList<>();
-        for (Map.Entry<Long, Double> entry : requiredQuantities.entrySet()) {
-            Long materialId = entry.getKey();
-            Double required = entry.getValue();
-            Double available = currentStock.getOrDefault(materialId, 0.0);
-
-            if (available < required) {
-                insufficientItems.add(
-                    String.format("Material ID %d: Required %.2f, Available %.2f",
-                        materialId, required, available)
-                );
-            }
-        }
-
-        if (!insufficientItems.isEmpty()) {
-            throw new InsufficientStockException(
-                "Insufficient stock at project ID " + projectId + " for items: " + String.join("; ", insufficientItems)
-            );
-        }
     }
 
     /**

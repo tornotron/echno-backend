@@ -44,13 +44,16 @@ public class InventoryEventListener {
         logger.info("Handling GRN created event for GRN number: {}", grn.getGrnNumber());
 
         for (GrnItem item : grn.getItems()) {
+            // Read the balance this receipt actually credits. With no storage location that is
+            // the project's unlocated row, not the project total.
             Double openingStock;
             if (grn.getStorageLocation() != null) {
                 openingStock = inventoryService.getStockAtLocation(
                         item.getMaterial().getId(), grn.getProject().getId(),
                         grn.getStorageLocation().getId());
             } else {
-                openingStock = inventoryService.getCurrentStock(item.getMaterial().getId(), grn.getProject().getId());
+                openingStock = inventoryService.findUnlocatedStock(
+                        item.getMaterial().getId(), grn.getProject().getId()).orElse(0.0);
             }
             Double quantityChanged = item.getReceivedQuantity().doubleValue();
             Double closingStock = openingStock + quantityChanged;
@@ -136,15 +139,20 @@ public class InventoryEventListener {
         logger.info("Handling site transfer created event for transfer number: {}", transfer.getTransferNumber());
 
         for (SiteTransferItem item : transfer.getItems()) {
-            // TRANSFER_OUT: Stock decreases at sending project
+            // TRANSFER_OUT: Stock decreases at sending project.
+            // Read the balance this movement actually debits. With no sending storage location
+            // that is the sending project's unlocated row, not the project total: the total
+            // would put an opening and closing figure on the ledger entry that the row it
+            // moves never held, and it is a different quantity from the one updateCurrentStock
+            // goes on to write.
             Double sendingOpeningStock;
             if (transfer.getSendingStorageLocation() != null) {
                 sendingOpeningStock = inventoryService.getStockAtLocation(
                         item.getMaterial().getId(), transfer.getSendingProject().getId(),
                         transfer.getSendingStorageLocation().getId());
             } else {
-                sendingOpeningStock = inventoryService.getCurrentStock(
-                        item.getMaterial().getId(), transfer.getSendingProject().getId());
+                sendingOpeningStock = inventoryService.findUnlocatedStock(
+                        item.getMaterial().getId(), transfer.getSendingProject().getId()).orElse(0.0);
             }
             Double sendingQuantityChanged = -item.getSentQuantity().doubleValue();
             Double sendingClosingStock = sendingOpeningStock + sendingQuantityChanged;
@@ -181,14 +189,16 @@ public class InventoryEventListener {
                     item.getMaterial().getId(), transfer.getSendingProject().getId(), sendingQuantityChanged, sendingClosingStock);
 
             // TRANSFER_IN: Stock increases at receiving project (carries avg cost from sender)
+            // Same on the receiving side: the row credited with no location is the receiving
+            // project's unlocated row.
             Double receivingOpeningStock;
             if (transfer.getReceivingStorageLocation() != null) {
                 receivingOpeningStock = inventoryService.getStockAtLocation(
                         item.getMaterial().getId(), transfer.getReceivingProject().getId(),
                         transfer.getReceivingStorageLocation().getId());
             } else {
-                receivingOpeningStock = inventoryService.getCurrentStock(
-                        item.getMaterial().getId(), transfer.getReceivingProject().getId());
+                receivingOpeningStock = inventoryService.findUnlocatedStock(
+                        item.getMaterial().getId(), transfer.getReceivingProject().getId()).orElse(0.0);
             }
             Double receivingQuantityChanged = item.getSentQuantity().doubleValue();
             Double receivingClosingStock = receivingOpeningStock + receivingQuantityChanged;

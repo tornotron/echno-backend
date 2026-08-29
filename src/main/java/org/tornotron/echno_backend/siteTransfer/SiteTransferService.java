@@ -158,8 +158,11 @@ public class SiteTransferService {
 
         requireTheTransferMovesStock(sendingProject, sendingLocation, receivingProject, receivingLocation);
 
-        // CRITICAL: Validate sufficient stock at the SENDING location for ALL items
-        // Use storage-location-level validation when a sending storage location is specified
+        // Check the sending side for every item, against the balance row the transfer will
+        // actually debit. Named location means that location's row; no location means the
+        // sending project's unlocated row, which is what the listener goes on to write. The
+        // project total would pass a draw against stock sitting in storage locations the
+        // debit never reaches, and take the unlocated row negative.
         Map<Long, Double> requiredQuantities = new HashMap<>();
         for (SiteTransferItemDto itemDto : creationDto.getItems()) {
             requiredQuantities.merge(itemDto.getMaterialId(), itemDto.getSentQuantity().doubleValue(), Double::sum);
@@ -168,7 +171,8 @@ public class SiteTransferService {
             inventoryService.validateSufficientStockForMultipleItemsAtLocation(
                     requiredQuantities, sendingProject.getId(), creationDto.getSendingStorageLocationId());
         } else {
-            inventoryService.validateSufficientStockForMultipleItems(requiredQuantities, sendingProject.getId());
+            inventoryService.validateSufficientUnlocatedStockForMultipleItems(
+                    requiredQuantities, sendingProject.getId());
         }
 
         // Create site transfer

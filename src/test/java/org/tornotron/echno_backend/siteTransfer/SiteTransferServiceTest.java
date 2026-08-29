@@ -57,7 +57,7 @@ import static org.mockito.Mockito.when;
  * publisher, and the mapper are mocked; the entity graph is built in memory. The focus
  * is the logic this service owns: rejecting a duplicate transfer number, rejecting
  * unknown referenced entities, aggregating the per-material required quantities that feed
- * the sending-side stock check, choosing the location-scoped vs project-scoped variant of
+ * the sending-side stock check, choosing the location-scoped vs unlocated variant of
  * that check, refusing a transfer whose two sides are the same balance row or whose location
  * belongs to another project, and building one transfer item per request line.
  */
@@ -204,7 +204,7 @@ class SiteTransferServiceTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<Long, Double>> captor = ArgumentCaptor.forClass(Map.class);
-        verify(inventoryService).validateSufficientStockForMultipleItems(captor.capture(), eq(SENDING_PROJECT));
+        verify(inventoryService).validateSufficientUnlocatedStockForMultipleItems(captor.capture(), eq(SENDING_PROJECT));
         assertThat(captor.getValue()).containsEntry(MATERIAL, 10.0);
     }
 
@@ -219,7 +219,7 @@ class SiteTransferServiceTest {
         service.createSiteTransfer(dto);
 
         verify(inventoryService).validateSufficientStockForMultipleItemsAtLocation(any(), eq(SENDING_PROJECT), eq(SENDING_LOCATION));
-        verify(inventoryService, never()).validateSufficientStockForMultipleItems(any(), anyLong());
+        verify(inventoryService, never()).validateSufficientUnlocatedStockForMultipleItems(any(), anyLong());
     }
 
     @Test
