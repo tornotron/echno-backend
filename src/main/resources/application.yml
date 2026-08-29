@@ -65,6 +65,13 @@ compliance:
     # Set both when the backend has no direct internet, e.g. the IITM lab host proxy.
     proxy-host: ${COMPLIANCE_AI_PROXY_HOST:}
     proxy-port: ${COMPLIANCE_AI_PROXY_PORT:3128}
+    # HTTP timeouts for the inference call. read-timeout-seconds is sized against
+    # batch-size, not the catalogue: at ~1.7 s per rule a ten-rule batch takes ~20 s, a
+    # third of the 60 s budget. Raise batch-size and this has to move with it (twenty
+    # rules is ~34 s, past thirty a batch no longer fits). A slower endpoint or a loaded
+    # forward proxy moves the same line without the batch size changing.
+    connect-timeout-seconds: ${COMPLIANCE_AI_CONNECT_TIMEOUT_SECONDS:10}
+    read-timeout-seconds: ${COMPLIANCE_AI_READ_TIMEOUT_SECONDS:60}
   # The generation queue. Every replica polls and claims with a conditional update, so
   # there is no leader. enabled: false still accepts jobs but runs none, which is what a
   # replica that should serve requests and do no background work wants.
