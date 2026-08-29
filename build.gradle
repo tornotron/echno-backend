@@ -16,6 +16,37 @@ ext {
     // measured), then to 25% after the leave-accrual, employee-hierarchy,
     // attendance-regularization and project-invite-code service tests (25.50% measured).
     jacocoLineFloor = 0.25
+
+    // Heap cap for the test JVM, the size of the Spring context cache, and the two thresholds
+    // the testHeapHeadroom gate applies to the first. All four are overridable per run with
+    // -P, which is how the numbers below were measured rather than guessed. Every figure here
+    // is from a full run of the suite (1310 tests) on the lab build box.
+    //
+    // The suite is 31 distinct Spring test configurations, so 31 contexts and 31 Hibernate
+    // SessionFactory instances over the 98 entities, all in one JVM because there is no
+    // forkEvery. Holding all of them costs 1150 MB live. That is more than the 1024m this cap
+    // used to be, which is why a run with the context cache left at Spring's default fails:
+    // 1297 tests pass, then the architecture tests need the whole class graph resident, the
+    // heap has nothing left, and the run ends with an OutOfMemoryError inside ArchUnit and
+    // zero assertion failures anywhere. Capping the cache at 8 is what has been holding that
+    // off, at a peak live set of 485 MB and a cost of exactly one extra context build over
+    // the run (37 loads against 36) and no measurable wall clock.
+    //
+    // The cap is now sized so that the cache cap is a choice rather than the only thing
+    // standing between the suite and that failure: 2048m holds the whole 1150 MB working set
+    // with 40% to spare even if the cache limit were removed, and leaves the run as actually
+    // configured at a quarter of the cap. The CI runner has room for it. ubuntu-latest on a
+    // public repository is 4 vCPU and 16 GB, not the 2 vCPU and 7 GB this was first sized
+    // against, and the test JVM shares it only with the CockroachDB container that
+    // AbstractIntegrationTest already limits to 2 GB, plus the Gradle daemon.
+    testMaxHeap = findProperty('testMaxHeap') ?: '2048m'
+    testContextCacheSize = findProperty('testContextCacheSize') ?: '8'
+    // Above this fraction of the cap the build stops and explains itself; above the lower one
+    // it warns. The gap between them is deliberately wide, because what it is watching moves
+    // in steps: each new test configuration is another whole context, worth roughly a
+    // thirtieth of the full working set, and each new entity grows every context at once.
+    testHeapFailRatio = (findProperty('testHeapFailRatio') ?: '0.80') as double
+    testHeapWarnRatio = (findProperty('testHeapWarnRatio') ?: '0.65') as double
 }
 
 repositories {
@@ -71,7 +102,9 @@ dependencies {
     testImplementation 'com.github.dasniko:testcontainers-keycloak:3.7.0'
     testImplementation 'com.tngtech.archunit:archunit-junit5:1.3.0'
     runtimeOnly 'org.postgresql:postgresql'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // Compile scope rather than runtime only: TestHeapHeadroomListener implements the
+    // launcher's TestExecutionListener, so the interface has to be on the test compile path.
+    testImplementation 'org.junit.platform:junit-platform-launcher'
 }
 
 
@@ -101,12 +134,27 @@ tasks.named('test') {
     // pinned version from the 'api.version' system property (not DOCKER_API_VERSION,
     // which is a docker-CLI variable). 1.44 is accepted by both CI and the lab host.
     systemProperty 'api.version', '1.44'
-    // Bound the forked test JVM so the whole run fits the 2 vCPU / 7 GB CI runner
-    // alongside the shared CockroachDB container: an unbounded heap plus the
-    // container's default cache (a quarter of host memory) can exhaust the runner
-    // and the OOM killer then takes the database, failing the rest of the suite.
-    maxHeapSize = '1024m'
+    maxHeapSize = testMaxHeap
     jvmArgs '-XX:MaxMetaspaceSize=512m'
+    // Make running out of heap say so. Without these the first OutOfMemoryError is thrown
+    // inside whatever context happened to be loading, is caught and reported as a failure
+    // of that unrelated test, and the run limps on producing more of the same. Exiting on
+    // the first one collapses that into a single unambiguous failure, and the dump beside
+    // it says what was resident. Together with the testHeapHeadroom gate below, which is
+    // meant to stop the run before it ever gets here.
+    def heapDumpDir = layout.buildDirectory.dir('reports/test-heap').get().asFile
+    jvmArgs '-XX:+HeapDumpOnOutOfMemoryError',
+            "-XX:HeapDumpPath=${heapDumpDir}",
+            '-XX:+ExitOnOutOfMemoryError'
+    // HotSpot will not create the dump directory itself, and silently writes nothing if it
+    // is missing, which would lose the one artefact worth having at that moment.
+    doFirst {
+        heapDumpDir.mkdirs()
+        // The listener merges its readings into this file so that a forked run reports the
+        // worst any of its JVMs reached. Clear it first, or the merge reaches back into the
+        // previous run and the build reports a peak that nothing in this one produced.
+        new File(heapDumpDir, 'heap-headroom.properties').delete()
+    }
     // Bound how many Spring test contexts the run keeps alive at once. There is no
     // forkEvery, so one JVM serves the whole suite and the default cache of 32 means
     // every distinct test configuration's context, each with its own Hibernate
@@ -116,14 +164,77 @@ tasks.named('test') {
     // Capping the cache makes Spring close the least recently used context instead of
     // holding all of them; a context is rebuilt if a later class needs it again,
     // which costs seconds where the alternative costs the build.
-    systemProperty 'spring.test.context.cache.maxSize', '8'
+    systemProperty 'spring.test.context.cache.maxSize', testContextCacheSize
     // Print each test as it starts and finishes so a CI log always shows which test
     // is running; without this, a hung test leaves no trace of which one stalled.
     testLogging {
         events 'started', 'passed', 'skipped', 'failed'
         exceptionFormat 'short'
     }
-    finalizedBy jacocoTestReport
+    finalizedBy jacocoTestReport, 'testHeapHeadroom'
+}
+
+// Reports how close the run came to the heap cap, and fails if it came too close.
+//
+// The suite runs in one JVM and Spring holds a cached context per distinct test
+// configuration, so the live set only grows over a run. When it reaches the cap the
+// error surfaces in whichever test loads a context next, which is nearly never the
+// test that caused it, and the natural reading of "Failed to load ApplicationContext"
+// in six untouched classes is that the problem is pre-existing. This gate exists so
+// that the run says it is near the ceiling while there is still room, in the build's
+// own voice, rather than leaving it to be diagnosed from the wrong symptom later.
+//
+// TestHeapHeadroomListener writes the measurement; this reads it. Finalizes the test
+// task, so it reports on a failed run too.
+tasks.register('testHeapHeadroom') {
+    group = 'verification'
+    description = 'Reports the test JVM heap live set against its cap and fails when headroom runs out.'
+    def report = layout.buildDirectory.file('reports/test-heap/heap-headroom.properties')
+    def failRatio = testHeapFailRatio
+    def warnRatio = testHeapWarnRatio
+    outputs.upToDateWhen { false }
+    doLast {
+        def file = report.get().asFile
+        if (!file.exists()) {
+            logger.lifecycle('Test heap: no measurement was written. If the run failed, the test JVM ' +
+                    'probably died before it could finish; look for a heap dump in ' +
+                    "${file.parentFile} and read the failures as a memory problem, not a test one.")
+            return
+        }
+        def measured = new Properties()
+        file.withInputStream { measured.load(it) }
+        def mb = { long bytes -> String.format('%.0f MB', bytes / 1048576d) }
+        long peak = Math.max(measured.peakLiveSetBytes as long, measured.endLiveSetBytes as long)
+        long cap = measured.maxHeapBytes as long
+        double used = cap > 0 ? peak / (double) cap : 0d
+        long machine = measured.machineMemoryBytes as long
+        def contexts = measured.contextsCached as int
+        def summary = "Test heap: ${mb(peak)} live of a ${mb(cap)} cap " +
+                "(${String.format('%.0f%%', used * 100)} used, ${mb(cap - peak)} spare, " +
+                "${mb(measured.peakOccupancyBytes as long)} occupied at the fullest)" +
+                (contexts >= 0 ? ", ${contexts} Spring contexts cached of a maximum " +
+                        "${measured.contextCacheMaxSize} (${measured.contextLoads} loaded, " +
+                        "${measured.contextHits} reused)" : '') +
+                (machine > 0 ? ", on a machine with ${String.format('%.1f GB', machine / 1073741824d)}" : '')
+        def advice = '\nWhat to do, cheapest first:\n' +
+                '  - reuse an existing test configuration rather than introducing another context\n' +
+                '  - lower testContextCacheSize so fewer contexts are held at once (costs rebuilds)\n' +
+                '  - raise testMaxHeap, having checked against the machine memory reported above\n' +
+                'All three are properties in build.gradle and can be overridden per run with -P.'
+        if (used >= failRatio) {
+            throw new GradleException(summary +
+                    "\n\nThat is past the ${String.format('%.0f%%', failRatio * 100)} mark, which means the next " +
+                    'test added here is likely to fail in a class it never touched, as a context-loading ' +
+                    'error rather than an assertion. Failing now, while the cause is still legible.' + advice)
+        }
+        if (used >= warnRatio) {
+            logger.warn(summary +
+                    "\n\nHeadroom is getting short: past ${String.format('%.0f%%', failRatio * 100)} the build " +
+                    'stops. Worth acting before a new test finds the ceiling for you.' + advice)
+            return
+        }
+        logger.lifecycle(summary)
+    }
 }
 
 jacoco {
