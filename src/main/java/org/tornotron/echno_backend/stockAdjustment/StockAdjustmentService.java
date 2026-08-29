@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -48,6 +49,11 @@ import java.util.List;
  * through {@link #approve}, and a posted document is then frozen: edits and deletes are
  * refused, because changing the lines afterwards would leave the ledger describing a
  * document that no longer exists.
+ *
+ * <p>Because approval is what moves the balance, it is also where segregation of duties
+ * applies: {@link #create} records who raised the document from the session, and
+ * {@link #approve} refuses an approval by that same person unless they hold the break-glass
+ * role. See {@link SelfApprovalPolicy}.
  */
 @Service
 public class StockAdjustmentService {
@@ -61,6 +67,7 @@ public class StockAdjustmentService {
     private final InventoryService inventoryService;
     private final InventoryTransactionRepository inventoryTransactionRepository;
     private final UserContextService userContextService;
+    private final SelfApprovalPolicy selfApprovalPolicy;
 
     public StockAdjustmentService(StockAdjustmentRepository stockAdjustmentRepository,
                                   StockAdjustmentMapper stockAdjustmentMapper,
@@ -70,7 +77,8 @@ public class StockAdjustmentService {
                                   ProjectRepository projectRepository,
                                   InventoryService inventoryService,
                                   InventoryTransactionRepository inventoryTransactionRepository,
-                                  UserContextService userContextService) {
+                                  UserContextService userContextService,
+                                  SelfApprovalPolicy selfApprovalPolicy) {
         this.stockAdjustmentRepository = stockAdjustmentRepository;
         this.stockAdjustmentMapper = stockAdjustmentMapper;
         this.tenantEntityHelper = tenantEntityHelper;
@@ -80,6 +88,7 @@ public class StockAdjustmentService {
         this.inventoryService = inventoryService;
         this.inventoryTransactionRepository = inventoryTransactionRepository;
         this.userContextService = userContextService;
+        this.selfApprovalPolicy = selfApprovalPolicy;
     }
 
     /** Status a document carries once its movements are on the ledger. */
@@ -98,6 +107,11 @@ public class StockAdjustmentService {
         StockAdjustment stockAdjustment = new StockAdjustment();
         stockAdjustment.setOrganization(organization);
         applyHeaderFields(stockAdjustment, creationDto);
+        // Who raised the document is taken from the session, never from the request body: it is
+        // what approval is checked against, so a caller naming someone else as the raiser would
+        // clear their own way to approve it.
+        stockAdjustment.setSubmittedBy(userContextService.getCurrentUserId());
+        stockAdjustment.setSubmittedAt(LocalDateTime.now());
         applyLineItems(stockAdjustment, creationDto.getLineItems(), organization);
         StockAdjustment saved = stockAdjustmentRepository.saveAndFlush(stockAdjustment);
         return stockAdjustmentMapper.toDto(saved);
@@ -181,6 +195,10 @@ public class StockAdjustmentService {
      * its signed {@code adjustmentQuantity}. Lines that come out at no movement are skipped
      * rather than writing a ledger row that changes nothing.
      *
+     * <p>The approval is refused up front when the person approving is the one who raised the
+     * document, unless they hold the break-glass role, in which case the posting is allowed and
+     * the ledger entries say they were self-approved. See {@link SelfApprovalPolicy}.
+     *
      * <p>Every posted line writes an {@code ADJUST} {@link InventoryTransaction} whose
      * remarks carry the reason, so the balance stays explainable, and only then moves the
      * balance. Both happen in this transaction: an approval that recorded no movement is the
@@ -190,7 +208,7 @@ public class StockAdjustmentService {
      * @param id The document to approve and post.
      * @return The posted document as a DTO.
      * @throws ResourceNotFoundException if no such document exists in this organization.
-     * @throws InvalidRequestException if the document is already posted, names no project, has no lines, or a line is missing a material, a reason, or a quantity, or would drive a balance negative.
+     * @throws InvalidRequestException if the document is already posted, is being approved by whoever raised it without the break-glass role, names no project, has no lines, or a line is missing a material, a reason, or a quantity, or would drive a balance negative.
      */
     @Transactional
     public StockAdjustmentDto approve(Long id) {
@@ -199,6 +217,10 @@ public class StockAdjustmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Stock adjustment with ID " + id + " was not found in this organization"));
         requireNotPosted(stockAdjustment, "posted again");
+
+        Long approver = userContextService.getCurrentUserId();
+        boolean selfApproved = selfApprovalPolicy.checkSelfApproval(
+                stockAdjustment.getSubmittedBy(), approver, "Stock adjustment with ID " + id);
 
         Project project = stockAdjustment.getProject();
         if (project == null) {
@@ -266,7 +288,7 @@ public class StockAdjustmentService {
             transaction.setClosingStock(closing);
             transaction.setTransactionType(InventoryTransactionType.ADJUST);
             transaction.setReferenceNumber(referenceNumber);
-            transaction.setRemarks("Stock adjustment - " + reason);
+            transaction.setRemarks("Stock adjustment - " + reason + selfApprovalNote(selfApproved));
             transaction.setProject(project);
             transaction.setStorageLocation(location);
             transaction.setOrganization(organization);
@@ -279,7 +301,6 @@ public class StockAdjustmentService {
             totalVariance += movement;
         }
 
-        Long approver = userContextService.getCurrentUserId();
         stockAdjustment.setTotalVarianceQuantity(totalVariance);
         stockAdjustment.setStatus(POSTED_STATUS);
         stockAdjustment.setApprovedBy(approver);
@@ -289,6 +310,15 @@ public class StockAdjustmentService {
 
         StockAdjustment saved = stockAdjustmentRepository.saveAndFlush(stockAdjustment);
         return stockAdjustmentMapper.toDto(saved);
+    }
+
+    /**
+     * What a self-approved posting carries in the ledger. The document already records the raiser
+     * and the approver side by side, but the ledger entry is what a stock figure is explained
+     * from, so a movement nobody independent agreed to says so where the figure is read.
+     */
+    private String selfApprovalNote(boolean selfApproved) {
+        return selfApproved ? " (self-approved: raised and approved by the same person)" : "";
     }
 
     /** Refuses to change a document whose movements are already on the ledger. */
@@ -340,7 +370,12 @@ public class StockAdjustmentService {
         return value != null && !value.isBlank();
     }
 
-    /** Copies the header scalars from the creation DTO, resolving the location and project. */
+    /**
+     * Copies the header scalars from the creation DTO, resolving the location and project.
+     * Deliberately does not touch {@code submittedBy}: it is stamped from the session in
+     * {@link #create} and left alone by {@link #update}, so an edit cannot move the document
+     * onto a different raiser and clear the way for its own approval.
+     */
     private void applyHeaderFields(StockAdjustment stockAdjustment, StockAdjustmentCreationDto dto) {
         stockAdjustment.setAdjustmentNumber(dto.getAdjustmentNumber());
         stockAdjustment.setType(dto.getType());
@@ -353,7 +388,6 @@ public class StockAdjustmentService {
         stockAdjustment.setPhysicalCountDate(dto.getPhysicalCountDate());
         stockAdjustment.setPhysicalCountBy(dto.getPhysicalCountBy());
         stockAdjustment.setCountMethod(dto.getCountMethod());
-        stockAdjustment.setSubmittedBy(dto.getSubmittedBy());
         stockAdjustment.setTotalVarianceQuantity(dto.getTotalVarianceQuantity());
 
         stockAdjustment.setLocation(resolveLocation(dto.getLocationId()));

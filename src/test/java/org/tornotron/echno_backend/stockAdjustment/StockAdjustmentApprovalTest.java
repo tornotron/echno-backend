@@ -7,9 +7,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryTransactionRepository;
@@ -45,7 +47,9 @@ import static org.mockito.Mockito.when;
  * balance moves, a physical count lands the balance on the counted figure, a movement with
  * no stated reason is refused, an adjustment cannot be posted twice or edited afterwards,
  * and it cannot be used to book stock onto a location belonging to another project or to
- * push a balance below zero.
+ * push a balance below zero. Segregation of duties is covered here too: the person who
+ * raised the document cannot approve it, and a system administrator who does is recorded
+ * as having self-approved on the ledger entry itself.
  */
 @ExtendWith(MockitoExtension.class)
 class StockAdjustmentApprovalTest {
@@ -57,6 +61,7 @@ class StockAdjustmentApprovalTest {
     private static final Long LOCATION = 14L;
     private static final Long OTHER_PROJECT = 9L;
     private static final Long APPROVER = 42L;
+    private static final Long DRAFTER = 43L;
 
     @Mock private StockAdjustmentRepository stockAdjustmentRepository;
     @Mock private StockAdjustmentMapper stockAdjustmentMapper;
@@ -67,6 +72,7 @@ class StockAdjustmentApprovalTest {
     @Mock private InventoryService inventoryService;
     @Mock private InventoryTransactionRepository inventoryTransactionRepository;
     @Mock private UserContextService userContextService;
+    @Mock private OrganizationSecurityService orgSecurity;
 
     private StockAdjustmentService service;
     private Organization organization;
@@ -78,7 +84,8 @@ class StockAdjustmentApprovalTest {
         TenantContext.setCurrentOrgId(ORG);
         service = new StockAdjustmentService(stockAdjustmentRepository, stockAdjustmentMapper,
                 tenantEntityHelper, materialRepository, storageLocationRepository, projectRepository,
-                inventoryService, inventoryTransactionRepository, userContextService);
+                inventoryService, inventoryTransactionRepository, userContextService,
+                new SelfApprovalPolicy(orgSecurity));
 
         organization = new Organization();
         organization.setId(ORG);
@@ -283,5 +290,70 @@ class StockAdjustmentApprovalTest {
 
         verify(inventoryTransactionRepository, never()).save(any());
         verify(stockAdjustmentRepository, never()).delete(any());
+    }
+
+    @Test
+    void theSamePersonCannotRaiseAndApproveTheDocumentAndNothingIsPosted() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        adjustment.setSubmittedBy(APPROVER);
+        line(adjustment, 46.0, null, "damage");
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+                .thenReturn(false);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.approve(ADJUSTMENT))
+                .withMessageContaining("someone other than whoever raised the document");
+
+        verify(inventoryTransactionRepository, never()).save(any());
+        verify(inventoryService, never()).updateCurrentStock(any(), any(), any(), any(), any(), any());
+        assertThat(adjustment.getProcessedAt()).isNull();
+        assertThat(adjustment.getApprovedBy()).isNull();
+        assertThat(adjustment.getStatus()).isNotEqualTo("processed");
+    }
+
+    @Test
+    void aSystemAdministratorApprovingTheirOwnDocumentPostsAndTheLedgerEntrySaysSo() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        adjustment.setSubmittedBy(APPROVER);
+        line(adjustment, 46.0, null, "damage");
+        balanceAtLocation(48.0);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+                .thenReturn(true);
+
+        service.approve(ADJUSTMENT);
+
+        ArgumentCaptor<InventoryTransaction> captor = ArgumentCaptor.forClass(InventoryTransaction.class);
+        verify(inventoryTransactionRepository).save(captor.capture());
+        assertThat(captor.getValue().getRemarks()).contains("damage").contains("self-approved");
+        assertThat(adjustment.getApprovedBy()).isEqualTo(APPROVER);
+        assertThat(adjustment.getProcessedAt()).isNotNull();
+    }
+
+    @Test
+    void anApprovalByAnyoneOtherThanTheRaiserPostsWithNoSelfApprovalOnTheLedger() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        adjustment.setSubmittedBy(DRAFTER);
+        line(adjustment, 46.0, null, "damage");
+        balanceAtLocation(48.0);
+
+        service.approve(ADJUSTMENT);
+
+        ArgumentCaptor<InventoryTransaction> captor = ArgumentCaptor.forClass(InventoryTransaction.class);
+        verify(inventoryTransactionRepository).save(captor.capture());
+        assertThat(captor.getValue().getRemarks()).doesNotContain("self-approved");
+        assertThat(adjustment.getApprovedBy()).isEqualTo(APPROVER);
+    }
+
+    @Test
+    void aDocumentRaisedBeforeTheRaiserWasRecordedCanStillBeApproved() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        adjustment.setSubmittedBy(null);
+        line(adjustment, 46.0, null, "damage");
+        balanceAtLocation(48.0);
+
+        service.approve(ADJUSTMENT);
+
+        verify(inventoryTransactionRepository).save(any(InventoryTransaction.class));
+        assertThat(adjustment.getApprovedBy()).isEqualTo(APPROVER);
     }
 }

@@ -15,9 +15,11 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
+import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
+import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceDto;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceLineRequest;
 import org.tornotron.echno_backend.finance.construction.dtos.CreateConstructionInvoiceRequest;
@@ -57,7 +59,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         TenantEntityHelper.class, EntryNumberGenerator.class, JpaAuditingConfig.class,
         JournalPostingService.class, JournalEntryMapperImpl.class, ConstructionPostingProperties.class,
         InvoicePostingProperties.class, UserContextService.class, ChartOfAccountsSeeder.class,
-        PostingAccountResolver.class, FinanceSettingsService.class})
+        PostingAccountResolver.class, FinanceSettingsService.class,
+        SelfApprovalPolicy.class, OrganizationSecurityService.class})
 class ConstructionInvoiceAutoApprovalIT extends AbstractIntegrationTest {
 
     // Total of the built invoice: 10 * 100 = 1000 subtotal, 18% tax = 180, gross 1180.

@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.configuration.MoneyUtils;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -89,6 +90,7 @@ public class ConstructionInvoiceService {
     private final CostCategoryRepository costCategoryRepository;
     private final CustomerRepository customerRepository;
     private final InvoiceService invoiceService;
+    private final SelfApprovalPolicy selfApprovalPolicy;
 
     @Transactional(readOnly = true)
     public ConstructionInvoiceDto findById(UUID id) {
@@ -199,6 +201,11 @@ public class ConstructionInvoiceService {
      * is approved and posted straight away through the same path as {@link #approve}, rather than
      * left waiting in PENDING. A null effective threshold means every invoice needs manual approval,
      * which is the original behaviour.
+     *
+     * <p>The threshold path is the one approval that is allowed to be the submitter's own: the
+     * threshold is a standing decision by the tenant that invoices under it are not worth a second
+     * pair of eyes. Above it, and where no threshold is set, the invoice goes to
+     * {@link #approve}, which requires a different person.
      */
     @Transactional
     public ConstructionInvoiceDto submit(UUID id) {
@@ -227,6 +234,13 @@ public class ConstructionInvoiceService {
     /**
      * Approve a pending invoice: PENDING -> APPROVED, and post the journal entry.
      *
+     * <p>Whoever submitted the invoice cannot approve it, on the same rule as every other
+     * approval that posts an entry: see {@link SelfApprovalPolicy}. The auto-approval inside
+     * {@link #submit} is deliberately not subject to it, because a threshold set on the
+     * organization or the project is the tenant's own recorded decision that invoices below that
+     * figure do not need a second person, and passing the submitter's own invoice through it is
+     * exactly what it was configured for.
+     *
      * <p>Posting is invoice-level to the accounts resolved for each posting role (a per-org mapping
      * where set, else the configured default account):
      * <ul>
@@ -246,6 +260,9 @@ public class ConstructionInvoiceService {
                     "Only PENDING construction invoices can be approved; invoice "
                             + inv.getInvoiceNumber() + " is currently " + inv.getStatus());
         }
+        selfApprovalPolicy.checkSelfApproval(inv.getSubmittedBy(),
+                userContextService.getCurrentUserId(),
+                "Construction invoice " + inv.getInvoiceNumber());
         postAndApprove(inv);
         return mapper.toDto(inv);
     }
