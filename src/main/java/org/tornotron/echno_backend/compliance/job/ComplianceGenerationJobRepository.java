@@ -179,6 +179,65 @@ public interface ComplianceGenerationJobRepository extends JpaRepository<Complia
             + "FROM compliance_generation_jobs WHERE id = :id", nativeQuery = true)
     Optional<DispatchRow> findDispatchRow(@Param("id") UUID id);
 
+    /**
+     * Approved projects across every tenant, each with the last time compliance was actually
+     * assessed for it. The nightly sweep's one scan.
+     *
+     * <p>Cross-tenant and scalars only, for the same reason the dispatcher queries above are:
+     * the caller has no tenant, because its whole job is to work out which tenants have
+     * something to do. It establishes one per project before anything is enqueued.
+     *
+     * <p>"Assessed" means a run that reached the model and came back, which is {@code SUCCEEDED}
+     * or {@code NOTHING_TO_REPORT}. The second of those matters: a run that assessed every rule
+     * and found none applicable did the work, and treating it as never-assessed would put the
+     * project back in the queue every night for ever. {@code FAILED} deliberately does not
+     * count, because a failed run assessed nothing, and {@code QUEUED} and {@code RUNNING} do
+     * not count because they have not finished; a project with one in flight is filtered out
+     * later by the job table's own one-active-job-per-project index, not here.
+     *
+     * <p>A null {@code lastAssessedAt} is a project that has never had a completed run at all,
+     * which is exactly the backlog this exists for: everything approved before generation was
+     * wired up, and everything whose approval-time run failed silently. Ordering nulls first
+     * puts that backlog at the front of a capped pass.
+     *
+     * <p>The project's jurisdiction is returned raw rather than matched here. Resolving a state
+     * from a free-text address is Java, so the comparison against the rule catalogue happens in
+     * the caller; this query's job is only to bound what the caller looks at.
+     */
+    @Query(value = "SELECT p.id AS \"projectId\", "
+            + "p.organization_id AS \"organizationId\", "
+            + "p.project_state AS \"projectState\", "
+            + "p.project_address AS \"projectAddress\", "
+            + "p.project_type AS \"projectType\", "
+            + "j.last_finished_at AS \"lastAssessedAt\" "
+            + "FROM project p "
+            + "LEFT JOIN (SELECT project_id, organization_id, max(finished_at) AS last_finished_at "
+            + "           FROM compliance_generation_jobs "
+            + "           WHERE status IN ('SUCCEEDED', 'NOTHING_TO_REPORT') "
+            + "           GROUP BY project_id, organization_id) j "
+            + "  ON j.project_id = p.id AND j.organization_id = p.organization_id "
+            + "WHERE p.status = 'approved' "
+            + "  AND p.organization_id IS NOT NULL "
+            + "  AND p.project_type IS NOT NULL "
+            + "ORDER BY j.last_finished_at ASC NULLS FIRST, p.id ASC "
+            + "LIMIT :limit", nativeQuery = true)
+    List<SweepCandidate> findSweepCandidates(@Param("limit") int limit);
+
+    /** One approved project the sweep has to decide about. */
+    interface SweepCandidate {
+        Long getProjectId();
+
+        Long getOrganizationId();
+
+        String getProjectState();
+
+        String getProjectAddress();
+
+        String getProjectType();
+
+        LocalDateTime getLastAssessedAt();
+    }
+
     /** What a worker needs off a claimed row before it can establish the tenant and start. */
     interface DispatchRow {
         Long getOrganizationId();

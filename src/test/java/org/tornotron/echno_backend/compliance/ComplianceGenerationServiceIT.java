@@ -26,6 +26,7 @@ import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.compliance.ai.OpenAiCompatibleComplianceService;
 import org.tornotron.echno_backend.compliance.job.ComplianceGenerationJobRepository;
 import org.tornotron.echno_backend.compliance.job.ComplianceJobStatus;
+import org.tornotron.echno_backend.compliance.repository.ComplianceRuleRepository;
 import org.tornotron.echno_backend.compliance.ai.ComplianceSuggestion;
 import org.tornotron.echno_backend.inspection.ComplianceRiskLevel;
 import org.tornotron.echno_backend.inspection.InspectionOrigin;
@@ -94,6 +95,9 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
 
     @Autowired
     private ComplianceGenerationJobRepository jobRepository;
+
+    @Autowired
+    private ComplianceRuleRepository ruleRepository;
 
     private Long orgAId;
     private Long projectId;
@@ -362,6 +366,118 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
     }
 
     /** Inserts a job row directly, so what is under test is the schema and not the service. */
+    // -------------------------------------------------------------------------------
+    // The sweep's two queries. Both are only really testable here.
+    // -------------------------------------------------------------------------------
+
+    /**
+     * The catalogue side of the sweep, against the migration-seeded rules. This is also the
+     * only assertion that the {@code 069} backfill did its job: every seeded rule was written
+     * long before the column existed, and a null {@code effectiveFrom} would leave the grouped
+     * maximum null and make the sweep unable to tell whether anything had changed.
+     */
+    @Test
+    void reportsWhenEachJurisdictionLastChanged() {
+        List<ComplianceRuleRepository.JurisdictionChange> changes =
+                ruleRepository.findNewestEffectiveFromByJurisdiction();
+
+        assertThat(changes).isNotEmpty();
+        assertThat(changes).allSatisfy(change ->
+                assertThat(change.getNewestEffectiveFrom()).isNotNull());
+        assertThat(changes)
+                .filteredOn(change -> "Tamil Nadu".equalsIgnoreCase(change.getState())
+                        && change.getProjectType() == ProjectType.RESIDENTIAL)
+                .singleElement()
+                .satisfies(change -> assertThat(change.getNewestEffectiveFrom()).isNotNull());
+    }
+
+    /**
+     * The project side, which is native SQL over a table this repository does not own and a
+     * left join whose null is load bearing. A never-assessed project has to come back with a
+     * null {@code lastAssessedAt}, because that null is what the sweep reads as "this is the
+     * backlog".
+     */
+    @Test
+    void findsAnApprovedProjectThatWasNeverAssessed() {
+        List<ComplianceGenerationJobRepository.SweepCandidate> candidates =
+                jobRepository.findSweepCandidates(200);
+
+        assertThat(candidates)
+                .filteredOn(candidate -> projectId.equals(candidate.getProjectId()))
+                .singleElement()
+                .satisfies(candidate -> {
+                    assertThat(candidate.getOrganizationId()).isEqualTo(orgAId);
+                    assertThat(candidate.getProjectType()).isEqualTo(ProjectType.RESIDENTIAL.name());
+                    assertThat(candidate.getProjectAddress()).contains("Tamil Nadu");
+                    assertThat(candidate.getLastAssessedAt()).isNull();
+                });
+    }
+
+    /**
+     * A successful run is what makes a project assessed, and the timestamp the sweep compares
+     * against is that run's {@code finished_at}.
+     *
+     * <p>Each of these three does exactly one committed write and then one read, deliberately.
+     * The surrounding test transaction takes its snapshot at its first statement, so a second
+     * committed write made after a read in the same test would be invisible to the next read
+     * and the test would fail for a reason that has nothing to do with the query.
+     */
+    @Test
+    void countsASucceededRunAsAnAssessment() {
+        LocalDateTime finishedAt = LocalDateTime.now().withNano(0);
+        inCommittedTx(() -> insertFinishedJob(ComplianceJobStatus.SUCCEEDED, finishedAt));
+
+        assertThat(sweepCandidateForSeededProject().getLastAssessedAt()).isNotNull();
+    }
+
+    /**
+     * A failed run assessed nothing, so it must not make the project look done. A project whose
+     * only run failed belongs in the backlog, which is where the sweep will find it.
+     */
+    @Test
+    void doesNotCountAFailedRunAsAnAssessment() {
+        inCommittedTx(() -> insertFinishedJob(ComplianceJobStatus.FAILED, LocalDateTime.now()));
+
+        assertThat(sweepCandidateForSeededProject().getLastAssessedAt()).isNull();
+    }
+
+    /**
+     * A run that assessed every rule and found none applicable did the work. Treating it as
+     * never-assessed would put the project back in the queue every night for ever, spending a
+     * model call each time to re-derive the same empty answer.
+     */
+    @Test
+    void countsARunThatFoundNothingApplicableAsAnAssessment() {
+        LocalDateTime finishedAt = LocalDateTime.now().withNano(0);
+        inCommittedTx(() -> insertFinishedJob(ComplianceJobStatus.NOTHING_TO_REPORT, finishedAt));
+
+        assertThat(sweepCandidateForSeededProject().getLastAssessedAt()).isNotNull();
+    }
+
+    private ComplianceGenerationJobRepository.SweepCandidate sweepCandidateForSeededProject() {
+        return jobRepository.findSweepCandidates(200).stream()
+                .filter(candidate -> projectId.equals(candidate.getProjectId()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "the seeded approved project was not returned as a sweep candidate"));
+    }
+
+    private void insertFinishedJob(ComplianceJobStatus status, LocalDateTime finishedAt) {
+        entityManager.createNativeQuery(
+                        "INSERT INTO compliance_generation_jobs (id, organization_id, project_id, "
+                                + "status, rules_total, rules_assessed, batches_total, batches_done, "
+                                + "created_count, attempt, max_attempts, finished_at, created_at, "
+                                + "updated_at) VALUES "
+                                + "(:id, :org, :project, :status, 6, 6, 1, 1, 0, 1, 3, :finishedAt, "
+                                + "now()::timestamp, now()::timestamp)")
+                .setParameter("id", UUID.randomUUID())
+                .setParameter("org", orgAId)
+                .setParameter("project", projectId)
+                .setParameter("status", status.name())
+                .setParameter("finishedAt", finishedAt)
+                .executeUpdate();
+    }
+
     private UUID insertJob(ComplianceJobStatus status) {
         UUID id = UUID.randomUUID();
         entityManager.createNativeQuery(

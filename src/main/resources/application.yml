@@ -89,6 +89,19 @@ compliance:
     max-in-flight: ${COMPLIANCE_JOB_MAX_IN_FLIGHT:2}
     lease-duration: 5m
     max-attempts: 3
+  # The catch-up sweep for projects approved before the rules that apply to them existed.
+  # OFF by default and deliberately so: the mechanism is settled, the policy is not. Which
+  # catalogue changes should count as worth re-assessing for, how often a pass should run,
+  # and whether a tenant may decline it are product decisions, and all three are config.
+  # Turning it on spends inference for every project it finds stale. It paces itself through
+  # the queue above, so max-projects-per-run bounds the spend while job.max-in-flight bounds
+  # how many runs ever hit the endpoint at once.
+  sweep:
+    enabled: ${COMPLIANCE_SWEEP_ENABLED:false}
+    cron: ${COMPLIANCE_SWEEP_CRON:0 0 2 * * *}
+    zone: ${COMPLIANCE_SWEEP_ZONE:UTC}
+    scan-limit: ${COMPLIANCE_SWEEP_SCAN_LIMIT:500}
+    max-projects-per-run: ${COMPLIANCE_SWEEP_MAX_PROJECTS_PER_RUN:25}
 
 
 # Chart-of-accounts auto numbering. level-steps is the gap between sibling codes
