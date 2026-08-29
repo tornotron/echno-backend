@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
@@ -79,6 +80,7 @@ class ConstructionInvoiceArMaterializationTest {
     @Mock private CostCategoryRepository costCategoryRepository;
     @Mock private CustomerRepository customerRepository;
     @Mock private InvoiceService invoiceService;
+    @Mock private SelfApprovalPolicy selfApprovalPolicy;
 
     private ConstructionInvoiceService service;
 
@@ -93,7 +95,7 @@ class ConstructionInvoiceArMaterializationTest {
         service = new ConstructionInvoiceService(invoiceRepo, numberGen, mapper, tenantEntityHelper,
                 journalRepo, postingService, postingAccountResolver, financeSettingsService,
                 projectRepository, userContextService, costCategoryRepository, customerRepository,
-                invoiceService);
+                invoiceService, selfApprovalPolicy);
     }
 
     @AfterEach

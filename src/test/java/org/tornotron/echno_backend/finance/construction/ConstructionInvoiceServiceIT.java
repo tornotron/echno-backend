@@ -16,10 +16,12 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
+import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.finance.construction.ConstructionPostingProperties;
+import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceDto;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceLineRequest;
 import org.tornotron.echno_backend.finance.construction.dtos.CreateConstructionInvoiceRequest;
@@ -57,7 +59,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         JournalPostingService.class, JournalEntryMapperImpl.class, ConstructionPostingProperties.class,
         InvoicePostingProperties.class, UserContextService.class,
         org.tornotron.echno_backend.finance.posting.service.PostingAccountResolver.class,
-        org.tornotron.echno_backend.finance.settings.FinanceSettingsService.class})
+        org.tornotron.echno_backend.finance.settings.FinanceSettingsService.class,
+        SelfApprovalPolicy.class, OrganizationSecurityService.class})
 class ConstructionInvoiceServiceIT extends AbstractIntegrationTest {
 
     @Autowired

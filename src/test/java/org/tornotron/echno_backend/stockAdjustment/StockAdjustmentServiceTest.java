@@ -7,9 +7,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryTransactionRepository;
 import org.tornotron.echno_backend.material.Material;
@@ -39,9 +41,10 @@ import static org.mockito.Mockito.when;
  * Unit tests for the drafting half of StockAdjustmentService: an id that names nothing in
  * the current tenant is rejected, a null id resolves to no association rather than an
  * error, line items are wired to their parent and stamped with the organization, and an
- * update replaces the whole line-item collection. The repositories, mapper, and tenant
- * helper are mocked; assertions read the entity captured on saveAndFlush. Posting to the
- * stock ledger is covered by {@link StockAdjustmentApprovalTest}.
+ * update replaces the whole line-item collection, and the user who raised the document is
+ * taken from the session rather than from the request body. The repositories, mapper, and
+ * tenant helper are mocked; assertions read the entity captured on saveAndFlush. Posting to
+ * the stock ledger is covered by {@link StockAdjustmentApprovalTest}.
  */
 @ExtendWith(MockitoExtension.class)
 class StockAdjustmentServiceTest {
@@ -50,6 +53,7 @@ class StockAdjustmentServiceTest {
     private static final Long MATERIAL = 11L;
     private static final Long LOCATION = 3L;
     private static final Long PROJECT = 9L;
+    private static final Long SESSION_USER = 77L;
 
     @Mock private StockAdjustmentRepository stockAdjustmentRepository;
     @Mock private StockAdjustmentMapper stockAdjustmentMapper;
@@ -60,6 +64,7 @@ class StockAdjustmentServiceTest {
     @Mock private InventoryService inventoryService;
     @Mock private InventoryTransactionRepository inventoryTransactionRepository;
     @Mock private UserContextService userContextService;
+    @Mock private OrganizationSecurityService orgSecurity;
 
     private StockAdjustmentService service;
 
@@ -68,7 +73,8 @@ class StockAdjustmentServiceTest {
         TenantContext.setCurrentOrgId(ORG);
         service = new StockAdjustmentService(stockAdjustmentRepository, stockAdjustmentMapper,
                 tenantEntityHelper, materialRepository, storageLocationRepository, projectRepository,
-                inventoryService, inventoryTransactionRepository, userContextService);
+                inventoryService, inventoryTransactionRepository, userContextService,
+                new SelfApprovalPolicy(orgSecurity));
         lenient().when(tenantEntityHelper.resolveCurrentOrganization()).thenAnswer(inv -> {
             Organization org = new Organization();
             org.setId(ORG);
@@ -212,5 +218,39 @@ class StockAdjustmentServiceTest {
         service.delete(5L);
 
         verify(stockAdjustmentRepository).delete(existing);
+    }
+
+    @Test
+    void create_recordsTheSessionUserAsTheRaiserAndIgnoresTheOneInTheBody() {
+        stubReferenceLookups();
+        when(userContextService.getCurrentUserId()).thenReturn(SESSION_USER);
+        StockAdjustmentCreationDto dto = baseDto();
+        // A caller naming somebody else as the raiser would otherwise clear their own way to
+        // approve the document, since approval is checked against this field.
+        dto.setSubmittedBy(999L);
+
+        service.create(dto);
+
+        ArgumentCaptor<StockAdjustment> captor = ArgumentCaptor.forClass(StockAdjustment.class);
+        verify(stockAdjustmentRepository).saveAndFlush(captor.capture());
+        StockAdjustment saved = captor.getValue();
+        assertThat(saved.getSubmittedBy()).isEqualTo(SESSION_USER);
+        assertThat(saved.getSubmittedAt()).isNotNull();
+    }
+
+    @Test
+    void update_leavesTheRecordedRaiserAloneWhateverTheBodySays() {
+        stubReferenceLookups();
+        StockAdjustment existing = new StockAdjustment();
+        existing.setId(4L);
+        existing.setSubmittedBy(SESSION_USER);
+        when(stockAdjustmentRepository.findByIdAndOrganization_Id(4L, ORG))
+                .thenReturn(Optional.of(existing));
+        StockAdjustmentCreationDto dto = baseDto();
+        dto.setSubmittedBy(999L);
+
+        service.update(4L, dto);
+
+        assertThat(existing.getSubmittedBy()).isEqualTo(SESSION_USER);
     }
 }

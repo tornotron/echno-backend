@@ -52,7 +52,10 @@ public class StockAdjustmentCreationDto {
     @Schema(description = "Method used to perform the physical count.", example = "FULL_COUNT")
     private String countMethod;
 
-    @Schema(description = "Id of the employee who submitted the adjustment.", example = "18")
+    @Schema(description = "Read-only. The user who raised the document is recorded from the "
+            + "authenticated session, because approval is checked against it. Any value sent here "
+            + "is ignored.",
+            accessMode = Schema.AccessMode.READ_ONLY, example = "18")
     private Long submittedBy;
 
     @Schema(description = "Total variance quantity across all line items.", example = "-120.0")

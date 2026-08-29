@@ -157,11 +157,15 @@ public class ConstructionInvoiceControllerWeb {
     @Operation(
             summary = "Approve a submitted invoice",
             description = "Approves a submitted invoice and posts the matching journal entry to the ledger. "
-                    + "Once approved the invoice is eligible for payment."
+                    + "Once approved the invoice is eligible for payment. Whoever submitted the invoice "
+                    + "cannot approve it: the approval is the second pair of eyes on the entry it posts. "
+                    + "A system administrator is the one exception, and it is logged as a self-approval. "
+                    + "Invoices auto-approved on submit under a configured threshold are not affected, "
+                    + "since that threshold is the tenant's own decision to skip the second reviewer."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Invoice approved and posted"),
-            @ApiResponse(responseCode = "400", description = "Invoice is not in a state that can be approved"),
+            @ApiResponse(responseCode = "400", description = "Invoice is not in a state that can be approved, or the caller submitted it and does not hold the system-admin role"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant")
     })
