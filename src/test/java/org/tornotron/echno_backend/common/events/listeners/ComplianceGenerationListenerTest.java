@@ -12,7 +12,9 @@ import org.tornotron.echno_backend.common.events.ProjectApprovedEvent;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
-import org.tornotron.echno_backend.compliance.ComplianceGenerationService;
+import org.tornotron.echno_backend.compliance.job.ComplianceGenerationJobDto;
+import org.tornotron.echno_backend.compliance.job.ComplianceGenerationJobService;
+import org.tornotron.echno_backend.compliance.job.ComplianceJobStatus;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicReference;
@@ -30,7 +32,8 @@ import static org.mockito.Mockito.when;
 /**
  * The approval path runs on a pooled async thread with no request behind it, so what
  * matters here is that the tenant is established from the event before any work happens,
- * and that the listener owns no transaction of its own.
+ * that the work is queued rather than run on that thread, and that the listener owns no
+ * transaction of its own.
  */
 @ExtendWith(MockitoExtension.class)
 class ComplianceGenerationListenerTest {
@@ -39,7 +42,7 @@ class ComplianceGenerationListenerTest {
     private static final Long ORG_ID = 7L;
 
     @Mock
-    private ComplianceGenerationService complianceGenerationService;
+    private ComplianceGenerationJobService complianceGenerationJobService;
     @Mock
     private TenantScopedJobRunner tenantScopedJobRunner;
 
@@ -61,39 +64,61 @@ class ComplianceGenerationListenerTest {
     }
 
     @Test
-    void establishesTheTenantFromTheEventBeforeGenerating() {
+    void establishesTheTenantFromTheEventBeforeQueueing() {
         runInline();
         AtomicReference<Long> tenantDuringWork = new AtomicReference<>();
-        when(complianceGenerationService.generateForProject(PROJECT_ID, ORG_ID))
+        when(complianceGenerationJobService.submit(PROJECT_ID, ORG_ID))
                 .thenAnswer(invocation -> {
                     tenantDuringWork.set(TenantContext.getCurrentOrgId());
-                    return java.util.List.of();
+                    return accepted();
                 });
 
         listener.onProjectApproved(new ProjectApprovedEvent(this, PROJECT_ID, ORG_ID));
 
         verify(tenantScopedJobRunner).runForTenant(eq(ORG_ID), any(Runnable.class));
         assertThat(tenantDuringWork.get())
-                .as("generation must run with the event's organization on the thread")
+                .as("the job must be inserted with the event's organization on the thread")
                 .isEqualTo(ORG_ID);
     }
 
+    /**
+     * Approval must hand the work to the queue, not do it. Running it inline on the async
+     * thread is what left an approved project with no compliances and no record of the
+     * attempt whenever a replica restarted mid-run.
+     */
     @Test
-    void eventWithNoOrganization_generatesNothing() {
+    void queuesTheWorkRatherThanRunningItOnTheApprovalThread() {
+        runInline();
+        when(complianceGenerationJobService.submit(PROJECT_ID, ORG_ID)).thenReturn(accepted());
+
+        listener.onProjectApproved(new ProjectApprovedEvent(this, PROJECT_ID, ORG_ID));
+
+        verify(complianceGenerationJobService).submit(PROJECT_ID, ORG_ID);
+    }
+
+    @Test
+    void eventWithNoOrganization_queuesNothing() {
         listener.onProjectApproved(new ProjectApprovedEvent(this, PROJECT_ID, null));
 
-        verify(complianceGenerationService, never()).generateForProject(anyLong(), any());
+        verify(complianceGenerationJobService, never()).submit(anyLong(), any());
         verify(tenantScopedJobRunner, never()).runForTenant(any(), any(Runnable.class));
     }
 
     @Test
     void unmetPrecondition_isSwallowedSoApprovalIsNotDisturbed() {
         runInline();
-        when(complianceGenerationService.generateForProject(PROJECT_ID, ORG_ID))
+        when(complianceGenerationJobService.submit(PROJECT_ID, ORG_ID))
                 .thenThrow(new InvalidRequestException("no rules for this jurisdiction yet"));
 
         assertThatCode(() -> listener.onProjectApproved(new ProjectApprovedEvent(this, PROJECT_ID, ORG_ID)))
                 .doesNotThrowAnyException();
+    }
+
+    private static ComplianceGenerationJobService.Accepted accepted() {
+        return new ComplianceGenerationJobService.Accepted(
+                new ComplianceGenerationJobDto(java.util.UUID.randomUUID(), PROJECT_ID,
+                        ComplianceJobStatus.QUEUED, 6, 0, 1, 0, 0, null, 0, 3, null, null, null),
+                true);
     }
 
     @Test

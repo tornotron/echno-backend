@@ -9,13 +9,23 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.tornotron.echno_backend.common.exception.ComplianceAiException;
+import org.tornotron.echno_backend.compliance.ComplianceGenerationProgress;
 import org.tornotron.echno_backend.compliance.domain.ComplianceRule;
 import org.tornotron.echno_backend.project.Project;
 
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Wraps the OpenAI-compatible chat-completions call that decides which candidate
@@ -42,6 +52,48 @@ import java.util.List;
  *
  * <p>{@link ComplianceResponseReader} holds the checks that decide this, and its javadoc
  * explains how a truncated answer is recognised from the response alone.
+ *
+ * <h2>Why the rules are asked about a batch at a time</h2>
+ *
+ * <p>One call for the whole catalogue does not scale, and both of its limits have now been
+ * measured against the configured endpoint rather than estimated. The answer costs about 57
+ * completion tokens per rule (53 to 59 across runs of 6 to 60 rules), so a single call runs
+ * out of the 4096-token budget at about 72 rules, which a 72-rule run confirmed by coming
+ * back with {@code finish_reason: length}, exactly 4096 completion tokens and an array that
+ * never closes. Wall clock is the tighter of the two: about 1.7 seconds a rule, so 40 rules
+ * already takes 58 seconds and 60 takes 108.
+ *
+ * <p>Splitting the catalogue into batches removes both. Each call asks about a fixed number
+ * of rules, so per-call output and per-call wall clock stop growing with the catalogue and
+ * the whole thing scales by doing more calls rather than one bigger one. It also gives the
+ * run something to report between calls, which is what makes progress on a queued job real
+ * rather than a guess.
+ *
+ * <p>The batches run concurrently, which was worth checking before relying on: four
+ * simultaneous ten-rule calls against the configured endpoint finished in 22 seconds, where
+ * the same four run one after another took 91. So the endpoint does not queue calls behind a
+ * single key, and the whole run costs roughly one batch rather than the sum of them. Without
+ * that measurement the sensible default would have been to run them one at a time, since
+ * concurrency against a serialising endpoint buys nothing and only makes the failure modes
+ * harder.
+ *
+ * <p>The batch size is configuration, and the default of ten is chosen from those numbers
+ * with room on both sides: ten rules costs about 600 completion tokens, under a sixth of the
+ * budget, and takes about 20 seconds, a third of the read timeout. A batch of twenty would
+ * still fit the token budget but would sit at roughly two thirds of the read timeout, which
+ * is not enough margin for one slow call.
+ *
+ * <h2>What happens when one batch fails</h2>
+ *
+ * <p>The whole call fails and nothing is returned. That is not a shortcut around combining
+ * partial results; it is the same rule the truncation checks exist to enforce, applied one
+ * level up. A run that assessed batches one and two and lost batch three has no opinion at
+ * all about the rules in batches three to five, and a caller handed the first two batches
+ * would create compliances from them and show the user a finished result that quietly omits
+ * two fifths of the jurisdiction. Missing compliances that nobody knows are missing is the
+ * failure this module exists to prevent, so an incomplete run reports itself as a failure
+ * and creates nothing. Re-running is cheap and idempotent, which is what makes that
+ * affordable.
  */
 @Slf4j
 @Service
@@ -72,12 +124,28 @@ public class OpenAiCompatibleComplianceService {
      * <p>Returns an empty list only when there was nothing to ask: the AI is disabled or
      * unconfigured, or there are no candidate rules.
      *
-     * @throws ComplianceAiException when the call failed, or the answer was cut short,
-     *                               unparseable, or did not cover every candidate rule
+     * @throws ComplianceAiException when a call failed, or an answer was cut short,
+     *                               unparseable, or did not cover every rule it was sent
      */
     public List<ComplianceSuggestion> suggestCompliances(Project project,
                                                          String state,
                                                          List<ComplianceRule> candidateRules) {
+        return suggestCompliances(project, state, candidateRules, ComplianceGenerationProgress.NONE);
+    }
+
+    /**
+     * As {@link #suggestCompliances(Project, String, List)}, reporting each finished batch to
+     * {@code progress}.
+     *
+     * <p>The batches partition the candidate rules, so every rule is in exactly one batch and
+     * each batch's answer is checked for full coverage of its own rules before it is
+     * accepted. Coverage of the whole run therefore follows from the batches, and there is no
+     * separate whole-run check that could disagree with the per-batch ones.
+     */
+    public List<ComplianceSuggestion> suggestCompliances(Project project,
+                                                         String state,
+                                                         List<ComplianceRule> candidateRules,
+                                                         ComplianceGenerationProgress progress) {
         if (!isConfigured()) {
             log.info("Compliance AI disabled or API key not configured; skipping AI suggestion for project {}",
                     project.getId());
@@ -87,8 +155,134 @@ public class OpenAiCompatibleComplianceService {
             return List.of();
         }
 
-        String responseJson = callModel(project, state, candidateRules);
-        return responseReader.read(responseJson, candidateRules);
+        List<List<ComplianceRule>> batches = batch(candidateRules, props.getBatchSize());
+        if (batches.size() == 1) {
+            return runBatches(project, state, candidateRules, batches, progress, null);
+        }
+
+        // One pool per run rather than a shared bean. A run lasts tens of seconds and there is
+        // at most one per project, so the cost of creating threads is nothing against the cost
+        // of the calls they make, and in exchange an idle application holds no threads open and
+        // one tenant's oversized catalogue cannot starve another tenant's run of a shared pool.
+        ExecutorService pool = Executors.newFixedThreadPool(
+                Math.min(effectiveConcurrency(), batches.size()), batchThreadFactory());
+        try {
+            return runBatches(project, state, candidateRules, batches, progress, pool);
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    /**
+     * Runs the batches and concatenates their answers in batch order.
+     *
+     * <p>With a pool the calls overlap, which is worth doing because the configured endpoint
+     * was measured serving four simultaneous calls in the time it took to serve one (22
+     * seconds against 91 sequential), so it does not queue them behind a single key. Without a
+     * pool, for the single-batch case, the call happens inline on this thread.
+     *
+     * <p>Results are collected in batch order even though they arrive out of order, so the
+     * output does not depend on which call happened to finish first. Progress is reported from
+     * this thread as each batch in order becomes available, which keeps the counter monotonic
+     * and single-threaded, and means a caller writing it to a row needs no locking. It also
+     * makes the reported progress a lower bound rather than an optimistic one, since a later
+     * batch that has already finished is not counted until the ones before it have.
+     */
+    private List<ComplianceSuggestion> runBatches(Project project,
+                                                  String state,
+                                                  List<ComplianceRule> candidateRules,
+                                                  List<List<ComplianceRule>> batches,
+                                                  ComplianceGenerationProgress progress,
+                                                  ExecutorService pool) {
+        List<Future<List<ComplianceSuggestion>>> futures = new ArrayList<>(batches.size());
+        for (List<ComplianceRule> batchRules : batches) {
+            Callable<List<ComplianceSuggestion>> call =
+                    () -> responseReader.read(callModel(project, state, batchRules), batchRules);
+            futures.add(pool == null ? runInline(call) : pool.submit(call));
+        }
+
+        List<ComplianceSuggestion> suggestions = new ArrayList<>(candidateRules.size());
+        for (int i = 0; i < futures.size(); i++) {
+            try {
+                suggestions.addAll(futures.get(i).get());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ComplianceAiException(
+                        "Compliance generation was interrupted before it finished, so no "
+                                + "compliances were generated.", e);
+            } catch (ExecutionException e) {
+                // Said plainly, because the honest thing to tell someone waiting is how far it
+                // got and that the answer is being thrown away rather than shown half-finished.
+                Throwable cause = e.getCause() == null ? e : e.getCause();
+                throw new ComplianceAiException(
+                        "Batch " + (i + 1) + " of " + batches.size() + " failed, so the assessment "
+                                + "of " + candidateRules.size() + " rule(s) is incomplete and no "
+                                + "compliances were generated. " + cause.getMessage(), cause);
+            }
+            progress.batchCompleted(i + 1, batches.size(), suggestions.size(), candidateRules.size());
+        }
+        return List.copyOf(suggestions);
+    }
+
+    /**
+     * Runs a batch on the calling thread and hands back its outcome as an already-completed
+     * future, so the single-batch case takes the same collection path as the concurrent one
+     * rather than a second path that could drift away from it.
+     */
+    private static Future<List<ComplianceSuggestion>> runInline(Callable<List<ComplianceSuggestion>> call) {
+        CompletableFuture<List<ComplianceSuggestion>> done = new CompletableFuture<>();
+        try {
+            done.complete(call.call());
+        } catch (Exception e) {
+            done.completeExceptionally(e);
+        }
+        return done;
+    }
+
+    private static ThreadFactory batchThreadFactory() {
+        AtomicInteger seq = new AtomicInteger();
+        return runnable -> {
+            Thread thread = new Thread(runnable, "compliance-ai-batch-" + seq.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        };
+    }
+
+    /** Simultaneous model calls per run, floored at one so a misconfiguration cannot stall a run. */
+    private int effectiveConcurrency() {
+        return Math.max(1, props.getBatchConcurrency());
+    }
+
+    /**
+     * How many model calls a run of {@code ruleCount} rules will take, so a job can say what
+     * it is going to do before it starts doing it.
+     */
+    public int batchCount(int ruleCount) {
+        if (ruleCount <= 0) {
+            return 0;
+        }
+        int size = props.getBatchSize();
+        if (size <= 0 || size >= ruleCount) {
+            return 1;
+        }
+        return (ruleCount + size - 1) / size;
+    }
+
+    /**
+     * Splits the rules into consecutive groups of at most {@code batchSize}.
+     *
+     * <p>Consecutive rather than interleaved because the rules arrive from the repository in
+     * a stable order and keeping neighbours together keeps a batch's rules related, which
+     * gives the model a coherent slice of one jurisdiction to reason over instead of an
+     * arbitrary scattering of it.
+     */
+    private static List<List<ComplianceRule>> batch(List<ComplianceRule> rules, int batchSize) {
+        int size = batchSize <= 0 ? rules.size() : batchSize;
+        List<List<ComplianceRule>> batches = new ArrayList<>();
+        for (int from = 0; from < rules.size(); from += size) {
+            batches.add(rules.subList(from, Math.min(from + size, rules.size())));
+        }
+        return batches;
     }
 
     /**
@@ -96,8 +290,14 @@ public class OpenAiCompatibleComplianceService {
      * itself can fail (a connect or read timeout, a proxy refusing, a 4xx or 5xx from the
      * endpoint) arrives here and leaves as a {@link ComplianceAiException}, so the caller
      * is told the run failed instead of being handed an empty result to interpret.
+     *
+     * <p>Package-private rather than private so a test can substitute canned responses for
+     * the network. That is the only seam in this class, and it is the right one: everything
+     * batching does (how the rules are split, what order the answers come back in, what
+     * happens when one call of five fails) is decided around this method and is otherwise
+     * only observable by making real calls with a rule catalogue large enough to break.
      */
-    private String callModel(Project project, String state, List<ComplianceRule> candidateRules) {
+    String callModel(Project project, String state, List<ComplianceRule> candidateRules) {
         try {
             String systemPrompt = buildSystemPrompt();
             String userPrompt = buildUserPrompt(project, state, candidateRules);
