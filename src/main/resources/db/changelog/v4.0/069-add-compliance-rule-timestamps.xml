@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="069-add-compliance-rule-timestamps" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="compliance_rules" columnName="effective_from"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            compliance_rules recorded nothing about when a rule appeared or changed, so there was
+            no way to ask which rules a project has not yet been assessed against. Three columns
+            rather than two, because "when the row was written" and "when the rule came into
+            force" are different facts and a sweep that confuses them re-assesses every project
+            for a corrected typo.
+
+            created_at and updated_at are ordinary audit columns, written by Hibernate on every
+            insert and every update respectively. Nothing reads them for scheduling.
+
+            effective_from is the curated one and the only input to the sweep. It is set to the
+            insert time for a new rule and is never touched again by the application: correcting
+            a rule's wording moves updated_at and leaves effective_from alone, so no project is
+            re-assessed. A rule that genuinely changed, or whose scope widened, is re-dated by
+            whoever curates the catalogue, and that deliberate act is what asks for re-assessment.
+        </comment>
+
+        <addColumn tableName="compliance_rules">
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="effective_from" type="TIMESTAMP"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="069-backfill-compliance-rule-timestamps" author="echno">
+        <comment>
+            Existing rows are dated to when the seed actually ran, read out of Liquibase's own
+            databasechangelog, rather than to now().
+
+            This is the difference between the first sweep doing nothing and the first sweep
+            enqueueing a job for every approved project in every tenant. The 21 seeded rules have
+            been in force since 037 applied (2026-08-21 on IITM staging). Dating them to now()
+            would make every one of them newer than every assessment ever done, so every approved
+            project would read as stale on the first pass, spend a model call each and create
+            nothing, because those projects were already assessed against exactly these rules.
+            Dating them to the seed says what is true, and the only projects the first pass then
+            picks up are the ones that genuinely were never assessed.
+
+            The coalesce chain degrades safely: the changeset id first, the filename second for a
+            database whose changelog was rewritten by a baseline, and the column default last for
+            anything else. A row that ends up at now() costs one wasted model call, not a wrong
+            answer, so the fallback does not need to be clever.
+        </comment>
+
+        <sql>
+            UPDATE compliance_rules
+            SET effective_from = COALESCE(
+                    (SELECT min(dateexecuted) FROM databasechangelog
+                      WHERE id = '037-seed-compliance-rules'),
+                    (SELECT min(dateexecuted) FROM databasechangelog
+                      WHERE filename LIKE '%037-create-and-seed-compliance-rules%'),
+                    current_timestamp)
+            WHERE effective_from IS NULL;
+
+            UPDATE compliance_rules
+            SET created_at = effective_from
+            WHERE created_at IS NULL;
+
+            UPDATE compliance_rules
+            SET updated_at = effective_from
+            WHERE updated_at IS NULL;
+        </sql>
+
+        <rollback>
+            <comment>
+                Nothing to undo: the columns these statements fill are dropped by rolling back
+                the previous changeset.
+            </comment>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="069-compliance-rule-timestamps-not-null" author="echno">
+        <comment>
+            Made NOT NULL only after the backfill, so the constraint cannot fail on existing rows.
+            Every one is now a fact the sweep can rely on rather than a null it has to interpret.
+        </comment>
+
+        <addNotNullConstraint tableName="compliance_rules" columnName="created_at"
+                              columnDataType="TIMESTAMP"/>
+        <addNotNullConstraint tableName="compliance_rules" columnName="updated_at"
+                              columnDataType="TIMESTAMP"/>
+        <addNotNullConstraint tableName="compliance_rules" columnName="effective_from"
+                              columnDataType="TIMESTAMP"/>
+    </changeSet>
+
+    <changeSet id="069-compliance-rule-effective-from-index" author="echno">
+        <comment>
+            The sweep's one query over this table asks for the newest effective_from per
+            (state, project_type) among active rules. The existing idx_compliance_rule_state_type
+            covers the grouping; this carries effective_from alongside it so the answer comes from
+            the index rather than from the rows. The table is small today, and the point is that
+            it stays cheap when the curated catalogue is not.
+        </comment>
+
+        <sql>
+            CREATE INDEX IF NOT EXISTS idx_compliance_rule_jurisdiction_effective
+            ON compliance_rules (state, project_type, effective_from)
+            WHERE active = true;
+        </sql>
+
+        <rollback>
+            DROP INDEX IF EXISTS compliance_rules@idx_compliance_rule_jurisdiction_effective;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
