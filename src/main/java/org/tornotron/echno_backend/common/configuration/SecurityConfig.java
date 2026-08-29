@@ -49,6 +49,26 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .addFilterBefore(rPTExchangeFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(tenantFilter, BearerTokenAuthenticationFilter.class)
+                        // Anything permitted here is also outside tenant isolation, which is not
+                        // obvious and is the reason this comment exists. An unauthenticated
+                        // request cannot supply an organization id, so TenantFilter declares it
+                        // unscoped with the reason "Unauthenticated request to <path>". That
+                        // declaration is correct for registration, and it is also what switches
+                        // the fail-closed load boundary off for the whole request: a
+                        // tenant-scoped entity read from a permitAll path is read across every
+                        // organization at once and nothing refuses it. See TenantFilter and
+                        // issue #547.
+                        //
+                        // So before adding a path here, check what its handler reaches. If it
+                        // touches tenant-scoped data, it does not belong on this list; scope the
+                        // read on something the caller proved and put it behind an authenticated
+                        // path instead. PublicEndpointTenantExposureTest walks the handler chain
+                        // of every @PreAuthorize("permitAll()") endpoint and fails the build on
+                        // one that reaches a tenant-scoped repository.
+                        //
+                        // /actuator is the exception, and only because TenantFilter skips it
+                        // outright rather than declaring anything: an entity load from there is
+                        // still denied at the load boundary.
                         .authorizeHttpRequests(auth -> {
                                 auth.requestMatchers(HttpMethod.POST, "/api/"+backend_version+"/auth/register").permitAll()
                                 .requestMatchers("/actuator/**").permitAll();
