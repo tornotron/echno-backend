@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.user;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springdoc.core.annotations.ParameterObject;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
@@ -24,6 +26,7 @@ import org.tornotron.echno_backend.user.dto.UserPatchDto;
 
 import java.util.List;
 import java.util.Map;
+import org.tornotron.echno_backend.user.dto.UserUpdateFieldsDto;
 
 @RestController
 @RequestMapping("/api/v1/user/web")
@@ -175,6 +178,7 @@ public class UserControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user with the given id")
     })
     public ResponseEntity<UserDto> partialUpdateAUser(
+            @Parameter(schema = @Schema(implementation = UserUpdateFieldsDto.class))
             @RequestPart(value = "data", required = false) String data,
             @PathVariable Long id,
             @RequestParam(value = "profilePicture", required = false) MultipartFile profilePicture,

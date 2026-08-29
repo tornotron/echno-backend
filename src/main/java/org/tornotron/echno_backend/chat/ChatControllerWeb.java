@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.chat;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springdoc.core.annotations.ParameterObject;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
@@ -172,6 +174,7 @@ public class ChatControllerWeb {
     })
     public ResponseEntity<ChatMessageDto> sendMessageWithAttachments(
             @PathVariable Long roomId,
+            @Parameter(schema = @Schema(implementation = SendMessageDto.class))
             @RequestPart("data") String data,
             @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments)
             throws JsonProcessingException {

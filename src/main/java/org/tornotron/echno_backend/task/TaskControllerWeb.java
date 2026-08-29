@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.task;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springdoc.core.annotations.ParameterObject;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
@@ -28,6 +30,7 @@ import org.tornotron.echno_backend.task.dto.TaskSimpleDto;
 
 import java.util.List;
 import java.util.Map;
+import org.tornotron.echno_backend.task.dto.TaskUpdateFieldsDto;
 
 @RestController
 @RequestMapping("/api/v1/tasks/web")
@@ -75,8 +78,10 @@ public class TaskControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid task JSON, or a field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<TaskSimpleDto> createTask(@RequestPart String data,
-                                                    @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
+    public ResponseEntity<TaskSimpleDto> createTask(
+            @Parameter(schema = @Schema(implementation = TaskCreationDto.class))
+            @RequestPart String data,
+            @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
         TaskCreationDto dto = jsonPartBinder.read(data, TaskCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addTask(dto,attachments));
     }
@@ -204,10 +209,12 @@ public class TaskControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No task with the given id")
     })
-    public ResponseEntity<TaskSimpleDto> partialUpdateATask(@RequestPart(value = "data", required = false) String data,
-                                                            @PathVariable Long id,
-                                                            @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments,
-                                                            @RequestParam(value = "entityType", required = false, defaultValue = "TASK_ATTACHMENTS") String entityType) throws JsonProcessingException
+    public ResponseEntity<TaskSimpleDto> partialUpdateATask(
+            @Parameter(schema = @Schema(implementation = TaskUpdateFieldsDto.class))
+            @RequestPart(value = "data", required = false) String data,
+            @PathVariable Long id,
+            @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments,
+            @RequestParam(value = "entityType", required = false, defaultValue = "TASK_ATTACHMENTS") String entityType) throws JsonProcessingException
     {
         Map<String, Object> updates = jsonPartBinder.readUpdates(data);
         return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateATask(updates, id,attachments, entityType));

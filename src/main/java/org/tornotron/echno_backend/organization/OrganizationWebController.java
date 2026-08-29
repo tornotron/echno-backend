@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.organization;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -19,6 +21,7 @@ import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
 
 import java.util.List;
 import java.util.Map;
+import org.tornotron.echno_backend.organization.dto.OrganizationUpdateFieldsDto;
 
 @RestController
 @RequestMapping("/api/v1/organization/web")
@@ -68,8 +71,10 @@ public class OrganizationWebController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "402", description = "Caller already has an organization and their plan does not cover another"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not authenticated")
     })
-    public ResponseEntity<OrganizationSimpleDto> createOrganization(@RequestPart("data") String data,
-                                                                    @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
+    public ResponseEntity<OrganizationSimpleDto> createOrganization(
+            @Parameter(schema = @Schema(implementation = OrganizationCreationDto.class))
+            @RequestPart("data") String data,
+            @RequestParam(value = "attachments",required = false)List<MultipartFile> attachments) throws JsonProcessingException {
         OrganizationCreationDto dto = jsonPartBinder.read(data, OrganizationCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addOrganization(dto,attachments));
     }
@@ -149,6 +154,7 @@ public class OrganizationWebController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<OrganizationSimpleDto> partialUpdateAnOrganization(
+            @Parameter(schema = @Schema(implementation = OrganizationUpdateFieldsDto.class))
             @RequestPart(value = "data", required = false) String data,
             @PathVariable Long id,
             @RequestParam(value = "attachments",required = false) List<MultipartFile> attachments,
