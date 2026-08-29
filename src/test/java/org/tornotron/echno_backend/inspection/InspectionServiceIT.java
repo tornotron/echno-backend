@@ -16,7 +16,9 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.test.context.transaction.AfterTransaction;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+import org.tornotron.echno_backend.common.repository.AttachmentRepository;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
@@ -83,6 +85,11 @@ class InspectionServiceIT extends AbstractIntegrationTest {
 
     @Autowired
     private InspectionRepository inspectionRepo;
+
+    // Not in the @Import list: @DataJpaTest enables every Spring Data repository already, so
+    // pulling this in costs no second Spring context in a JVM that caches one per configuration.
+    @Autowired
+    private AttachmentRepository attachmentRepository;
 
     @Autowired
     private ChecklistTemplateService templateService;
@@ -420,6 +427,110 @@ class InspectionServiceIT extends AbstractIntegrationTest {
 
         assertThat(service.update(id, concludeAs(InspectionStatus.SCHEDULED)).status())
                 .isEqualTo(InspectionStatus.SCHEDULED);
+    }
+
+    /**
+     * Why an inspection's evidence hangs off the inspection and not off a check point or a defect.
+     *
+     * <p>Both children are keyed by UUID, and {@code InspectionService.update} clears and rebuilds
+     * both from the payload, so every child row is deleted and reinserted under a fresh id on each
+     * save. This files one attachment against the inspection and one against a check point, and
+     * then edits the inspection: the check point's evidence is left naming a row that no longer
+     * exists, while the inspection's is exactly where it was. It is the same trap
+     * {@code DefectPhotoAnnotation} had to key around, stated as a test so the next person to
+     * reach for a per-check-point attachment finds the reason rather than the crater.
+     */
+    @Test
+    void evidenceFiledAgainstTheInspectionSurvivesAnUpdateThatReissuesEveryChildId() {
+        InspectionCheckItemRequest surfaceLevel = new InspectionCheckItemRequest(
+                "Finishing", "Surface level", "Level within tolerance",
+                CheckItemStatus.PENDING, null, false, null,
+                null, null, null, null, null, "medium");
+
+        InspectionDto created = service.create(
+                scheduleFor(InspectionTrade.PLASTERING, List.of(surfaceLevel)));
+        UUID inspectionId = created.id();
+        UUID originalCheckItemId = created.checkItems().getFirst().id();
+
+        Long evidenceOnInspection = fileEvidenceAgainst(inspectionId, "fire-noc.pdf");
+        Long evidenceOnCheckPoint = fileEvidenceAgainst(originalCheckItemId, "level-survey.pdf");
+
+        // The same check point sent back unchanged, which is what the web client does on a save.
+        service.update(inspectionId, rebuildWith(List.of(surfaceLevel)));
+        entityManager.flush();
+        entityManager.clear();
+
+        // The rebuild reissued the check point's id, so anything keyed on it is orphaned.
+        UUID rebuiltCheckItemId = service.findById(inspectionId).checkItems().getFirst().id();
+        assertThat(rebuiltCheckItemId).isNotEqualTo(originalCheckItemId);
+        assertThat(attachmentRepository.findByEntityTypeAndEntityUuidOrderByIdAsc(
+                InspectionEvidence.ENTITY_TYPE, rebuiltCheckItemId)).isEmpty();
+        assertThat(attachmentRepository.findById(evidenceOnCheckPoint))
+                .get()
+                .extracting(Attachment::getEntityUuid)
+                .isEqualTo(originalCheckItemId);
+
+        // The inspection's own id was never reissued, so its evidence is still filed against it.
+        assertThat(attachmentRepository.findByEntityTypeAndEntityUuidOrderByIdAsc(
+                InspectionEvidence.ENTITY_TYPE, inspectionId))
+                .extracting(Attachment::getId)
+                .containsExactly(evidenceOnInspection);
+    }
+
+    /**
+     * The check constraint that replaced {@code entity_id NOT NULL} when the UUID key arrived.
+     * Without it a file could be filed against neither key, and be invisible to every read path
+     * while still occupying storage.
+     */
+    @Test
+    void anAttachmentMustBeFiledAgainstExactlyOneOfTheTwoKeys() {
+        assertThatThrownBy(() -> insertAttachment("both.pdf", 7L, UUID.randomUUID()))
+                .hasStackTraceContaining("CHECK constraint");
+        assertThatThrownBy(() -> insertAttachment("neither.pdf", null, null))
+                .hasStackTraceContaining("CHECK constraint");
+    }
+
+    /** An update that sends the given check points back, the shape the web client saves in. */
+    private UpdateInspectionRequest rebuildWith(List<InspectionCheckItemRequest> checkItems) {
+        return new UpdateInspectionRequest(
+                "Wall check", InspectionType.QUALITY, null, InspectionTrade.PLASTERING,
+                InspectionStatus.IN_PROGRESS, null, projectId, "Block A", null, null,
+                LocalDate.of(2026, 8, 20), null, null, null, null, 100L, null, null,
+                null, null, null, checkItems, null);
+    }
+
+    /** Stores one piece of evidence against a UUID-keyed record, and returns its id. */
+    private Long fileEvidenceAgainst(UUID entityUuid, String filename) {
+        Attachment attachment = new Attachment();
+        attachment.setEntityType(InspectionEvidence.ENTITY_TYPE);
+        attachment.setEntityUuid(entityUuid);
+        attachment.setStorageKey("inspection/" + filename);
+        attachment.setOriginalFilename(filename);
+        attachment.setContentType("application/pdf");
+        attachment.setFileSize(1024L);
+        attachment.setOrganization(entityManager.getReference(Organization.class, orgAId));
+        entityManager.persist(attachment);
+        entityManager.flush();
+        return attachment.getId();
+    }
+
+    /**
+     * Inserts an attachment row directly, in its own committed transaction so a constraint
+     * violation does not poison the test's transaction.
+     */
+    private void insertAttachment(String filename, Long entityId, UUID entityUuid) {
+        inCommittedTx(() -> entityManager.createNativeQuery(
+                        "INSERT INTO attachment (entity_type, entity_id, entity_uuid, storage_key, "
+                                + "original_filename, organization_id, created_at, updated_at) "
+                                + "VALUES (:type, CAST(:entityId AS BIGINT), CAST(:entityUuid AS UUID), "
+                                + ":key, :name, :org, CAST(now() AS TIMESTAMP), CAST(now() AS TIMESTAMP))")
+                .setParameter("type", InspectionEvidence.ENTITY_TYPE)
+                .setParameter("entityId", entityId)
+                .setParameter("entityUuid", entityUuid == null ? null : entityUuid.toString())
+                .setParameter("key", "inspection/" + filename)
+                .setParameter("name", filename)
+                .setParameter("org", orgAId)
+                .executeUpdate());
     }
 
     private UpdateInspectionRequest concludeAs(InspectionStatus status) {

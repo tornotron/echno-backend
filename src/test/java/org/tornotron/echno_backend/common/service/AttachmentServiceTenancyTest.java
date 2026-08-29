@@ -1,14 +1,19 @@
 package org.tornotron.echno_backend.common.service;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
+import org.tornotron.echno_backend.common.dto.AttachmentOwner;
 import org.tornotron.echno_backend.common.dto.StoredFile;
 import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
 import org.tornotron.echno_backend.issue.IssueRepository;
@@ -18,9 +23,16 @@ import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.task.TaskRepository;
 import org.tornotron.echno_backend.user.UserRepository;
 
+import java.util.Optional;
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -69,5 +81,85 @@ class AttachmentServiceTenancyTest {
         Attachment result = service.uploadAttachment(file, "ISSUE", 1L, "misc");
 
         assertThat(result.getOrganization()).isSameAs(org);
+    }
+
+    /**
+     * The scoped delete, which the inspection evidence path uses. {@code deleteAttachment(Long)}
+     * resolves by numeric id alone, so it lets a caller reach another organization's file and lets
+     * a caller who may edit one record delete a file belonging to a different one. This one has to
+     * agree on the organization, the entity type and the key before it removes anything.
+     */
+    @Nested
+    class ScopedDelete {
+
+        private final UUID inspectionId = UUID.randomUUID();
+
+        @BeforeEach
+        void actAsOrgSeven() {
+            TenantContext.setCurrentOrgId(7L);
+        }
+
+        @AfterEach
+        void stopActing() {
+            TenantContext.clear();
+        }
+
+        private Attachment evidenceOf(UUID owningInspection) {
+            Attachment attachment = new Attachment();
+            attachment.setId(88L);
+            attachment.setEntityType("INSPECTION_EVIDENCE");
+            attachment.setEntityUuid(owningInspection);
+            attachment.setStorageKey("inspection/fire-noc.pdf");
+            return attachment;
+        }
+
+        @Test
+        void removesTheFileAndItsStoredObjectWhenEverythingAgrees() {
+            Attachment attachment = evidenceOf(inspectionId);
+            when(attachmentRepository.findByIdAndOrganization_Id(88L, 7L))
+                    .thenReturn(Optional.of(attachment));
+
+            service.deleteAttachmentOf(AttachmentOwner.of("INSPECTION_EVIDENCE", inspectionId), 88L);
+
+            verify(fileStorageService).deleteFile("inspection/fire-noc.pdf");
+            verify(attachmentRepository).delete(attachment);
+        }
+
+        @Test
+        void refusesAFileFiledAgainstADifferentRecord() {
+            when(attachmentRepository.findByIdAndOrganization_Id(88L, 7L))
+                    .thenReturn(Optional.of(evidenceOf(UUID.randomUUID())));
+
+            assertThatThrownBy(() -> service.deleteAttachmentOf(
+                    AttachmentOwner.of("INSPECTION_EVIDENCE", inspectionId), 88L))
+                    .isInstanceOf(ResourceNotFoundException.class);
+
+            verify(attachmentRepository, never()).delete(any(Attachment.class));
+            verify(fileStorageService, never()).deleteFile(anyString());
+        }
+
+        @Test
+        void refusesAFileFiledUnderADifferentEntityType() {
+            when(attachmentRepository.findByIdAndOrganization_Id(88L, 7L))
+                    .thenReturn(Optional.of(evidenceOf(inspectionId)));
+
+            assertThatThrownBy(() -> service.deleteAttachmentOf(
+                    AttachmentOwner.of("ASSET_DOCUMENTS", inspectionId), 88L))
+                    .isInstanceOf(ResourceNotFoundException.class);
+
+            verify(attachmentRepository, never()).delete(any(Attachment.class));
+        }
+
+        @Test
+        void refusesAFileOfAnotherOrganization() {
+            when(attachmentRepository.findByIdAndOrganization_Id(88L, 7L))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.deleteAttachmentOf(
+                    AttachmentOwner.of("INSPECTION_EVIDENCE", inspectionId), 88L))
+                    .isInstanceOf(ResourceNotFoundException.class);
+
+            verify(fileStorageService, never()).deleteFile(anyString());
+        }
     }
 }

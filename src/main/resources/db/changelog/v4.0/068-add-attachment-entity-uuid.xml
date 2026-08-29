@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Somewhere to file a UUID-keyed entity's attachments.
+
+        The attachment table is generic in every way but one: entity_type is free text, the
+        endpoints take the type and the id as path variables, and the storage folder is derived
+        from the type, so a new kind of attachment normally costs nothing. What it is not generic
+        about is the key. entity_id is BIGINT, and the whole inspection module is keyed by UUID
+        (inspections, their check items, their defects, NCRs). A UUID does not fit a BIGINT, so an
+        inspection had literally nowhere to put a file, which is what #535 is.
+
+        entity_uuid is the second key, and the shared table gets it rather than inspections getting
+        an evidence table of their own, for the reason changeset 065 widened this table rather than
+        giving assets a documents table: the storage, presign, register, list and delete plumbing
+        is already here and already generic, and every other UUID-keyed module inherits the fix.
+
+        entity_id therefore stops being mandatory, and a check constraint takes over from NOT NULL:
+        a row must name exactly one of the two. Without it a file could arrive filed against
+        neither, and be invisible to every read path while still occupying storage. Every existing
+        row satisfies it, because every existing row has a numeric id and no UUID.
+    -->
+    <changeSet id="068-add-attachment-entity-uuid" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="attachment" columnName="entity_uuid"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="attachment">
+            <column name="entity_uuid" type="UUID"/>
+        </addColumn>
+
+        <dropNotNullConstraint tableName="attachment"
+                               columnName="entity_id"
+                               columnDataType="BIGINT"/>
+
+        <sql>
+            ALTER TABLE attachment ADD CONSTRAINT ck_attachment_entity_key
+            CHECK ((entity_id IS NOT NULL) != (entity_uuid IS NOT NULL))
+        </sql>
+
+        <createIndex tableName="attachment" indexName="idx_attachment_entity_uuid">
+            <column name="organization_id"/>
+            <column name="entity_type"/>
+            <column name="entity_uuid"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="attachment" indexName="idx_attachment_entity_uuid"/>
+            <sql>ALTER TABLE attachment DROP CONSTRAINT ck_attachment_entity_key</sql>
+            <addNotNullConstraint tableName="attachment"
+                                  columnName="entity_id"
+                                  columnDataType="BIGINT"/>
+            <dropColumn tableName="attachment" columnName="entity_uuid"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
