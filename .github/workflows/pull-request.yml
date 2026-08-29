@@ -36,6 +36,24 @@ jobs:
       - name: Test
         run: ./gradlew --no-daemon test jacocoTestCoverageVerification
 
+      # The committed OpenAPI document (docs/openapi.json) is the contract clients
+      # read; echno-core checks the field names it sends against it. This regenerates
+      # the document from this branch's code and fails if the committed copy has
+      # drifted, so the file cannot quietly stop describing the backend. Its own
+      # step, and its own forked JVM, because it boots a web context that does not
+      # belong in the main suite's 1 GB heap. See OpenApiSnapshotTest.
+      - name: OpenAPI document up to date
+        run: ./gradlew --no-daemon openApiSnapshot
+
+      # Uploaded on failure so a drift can be diffed without rerunning anything.
+      - name: Upload the served OpenAPI document
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openapi-served
+          path: build/openapi.json
+          if-no-files-found: ignore
+
   secrets:
     runs-on: ubuntu-latest
     steps:

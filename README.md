@@ -142,6 +142,29 @@ docker run -p 8080:8080 echno-backend
 The main configuration file is `src/main/resources/application.yml`. Override the defaults by creating an
 `application-local.yml` in the same directory or by setting environment variables.
 
+## The API contract
+
+The OpenAPI document is committed at [`docs/openapi.json`](docs/openapi.json). It is the published
+contract: clients read it, and `tornotron/echno-core` checks the field names it sends against its
+schemas. Nothing generates code from it on either side, so a renamed or removed field produces no
+compile error anywhere downstream, and a diff on this file is the only warning a client gets.
+
+It is generated from the running application rather than written by hand:
+
+```bash
+./gradlew openApiSnapshot                          # fail if the committed copy has drifted
+./gradlew openApiSnapshot -PupdateOpenApiSnapshot  # regenerate it
+```
+
+Regenerate and commit it in the same pull request as any change to a request or response DTO. CI
+runs the check on every pull request, so a stale copy fails the build rather than going unnoticed.
+
+The task needs Docker (it starts CockroachDB through Testcontainers, as the test suite does) and
+runs in a JVM of its own, which is why it is not part of `test` or `check`.
+
+Serving the document from a deployment is a separate decision: `/v3/api-docs` and the Swagger UI
+answer 401 unless `SWAGGER_PUBLIC_ACCESS=true` is set for that environment.
+
 ## Monitoring
 
 The application exposes metrics in Prometheus format at `/actuator/prometheus`. Use the provided
