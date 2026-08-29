@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -33,6 +34,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * who holds neither role is refused a write. If the write guard were ever loosened to
  * membership, the member-without-role delete test fails. Approving is held to the same
  * bar: it is the action that moves a stock balance, so a plain member must not reach it.
+ * So is rejecting, which closes the document and writes what the refusal is afterwards
+ * read from. The reason on a rejection is required, so a blank one is a 400 rather than
+ * an empty explanation on the record.
  * @orgSecurity is mocked so each branch is exercised independently.
  */
 @WebMvcTest(StockAdjustmentControllerWeb.class)
@@ -109,6 +113,44 @@ class StockAdjustmentControllerWebAuthzTest {
 
         mockMvc.perform(post("/api/v1/stock-adjustments/web/1/approve").with(jwt()).with(csrf()))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void reject_isOk_forAnElevatedRoleHolder() throws Exception {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+
+        mockMvc.perform(post("/api/v1/stock-adjustments/web/1/reject")
+                        .with(jwt()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Variance not supported by the count sheet\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void reject_isForbidden_forAPlainMemberWithoutAnElevatedRole() throws Exception {
+        // Rejecting closes the document and is the decision the record is then read from, so it
+        // is held to the same role bar as approving rather than to plain membership.
+        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+
+        mockMvc.perform(post("/api/v1/stock-adjustments/web/1/reject")
+                        .with(jwt()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Variance not supported by the count sheet\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void reject_isBadRequest_whenNoReasonIsGiven() throws Exception {
+        // The reason is what separates a rejection from a delete, so a blank one is refused at
+        // the edge rather than stored as an empty explanation.
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+
+        mockMvc.perform(post("/api/v1/stock-adjustments/web/1/reject")
+                        .with(jwt()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"  \"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @TestConfiguration

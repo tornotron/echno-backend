@@ -24,10 +24,14 @@ import java.util.List;
  * values (e.g. {@code write_off}, {@code physical_count}) that are not valid Java enum
  * identifiers; the frontend validates them.
  *
- * <p>The document is a draft until it is approved. Approval posts each line to the stock
+ * <p>The document is a draft until it is decided. Approval posts each line to the stock
  * ledger and moves the balance, and stamps {@code processedAt}, which is what marks the
  * document as posted: a posted document cannot be posted again, edited, or deleted. See
  * {@link StockAdjustmentService#approve}.
+ *
+ * <p>Rejection is the other decision. It moves no stock and writes no ledger entry; it stamps
+ * {@code rejectedBy}, {@code rejectedAt} and {@code rejectionReason}, which is what marks the
+ * document as refused and freezes it the same way. See {@link StockAdjustmentService#reject}.
  */
 @Entity
 @Table(name = "stock_adjustment")
@@ -104,7 +108,9 @@ public class StockAdjustment implements TenantScopedEntity {
     @Column(name = "rejected_at")
     private LocalDateTime rejectedAt;
 
-    @Column(name = "rejection_reason")
+    // 500 is the width the column was created with; stated here so the mapping and the schema
+    // agree and a long reason is caught by validation rather than by the database.
+    @Column(name = "rejection_reason", length = 500)
     private String rejectionReason;
 
     @Column(name = "processed_by")
