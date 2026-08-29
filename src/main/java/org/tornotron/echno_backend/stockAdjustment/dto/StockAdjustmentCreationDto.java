@@ -18,7 +18,18 @@ public class StockAdjustmentCreationDto {
     @Schema(description = "Type of adjustment.", example = "PHYSICAL_COUNT")
     private String type;
 
-    @Schema(description = "Status of the adjustment document.", example = "DRAFT")
+    /**
+     * The state the document is in. Optional, and {@code draft} is the only value accepted:
+     * the posted state is reached by approving the document, which is what checks who is
+     * approving it and writes the ledger entries. See {@code StockAdjustmentService.create}.
+     */
+    @Schema(description = "State of the adjustment document. Optional, and draft is the only "
+            + "value accepted, so leaving it out is the same as sending draft. A document "
+            + "reaches its posted state through POST /{id}/approve, which is what refuses an "
+            + "approval by whoever raised it and writes the stock-ledger entries; a document "
+            + "created or edited into that state would carry neither, and would read as approved "
+            + "with nobody on record as having approved it and no movement behind it.",
+            example = "draft", allowableValues = {"draft"})
     private String status;
 
     @Schema(description = "Id of the storage location the adjustment applies to.", example = "7")

@@ -26,6 +26,7 @@ import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferCreationDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferItemDto;
+import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferStatus;
 import org.tornotron.echno_backend.siteTransfer.mapper.SiteTransferMapper;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItemRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
@@ -148,7 +149,7 @@ class SiteTransferStockScopeTest {
         dto.setSendingProjectId(SENDING_PROJECT);
         dto.setReceivingProjectId(RECEIVING_PROJECT);
         dto.setSendingStorageLocationId(sendingLocationId);
-        dto.setStatus("PENDING");
+        dto.setStatus(SiteTransferStatus.PENDING);
         dto.setItems(List.of(item(MATERIAL, 4)));
         return dto;
     }

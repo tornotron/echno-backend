@@ -164,7 +164,7 @@ class SiteTransferServiceTest {
         dto.setSendingPerson(SENDER);
         dto.setSendingProjectId(SENDING_PROJECT);
         dto.setReceivingProjectId(RECEIVING_PROJECT);
-        dto.setStatus("PENDING");
+        dto.setStatus(SiteTransferStatus.PENDING);
         dto.setItems(List.of(item(MATERIAL, 4)));
         return dto;
     }

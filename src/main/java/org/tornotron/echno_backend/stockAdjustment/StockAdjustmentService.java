@@ -95,12 +95,31 @@ public class StockAdjustmentService {
     static final String POSTED_STATUS = "processed";
 
     /**
+     * Status a document carries until it is approved, and the only one a request body may ask
+     * for. Compared case-insensitively, since the status column holds the frontend's own
+     * lower-case vocabulary rather than an enum.
+     */
+    static final String DRAFT_STATUS = "draft";
+
+    /**
      * Below this, a line's movement is treated as none at all. A count matching the balance
      * to the last decimal place can still leave floating-point residue, and a ledger entry
      * for a movement of 1e-16 is a phantom row claiming stock moved when it did not.
      */
     private static final double NO_MOVEMENT = 1e-9;
 
+    /**
+     * Raises a stock-adjustment document as a draft, with its line items.
+     *
+     * <p>The document is a {@link #DRAFT_STATUS} whether the payload says so or says nothing,
+     * and any other status is refused: see {@link #requireDraftStatus}. Nothing is posted here;
+     * {@link #approve} is what moves the balance.
+     *
+     * @param creationDto The header fields and line items of the document.
+     * @return The created document as a DTO.
+     * @throws InvalidRequestException if the payload asks for a status other than draft.
+     * @throws ResourceNotFoundException if the location, the project or a line's material is not found in this organization.
+     */
     @Transactional
     public StockAdjustmentDto create(StockAdjustmentCreationDto creationDto) {
         Organization organization = tenantEntityHelper.resolveCurrentOrganization();
@@ -141,7 +160,7 @@ public class StockAdjustmentService {
      * @param creationDto The replacement header and lines.
      * @return The updated document as a DTO.
      * @throws ResourceNotFoundException if the document, or anything it references, is not in this organization.
-     * @throws InvalidRequestException if the document has already been posted to the stock ledger.
+     * @throws InvalidRequestException if the document has already been posted to the stock ledger, or if the payload asks for a status other than draft.
      */
     @Transactional
     public StockAdjustmentDto update(Long id, StockAdjustmentCreationDto creationDto) {
@@ -321,6 +340,39 @@ public class StockAdjustmentService {
         return selfApproved ? " (self-approved: raised and approved by the same person)" : "";
     }
 
+    /**
+     * Refuses a document asked to be written in any state but {@link #DRAFT_STATUS}.
+     *
+     * <p>A stock adjustment has one transition, and everything this module exists for hangs off
+     * it: {@link #approve} refuses an approval by whoever raised the document unless they hold
+     * the break-glass role, writes an {@link InventoryTransaction} per line, moves the balance,
+     * and stamps the approver and the posting time. A body that set the status itself reached
+     * the posted state with none of that: no approver on record, no ledger entries, and the
+     * balance untouched, while every list and detail view reads the document as dealt with. The
+     * self-approval control added for that transition would be sidestepped by simply not using
+     * the transition.
+     *
+     * <p>Applied to the update path as well as create, because the two write the same header
+     * and a document can be edited right up until it is posted, so gating only create would
+     * leave the same door one call further along.
+     *
+     * <p>This is the rule {@code ProjectService.addProject} and
+     * {@code PurchaseOrderService.createPurchaseOrder} apply: a create may not reach a state
+     * whose transition carries a check or an event.
+     *
+     * @param status The status the request body asked for, or null when it asked for none.
+     * @throws InvalidRequestException if that status is anything but {@link #DRAFT_STATUS}.
+     */
+    private void requireDraftStatus(String status) {
+        if (status != null && !status.isBlank() && !DRAFT_STATUS.equalsIgnoreCase(status.trim())) {
+            throw new InvalidRequestException(
+                    "A stock adjustment is raised as a " + DRAFT_STATUS + " and cannot be given the status "
+                            + status + ". Post it with POST /stock-adjustments/{id}/approve, which is "
+                            + "what checks who is approving it, writes the stock-ledger entries and "
+                            + "moves the balance.");
+        }
+    }
+
     /** Refuses to change a document whose movements are already on the ledger. */
     private void requireNotPosted(StockAdjustment stockAdjustment, String action) {
         if (stockAdjustment.getProcessedAt() != null) {
@@ -375,11 +427,16 @@ public class StockAdjustmentService {
      * Deliberately does not touch {@code submittedBy}: it is stamped from the session in
      * {@link #create} and left alone by {@link #update}, so an edit cannot move the document
      * onto a different raiser and clear the way for its own approval.
+     *
+     * <p>The status is not copied either. It is written here as {@link #DRAFT_STATUS} and moved
+     * only by {@link #approve}; a body naming any other status is refused rather than ignored,
+     * so a caller who believed they were posting a document finds out that they were not.
      */
     private void applyHeaderFields(StockAdjustment stockAdjustment, StockAdjustmentCreationDto dto) {
+        requireDraftStatus(dto.getStatus());
         stockAdjustment.setAdjustmentNumber(dto.getAdjustmentNumber());
         stockAdjustment.setType(dto.getType());
-        stockAdjustment.setStatus(dto.getStatus());
+        stockAdjustment.setStatus(DRAFT_STATUS);
         stockAdjustment.setAdjustmentDate(dto.getAdjustmentDate());
         stockAdjustment.setEffectiveDate(dto.getEffectiveDate());
         stockAdjustment.setTotalAdjustmentValue(dto.getTotalAdjustmentValue());

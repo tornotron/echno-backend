@@ -2,10 +2,10 @@ package org.tornotron.echno_backend.siteTransfer.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -49,9 +49,19 @@ public class SiteTransferCreationDto {
             + "nothing. Optional.", example = "15")
     private Long receivingStorageLocationId;
 
-    @Schema(description = "Initial status of the transfer.", example = "PENDING")
-    @NotBlank(message = "status is required")
-    private String status;
+    /**
+     * The state the transfer starts in. Optional, and {@code PENDING} is the only value
+     * accepted: the other two say the far end has received the materials, and that is recorded
+     * through the transfer's own status endpoint. See {@code SiteTransferService.createSiteTransfer}.
+     */
+    @Schema(description = "State the transfer starts in. Optional, and PENDING is the only value "
+            + "accepted, so leaving it out is the same as sending PENDING. "
+            + "PARTIALLY_TRANSFERRED and COMPLETED say the receiving site has taken delivery, "
+            + "which is recorded through PATCH /{id}/status; that endpoint wants a different "
+            + "authority from create, and a transfer issued as COMPLETED would stand as received "
+            + "with nobody having confirmed receipt.",
+            example = "PENDING", allowableValues = {"PENDING"})
+    private SiteTransferStatus status;
 
     @Schema(description = "Line items listing each material and quantity being transferred. Must contain "
             + "at least one item.")

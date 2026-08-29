@@ -64,6 +64,13 @@ import java.util.stream.Collectors;
 @Service
 public class SiteTransferService {
 
+    /**
+     * The state a transfer starts in, and the only one create accepts. It is what the web
+     * client's transfer form already sends, and what {@code echno-core} documents as the
+     * typical initial value.
+     */
+    private static final SiteTransferStatus CREATION_STATUS = SiteTransferStatus.PENDING;
+
     private final SiteTransferRepository siteTransferRepository;
     private final SiteTransferItemRepository siteTransferItemRepository;
     private final UserRepository userRepository;
@@ -109,6 +116,9 @@ public class SiteTransferService {
     /**
      * Creates a site transfer with its items after checking sending-side stock.
      *
+     * <p>The transfer starts {@link SiteTransferStatus#PENDING}, whether the payload says so or
+     * says nothing, and any other starting value is refused: see {@link #requireCreatableStatus}.
+     *
      * <p>Resolves the sending person, both projects and both optional storage locations,
      * refuses a pair of sides that resolve to the same balance row, then totals the requested
      * quantities per material and validates them against the sending side. The transfer
@@ -125,10 +135,13 @@ public class SiteTransferService {
      * @param creationDto The transfer header fields and the list of items to move.
      * @return The created site transfer as a DTO.
      * @throws ResourceNotFoundException if the sending person, either project, a storage location, or a line's material is not found in this organization.
-     * @throws InvalidRequestException if both sides name the same project and the same storage location, so nothing would move, or if a storage location belongs to a project other than the one it is used from.
+     * @throws InvalidRequestException if both sides name the same project and the same storage location, so nothing would move, or if a storage location belongs to a project other than the one it is used from, or if the payload asks for a status other than PENDING.
      * @throws org.tornotron.echno_backend.common.exception.InsufficientStockException if the sending side does not hold enough of any requested material.
      */
     public SiteTransferDto createSiteTransfer(SiteTransferCreationDto creationDto) {
+        // Checked before the retry rather than inside it: a refused status is the caller's to
+        // correct, and retrying it would only refuse it again.
+        requireCreatableStatus(creationDto.getStatus());
         return retryTemplate.execute(
                 "SiteTransferService.createSiteTransfer",
                 failure -> SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION),
@@ -186,7 +199,7 @@ public class SiteTransferService {
         transfer.setSendingStorageLocation(sendingLocation);
         transfer.setReceivingStorageLocation(receivingLocation);
 
-        transfer.setStatus(SiteTransferStatus.valueOf(creationDto.getStatus()));
+        transfer.setStatus(CREATION_STATUS);
         transfer.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         // Save transfer first
@@ -215,6 +228,36 @@ public class SiteTransferService {
         eventPublisher.publishEvent(new SiteTransferCreatedEvent(this, transfer));
 
         return siteTransferMapper.toDto(transfer);
+    }
+
+    /**
+     * Refuses a transfer asked to be created in any state but {@link #CREATION_STATUS}.
+     *
+     * <p>The other two states both say the receiving site has taken delivery, and taking
+     * delivery is recorded through {@code PATCH /site-transfers/{id}/status}. That endpoint is
+     * held by a different authority from create on the token-authority controller
+     * ({@code site-transfer:update} against {@code site-transfer:create}), so a create that
+     * copied the payload's status let a caller who may only raise transfers record their own
+     * receipt of one. Stock moves on creation either way, through
+     * {@link SiteTransferCreatedEvent}, so what a transfer issued as {@code COMPLETED} leaves
+     * behind is a movement that stands as confirmed by nobody.
+     *
+     * <p>This is the rule {@code ProjectService.addProject} and
+     * {@code PurchaseOrderService.createPurchaseOrder} apply: a create may not reach a state
+     * whose transition carries a check or an event. Here the status endpoint gates both of the
+     * later states, so {@code PENDING} is all that is left.
+     *
+     * @param status The status the create payload asked for, or null when it asked for none.
+     * @throws InvalidRequestException if that status is anything but {@link #CREATION_STATUS}.
+     */
+    private void requireCreatableStatus(SiteTransferStatus status) {
+        if (status != null && status != CREATION_STATUS) {
+            throw new InvalidRequestException(
+                    "A site transfer is issued as " + CREATION_STATUS + " and cannot be created as "
+                            + status + ". Issue it first, then record what the receiving site took "
+                            + "delivery of with PATCH /site-transfers/{id}/status, which is where "
+                            + "the authority to say a transfer has been received is checked.");
+        }
     }
 
     /**
