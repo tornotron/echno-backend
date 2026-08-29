@@ -2,15 +2,20 @@ package org.tornotron.echno_backend.finance.invoice.web;
 
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.finance.invoice.InvoiceStatus;
 import org.tornotron.echno_backend.finance.invoice.dtos.CreateInvoiceRequest;
 import org.tornotron.echno_backend.finance.invoice.dtos.InvoiceDto;
 import org.tornotron.echno_backend.finance.invoice.service.InvoiceService;
@@ -45,6 +50,32 @@ public class InvoiceControllerWeb {
     })
     public ResponseEntity<InvoiceDto> createDraft(@Valid @RequestBody CreateInvoiceRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createDraft(req));
+    }
+
+    @GetMapping
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @Operation(
+            summary = "List invoices",
+            description = "Returns a page of customer invoices in the current tenant, newest invoice date "
+                    + "first. The optional customer, status and openOnly parameters narrow the result and "
+                    + "combine with AND; omitting a parameter leaves that dimension unfiltered. Use pageNo "
+                    + "and pageSize to page through the results."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Page of matching invoices"),
+            @ApiResponse(responseCode = "400", description = "pageNo or pageSize is outside its permitted range"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public Page<InvoiceDto> list(
+            @Parameter(description = "Restrict to invoices billed to this customer.")
+            @RequestParam(required = false) UUID customerId,
+            @Parameter(description = "Restrict to invoices in this lifecycle status.")
+            @RequestParam(required = false) InvoiceStatus status,
+            @Parameter(description = "Restrict to invoices still owed, that is ISSUED or PARTIALLY_PAID.")
+            @RequestParam(required = false, defaultValue = "false") boolean openOnly,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return service.findAll(customerId, status, openOnly,
+                pageQuery.getPageNo(), pageQuery.getPageSize());
     }
 
     @GetMapping("/{id}")
