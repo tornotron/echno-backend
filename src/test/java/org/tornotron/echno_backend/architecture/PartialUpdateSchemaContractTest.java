@@ -3,7 +3,10 @@ package org.tornotron.echno_backend.architecture;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.tornotron.echno_backend.employee.dto.EmployeeUpdateFieldsDto;
 import org.tornotron.echno_backend.issue.dto.IssueUpdateFieldsDto;
+import org.tornotron.echno_backend.leave.dto.LeavePolicyUpdateFieldsDto;
+import org.tornotron.echno_backend.leave.dto.LeaveRequestUpdateFieldsDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationUpdateFieldsDto;
 import org.tornotron.echno_backend.project.dto.ProjectUpdateFieldsDto;
 import org.tornotron.echno_backend.task.dto.TaskUpdateFieldsDto;
@@ -95,7 +98,19 @@ class PartialUpdateSchemaContractTest {
                 new UpdateSurface(
                         UserUpdateFieldsDto.class,
                         "org.tornotron.echno_backend.user.UserService",
-                        "private void applyUpdates(Map<String, Object> updates, User user)"));
+                        "private void applyUpdates(Map<String, Object> updates, User user)"),
+                new UpdateSurface(
+                        EmployeeUpdateFieldsDto.class,
+                        "org.tornotron.echno_backend.employee.EmployeeService",
+                        "private void partialUpdateAnEmployee(Map<String, Object> updates, Employee employee)"),
+                new UpdateSurface(
+                        LeavePolicyUpdateFieldsDto.class,
+                        "org.tornotron.echno_backend.leave.LeavePolicyService",
+                        "public LeavePolicyDto updatePolicy(Long policyId, Map<String, Object> updates)"),
+                new UpdateSurface(
+                        LeaveRequestUpdateFieldsDto.class,
+                        "org.tornotron.echno_backend.leave.LeaveRequestService",
+                        "public LeaveRequestDto updateRequest(Long requestId, Map<String, Object> updates)"));
     }
 
     @ParameterizedTest(name = "{0} describes exactly the keys its service accepts")

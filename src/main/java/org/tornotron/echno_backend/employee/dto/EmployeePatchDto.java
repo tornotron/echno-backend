@@ -12,7 +12,6 @@ public class EmployeePatchDto {
     @Schema(description = "Id of the employee to update.", example = "7")
     private Long id;
 
-    @Schema(description = "Fields to change, keyed by employee field name.",
-            example = "{\"designation\": \"Senior Site Engineer\", \"salary\": 72000.0}")
-    private Map<String,Object> updates;
+    @Schema(implementation = EmployeeUpdateFieldsDto.class)
+    private Map<String, Object> updates;
 }
