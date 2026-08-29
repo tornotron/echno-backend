@@ -24,6 +24,8 @@ import org.tornotron.echno_backend.common.retry.SqlStateDetector;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.compliance.ai.OpenAiCompatibleComplianceService;
+import org.tornotron.echno_backend.compliance.job.ComplianceGenerationJobRepository;
+import org.tornotron.echno_backend.compliance.job.ComplianceJobStatus;
 import org.tornotron.echno_backend.compliance.ai.ComplianceSuggestion;
 import org.tornotron.echno_backend.inspection.ComplianceRiskLevel;
 import org.tornotron.echno_backend.inspection.InspectionOrigin;
@@ -37,7 +39,9 @@ import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.project.enums.ProjectType;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -88,6 +92,9 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
     @Autowired
     private PlatformTransactionManager txManager;
 
+    @Autowired
+    private ComplianceGenerationJobRepository jobRepository;
+
     private Long orgAId;
     private Long projectId;
 
@@ -111,7 +118,8 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
         });
 
         // The stub applies two of the six seeded TN residential rules and rejects the rest.
-        when(complianceAiService.suggestCompliances(any(Project.class), anyString(), any()))
+        when(complianceAiService.suggestCompliances(
+                any(Project.class), anyString(), any(), any(ComplianceGenerationProgress.class)))
                 .thenReturn(List.of(
                         new ComplianceSuggestion(RULE_POST, true, "critical",
                                 List.of("Apply for the occupancy certificate"), "Required before handover",
@@ -135,6 +143,9 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
         // Committed seed rows survive the rollback; remove them by hand. The global
         // compliance_rules seed is left intact (it is shared reference data).
         inCommittedTx(() -> {
+            entityManager.createNativeQuery(
+                            "DELETE FROM compliance_generation_jobs WHERE organization_id = :org")
+                    .setParameter("org", orgAId).executeUpdate();
             entityManager.createNativeQuery(
                             "DELETE FROM inspections WHERE organization_id = :org")
                     .setParameter("org", orgAId).executeUpdate();
@@ -217,6 +228,167 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
                 SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION))
                 .as("the insert must be rejected by a unique violation (SQLSTATE 23505)")
                 .isTrue());
+    }
+
+    /**
+     * The queue's own version of the same guarantee, one step earlier in the flow.
+     *
+     * <p>The service does look for a job in flight before inserting, and that look is a read,
+     * so two requests arriving together both see none and both insert. Nothing about the two
+     * inserts conflicts in the database's eyes either, since each carries its own id, so
+     * SERIALIZABLE has nothing to abort. Only the partial index stops it, and only if its
+     * predicate really does hold on CockroachDB, which is what this asserts.
+     *
+     * <p>It matters more here than at the inspection level, because a duplicate job spends a
+     * minute of inference before it gets far enough to collide.
+     */
+    @Test
+    void theDatabaseRefusesASecondJobForAProjectThatAlreadyHasOneInFlight() {
+        insertJob(ComplianceJobStatus.QUEUED);
+
+        assertThatThrownBy(() -> insertJob(ComplianceJobStatus.RUNNING))
+                .satisfies(failure -> assertThat(
+                        SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION))
+                        .as("a second non-terminal job must be rejected by a unique violation")
+                        .isTrue());
+    }
+
+    /**
+     * And the other half of the predicate: finished jobs are history, and a project may have
+     * as many of those as it has ever had runs. An index over all rows rather than the
+     * non-terminal ones would have made the second run of a project's life impossible.
+     */
+    @Test
+    void aProjectMayHaveManyFinishedJobsAndStillStartANewOne() {
+        insertJob(ComplianceJobStatus.SUCCEEDED);
+        insertJob(ComplianceJobStatus.NOTHING_TO_REPORT);
+        insertJob(ComplianceJobStatus.FAILED);
+
+        UUID fresh = insertJob(ComplianceJobStatus.QUEUED);
+
+        assertThat(fresh).isNotNull();
+    }
+
+    /**
+     * The whole of the mutual exclusion between replicas, against a real database. The second
+     * claim must match no row, because the first one moved it out of QUEUED.
+     */
+    @Test
+    void onlyOneClaimOfTwoCanWin() {
+        UUID jobId = insertJob(ComplianceJobStatus.QUEUED);
+        LocalDateTime now = LocalDateTime.now();
+
+        int first = jobRepository.claim(jobId, "replica-a", now.plusMinutes(5), now);
+        int second = jobRepository.claim(jobId, "replica-b", now.plusMinutes(5), now);
+
+        assertThat(first).isEqualTo(1);
+        assertThat(second)
+                .as("the losing replica must be told it got nothing, not silently share the job")
+                .isZero();
+    }
+
+    /**
+     * A claim is named by replica and attempt together. When a lease lapses, the job is
+     * requeued and the SAME replica may claim it again, so its name is back on the row and a
+     * write guarded by the name alone would let the superseded run overwrite the new one.
+     * The attempt moved on with the second claim, and that is what shuts the old run out.
+     */
+    @Test
+    void aSupersededRunOnTheSameReplicaCannotWriteProgress() {
+        UUID jobId = insertJob(ComplianceJobStatus.QUEUED);
+        LocalDateTime past = LocalDateTime.now().minusMinutes(10);
+        jobRepository.claim(jobId, "replica-a", past, past);              // attempt 1, stalls
+        jobRepository.requeueExpiredLeases("worker gone", LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        jobRepository.claim(jobId, "replica-a", now.plusMinutes(5), now); // attempt 2, same name
+
+        int staleWrite = jobRepository.recordProgress(
+                jobId, "replica-a", 1, 2, 20, now.plusMinutes(5), now);
+
+        assertThat(staleWrite)
+                .as("the run claimed as attempt 1 no longer owns the row and must match nothing")
+                .isZero();
+        int currentWrite = jobRepository.recordProgress(
+                jobId, "replica-a", 2, 2, 20, now.plusMinutes(5), now);
+        assertThat(currentWrite).isEqualTo(1);
+    }
+
+    /** The claim counts the attempt, so a worker that dies before writing still uses one up. */
+    @Test
+    void theClaimItselfCountsTheAttempt() {
+        UUID jobId = insertJob(ComplianceJobStatus.QUEUED);
+        LocalDateTime now = LocalDateTime.now();
+
+        jobRepository.claim(jobId, "replica-a", now.plusMinutes(5), now);
+
+        assertThat(attemptOf(jobId)).isEqualTo(1);
+    }
+
+    /**
+     * Recovery, which is the reason for the lease at all. A row left RUNNING behind a lease
+     * nobody is extending has to become someone else's problem, or the user waits for a
+     * worker that no longer exists.
+     */
+    @Test
+    void aJobWhoseLeaseHasExpiredGoesBackToTheQueueWhileAttemptsRemain() {
+        UUID jobId = insertJob(ComplianceJobStatus.QUEUED);
+        LocalDateTime past = LocalDateTime.now().minusMinutes(10);
+        jobRepository.claim(jobId, "replica-a", past, past);
+
+        int requeued = jobRepository.requeueExpiredLeases("worker gone", LocalDateTime.now());
+
+        assertThat(requeued).isEqualTo(1);
+        assertThat(statusOf(jobId)).isEqualTo("QUEUED");
+    }
+
+    /**
+     * And when there are none left it is failed outright rather than left RUNNING for ever
+     * behind a lease nothing will extend.
+     */
+    @Test
+    void aJobWhoseLeaseHasExpiredWithNoAttemptsLeftIsFailed() {
+        UUID jobId = insertJob(ComplianceJobStatus.QUEUED);
+        LocalDateTime past = LocalDateTime.now().minusMinutes(10);
+        jobRepository.claim(jobId, "replica-a", past, past);
+        jobRepository.requeueExpiredLeases("worker gone", LocalDateTime.now());
+        jobRepository.claim(jobId, "replica-a", past, past);
+        jobRepository.requeueExpiredLeases("worker gone", LocalDateTime.now());
+        jobRepository.claim(jobId, "replica-a", past, past);
+
+        int failed = jobRepository.failExpiredLeasesOutOfAttempts("gave up", LocalDateTime.now());
+
+        assertThat(failed).isEqualTo(1);
+        assertThat(statusOf(jobId)).isEqualTo("FAILED");
+    }
+
+    /** Inserts a job row directly, so what is under test is the schema and not the service. */
+    private UUID insertJob(ComplianceJobStatus status) {
+        UUID id = UUID.randomUUID();
+        entityManager.createNativeQuery(
+                        "INSERT INTO compliance_generation_jobs (id, organization_id, project_id, "
+                                + "status, rules_total, rules_assessed, batches_total, batches_done, "
+                                + "created_count, attempt, max_attempts, created_at, updated_at) VALUES "
+                                + "(:id, :org, :project, :status, 6, 0, 1, 0, 0, 0, 3, "
+                                + "now()::timestamp, now()::timestamp)")
+                .setParameter("id", id)
+                .setParameter("org", orgAId)
+                .setParameter("project", projectId)
+                .setParameter("status", status.name())
+                .executeUpdate();
+        entityManager.flush();
+        return id;
+    }
+
+    private String statusOf(UUID jobId) {
+        return (String) entityManager.createNativeQuery(
+                        "SELECT status FROM compliance_generation_jobs WHERE id = :id")
+                .setParameter("id", jobId).getSingleResult();
+    }
+
+    private int attemptOf(UUID jobId) {
+        return ((Number) entityManager.createNativeQuery(
+                        "SELECT attempt FROM compliance_generation_jobs WHERE id = :id")
+                .setParameter("id", jobId).getSingleResult()).intValue();
     }
 
     private void inCommittedTx(Runnable work) {

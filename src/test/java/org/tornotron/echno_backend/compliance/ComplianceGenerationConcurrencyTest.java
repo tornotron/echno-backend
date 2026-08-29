@@ -93,7 +93,7 @@ class ComplianceGenerationConcurrencyTest {
                 .thenReturn(Optional.of(project));
         when(ruleRepository.findByStateIgnoreCaseAndProjectTypeAndActiveTrue(anyString(), any()))
                 .thenReturn(List.of(rule()));
-        when(complianceAiService.suggestCompliances(any(Project.class), anyString(), any()))
+        when(complianceAiService.suggestCompliances(any(Project.class), anyString(), any(), any()))
                 .thenReturn(List.of(suggestion()));
         when(tenantEntityHelper.resolveCurrentOrganization()).thenReturn(new Organization());
         when(numberGen.next(anyString())).thenReturn("INSP-0001");
@@ -221,7 +221,7 @@ class ComplianceGenerationConcurrencyTest {
 
     /**
      * The model call sits between the two transactions and must not be repeated by a restart
-     * of the write phase. It is the 34 to 47 second part of the run and, unlike the write, it
+     * of the write phase. It is the slow part of the run and, unlike the write, it
      * is not free to run again.
      */
     @Test
@@ -235,6 +235,6 @@ class ComplianceGenerationConcurrencyTest {
         service.generateForProject(PROJECT_ID, ORG_ID);
 
         verify(complianceAiService, times(1))
-                .suggestCompliances(any(Project.class), eq("Tamil Nadu"), any());
+                .suggestCompliances(any(Project.class), eq("Tamil Nadu"), any(), any());
     }
 }

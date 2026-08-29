@@ -74,12 +74,23 @@ import java.util.stream.Collectors;
  *
  * <h2>Why this class owns no transaction of its own</h2>
  *
- * <p>The model call takes 34 to 47 seconds today and grows with the size of the curated
- * rule set. Running it inside a transaction pinned one of twenty pool connections for
- * that whole time while doing nothing but waiting on a third party, so a handful of
- * concurrent users could exhaust the pool. {@link #generateForProject} is therefore
- * three phases: read the inputs in one transaction, call the model with no transaction
- * and no connection held, then persist in a second transaction.
+ * <p>The model call costs roughly 1.7 seconds a rule, measured against the configured
+ * endpoint, so it is tens of seconds for a jurisdiction of any size. Running it inside a
+ * transaction pinned one of twenty pool connections for that whole time while doing
+ * nothing but waiting on a third party, so a handful of concurrent users could exhaust
+ * the pool. {@link #generateForProject} is therefore three phases: read the inputs in one
+ * transaction, call the model with no transaction and no connection held, then persist in
+ * a second transaction.
+ *
+ * <h2>Who calls this, and why not from a request</h2>
+ *
+ * <p>Splitting the transaction removed the connection pin. It did nothing about the wall
+ * clock, and could not: a request that waits for the whole run dies at the sixty-second edge
+ * timeout once a jurisdiction has about forty rules, whatever this class does with its
+ * transactions. So the caller that matters is {@code ComplianceGenerationJobWorker}, running
+ * a queued job with nobody waiting on a socket, and it passes a
+ * {@link ComplianceGenerationProgress} so the run can be watched while it happens. The
+ * synchronous endpoint still calls in, and is still subject to that ceiling.
  *
  * <p>Both transactions are opened by calling {@link TransactionRetryTemplate}, which opens
  * them through {@code TransactionalWorkRunner}, and that choice is load bearing rather
@@ -140,13 +151,55 @@ public class ComplianceGenerationService {
      * @param orgId     the owning organization; must match the current tenant context
      */
     public List<InspectionDto> generateForProject(Long projectId, Long orgId) {
+        return generateForProject(projectId, orgId, ComplianceGenerationProgress.NONE);
+    }
+
+    /**
+     * Checks everything that can be checked without calling the model, and reports how much
+     * work a run would be.
+     *
+     * <p>This is what lets the queue answer straight away and still answer usefully. The four
+     * precondition failures (no project, no project type, no recognisable state, no rules for
+     * the jurisdiction) plus an unconfigured AI service are all decidable from the database
+     * and configuration, so they are raised at accept time as the 404 or 400 they have always
+     * been, rather than being discovered by a worker a minute later and delivered as a failed
+     * job the user has to go and read. Only failures that genuinely need the model reach the
+     * caller as a failed job.
+     *
+     * @return how many candidate rules a run would assess
+     */
+    public int validateAndCountCandidateRules(Long projectId, Long orgId) {
+        GenerationInputs inputs = retryTemplate.execute(
+                "ComplianceGenerationService.loadInputs", () -> loadInputs(projectId, orgId));
+        if (!complianceAiService.isConfigured()) {
+            throw new InvalidRequestException(
+                    "The compliance AI service is not configured, so suggestions cannot be "
+                            + "generated. Set the compliance AI key and try again.");
+        }
+        return inputs.candidateRules().size();
+    }
+
+    /** How many model calls a run over {@code ruleCount} rules takes at the configured batch size. */
+    public int batchCount(int ruleCount) {
+        return complianceAiService.batchCount(ruleCount);
+    }
+
+    /**
+     * As {@link #generateForProject(Long, Long)}, reporting each finished batch of the model
+     * call to {@code progress} so a caller that is not holding the request open can show the
+     * run advancing.
+     */
+    public List<InspectionDto> generateForProject(Long projectId,
+                                                  Long orgId,
+                                                  ComplianceGenerationProgress progress) {
         GenerationInputs inputs = retryTemplate.execute(
                 "ComplianceGenerationService.loadInputs", () -> loadInputs(projectId, orgId));
 
-        // Outside any transaction: this is the 34 to 47 second call, and it must not be
-        // holding a pool connection while it waits.
+        // Outside any transaction: this is the slow part, and it must not be holding a pool
+        // connection while it waits. It is now a batch of calls rather than one, which is
+        // what keeps its cost per call flat as the rule catalogue grows.
         List<ComplianceSuggestion> suggestions = complianceAiService.suggestCompliances(
-                inputs.project(), inputs.state(), inputs.candidateRules());
+                inputs.project(), inputs.state(), inputs.candidateRules(), progress);
 
         // An empty list now means only "there was nothing to ask": the AI service raises a
         // ComplianceAiException for a call that failed or answered with something unusable,

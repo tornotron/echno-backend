@@ -171,7 +171,7 @@ class ComplianceGenerationServiceTest {
                 .thenReturn(Optional.of(project(ProjectType.RESIDENTIAL, "12 Mount Road, Chennai, Tamil Nadu")));
         when(ruleRepository.findByStateIgnoreCaseAndProjectTypeAndActiveTrue(anyString(), any()))
                 .thenReturn(List.of(new org.tornotron.echno_backend.compliance.domain.ComplianceRule()));
-        when(complianceAiService.suggestCompliances(any(Project.class), anyString(), any()))
+        when(complianceAiService.suggestCompliances(any(Project.class), anyString(), any(), any()))
                 .thenReturn(List.of());
         when(complianceAiService.isConfigured()).thenReturn(false);
 
@@ -182,18 +182,25 @@ class ComplianceGenerationServiceTest {
 
     /**
      * The orchestrator must hold no transaction of its own, because its middle phase is an
-     * external model call measured at 34 to 47 seconds. A {@code @Transactional} here would
-     * put that call back inside a transaction and pin one of twenty pool connections for
-     * its duration. The two transactions belong to the read and write phases, which reach
-     * them through {@code TransactionRetryTemplate}.
+     * external model call, which runs at roughly 1.7 seconds a rule. A {@code @Transactional}
+     * here would put that call back inside a transaction and pin one of twenty pool
+     * connections for its duration. The two transactions belong to the read and write phases,
+     * which reach them through {@code TransactionRetryTemplate}.
+     *
+     * <p>Both overloads are checked, because the one that does the work is the one taking a
+     * progress sink and an annotation on it would be just as wrong and much easier to miss.
      */
     @Test
     @MockitoSettings(strictness = Strictness.LENIENT)
     void orchestratorOwnsNoTransaction() throws Exception {
-        Method method = ComplianceGenerationService.class
+        Method twoArg = ComplianceGenerationService.class
                 .getMethod("generateForProject", Long.class, Long.class);
+        Method withProgress = ComplianceGenerationService.class
+                .getMethod("generateForProject", Long.class, Long.class,
+                        ComplianceGenerationProgress.class);
 
-        assertThat(method.getAnnotation(Transactional.class)).isNull();
+        assertThat(twoArg.getAnnotation(Transactional.class)).isNull();
+        assertThat(withProgress.getAnnotation(Transactional.class)).isNull();
     }
 
     @Test
@@ -202,7 +209,7 @@ class ComplianceGenerationServiceTest {
                 .thenReturn(Optional.of(project(ProjectType.RESIDENTIAL, "12 Mount Road, Chennai, Tamil Nadu")));
         when(ruleRepository.findByStateIgnoreCaseAndProjectTypeAndActiveTrue(anyString(), any()))
                 .thenReturn(List.of(new org.tornotron.echno_backend.compliance.domain.ComplianceRule()));
-        when(complianceAiService.suggestCompliances(any(Project.class), anyString(), any()))
+        when(complianceAiService.suggestCompliances(any(Project.class), anyString(), any(), any()))
                 .thenReturn(List.of());
         when(complianceAiService.isConfigured()).thenReturn(true);
 

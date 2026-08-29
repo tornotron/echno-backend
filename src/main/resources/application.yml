@@ -52,10 +52,28 @@ compliance:
     max-tokens: 4096
     temperature: 0.2
     enabled: ${COMPLIANCE_AI_ENABLED:true}
+    # Candidate rules per model call, and how many of those calls may overlap.
+    # Measured against the configured endpoint: the answer costs about 57 completion
+    # tokens per rule, so one call for 72 rules exhausts max-tokens (a 72-rule run came
+    # back cut off at exactly 4096), and wall clock runs about 1.7 s per rule. Ten rules
+    # is therefore ~600 tokens and ~20 s, well inside both limits. Four in flight because
+    # the endpoint served four simultaneous calls in the time it served one; set it to 1
+    # for an endpoint that rate-limits per key. batch-size 0 disables batching.
+    batch-size: ${COMPLIANCE_AI_BATCH_SIZE:10}
+    batch-concurrency: ${COMPLIANCE_AI_BATCH_CONCURRENCY:4}
     # Optional forward proxy for egress (unset = direct, the DO production behaviour).
     # Set both when the backend has no direct internet, e.g. the IITM lab host proxy.
     proxy-host: ${COMPLIANCE_AI_PROXY_HOST:}
     proxy-port: ${COMPLIANCE_AI_PROXY_PORT:3128}
+  # The generation queue. Every replica polls and claims with a conditional update, so
+  # there is no leader. enabled: false still accepts jobs but runs none, which is what a
+  # replica that should serve requests and do no background work wants.
+  job:
+    enabled: ${COMPLIANCE_JOB_ENABLED:true}
+    poll-interval-millis: 2000
+    max-in-flight: ${COMPLIANCE_JOB_MAX_IN_FLIGHT:2}
+    lease-duration: 5m
+    max-attempts: 3
 
 
 # Chart-of-accounts auto numbering. level-steps is the gap between sibling codes

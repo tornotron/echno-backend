@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="062-01-create-compliance-generation-jobs" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="compliance_generation_jobs"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            The queue behind AI compliance generation. Each row is one request to generate the
+            compliance inspections for a project, and it exists so the work can outlive the
+            request that asked for it.
+
+            The work is a sequence of calls to an inference endpoint that costs roughly two
+            seconds a rule, so a request that waits for it dies at the edge timeout once a
+            jurisdiction has a few dozen curated rules. Moving the work to a thread pool alone
+            would not have been enough: a pool is emptied by a restart without a trace, so the
+            user would be promised a run that nothing was left to finish. Durability is the
+            point of the table, and being able to read progress off it while the run is
+            happening is the second point, since the replica answering the poll is not
+            necessarily the replica doing the work.
+
+            status is the five outcomes a caller has to be able to tell apart: QUEUED and
+            RUNNING are in flight, SUCCEEDED finished and created compliances,
+            NOTHING_TO_REPORT finished having assessed every rule and found nothing to create,
+            and FAILED did not cover every rule and created nothing. SUCCEEDED and
+            NOTHING_TO_REPORT are separate states rather than one state with a count, because
+            "the model was cut short and we lost the answer" and "there is nothing outstanding
+            for this project" used to arrive as the same empty list, and telling them apart is
+            what the truncation checks were added for. Collapsing them here would have put the
+            same ambiguity back one layer further from anyone who could notice it.
+
+            project_id is a plain scalar with no foreign key, as inspections themselves refer
+            to projects. batches_done, rules_assessed and the counters beside them are
+            progress, never a partial result: a run that stops halfway creates nothing, so
+            there is no half-finished set of inspections for those numbers to describe.
+
+            attempt is incremented by the claim rather than by the worker, so a job that kills
+            its worker before the worker writes anything still uses up an attempt and
+            eventually stops instead of cycling for ever. lease_expires_at and claimed_by are
+            how a dead replica's work is recovered: the holder pushes the lease forward as it
+            finishes each batch, and a lease left in the past is the signal that nobody is
+            working on the row any more.
+        </comment>
+
+        <createTable tableName="compliance_generation_jobs">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(40)" defaultValue="QUEUED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rules_total" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rules_assessed" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="batches_total" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="batches_done" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_count" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="error_message" type="VARCHAR(1000)"/>
+            <column name="attempt" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_attempts" type="INT" defaultValueNumeric="3">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lease_expires_at" type="TIMESTAMP"/>
+            <column name="claimed_by" type="VARCHAR(120)"/>
+            <column name="started_at" type="TIMESTAMP"/>
+            <column name="finished_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="compliance_generation_jobs"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_compliance_job_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="compliance_generation_jobs" indexName="idx_compliance_job_project">
+            <column name="organization_id"/>
+            <column name="project_id"/>
+        </createIndex>
+        <createIndex tableName="compliance_generation_jobs" indexName="idx_compliance_job_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="062-02-compliance-job-one-active-per-project" author="echno">
+        <comment>
+            One in-flight job per project, enforced in the schema rather than by the code that
+            reads before it writes.
+
+            The service does check for a running job before inserting, and that check is a
+            read, so it cannot be the guarantee: two clicks arriving together both see no
+            active job and both insert. They do not conflict in the database's eyes either,
+            because each inserts its own row with its own id, so SERIALIZABLE has nothing to
+            abort. That is the same shape as the duplicate-inspection race changelog 060 was
+            written to close, one step earlier in the flow, and it matters more here because
+            each duplicate run spends a minute of inference before it gets far enough to
+            collide.
+
+            With this index the second insert is rejected, and the submitting code reads back
+            the row that won and returns it, so both callers end up watching the same run.
+
+            The predicate is over the non-terminal states only. A project may have any number
+            of finished jobs, which is the history a user scrolls back through; it may have at
+            most one that is still going. Expressed as a partial unique index because that is
+            the only way to say "unique among some rows", and it is written as raw SQL because
+            the structured Liquibase tags cannot express a WHERE clause on an index.
+        </comment>
+
+        <sql>
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_compliance_job_active
+            ON compliance_generation_jobs (organization_id, project_id)
+            WHERE status IN ('QUEUED', 'RUNNING');
+        </sql>
+
+        <rollback>
+            DROP INDEX IF EXISTS compliance_generation_jobs@uk_compliance_job_active;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
