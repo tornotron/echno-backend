@@ -2,6 +2,8 @@ package org.tornotron.echno_backend.attendance;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -58,8 +60,10 @@ public class AttendanceController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid check-in JSON, or a field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
     })
-    public ResponseEntity<AttendanceResponseDto> checkIn(@RequestParam("data") String data,
-                                                         @RequestParam(value = "photoUrl", required = false) MultipartFile photoUrl) throws JsonProcessingException {
+    public ResponseEntity<AttendanceResponseDto> checkIn(
+            @Parameter(schema = @Schema(implementation = AttendanceCheckInDto.class))
+            @RequestParam("data") String data,
+            @RequestParam(value = "photoUrl", required = false) MultipartFile photoUrl) throws JsonProcessingException {
         AttendanceCheckInDto dto = jsonPartBinder.read(data, AttendanceCheckInDto.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(attendanceService.checkIn(dto,photoUrl));
     }
@@ -80,8 +84,10 @@ public class AttendanceController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No attendance record with the given id")
     })
-    public ResponseEntity<AttendanceResponseDto> recordClockEvent(@RequestParam("data") String data,
-                                                                  @RequestParam(value = "photo", required = false) MultipartFile photo) throws JsonProcessingException {
+    public ResponseEntity<AttendanceResponseDto> recordClockEvent(
+            @Parameter(schema = @Schema(implementation = AttendanceClockEventDto.class))
+            @RequestParam("data") String data,
+            @RequestParam(value = "photo", required = false) MultipartFile photo) throws JsonProcessingException {
         AttendanceClockEventDto dto = jsonPartBinder.read(data, AttendanceClockEventDto.class);
         return ResponseEntity.ok(attendanceService.recordClockEvent(dto,photo));
     }

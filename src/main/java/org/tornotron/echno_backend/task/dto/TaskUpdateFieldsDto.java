@@ -1,0 +1,57 @@
+package org.tornotron.echno_backend.task.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+import org.tornotron.echno_backend.task.enums.TaskStatus;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * The fields a partial task update may carry, and the type each one is read as.
+ *
+ * <p>The endpoint itself still takes the update as a map, because a partial update has to tell
+ * "field absent" from "field explicitly set to null", and a bean cannot: both arrive as a null
+ * property. Fields here are cleared by sending an explicit null, so replacing the map with a bean
+ * would silently drop that. What the map costs is the published contract: a map is
+ * {@code additionalProperties} in OpenAPI, so the document says nothing about which keys exist or
+ * what they hold, and a caller sending a key the service does not know gets a 200 and no change.
+ *
+ * <p>This class is the missing half. It is referenced from the endpoint as the request schema, so
+ * the published document names the fields and their types while the runtime keeps the map and its
+ * null semantics. Nothing deserializes into it and nothing constructs it.
+ *
+ * <p>Its field list is kept honest by {@code PartialUpdateSchemaContractTest}, which reads the keys
+ * {@code TaskService.partialUpdateATask} actually accepts out of that method's source and fails
+ * when they and these fields have drifted apart.
+ */
+@Schema(description = "Fields a partial task update may change. Every field is optional; only the "
+        + "fields present in the request are applied, and a field sent as null is cleared. Keys not "
+        + "listed here are ignored.")
+@Data
+public class TaskUpdateFieldsDto {
+
+    @Schema(description = "Short task title.", example = "Pour foundation slab, block A")
+    private String title;
+
+    @Schema(description = "Longer description of the work to be done.",
+            example = "Complete formwork, reinforcement and concrete pour for the block A raft.")
+    private String description;
+
+    @Schema(description = "Planned start of the task.", example = "2026-09-05T08:00:00")
+    private LocalDateTime startDate;
+
+    @Schema(description = "Planned end of the task.", example = "2026-09-07T17:00:00")
+    private LocalDateTime endDate;
+
+    @Schema(description = "Fraction of the task completed, between 0 and 1. A value that is neither "
+            + "null nor a number is ignored.", example = "0.4")
+    private Double progress;
+
+    @Schema(description = "Lifecycle status of the task.")
+    private TaskStatus status;
+
+    @Schema(description = "Free-form labels on the task. Replaces the existing labels rather than "
+            + "adding to them, and must be a list of strings.", example = "[\"concrete\", \"block-a\"]")
+    private List<String> tags;
+}

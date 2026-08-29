@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.issue;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import org.springdoc.core.annotations.ParameterObject;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
@@ -25,6 +27,7 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
 import java.util.Map;
+import org.tornotron.echno_backend.issue.dto.IssueUpdateFieldsDto;
 
 @RestController
 @Validated
@@ -149,8 +152,10 @@ public class IssueControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid issue JSON, or a field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<IssueSimpleDto> createIssue(@RequestPart("data") String data,
-                                                      @RequestParam(value = "attachments",required = false) List<MultipartFile> attachments) throws JsonProcessingException {
+    public ResponseEntity<IssueSimpleDto> createIssue(
+            @Parameter(schema = @Schema(implementation = IssueCreationDto.class))
+            @RequestPart("data") String data,
+            @RequestParam(value = "attachments",required = false) List<MultipartFile> attachments) throws JsonProcessingException {
         IssueCreationDto dto = jsonPartBinder.read(data, IssueCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(issueService.addIssue(dto,attachments));
@@ -171,6 +176,7 @@ public class IssueControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No issue with the given id")
     })
     public ResponseEntity<IssueSimpleDto> partialUpdateAnIssue(
+            @Parameter(schema = @Schema(implementation = IssueUpdateFieldsDto.class))
             @RequestPart(value = "data", required = false) String data,
             @PathVariable Long id,
             @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments,

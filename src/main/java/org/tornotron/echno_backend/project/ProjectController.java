@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.project;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springdoc.core.annotations.ParameterObject;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
@@ -79,8 +81,10 @@ public class ProjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid project JSON, or a field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the project create or admin authority")
     })
-    public ResponseEntity<ProjectSimpleDto> createProject(@RequestPart("data") String data,
-                                                          @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments) throws JsonProcessingException {
+    public ResponseEntity<ProjectSimpleDto> createProject(
+            @Parameter(schema = @Schema(implementation = ProjectCreationDto.class))
+            @RequestPart("data") String data,
+            @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments) throws JsonProcessingException {
         ProjectCreationDto dto = jsonPartBinder.read(data, ProjectCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addProject(dto, attachments));
     }

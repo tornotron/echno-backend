@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.project;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springdoc.core.annotations.ParameterObject;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
@@ -27,6 +29,7 @@ import org.tornotron.echno_backend.project.dto.ProjectSimpleDto;
 
 import java.util.List;
 import java.util.Map;
+import org.tornotron.echno_backend.project.dto.ProjectUpdateFieldsDto;
 
 @RestController
 @RequestMapping("/api/v1/project/web")
@@ -76,8 +79,10 @@ public class ProjectControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid project JSON, or a field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<ProjectSimpleDto> createProject(@RequestPart("data") String data,
-                                                          @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments) throws JsonProcessingException {
+    public ResponseEntity<ProjectSimpleDto> createProject(
+            @Parameter(schema = @Schema(implementation = ProjectCreationDto.class))
+            @RequestPart("data") String data,
+            @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments) throws JsonProcessingException {
         ProjectCreationDto dto = jsonPartBinder.read(data, ProjectCreationDto.class);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addProject(dto, attachments));
     }
@@ -191,6 +196,7 @@ public class ProjectControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
     })
     public ResponseEntity<ProjectSimpleDto> partialUpdateAProject(
+            @Parameter(schema = @Schema(implementation = ProjectUpdateFieldsDto.class))
             @RequestPart(value = "data", required = false) String data,
             @PathVariable Long id,
             @RequestParam(value = "attachments", required = false) List<MultipartFile> attachments,
