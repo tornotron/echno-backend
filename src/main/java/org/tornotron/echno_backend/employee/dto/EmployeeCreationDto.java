@@ -3,8 +3,6 @@ package org.tornotron.echno_backend.employee.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.OptBoolean;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -40,11 +38,10 @@ public class EmployeeCreationDto {
     @Schema(description = "Id of the structured shift timing to assign to the employee.", example = "5")
     private Long shiftTimingId;
 
-    @Schema(description = "Employment status.", example = "active")
-    @NotBlank(message = "status is required")
-    @Size(min = 3, max = 50, message = "status must be between 3 and 50 characters")
-    @Enumerated(EnumType.STRING)
-    private String status;
+    // No status field. It was declared here and required, then discarded by the mapper that
+    // builds the employee, so a caller was made to send a value nothing ever read and a caller
+    // that left it out was refused for it. An employee's status is set through the employee
+    // update endpoint, which is the one place that writes it.
 
     @Schema(description = "Full name of the employee.", example = "Ravi Kumar")
     @NotBlank(message = "employeeName is required")
