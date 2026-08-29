@@ -13,6 +13,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
 import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.retry.SqlStateDetector;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
@@ -31,6 +32,7 @@ import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItemRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
+import org.tornotron.echno_backend.storageLocation.StorageLocationScope;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
 
@@ -39,6 +41,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -49,6 +52,14 @@ import java.util.stream.Collectors;
  * sending project), persists the transfer and its items, then publishes a
  * {@link SiteTransferCreatedEvent} so the ledger draws stock down at the source and raises it
  * at the destination in the same transaction.
+ *
+ * <p>A transfer has to move stock from one balance row to another. Balances are held per
+ * (material, project, storage location), with a location of none being its own row rather
+ * than a project total, so the two sides are the same row exactly when they name the same
+ * project and the same location. Such a transfer is refused: it moved nothing and would
+ * leave an out and a matching in that cancel, sitting in the movement history looking like
+ * real movement. Two locations inside one project are two rows, so a store-to-store move
+ * within a project is a real transfer and is allowed.
  */
 @Service
 public class SiteTransferService {
@@ -98,10 +109,12 @@ public class SiteTransferService {
     /**
      * Creates a site transfer with its items after checking sending-side stock.
      *
-     * <p>Allocates the transfer number and resolves the sending person and the sending and
-     * receiving projects (plus optional storage locations). Requested quantities are totalled
-     * per material and validated against the sending side. After saving the transfer and its
-     * items, a {@link SiteTransferCreatedEvent} is published so inventory moves.
+     * <p>Resolves the sending person, both projects and both optional storage locations,
+     * refuses a pair of sides that resolve to the same balance row, then totals the requested
+     * quantities per material and validates them against the sending side. The transfer
+     * number is allocated only once all of that has passed, so a rejected request does not
+     * spend one. After saving the transfer and its items, a {@link SiteTransferCreatedEvent}
+     * is published so inventory moves.
      *
      * <p>The transaction is restarted on a serialization abort, and also on a unique
      * violation: the counter behind the transfer number is the row two concurrent creates
@@ -112,6 +125,7 @@ public class SiteTransferService {
      * @param creationDto The transfer header fields and the list of items to move.
      * @return The created site transfer as a DTO.
      * @throws ResourceNotFoundException if the sending person, either project, a storage location, or a line's material is not found in this organization.
+     * @throws InvalidRequestException if both sides name the same project and the same storage location, so nothing would move, or if a storage location belongs to a project other than the one it is used from.
      * @throws org.tornotron.echno_backend.common.exception.InsufficientStockException if the sending side does not hold enough of any requested material.
      */
     public SiteTransferDto createSiteTransfer(SiteTransferCreationDto creationDto) {
@@ -132,6 +146,17 @@ public class SiteTransferService {
         // Validate receiving project
         Project receivingProject = projectRepository.findByIdAndOrganization_Id(creationDto.getReceivingProjectId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Receiving project with ID " + creationDto.getReceivingProjectId() + " was not found in this organization"));
+
+        // Resolve both storage locations here, before anything is decided. They are what say
+        // which balance rows this transfer draws from and credits, and that is needed twice
+        // over: to refuse a transfer whose two sides are the same row, and to know which row
+        // the stock check has to read.
+        StorageLocation sendingLocation = resolveStorageLocation(
+                creationDto.getSendingStorageLocationId(), sendingProject, "Sending");
+        StorageLocation receivingLocation = resolveStorageLocation(
+                creationDto.getReceivingStorageLocationId(), receivingProject, "Receiving");
+
+        requireTheTransferMovesStock(sendingProject, sendingLocation, receivingProject, receivingLocation);
 
         // CRITICAL: Validate sufficient stock at the SENDING location for ALL items
         // Use storage-location-level validation when a sending storage location is specified
@@ -154,22 +179,8 @@ public class SiteTransferService {
         transfer.setSendingPerson(sendingPerson);
         transfer.setSendingProject(sendingProject);
         transfer.setReceivingProject(receivingProject);
-
-        // Validate and set storage locations (optional)
-        if (creationDto.getSendingStorageLocationId() != null) {
-            StorageLocation sendingLocation = storageLocationRepository.findByIdAndOrganization_Id(
-                            creationDto.getSendingStorageLocationId(), TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Sending storage location with ID " + creationDto.getSendingStorageLocationId() + " was not found in this organization"));
-            transfer.setSendingStorageLocation(sendingLocation);
-        }
-        if (creationDto.getReceivingStorageLocationId() != null) {
-            StorageLocation receivingLocation = storageLocationRepository.findByIdAndOrganization_Id(
-                            creationDto.getReceivingStorageLocationId(), TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Receiving storage location with ID " + creationDto.getReceivingStorageLocationId() + " was not found in this organization"));
-            transfer.setReceivingStorageLocation(receivingLocation);
-        }
+        transfer.setSendingStorageLocation(sendingLocation);
+        transfer.setReceivingStorageLocation(receivingLocation);
 
         transfer.setStatus(SiteTransferStatus.valueOf(creationDto.getStatus()));
         transfer.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
@@ -200,6 +211,68 @@ public class SiteTransferService {
         eventPublisher.publishEvent(new SiteTransferCreatedEvent(this, transfer));
 
         return siteTransferMapper.toDto(transfer);
+    }
+
+    /**
+     * Resolves one side's optional storage location and checks it may be used from that side's project.
+     *
+     * @param storageLocationId The requested storage location id, or null when the side names no location.
+     * @param project The project the location will be booked against.
+     * @param side Either Sending or Receiving, used to say which end of the transfer a message is about.
+     * @return The resolved storage location, or null when none was requested.
+     * @throws ResourceNotFoundException if the id names no location in this organization.
+     * @throws InvalidRequestException if the location belongs to a different project.
+     */
+    private StorageLocation resolveStorageLocation(Long storageLocationId, Project project, String side) {
+        if (storageLocationId == null) {
+            return null;
+        }
+        StorageLocation location = storageLocationRepository
+                .findByIdAndOrganization_Id(storageLocationId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        side + " storage location with ID " + storageLocationId + " was not found in this organization"));
+        // A location on another project names a balance row this side can never reach, so the
+        // transfer would be written against a row that cannot exist. Same rule as consumption.
+        StorageLocationScope.requireUsableFromProject(location, project.getId());
+        return location;
+    }
+
+    /**
+     * Refuses a transfer whose two sides are the same balance row, so nothing would move.
+     *
+     * <p>Balances are held per (material, project, storage location), and a movement with no
+     * location writes the project's unlocated row rather than a project total. The two sides
+     * are therefore the same row exactly when the projects match and the locations match,
+     * counting no location on both sides as a match. Everything else moves stock between two
+     * distinct rows and is a real transfer, including two locations inside one project and
+     * one organisation-level store used from two different projects.
+     *
+     * @param sendingProject The project stock is drawn from.
+     * @param sendingLocation The location stock is drawn from, or null for the project's unlocated balance.
+     * @param receivingProject The project stock is credited to.
+     * @param receivingLocation The location stock is credited to, or null for the project's unlocated balance.
+     * @throws InvalidRequestException if both sides resolve to the same balance row.
+     */
+    private void requireTheTransferMovesStock(Project sendingProject, StorageLocation sendingLocation,
+                                              Project receivingProject, StorageLocation receivingLocation) {
+        if (!Objects.equals(sendingProject.getId(), receivingProject.getId())) {
+            return;
+        }
+        Long sendingLocationId = sendingLocation != null ? sendingLocation.getId() : null;
+        Long receivingLocationId = receivingLocation != null ? receivingLocation.getId() : null;
+        if (!Objects.equals(sendingLocationId, receivingLocationId)) {
+            return;
+        }
+
+        String where = sendingLocationId != null
+                ? "storage location with ID " + sendingLocationId + " in project with ID " + sendingProject.getId()
+                : "project with ID " + sendingProject.getId() + ", against no storage location";
+        throw new InvalidRequestException(
+                "This transfer sends stock from " + where + " straight back to the same place, so nothing "
+                        + "moves and the movement history would carry an out and a matching in that cancel. "
+                        + "To move stock between two stores on one project, name a different receiving "
+                        + "storage location; to move it to another site, name a different receiving project; "
+                        + "to correct a balance that is wrong, raise a stock adjustment instead.");
     }
 
     /**

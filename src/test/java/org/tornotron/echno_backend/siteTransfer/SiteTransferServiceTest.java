@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.tornotron.echno_backend.common.events.SiteTransferCreatedEvent;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
@@ -57,7 +58,8 @@ import static org.mockito.Mockito.when;
  * is the logic this service owns: rejecting a duplicate transfer number, rejecting
  * unknown referenced entities, aggregating the per-material required quantities that feed
  * the sending-side stock check, choosing the location-scoped vs project-scoped variant of
- * that check, and building one transfer item per request line.
+ * that check, refusing a transfer whose two sides are the same balance row or whose location
+ * belongs to another project, and building one transfer item per request line.
  */
 @ExtendWith(MockitoExtension.class)
 class SiteTransferServiceTest {
@@ -67,6 +69,8 @@ class SiteTransferServiceTest {
     private static final Long SENDING_PROJECT = 9L;
     private static final Long RECEIVING_PROJECT = 10L;
     private static final Long SENDING_LOCATION = 3L;
+    private static final Long RECEIVING_LOCATION = 4L;
+    private static final Long OTHER_PROJECT = 12L;
     private static final Long MATERIAL = 11L;
 
     @Mock private SiteTransferRepository siteTransferRepository;
@@ -125,6 +129,26 @@ class SiteTransferServiceTest {
                     m.setId(MATERIAL);
                     return Optional.of(m);
                 });
+    }
+
+    /**
+     * Registers a storage location the service can resolve.
+     *
+     * @param id The location id the request will name.
+     * @param owningProjectId The project the location belongs to, or null for an organisation-level store.
+     * @return The location, already stubbed on the repository.
+     */
+    private StorageLocation location(Long id, Long owningProjectId) {
+        StorageLocation location = new StorageLocation();
+        location.setId(id);
+        if (owningProjectId != null) {
+            Project owner = new Project();
+            owner.setId(owningProjectId);
+            location.setProject(owner);
+        }
+        lenient().when(storageLocationRepository.findByIdAndOrganization_Id(id, ORG))
+                .thenReturn(Optional.of(location));
+        return location;
     }
 
     private SiteTransferItemDto item(Long materialId, int qty) {
@@ -187,9 +211,7 @@ class SiteTransferServiceTest {
     @Test
     void create_withSendingLocation_usesLocationScopedStockCheck() {
         stubMasterLookups();
-        StorageLocation location = new StorageLocation();
-        location.setId(SENDING_LOCATION);
-        when(storageLocationRepository.findByIdAndOrganization_Id(SENDING_LOCATION, ORG)).thenReturn(Optional.of(location));
+        location(SENDING_LOCATION, SENDING_PROJECT);
 
         SiteTransferCreationDto dto = baseDto();
         dto.setSendingStorageLocationId(SENDING_LOCATION);
@@ -219,6 +241,138 @@ class SiteTransferServiceTest {
         assertThat(items.get(0).getSiteTransfer()).isNotNull();
 
         verify(eventPublisher).publishEvent(any(SiteTransferCreatedEvent.class));
+    }
+
+    @Test
+    void create_sameProjectAndSameStorageLocation_isRefused() {
+        stubMasterLookups();
+        location(SENDING_LOCATION, SENDING_PROJECT);
+
+        SiteTransferCreationDto dto = baseDto();
+        dto.setReceivingProjectId(SENDING_PROJECT);
+        dto.setSendingStorageLocationId(SENDING_LOCATION);
+        dto.setReceivingStorageLocationId(SENDING_LOCATION);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.createSiteTransfer(dto))
+                .withMessageContaining("nothing")
+                .withMessageContaining("stock adjustment");
+
+        verify(siteTransferRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any(SiteTransferCreatedEvent.class));
+    }
+
+    @Test
+    void create_sameProjectAndNoLocationOnEitherSide_isRefused() {
+        stubMasterLookups();
+
+        // No location on either side is not "unscoped", it is the project's own unlocated
+        // balance row, so this ends exactly where it started.
+        SiteTransferCreationDto dto = baseDto();
+        dto.setReceivingProjectId(SENDING_PROJECT);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.createSiteTransfer(dto));
+
+        verify(siteTransferRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any(SiteTransferCreatedEvent.class));
+    }
+
+    @Test
+    void create_refusedTransfer_doesNotSpendATransferNumber() {
+        stubMasterLookups();
+
+        SiteTransferCreationDto dto = baseDto();
+        dto.setReceivingProjectId(SENDING_PROJECT);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.createSiteTransfer(dto));
+
+        verify(documentNumberAllocator, never()).allocate(any(), anyLong());
+    }
+
+    @Test
+    void create_sameProjectButTwoDifferentStores_isAllowed() {
+        stubMasterLookups();
+        location(SENDING_LOCATION, SENDING_PROJECT);
+        location(RECEIVING_LOCATION, SENDING_PROJECT);
+
+        SiteTransferCreationDto dto = baseDto();
+        dto.setReceivingProjectId(SENDING_PROJECT);
+        dto.setSendingStorageLocationId(SENDING_LOCATION);
+        dto.setReceivingStorageLocationId(RECEIVING_LOCATION);
+
+        service.createSiteTransfer(dto);
+
+        ArgumentCaptor<SiteTransfer> captor = ArgumentCaptor.forClass(SiteTransfer.class);
+        verify(siteTransferRepository).save(captor.capture());
+        assertThat(captor.getValue().getSendingStorageLocation().getId()).isEqualTo(SENDING_LOCATION);
+        assertThat(captor.getValue().getReceivingStorageLocation().getId()).isEqualTo(RECEIVING_LOCATION);
+        verify(eventPublisher).publishEvent(any(SiteTransferCreatedEvent.class));
+    }
+
+    @Test
+    void create_sameProjectFromUnlocatedStockIntoAStore_isAllowed() {
+        stubMasterLookups();
+        location(RECEIVING_LOCATION, SENDING_PROJECT);
+
+        // The project's unlocated balance and one of its stores are two different rows, so
+        // putting stock away into a store is a real movement.
+        SiteTransferCreationDto dto = baseDto();
+        dto.setReceivingProjectId(SENDING_PROJECT);
+        dto.setReceivingStorageLocationId(RECEIVING_LOCATION);
+
+        service.createSiteTransfer(dto);
+
+        verify(siteTransferRepository).save(any(SiteTransfer.class));
+        verify(eventPublisher).publishEvent(any(SiteTransferCreatedEvent.class));
+    }
+
+    @Test
+    void create_oneOrganisationLevelStoreUsedFromTwoProjects_isAllowed() {
+        stubMasterLookups();
+        location(SENDING_LOCATION, null);
+
+        // A central yard belongs to no project, so the same location id on both sides still
+        // names two different balance rows when the projects differ.
+        SiteTransferCreationDto dto = baseDto();
+        dto.setSendingStorageLocationId(SENDING_LOCATION);
+        dto.setReceivingStorageLocationId(SENDING_LOCATION);
+
+        service.createSiteTransfer(dto);
+
+        verify(siteTransferRepository).save(any(SiteTransfer.class));
+        verify(eventPublisher).publishEvent(any(SiteTransferCreatedEvent.class));
+    }
+
+    @Test
+    void create_sendingLocationOnAnotherProject_isRefused() {
+        stubMasterLookups();
+        location(SENDING_LOCATION, OTHER_PROJECT);
+
+        SiteTransferCreationDto dto = baseDto();
+        dto.setSendingStorageLocationId(SENDING_LOCATION);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.createSiteTransfer(dto))
+                .withMessageContaining("cannot be used from");
+
+        verify(siteTransferRepository, never()).save(any());
+    }
+
+    @Test
+    void create_receivingLocationOnAnotherProject_isRefused() {
+        stubMasterLookups();
+        location(RECEIVING_LOCATION, OTHER_PROJECT);
+
+        SiteTransferCreationDto dto = baseDto();
+        dto.setReceivingStorageLocationId(RECEIVING_LOCATION);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.createSiteTransfer(dto))
+                .withMessageContaining("cannot be used from");
+
+        verify(siteTransferRepository, never()).save(any());
     }
 
     @Test
