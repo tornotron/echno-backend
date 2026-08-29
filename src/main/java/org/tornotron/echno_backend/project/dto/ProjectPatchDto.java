@@ -12,7 +12,6 @@ public class ProjectPatchDto {
     @Schema(description = "Id of the project to update.", example = "42")
     private Long id;
 
-    @Schema(description = "Fields to change, keyed by project field name.",
-            example = "{\"status\": \"COMPLETED\", \"progress\": 1.0}")
-    private Map<String,Object> updates;
+    @Schema(implementation = ProjectUpdateFieldsDto.class)
+    private Map<String, Object> updates;
 }

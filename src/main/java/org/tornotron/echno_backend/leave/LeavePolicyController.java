@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.leave;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -15,6 +17,7 @@ import org.tornotron.echno_backend.leave.dto.LeavePolicyDto;
 
 import java.util.List;
 import java.util.Map;
+import org.tornotron.echno_backend.leave.dto.LeavePolicyUpdateFieldsDto;
 
 @RestController
 @RequestMapping("/api/v1/leave-policies")
@@ -138,6 +141,8 @@ public class LeavePolicyController {
     })
     public ResponseEntity<LeavePolicyDto> updatePolicy(
             @PathVariable Long policyId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(schema = @Schema(implementation = LeavePolicyUpdateFieldsDto.class)))
             @RequestBody Map<String, Object> updates) {
         return ResponseEntity.ok(policyService.updatePolicy(policyId, updates));
     }

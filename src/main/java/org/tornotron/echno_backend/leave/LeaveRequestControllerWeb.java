@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.leave;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,8 +14,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.leave.dto.LeaveCancellationDto;
+import org.tornotron.echno_backend.leave.dto.LeaveDaysCalculationDto;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestCreationDto;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestDto;
+import org.tornotron.echno_backend.leave.dto.LeaveRequestUpdateFieldsDto;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
 
 import java.time.LocalDate;
@@ -195,6 +200,8 @@ public class LeaveRequestControllerWeb {
     public ResponseEntity<LeaveRequestDto> updateRequest(
             @RequestParam Long requestId,
             @RequestParam Long employeeId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(schema = @Schema(implementation = LeaveRequestUpdateFieldsDto.class)))
             @RequestBody Map<String, Object> updates) {
         return ResponseEntity.ok(requestService.updateRequest(requestId, updates));
     }
@@ -232,9 +239,8 @@ public class LeaveRequestControllerWeb {
     public ResponseEntity<LeaveRequestDto> cancelRequest(
             @RequestParam Long requestId,
             @RequestParam Long employeeId,
-            @RequestBody Map<String, String> body) {
-        String reason = body.get("reason");
-        return ResponseEntity.ok(requestService.cancelRequest(requestId, reason));
+            @Valid @RequestBody LeaveCancellationDto dto) {
+        return ResponseEntity.ok(requestService.cancelRequest(requestId, dto.getReason()));
     }
 
     @PostMapping("employeeId/{employeeId}/withdraw")
@@ -286,17 +292,12 @@ public class LeaveRequestControllerWeb {
             @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
     })
     public ResponseEntity<Map<String, Double>> calculateDays(
-            @RequestBody Map<String, String> body) {
-        LocalDate startDate = LocalDate.parse(body.get("startDate"));
-        LocalDate endDate = LocalDate.parse(body.get("endDate"));
-        String startType = body.get("startHalfDayType");
-        String endType = body.get("endHalfDayType");
-
+            @Valid @RequestBody LeaveDaysCalculationDto dto) {
         double totalDays = requestService.calculateTotalDays(
-                startDate,
-                startType != null ? org.tornotron.echno_backend.leave.enums.HalfDayType.valueOf(startType) : null,
-                endDate,
-                endType != null ? org.tornotron.echno_backend.leave.enums.HalfDayType.valueOf(endType) : null);
+                dto.getStartDate(),
+                dto.getStartHalfDayType(),
+                dto.getEndDate(),
+                dto.getEndHalfDayType());
 
         return ResponseEntity.ok(Map.of("totalDays", totalDays));
     }
