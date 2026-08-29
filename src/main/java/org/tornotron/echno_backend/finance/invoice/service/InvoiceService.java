@@ -2,6 +2,9 @@ package org.tornotron.echno_backend.finance.invoice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.configuration.MoneyUtils;
@@ -17,6 +20,7 @@ import org.tornotron.echno_backend.finance.invoice.dtos.CreateInvoiceRequest;
 import org.tornotron.echno_backend.finance.invoice.dtos.InvoiceDto;
 import org.tornotron.echno_backend.finance.invoice.mapper.InvoiceMapper;
 import org.tornotron.echno_backend.finance.invoice.repositories.InvoiceRepository;
+import org.tornotron.echno_backend.finance.invoice.repositories.InvoiceSpecifications;
 import org.tornotron.echno_backend.finance.construction.repositories.ConstructionInvoiceRepository;
 import org.tornotron.echno_backend.finance.ledger.AccountType;
 import org.tornotron.echno_backend.finance.ledger.domain.Account;
@@ -62,6 +66,43 @@ public class InvoiceService {
     private final PostingAccountResolver postingAccountResolver;
     private final TenantEntityHelper tenantEntityHelper;
     private final ConstructionInvoiceRepository constructionInvoiceRepo;
+
+    /**
+     * The order every page of the listing is read in.
+     *
+     * <p>A page with no order is a page in whatever order the storage engine happened to produce,
+     * which on a distributed engine is not stable between two requests: the same row can appear on
+     * page one and again on page two while another never appears at all. Newest invoice first is
+     * what a receivables screen wants; the invoice number breaks the tie between two invoices dated
+     * the same day, and because it is zero padded within a fiscal year it orders by issue sequence.
+     */
+    private static final Sort LIST_ORDER =
+            Sort.by(Sort.Order.desc("invoiceDate"), Sort.Order.desc("invoiceNumber"));
+
+    /**
+     * Lists invoices in the current tenant, newest first, one page at a time.
+     *
+     * <p>Every filter is optional and they combine with AND. Scoping to the caller's organization
+     * is not one of them: it comes from the Hibernate {@code orgFilter} on the transaction, which
+     * applies to the criteria query and to the count behind {@code getTotalElements} alike, so a
+     * member of one tenant cannot enumerate another's invoices and cannot learn how many there are
+     * either.
+     *
+     * @param customerId Restrict to one customer, or null for every customer.
+     * @param status     Restrict to one lifecycle status, or null for every status.
+     * @param openOnly   Restrict to invoices still owed (ISSUED or PARTIALLY_PAID) when true.
+     * @param pageNo     Zero-based page index.
+     * @param pageSize   Rows per page.
+     * @return The requested page of invoices, each with its line items.
+     */
+    @Transactional(readOnly = true)
+    public Page<InvoiceDto> findAll(UUID customerId, InvoiceStatus status, boolean openOnly,
+                                    int pageNo, int pageSize) {
+        return invoiceRepo.findAll(
+                        InvoiceSpecifications.withFilters(customerId, status, openOnly),
+                        PageRequest.of(pageNo, pageSize, LIST_ORDER))
+                .map(mapper::toDto);
+    }
 
     /**
      * Retrieves a single invoice with its line items.
