@@ -4,12 +4,15 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryMaterialStockDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryTransactionDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.MaterialLocationStockDto;
@@ -89,10 +92,9 @@ public class InventoryTransactionController {
             @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
     })
     public ResponseEntity<Page<InventoryTransactionDto>> getAllTransactionsPaginated(
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize
+            @Valid @ParameterObject PageQuery pageQuery
     ) {
-        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getAllTransactions(pageNo, pageSize);
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getAllTransactions(pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
@@ -128,10 +130,9 @@ public class InventoryTransactionController {
     })
     public ResponseEntity<Page<MaterialMovementHistoryDto>> getMaterialMovementHistory(
             @PathVariable Long materialId,
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize
+            @Valid @ParameterObject PageQuery pageQuery
     ) {
-        Page<MaterialMovementHistoryDto> history = inventoryTransactionService.getMaterialMovementHistory(materialId, pageNo, pageSize);
+        Page<MaterialMovementHistoryDto> history = inventoryTransactionService.getMaterialMovementHistory(materialId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(history);
     }
 

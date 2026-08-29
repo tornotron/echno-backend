@@ -4,12 +4,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentCreationDto;
 import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentDto;
@@ -65,9 +67,8 @@ public class StockAdjustmentControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
     })
     public ResponseEntity<Page<StockAdjustmentDto>> readAllStockAdjustmentsPaginated(
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        return new ResponseEntity<>(stockAdjustmentService.getAll(pageNo, pageSize), HttpStatus.OK);
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return new ResponseEntity<>(stockAdjustmentService.getAll(pageQuery.getPageNo(), pageQuery.getPageSize()), HttpStatus.OK);
     }
 
     @GetMapping("/{id}")

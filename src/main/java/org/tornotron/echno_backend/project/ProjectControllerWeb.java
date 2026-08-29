@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.project;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.springdoc.core.annotations.ParameterObject;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -124,8 +126,7 @@ public class ProjectControllerWeb {
      * itself. Deliberately the same shape as {@code GET /tasks/web/paginated}; consistency between
      * the two listings matters more than either choice would in isolation.
      *
-     * @param pageNo   Zero-based page index.
-     * @param pageSize Rows per page, clamped to the result cap.
+     * @param pageQuery Page index and page size, bounded by {@link PageQuery}.
      * @param search   Optional case-insensitive match on the project name.
      * @return A {@link ResponseEntity} containing the page of project DTOs.
      */
@@ -142,10 +143,9 @@ public class ProjectControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<ProjectDto>> readAllProjectsPaginated(
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "20") int pageSize,
+            @Valid @ParameterObject PageQuery pageQuery,
             @RequestParam(required = false) String search) {
-        return ResponseEntity.ok(service.getProjectsPaginated(pageNo, pageSize, search));
+        return ResponseEntity.ok(service.getProjectsPaginated(pageQuery.getPageNo(), pageQuery.pageSizeOr(20), search));
     }
 
     /**

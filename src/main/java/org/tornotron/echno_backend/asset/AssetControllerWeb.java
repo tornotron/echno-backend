@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Min;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.asset.dto.AssetMovementCreationDto;
 import org.tornotron.echno_backend.asset.dto.AssetMovementDto;
 import org.tornotron.echno_backend.asset.dto.AssetPlacementSpanDto;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
@@ -68,9 +69,8 @@ public class AssetControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
     })
     public ResponseEntity<Page<AssetDto>> readAllAssetsPaginated(
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        return new ResponseEntity<>(assetService.getAllAssets(pageNo, pageSize), HttpStatus.OK);
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return new ResponseEntity<>(assetService.getAllAssets(pageQuery.getPageNo(), pageQuery.getPageSize()), HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
@@ -154,9 +154,8 @@ public class AssetControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No asset with the given id")
     })
     public ResponseEntity<Page<AssetMovementDto>> readMovements(@PathVariable Long id,
-                                                                @RequestParam(defaultValue = "0") @Min(0) int pageNo,
-                                                                @RequestParam(defaultValue = "20") @Min(1) int pageSize) {
-        return new ResponseEntity<>(assetService.getMovements(id, pageNo, pageSize), HttpStatus.OK);
+                                                                @Valid @ParameterObject PageQuery pageQuery) {
+        return new ResponseEntity<>(assetService.getMovements(id, pageQuery.getPageNo(), pageQuery.pageSizeOr(20)), HttpStatus.OK);
     }
 
     @GetMapping("/{id}/placement-history")

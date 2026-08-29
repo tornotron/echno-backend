@@ -4,12 +4,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.receipt.dto.ReceiptCreationDto;
 import org.tornotron.echno_backend.receipt.dto.ReceiptDto;
@@ -63,11 +65,10 @@ public class ReceiptControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<ReceiptDto>> readAllReceiptsPaginated(
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize,
+            @Valid @ParameterObject PageQuery pageQuery,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status) {
-        return new ResponseEntity<>(receiptService.getPaginated(pageNo, pageSize, search, status), HttpStatus.OK);
+        return new ResponseEntity<>(receiptService.getPaginated(pageQuery.getPageNo(), pageQuery.getPageSize(), search, status), HttpStatus.OK);
     }
 
     @GetMapping("/{id}")

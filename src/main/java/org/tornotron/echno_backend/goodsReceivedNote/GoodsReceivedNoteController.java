@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteCreationDto;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteDto;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteUpdateDto;
@@ -100,10 +102,9 @@ public class GoodsReceivedNoteController {
             @ApiResponse(responseCode = "403", description = "Caller lacks the grn read or admin authority")
     })
     public ResponseEntity<Page<GoodsReceivedNoteDto>> getAllGrnsPaginated(
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize
+            @Valid @ParameterObject PageQuery pageQuery
     ) {
-        Page<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getAllGrns(pageNo, pageSize);
+        Page<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getAllGrns(pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(grns);
     }
 

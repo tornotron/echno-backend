@@ -4,11 +4,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemCreationDto;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
@@ -65,10 +67,9 @@ public class IndentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent read or admin authority")
     })
     public ResponseEntity<List<IndentDto>> getAllIndents(
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize
+            @Valid @ParameterObject PageQuery pageQuery
     ) {
-        return new ResponseEntity<>(indentService.getAllIndents(pageNo, pageSize).getContent(), HttpStatus.OK);
+        return new ResponseEntity<>(indentService.getAllIndents(pageQuery.getPageNo(), pageQuery.getPageSize()).getContent(), HttpStatus.OK);
     }
 
     @GetMapping

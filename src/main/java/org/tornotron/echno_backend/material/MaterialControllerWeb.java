@@ -4,12 +4,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.material.dto.MaterialCreationDto;
 import org.tornotron.echno_backend.material.dto.MaterialDto;
@@ -103,10 +105,9 @@ public class MaterialControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<MaterialDto>> getAllMaterialsPaginated(
-            @RequestParam(defaultValue = "0") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize
+            @Valid @ParameterObject PageQuery pageQuery
     ) {
-        Page<MaterialDto> materials = materialService.getAllMaterials(pageNo, pageSize);
+        Page<MaterialDto> materials = materialService.getAllMaterials(pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(materials);
     }
 

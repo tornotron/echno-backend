@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.project;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.springdoc.core.annotations.ParameterObject;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -87,8 +89,7 @@ public class ProjectController {
     /**
      * Retrieves a paginated list of all projects.
      *
-     * @param pageNo   The page number to retrieve (default is 0).
-     * @param pageSize The number of projects per page (default is 10).
+     * @param pageQuery Page index and page size, bounded by {@link PageQuery}.
      * @return A {@link ResponseEntity} containing the list of project DTOs and HTTP status 200 (OK).
      */
     @GetMapping
@@ -102,9 +103,8 @@ public class ProjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of projects returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the project read or admin authority")
     })
-    public ResponseEntity<List<ProjectDto>> readAllProjects(@RequestParam(defaultValue = "0") int pageNo,
-                                                                 @RequestParam(defaultValue = "10") int pageSize) {
-          Page<ProjectDto> projects = service.getAllProjects(pageNo,pageSize);
+    public ResponseEntity<List<ProjectDto>> readAllProjects(@Valid @ParameterObject PageQuery pageQuery) {
+          Page<ProjectDto> projects = service.getAllProjects(pageQuery.getPageNo(),pageQuery.getPageSize());
           logger.info("All Projects Retrieved Successfully");
         return new ResponseEntity<>(projects.getContent(),HttpStatus.OK);
     }

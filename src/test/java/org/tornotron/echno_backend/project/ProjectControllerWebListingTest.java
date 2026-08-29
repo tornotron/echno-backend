@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 
@@ -151,7 +152,7 @@ class ProjectControllerWebListingTest {
         Page<ProjectDto> page = new PageImpl<>(projects(20), PageRequest.of(1, 20), 137);
         when(service.getProjectsPaginated(eq(1), eq(20), isNull())).thenReturn(page);
 
-        ResponseEntity<Page<ProjectDto>> response = controller.readAllProjectsPaginated(1, 20, null);
+        ResponseEntity<Page<ProjectDto>> response = controller.readAllProjectsPaginated(page(1, 20), null);
 
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getTotalElements()).isEqualTo(137);
@@ -162,8 +163,16 @@ class ProjectControllerWebListingTest {
     void thePaginatedListingPassesTheSearchFilterThrough() {
         when(service.getProjectsPaginated(anyInt(), anyInt(), any())).thenReturn(Page.empty());
 
-        controller.readAllProjectsPaginated(0, 20, "riverside");
+        controller.readAllProjectsPaginated(page(0, 20), "riverside");
 
         verify(service).getProjectsPaginated(0, 20, "riverside");
+    }
+
+    /** The page the request would have bound, built by hand for a direct controller call. */
+    private static PageQuery page(int pageNo, int pageSize) {
+        PageQuery pageQuery = new PageQuery();
+        pageQuery.setPageNo(pageNo);
+        pageQuery.setPageSize(pageSize);
+        return pageQuery;
     }
 }

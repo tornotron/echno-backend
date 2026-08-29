@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.user;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.springdoc.core.annotations.ParameterObject;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -65,8 +67,7 @@ public class UserControllerWeb {
     /**
      * Retrieves a paginated list of all users.
      *
-     * @param pageNo   The page number to retrieve (default is 0).
-     * @param pageSize The number of users per page (default is 10).
+     * @param pageQuery Page index and page size, bounded by {@link PageQuery}.
      * @return A {@link ResponseEntity} containing the list of user DTOs and HTTP status 200 (OK).
      */
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'hr-admin')")
@@ -80,9 +81,8 @@ public class UserControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of users returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<UserDto>> readAllUsers(@RequestParam(defaultValue = "0") int pageNo,
-                                                      @RequestParam(defaultValue = "10") int pageSize) {
-        Page<UserDto> users = userService.getAllUsers(pageNo,pageSize);
+    public ResponseEntity<List<UserDto>> readAllUsers(@Valid @ParameterObject PageQuery pageQuery) {
+        Page<UserDto> users = userService.getAllUsers(pageQuery.getPageNo(),pageQuery.getPageSize());
         return new ResponseEntity<>(users.getContent(), HttpStatus.OK);
     }
 
