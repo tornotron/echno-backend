@@ -16,10 +16,13 @@ import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
 import org.tornotron.echno_backend.indent.Indent;
 import org.tornotron.echno_backend.indent.IndentRepository;
 import org.tornotron.echno_backend.material.Material;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
+import org.tornotron.echno_backend.inventoryTransaction.MaterialStockLookup;
 import org.tornotron.echno_backend.material.MaterialRepository;
 
+import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 @Service
 public class IndentItemService {
@@ -29,16 +32,19 @@ public class IndentItemService {
     private final MaterialRepository materialRepository;
     private final TenantEntityHelper tenantEntityHelper;
     private final IndentItemMapper indentItemMapper;
+    private final InventoryService inventoryService;
 
     public IndentItemService(IndentItemRepository indentItemRepository,
                              IndentRepository indentRepository,
                              MaterialRepository materialRepository,
-                             TenantEntityHelper tenantEntityHelper, IndentItemMapper indentItemMapper) {
+                             TenantEntityHelper tenantEntityHelper, IndentItemMapper indentItemMapper,
+                             InventoryService inventoryService) {
         this.indentItemRepository = indentItemRepository;
         this.indentRepository = indentRepository;
         this.materialRepository = materialRepository;
         this.tenantEntityHelper = tenantEntityHelper;
         this.indentItemMapper = indentItemMapper;
+        this.inventoryService = inventoryService;
     }
 
     @Transactional
@@ -60,14 +66,14 @@ public class IndentItemService {
         indentItem.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         indentItem = indentItemRepository.save(indentItem);
-        return indentItemMapper.toDto(indentItem);
+        return indentItemMapper.toDto(indentItem, stockFor(List.of(indentItem)));
     }
 
     @Transactional(readOnly = true)
     public IndentItemDto getIndentItemById(Long id) {
         IndentItem indentItem = indentItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Indent item with ID " + id + " was not found in this organization"));
-        return indentItemMapper.toDto(indentItem);
+        return indentItemMapper.toDto(indentItem, stockFor(List.of(indentItem)));
     }
 
     /**
@@ -82,8 +88,9 @@ public class IndentItemService {
      */
     @Transactional(readOnly = true)
     public Page<IndentItemDto> getAllIndentItems(Pageable pageable) {
-        return indentItemRepository.findAll(pageable)
-                .map(indentItem -> indentItemMapper.toDto(indentItem));
+        Page<IndentItem> items = indentItemRepository.findAll(pageable);
+        MaterialStockLookup stock = stockFor(items.getContent());
+        return items.map(indentItem -> indentItemMapper.toDto(indentItem, stock));
     }
 
     /**
@@ -112,23 +119,17 @@ public class IndentItemService {
 
     @Transactional(readOnly = true)
     public List<IndentItemDto> getIndentItemsByIndentId(Long indentId) {
-        return indentItemRepository.findByIndentId(indentId).stream()
-                .map(indentItem -> indentItemMapper.toDto(indentItem))
-                .collect(Collectors.toList());
+        return toDtos(indentItemRepository.findByIndentId(indentId));
     }
 
     @Transactional(readOnly = true)
     public List<IndentItemDto> getIndentItemsByMaterialId(Long materialId) {
-        return indentItemRepository.findByMaterialId(materialId).stream()
-                .map(indentItem -> indentItemMapper.toDto(indentItem))
-                .collect(Collectors.toList());
+        return toDtos(indentItemRepository.findByMaterialId(materialId));
     }
 
     @Transactional(readOnly = true)
     public List<IndentItemDto> getIndentItemsByConversionStatus(Boolean converted) {
-        return indentItemRepository.findByConvertedToPurchaseOrder(converted).stream()
-                .map(indentItem -> indentItemMapper.toDto(indentItem))
-                .collect(Collectors.toList());
+        return toDtos(indentItemRepository.findByConvertedToPurchaseOrder(converted));
     }
 
     @Transactional
@@ -150,7 +151,7 @@ public class IndentItemService {
         indentItem.setRemarks(updateDto.getRemarks());
 
         indentItem = indentItemRepository.save(indentItem);
-        return indentItemMapper.toDto(indentItem);
+        return indentItemMapper.toDto(indentItem, stockFor(List.of(indentItem)));
     }
 
     @Transactional
@@ -170,6 +171,36 @@ public class IndentItemService {
         indentItem.setLinkedPurchaseOrderNumber(purchaseOrderNumber);
 
         indentItem = indentItemRepository.save(indentItem);
-        return indentItemMapper.toDto(indentItem);
+        return indentItemMapper.toDto(indentItem, stockFor(List.of(indentItem)));
+    }
+
+    /**
+     * Converts a list of indent lines, reading the stock for all their materials once.
+     *
+     * @param items The lines to convert.
+     * @return The lines as DTOs.
+     */
+    private List<IndentItemDto> toDtos(List<IndentItem> items) {
+        MaterialStockLookup stock = stockFor(items);
+        return items.stream()
+                .map(indentItem -> indentItemMapper.toDto(indentItem, stock))
+                .toList();
+    }
+
+    /**
+     * Reads the aggregate stock for the materials on the given lines, in one query.
+     *
+     * <p>An indent line carries a full material DTO. While the material mapper fetched its own
+     * stock, every line on a page cost two aggregate reads and nothing in the listing code said so.
+     *
+     * @param items The lines being converted.
+     * @return The stock for their materials, with anything unstocked reading as zero.
+     */
+    private MaterialStockLookup stockFor(Collection<IndentItem> items) {
+        return inventoryService.aggregateStockFor(items.stream()
+                .map(IndentItem::getMaterial)
+                .filter(Objects::nonNull)
+                .map(Material::getId)
+                .toList());
     }
 }

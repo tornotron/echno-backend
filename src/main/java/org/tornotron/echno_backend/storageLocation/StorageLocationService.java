@@ -11,6 +11,8 @@ import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
+import org.tornotron.echno_backend.inventoryTransaction.StorageLocationItemCounts;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.storageLocation.dto.StorageLocationCreationDto;
@@ -18,8 +20,8 @@ import org.tornotron.echno_backend.storageLocation.dto.StorageLocationDto;
 import org.tornotron.echno_backend.storageLocation.dto.StorageLocationUpdateDto;
 import org.tornotron.echno_backend.storageLocation.enums.StorageLocationType;
 
+import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class StorageLocationService {
@@ -28,14 +30,17 @@ public class StorageLocationService {
     private final ProjectRepository projectRepository;
     private final TenantEntityHelper tenantEntityHelper;
     private final StorageLocationMapper storageLocationMapper;
+    private final InventoryService inventoryService;
 
     public StorageLocationService(StorageLocationRepository storageLocationRepository,
                                   ProjectRepository projectRepository,
-                                  TenantEntityHelper tenantEntityHelper, StorageLocationMapper storageLocationMapper) {
+                                  TenantEntityHelper tenantEntityHelper, StorageLocationMapper storageLocationMapper,
+                                  InventoryService inventoryService) {
         this.storageLocationRepository = storageLocationRepository;
         this.projectRepository = projectRepository;
         this.tenantEntityHelper = tenantEntityHelper;
         this.storageLocationMapper = storageLocationMapper;
+        this.inventoryService = inventoryService;
     }
 
     @Transactional
@@ -67,36 +72,33 @@ public class StorageLocationService {
         }
 
         storageLocation = storageLocationRepository.save(storageLocation);
-        return storageLocationMapper.toDto(storageLocation);
+        return storageLocationMapper.toDto(storageLocation, itemCountsFor(List.of(storageLocation)));
     }
 
     @Transactional(readOnly = true)
     public StorageLocationDto getStorageLocationById(Long id) {
         StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Storage location with ID " + id + " was not found in this organization"));
-        return storageLocationMapper.toDto(storageLocation);
+        return storageLocationMapper.toDto(storageLocation, itemCountsFor(List.of(storageLocation)));
     }
 
 
     @Transactional(readOnly = true)
     public Page<StorageLocationDto> getAllStorageLocations(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "locationName"));
-        return storageLocationRepository.findAll(pageable)
-                .map(storageLocation -> storageLocationMapper.toDto(storageLocation));
+        Page<StorageLocation> locations = storageLocationRepository.findAll(pageable);
+        StorageLocationItemCounts itemCounts = itemCountsFor(locations.getContent());
+        return locations.map(storageLocation -> storageLocationMapper.toDto(storageLocation, itemCounts));
     }
 
     @Transactional(readOnly = true)
     public List<StorageLocationDto> getStorageLocationsByProject(Long projectId) {
-        return storageLocationRepository.findByProjectId(projectId).stream()
-                .map(storageLocation -> storageLocationMapper.toDto(storageLocation))
-                .collect(Collectors.toList());
+        return toDtos(storageLocationRepository.findByProjectId(projectId));
     }
 
     @Transactional(readOnly = true)
     public List<StorageLocationDto> getStorageLocationsByType(StorageLocationType locationType) {
-        return storageLocationRepository.findByLocationType(locationType).stream()
-                .map(storageLocation -> storageLocationMapper.toDto(storageLocation))
-                .collect(Collectors.toList());
+        return toDtos(storageLocationRepository.findByLocationType(locationType));
     }
 
     @Transactional
@@ -148,7 +150,7 @@ public class StorageLocationService {
         }
 
         storageLocation = storageLocationRepository.save(storageLocation);
-        return storageLocationMapper.toDto(storageLocation);
+        return storageLocationMapper.toDto(storageLocation, itemCountsFor(List.of(storageLocation)));
     }
 
     @Transactional
@@ -156,5 +158,31 @@ public class StorageLocationService {
         StorageLocation storageLocation = storageLocationRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Storage location with ID " + id + " was not found in this organization"));
         storageLocationRepository.delete(storageLocation);
+    }
+
+    /**
+     * Converts a list of storage locations, counting the materials at all of them once.
+     *
+     * @param locations The locations to convert.
+     * @return The locations as DTOs.
+     */
+    private List<StorageLocationDto> toDtos(List<StorageLocation> locations) {
+        StorageLocationItemCounts itemCounts = itemCountsFor(locations);
+        return locations.stream()
+                .map(storageLocation -> storageLocationMapper.toDto(storageLocation, itemCounts))
+                .toList();
+    }
+
+    /**
+     * Counts the distinct materials at every location about to be mapped, in one query.
+     *
+     * <p>This is the batched read that replaced the count the mapper used to issue for itself,
+     * once per row, on each of the listing paths above.
+     *
+     * @param locations The locations being converted.
+     * @return Their item counts, with anything unstocked reading as zero.
+     */
+    private StorageLocationItemCounts itemCountsFor(Collection<StorageLocation> locations) {
+        return inventoryService.itemCountsAt(locations.stream().map(StorageLocation::getId).toList());
     }
 }

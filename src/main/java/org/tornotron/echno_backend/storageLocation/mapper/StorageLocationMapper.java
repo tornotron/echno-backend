@@ -1,34 +1,35 @@
 package org.tornotron.echno_backend.storageLocation.mapper;
 
-import org.mapstruct.AfterMapping;
+import org.mapstruct.Context;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.inventoryTransaction.CurrentStockRepository;
+import org.tornotron.echno_backend.inventoryTransaction.StorageLocationItemCounts;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.dto.StorageLocationDto;
 
 /**
  * Maps {@link StorageLocation} to its DTO. Project is flattened to id + name; the
- * distinct-materials count is computed from {@link CurrentStockRepository} for the
- * current tenant in an {@code @AfterMapping} hook, matching the previous converter.
+ * distinct-materials count is read from the {@link StorageLocationItemCounts} the caller hands in.
+ *
+ * <p>The count used to be issued here, one {@code COUNT DISTINCT} per row, from an
+ * {@code @AfterMapping} hook holding the stock repository. Four listing paths went through it, so
+ * every location on a page cost a query that the listing code gave no sign of. The caller now
+ * counts the whole page in one grouped read.
  */
 @Mapper(componentModel = "spring")
-public abstract class StorageLocationMapper {
+public interface StorageLocationMapper {
 
-    @Autowired
-    protected CurrentStockRepository currentStockRepository;
-
-    @Mapping(source = "project.id", target = "projectId")
-    @Mapping(source = "project.projectName", target = "projectName")
-    @Mapping(target = "storageItemsCount", ignore = true) // computed in fillItemsCount
-    public abstract StorageLocationDto toDto(StorageLocation storageLocation);
-
-    @AfterMapping
-    protected void fillItemsCount(StorageLocation source, @MappingTarget StorageLocationDto dto) {
-        dto.setStorageItemsCount(currentStockRepository
-                .countDistinctMaterialsByStorageLocationIdAndOrganizationId(source.getId(), TenantContext.getCurrentOrgId()));
-    }
+    /**
+     * Converts a storage location, taking its item count from the supplied lookup.
+     *
+     * @param storageLocation The location to convert.
+     * @param itemCounts The counts read for the whole set of locations being mapped. A location
+     *                   absent from it reads as zero, which is what the per-row count returned.
+     * @return The storage location DTO.
+     */
+    @Mapping(source = "storageLocation.project.id", target = "projectId")
+    @Mapping(source = "storageLocation.project.projectName", target = "projectName")
+    @Mapping(target = "storageItemsCount",
+            expression = "java(itemCounts.itemCountOf(storageLocation.getId()))")
+    StorageLocationDto toDto(StorageLocation storageLocation, @Context StorageLocationItemCounts itemCounts);
 }

@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.indent.dto.IndentCreationDto;
 import org.tornotron.echno_backend.indent.enums.IndentStatus;
 import org.tornotron.echno_backend.indent.mapper.IndentMapper;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.indentItem.IndentItemRepository;
 import org.tornotron.echno_backend.indentItem.mapper.IndentItemMapper;
 import org.tornotron.echno_backend.material.MaterialRepository;
@@ -53,6 +54,7 @@ class IndentServiceTest {
     @Mock private IndentItemMapper indentItemMapper;
     @Mock private DocumentNumberAllocator documentNumberAllocator;
     @Mock private TransactionRetryTemplate retryTemplate;
+    @Mock private InventoryService inventoryService;
 
     private IndentService service;
 
@@ -62,7 +64,7 @@ class IndentServiceTest {
         TenantContext.setCurrentOrgId(ORG);
         service = new IndentService(indentRepository, indentItemRepository, materialRepository,
                 indentMapper, tenantEntityHelper, employeeRepository, projectRepository,
-                indentItemMapper, documentNumberAllocator, retryTemplate);
+                indentItemMapper, documentNumberAllocator, retryTemplate, inventoryService);
         lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
                 .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
     }

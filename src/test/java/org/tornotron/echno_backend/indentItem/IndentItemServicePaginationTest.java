@@ -13,6 +13,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.indent.IndentRepository;
 import org.tornotron.echno_backend.indentItem.mapper.IndentItemMapper;
+import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.material.MaterialRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,6 +46,9 @@ class IndentItemServicePaginationTest {
 
     @Mock
     private IndentItemMapper indentItemMapper;
+
+    @Mock
+    private InventoryService inventoryService;
 
     @InjectMocks
     private IndentItemService service;

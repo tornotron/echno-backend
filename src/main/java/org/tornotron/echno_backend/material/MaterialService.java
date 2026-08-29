@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryTransaction;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryTransactionRepository;
+import org.tornotron.echno_backend.inventoryTransaction.MaterialStockLookup;
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
 import org.tornotron.echno_backend.material.dto.MaterialCreationDto;
 import org.tornotron.echno_backend.material.dto.MaterialDto;
@@ -27,8 +28,8 @@ import org.tornotron.echno_backend.storageLocation.StorageLocationScope;
 import org.tornotron.echno_backend.user.UserContextService;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * CRUD and stock-aware reads for the material catalogue.
@@ -152,7 +153,7 @@ public class MaterialService {
                     material.getOrganization(), quantity, unitCost);
         }
 
-        return materialMapper.toDto(material);
+        return materialMapper.toDto(material, stockFor(List.of(material)));
     }
 
     /**
@@ -166,7 +167,7 @@ public class MaterialService {
     public MaterialDto getMaterialById(Long id) {
         Material material = materialRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + id + " was not found in this organization"));
-        return materialMapper.toDto(material);
+        return materialMapper.toDto(material, stockFor(List.of(material)));
     }
 
 
@@ -180,8 +181,9 @@ public class MaterialService {
     @Transactional(readOnly = true)
     public Page<MaterialDto> getAllMaterials(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "materialName"));
-        return materialRepository.findAll(pageable)
-                .map(material -> materialMapper.toDto(material));
+        Page<Material> materials = materialRepository.findAll(pageable);
+        MaterialStockLookup stock = stockFor(materials.getContent());
+        return materials.map(material -> materialMapper.toDto(material, stock));
     }
 
     /**
@@ -192,9 +194,11 @@ public class MaterialService {
      */
     @Transactional(readOnly = true)
     public List<MaterialDto> searchMaterialsByName(String name) {
-        return materialRepository.findByMaterialNameContainingIgnoreCase(name).stream()
-                .map(material -> materialMapper.toDto(material))
-                .collect(Collectors.toList());
+        List<Material> materials = materialRepository.findByMaterialNameContainingIgnoreCase(name);
+        MaterialStockLookup stock = stockFor(materials);
+        return materials.stream()
+                .map(material -> materialMapper.toDto(material, stock))
+                .toList();
     }
 
     /**
@@ -263,7 +267,7 @@ public class MaterialService {
         }
 
         material = materialRepository.save(material);
-        return materialMapper.toDto(material);
+        return materialMapper.toDto(material, stockFor(List.of(material)));
     }
 
     /**
@@ -332,5 +336,18 @@ public class MaterialService {
         Double currentStock = inventoryService.getStockAtLocation(id, projectId, storageLocationId);
         BigDecimal stockValue = inventoryService.getStockValueAtLocation(id, projectId, storageLocationId);
         return materialMapper.toWithStockDto(material, currentStock, stockValue);
+    }
+
+    /**
+     * Reads the aggregate stock for every material about to be mapped, in one query.
+     *
+     * <p>This is the batched read that replaced the per-material fetch the mapper used to do for
+     * itself. One call covers a whole page, so the query count no longer follows the row count.
+     *
+     * @param materials The materials being converted.
+     * @return Their stock figures, with anything unstocked reading as zero.
+     */
+    private MaterialStockLookup stockFor(Collection<Material> materials) {
+        return inventoryService.aggregateStockFor(materials.stream().map(Material::getId).toList());
     }
 }

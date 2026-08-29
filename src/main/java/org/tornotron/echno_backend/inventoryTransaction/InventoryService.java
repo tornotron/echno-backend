@@ -491,6 +491,55 @@ public class InventoryService {
     }
 
     /**
+     * Reads the aggregate stock for a whole set of materials in one query.
+     *
+     * <p>This is what a caller uses before mapping a page. {@link #getAggregateStock} and
+     * {@link #getAggregateStockValue} answer for one material and cost two queries doing it, so
+     * asking them once per row is what turned a fifty-material page into a hundred reads. Both
+     * aggregates come back in a single grouped read here, and materials that hold no stock read
+     * as zero rather than being missing.
+     *
+     * @param materialIds The materials about to be mapped; duplicates and nulls are ignored.
+     * @return A lookup over their totals, empty when no ids were given.
+     */
+    @Transactional(readOnly = true)
+    public MaterialStockLookup aggregateStockFor(Collection<Long> materialIds) {
+        Set<Long> ids = distinctIds(materialIds);
+        if (ids.isEmpty()) {
+            return MaterialStockLookup.none();
+        }
+        return MaterialStockLookup.of(currentStockRepository.sumStockByMaterialIds(ids));
+    }
+
+    /**
+     * Reads the distinct-material count for a whole set of storage locations in one query.
+     *
+     * <p>The storage-location counterpart to {@link #aggregateStockFor}, for the same reason: the
+     * count used to run once per row on every location listing.
+     *
+     * @param storageLocationIds The locations about to be mapped; duplicates and nulls are ignored.
+     * @return A lookup over their counts, empty when no ids were given.
+     */
+    @Transactional(readOnly = true)
+    public StorageLocationItemCounts itemCountsAt(Collection<Long> storageLocationIds) {
+        Set<Long> ids = distinctIds(storageLocationIds);
+        if (ids.isEmpty()) {
+            return StorageLocationItemCounts.none();
+        }
+        return StorageLocationItemCounts.of(currentStockRepository
+                .countDistinctMaterialsByStorageLocationIds(ids, TenantContext.getCurrentOrgId()));
+    }
+
+    private static Set<Long> distinctIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Set.of();
+        }
+        Set<Long> distinct = new HashSet<>(ids);
+        distinct.remove(null);
+        return distinct;
+    }
+
+    /**
      * Returns the stock value for a material at one storage location.
      *
      * @param materialId The material to value.
