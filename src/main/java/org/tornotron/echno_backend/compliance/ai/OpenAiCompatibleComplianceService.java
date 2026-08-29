@@ -331,8 +331,8 @@ public class OpenAiCompatibleComplianceService {
 
     private SimpleClientHttpRequestFactory requestFactory() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(10));
-        factory.setReadTimeout(Duration.ofSeconds(60));
+        factory.setConnectTimeout(Duration.ofSeconds(props.getConnectTimeoutSeconds()));
+        factory.setReadTimeout(Duration.ofSeconds(props.getReadTimeoutSeconds()));
         String proxyHost = props.getProxyHost();
         if (proxyHost != null && !proxyHost.isBlank()) {
             int proxyPort = props.getProxyPort();

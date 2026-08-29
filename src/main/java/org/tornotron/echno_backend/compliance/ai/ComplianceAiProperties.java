@@ -76,4 +76,28 @@ public class ComplianceAiProperties {
 
     /** Proxy port used only when {@code proxyHost} is set. */
     private int proxyPort = 3128;
+
+    /**
+     * How long to wait for the TCP connection to the inference endpoint, in seconds.
+     *
+     * <p>Ten seconds is generous for a connect: either the endpoint answers the handshake
+     * quickly or something is wrong with the route. It is configuration rather than a
+     * constant because the route is not always direct. Where egress goes through a forward
+     * proxy the connect is to the proxy, and a loaded proxy can be slower to accept than the
+     * endpoint behind it.
+     */
+    private int connectTimeoutSeconds = 10;
+
+    /**
+     * How long to wait for the endpoint's response after the request is sent, in seconds.
+     *
+     * <p>Sixty is sized against {@code batchSize}, not against the catalogue: a run costs
+     * about 1.7 seconds a rule, so the default ten-rule batch takes roughly 20 seconds and
+     * sits at a third of this. That margin is the whole reason this value can stay still
+     * while the catalogue grows, and it is also why the two numbers have to move together.
+     * Raising {@code batchSize} to twenty puts a batch at about 34 seconds, over half the
+     * budget; past thirty rules a batch no longer fits at all. A slower endpoint moves the
+     * same line without anyone touching the batch size.
+     */
+    private int readTimeoutSeconds = 60;
 }
