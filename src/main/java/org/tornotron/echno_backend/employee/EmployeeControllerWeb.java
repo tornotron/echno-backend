@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.employee;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -19,6 +21,7 @@ import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeLookupDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.employee.dto.EmployeePatchDto;
+import org.tornotron.echno_backend.employee.dto.EmployeeUpdateFieldsDto;
 import org.tornotron.echno_backend.employee.dto.OrgRoleAssignmentDto;
 
 import java.util.List;
@@ -202,7 +205,11 @@ public class EmployeeControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee nor a system or HR admin"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
-    public ResponseEntity<ApiResponse> partialUpdateAnEmployee(@RequestBody Map<String,Object> updates, @PathVariable Long id) {
+    public ResponseEntity<ApiResponse> partialUpdateAnEmployee(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(schema = @Schema(implementation = EmployeeUpdateFieldsDto.class)))
+            @RequestBody Map<String, Object> updates,
+            @PathVariable Long id) {
         employeeService.partialUpdateAnEmployee(updates,id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Employee with id: "+id+" updated"));
     }

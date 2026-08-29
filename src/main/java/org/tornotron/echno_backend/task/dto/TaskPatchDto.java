@@ -13,7 +13,6 @@ public class TaskPatchDto {
     @Schema(description = "Id of the task to update.", example = "108")
     private Long id;
 
-    @Schema(description = "Fields to change, keyed by task field name.",
-            example = "{\"status\": \"DONE\", \"progress\": 1.0}")
+    @Schema(implementation = TaskUpdateFieldsDto.class)
     private Map<String, Object> updates;
 }
