@@ -8,10 +8,14 @@ import org.tornotron.echno_backend.attendance.dto.*;
 import org.tornotron.echno_backend.attendance.enums.ClockEventType;
 import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 import org.tornotron.echno_backend.attendance.mapper.AttendanceRegularizationMapper;
+import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,38 +24,80 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Raising and deciding regularization requests.
+ *
+ * <p>Both the person who raises a request and the person who decides it are read from the
+ * authenticated session, never from the request. They used to arrive as query parameters, which
+ * meant a caller chose the name and id recorded against a corrected attendance record and the
+ * accountability on the correction was whatever they typed.
+ *
+ * <p>Because the two are now trustworthy they can be compared, so an approval goes through
+ * {@link SelfApprovalPolicy}: whoever raised a request is not the person who approves it, with the
+ * one recorded break-glass exception that policy defines.
+ */
 @Service
 public class AttendanceRegularizationService {
+
+    /** Recorded when the caller cannot be resolved to any identity at all. */
+    private static final String SYSTEM_ACTOR = "system";
+
+    /** Note carried by the corrected clock events of a request approved under the break-glass role. */
+    private static final String SELF_APPROVAL_NOTE =
+            " (self-approved: raised and approved by the same person)";
 
     private final AttendanceRegularizationRepository regularizationRepository;
     private final AttendanceRepository attendanceRepository;
     private final OrganizationRepository organizationRepository;
+    private final EmployeeRepository employeeRepository;
     private final AttendanceSettingsService settingsService;
     private final AttendanceCalculationService calculationService;
     private final AttendanceRegularizationMapper regularizationMapper;
+    private final UserContextService userContextService;
+    private final SelfApprovalPolicy selfApprovalPolicy;
 
     public AttendanceRegularizationService(AttendanceRegularizationRepository regularizationRepository,
                                             AttendanceRepository attendanceRepository,
                                             OrganizationRepository organizationRepository,
+                                            EmployeeRepository employeeRepository,
                                             AttendanceSettingsService settingsService,
                                             AttendanceCalculationService calculationService,
-                                            AttendanceRegularizationMapper regularizationMapper) {
+                                            AttendanceRegularizationMapper regularizationMapper,
+                                            UserContextService userContextService,
+                                            SelfApprovalPolicy selfApprovalPolicy) {
         this.regularizationRepository = regularizationRepository;
         this.attendanceRepository = attendanceRepository;
         this.organizationRepository = organizationRepository;
+        this.employeeRepository = employeeRepository;
         this.settingsService = settingsService;
         this.calculationService = calculationService;
         this.regularizationMapper = regularizationMapper;
+        this.userContextService = userContextService;
+        this.selfApprovalPolicy = selfApprovalPolicy;
     }
 
-    @Transactional
-    public AttendanceRegularizationDto submitRequest(RegularizationRequestDto dto, String requestedBy) {
-        return submitRequest(dto, requestedBy, null);
+    /** Who the authenticated caller is, as recorded on a request: a display name and, when the
+     *  caller has an employee record in this tenant, that employee's id. */
+    private record Actor(String name, Long employeeId) {
     }
 
+    /**
+     * Files a regularization request against an attendance record.
+     *
+     * <p>The requester is taken from the session. It is what the approval is later checked
+     * against, so a caller naming someone else as the requester would clear their own way to
+     * approve it, and it is also what the monthly cap is counted by.
+     *
+     * @param dto The attendance record, the reason, the missing events and any corrections.
+     * @return The stored request as a DTO.
+     * @throws ResourceNotFoundException if the organization or the attendance record is not found.
+     * @throws ValidationException if self-service regularization is off for the project, the
+     *         monthly cap is reached, or a request is already pending for that record.
+     */
     @Transactional
-    public AttendanceRegularizationDto submitRequest(RegularizationRequestDto dto, String requestedBy,
-                                                     Long requestedById) {
+    public AttendanceRegularizationDto submitRequest(RegularizationRequestDto dto) {
+        Actor requester = resolveCurrentActor();
+        String requestedBy = requester.name();
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
@@ -95,7 +141,7 @@ public class AttendanceRegularizationService {
                 .attendance(attendance)
                 .reason(dto.getReason())
                 .requestedBy(requestedBy)
-                .requestedById(requestedById)
+                .requestedById(requester.employeeId())
                 .status(settings.getRegularizationApprovalRequired()
                         ? RegularizationStatus.PENDING : RegularizationStatus.APPROVED)
                 .missingEvents(regularizationMapper.serializeMissingEvents(dto.getMissingEvents()))
@@ -106,8 +152,11 @@ public class AttendanceRegularizationService {
                 .build();
 
         // Auto-approving projects take effect immediately, so the corrections are written now.
+        // This path is deliberately outside the self-approval rule: a project configured not to
+        // require an approval is the tenant's own standing decision that these corrections do not
+        // need a second person, which is exactly the case the setting exists for.
         if (!settings.getRegularizationApprovalRequired()) {
-            applyCorrectedEvents(attendance, dto.getCorrectedEvents(), org);
+            applyCorrectedEvents(attendance, dto.getCorrectedEvents(), org, false);
             if (attendance.getShiftTiming() != null) {
                 calculationService.recalculate(attendance, attendance.getShiftTiming());
             }
@@ -117,18 +166,33 @@ public class AttendanceRegularizationService {
         return regularizationMapper.toDto(regularizationRepository.save(regularization));
     }
 
+    /**
+     * Approves or rejects a pending regularization request.
+     *
+     * <p>The approver is taken from the session, so the record says who actually decided it. An
+     * approval then goes through {@link SelfApprovalPolicy}: an approval is the second pair of eyes
+     * on a change to an attendance record, so it has to come from someone other than whoever raised
+     * the request, unless the approver holds the break-glass role, in which case the corrected clock
+     * events carry a note saying the correction was self-approved.
+     *
+     * <p>A rejection is left outside the rule on purpose. It writes nothing to the attendance
+     * record, and refusing a self-rejection would leave an employee unable to withdraw a request
+     * they raised by mistake.
+     *
+     * <p>Requests stored before the requester was stamped from the session name nobody, so there is
+     * nothing to compare them against and they are let through.
+     *
+     * @param regularizationId The request to decide.
+     * @param dto The decision and, on a rejection, the reason.
+     * @return The decided request as a DTO.
+     * @throws ResourceNotFoundException if no such request exists in this organization.
+     * @throws ValidationException if the request is no longer pending.
+     * @throws org.tornotron.echno_backend.common.exception.InvalidRequestException if the approver
+     *         raised the request and does not hold the break-glass role.
+     */
     @Transactional
     public AttendanceRegularizationDto processRegularization(Long regularizationId,
-                                                              RegularizationActionDto dto,
-                                                              String approvedBy) {
-        return processRegularization(regularizationId, dto, approvedBy, null);
-    }
-
-    @Transactional
-    public AttendanceRegularizationDto processRegularization(Long regularizationId,
-                                                              RegularizationActionDto dto,
-                                                              String approvedBy,
-                                                              Long approvedById) {
+                                                              RegularizationActionDto dto) {
         AttendanceRegularization regularization = regularizationRepository.findByIdAndOrganization_Id(regularizationId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Regularization request with ID " + regularizationId + " was not found"));
@@ -140,9 +204,16 @@ public class AttendanceRegularizationService {
                             + " and can no longer be actioned");
         }
 
+        Actor approver = resolveCurrentActor();
+        boolean selfApproved = dto.getStatus() == RegularizationStatus.APPROVED
+                && selfApprovalPolicy.checkSelfApproval(
+                        regularization.getRequestedById(),
+                        approver.employeeId(),
+                        "Regularization request with ID " + regularizationId);
+
         regularization.setStatus(dto.getStatus());
-        regularization.setApprovedBy(approvedBy);
-        regularization.setApprovedById(approvedById);
+        regularization.setApprovedBy(approver.name());
+        regularization.setApprovedById(approver.employeeId());
         regularization.setApprovedAt(LocalDateTime.now());
         regularization.setRejectionReason(dto.getRejectionReason());
 
@@ -154,7 +225,8 @@ public class AttendanceRegularizationService {
             applyCorrectedEvents(
                     attendance,
                     regularizationMapper.deserializeRequestedEvents(regularization.getRequestedEvents()),
-                    regularization.getOrganization());
+                    regularization.getOrganization(),
+                    selfApproved);
             if (attendance.getShiftTiming() != null) {
                 calculationService.recalculate(attendance, attendance.getShiftTiming());
             }
@@ -187,13 +259,20 @@ public class AttendanceRegularizationService {
      * missing, not to overwrite a real clock event, and skipping duplicates keeps the operation safe
      * to reach twice, for instance when a rejected request is resubmitted and then approved.
      *
+     * <p>A correction let through under the break-glass role says so on every event it writes. The
+     * request already records the requester and the approver side by side, but the clock event is
+     * what a corrected day is read from, so a correction nobody independent agreed to says so where
+     * the day is explained.
+     *
      * @param attendance      the record being corrected
      * @param correctedEvents the events to add; {@code null} or empty is a no-op
      * @param org             the owning organization, stamped onto each new event
+     * @param selfApproved    whether the approval was a break-glass self-approval
      */
     private void applyCorrectedEvents(Attendance attendance,
                                        List<ClockEventCreationDto> correctedEvents,
-                                       Organization org) {
+                                       Organization org,
+                                       boolean selfApproved) {
         if (correctedEvents == null || correctedEvents.isEmpty()) {
             return;
         }
@@ -217,12 +296,34 @@ public class AttendanceRegularizationService {
                     .projectId(attendance.getProjectId())
                     .projectName(attendance.getProjectName())
                     .isRegularized(true)
-                    .regularizationReason("Self-regularized")
+                    .regularizationReason("Self-regularized" + (selfApproved ? SELF_APPROVAL_NOTE : ""))
                     .isWithinGeofence(false)
                     .distanceFromProject(0.0)
                     .organization(org)
                     .build();
             attendance.getClockEvents().add(event);
         }
+    }
+
+    /**
+     * Resolves the authenticated caller into what gets recorded on a request.
+     *
+     * <p>The caller's employee record in the current organization is preferred, because the
+     * employee id is what the self-approval rule compares and what the web client links a
+     * requester by. A caller with no employee record in this tenant, for instance a bootstrap
+     * administrator, still gets a stable identity: their authenticated username, which is not
+     * something they can choose per request. Only a caller with no identity at all falls back to
+     * {@value #SYSTEM_ACTOR}, which the endpoint's authorization rules already rule out.
+     */
+    private Actor resolveCurrentActor() {
+        Long userId = userContextService.getCurrentUserId();
+        Employee employee = userId == null ? null
+                : employeeRepository.findByUserIdAndOrganizationId(userId, TenantContext.getCurrentOrgId())
+                        .orElse(null);
+        if (employee != null) {
+            return new Actor(employee.getEmployeeName(), employee.getId());
+        }
+        String username = userContextService.getCurrentUsername();
+        return new Actor(username == null || username.isBlank() ? SYSTEM_ACTOR : username, null);
     }
 }

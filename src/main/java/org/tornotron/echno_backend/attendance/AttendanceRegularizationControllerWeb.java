@@ -41,7 +41,9 @@ public class AttendanceRegularizationControllerWeb {
     @Operation(
             summary = "Submit a regularization request",
             description = "Files a request to correct an attendance record, naming the missing clock "
-                    + "events and, optionally, the events that should be added in their place."
+                    + "events and, optionally, the events that should be added in their place. The "
+                    + "authenticated caller is recorded as the requester, and cannot then approve the "
+                    + "request themselves unless they hold the system-admin role."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Regularization request submitted"),
@@ -50,11 +52,9 @@ public class AttendanceRegularizationControllerWeb {
             @ApiResponse(responseCode = "404", description = "No attendance record with the given attendanceId")
     })
     public ResponseEntity<AttendanceRegularizationDto> submitRequest(
-            @Valid @RequestBody RegularizationRequestDto dto,
-            @RequestParam String requestedBy,
-            @RequestParam(required = false) Long requestedById) {
+            @Valid @RequestBody RegularizationRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(regularizationService.submitRequest(dto, requestedBy, requestedById));
+                .body(regularizationService.submitRequest(dto));
     }
 
     @PostMapping("/{id}/process")
@@ -62,20 +62,23 @@ public class AttendanceRegularizationControllerWeb {
     @Operation(
             summary = "Approve or reject a regularization request",
             description = "Sets the status of a pending regularization request. A rejection should carry "
-                    + "a rejectionReason."
+                    + "a rejectionReason. The authenticated caller is recorded as the approver. Whoever "
+                    + "raised the request cannot approve it: an approval is the second pair of eyes on a "
+                    + "change to an attendance record, so it has to come from someone else. A system "
+                    + "administrator is the one exception, and their self-approval is recorded as one on "
+                    + "the corrected clock events. Rejecting your own request is allowed, since it writes "
+                    + "nothing to the attendance record."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Regularization request processed"),
-            @ApiResponse(responseCode = "400", description = "status is missing or invalid"),
+            @ApiResponse(responseCode = "400", description = "status is missing or invalid, the request has already been actioned, or it is being approved by whoever raised it without the system-admin role"),
             @ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records"),
             @ApiResponse(responseCode = "404", description = "No regularization request with the given id")
     })
     public ResponseEntity<AttendanceRegularizationDto> process(
             @PathVariable Long id,
-            @Valid @RequestBody RegularizationActionDto dto,
-            @RequestParam String approvedBy,
-            @RequestParam(required = false) Long approvedById) {
-        return ResponseEntity.ok(regularizationService.processRegularization(id, dto, approvedBy, approvedById));
+            @Valid @RequestBody RegularizationActionDto dto) {
+        return ResponseEntity.ok(regularizationService.processRegularization(id, dto));
     }
 
     @GetMapping("/pending")
