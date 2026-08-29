@@ -12,7 +12,10 @@ import java.util.List;
 
 @Schema(description = "Payload to create a site transfer moving materials from a sending project "
         + "to a receiving project. The transfer number is allocated by the server and returned on "
-        + "the created transfer; it is not part of this payload.")
+        + "the created transfer; it is not part of this payload. The two sides must differ: a "
+        + "transfer naming the same project and the same storage location on both sides moves "
+        + "nothing and is refused, while two storage locations inside one project is a real move "
+        + "and is accepted.")
 @Data
 public class SiteTransferCreationDto {
 
@@ -29,8 +32,10 @@ public class SiteTransferCreationDto {
     private Long sendingProjectId;
 
     @Schema(description = "Id of the specific storage location within the sending project to draw stock "
-            + "from, for example Main Site Store. Optional; when omitted, stock is validated at the "
-            + "project level instead of a single location.", example = "7")
+            + "from, for example Main Site Store. Must either belong to the sending project or belong to "
+            + "no project, which makes it an organisation-level store available from every project. "
+            + "Optional; when omitted, stock is validated at the project level instead of a single "
+            + "location.", example = "7")
     private Long sendingStorageLocationId;
 
     @Schema(description = "Id of the project the materials are being sent to.", example = "9")
@@ -38,7 +43,10 @@ public class SiteTransferCreationDto {
     private Long receivingProjectId;
 
     @Schema(description = "Id of the specific storage location within the receiving project to credit the "
-            + "materials to, for example Site B Yard. Optional.", example = "15")
+            + "materials to, for example Site B Yard. Must either belong to the receiving project or belong "
+            + "to no project. When the receiving project is also the sending project this must name a "
+            + "different location from the sending one, since a transfer that ends where it started moves "
+            + "nothing. Optional.", example = "15")
     private Long receivingStorageLocationId;
 
     @Schema(description = "Initial status of the transfer.", example = "PENDING")
