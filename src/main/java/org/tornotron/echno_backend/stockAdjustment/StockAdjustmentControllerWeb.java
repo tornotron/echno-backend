@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentCreationDto;
 import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentDto;
+import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentRejectionRequest;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
@@ -29,8 +30,11 @@ import java.util.List;
                 + "per line item. This is the controlled way to set or correct a stock balance: approving "
                 + "a document posts its lines to the inventory ledger and moves the balance, so the "
                 + "resulting figure stays explainable. Endpoints cover creating, updating, browsing, "
-                + "approving and deleting stock adjustment documents for the caller's current tenant. "
-                + "Read endpoints require tenant membership; write and approval endpoints require the "
+                + "approving, rejecting and deleting stock adjustment documents for the caller's "
+                + "current tenant. A draft is either approved, which posts it, or rejected with a "
+                + "stated reason, which posts nothing and keeps the refused correction on the "
+                + "record; both decisions freeze the document. "
+                + "Read endpoints require tenant membership; write and decision endpoints require the "
                 + "system-admin or project-manager role, and approval additionally has to come from "
                 + "someone other than whoever raised the document."
 )
@@ -114,7 +118,9 @@ public class StockAdjustmentControllerWeb {
             summary = "Update a stock adjustment",
             description = "Replaces the header fields and line items of an existing stock adjustment with "
                     + "the given values. Refused once the adjustment has been approved and posted, since "
-                    + "the ledger entries would then describe a document that no longer exists."
+                    + "the ledger entries would then describe a document that no longer exists, and "
+                    + "refused once it has been rejected, since editing it would overwrite the record "
+                    + "of what was refused; raise a fresh adjustment in that case."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustment updated"),
@@ -156,12 +162,44 @@ public class StockAdjustmentControllerWeb {
         return new ResponseEntity<>(stockAdjustmentService.approve(id), HttpStatus.OK);
     }
 
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(
+            summary = "Reject a stock adjustment, recording why it was refused",
+            description = "Records that an approver looked at the proposed correction and did not "
+                    + "accept it. Nothing is posted to the stock ledger and no balance moves: the "
+                    + "document is stamped with who rejected it, when, and the reason, and its status "
+                    + "becomes rejected. The reason is required, because keeping the refusal and its "
+                    + "grounds on the record is the whole difference between rejecting the document "
+                    + "and deleting it. Restricted to the system-admin and project-manager roles, the "
+                    + "same as approval, but unlike approval it may be done by whoever raised the "
+                    + "document: a rejection posts no entry for a second pair of eyes to check, and "
+                    + "the raiser could delete the draft outright in any case, so refusing them the "
+                    + "rejection would only push them to the outcome that keeps no record. An already "
+                    + "posted document cannot be rejected, since its movements are on the ledger; "
+                    + "correct those by raising a further adjustment. Rejection is terminal: the "
+                    + "document cannot then be edited, deleted, approved or rejected again, and a "
+                    + "raiser who wants to answer the objection raises a fresh draft."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustment rejected"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "No reason was given, or the adjustment is already posted or already rejected"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No stock adjustment with the given id")
+    })
+    public ResponseEntity<StockAdjustmentDto> rejectStockAdjustment(
+            @PathVariable Long id,
+            @Valid @RequestBody StockAdjustmentRejectionRequest request) {
+        return new ResponseEntity<>(stockAdjustmentService.reject(id, request.reason()), HttpStatus.OK);
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Delete a stock adjustment",
             description = "Deletes the stock adjustment with the given id. Refused once the adjustment "
-                    + "has been approved and posted; raise a further adjustment instead."
+                    + "has been approved and posted, and once it has been rejected, because both are "
+                    + "decisions worth keeping; raise a further adjustment instead."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustment deleted"),

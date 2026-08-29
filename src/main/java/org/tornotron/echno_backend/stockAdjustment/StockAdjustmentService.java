@@ -51,10 +51,18 @@ import java.util.Optional;
  * refused, because changing the lines afterwards would leave the ledger describing a
  * document that no longer exists.
  *
+ * <p>A draft has one other way off the line: {@link #reject}, which records that an approver
+ * looked at the correction and refused it. It moves no stock, and it is the only outcome that
+ * keeps the refusal on the record. Deleting the document instead erases the fact that it was
+ * ever raised and why it was turned down, which on a document whose purpose is to make a
+ * balance explainable throws away half of what there was to explain. A rejected document is
+ * frozen the same way a posted one is, for the same reason: the decision has been taken and
+ * the record of it is the point.
+ *
  * <p>Because approval is what moves the balance, it is also where segregation of duties
  * applies: {@link #create} records who raised the document from the session, and
  * {@link #approve} refuses an approval by that same person unless they hold the break-glass
- * role. See {@link SelfApprovalPolicy}.
+ * role. See {@link SelfApprovalPolicy}. {@link #reject} is deliberately outside that rule.
  */
 @Service
 public class StockAdjustmentService {
@@ -94,6 +102,12 @@ public class StockAdjustmentService {
 
     /** Status a document carries once its movements are on the ledger. */
     static final String POSTED_STATUS = "processed";
+
+    /**
+     * Status a document carries once an approver has refused it. Part of the vocabulary the web
+     * client already reads, alongside {@link #DRAFT_STATUS} and {@link #POSTED_STATUS}.
+     */
+    static final String REJECTED_STATUS = "rejected";
 
     /**
      * Status a document carries until it is approved, and the only one a request body may ask
@@ -170,6 +184,7 @@ public class StockAdjustmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Stock adjustment with ID " + id + " was not found in this organization"));
         requireNotPosted(stockAdjustment, "edited");
+        requireNotRejected(stockAdjustment, "edited");
         Organization organization = stockAdjustment.getOrganization();
 
         applyHeaderFields(stockAdjustment, creationDto);
@@ -199,6 +214,7 @@ public class StockAdjustmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Stock adjustment with ID " + id + " was not found in this organization"));
         requireNotPosted(stockAdjustment, "deleted");
+        requireNotRejected(stockAdjustment, "deleted");
         stockAdjustmentRepository.delete(stockAdjustment);
     }
 
@@ -244,6 +260,7 @@ public class StockAdjustmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Stock adjustment with ID " + id + " was not found in this organization"));
         requireNotPosted(stockAdjustment, "posted again");
+        requireNotRejected(stockAdjustment, "approved");
 
         Long approver = userContextService.getCurrentUserId();
         boolean selfApproved = selfApprovalPolicy.checkSelfApproval(
@@ -341,6 +358,73 @@ public class StockAdjustmentService {
     }
 
     /**
+     * Rejects a stock adjustment, recording who refused it, when, and why.
+     *
+     * <p>This is the other way a draft leaves the pending state, and the only one that keeps the
+     * refusal. Nothing is written to the stock ledger and no balance moves: the document is
+     * stamped with the rejection and closed. Deleting it instead is what the module had before,
+     * and it removes the fact that a correction was proposed along with the reason it was not
+     * accepted, on a document that exists to make a balance explainable.
+     *
+     * <p>Three deliberate decisions sit behind this.
+     *
+     * <p><b>The reason is required.</b> Every posted line has to say why the stock moved, or
+     * {@link #resolveReason} refuses it. A rejection is held to the same standard: without the
+     * reason it records nothing that could not be read off the absence of an approval, and the
+     * next person looking at the balance is no better off than if the draft had been deleted.
+     *
+     * <p><b>Self-rejection is not subject to {@link SelfApprovalPolicy}.</b> That rule is the
+     * second pair of eyes on the entry an approval posts, and a rejection posts no entry. It also
+     * takes nothing away from anybody: whoever raised the document can already delete it outright,
+     * so refusing them the rejection would only push them towards the outcome that keeps no
+     * record. This follows the same reading the attendance path settled on for withdrawing your
+     * own request.
+     *
+     * <p><b>A posted document cannot be rejected.</b> Its lines are on the ledger and the balance
+     * has moved, so a rejection would claim a correction was refused while the stock figure says
+     * it happened. A posting is undone by raising a further adjustment, not by relabelling the
+     * one that posted it.
+     *
+     * <p>Rejection is terminal. The document cannot then be edited, deleted, approved or rejected
+     * again: there is one set of rejection columns, so an edit that reopened the document would
+     * have to overwrite the refusal to record the next decision, and the record of the refusal is
+     * the entire reason to reject rather than delete. A raiser who wants to answer the objection
+     * raises a fresh draft, which costs nothing because a draft posts nothing, and the rejected
+     * document stays alongside it saying what was asked for and why it was turned down.
+     *
+     * @param id The document to reject.
+     * @param reason Why it is being refused. Required.
+     * @return The rejected document as a DTO.
+     * @throws ResourceNotFoundException if no such document exists in this organization.
+     * @throws InvalidRequestException if the document is already posted, is already rejected, or no reason was given.
+     */
+    @Transactional
+    public StockAdjustmentDto reject(Long id, String reason) {
+        StockAdjustment stockAdjustment = stockAdjustmentRepository
+                .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Stock adjustment with ID " + id + " was not found in this organization"));
+        requireNotPosted(stockAdjustment, "rejected");
+        requireNotRejected(stockAdjustment, "rejected again");
+
+        String statedReason = reason == null ? null : reason.trim();
+        if (!hasText(statedReason)) {
+            throw new InvalidRequestException("Rejecting stock adjustment with ID " + id
+                    + " needs a reason. The record of a refused correction is what the rejection is "
+                    + "for, and a rejection that does not say why says nothing the missing approval "
+                    + "did not already say.");
+        }
+
+        stockAdjustment.setStatus(REJECTED_STATUS);
+        stockAdjustment.setRejectedBy(userContextService.getCurrentUserId());
+        stockAdjustment.setRejectedAt(LocalDateTime.now());
+        stockAdjustment.setRejectionReason(statedReason);
+
+        StockAdjustment saved = stockAdjustmentRepository.saveAndFlush(stockAdjustment);
+        return stockAdjustmentMapper.toDto(saved);
+    }
+
+    /**
      * What a self-approved posting carries in the ledger. The document already records the raiser
      * and the approver side by side, but the ledger entry is what a stock figure is explained
      * from, so a movement nobody independent agreed to says so where the figure is read.
@@ -388,6 +472,24 @@ public class StockAdjustmentService {
             throw new InvalidRequestException("Stock adjustment with ID " + stockAdjustment.getId()
                     + " was posted to the stock ledger on " + stockAdjustment.getProcessedAt()
                     + " and cannot be " + action + ". Raise a further adjustment to correct it.");
+        }
+    }
+
+    /**
+     * Refuses to change or re-decide a document an approver has already refused.
+     *
+     * <p>The document carries one {@code rejectedBy}, one {@code rejectedAt} and one
+     * {@code rejectionReason}, so anything that reopened it would end up overwriting the refusal
+     * to record whatever came next, and the refusal is the whole reason {@link #reject} exists
+     * rather than a delete. A rejected document is therefore read-only, like a posted one, and
+     * the correction is pursued by raising a fresh draft alongside it.
+     */
+    private void requireNotRejected(StockAdjustment stockAdjustment, String action) {
+        if (stockAdjustment.getRejectedAt() != null) {
+            throw new InvalidRequestException("Stock adjustment with ID " + stockAdjustment.getId()
+                    + " was rejected on " + stockAdjustment.getRejectedAt()
+                    + " and cannot be " + action + ". Raise a new adjustment for the correction, so "
+                    + "the rejection and the reason given for it stay on the record.");
         }
     }
 
