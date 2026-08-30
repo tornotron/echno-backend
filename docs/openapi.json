@@ -3027,7 +3027,7 @@
             "type": "integer"
           },
           "approvedByName": {
-            "description": "Name of the user that approved the invoice. Reads \"User #<id>\" when the account has since been deleted; null only when the invoice was never approved.",
+            "description": "Name of the user that approved the invoice, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the invoice was never approved.",
             "example": "Aneesh Johny",
             "type": "string"
           },
@@ -3122,7 +3122,7 @@
             "type": "integer"
           },
           "paymentRecordedByName": {
-            "description": "Name of the user that recorded the most recent payment. Reads \"User #<id>\" when the account has since been deleted; null only when no payment has been recorded.",
+            "description": "Name of the user that recorded the most recent payment, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when no payment has been recorded.",
             "example": "Anand Rajashekar",
             "type": "string"
           },
@@ -3189,7 +3189,7 @@
             "type": "integer"
           },
           "submittedByName": {
-            "description": "Name of the user that submitted the invoice. Reads \"User #<id>\" when the account has since been deleted; null only when the invoice was never submitted.",
+            "description": "Name of the user that submitted the invoice, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the invoice was never submitted.",
             "example": "Anand Rajashekar",
             "type": "string"
           },
@@ -15200,7 +15200,7 @@
             "type": "integer"
           },
           "approvedByName": {
-            "description": "Name of the user who approved the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never approved.",
+            "description": "Name of the user who approved the adjustment, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never approved.",
             "example": "Aneesh Johny",
             "type": "string"
           },
@@ -15286,7 +15286,7 @@
             "type": "integer"
           },
           "processedByName": {
-            "description": "Name of the user who processed the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never processed.",
+            "description": "Name of the user who processed the adjustment, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never processed.",
             "example": "Aneesh Johny",
             "type": "string"
           },
@@ -15314,7 +15314,7 @@
             "type": "integer"
           },
           "rejectedByName": {
-            "description": "Name of the user who rejected the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never rejected.",
+            "description": "Name of the user who rejected the adjustment, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never rejected.",
             "example": "Aneesh Johny",
             "type": "string"
           },
@@ -15341,7 +15341,7 @@
             "type": "integer"
           },
           "submittedByName": {
-            "description": "Name of the user who submitted the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never submitted.",
+            "description": "Name of the user who submitted the adjustment, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never submitted.",
             "example": "Anand Rajashekar",
             "type": "string"
           },
