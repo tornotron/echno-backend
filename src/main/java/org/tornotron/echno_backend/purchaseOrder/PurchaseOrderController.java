@@ -157,14 +157,15 @@ public class PurchaseOrderController {
     @PatchMapping
     @Operation(
             summary = "Update a purchase order",
-            description = "Applies a partial update to a purchase order's status, expected delivery date, "
-                    + "remarks or total amount."
+            description = "Applies a partial update to a purchase order's status, project, expected "
+                    + "delivery date or remarks. The total is the sum of the line items and is "
+                    + "recomputed whenever one of them changes, so it is not settable here."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase order updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No purchase order with the given id")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No purchase order with the given id, or the payload names a project that does not exist in this organization")
     })
     public ResponseEntity<PurchaseOrderDto> updatePurchaseOrder(@Valid @RequestBody PurchaseOrderUpdateDto updateDto) {
         PurchaseOrderDto updated = purchaseOrderService.updatePurchaseOrder(updateDto);

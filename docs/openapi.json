@@ -13784,11 +13784,17 @@
         "type": "object"
       },
       "PurchaseOrderItemUpdateDto": {
-        "description": "Payload to update a purchase order line item's quantity, price or remarks.",
+        "description": "Payload to update a purchase order line item's material, quantity, price or remarks.",
         "properties": {
           "id": {
             "description": "Id of the item to update.",
             "example": 512,
+            "format": "int64",
+            "type": "integer"
+          },
+          "materialId": {
+            "description": "Change the material the line is for. Only while nothing has been received against it.",
+            "example": 88,
             "format": "int64",
             "type": "integer"
           },
@@ -13815,7 +13821,7 @@
         "type": "object"
       },
       "PurchaseOrderUpdateDto": {
-        "description": "Payload to update a purchase order's status, delivery date, remarks or total.",
+        "description": "Payload to update a purchase order's status, project, delivery date or remarks.",
         "properties": {
           "expectedDeliveryDate": {
             "description": "Updated expected delivery date.",
@@ -13826,6 +13832,12 @@
           "id": {
             "description": "Id of the purchase order to update.",
             "example": 204,
+            "format": "int64",
+            "type": "integer"
+          },
+          "projectId": {
+            "description": "Reallocate the order to a different project.",
+            "example": 17,
             "format": "int64",
             "type": "integer"
           },
@@ -13840,7 +13852,7 @@
             "type": "string"
           },
           "totalAmount": {
-            "description": "Updated total value in INR.",
+            "description": "Ignored. The total is derived from the line items and recomputed on every line change.",
             "example": 492500.0,
             "type": "number"
           }
@@ -84353,7 +84365,7 @@
         ]
       },
       "put": {
-        "description": "Replaces a line item's ordered quantity, unit price and remarks.",
+        "description": "Updates a line item's material, ordered quantity, unit price or remarks. The id is read from the request body. The material can only change while nothing has been received against the line.",
         "operationId": "updatePurchaseOrderItem",
         "requestBody": {
           "content": {
@@ -84384,7 +84396,7 @@
                 }
               }
             },
-            "description": "A field failed validation"
+            "description": "A field failed validation, or the material was changed on a line that has already received stock"
           },
           "402": {
             "content": {
@@ -84414,7 +84426,7 @@
                 }
               }
             },
-            "description": "No purchase order item with the given id"
+            "description": "No purchase order item with the given id, or the payload names a material that does not exist in this organization"
           },
           "409": {
             "content": {
@@ -84931,7 +84943,7 @@
         ]
       },
       "patch": {
-        "description": "Replaces a line item's ordered quantity, unit price and remarks.",
+        "description": "Updates a line item's material, ordered quantity, unit price or remarks. The id is read from the request body. The material can only change while nothing has been received against the line.",
         "operationId": "updatePurchaseOrderItem_1",
         "requestBody": {
           "content": {
@@ -84962,7 +84974,7 @@
                 }
               }
             },
-            "description": "A field failed validation"
+            "description": "A field failed validation, or the material was changed on a line that has already received stock"
           },
           "402": {
             "content": {
@@ -84992,7 +85004,7 @@
                 }
               }
             },
-            "description": "No purchase order item with the given id"
+            "description": "No purchase order item with the given id, or the payload names a material that does not exist in this organization"
           },
           "409": {
             "content": {
@@ -86067,7 +86079,7 @@
         ]
       },
       "patch": {
-        "description": "Applies a partial update to a purchase order's status, expected delivery date, remarks or total amount.",
+        "description": "Applies a partial update to a purchase order's status, project, expected delivery date or remarks. The total is the sum of the line items and is recomputed whenever one of them changes, so it is not settable here.",
         "operationId": "updatePurchaseOrder",
         "requestBody": {
           "content": {
@@ -86128,7 +86140,7 @@
                 }
               }
             },
-            "description": "No purchase order with the given id"
+            "description": "No purchase order with the given id, or the payload names a project that does not exist in this organization"
           },
           "409": {
             "content": {
@@ -86878,7 +86890,7 @@
         ]
       },
       "patch": {
-        "description": "Applies a partial update to a purchase order's status, expected delivery date, remarks or total amount.",
+        "description": "Applies a partial update to a purchase order's status, project, expected delivery date or remarks. The total is the sum of the line items and is recomputed whenever one of them changes, so it is not settable here.",
         "operationId": "updatePurchaseOrder_1",
         "requestBody": {
           "content": {
@@ -86939,7 +86951,7 @@
                 }
               }
             },
-            "description": "No purchase order with the given id"
+            "description": "No purchase order with the given id, or the payload names a project that does not exist in this organization"
           },
           "409": {
             "content": {

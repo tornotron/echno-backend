@@ -269,12 +269,15 @@ public class PurchaseOrderService {
     /**
      * Applies a partial update to a purchase order header.
      *
-     * <p>Only the non-null status, expected delivery date, and remarks are changed. Line
-     * items and the order total are not affected.
+     * <p>Only the non-null status, project, expected delivery date, and remarks are changed.
+     * Line items are not affected, and neither is the order total: it is the sum of the lines
+     * and is recomputed whenever one of them changes, so {@code totalAmount} on the payload is
+     * ignored rather than written.
      *
      * @param updateDto The purchase order id and the header fields to change.
      * @return The updated purchase order as a DTO.
-     * @throws ResourceNotFoundException if no purchase order with the given id exists in this organization.
+     * @throws ResourceNotFoundException if no purchase order with the given id exists in this
+     *     organization, or the payload names a project that does not.
      */
     @Transactional
     public PurchaseOrderDto updatePurchaseOrder(PurchaseOrderUpdateDto updateDto) {
@@ -283,6 +286,13 @@ public class PurchaseOrderService {
 
         if (updateDto.getStatus() != null) {
             purchaseOrder.setStatus(PurchaseOrderStatus.valueOf(updateDto.getStatus()));
+        }
+
+        if (updateDto.getProjectId() != null) {
+            Project project = projectRepository.findByIdAndOrganization_Id(updateDto.getProjectId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Project with ID " + updateDto.getProjectId() + " was not found in this organization"));
+            purchaseOrder.setProject(project);
         }
 
         if (updateDto.getExpectedDeliveryDate() != null) {

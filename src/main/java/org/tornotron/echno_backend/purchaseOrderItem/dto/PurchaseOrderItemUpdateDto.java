@@ -6,13 +6,17 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 
-@Schema(description = "Payload to update a purchase order line item's quantity, price or remarks.")
+@Schema(description = "Payload to update a purchase order line item's material, quantity, price or remarks.")
 @Data
 public class PurchaseOrderItemUpdateDto {
 
     @Schema(description = "Id of the item to update.", example = "512")
     @NotNull(message = "Item ID is required")
     private Long id;
+
+    @Schema(description = "Change the material the line is for. Only while nothing has been "
+            + "received against it.", example = "88")
+    private Long materialId;
 
     @Schema(description = "Updated ordered quantity.", example = "450")
     private Integer orderedQuantity;

@@ -147,13 +147,13 @@ public class PurchaseOrderItemControllerWeb {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Update a purchase order item",
-            description = "Replaces a line item's ordered quantity, unit price and remarks."
+            description = "Updates a line item's material, ordered quantity, unit price or remarks. The id is read from the request body. The material can only change while nothing has been received against the line."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase order item updated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation, or the material was changed on a line that has already received stock"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No purchase order item with the given id")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No purchase order item with the given id, or the payload names a material that does not exist in this organization")
     })
     public ResponseEntity<PurchaseOrderItemResponseDto> updatePurchaseOrderItem(
             @Valid @RequestBody PurchaseOrderItemUpdateDto updateDto) {
