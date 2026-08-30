@@ -27,6 +27,7 @@ import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.project.dto.ProjectSimpleDto;
+import org.tornotron.echno_backend.project.dto.ProjectSummaryDto;
 
 import java.util.List;
 import java.util.Map;
@@ -152,6 +153,43 @@ public class ProjectControllerWeb {
             @Valid @ParameterObject PageQuery pageQuery,
             @RequestParam(required = false) String search) {
         return ResponseEntity.ok(service.getProjectsPaginated(pageQuery.getPageNo(), pageQuery.pageSizeOr(20), search));
+    }
+
+    /**
+     * Retrieves a page of projects as summaries, for a list that does not read their contents.
+     *
+     * <p>The same projects, the same order and the same paging as {@link #readAllProjectsPaginated},
+     * with every scalar field of the full project view and none of its collections. Progress means
+     * what it means on the full view: it is read for the whole page in one aggregate rather than by
+     * loading each project's tasks, so a table of project names no longer walks the tenant's tasks,
+     * issues, assignees and attachments to render itself.
+     *
+     * <p>It is an addition, not a replacement. {@link #readAllProjectsPaginated} is unchanged and
+     * still returns the full DTO, so nothing moves until a caller chooses to move.
+     *
+     * @param pageQuery Page index and page size, bounded by {@link PageQuery}.
+     * @param search   Optional case-insensitive match on the project name.
+     * @return A {@link ResponseEntity} containing the page of project summaries.
+     */
+    @GetMapping("/summary")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(
+            summary = "List projects as summaries, paginated and filtered",
+            description = "Returns a single page of projects carrying every scalar field of the "
+                    + "full project view and none of its collections: no team, no tasks, no "
+                    + "attachments. Progress is the same figure the full view reports. Use this "
+                    + "for lists and tables; use the full listing when the response is read for "
+                    + "its contents. pageSize is clamped to 500."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of project summaries returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public ResponseEntity<Page<ProjectSummaryDto>> readAllProjectSummaries(
+            @Valid @ParameterObject PageQuery pageQuery,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(
+                service.getProjectsSummaryPaginated(pageQuery.getPageNo(), pageQuery.pageSizeOr(20), search));
     }
 
     /**

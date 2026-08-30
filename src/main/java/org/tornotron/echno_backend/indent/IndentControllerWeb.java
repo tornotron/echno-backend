@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +18,7 @@ import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemUpdateDto;
 import org.tornotron.echno_backend.indent.dto.IndentCreationDto;
 import org.tornotron.echno_backend.indent.dto.IndentDto;
+import org.tornotron.echno_backend.indent.dto.IndentSummaryDto;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
@@ -68,6 +70,41 @@ public class IndentControllerWeb {
             @Valid @ParameterObject PageQuery pageQuery
     ) {
         return new ResponseEntity<>(indentService.getAllIndents(pageQuery.getPageNo(), pageQuery.getPageSize()).getContent(), HttpStatus.OK);
+    }
+
+    /**
+     * Retrieves a page of indents as summaries, for a list that does not read their lines.
+     *
+     * <p>The same indents, the same order and the same paging as {@link #getAllIndents(PageQuery)},
+     * carrying the indent's own fields, the id and name of whoever raised it, and how many lines it
+     * has. The lines themselves are on the detail view. That is the whole point: a line carries a
+     * full material and a material carries stock figures read from a further aggregate, so a page
+     * of indents was materialising a slice of the material catalogue to render a column of indent
+     * numbers.
+     *
+     * <p>It is an addition, not a replacement. {@link #getAllIndents(PageQuery)} is unchanged.
+     *
+     * @param pageQuery Page index and page size, bounded by {@link PageQuery}.
+     * @return A {@link ResponseEntity} containing the page of indent summaries.
+     */
+    @GetMapping("/summary")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "List indents as summaries, paginated",
+            description = "Returns a single page of indents without their item lines, each "
+                    + "carrying how many lines it has and who raised it. Use this for lists; use "
+                    + "the full listing or the detail endpoint when the lines are needed."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of indent summaries returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public ResponseEntity<Page<IndentSummaryDto>> getAllIndentSummaries(
+            @Valid @ParameterObject PageQuery pageQuery
+    ) {
+        return new ResponseEntity<>(
+                indentService.getAllIndentsSummary(pageQuery.getPageNo(), pageQuery.getPageSize()),
+                HttpStatus.OK);
     }
 
     @GetMapping

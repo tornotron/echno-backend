@@ -20,12 +20,14 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.indent.dto.IndentUpdateDto;
 import org.tornotron.echno_backend.indentItem.IndentItem;
+import org.tornotron.echno_backend.indentItem.IndentItemCountLookup;
 import org.tornotron.echno_backend.indentItem.IndentItemRepository;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemCreationDto;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemUpdateDto;
 import org.tornotron.echno_backend.indent.dto.IndentCreationDto;
 import org.tornotron.echno_backend.indent.dto.IndentDto;
+import org.tornotron.echno_backend.indent.dto.IndentSummaryDto;
 import org.tornotron.echno_backend.indent.enums.IndentStatus;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.inventoryTransaction.MaterialStockLookup;
@@ -200,6 +202,49 @@ public class IndentService {
         Page<Indent> indents = indentRepository.findAll(pageable);
         MaterialStockLookup stock = stockForIndents(indents.getContent());
         return indents.map(indent -> indentMapper.toDto(indent, stock));
+    }
+
+    /**
+     * Retrieves a page of indents as summaries: the indent's own fields, who raised it and how
+     * many lines it has.
+     *
+     * <p>The list projection of {@link #getAllIndents}. The full DTO carries every requested item,
+     * every item carries a whole material, and every material carries stock figures read from a
+     * further aggregate, so a page of indents materialises a slice of the material catalogue to
+     * render a column of indent numbers. The line count comes from one grouped read instead, and
+     * the raiser flattens to an id and a name rather than a full employee.
+     *
+     * <p>Offered alongside {@link #getAllIndents} rather than replacing it, for the same reason
+     * the project summary is: the published contract is hand-maintained, so which endpoints move
+     * over is a decision per endpoint.
+     *
+     * @param pageNo Zero-based page index.
+     * @param pageSize Number of indents per page.
+     * @return A page of indent summaries ordered by id ascending.
+     */
+    @Transactional(readOnly = true)
+    public Page<IndentSummaryDto> getAllIndentsSummary(int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
+        Page<Indent> indents = indentRepository.findAll(pageable);
+        IndentItemCountLookup itemCounts = itemCountsFor(indents.getContent());
+        return indents.map(indent -> indentMapper.toSummaryDto(indent, itemCounts));
+    }
+
+    /**
+     * Reads the line count for a whole page of indents, in one query.
+     *
+     * @param indents The indents being converted.
+     * @return Their line counts, with an indent that has no lines reading as zero.
+     */
+    private IndentItemCountLookup itemCountsFor(Collection<Indent> indents) {
+        List<Long> ids = indents.stream()
+                .map(Indent::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (ids.isEmpty()) {
+            return IndentItemCountLookup.none();
+        }
+        return IndentItemCountLookup.of(indentItemRepository.countItemsByIndentIds(ids));
     }
 
 

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -73,4 +74,33 @@ public interface ProjectRepository extends JpaRepository<Project,Long> {
             """)
     List<Project> findByNormalisedName(@Param("organizationId") Long organizationId,
                                        @Param("name") String name);
+
+    /**
+     * Averages task progress for many projects in one grouped read.
+     *
+     * <p>What a project list needs from a project's tasks is one number. Reaching it through the
+     * mapped {@code project.getTasks()} collection loads every task of every project on the page
+     * so a field can be averaged and the rest thrown away, and the call site shows none of that.
+     * This returns the average itself.
+     *
+     * <p>{@code AVG} ignores tasks whose progress is null, which is what
+     * {@link ProjectProgressCalculator} does in memory. The join is outer, so a project with no
+     * tasks still produces a row, with a null average;
+     * {@link ProjectProgressLookup#of} drops it and reads the project back as the {@code 0.0} the
+     * calculator returns for an empty list. Pass a non-empty collection: {@code IN ()} is not
+     * valid SQL.
+     *
+     * @param projectIds The projects to average, non-empty.
+     * @return One row per project asked for.
+     */
+    @Query("""
+            SELECT new org.tornotron.echno_backend.project.ProjectProgressTotals(
+                       p.id,
+                       AVG(t.progress))
+            FROM Project p LEFT JOIN p.tasks t
+            WHERE p.id IN :projectIds
+            GROUP BY p.id
+            """)
+    List<ProjectProgressTotals> averageTaskProgressByProjectIds(
+            @Param("projectIds") Collection<Long> projectIds);
 }

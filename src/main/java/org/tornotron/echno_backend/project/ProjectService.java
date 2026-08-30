@@ -40,8 +40,10 @@ import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -244,6 +246,54 @@ public class ProjectService {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
         return repository.search(searchPattern(search), pageable)
                 .map(project -> projectMapper.toDto(project));
+    }
+
+    /**
+     * Retrieves a page of projects as summaries: every scalar field, none of the collections.
+     *
+     * <p>The list projection of {@link #getProjectsPaginated}. The full DTO carries the team, the
+     * tasks and the attachments of every project on the page, and every task carries its own
+     * issues, assignees and attachments, so rendering a table of project names walks most of the
+     * tenant. The one derived figure a list reads, progress, is the mean of the project's task
+     * progress; this reads that mean for the whole page in a single grouped query rather than by
+     * loading the tasks, so it reports the same number the full view reports.
+     *
+     * <p>Offered alongside {@link #getProjectsPaginated} rather than replacing it. The published
+     * contract is hand-maintained in {@code echno-core} with no code generation, so narrowing an
+     * existing endpoint's response would reach the web app as fields quietly going undefined.
+     * Which endpoints move over is a decision per endpoint.
+     *
+     * @param pageNo   Zero-based page index; a negative value is treated as zero.
+     * @param pageSize Rows per page, clamped to {@link UnpagedResultCap#MAX_ROWS}.
+     * @param search   Optional case-insensitive match on the project name; blank means none.
+     * @return A {@link Page} of project summaries.
+     */
+    @Transactional(readOnly = true)
+    public Page<ProjectSummaryDto> getProjectsSummaryPaginated(int pageNo, int pageSize, String search) {
+        int page = Math.max(pageNo, 0);
+        int size = Math.clamp(pageSize, 1, UnpagedResultCap.MAX_ROWS);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
+        Page<Project> projects = repository.search(searchPattern(search), pageable);
+        ProjectProgressLookup progress = progressFor(projects.getContent());
+        return projects.map(project -> projectMapper.toSummaryDto(project, progress));
+    }
+
+    /**
+     * Reads the average task progress for a whole page of projects, in one query.
+     *
+     * @param projects The projects being converted.
+     * @return Their average task progress, with a project that has nothing to average reading as
+     *         zero.
+     */
+    private ProjectProgressLookup progressFor(Collection<Project> projects) {
+        List<Long> ids = projects.stream()
+                .map(Project::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (ids.isEmpty()) {
+            return ProjectProgressLookup.none();
+        }
+        return ProjectProgressLookup.of(repository.averageTaskProgressByProjectIds(ids));
     }
 
     /**
