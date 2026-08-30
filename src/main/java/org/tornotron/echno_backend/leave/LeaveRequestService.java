@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.leave;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -9,6 +10,7 @@ import org.tornotron.echno_backend.leave.mapper.LeaveRequestMapper;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestCreationDto;
@@ -43,6 +45,10 @@ public class LeaveRequestService {
     private final LeaveApprovalService approvalService;
     private final LeaveRequestValidator leaveRequestValidator;
     private final LeaveRequestMapper leaveRequestMapper;
+    private final OrganizationSecurityService orgSecurity;
+
+    /** The roles that may raise or act on a leave request belonging to somebody else. */
+    private static final String[] LEAVE_ADMIN_ROLES = {"system-admin", "hr-admin"};
 
     public LeaveRequestService(
             LeaveRequestRepository requestRepository,
@@ -52,7 +58,8 @@ public class LeaveRequestService {
             EmployeeRepository employeeRepository,
             LeaveApprovalService approvalService,
             LeaveRequestValidator leaveRequestValidator,
-            LeaveRequestMapper leaveRequestMapper) {
+            LeaveRequestMapper leaveRequestMapper,
+            OrganizationSecurityService orgSecurity) {
         this.requestRepository = requestRepository;
         this.sequenceRepository = sequenceRepository;
         this.policyRepository = policyRepository;
@@ -61,6 +68,33 @@ public class LeaveRequestService {
         this.approvalService = approvalService;
         this.leaveRequestValidator = leaveRequestValidator;
         this.leaveRequestMapper = leaveRequestMapper;
+        this.orgSecurity = orgSecurity;
+    }
+
+    /**
+     * Refuses the call unless the caller is the employee the leave belongs to, or holds a role
+     * that may act for other people.
+     *
+     * <p>This has to live here rather than in the {@code @PreAuthorize} guard because the guard
+     * can only see what the caller sent. Every one of these endpoints names the employee in a
+     * query parameter or a path segment, so a guard reading that parameter checks the caller
+     * against a number the caller chose. On create that let any member of the tenant raise leave
+     * in a colleague's name; on the request-scoped calls it let any member pass their own
+     * employee id alongside somebody else's request id and edit, cancel or withdraw it. The
+     * employee id is an argument, not evidence.
+     *
+     * @param employeeId The employee the leave belongs to, resolved from the record where there
+     *     is one rather than taken from the request.
+     * @throws AccessDeniedException if the caller is neither that employee nor a leave admin.
+     */
+    private void requireActorMayActFor(Long employeeId) {
+        if (orgSecurity.isSelfInCurrentTenant(employeeId)
+                || orgSecurity.hasAnyOrgRoleForCurrentTenant(LEAVE_ADMIN_ROLES)) {
+            return;
+        }
+        throw new AccessDeniedException(
+                "Leave can only be raised or acted on for yourself, unless you hold the "
+                        + "system-admin or hr-admin role");
     }
 
     /**
@@ -74,9 +108,13 @@ public class LeaveRequestService {
      * @param employeeId The ID of the employee the request is for.
      * @return The created request.
      * @throws ResourceNotFoundException if the employee or policy is not found in this organization.
+     * @throws AccessDeniedException if the caller is neither the employee the leave belongs to
+     *     nor a holder of the system-admin or hr-admin role.
      */
     @Transactional
     public LeaveRequestDto createRequest(LeaveRequestCreationDto dto,Long employeeId) {
+        requireActorMayActFor(employeeId);
+
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee with ID " + employeeId + " was not found in this organization"));
@@ -241,12 +279,16 @@ public class LeaveRequestService {
      * @return The updated request.
      * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
      * @throws InvalidRequestException if the request is not in draft status.
+     * @throws AccessDeniedException if the caller is neither the employee the leave belongs to
+     *     nor a holder of the system-admin or hr-admin role.
      */
     @Transactional
     public LeaveRequestDto updateRequest(Long requestId, Map<String, Object> updates) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
+
+        requireActorMayActFor(request.getEmployee().getId());
 
         if (request.getStatus() != LeaveStatus.DRAFT) {
             throw new InvalidRequestException(
@@ -290,12 +332,16 @@ public class LeaveRequestService {
      * @return The submitted request.
      * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
      * @throws InvalidRequestException if the request is not in draft status.
+     * @throws AccessDeniedException if the caller is neither the employee the leave belongs to
+     *     nor a holder of the system-admin or hr-admin role.
      */
     @Transactional
     public LeaveRequestDto submitRequest(Long requestId) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
+
+        requireActorMayActFor(request.getEmployee().getId());
 
         if (request.getStatus() != LeaveStatus.DRAFT) {
             throw new InvalidRequestException(
@@ -330,12 +376,16 @@ public class LeaveRequestService {
      * @return The cancelled request.
      * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
      * @throws InvalidRequestException if the request is already cancelled or rejected.
+     * @throws AccessDeniedException if the caller is neither the employee the leave belongs to
+     *     nor a holder of the system-admin or hr-admin role.
      */
     @Transactional
     public LeaveRequestDto cancelRequest(Long requestId, String reason) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
+
+        requireActorMayActFor(request.getEmployee().getId());
 
         if (request.getStatus() == LeaveStatus.CANCELLED ||
             request.getStatus() == LeaveStatus.REJECTED) {
@@ -370,12 +420,16 @@ public class LeaveRequestService {
      * @return The withdrawn request.
      * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
      * @throws InvalidRequestException if the request is neither draft nor pending approval.
+     * @throws AccessDeniedException if the caller is neither the employee the leave belongs to
+     *     nor a holder of the system-admin or hr-admin role.
      */
     @Transactional
     public LeaveRequestDto withdrawRequest(Long requestId) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
+
+        requireActorMayActFor(request.getEmployee().getId());
 
         if (request.getStatus() != LeaveStatus.DRAFT &&
             request.getStatus() != LeaveStatus.PENDING_APPROVAL) {
