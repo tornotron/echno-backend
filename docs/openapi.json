@@ -14473,9 +14473,9 @@
         "description": "Payload to reverse a posted journal entry.",
         "properties": {
           "reason": {
-            "description": "Reason the entry is being reversed, recorded on the reversing entry.",
+            "description": "Reason the entry is being reversed, recorded on the reversing entry. The reversing entry's description is the reason with a fixed prefix naming the entry being reversed, so the bound is the description column less that prefix.",
             "example": "Vendor bill cancelled after posting",
-            "maxLength": 500,
+            "maxLength": 455,
             "minLength": 0,
             "type": "string"
           }
@@ -36985,7 +36985,7 @@
     },
     "/api/v1/finance/construction-invoices/web/{id}/cancel": {
       "post": {
-        "description": "Cancels an invoice and records the supplied reason. If the invoice was already posted, the ledger entry is reversed.",
+        "description": "Cancels an invoice and records the supplied reason. If the invoice was already posted, the ledger entry is reversed. The reason is recorded on the reversing entry's description, which also carries a prefix naming the entry being reversed, so it must be present and at most 455 characters.",
         "operationId": "cancel_1",
         "parameters": [
           {
@@ -37002,6 +37002,8 @@
             "name": "reason",
             "required": true,
             "schema": {
+              "maxLength": 455,
+              "minLength": 0,
               "type": "string"
             }
           }
@@ -37025,7 +37027,7 @@
                 }
               }
             },
-            "description": "Invoice is already paid or otherwise cannot be cancelled"
+            "description": "The reason is blank or longer than 455 characters, or the invoice is already paid or otherwise cannot be cancelled"
           },
           "402": {
             "content": {
@@ -39626,7 +39628,7 @@
     },
     "/api/v1/finance/invoices/web/{id}/cancel": {
       "post": {
-        "description": "Cancels an invoice and records the supplied reason. If the invoice was already issued, a reversing journal entry is posted to back out the receivable.",
+        "description": "Cancels an invoice and records the supplied reason. If the invoice was already issued, a reversing journal entry is posted to back out the receivable. The reason is recorded on the reversing entry's description, which also carries a prefix naming the entry being reversed, so it must be present and at most 455 characters.",
         "operationId": "cancel",
         "parameters": [
           {
@@ -39643,6 +39645,8 @@
             "name": "reason",
             "required": true,
             "schema": {
+              "maxLength": 455,
+              "minLength": 0,
               "type": "string"
             }
           }
@@ -39666,7 +39670,7 @@
                 }
               }
             },
-            "description": "Invoice is already paid or otherwise cannot be cancelled"
+            "description": "The reason is blank or longer than 455 characters, or the invoice is already paid or otherwise cannot be cancelled"
           },
           "402": {
             "content": {
