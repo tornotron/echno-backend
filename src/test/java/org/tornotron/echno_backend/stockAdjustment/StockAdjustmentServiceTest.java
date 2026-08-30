@@ -25,6 +25,7 @@ import org.tornotron.echno_backend.stockAdjustment.mapper.StockAdjustmentMapper;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.user.UserContextService;
+import org.tornotron.echno_backend.user.UserNameDirectory;
 
 import java.util.List;
 import java.util.Optional;
@@ -56,6 +57,7 @@ class StockAdjustmentServiceTest {
     private static final Long SESSION_USER = 77L;
 
     @Mock private StockAdjustmentRepository stockAdjustmentRepository;
+    @Mock private UserNameDirectory userNameDirectory;
     @Mock private StockAdjustmentMapper stockAdjustmentMapper;
     @Mock private TenantEntityHelper tenantEntityHelper;
     @Mock private MaterialRepository materialRepository;
@@ -74,7 +76,7 @@ class StockAdjustmentServiceTest {
         service = new StockAdjustmentService(stockAdjustmentRepository, stockAdjustmentMapper,
                 tenantEntityHelper, materialRepository, storageLocationRepository, projectRepository,
                 inventoryService, inventoryTransactionRepository, userContextService,
-                new SelfApprovalPolicy(orgSecurity));
+                new SelfApprovalPolicy(orgSecurity), userNameDirectory);
         lenient().when(tenantEntityHelper.resolveCurrentOrganization()).thenAnswer(inv -> {
             Organization org = new Organization();
             org.setId(ORG);

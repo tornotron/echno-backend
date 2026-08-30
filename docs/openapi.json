@@ -3026,6 +3026,11 @@
             "format": "int64",
             "type": "integer"
           },
+          "approvedByName": {
+            "description": "Name of the user that approved the invoice. Reads \"User #<id>\" when the account has since been deleted; null only when the invoice was never approved.",
+            "example": "Aneesh Johny",
+            "type": "string"
+          },
           "arInvoiceId": {
             "description": "AR invoice raised for this invoice on approval. Present on a sales or service invoice whose project has a client; null otherwise.",
             "example": "1c9d4b7a-0f2e-4a63-8b11-5d7c2e9f4a88",
@@ -3116,6 +3121,11 @@
             "format": "int64",
             "type": "integer"
           },
+          "paymentRecordedByName": {
+            "description": "Name of the user that recorded the most recent payment. Reads \"User #<id>\" when the account has since been deleted; null only when no payment has been recorded.",
+            "example": "Anand Rajashekar",
+            "type": "string"
+          },
           "paymentStatus": {
             "description": "Settlement status derived from paid and outstanding amounts.",
             "enum": [
@@ -3177,6 +3187,11 @@
             "example": 5,
             "format": "int64",
             "type": "integer"
+          },
+          "submittedByName": {
+            "description": "Name of the user that submitted the invoice. Reads \"User #<id>\" when the account has since been deleted; null only when the invoice was never submitted.",
+            "example": "Anand Rajashekar",
+            "type": "string"
           },
           "subtotal": {
             "description": "Sum of line amounts before tax and discount.",
@@ -15179,10 +15194,15 @@
             "type": "string"
           },
           "approvedBy": {
-            "description": "Id of the employee who approved the adjustment.",
+            "description": "Id of the user who approved the adjustment.",
             "example": 3,
             "format": "int64",
             "type": "integer"
+          },
+          "approvedByName": {
+            "description": "Name of the user who approved the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never approved.",
+            "example": "Aneesh Johny",
+            "type": "string"
           },
           "countMethod": {
             "description": "Method used to perform the physical count.",
@@ -15260,10 +15280,15 @@
             "type": "string"
           },
           "processedBy": {
-            "description": "Id of the employee who processed the adjustment.",
+            "description": "Id of the user who processed the adjustment.",
             "example": 3,
             "format": "int64",
             "type": "integer"
+          },
+          "processedByName": {
+            "description": "Name of the user who processed the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never processed.",
+            "example": "Aneesh Johny",
+            "type": "string"
           },
           "projectId": {
             "description": "Id of the project the adjustment applies to.",
@@ -15283,10 +15308,15 @@
             "type": "string"
           },
           "rejectedBy": {
-            "description": "Id of the employee who rejected the adjustment, if it was rejected.",
+            "description": "Id of the user who rejected the adjustment, if it was rejected.",
             "example": 3,
             "format": "int64",
             "type": "integer"
+          },
+          "rejectedByName": {
+            "description": "Name of the user who rejected the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never rejected.",
+            "example": "Aneesh Johny",
+            "type": "string"
           },
           "rejectionReason": {
             "description": "Reason given for rejecting the adjustment.",
@@ -15305,10 +15335,15 @@
             "type": "string"
           },
           "submittedBy": {
-            "description": "Id of the employee who submitted the adjustment.",
+            "description": "Id of the user who submitted the adjustment.",
             "example": 18,
             "format": "int64",
             "type": "integer"
+          },
+          "submittedByName": {
+            "description": "Name of the user who submitted the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never submitted.",
+            "example": "Anand Rajashekar",
+            "type": "string"
           },
           "totalAdjustmentValue": {
             "description": "Total monetary value of the adjustment across all line items.",

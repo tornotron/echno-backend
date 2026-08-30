@@ -45,12 +45,16 @@ import org.tornotron.echno_backend.finance.settings.FinanceSettingsService;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.UserContextService;
+import org.tornotron.echno_backend.user.UserNameDirectory;
+import org.tornotron.echno_backend.user.UserNameLookup;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /**
  * CRUD, list, and the approval + ledger-posting lifecycle for construction invoices.
@@ -92,10 +96,11 @@ public class ConstructionInvoiceService {
     private final CustomerRepository customerRepository;
     private final InvoiceService invoiceService;
     private final SelfApprovalPolicy selfApprovalPolicy;
+    private final UserNameDirectory userNameDirectory;
 
     @Transactional(readOnly = true)
     public ConstructionInvoiceDto findById(UUID id) {
-        return mapper.toDto(invoiceRepo.findByIdWithLines(id)
+        return toDto(invoiceRepo.findByIdWithLines(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Construction invoice with ID " + id + " was not found")));
     }
@@ -106,10 +111,11 @@ public class ConstructionInvoiceService {
                                                 ConstructionInvoiceStatus status,
                                                 ConstructionInvoiceType type,
                                                 Pageable pageable) {
-        return invoiceRepo.findAll(
-                        ConstructionInvoiceSpecifications.withFilters(projectId, vendorId, status, type),
-                        pageable)
-                .map(mapper::toDto);
+        Page<ConstructionInvoice> invoices = invoiceRepo.findAll(
+                ConstructionInvoiceSpecifications.withFilters(projectId, vendorId, status, type),
+                pageable);
+        UserNameLookup names = namesFor(invoices.getContent());
+        return invoices.map(invoice -> mapper.toDto(invoice, names));
     }
 
     @Transactional
@@ -141,7 +147,7 @@ public class ConstructionInvoiceService {
 
         ConstructionInvoice saved = invoiceRepo.save(inv);
         log.info("Created construction invoice {}", saved.getInvoiceNumber());
-        return mapper.toDto(saved);
+        return toDto(saved);
     }
 
     @Transactional
@@ -191,7 +197,7 @@ public class ConstructionInvoiceService {
 
         ConstructionInvoice saved = invoiceRepo.saveAndFlush(inv);
         log.info("Updated construction invoice {}", saved.getInvoiceNumber());
-        return mapper.toDto(saved);
+        return toDto(saved);
     }
 
     /**
@@ -224,12 +230,12 @@ public class ConstructionInvoiceService {
             postAndApprove(inv);
             log.info("Auto-approved construction invoice {} under threshold {} on submit",
                     inv.getInvoiceNumber(), threshold);
-            return mapper.toDto(inv);
+            return toDto(inv);
         }
 
         inv.setStatus(ConstructionInvoiceStatus.PENDING);
         log.info("Submitted construction invoice {} for approval", inv.getInvoiceNumber());
-        return mapper.toDto(inv);
+        return toDto(inv);
     }
 
     /**
@@ -266,7 +272,7 @@ public class ConstructionInvoiceService {
                 ApprovalParty.ofUser(userContextService.getCurrentUserId()),
                 "Construction invoice " + inv.getInvoiceNumber());
         postAndApprove(inv);
-        return mapper.toDto(inv);
+        return toDto(inv);
     }
 
     /**
@@ -482,7 +488,7 @@ public class ConstructionInvoiceService {
 
         inv.setStatus(ConstructionInvoiceStatus.CANCELLED);
         log.info("Cancelled construction invoice {}: {}", inv.getInvoiceNumber(), reason);
-        return mapper.toDto(inv);
+        return toDto(inv);
     }
 
     /**
@@ -518,7 +524,7 @@ public class ConstructionInvoiceService {
 
         log.info("Recorded payment of {} on construction invoice {} (balance {})",
                 payment, inv.getInvoiceNumber(), balance);
-        return mapper.toDto(inv);
+        return toDto(inv);
     }
 
     private ConstructionInvoice requireInvoice(UUID id) {
@@ -598,5 +604,33 @@ public class ConstructionInvoiceService {
         return costCategoryRepository.findScopedById(costCategoryId)
                 .orElseThrow(() -> new InvalidRequestException(
                         "Cost category with ID " + costCategoryId + " was not found"));
+    }
+
+    /**
+     * Converts one invoice, resolving its stamp names first.
+     *
+     * @param invoice The invoice to convert.
+     * @return The invoice DTO, with the submitter, approver and payment recorder named.
+     */
+    private ConstructionInvoiceDto toDto(ConstructionInvoice invoice) {
+        return mapper.toDto(invoice, namesFor(List.of(invoice)));
+    }
+
+    /**
+     * Reads the display names for every stamp on the invoices about to be mapped.
+     *
+     * <p>One call covers a whole page, so the query count does not follow the row count. The
+     * mapper cannot do this for itself: the invoice holds only the user id, and a lookup inside
+     * the conversion would cost a round trip per stamp per row with nothing at the call site to
+     * show it, which is what {@code MapperDatabaseAccessTest} exists to prevent.
+     *
+     * @param invoices The invoices being converted.
+     * @return Their stamp names, with an id that no longer resolves reading as a placeholder.
+     */
+    private UserNameLookup namesFor(Collection<ConstructionInvoice> invoices) {
+        return userNameDirectory.namesFor(invoices.stream()
+                .flatMap(invoice -> Stream.of(invoice.getSubmittedBy(), invoice.getApprovedBy(),
+                        invoice.getPaymentRecordedBy()))
+                .toList());
     }
 }

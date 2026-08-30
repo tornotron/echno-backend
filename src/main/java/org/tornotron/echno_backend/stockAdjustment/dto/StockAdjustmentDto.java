@@ -62,20 +62,32 @@ public class StockAdjustmentDto {
     @Schema(description = "Method used to perform the physical count.", example = "FULL_COUNT")
     private String countMethod;
 
-    @Schema(description = "Id of the employee who submitted the adjustment.", example = "18")
+    @Schema(description = "Id of the user who submitted the adjustment.", example = "18")
     private Long submittedBy;
+
+    @Schema(description = "Name of the user who submitted the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never submitted.",
+            example = "Anand Rajashekar")
+    private String submittedByName;
 
     @Schema(description = "Date and time the adjustment was submitted.", example = "2026-01-15T10:00:00")
     private LocalDateTime submittedAt;
 
-    @Schema(description = "Id of the employee who approved the adjustment.", example = "3")
+    @Schema(description = "Id of the user who approved the adjustment.", example = "3")
     private Long approvedBy;
+
+    @Schema(description = "Name of the user who approved the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never approved.",
+            example = "Aneesh Johny")
+    private String approvedByName;
 
     @Schema(description = "Date and time the adjustment was approved.", example = "2026-01-16T09:00:00")
     private LocalDateTime approvedAt;
 
-    @Schema(description = "Id of the employee who rejected the adjustment, if it was rejected.", example = "3")
+    @Schema(description = "Id of the user who rejected the adjustment, if it was rejected.", example = "3")
     private Long rejectedBy;
+
+    @Schema(description = "Name of the user who rejected the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never rejected.",
+            example = "Aneesh Johny")
+    private String rejectedByName;
 
     @Schema(description = "Date and time the adjustment was rejected, if it was rejected.", example = "2026-01-16T09:00:00")
     private LocalDateTime rejectedAt;
@@ -83,8 +95,12 @@ public class StockAdjustmentDto {
     @Schema(description = "Reason given for rejecting the adjustment.", example = "Variance not supported by the count sheet")
     private String rejectionReason;
 
-    @Schema(description = "Id of the employee who processed the adjustment.", example = "3")
+    @Schema(description = "Id of the user who processed the adjustment.", example = "3")
     private Long processedBy;
+
+    @Schema(description = "Name of the user who processed the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never processed.",
+            example = "Aneesh Johny")
+    private String processedByName;
 
     @Schema(description = "Date and time the adjustment was processed.", example = "2026-01-16T11:00:00")
     private LocalDateTime processedAt;

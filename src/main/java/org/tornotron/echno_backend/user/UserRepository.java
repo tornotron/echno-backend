@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.tornotron.echno_backend.organization.Organization;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,6 +54,23 @@ public interface UserRepository extends JpaRepository<User,Long> {
             + "WHERE e.organization.id = :organizationId AND e.user.id IN :userIds")
     List<User> findUsersByOrganizationIdAndIdIn(@Param("organizationId") Long organizationId,
                                                 @Param("userIds") List<Long> userIds);
+
+    /**
+     * Reads just enough of the given users to print a name against a document stamp.
+     *
+     * <p>Not scoped to an organization, and not {@code findAllById}. Not scoped because the ids
+     * come from {@code submittedBy} / {@code approvedBy} columns on a document the caller has
+     * already been authorised to read, and the approver may have left the organization since;
+     * scoping would blank the historical records the stamp exists for. Not {@code findAllById}
+     * because that returns whole {@link User} entities, and a page of stamps wants three columns,
+     * not each user's attachments and employments.
+     *
+     * @param userIds The user ids to resolve.
+     * @return One row per id that still exists; ids with no row simply do not come back.
+     */
+    @Query("SELECT new org.tornotron.echno_backend.user.UserDisplayName(u.id, u.name, u.email) "
+            + "FROM User u WHERE u.id IN :userIds")
+    List<UserDisplayName> findDisplayNamesByIdIn(@Param("userIds") Collection<Long> userIds);
 
     /**
      * Finds a user by their name.
