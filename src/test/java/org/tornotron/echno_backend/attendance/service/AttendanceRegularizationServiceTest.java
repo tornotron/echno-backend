@@ -22,6 +22,7 @@ import org.tornotron.echno_backend.attendance.dto.RegularizationRequestDto;
 import org.tornotron.echno_backend.attendance.enums.ClockEventType;
 import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 import org.tornotron.echno_backend.attendance.mapper.AttendanceRegularizationMapper;
+import org.tornotron.echno_backend.common.approval.ApprovalParty;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -67,7 +68,8 @@ class AttendanceRegularizationServiceTest {
     private static final Long REQUESTER_EMP_ID = 11L;
     private static final String APPROVER = "manager-xyz";
     private static final Long APPROVER_EMP_ID = 12L;
-    private static final Long USER_ID = 500L;
+    private static final Long REQUESTER_USER_ID = 500L;
+    private static final Long APPROVER_USER_ID = 501L;
 
     @Mock private AttendanceRegularizationRepository regularizationRepository;
     @Mock private AttendanceRepository attendanceRepository;
@@ -88,25 +90,30 @@ class AttendanceRegularizationServiceTest {
                 organizationRepository, employeeRepository, settingsService, calculationService,
                 regularizationMapper, userContextService, selfApprovalPolicy);
         // The session is the requesting employee unless a test says otherwise.
-        signedInAs(REQUESTER_EMP_ID, REQUESTER);
+        signedInAs(REQUESTER_USER_ID, REQUESTER_EMP_ID, REQUESTER);
     }
 
     /** Puts an employee of this tenant in the security context, as the service resolves it. */
-    private void signedInAs(Long employeeId, String employeeName) {
+    private void signedInAs(Long userId, Long employeeId, String employeeName) {
         Employee employee = new Employee();
         employee.setId(employeeId);
         employee.setEmployeeName(employeeName);
-        lenient().when(userContextService.getCurrentUserId()).thenReturn(USER_ID);
-        lenient().when(employeeRepository.findByUserIdAndOrganizationId(USER_ID, ORG))
+        lenient().when(userContextService.getCurrentUserId()).thenReturn(userId);
+        lenient().when(employeeRepository.findByUserIdAndOrganizationId(userId, ORG))
                 .thenReturn(Optional.of(employee));
     }
 
     /** Puts an authenticated caller with no employee record of this tenant in the context. */
-    private void signedInWithNoEmployeeRecord(String username) {
-        lenient().when(userContextService.getCurrentUserId()).thenReturn(USER_ID);
-        lenient().when(employeeRepository.findByUserIdAndOrganizationId(USER_ID, ORG))
+    private void signedInWithNoEmployeeRecord(Long userId, String username) {
+        lenient().when(userContextService.getCurrentUserId()).thenReturn(userId);
+        lenient().when(employeeRepository.findByUserIdAndOrganizationId(userId, ORG))
                 .thenReturn(Optional.empty());
         lenient().when(userContextService.getCurrentUsername()).thenReturn(username);
+    }
+
+    /** The raiser of {@link #pendingRaisedBy}, as the policy is handed it. */
+    private ApprovalParty raiser(Long employeeId) {
+        return new ApprovalParty(REQUESTER_USER_ID, employeeId);
     }
 
     @AfterEach
@@ -276,7 +283,7 @@ class AttendanceRegularizationServiceTest {
 
     @Test
     void processRegularization_approveWithShift_recalculatesAttendance() {
-        signedInAs(APPROVER_EMP_ID, APPROVER);
+        signedInAs(APPROVER_USER_ID, APPROVER_EMP_ID, APPROVER);
         Attendance attendance = attendance();
         attendance.setShiftTiming(new ShiftTiming());
         AttendanceRegularization pending = AttendanceRegularization.builder()
@@ -344,7 +351,7 @@ class AttendanceRegularizationServiceTest {
      */
     @Test
     void processRegularization_approve_appliesTheStoredCorrections() {
-        signedInAs(APPROVER_EMP_ID, APPROVER);
+        signedInAs(APPROVER_USER_ID, APPROVER_EMP_ID, APPROVER);
         Attendance attendance = attendance();
         attendance.setShiftTiming(new ShiftTiming());
         attendance.setClockEvents(new ArrayList<>());
@@ -387,7 +394,7 @@ class AttendanceRegularizationServiceTest {
      */
     @Test
     void processRegularization_approve_leavesAnExistingEventAlone() {
-        signedInAs(APPROVER_EMP_ID, APPROVER);
+        signedInAs(APPROVER_USER_ID, APPROVER_EMP_ID, APPROVER);
         Attendance attendance = attendance();
         attendance.setShiftTiming(new ShiftTiming());
         ClockEvent real = ClockEvent.builder()
@@ -424,7 +431,7 @@ class AttendanceRegularizationServiceTest {
 
     @Test
     void processRegularization_reject_doesNotRecalculate() {
-        signedInAs(APPROVER_EMP_ID, APPROVER);
+        signedInAs(APPROVER_USER_ID, APPROVER_EMP_ID, APPROVER);
         Attendance attendance = attendance();
         attendance.setShiftTiming(new ShiftTiming());
         AttendanceRegularization pending = AttendanceRegularization.builder()
@@ -471,15 +478,18 @@ class AttendanceRegularizationServiceTest {
         verify(regularizationRepository).save(captor.capture());
         assertThat(captor.getValue().getRequestedBy()).isEqualTo(REQUESTER);
         assertThat(captor.getValue().getRequestedById()).isEqualTo(REQUESTER_EMP_ID);
+        assertThat(captor.getValue().getRequestedByUserId()).isEqualTo(REQUESTER_USER_ID);
     }
 
     /**
      * A caller with no employee record in this tenant, for instance a bootstrap administrator, is
-     * still recorded by a name they cannot choose per request, and carries no employee id.
+     * still recorded by a name they cannot choose per request, and carries no employee id. Their
+     * user id is stamped instead, which is what leaves the self-approval rule something to compare
+     * when the same account comes back to approve the request it raised.
      */
     @Test
     void submitRequest_recordsTheAuthenticatedUsernameWhenTheCallerIsNotAnEmployeeHere() {
-        signedInWithNoEmployeeRecord("admin@echno.com");
+        signedInWithNoEmployeeRecord(REQUESTER_USER_ID, "admin@echno.com");
         stubOrgAndAttendance(attendance());
         when(settingsService.resolveEffectiveSettings(eq(ORG), any()))
                 .thenReturn(settings(true, true, 3));
@@ -497,6 +507,7 @@ class AttendanceRegularizationServiceTest {
         verify(regularizationRepository).save(captor.capture());
         assertThat(captor.getValue().getRequestedBy()).isEqualTo("admin@echno.com");
         assertThat(captor.getValue().getRequestedById()).isNull();
+        assertThat(captor.getValue().getRequestedByUserId()).isEqualTo(REQUESTER_USER_ID);
     }
 
     /**
@@ -505,7 +516,7 @@ class AttendanceRegularizationServiceTest {
      */
     @Test
     void processRegularization_recordsTheSignedInEmployeeAsTheApprover() {
-        signedInAs(APPROVER_EMP_ID, APPROVER);
+        signedInAs(APPROVER_USER_ID, APPROVER_EMP_ID, APPROVER);
         AttendanceRegularization pending = pendingRaisedBy(REQUESTER_EMP_ID);
         pending.setAttendance(attendance());
         when(regularizationRepository.findByIdAndOrganization_Id(REG_ID, ORG))
@@ -530,7 +541,8 @@ class AttendanceRegularizationServiceTest {
         pending.setAttendance(attendance);
         when(regularizationRepository.findByIdAndOrganization_Id(REG_ID, ORG))
                 .thenReturn(Optional.of(pending));
-        when(selfApprovalPolicy.checkSelfApproval(REQUESTER_EMP_ID, REQUESTER_EMP_ID,
+        when(selfApprovalPolicy.checkSelfApproval(raiser(REQUESTER_EMP_ID),
+                new ApprovalParty(REQUESTER_USER_ID, REQUESTER_EMP_ID),
                 "Regularization request with ID " + REG_ID))
                 .thenThrow(new InvalidRequestException("raised by the same person"));
 
@@ -558,7 +570,8 @@ class AttendanceRegularizationServiceTest {
         pending.setRequestedEvents("[stored]");
         when(regularizationRepository.findByIdAndOrganization_Id(REG_ID, ORG))
                 .thenReturn(Optional.of(pending));
-        when(selfApprovalPolicy.checkSelfApproval(REQUESTER_EMP_ID, REQUESTER_EMP_ID,
+        when(selfApprovalPolicy.checkSelfApproval(raiser(REQUESTER_EMP_ID),
+                new ApprovalParty(REQUESTER_USER_ID, REQUESTER_EMP_ID),
                 "Regularization request with ID " + REG_ID)).thenReturn(true);
         when(regularizationMapper.deserializeRequestedEvents("[stored]"))
                 .thenReturn(List.of(correctedEvent(ClockEventType.EVENING_CLOCK_OUT, 18)));
@@ -578,7 +591,7 @@ class AttendanceRegularizationServiceTest {
     /** Negative control: an approval by someone else is an ordinary approval and says nothing extra. */
     @Test
     void processRegularization_anApprovalBySomeoneElseIsNotMarkedAsSelfApproved() {
-        signedInAs(APPROVER_EMP_ID, APPROVER);
+        signedInAs(APPROVER_USER_ID, APPROVER_EMP_ID, APPROVER);
         Attendance attendance = attendance();
         attendance.setShiftTiming(new ShiftTiming());
         attendance.setClockEvents(new ArrayList<>());
@@ -596,7 +609,8 @@ class AttendanceRegularizationServiceTest {
 
         service.processRegularization(REG_ID, action(RegularizationStatus.APPROVED));
 
-        verify(selfApprovalPolicy).checkSelfApproval(REQUESTER_EMP_ID, APPROVER_EMP_ID,
+        verify(selfApprovalPolicy).checkSelfApproval(raiser(REQUESTER_EMP_ID),
+                new ApprovalParty(APPROVER_USER_ID, APPROVER_EMP_ID),
                 "Regularization request with ID " + REG_ID);
         assertThat(attendance.getClockEvents())
                 .singleElement()
@@ -633,6 +647,7 @@ class AttendanceRegularizationServiceTest {
     @Test
     void processRegularization_aRequestWithNoRecordedRequesterIdIsStillApprovable() {
         AttendanceRegularization pending = pendingRaisedBy(null);
+        pending.setRequestedByUserId(null);
         pending.setAttendance(attendance());
         when(regularizationRepository.findByIdAndOrganization_Id(REG_ID, ORG))
                 .thenReturn(Optional.of(pending));
@@ -642,7 +657,8 @@ class AttendanceRegularizationServiceTest {
 
         service.processRegularization(REG_ID, action(RegularizationStatus.APPROVED));
 
-        verify(selfApprovalPolicy).checkSelfApproval(null, REQUESTER_EMP_ID,
+        verify(selfApprovalPolicy).checkSelfApproval(new ApprovalParty(null, null),
+                new ApprovalParty(REQUESTER_USER_ID, REQUESTER_EMP_ID),
                 "Regularization request with ID " + REG_ID);
         assertThat(pending.getStatus()).isEqualTo(RegularizationStatus.APPROVED);
     }
@@ -652,6 +668,7 @@ class AttendanceRegularizationServiceTest {
                 .status(RegularizationStatus.PENDING)
                 .requestedBy(REQUESTER)
                 .requestedById(requestedById)
+                .requestedByUserId(REQUESTER_USER_ID)
                 .build();
     }
 

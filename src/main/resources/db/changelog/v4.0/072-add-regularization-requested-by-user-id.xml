@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="072-add-regularization-requested-by-user-id" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="attendance_regularization" columnName="requested_by_user_id"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Record the platform user id of whoever raised a regularization request, next to the
+            employee id already stored in requested_by_id. The employee id is null for a caller who
+            holds a role in the tenant but has no employee record in it yet, and the self-approval
+            rule compared only that, so such a caller could raise a request and then approve it
+            themselves with the rule never firing. Every authenticated caller has a user id, so this
+            column gives the rule something to compare in that case. Rows written before this exists
+            keep a null here and are still compared on the employee id.
+        </comment>
+
+        <addColumn tableName="attendance_regularization">
+            <column name="requested_by_user_id" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.approval.ApprovalParty;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -271,7 +272,9 @@ public class StockAdjustmentService {
 
         Long approver = userContextService.getCurrentUserId();
         boolean selfApproved = selfApprovalPolicy.checkSelfApproval(
-                stockAdjustment.getSubmittedBy(), approver, "Stock adjustment with ID " + id);
+                ApprovalParty.ofUser(stockAdjustment.getSubmittedBy()),
+                ApprovalParty.ofUser(approver),
+                "Stock adjustment with ID " + id);
 
         Project project = stockAdjustment.getProject();
         if (project == null) {

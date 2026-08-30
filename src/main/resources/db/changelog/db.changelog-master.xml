@@ -349,4 +349,7 @@
     <!-- v4.0 - Compliance jobs: which jurisdiction a run was accepted for -->
     <include file="db/changelog/v4.0/071-add-compliance-job-jurisdiction.xml"/>
 
+    <!-- v4.0 - Regularizations: the raiser's user id, so the self-approval rule always has one -->
+    <include file="db/changelog/v4.0/072-add-regularization-requested-by-user-id.xml"/>
+
 </databaseChangeLog>

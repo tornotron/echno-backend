@@ -22,9 +22,30 @@ import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
  * logged and stays visible on the document, where the raiser and the approver are both recorded
  * and can be compared.
  *
- * <p>A document that names nobody as its raiser cannot be compared against anything, so it is
- * allowed through. That is the case only for rows written before the raiser was stamped from the
- * session, since every path that creates one now records who did it.
+ * <h2>What happens when the parties cannot be compared</h2>
+ *
+ * <p>A control that quietly permits whatever it cannot identify is not a control. Both callers
+ * have produced documents this rule was blind to: a regularization raised by a tenant member with
+ * no employee record carried no employee id, and a stock adjustment raised by a service account
+ * carries no user id. In each case the comparison was skipped and the approval went through as
+ * though a check had been made. The rule now splits that single silent outcome into three.
+ *
+ * <ul>
+ *   <li><b>An approval that names no approver is refused.</b> This is the one place the rule
+ *       fails closed. It is not a comparison that cannot be made, it is an entry about to be
+ *       posted by nobody: the approver id the document stores would be null as well, so there
+ *       would be no accountability on the posting at all. Every path that reaches here is a
+ *       role-gated approve endpoint on an authenticated session, so an approver who resolves to
+ *       no identity is a misconfigured account, not a legitimate caller.</li>
+ *   <li><b>A raiser who cannot be compared against the approver is allowed through, and logged
+ *       saying so.</b> Refusing instead would strand every document raised before its raiser was
+ *       stamped, and there is no second route to approving those, which is the same dead end the
+ *       break-glass exception exists to avoid. The approval proceeds, but at WARN, so an approval
+ *       whose segregation-of-duties check could not be made is visible rather than
+ *       indistinguishable from one that passed.</li>
+ *   <li><b>Anything comparable is compared,</b> on whichever identity the two parties share.
+ *       See {@link ApprovalParty}.</li>
+ * </ul>
  */
 @Slf4j
 @Component
@@ -42,17 +63,31 @@ public class SelfApprovalPolicy {
     /**
      * Applies the rule to one approval, and reports whether it went through as a self-approval.
      *
-     * @param raisedBy The user who raised the document, or null when the document does not say.
-     * @param approver The user approving it now.
+     * @param raisedBy The person who raised the document. Null, or a party carrying no id at all,
+     *                 where the document does not say who raised it.
+     * @param approver The person approving it now, taken from the session.
      * @param document How to name the document in the refusal, for example "Stock adjustment with ID 5".
      * @return true when the approver is approving their own document under the break-glass role,
      *         so the caller can record the approval as one; false when the two are different
-     *         people, which is the ordinary case.
+     *         people, which is the ordinary case, and also when they could not be compared.
      * @throws InvalidRequestException if the approver raised the document and does not hold the
-     *         break-glass role.
+     *         break-glass role, or if the approver resolves to no identity at all.
      */
-    public boolean checkSelfApproval(Long raisedBy, Long approver, String document) {
-        if (raisedBy == null || approver == null || !raisedBy.equals(approver)) {
+    public boolean checkSelfApproval(ApprovalParty raisedBy, ApprovalParty approver, String document) {
+        if (approver == null || approver.isUnidentified()) {
+            throw new InvalidRequestException(document + " cannot be approved by this session, "
+                    + "because it resolves to no user of this organization. An approval has to say "
+                    + "who gave it, and this one would record nobody. Sign in with an account that "
+                    + "belongs to the organization, or ask an administrator to check that this "
+                    + "account has been set up in it.");
+        }
+        if (raisedBy == null || raisedBy.isUnidentified() || !raisedBy.isComparableWith(approver)) {
+            log.warn("Self-approval check not made on {}: raiser {} and approver {} share no "
+                            + "identity to compare, so the approval was allowed without the check",
+                    document, raisedBy, approver);
+            return false;
+        }
+        if (!raisedBy.isSamePersonAs(approver)) {
             return false;
         }
         if (!orgSecurity.hasAnyOrgRoleForCurrentTenant(BREAK_GLASS_ROLE)) {
@@ -62,7 +97,7 @@ public class SelfApprovalPolicy {
                     + "approver to review it, or have a system administrator approve it, which is "
                     + "recorded as a self-approval.");
         }
-        log.warn("Self-approval: {} was raised and approved by user {}, allowed under the {} role",
+        log.warn("Self-approval: {} was raised and approved by {}, allowed under the {} role",
                 document, approver, BREAK_GLASS_ROLE);
         return true;
     }
