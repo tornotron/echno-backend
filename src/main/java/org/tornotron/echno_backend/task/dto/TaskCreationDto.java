@@ -11,8 +11,19 @@ import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Payload to create a task under a project.
+ *
+ * <p>There is no creator field. The creator is the signed-in caller, stamped in
+ * {@code TaskService.addTask}. It used to be a {@code creatorId} the caller sent, checked only
+ * for naming an employee of the tenant, so anyone who could reach the endpoint could record a
+ * task as having been set up by a colleague. Assigning work to somebody else is what
+ * {@code assigneeIds} is for, and is unaffected. Clients that still send {@code creatorId} keep
+ * working, because a property no payload declares is ignored rather than refused.
+ */
 @Schema(description = "Payload to create a task under a project. Sent as the JSON data part of the "
-        + "multipart create request.")
+        + "multipart create request. The creator is taken from the signed-in session, not from the "
+        + "request.")
 @Data
 public class TaskCreationDto {
     @Schema(description = "Short task title.", example = "Pour foundation slab, block A")
@@ -31,10 +42,6 @@ public class TaskCreationDto {
     @Schema(description = "Longer description of the work to be done.",
             example = "Complete formwork, reinforcement and concrete pour for the block A raft.")
     private String description;
-
-    @Schema(description = "Id of the employee creating the task.", example = "5")
-    @NotNull(message = "creatorId is required(type: Long)")
-    private Long creatorId;
 
     @Schema(description = "Id of the project the task belongs to.", example = "42")
     @NotNull(message = "projectId is required(type: Long)")

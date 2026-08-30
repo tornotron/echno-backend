@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.issue.dto.IssueCreationDto;
@@ -32,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,6 +62,8 @@ class IssueCreateStatusTest {
     private IssueMapper issueMapper;
     @Mock
     private EmployeeRepository employeeRepository;
+    @Mock
+    private CurrentEmployeeService currentEmployeeService;
 
     private IssueService service;
 
@@ -68,7 +72,8 @@ class IssueCreateStatusTest {
         factory = Validation.buildDefaultValidatorFactory();
         Validator validator = factory.getValidator();
         service = new IssueService(issueRepository, taskRepository, attachmentService,
-                issueMapper, employeeRepository, new PayloadValidator(validator));
+                issueMapper, employeeRepository, currentEmployeeService,
+                new PayloadValidator(validator));
 
         TenantContext.setCurrentOrgId(1L);
         Organization organization = new Organization();
@@ -77,8 +82,7 @@ class IssueCreateStatusTest {
         task.setOrganization(organization);
         when(taskRepository.findByIdAndOrganization_Id(anyLong(), anyLong()))
                 .thenReturn(Optional.of(task));
-        when(employeeRepository.findByIdAndOrganizationId(anyLong(), anyLong()))
-                .thenReturn(Optional.of(new Employee()));
+        when(currentEmployeeService.requireCurrentEmployee(anyString())).thenReturn(new Employee());
         when(issueRepository.save(any(Issue.class))).thenAnswer(call -> call.getArgument(0));
     }
 
@@ -100,7 +104,6 @@ class IssueCreateStatusTest {
         dto.setDescription("Voids visible along the north edge of the pour after stripping.");
         dto.setType("quality");
         dto.setTaskId(11L);
-        dto.setCreatedById(5L);
         return dto;
     }
 

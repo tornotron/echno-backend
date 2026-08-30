@@ -54,7 +54,15 @@ public class IssueCreationDto {
             example = "open", allowableValues = {"open"})
     private IssueStatus status;
 
-    private Long createdById;
-
+    /**
+     * The assignee. Optional, and the only person on this payload the caller names: an issue may
+     * be raised for somebody else to fix.
+     *
+     * <p>There is deliberately no field for who raised it. That is the signed-in caller, stamped
+     * in {@code IssueService.addIssue}. It used to be a {@code createdById} the caller sent,
+     * checked only for being an employee of the tenant, so any member could raise an issue
+     * recorded as somebody else's. Clients that still send it keep working, because a property no
+     * payload declares is ignored rather than refused.
+     */
     private Long assignedToId;
 }

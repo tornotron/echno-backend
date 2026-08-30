@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.issue.dto.IssueCreationDto;
@@ -72,6 +73,7 @@ public class IssueService {
     private final AttachmentService attachmentService;
     private final IssueMapper issueMapper;
     private final EmployeeRepository employeeRepository;
+    private final CurrentEmployeeService currentEmployeeService;
     private final PayloadValidator payloadValidator;
 
     /**
@@ -81,15 +83,18 @@ public class IssueService {
      * @param taskRepository     The repository used to resolve the task an issue is raised against.
      * @param attachmentService  The service for attachment operations.
      * @param issueMapper        The mapper between issues and their DTOs.
-     * @param employeeRepository The repository used to resolve the creator and the assignee.
+     * @param employeeRepository The repository used to resolve the assignee.
+     * @param currentEmployeeService Resolves the caller to the employee an issue is recorded as
+     *                           having been raised by.
      * @param payloadValidator   Runs the create payload's own constraints.
      */
-    public IssueService(IssueRepository issueRepository, TaskRepository taskRepository, AttachmentService attachmentService, IssueMapper issueMapper, EmployeeRepository employeeRepository, PayloadValidator payloadValidator) {
+    public IssueService(IssueRepository issueRepository, TaskRepository taskRepository, AttachmentService attachmentService, IssueMapper issueMapper, EmployeeRepository employeeRepository, CurrentEmployeeService currentEmployeeService, PayloadValidator payloadValidator) {
         this.issueRepository = issueRepository;
         this.taskRepository = taskRepository;
         this.attachmentService = attachmentService;
         this.issueMapper = issueMapper;
         this.employeeRepository = employeeRepository;
+        this.currentEmployeeService = currentEmployeeService;
         this.payloadValidator = payloadValidator;
     }
 
@@ -99,13 +104,21 @@ public class IssueService {
      * <p>The issue starts {@link IssueStatus#open}, whether the payload says so or says nothing,
      * and any other starting value is refused: see {@link #requireCreatableStatus}.
      *
+     * <p>Who raised it is the signed-in caller, not a {@code createdById} on the payload. The
+     * endpoint is open to every member of the tenant, so a creator id the caller sent could only
+     * ever be checked for naming some employee of that tenant, and an issue "raised by" a site
+     * engineer is read as their report. See
+     * {@link org.tornotron.echno_backend.common.service.CurrentEmployeeService}.
+     *
      * @param issueCreationDto DTO containing the details for the new issue.
      * @param attachments      Files uploaded with the issue, or null when there are none.
      * @return The created issue.
      * @throws ConstraintViolationException if the payload fails its own constraints.
      * @throws InvalidRequestException if the payload asks for a status other than open.
-     * @throws ResourceNotFoundException if the task, the creator or the assignee is not found in
-     *                                   this organization.
+     * @throws org.springframework.security.access.AccessDeniedException if the caller has no
+     *                                   employee record in this organization.
+     * @throws ResourceNotFoundException if the task or the assignee is not found in this
+     *                                   organization.
      */
     @Transactional
     public IssueSimpleDto addIssue(IssueCreationDto issueCreationDto, List<MultipartFile> attachments) {
@@ -113,8 +126,7 @@ public class IssueService {
         requireCreatableStatus(issueCreationDto.getStatus());
         Task task = taskRepository.findByIdAndOrganization_Id(issueCreationDto.getTaskId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Task with ID " + issueCreationDto.getTaskId() + " was not found in this organization"));
-        Employee creator = employeeRepository.findByIdAndOrganizationId(issueCreationDto.getCreatedById(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Creator (employee) with ID " + issueCreationDto.getCreatedById() + " was not found in this organization"));
+        Employee creator = currentEmployeeService.requireCurrentEmployee("raise an issue");
         Issue issue = new Issue();
         issue.setTitle(issueCreationDto.getTitle());
         issue.setDescription(issueCreationDto.getDescription());

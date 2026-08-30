@@ -7032,23 +7032,23 @@
         "type": "object"
       },
       "IssueCommentCreationDto": {
+        "description": "Payload to leave a comment on an issue. The author is taken from the signed-in session, not from the request.",
         "properties": {
-          "authorId": {
-            "format": "int64",
-            "type": "integer"
-          },
           "comment": {
+            "description": "The comment text.",
+            "example": "Rebar spacing on the east face still needs checking.",
             "maxLength": 500,
             "minLength": 0,
             "type": "string"
           },
           "issueId": {
+            "description": "Id of the issue being commented on.",
+            "example": 108,
             "format": "int64",
             "type": "integer"
           }
         },
         "required": [
-          "authorId",
           "issueId"
         ],
         "type": "object"
@@ -7096,10 +7096,6 @@
       "IssueCreationDto": {
         "properties": {
           "assignedToId": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "createdById": {
             "format": "int64",
             "type": "integer"
           },
@@ -8014,14 +8010,8 @@
         "type": "object"
       },
       "LeaveApprovalActionDto": {
-        "description": "Payload for an approve, reject or delegate action on a leave request.",
+        "description": "Payload for an approve, reject or delegate action on a leave request. Who is acting is taken from the signed-in session, not from the request.",
         "properties": {
-          "approverId": {
-            "description": "Id of the employee performing the action.",
-            "example": 5,
-            "format": "int64",
-            "type": "integer"
-          },
           "comments": {
             "description": "Comments on the action.",
             "example": "Approved, please plan handover before you leave",
@@ -8036,9 +8026,6 @@
             "type": "integer"
           }
         },
-        "required": [
-          "approverId"
-        ],
         "type": "object"
       },
       "LeaveApprovalDto": {
@@ -16397,7 +16384,7 @@
         "type": "object"
       },
       "TaskCreationDto": {
-        "description": "Payload to create a task under a project. Sent as the JSON data part of the multipart create request.",
+        "description": "Payload to create a task under a project. Sent as the JSON data part of the multipart create request. The creator is taken from the signed-in session, not from the request.",
         "properties": {
           "assigneeIds": {
             "description": "Ids of the employees assigned to the task. Optional; a task may start with nobody assigned.",
@@ -16414,12 +16401,6 @@
           "categoryId": {
             "description": "Id of the category the task is filed under.",
             "example": 3,
-            "format": "int64",
-            "type": "integer"
-          },
-          "creatorId": {
-            "description": "Id of the employee creating the task.",
-            "example": 5,
             "format": "int64",
             "type": "integer"
           },
@@ -16479,7 +16460,6 @@
         },
         "required": [
           "categoryId",
-          "creatorId",
           "progress",
           "projectId"
         ],
@@ -54186,7 +54166,7 @@
                 }
               }
             },
-            "description": "Caller lacks the issue create or admin authority"
+            "description": "Caller lacks the issue create or admin authority, or has no employee record in the current tenant, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -54430,7 +54410,7 @@
                 }
               }
             },
-            "description": "Caller lacks the issue-comment create or admin authority"
+            "description": "Caller lacks the issue-comment create or admin authority, or has no employee record in the current tenant, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -54674,7 +54654,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -55356,7 +55336,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -58903,7 +58883,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -59267,7 +59247,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave approve or admin authority"
+            "description": "Caller lacks the leave approve or admin authority, or has no employee record in the current tenant, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -59506,7 +59486,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave approve or admin authority"
+            "description": "Caller lacks the leave approve or admin authority, or has no employee record in the current tenant, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -59629,7 +59609,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -59993,7 +59973,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -60232,7 +60212,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -95613,7 +95593,7 @@
                 }
               }
             },
-            "description": "Caller lacks the task create or admin authority"
+            "description": "Caller lacks the task create or admin authority, or has no employee record in the current tenant, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -95957,7 +95937,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {

@@ -8,6 +8,7 @@ import org.tornotron.echno_backend.leave.mapper.LeaveRequestMapper;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveApprovalActionDto;
@@ -42,6 +43,7 @@ public class LeaveApprovalService {
     private final LeaveBalanceRepository balanceRepository;
     private final LeaveTransactionRepository transactionRepository;
     private final EmployeeRepository employeeRepository;
+    private final CurrentEmployeeService currentEmployeeService;
     private final LeaveCalendarService calendarService;
     private final NotificationService notificationService;
     private final LeaveRequestMapper leaveRequestMapper;
@@ -52,6 +54,7 @@ public class LeaveApprovalService {
             LeaveBalanceRepository balanceRepository,
             LeaveTransactionRepository transactionRepository,
             EmployeeRepository employeeRepository,
+            CurrentEmployeeService currentEmployeeService,
             @Lazy LeaveCalendarService calendarService,
             @Lazy NotificationService notificationService,
             LeaveRequestMapper leaveRequestMapper) {
@@ -60,6 +63,7 @@ public class LeaveApprovalService {
         this.balanceRepository = balanceRepository;
         this.transactionRepository = transactionRepository;
         this.employeeRepository = employeeRepository;
+        this.currentEmployeeService = currentEmployeeService;
         this.calendarService = calendarService;
         this.notificationService = notificationService;
         this.leaveRequestMapper = leaveRequestMapper;
@@ -172,8 +176,11 @@ public class LeaveApprovalService {
      * levels remain the next approver is notified; otherwise the request is approved, pending days
      * are moved to used, a deduction ledger entry is posted, and calendar entries are created.
      *
+     * <p>The approver is the signed-in caller, not an id on the payload: see
+     * {@link #resolveActingApprover}.
+     *
      * @param requestId The ID of the leave request being approved.
-     * @param dto The approver's ID and optional comments.
+     * @param dto Optional comments on the decision.
      * @return The updated leave request.
      * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
      * @throws InvalidRequestException if the request is not pending approval or the caller is not the current approver.
@@ -187,7 +194,7 @@ public class LeaveApprovalService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
 
-        validateApprover(request, dto.getApproverId());
+        validateApprover(request, resolveActingApprover());
 
         LeaveApproval approval = getPendingApproval(request.getId(), request.getCurrentApprovalLevel());
 
@@ -213,7 +220,7 @@ public class LeaveApprovalService {
      * restored to the balance, and the employee is notified.
      *
      * @param requestId The ID of the leave request being rejected.
-     * @param dto The approver's ID and optional comments.
+     * @param dto Optional comments on the decision.
      * @return The updated leave request.
      * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
      * @throws InvalidRequestException if the request is not pending approval or the caller is not the current approver.
@@ -224,7 +231,7 @@ public class LeaveApprovalService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
 
-        validateApprover(request, dto.getApproverId());
+        validateApprover(request, resolveActingApprover());
 
         LeaveApproval approval = getPendingApproval(request.getId(), request.getCurrentApprovalLevel());
 
@@ -252,7 +259,7 @@ public class LeaveApprovalService {
      * request's current approver becomes the delegate, who is notified.
      *
      * @param requestId The ID of the leave request being delegated.
-     * @param dto The delegating approver's ID, the target delegate ID, and optional comments.
+     * @param dto The target delegate ID, and optional comments.
      * @return The updated leave request.
      * @throws InvalidRequestException if no delegate ID is supplied, the request is not pending approval, or the caller is not the current approver.
      * @throws ResourceNotFoundException if the request or the delegate is not found in this organization.
@@ -267,7 +274,8 @@ public class LeaveApprovalService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
 
-        validateApprover(request, dto.getApproverId());
+        Long actingApproverId = resolveActingApprover();
+        validateApprover(request, actingApproverId);
 
         Employee delegateTo = employeeRepository.findByIdAndOrganizationId(dto.getDelegateToId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -286,13 +294,13 @@ public class LeaveApprovalService {
         delegatedApproval.setApprover(delegateTo);
         delegatedApproval.setApprovalLevel(request.getCurrentApprovalLevel());
         delegatedApproval.setAction(ApprovalAction.PENDING);
-        delegatedApproval.setDelegatedFromId(dto.getApproverId());
+        delegatedApproval.setDelegatedFromId(actingApproverId);
         approvalRepository.save(delegatedApproval);
 
         request.setCurrentApprover(delegateTo);
         requestRepository.save(request);
 
-        notificationService.sendDelegationNotification(request, delegateTo, dto.getApproverId());
+        notificationService.sendDelegationNotification(request, delegateTo, actingApproverId);
 
         return leaveRequestMapper.toDto(request);
     }
@@ -346,6 +354,29 @@ public class LeaveApprovalService {
                 .orElse(false);
     }
 
+    /**
+     * The employee acting on this request, taken from the session.
+     *
+     * <p>It used to be an {@code approverId} on the payload, compared against the request's
+     * current approver. That comparison says the id sent names the right person, never that the
+     * caller is that person: the endpoints are gated on the system-admin and hr-admin roles, so
+     * any holder of either could send the current approver's id and have the decision recorded
+     * under that approver's name. An approval is the accountability on the days it moves, and it
+     * has to name whoever actually gave it.
+     *
+     * <p>The consequence is deliberate: an administrator who is not the current approver can no
+     * longer act on a request at all, where before they could act as the approver. Unsticking a
+     * request whose approver is unavailable is a real need, but the answer to it is a reassignment
+     * that records the administrator, not one that writes their decision in somebody else's name.
+     *
+     * @return The caller's employee id in the current tenant.
+     * @throws org.springframework.security.access.AccessDeniedException if the caller has no
+     *     employee record here, so the decision would name nobody.
+     */
+    private Long resolveActingApprover() {
+        return currentEmployeeService.requireCurrentEmployee("act on a leave request").getId();
+    }
+
     private void validateApprover(LeaveRequest request, Long approverId) {
         if (request.getStatus() != LeaveStatus.PENDING_APPROVAL) {
             throw new InvalidRequestException(
@@ -355,7 +386,7 @@ public class LeaveApprovalService {
         if (request.getCurrentApprover() == null ||
             !request.getCurrentApprover().getId().equals(approverId)) {
             throw new InvalidRequestException(
-                    "Employee with ID " + approverId + " is not the current approver for leave request " + request.getId());
+                    "You are not the current approver for leave request " + request.getId());
         }
     }
 

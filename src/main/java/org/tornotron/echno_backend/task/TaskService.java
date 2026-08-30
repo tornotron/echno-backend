@@ -23,6 +23,7 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.project.ProjectProgressCalculator;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -73,6 +74,7 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final CategoryRepository categoryRepository;
     private final AttachmentService attachmentService;
+    private final CurrentEmployeeService currentEmployeeService;
     private final TaskMapper taskMapper;
     private final PayloadValidator payloadValidator;
 
@@ -84,6 +86,8 @@ public class TaskService {
      * @param projectRepository  The repository for project data access.
      * @param categoryRepository The repository for category data access.
      * @param attachmentService  The service for attachment operations.
+     * @param currentEmployeeService Resolves the caller to the employee a task is recorded as
+     *                           having been created by.
      * @param taskMapper         The mapper between tasks and their DTOs.
      * @param payloadValidator   Runs the create payload's own constraints.
      */
@@ -92,6 +96,7 @@ public class TaskService {
                        ProjectRepository projectRepository,
                        CategoryRepository categoryRepository,
                        AttachmentService attachmentService,
+                       CurrentEmployeeService currentEmployeeService,
                        TaskMapper taskMapper,
                        PayloadValidator payloadValidator) {
         this.taskRepository = taskRepository;
@@ -99,6 +104,7 @@ public class TaskService {
         this.projectRepository = projectRepository;
         this.categoryRepository = categoryRepository;
         this.attachmentService = attachmentService;
+        this.currentEmployeeService = currentEmployeeService;
         this.taskMapper = taskMapper;
         this.payloadValidator = payloadValidator;
     }
@@ -107,9 +113,16 @@ public class TaskService {
      * Creates a new task.
      *
      * @param taskCreationDto DTO containing the details for the new task.
+     * <p>The creator is the signed-in caller, stamped here rather than read off the payload. The
+     * endpoint is role-gated, so the forgery this closes needed a role that may manage tasks
+     * already; what it bought was a task recorded as somebody else's, which no client has ever
+     * asked for. See {@link org.tornotron.echno_backend.common.service.CurrentEmployeeService}.
+     *
      * @throws ConstraintViolationException if the payload fails its own constraints.
-     * @throws ResourceNotFoundException if the creator, project, or category is not found.
-     * @throws InvalidRequestException if required fields like creatorId, projectId, or categoryId are missing,
+     * @throws org.springframework.security.access.AccessDeniedException if the caller has no
+     *                                 employee record in this organization.
+     * @throws ResourceNotFoundException if the project or category is not found.
+     * @throws InvalidRequestException if required fields like projectId or categoryId are missing,
      *                                 or if assigned employees do not belong to the project's organization.
      * @throws DatabaseOperationException if there is an error saving the task.
      */
@@ -124,12 +137,7 @@ public class TaskService {
         task.setProgress(taskCreationDto.getProgress());
         task.setStatus(TaskStatus.valueOf(taskCreationDto.getStatus()));
 
-        if (taskCreationDto.getCreatorId() != null) {
-            task.setCreator(employeeRepository.findByIdAndOrganizationId(taskCreationDto.getCreatorId(), TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Creator (employee) with ID " + taskCreationDto.getCreatorId() + " was not found in this organization")));
-        } else {
-            throw new InvalidRequestException("A creatorId is required to create a task");
-        }
+        task.setCreator(currentEmployeeService.requireCurrentEmployee("create a task"));
         if (taskCreationDto.getProjectId() != null) {
             var project = projectRepository.findByIdAndOrganization_Id(taskCreationDto.getProjectId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + taskCreationDto.getProjectId() + " was not found in this organization"));
