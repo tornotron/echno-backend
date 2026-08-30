@@ -16,6 +16,31 @@ digital-ocean:
 encryption:
   secret-key: ${ENCRYPTION_SECRET_KEY}
 
+# There is deliberately no management.server.port here, and where it is set instead
+# is worth knowing before changing anything under this key.
+#
+# /actuator cannot be closed in SecurityConfig: the kubelet readiness, liveness and
+# startup probes and the compose healthcheck all reach it with no credential, so the
+# path is permitAll and any authentication requirement there stops the pods passing
+# their probes. Moving actuator to a second port is what takes it off the public
+# internet instead. The Service and the Ingress publish server.port and nothing else,
+# so a request arriving through the edge has no route to actuator, while a probe
+# addresses the pod by port number and is unaffected. Both IIT Madras stagings set
+# MANAGEMENT_SERVER_PORT=8081; ManagementPortSeparationIT is the guard that the split
+# leaves health and prometheus reachable and leaves nothing behind on server.port.
+#
+# It stays unset here rather than defaulting to server.port for two reasons. This
+# repository and echno-deployment release on separate pipelines, so no single commit
+# can move the application and the probes at the same instant, and a shipped value
+# that differed from server.port would break the healthcheck of every deployment that
+# had not already moved. And the property is not inert when it is set to the same
+# number: Spring Boot compares the configured values to decide whether to start a
+# second web server, and setting it at all splits the ports for anything that moves
+# server.port and leaves this alone, every @SpringBootTest on a random port included
+# (measured: the ports came back different). Unset is the only value that means
+# "whatever server.port is". Each environment opts in with the environment variable,
+# which is plain Spring Boot relaxed binding and needs no entry here to work.
+# See echno-backend#571.
 management:
   endpoint:
     prometheus:
