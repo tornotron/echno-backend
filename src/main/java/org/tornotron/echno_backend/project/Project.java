@@ -65,6 +65,26 @@ public class Project implements TenantScopedEntity {
     @Column(name = "created_at", nullable = true)
     private LocalDateTime createdAt;
 
+    /**
+     * The user who created the project. Null on every project that predates this column, because
+     * {@link #createdAt} recorded when a project appeared without ever recording who made it.
+     */
+    @Column(name = "created_by")
+    private Long createdBy;
+
+    /**
+     * When the project was last written. Together with {@link #updatedBy} this answers "when did
+     * this last change, and by whom", which is all a last-write stamp can answer: the next edit
+     * to any field overwrites it, so it does not survive as a record of who approved the project.
+     * That is what the status trail is for.
+     */
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    /** The user who last wrote the project. */
+    @Column(name = "updated_by")
+    private Long updatedBy;
+
     /** The current status of the project. */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = true)

@@ -20,6 +20,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.common.history.dto.StatusTransitionDto;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -173,6 +174,40 @@ public class ProjectControllerWeb {
     public ResponseEntity<?> readAProject(@PathVariable Long id) {
         ProjectDto project = service.getAProject(id);
         return new ResponseEntity<>(project,HttpStatus.OK);
+    }
+
+    /**
+     * Reads a project's status trail.
+     *
+     * @param id        The ID of the project whose trail to read.
+     * @param pageQuery The page bounds.
+     * @return A {@link ResponseEntity} containing a page of trail entries and HTTP status 200 (OK).
+     */
+    @GetMapping("{id}/status-history")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(
+            summary = "Read a project's status trail",
+            description = "Returns a page of the project's status entries, newest first: what it "
+                    + "moved from, what it moved to, when, by whom, and whether the status was set "
+                    + "when the project was created or changed afterwards. Approval is the "
+                    + "transition that carries behaviour, since it draws up the project's "
+                    + "compliance inspections, so this is where to read who approved a project and "
+                    + "when. Entries begin where recording began: a project created before the "
+                    + "trail existed carries a single BASELINE entry naming the status it was "
+                    + "observed to hold at that moment, with no actor and no earlier status, "
+                    + "because nothing else can truthfully be said about a history nobody recorded."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of status entries returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
+    })
+    public ResponseEntity<Page<StatusTransitionDto>> readStatusHistory(
+            @PathVariable Long id,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return new ResponseEntity<>(
+                service.getStatusHistory(id, pageQuery.getPageNo(), pageQuery.pageSizeOr(20)),
+                HttpStatus.OK);
     }
 
     /**

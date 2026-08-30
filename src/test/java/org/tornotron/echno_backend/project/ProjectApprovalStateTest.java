@@ -10,10 +10,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.tornotron.echno_backend.common.events.ProjectApprovedEvent;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+import org.tornotron.echno_backend.common.history.StatusTransitionRecorder;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.project.mapper.ProjectMapper;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -55,6 +57,12 @@ class ProjectApprovalStateTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private UserContextService userContextService;
+
+    @Mock
+    private StatusTransitionRecorder statusTransitionRecorder;
 
     @InjectMocks
     private ProjectService service;

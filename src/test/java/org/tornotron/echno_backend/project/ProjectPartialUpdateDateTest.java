@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
+import org.tornotron.echno_backend.common.history.StatusTransitionRecorder;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.finance.ledger.repositories.CustomerRepository;
@@ -17,6 +18,7 @@ import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.mapper.ProjectMapper;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -49,6 +51,12 @@ class ProjectPartialUpdateDateTest {
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private CustomerRepository customerRepository;
     @Mock private Validator validator;
+
+    @Mock
+    private UserContextService userContextService;
+
+    @Mock
+    private StatusTransitionRecorder statusTransitionRecorder;
 
     @InjectMocks private ProjectService service;
 

@@ -16,6 +16,10 @@ import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.history.StatusTransitionRecorder;
+import org.tornotron.echno_backend.common.history.dto.StatusTransitionDto;
+import org.tornotron.echno_backend.common.history.StatusTransitionRepository;
+import org.tornotron.echno_backend.common.history.mapper.StatusTransitionMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.service.AttachmentService;
@@ -30,6 +34,8 @@ import org.tornotron.echno_backend.common.events.ProjectApprovedEvent;
 import org.tornotron.echno_backend.project.dto.*;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.project.enums.ProjectType;
+import org.tornotron.echno_backend.user.User;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -53,6 +59,12 @@ public class ProjectService {
      */
     private static final ProjectCreationStatus DEFAULT_CREATION_STATUS = ProjectCreationStatus.upcoming;
 
+    /**
+     * The kind this module files its status trail under, in the shared {@code status_transition}
+     * table. It is the same discriminator the attachment table already uses for a project.
+     */
+    public static final String HISTORY_ENTITY_TYPE = "PROJECT";
+
     private final ProjectRepository repository;
     private final OrganizationRepository organizationRepository;
     private final EmployeeRepository employeeRepository;
@@ -62,6 +74,10 @@ public class ProjectService {
     private final ApplicationEventPublisher eventPublisher;
     private final CustomerRepository customerRepository;
     private final PayloadValidator payloadValidator;
+    private final UserContextService userContextService;
+    private final StatusTransitionRecorder statusTransitionRecorder;
+    private final StatusTransitionRepository statusTransitionRepository;
+    private final StatusTransitionMapper statusTransitionMapper;
 
     /**
      * Constructs a ProjectService with the necessary repositories.
@@ -72,6 +88,10 @@ public class ProjectService {
      * @param attachmentService      The service for attachment operations.
      * @param customerRepository     The repository used to validate the project's client.
      * @param payloadValidator       Runs the create payload's own constraints.
+     * @param userContextService     Names the user behind a write, for the stamps and the trail.
+     * @param statusTransitionRecorder Appends to the shared status trail.
+     * @param statusTransitionRepository Reads a project's status trail back.
+     * @param statusTransitionMapper Maps trail entries to their DTO.
      */
     public ProjectService(ProjectRepository repository,
                           OrganizationRepository organizationRepository,
@@ -80,7 +100,11 @@ public class ProjectService {
                           EmployeeMapper employeeMapper,
                           ApplicationEventPublisher eventPublisher,
                           CustomerRepository customerRepository,
-                          PayloadValidator payloadValidator) {
+                          PayloadValidator payloadValidator,
+                          UserContextService userContextService,
+                          StatusTransitionRecorder statusTransitionRecorder,
+                          StatusTransitionRepository statusTransitionRepository,
+                          StatusTransitionMapper statusTransitionMapper) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
         this.employeeRepository = employeeRepository;
@@ -90,6 +114,10 @@ public class ProjectService {
         this.eventPublisher = eventPublisher;
         this.customerRepository = customerRepository;
         this.payloadValidator = payloadValidator;
+        this.userContextService = userContextService;
+        this.statusTransitionRecorder = statusTransitionRecorder;
+        this.statusTransitionRepository = statusTransitionRepository;
+        this.statusTransitionMapper = statusTransitionMapper;
     }
 
     /**
@@ -114,13 +142,19 @@ public class ProjectService {
             if(repository.existsProjectByProjectName(projectDto.getProjectName())){
                 throw new DuplicateResourceException("Project with name '" + projectDto.getProjectName() + "' already exists");
             }
+            User actor = userContextService.getCurrentUser();
+            LocalDateTime now = LocalDateTime.now();
+
             Project project = new Project();
             project.setProjectName(projectDto.getProjectName());
             project.setProjectAddress(projectDto.getProjectAddress());
             project.setProjectCity(trimToNull(projectDto.getProjectCity()));
             project.setProjectState(canonicalState(projectDto.getProjectState()));
             project.setProjectPostalCode(trimToNull(projectDto.getProjectPostalCode()));
-            project.setCreatedAt(LocalDateTime.now());
+            project.setCreatedAt(now);
+            project.setCreatedBy(actor != null ? actor.getId() : null);
+            project.setUpdatedAt(now);
+            project.setUpdatedBy(actor != null ? actor.getId() : null);
             project.setProjectLatitude(projectDto.getProjectLatitude());
             project.setProjectLongitude(projectDto.getProjectLongitude());
             project.setStatus(projectDto.getStatus() != null
@@ -136,6 +170,12 @@ public class ProjectService {
             
             // Save the project first to get the ID
             Project savedProject = repository.save(project);
+
+            // The trail opens on the status the project was created in, so a project that was
+            // created already holding a status is distinguishable from one patched into it later.
+            statusTransitionRecorder.recordCreation(HISTORY_ENTITY_TYPE, savedProject.getId(),
+                    organization, savedProject.getStatus().name(), actor);
+
             // Upload attachments if provided
             if (attachments != null && !attachments.isEmpty()) {
                 List<Attachment> savedAttachments = attachmentService.uploadAttachments(attachments, "PROJECT", savedProject.getId(), PROJECTS_FOLDER);
@@ -304,7 +344,82 @@ public class ProjectService {
         });
 
         onApproval(project, previousStatus);
+
+        // Resolved once: both the trail entry and the stamp name the same user, and looking the
+        // user up costs a query.
+        User actor = userContextService.getCurrentUser();
+        recordStatusChange(project, previousStatus, actor);
+        stampWrite(project, actor);
     }
+
+    /**
+     * Appends a status change to the project's trail, if the patch was one.
+     *
+     * <p>Runs after {@link #onApproval}, so an approval the project's state does not allow is
+     * refused before anything is written. It is not conditional on the transition being an
+     * approval: approval is the transition that carries behaviour, but a project moved to
+     * {@code onHold} or {@code cancelled} raises the same question of who did it and when.
+     *
+     * <p>{@link StatusTransitionRecorder#recordChange} writes nothing when the two statuses are
+     * equal, so a patch that touched only the address leaves the trail alone.
+     *
+     * @param project        The project the patch has been applied to.
+     * @param previousStatus The status it held before the patch.
+     * @param actor          The user making the change, or null where there was no user context.
+     */
+    private void recordStatusChange(Project project, ProjectCreationStatus previousStatus, User actor) {
+        statusTransitionRecorder.recordChange(
+                HISTORY_ENTITY_TYPE,
+                project.getId(),
+                project.getOrganization(),
+                previousStatus != null ? previousStatus.name() : null,
+                project.getStatus() != null ? project.getStatus().name() : null,
+                actor,
+                null);
+    }
+
+    /**
+     * Stamps who wrote the project and when.
+     *
+     * <p>This is the last write and nothing more: the next patch overwrites it, so it answers
+     * "when did this last change, and by whom" and never "who approved it". That second question
+     * belongs to the status trail, which is why both exist.
+     *
+     * @param project The project being written.
+     * @param actor   The user making the change, or null where there was no user context.
+     */
+    private void stampWrite(Project project, User actor) {
+        project.setUpdatedAt(LocalDateTime.now());
+        project.setUpdatedBy(actor != null ? actor.getId() : null);
+    }
+
+    /**
+     * Reads a project's status trail, newest first.
+     *
+     * <p>Entries begin where recording began. A project created before the trail existed carries
+     * a single {@code BASELINE} entry naming the status it was observed to hold at that moment,
+     * with no actor and no earlier status, because there is nothing else that can truthfully be
+     * said about a history nobody recorded.
+     *
+     * @param id       The project whose trail to read.
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Entries per page.
+     * @return A page of trail entries, newest first.
+     * @throws ResourceNotFoundException if no project with the given ID is found in this organization.
+     */
+    @Transactional(readOnly = true)
+    public Page<StatusTransitionDto> getStatusHistory(Long id, int pageNo, int pageSize) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        if (!repository.existsByIdAndOrganization_Id(id, orgId)) {
+            throw new ResourceNotFoundException(
+                    "Project with ID " + id + " was not found in this organization");
+        }
+        return statusTransitionRepository
+                .findByEntityTypeAndEntityIdAndOrganization_IdOrderByOccurredAtDescIdDesc(
+                        HISTORY_ENTITY_TYPE, id, orgId, PageRequest.of(pageNo, pageSize))
+                .map(statusTransitionMapper::toDto);
+    }
+
 
     /**
      * Runs the approval transition, once the whole patch has been applied.

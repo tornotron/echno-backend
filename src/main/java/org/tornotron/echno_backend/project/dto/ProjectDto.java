@@ -38,6 +38,20 @@ public class ProjectDto {
     @Schema(description = "Creation timestamp.", example = "2026-08-01T09:00:00")
     private LocalDateTime createdAt;
 
+    @Schema(description = "Id of the user who created the project. Null on projects created before "
+            + "this was recorded.", example = "17")
+    private Long createdBy;
+
+    @Schema(description = "When the project was last written. Null on projects not written since "
+            + "this was recorded. It is a last-write stamp, so it is overwritten by the next edit "
+            + "to any field: to read who moved the project's status and when, use "
+            + "GET /api/v1/project/web/{id}/status-history.",
+            example = "2026-08-28T16:41:12")
+    private LocalDateTime updatedAt;
+
+    @Schema(description = "Id of the user who last wrote the project.", example = "17")
+    private Long updatedBy;
+
     @Schema(description = "Current project status.", example = "IN_PROGRESS")
     private ProjectCreationStatus status;
 
