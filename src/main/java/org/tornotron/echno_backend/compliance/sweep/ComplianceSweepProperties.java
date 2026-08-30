@@ -48,8 +48,10 @@ public class ComplianceSweepProperties {
      * <p>This bounds the scan, not the spend. It exists because the query runs across every
      * tenant with no organization filter, and an unbounded scan of every approved project in
      * the database is the kind of query that is fine at today's 29 projects and is not fine
-     * later. Candidates come back oldest-assessed first, so a pass that hits this ceiling
-     * still makes deterministic progress and the next one continues from where it left off.
+     * later. Candidates come back least-recently-attempted first, so a pass that hits this
+     * ceiling still makes deterministic progress and the next one continues from where it left
+     * off, and a project that fails every night sinks down the list instead of holding the
+     * front of it.
      */
     private int scanLimit = 500;
 
@@ -63,6 +65,11 @@ public class ComplianceSweepProperties {
      * the measured 1.7 seconds and 57 completion tokens per rule, 25 projects over a 21-rule
      * catalogue is about nine minutes of wall clock at the default two in flight, and it is
      * the number to raise once someone has looked at a real bill.
+     *
+     * <p>It is counted from the job table rather than in memory, so it is one budget shared by
+     * every replica rather than one each. That is a bound and not a lock: two replicas that
+     * start a pass in the same second can both submit before either sees the other, so the
+     * real ceiling is this number plus roughly one project per replica.
      */
     private int maxProjectsPerRun = 25;
 }

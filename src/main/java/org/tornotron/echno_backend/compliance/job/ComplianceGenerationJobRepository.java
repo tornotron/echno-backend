@@ -180,48 +180,109 @@ public interface ComplianceGenerationJobRepository extends JpaRepository<Complia
     Optional<DispatchRow> findDispatchRow(@Param("id") UUID id);
 
     /**
-     * Approved projects across every tenant, each with the last time compliance was actually
-     * assessed for it. The nightly sweep's one scan.
+     * Approved projects across every tenant, each with what the sweep needs to decide whether
+     * it is still up to date. The nightly sweep's one scan.
      *
      * <p>Cross-tenant and scalars only, for the same reason the dispatcher queries above are:
      * the caller has no tenant, because its whole job is to work out which tenants have
      * something to do. It establishes one per project before anything is enqueued.
      *
-     * <p>"Assessed" means a run that reached the model and came back, which is {@code SUCCEEDED}
-     * or {@code NOTHING_TO_REPORT}. The second of those matters: a run that assessed every rule
-     * and found none applicable did the work, and treating it as never-assessed would put the
-     * project back in the queue every night for ever. {@code FAILED} deliberately does not
-     * count, because a failed run assessed nothing, and {@code QUEUED} and {@code RUNNING} do
-     * not count because they have not finished; a project with one in flight is filtered out
-     * later by the job table's own one-active-job-per-project index, not here.
+     * <h2>The watermark is the run's start, not its finish</h2>
+     *
+     * <p>{@code lastAssessedAt} is the {@code started_at} of the newest run that succeeded,
+     * and the difference from {@code finished_at} is a rule that would otherwise be skipped
+     * for ever. A run reads the rule catalogue once, at the top, and then spends minutes in
+     * the model. A rule written during those minutes is not in that snapshot and cannot be,
+     * but its {@code effective_from} is earlier than the moment the run finished, so a sweep
+     * watermarked on {@code finished_at} reads the project as covering a rule no run has ever
+     * looked at, on that pass and on every pass after it. Watermarking on the start says only
+     * what the run can actually vouch for: everything in force when it began. Anything dated
+     * after that is compared honestly, and the cost of the change is at most one extra run per
+     * project, which creates nothing because generation is idempotent per rule.
+     *
+     * <p>The same reasoning covers the retried job. {@code started_at} is written with
+     * {@code COALESCE(started_at, ...)} by the claim, so it keeps the first attempt's start
+     * across a requeue, and an earlier watermark can only over-trigger.
+     *
+     * <p>"Assessed" still means a run that reached the model and came back, which is
+     * {@code SUCCEEDED} or {@code NOTHING_TO_REPORT}. The second of those matters: a run that
+     * assessed every rule and found none applicable did the work, and treating it as
+     * never-assessed would put the project back in the queue every night for ever.
+     * {@code FAILED} deliberately does not count, so a run that started, spent minutes and
+     * then failed marks nothing as assessed; {@code QUEUED} and {@code RUNNING} do not count
+     * because they have not finished, and a project with one in flight is filtered out later
+     * by the job table's own one-active-job-per-project index, not here.
      *
      * <p>A null {@code lastAssessedAt} is a project that has never had a completed run at all,
      * which is exactly the backlog this exists for: everything approved before generation was
-     * wired up, and everything whose approval-time run failed silently. Ordering nulls first
-     * puts that backlog at the front of a capped pass.
+     * wired up, and everything whose approval-time run failed silently.
      *
-     * <p>The project's jurisdiction is returned raw rather than matched here. Resolving a state
-     * from a free-text address is Java, so the comparison against the rule catalogue happens in
-     * the caller; this query's job is only to bound what the caller looks at.
+     * <h2>The jurisdiction that run covered</h2>
+     *
+     * <p>{@code lastAssessedJurisdiction} comes off the same row as the watermark, so the two
+     * describe one run rather than two. Without it, a project assessed under one state and
+     * then corrected to another compares its old timestamp against the new state's newest
+     * rule, and if that state's rules predate the assessment the project reads as up to date
+     * with an empty compliance list, permanently. It is null for every run recorded before the
+     * column existed, and the caller reads that null as "not known" rather than as a change.
+     *
+     * <h2>Ordering is by last attempt, not last success</h2>
+     *
+     * <p>{@code ORDER BY} runs on the newest terminal run of any kind, failures included,
+     * which is not the same as the watermark and is deliberately so. A project that fails
+     * every night neither counts as assessed nor blocks its own resubmission, so ordering by
+     * success alone leaves it permanently at the front of the queue: twenty-five such projects
+     * consume the whole per-run cap every night and nothing behind them is ever reached. Being
+     * attempted is enough to move a project down the list, so a pass always reaches new work,
+     * and a project that keeps failing is retried once a pass instead of monopolising it.
      */
     @Query(value = "SELECT p.id AS \"projectId\", "
             + "p.organization_id AS \"organizationId\", "
             + "p.project_state AS \"projectState\", "
             + "p.project_address AS \"projectAddress\", "
             + "p.project_type AS \"projectType\", "
-            + "j.last_finished_at AS \"lastAssessedAt\" "
+            + "a.started_at AS \"lastAssessedAt\", "
+            + "a.jurisdiction AS \"lastAssessedJurisdiction\", "
+            + "t.last_attempt_at AS \"lastAttemptAt\" "
             + "FROM project p "
-            + "LEFT JOIN (SELECT project_id, organization_id, max(finished_at) AS last_finished_at "
+            + "LEFT JOIN (SELECT DISTINCT ON (organization_id, project_id) "
+            + "                  organization_id, project_id, started_at, jurisdiction "
             + "           FROM compliance_generation_jobs "
             + "           WHERE status IN ('SUCCEEDED', 'NOTHING_TO_REPORT') "
-            + "           GROUP BY project_id, organization_id) j "
-            + "  ON j.project_id = p.id AND j.organization_id = p.organization_id "
+            + "           ORDER BY organization_id, project_id, started_at DESC NULLS LAST) a "
+            + "  ON a.project_id = p.id AND a.organization_id = p.organization_id "
+            + "LEFT JOIN (SELECT project_id, organization_id, max(finished_at) AS last_attempt_at "
+            + "           FROM compliance_generation_jobs "
+            + "           WHERE status IN ('SUCCEEDED', 'NOTHING_TO_REPORT', 'FAILED') "
+            + "           GROUP BY project_id, organization_id) t "
+            + "  ON t.project_id = p.id AND t.organization_id = p.organization_id "
             + "WHERE p.status = 'approved' "
             + "  AND p.organization_id IS NOT NULL "
             + "  AND p.project_type IS NOT NULL "
-            + "ORDER BY j.last_finished_at ASC NULLS FIRST, p.id ASC "
+            + "ORDER BY t.last_attempt_at ASC NULLS FIRST, p.id ASC "
             + "LIMIT :limit", nativeQuery = true)
     List<SweepCandidate> findSweepCandidates(@Param("limit") int limit);
+
+    /**
+     * How many generation jobs have been created since a moment, across every tenant.
+     *
+     * <p>The sweep's per-run cap is a cap on spend, and {@code @Scheduled} has no leader
+     * election, so on N replicas the same pass runs N times and a cap counted in memory is
+     * really N times the configured number. Counting the rows instead makes the budget one
+     * that every replica reads: whichever replica enqueues first is visible to the others
+     * before they have got far, and the overshoot falls from a whole cap per replica to
+     * roughly one project per replica, since a replica can only overshoot by the submits it
+     * makes between two counts. It is not mutual exclusion and does not pretend to be; it is
+     * the bound that costs one small count query per submit rather than a coordination
+     * protocol.
+     *
+     * <p>It counts every job created in the window, not only the sweep's own. That is the
+     * right reading of a spend cap: a run queued by an approval during the sweep costs the
+     * same inference as one the sweep queued.
+     */
+    @Query(value = "SELECT count(*) FROM compliance_generation_jobs WHERE created_at >= :since",
+            nativeQuery = true)
+    long countCreatedSince(@Param("since") LocalDateTime since);
 
     /** One approved project the sweep has to decide about. */
     interface SweepCandidate {
@@ -235,7 +296,23 @@ public interface ComplianceGenerationJobRepository extends JpaRepository<Complia
 
         String getProjectType();
 
+        /**
+         * When the newest successful run for this project started, or null if there has never
+         * been one. The start rather than the finish; see the query.
+         */
         LocalDateTime getLastAssessedAt();
+
+        /**
+         * The jurisdiction that run was accepted for, or null if it is not recorded (every run
+         * from before the column existed).
+         */
+        String getLastAssessedJurisdiction();
+
+        /**
+         * When the newest terminal run of any kind finished, failures included. Ordering only;
+         * it is never compared against the rule catalogue.
+         */
+        LocalDateTime getLastAttemptAt();
     }
 
     /** What a worker needs off a claimed row before it can establish the tenant and start. */

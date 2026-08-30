@@ -133,6 +133,27 @@ public class ComplianceGenerationService {
     private record GenerationInputs(Project project, String state, List<ComplianceRule> candidateRules) {}
 
     /**
+     * What a run would be, decided without calling the model: which jurisdiction the project
+     * falls in, and how many rules that jurisdiction has for it.
+     *
+     * <p>The jurisdiction is returned as well as the count because the job row records it.
+     * A count alone says how much work a run is; the jurisdiction says what the work was
+     * about, and that is what lets the nightly sweep tell a project whose state was corrected
+     * after it was assessed from one that has not changed at all.
+     *
+     * @param state       the resolved Indian state, never null on a returned instance
+     * @param projectType the project's type, never null on a returned instance
+     * @param ruleCount   how many active rules that jurisdiction holds for this project type
+     */
+    public record CandidateRules(String state, ProjectType projectType, int ruleCount) {
+
+        /** The stored form of the jurisdiction this run covers. */
+        public String jurisdiction() {
+            return Jurisdiction.key(state, projectType);
+        }
+    }
+
+    /**
      * Generates the missing compliance inspections for a project. Returns the DTOs of
      * the rows created by this call; the list is empty in the genuine "generation ran
      * but nothing applied" cases (the AI found no applicable rule, or every applicable
@@ -166,9 +187,9 @@ public class ComplianceGenerationService {
      * job the user has to go and read. Only failures that genuinely need the model reach the
      * caller as a failed job.
      *
-     * @return how many candidate rules a run would assess
+     * @return the jurisdiction a run would assess under and how many candidate rules it holds
      */
-    public int validateAndCountCandidateRules(Long projectId, Long orgId) {
+    public CandidateRules validateAndCountCandidateRules(Long projectId, Long orgId) {
         GenerationInputs inputs = retryTemplate.execute(
                 "ComplianceGenerationService.loadInputs", () -> loadInputs(projectId, orgId));
         if (!complianceAiService.isConfigured()) {
@@ -176,7 +197,8 @@ public class ComplianceGenerationService {
                     "The compliance AI service is not configured, so suggestions cannot be "
                             + "generated. Set the compliance AI key and try again.");
         }
-        return inputs.candidateRules().size();
+        return new CandidateRules(inputs.state(), inputs.project().getProjectType(),
+                inputs.candidateRules().size());
     }
 
     /** How many model calls a run over {@code ruleCount} rules takes at the configured batch size. */

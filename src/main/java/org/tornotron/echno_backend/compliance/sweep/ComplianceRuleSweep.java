@@ -11,6 +11,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
 import org.tornotron.echno_backend.common.multitenancy.WithoutTenant;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.compliance.IndianStateResolver;
+import org.tornotron.echno_backend.compliance.Jurisdiction;
 import org.tornotron.echno_backend.compliance.job.ComplianceGenerationJobRepository;
 import org.tornotron.echno_backend.compliance.job.ComplianceGenerationJobService;
 import org.tornotron.echno_backend.compliance.repository.ComplianceRuleRepository;
@@ -19,7 +20,6 @@ import org.tornotron.echno_backend.project.enums.ProjectType;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -38,9 +38,34 @@ import java.util.Map;
  *
  * <h2>What makes a project stale</h2>
  *
- * <p>One comparison: the newest {@code effectiveFrom} among the active rules for the project's
- * jurisdiction, against the last time a run for that project actually finished. Never assessed
- * is stale by definition.
+ * <p>Two comparisons, and both have to say the project is covered before it is left alone.
+ * The newest {@code effectiveFrom} among the active rules for the project's jurisdiction,
+ * against the moment the last successful run for that project <em>started</em>; and the
+ * jurisdiction that run was accepted for, against the one the project is in now. Never
+ * assessed is stale by definition.
+ *
+ * <p>The watermark is the run's start rather than its finish, and that is the difference
+ * between a sweep that catches up and one that can lose a rule for good. A run snapshots the
+ * catalogue once and then spends minutes in the model, so a rule written during those minutes
+ * is not in the snapshot and cannot be; but its {@code effectiveFrom} is still earlier than
+ * the moment that run finished. Watermarked on the finish, the project reads as covering a
+ * rule nothing ever assessed it against, on that pass and on every pass after it, which is
+ * precisely the miss this class exists to prevent. Watermarked on the start, the run vouches
+ * only for what was in force when it began. It over-triggers by at most one run per project
+ * and that run creates nothing, because generation is idempotent per rule.
+ *
+ * <p>The jurisdiction is compared for the same kind of reason. A project assessed under Tamil
+ * Nadu and later corrected to Kerala has an assessment that covers none of the rules it is now
+ * subject to, and if Kerala's rules predate that assessment the timestamps alone say it is up
+ * to date. Its compliance list would then be empty for ever.
+ *
+ * <p>One gap is left open knowingly. A rule <em>back-dated</em> below a project's watermark is
+ * invisible to this whenever it is written, in flight or not, because {@code effectiveFrom} is
+ * the only input and the sweep cannot distinguish a rule that was always there from one that
+ * appeared today claiming it was. That is a property of keying on the curated date rather than
+ * on {@code createdAt}, which is a deliberate choice made in the design (see below), and the
+ * remedy is a curatorial one: date a rule from when it starts applying to projects, not from
+ * whatever historical date it was published.
  *
  * <p>{@code effectiveFrom} rather than {@code updatedAt} is the entire design of this. The two
  * are easy to conflate and the difference is the difference between a sweep that costs almost
@@ -68,8 +93,23 @@ import java.util.Map;
  * in flight against the inference endpoint, so a pass that queues 25 jobs produces a queue that
  * drains two at a time, not 25 simultaneous calls to a rate-limited endpoint. On top of that
  * this pass bounds both what it reads ({@code scanLimit}) and what it spends
- * ({@code maxProjectsPerRun}), and takes candidates oldest-assessed first so a capped pass
- * still makes deterministic progress and the next one continues behind it.
+ * ({@code maxProjectsPerRun}), and takes candidates least-recently-attempted first so a capped
+ * pass still makes deterministic progress and the next one continues behind it.
+ *
+ * <p>Least-recently-<em>attempted</em>, not least-recently-assessed. A failed run counts as
+ * neither an assessment nor a reason to stop resubmitting, so ordering on success alone parks
+ * a project that fails every night permanently at the front of the list, where twenty-five
+ * such projects eat the whole cap and nothing behind them is ever reached. Having been tried
+ * is enough to move a project down.
+ *
+ * <p>The spend cap is read from the job table rather than counted in memory, because
+ * {@code @Scheduled} elects no leader: on N replicas this pass runs N times, and a cap held in
+ * a local variable is really N caps. Counting the rows created since the pass began makes the
+ * budget one that all N replicas share. It is not mutual exclusion, and the honest statement
+ * of what it buys is that the overshoot falls from a whole cap per replica to about one
+ * project per replica, being what a replica can submit between two counts. Anything tighter
+ * than that is a coordination protocol, and none is worth writing for a nightly job whose
+ * work is idempotent.
  *
  * <h2>Off by default</h2>
  *
@@ -125,6 +165,8 @@ public class ComplianceRuleSweep {
      * waiting on a cron.
      */
     void runPass() {
+        LocalDateTime passStartedAt = LocalDateTime.now();
+
         Map<String, LocalDateTime> newestByJurisdiction = loadJurisdictionChanges();
         if (newestByJurisdiction.isEmpty()) {
             log.debug("Compliance sweep found no active rules; nothing to compare projects against");
@@ -142,24 +184,30 @@ public class ComplianceRuleSweep {
         int upToDate = 0;
 
         for (ComplianceGenerationJobRepository.SweepCandidate candidate : candidates) {
-            if (enqueued >= cap) {
-                log.info("Compliance sweep stopped at its per-run cap of {} project(s); the rest "
-                        + "are picked up by the next pass", cap);
-                break;
-            }
-
-            LocalDateTime newest = newestFor(candidate, newestByJurisdiction);
-            if (newest == null) {
-                // No jurisdiction we could resolve, or no active rules for it. Generation would
-                // refuse this project anyway, so there is nothing to queue.
+            String jurisdiction = jurisdictionOf(candidate);
+            if (jurisdiction == null) {
+                // No jurisdiction we could resolve. Generation would refuse this project
+                // anyway, so there is nothing to queue.
                 notAssessable++;
                 continue;
             }
 
-            LocalDateTime lastAssessed = candidate.getLastAssessedAt();
-            if (lastAssessed != null && !newest.isAfter(lastAssessed)) {
+            LocalDateTime newest = newestByJurisdiction.get(jurisdiction);
+            if (newest == null) {
+                // No active rules registered for it, so again nothing a run could assess.
+                notAssessable++;
+                continue;
+            }
+
+            if (isCovered(candidate, jurisdiction, newest)) {
                 upToDate++;
                 continue;
+            }
+
+            if (!withinBudget(cap, enqueued, passStartedAt)) {
+                log.info("Compliance sweep stopped at its per-run cap of {} project(s); the rest "
+                        + "are picked up by the next pass", cap);
+                break;
             }
 
             switch (submit(candidate)) {
@@ -172,6 +220,57 @@ public class ComplianceRuleSweep {
         log.info("Compliance sweep looked at {} approved project(s): queued {}, {} already running, "
                         + "{} up to date, {} not assessable yet",
                 candidates.size(), enqueued, alreadyRunning, upToDate, notAssessable);
+    }
+
+    /**
+     * Whether the last successful run for this project already covers everything in force.
+     *
+     * <p>Both halves have to hold. The run has to have started after the newest rule in the
+     * jurisdiction came into force, and it has to have been a run in <em>this</em>
+     * jurisdiction. A run whose jurisdiction was not recorded, which is every run from before
+     * that column existed, is taken at its timestamp alone rather than treated as a change, so
+     * turning this on does not re-assess the entire estate on the first pass.
+     *
+     * <p>The equality boundary falls on the side of covered: a rule that came into force at
+     * the exact instant a run started was in that run's snapshot, since the snapshot is read
+     * after the run is claimed. It has to fall one way or the other, and falling this way
+     * means a rule and a run written in the same instant do not requeue the project nightly
+     * with nothing to add.
+     */
+    private boolean isCovered(ComplianceGenerationJobRepository.SweepCandidate candidate,
+                              String jurisdiction,
+                              LocalDateTime newest) {
+        LocalDateTime lastAssessed = candidate.getLastAssessedAt();
+        if (lastAssessed == null) {
+            return false;
+        }
+
+        String assessedJurisdiction = candidate.getLastAssessedJurisdiction();
+        if (assessedJurisdiction != null && !assessedJurisdiction.equals(jurisdiction)) {
+            log.debug("Compliance sweep sees project {} moved from jurisdiction {} to {}; its "
+                            + "last assessment covers rules it is no longer subject to",
+                    candidate.getProjectId(), assessedJurisdiction, jurisdiction);
+            return false;
+        }
+
+        return !newest.isAfter(lastAssessed);
+    }
+
+    /**
+     * Whether this pass may still enqueue, counting what every replica has enqueued rather
+     * than only what this one has.
+     *
+     * <p>The local count is kept in the comparison as well as the shared one so the cap still
+     * means something to a caller holding a repository that reports nothing, and because the
+     * shared count cannot be lower than what this replica has itself inserted in any case.
+     */
+    private boolean withinBudget(int cap, int enqueuedHere, LocalDateTime passStartedAt) {
+        if (enqueuedHere >= cap) {
+            return false;
+        }
+        long queuedAnywhere = retryTemplate.execute("ComplianceRuleSweep.countCreatedSince",
+                () -> jobRepository.countCreatedSince(passStartedAt));
+        return Math.max(enqueuedHere, queuedAnywhere) < cap;
     }
 
     /** What happened to one candidate. */
@@ -224,7 +323,7 @@ public class ComplianceRuleSweep {
                     || change.getNewestEffectiveFrom() == null) {
                 continue;
             }
-            byJurisdiction.merge(key(change.getState(), change.getProjectType()),
+            byJurisdiction.merge(Jurisdiction.key(change.getState(), change.getProjectType()),
                     change.getNewestEffectiveFrom(),
                     (a, b) -> a.isAfter(b) ? a : b);
         }
@@ -232,27 +331,16 @@ public class ComplianceRuleSweep {
     }
 
     /**
-     * The newest applicable rule change for one project, or null if it has no jurisdiction we
-     * can resolve or no active rules in it.
+     * The jurisdiction one project is in now, or null if it has none we can resolve.
      *
      * <p>The state is resolved exactly as generation resolves it, including the free-text
      * address fallback, so the sweep cannot decide a project is stale on a jurisdiction that
      * generation would then refuse to use.
      */
-    private LocalDateTime newestFor(ComplianceGenerationJobRepository.SweepCandidate candidate,
-                                    Map<String, LocalDateTime> newestByJurisdiction) {
+    private String jurisdictionOf(ComplianceGenerationJobRepository.SweepCandidate candidate) {
         String state = IndianStateResolver.forProject(
                 candidate.getProjectState(), candidate.getProjectAddress());
-        if (state == null) {
-            return null;
-        }
-
-        ProjectType projectType = parseProjectType(candidate.getProjectType());
-        if (projectType == null) {
-            return null;
-        }
-
-        return newestByJurisdiction.get(key(state, projectType));
+        return Jurisdiction.key(state, parseProjectType(candidate.getProjectType()));
     }
 
     /**
@@ -271,9 +359,5 @@ public class ComplianceRuleSweep {
                     value);
             return null;
         }
-    }
-
-    private String key(String state, ProjectType projectType) {
-        return state.toLowerCase(Locale.ROOT) + "|" + projectType.name();
     }
 }

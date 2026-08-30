@@ -346,4 +346,7 @@
     <!-- v4.0 - Employees: drop the unwritten is_manager flag; the org role is the answer -->
     <include file="db/changelog/v4.0/070-drop-employee-is-manager.xml"/>
 
+    <!-- v4.0 - Compliance jobs: which jurisdiction a run was accepted for -->
+    <include file="db/changelog/v4.0/071-add-compliance-job-jurisdiction.xml"/>
+
 </databaseChangeLog>

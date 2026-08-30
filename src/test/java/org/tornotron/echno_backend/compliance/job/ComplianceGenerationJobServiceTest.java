@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.compliance.ComplianceGenerationService;
+import org.tornotron.echno_backend.project.enums.ProjectType;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.sql.SQLException;
@@ -39,6 +40,10 @@ class ComplianceGenerationJobServiceTest {
     private static final Long ORG_ID = 7L;
     private static final Long PROJECT_ID = 42L;
 
+    /** Twenty-five active rules for one project's jurisdiction, as accept time works it out. */
+    private static final ComplianceGenerationService.CandidateRules CANDIDATES =
+            new ComplianceGenerationService.CandidateRules("Tamil Nadu", ProjectType.RESIDENTIAL, 25);
+
     @Mock
     private ComplianceGenerationJobRepository jobRepository;
     @Mock
@@ -61,7 +66,8 @@ class ComplianceGenerationJobServiceTest {
 
     @Test
     void acceptsAJobRecordingHowMuchWorkItIs() {
-        when(complianceGenerationService.validateAndCountCandidateRules(PROJECT_ID, ORG_ID)).thenReturn(25);
+        when(complianceGenerationService.validateAndCountCandidateRules(PROJECT_ID, ORG_ID))
+                .thenReturn(CANDIDATES);
         when(complianceGenerationService.batchCount(25)).thenReturn(3);
         when(jobRepository.findActiveForProject(ORG_ID, PROJECT_ID)).thenReturn(Optional.empty());
         when(tenantEntityHelper.resolveCurrentOrganization()).thenReturn(new Organization());
@@ -75,6 +81,10 @@ class ComplianceGenerationJobServiceTest {
         verify(jobRepository).save(saved.capture());
         assertThat(saved.getValue().getStatus()).isEqualTo(ComplianceJobStatus.QUEUED);
         assertThat(saved.getValue().getRulesTotal()).isEqualTo(25);
+        assertThat(saved.getValue().getJurisdiction())
+                .as("the row has to say what the run covers, or a later state correction cannot "
+                        + "be told from no change at all")
+                .isEqualTo("tamil nadu|RESIDENTIAL");
         assertThat(saved.getValue().getBatchesTotal())
                 .as("the caller can show a progress bar before the first batch has run")
                 .isEqualTo(3);
@@ -105,7 +115,8 @@ class ComplianceGenerationJobServiceTest {
     @Test
     void aSecondRequestJoinsTheRunAlreadyInFlight() {
         ComplianceGenerationJob running = queuedJob();
-        when(complianceGenerationService.validateAndCountCandidateRules(PROJECT_ID, ORG_ID)).thenReturn(25);
+        when(complianceGenerationService.validateAndCountCandidateRules(PROJECT_ID, ORG_ID))
+                .thenReturn(CANDIDATES);
         when(jobRepository.findActiveForProject(ORG_ID, PROJECT_ID)).thenReturn(Optional.of(running));
 
         ComplianceGenerationJobService.Accepted accepted = service.submit(PROJECT_ID, ORG_ID);
@@ -126,7 +137,8 @@ class ComplianceGenerationJobServiceTest {
     @Test
     void aRequestThatLosesTheInsertRaceReturnsTheWinnersJob() {
         ComplianceGenerationJob winner = queuedJob();
-        when(complianceGenerationService.validateAndCountCandidateRules(PROJECT_ID, ORG_ID)).thenReturn(25);
+        when(complianceGenerationService.validateAndCountCandidateRules(PROJECT_ID, ORG_ID))
+                .thenReturn(CANDIDATES);
         when(jobRepository.findActiveForProject(ORG_ID, PROJECT_ID))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(winner));
@@ -148,7 +160,8 @@ class ComplianceGenerationJobServiceTest {
     void aRequestThatLosesToAJobThatHasSinceFinishedReturnsThatFinishedJob() {
         ComplianceGenerationJob finished = queuedJob();
         finished.setStatus(ComplianceJobStatus.NOTHING_TO_REPORT);
-        when(complianceGenerationService.validateAndCountCandidateRules(PROJECT_ID, ORG_ID)).thenReturn(25);
+        when(complianceGenerationService.validateAndCountCandidateRules(PROJECT_ID, ORG_ID))
+                .thenReturn(CANDIDATES);
         when(jobRepository.findActiveForProject(ORG_ID, PROJECT_ID)).thenReturn(Optional.empty());
         when(jobRepository.findLatestForProject(anyLong(), anyLong(), any(Pageable.class)))
                 .thenReturn(List.of(finished));
@@ -164,7 +177,8 @@ class ComplianceGenerationJobServiceTest {
     /** A failure that is not the duplicate is not swallowed as one. */
     @Test
     void anUnrelatedWriteFailureIsNotMistakenForALostRace() {
-        when(complianceGenerationService.validateAndCountCandidateRules(PROJECT_ID, ORG_ID)).thenReturn(25);
+        when(complianceGenerationService.validateAndCountCandidateRules(PROJECT_ID, ORG_ID))
+                .thenReturn(CANDIDATES);
         when(jobRepository.findActiveForProject(ORG_ID, PROJECT_ID)).thenReturn(Optional.empty());
         when(tenantEntityHelper.resolveCurrentOrganization()).thenReturn(new Organization());
         when(jobRepository.save(any())).thenThrow(new IllegalStateException("the disk is full"));

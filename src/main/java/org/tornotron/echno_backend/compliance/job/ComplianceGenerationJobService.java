@@ -61,7 +61,9 @@ public class ComplianceGenerationJobService {
      *         or the configuration cannot support a run, with the fix in the message
      */
     public Accepted submit(Long projectId, Long orgId) {
-        int ruleCount = complianceGenerationService.validateAndCountCandidateRules(projectId, orgId);
+        ComplianceGenerationService.CandidateRules candidates =
+                complianceGenerationService.validateAndCountCandidateRules(projectId, orgId);
+        int ruleCount = candidates.ruleCount();
         int batches = complianceGenerationService.batchCount(ruleCount);
 
         Optional<ComplianceGenerationJob> running = retryTemplate.execute(
@@ -74,7 +76,7 @@ public class ComplianceGenerationJobService {
         try {
             ComplianceGenerationJob job = retryTemplate.execute(
                     "ComplianceGenerationJobService.submit",
-                    () -> insert(projectId, ruleCount, batches));
+                    () -> insert(projectId, candidates, batches));
             log.info("Accepted compliance generation job {} for project {} in organization {} "
                             + "({} rule(s) over {} batch(es))",
                     job.getId(), projectId, orgId, ruleCount, batches);
@@ -113,12 +115,15 @@ public class ComplianceGenerationJobService {
         return latest.stream().findFirst().map(ComplianceGenerationJobDto::from);
     }
 
-    private ComplianceGenerationJob insert(Long projectId, int ruleCount, int batches) {
+    private ComplianceGenerationJob insert(Long projectId,
+                                           ComplianceGenerationService.CandidateRules candidates,
+                                           int batches) {
         ComplianceGenerationJob job = new ComplianceGenerationJob();
         job.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
         job.setProjectId(projectId);
         job.setStatus(ComplianceJobStatus.QUEUED);
-        job.setRulesTotal(ruleCount);
+        job.setRulesTotal(candidates.ruleCount());
+        job.setJurisdiction(candidates.jurisdiction());
         job.setBatchesTotal(batches);
         job.setMaxAttempts(Math.max(1, jobProperties.getMaxAttempts()));
         return jobRepository.save(job);
