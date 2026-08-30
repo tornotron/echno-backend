@@ -20,6 +20,7 @@ import org.tornotron.echno_backend.common.history.mapper.StatusTransitionMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.finance.ledger.repositories.CustomerRepository;
@@ -65,6 +66,7 @@ class ProjectStatusHistoryTest {
     private static final Long ORG_ID = 1L;
     private static final Long PROJECT_ID = 7L;
     private static final Long ACTOR_ID = 31L;
+    private static final Long EMPLOYEE_ID = 55L;
 
     private static ValidatorFactory factory;
 
@@ -299,6 +301,67 @@ class ProjectStatusHistoryTest {
                 eq(ProjectCreationStatus.upcoming.name()),
                 eq(ProjectCreationStatus.approved.name()),
                 any(), any());
+    }
+
+    /**
+     * The team is part of the project, so changing it is a write like any other. A stamp that
+     * covered only the field patch would report a project as untouched since last month while its
+     * team was rebuilt yesterday, which is a wrong answer rather than a missing one.
+     */
+    @Test
+    void addingAnEmployeeToTheTeam_stampsTheWrite() {
+        Project project = draftProject(ProjectCreationStatus.open);
+        Employee employee = teamMember();
+        when(repository.findByIdAndOrganization_Id(PROJECT_ID, ORG_ID)).thenReturn(Optional.of(project));
+        when(employeeRepository.findByIdAndOrganizationId(EMPLOYEE_ID, ORG_ID))
+                .thenReturn(Optional.of(employee));
+
+        service.addEmployeeToProject(PROJECT_ID, EMPLOYEE_ID);
+
+        assertThat(project.getUpdatedAt()).isNotNull();
+        assertThat(project.getUpdatedBy()).isEqualTo(ACTOR_ID);
+    }
+
+    /** The same on the way out. */
+    @Test
+    void removingAnEmployeeFromTheTeam_stampsTheWrite() {
+        Project project = draftProject(ProjectCreationStatus.open);
+        Employee employee = teamMember();
+        project.getEmployees().add(employee);
+        when(repository.findByIdAndOrganization_Id(PROJECT_ID, ORG_ID)).thenReturn(Optional.of(project));
+        when(employeeRepository.findByIdAndOrganizationId(EMPLOYEE_ID, ORG_ID))
+                .thenReturn(Optional.of(employee));
+
+        service.removeEmployeeFromProject(PROJECT_ID, EMPLOYEE_ID);
+
+        assertThat(project.getUpdatedAt()).isNotNull();
+        assertThat(project.getUpdatedBy()).isEqualTo(ACTOR_ID);
+    }
+
+    /**
+     * A team change is not a status change, so it must not appear in the status trail. The trail
+     * is only readable if what is in it is what it says it holds.
+     */
+    @Test
+    void changingTheTeam_recordsNoStatusTransition() {
+        Project project = draftProject(ProjectCreationStatus.open);
+        Employee employee = teamMember();
+        when(repository.findByIdAndOrganization_Id(PROJECT_ID, ORG_ID)).thenReturn(Optional.of(project));
+        when(employeeRepository.findByIdAndOrganizationId(EMPLOYEE_ID, ORG_ID))
+                .thenReturn(Optional.of(employee));
+
+        service.addEmployeeToProject(PROJECT_ID, EMPLOYEE_ID);
+
+        verify(statusTransitionRecorder, never()).recordChange(
+                anyString(), any(), any(), any(), any(), any(), any());
+    }
+
+    private Employee teamMember() {
+        Employee employee = new Employee();
+        employee.setId(EMPLOYEE_ID);
+        employee.setEmployeeName("Site Engineer");
+        employee.setOrganization(organization);
+        return employee;
     }
 
     private void patch(Project project, Map<String, Object> updates) {
