@@ -92,6 +92,35 @@ public final class PublicEndpointReachabilityFixtures {
         }
     }
 
+    /** An event whose only listener is asynchronous by its class rather than its method. */
+    public static class ClassLevelAsyncEvent {
+    }
+
+    /**
+     * Spring applies a type-level {@code @Async} to every method the type declares, so this
+     * listener is as far from the request thread as one annotated method by method.
+     */
+    @Async
+    public static class ReadsTenantRowsOnAnAsyncClass {
+
+        private CategoryRepository categoryRepository;
+
+        @EventListener
+        public void on(ClassLevelAsyncEvent event) {
+            categoryRepository.findAll();
+        }
+    }
+
+    /** Publishes only the event whose listener is asynchronous by its class. */
+    public static class PublishesAClassLevelAsyncEvent {
+
+        private ApplicationEventPublisher publisher;
+
+        public void handle() {
+            publisher.publishEvent(new ClassLevelAsyncEvent());
+        }
+    }
+
     /** The {@code EntityManager} hop, shaped like {@code ReportService}. */
     public static class QueriesThroughTheEntityManager {
 

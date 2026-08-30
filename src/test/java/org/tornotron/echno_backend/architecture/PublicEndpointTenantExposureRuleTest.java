@@ -74,6 +74,19 @@ class PublicEndpointTenantExposureRuleTest {
                 .isEmpty();
     }
 
+    /**
+     * And the same for a listener that is asynchronous by its class rather than by its method.
+     * Spring applies a type-level {@code @Async} to every method the type declares, so reading
+     * only the method annotation would put this listener back into the reported path.
+     */
+    @Test
+    void doesNotFollowAListenerMadeAsynchronousByItsClass() {
+        assertThat(pathFrom(
+                PublicEndpointReachabilityFixtures.PublishesAClassLevelAsyncEvent.class, "handle"))
+                .as("a type-level @Async is as good as one on the method")
+                .isEmpty();
+    }
+
     // -------------------------------------------------------------------------------
     // Hole 2: reads that are not Spring Data repositories
     // -------------------------------------------------------------------------------
