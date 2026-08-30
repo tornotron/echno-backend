@@ -45,8 +45,7 @@ public class LeaveRequestController {
     }
 
     @PostMapping
-//    @PreAuthorize("hasAuthority('leave:create') or hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')")
     @Operation(
             summary = "Create a leave request",
             description = "Creates a leave request for the given employee from the dates, policy and reason "
@@ -56,7 +55,7 @@ public class LeaveRequestController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Request created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The request payload failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee named nor a holder of the system-admin or hr-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The requested dates overlap an existing leave request, or the balance is insufficient")
     })
     public ResponseEntity<LeaveRequestDto> createRequest(
@@ -171,8 +170,9 @@ public class LeaveRequestController {
     }
 
     @PatchMapping("requestId/{requestId}")
-//    @PreAuthorize("hasAuthority('leave:update') or hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    // Ownership is settled in LeaveRequestService against the request's own employee: this
+    // handler takes no employee id, so there is nothing here for a self-check to read.
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Partially update a leave request",
             description = "Applies the given field updates to a draft leave request and returns the "
@@ -181,7 +181,7 @@ public class LeaveRequestController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Request updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the update fields failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The updated dates overlap an existing leave request, or the request is no longer editable")
     })
@@ -194,8 +194,9 @@ public class LeaveRequestController {
     }
 
     @PostMapping("/requestId/{requestId}/submit")
-//    @PreAuthorize("hasAuthority('leave:create') or hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    // Ownership is settled in LeaveRequestService against the request's own employee: this
+    // handler takes no employee id, so there is nothing here for a self-check to read.
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Submit a leave request for approval",
             description = "Moves a draft leave request into the approval workflow, assigning the first "
@@ -203,7 +204,7 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Request submitted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The request is not in a submittable state, or the balance is insufficient")
     })
@@ -212,8 +213,9 @@ public class LeaveRequestController {
     }
 
     @PostMapping("/requestId/{requestId}/cancel")
-//    @PreAuthorize("hasAuthority('leave:update') or hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    // Ownership is settled in LeaveRequestService against the request's own employee: this
+    // handler takes no employee id, so there is nothing here for a self-check to read.
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Cancel a leave request",
             description = "Cancels an already-approved leave request and records the given reason, "
@@ -221,7 +223,7 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Request cancelled"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The request is not in a cancellable state")
     })
@@ -232,8 +234,9 @@ public class LeaveRequestController {
     }
 
     @PostMapping("/requestId/{requestId}/withdraw")
-//    @PreAuthorize("hasAuthority('leave:update') or hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    // Ownership is settled in LeaveRequestService against the request's own employee: this
+    // handler takes no employee id, so there is nothing here for a self-check to read.
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Withdraw a leave request",
             description = "Withdraws a leave request that is still pending approval, before any approver "
@@ -241,7 +244,7 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Request withdrawn"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The request is not in a withdrawable state")
     })

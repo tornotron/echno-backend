@@ -65489,7 +65489,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee named nor a holder of the system-admin or hr-admin role"
           },
           "404": {
             "content": {
@@ -66565,7 +66565,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
           },
           "404": {
             "content": {
@@ -66688,7 +66688,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
           },
           "404": {
             "content": {
@@ -66801,7 +66801,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
           },
           "404": {
             "content": {
@@ -66914,7 +66914,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
           },
           "404": {
             "content": {
@@ -67037,7 +67037,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee named nor a holder of the system-admin or hr-admin role"
           },
           "404": {
             "content": {
@@ -67401,7 +67401,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
           },
           "404": {
             "content": {
@@ -67914,7 +67914,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
           },
           "404": {
             "content": {
@@ -68036,7 +68036,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
           },
           "404": {
             "content": {
@@ -68619,7 +68619,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
           },
           "404": {
             "content": {
