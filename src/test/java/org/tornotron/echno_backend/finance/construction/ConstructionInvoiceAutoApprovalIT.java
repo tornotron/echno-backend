@@ -60,7 +60,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         JournalPostingService.class, JournalEntryMapperImpl.class, ConstructionPostingProperties.class,
         InvoicePostingProperties.class, UserContextService.class, ChartOfAccountsSeeder.class,
         PostingAccountResolver.class, FinanceSettingsService.class,
-        SelfApprovalPolicy.class, OrganizationSecurityService.class})
+        SelfApprovalPolicy.class, OrganizationSecurityService.class,
+        org.tornotron.echno_backend.user.UserNameDirectory.class})
 class ConstructionInvoiceAutoApprovalIT extends AbstractIntegrationTest {
 
     // Total of the built invoice: 10 * 100 = 1000 subtotal, 18% tax = 180, gross 1180.

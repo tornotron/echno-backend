@@ -88,17 +88,33 @@ public record ConstructionInvoiceDto(
         @Schema(description = "User id that submitted the invoice for approval.", example = "5")
         Long submittedBy,
 
+        @Schema(description = "Name of the user that submitted the invoice. Reads \"User #<id>\" when the "
+                + "account has since been deleted; null only when the invoice was never submitted.",
+                example = "Anand Rajashekar")
+        String submittedByName,
+
         @Schema(description = "Timestamp the invoice was submitted.", example = "2026-08-02T09:15:00Z")
         Instant submittedAt,
 
         @Schema(description = "User id that approved the invoice.", example = "2")
         Long approvedBy,
 
+        @Schema(description = "Name of the user that approved the invoice. Reads \"User #<id>\" when the "
+                + "account has since been deleted; null only when the invoice was never approved.",
+                example = "Aneesh Johny")
+        String approvedByName,
+
         @Schema(description = "Timestamp the invoice was approved.", example = "2026-08-03T11:40:00Z")
         Instant approvedAt,
 
         @Schema(description = "User id that recorded the most recent payment.", example = "5")
         Long paymentRecordedBy,
+
+        @Schema(description = "Name of the user that recorded the most recent payment. Reads "
+                + "\"User #<id>\" when the account has since been deleted; null only when no payment has "
+                + "been recorded.",
+                example = "Anand Rajashekar")
+        String paymentRecordedByName,
 
         @Schema(description = "Ledger journal entry posted when the invoice was approved.",
                 example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10")

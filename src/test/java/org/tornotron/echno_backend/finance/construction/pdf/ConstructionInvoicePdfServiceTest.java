@@ -62,7 +62,7 @@ class ConstructionInvoicePdfServiceTest {
                 null, null, null,
                 null, null, null, null, null, null,
                 null, null, null, null, null, null,
-                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null,
                 null,
                 null);
 
@@ -88,7 +88,10 @@ class ConstructionInvoicePdfServiceTest {
                 new BigDecimal("76275.00"), new BigDecimal("40000.00"), new BigDecimal("36275.00"),
                 "Net 30", "BANK_TRANSFER", "29ABCDE1234F1Z5", "CGST_SGST",
                 "Second progress claim for tower B", "Payable within 30 days of receipt.",
-                5L, null, 2L, null, 5L, UUID.randomUUID(), null,
+                5L, "Anand Rajashekar", null,
+                2L, "Aneesh Johny", null,
+                5L, "Anand Rajashekar",
+                UUID.randomUUID(), null,
                 null,
                 List.of(line));
     }

@@ -29,11 +29,15 @@ import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocationScope;
 import org.tornotron.echno_backend.user.UserContextService;
+import org.tornotron.echno_backend.user.UserNameDirectory;
+import org.tornotron.echno_backend.user.UserNameLookup;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Stock-adjustment documents: draft, browse, edit, and post to the stock ledger.
@@ -85,6 +89,7 @@ public class StockAdjustmentService {
     private final InventoryTransactionRepository inventoryTransactionRepository;
     private final UserContextService userContextService;
     private final SelfApprovalPolicy selfApprovalPolicy;
+    private final UserNameDirectory userNameDirectory;
 
     public StockAdjustmentService(StockAdjustmentRepository stockAdjustmentRepository,
                                   StockAdjustmentMapper stockAdjustmentMapper,
@@ -95,7 +100,8 @@ public class StockAdjustmentService {
                                   InventoryService inventoryService,
                                   InventoryTransactionRepository inventoryTransactionRepository,
                                   UserContextService userContextService,
-                                  SelfApprovalPolicy selfApprovalPolicy) {
+                                  SelfApprovalPolicy selfApprovalPolicy,
+                                  UserNameDirectory userNameDirectory) {
         this.stockAdjustmentRepository = stockAdjustmentRepository;
         this.stockAdjustmentMapper = stockAdjustmentMapper;
         this.tenantEntityHelper = tenantEntityHelper;
@@ -106,6 +112,7 @@ public class StockAdjustmentService {
         this.inventoryTransactionRepository = inventoryTransactionRepository;
         this.userContextService = userContextService;
         this.selfApprovalPolicy = selfApprovalPolicy;
+        this.userNameDirectory = userNameDirectory;
     }
 
     /** Status a document carries once its movements are on the ledger. */
@@ -156,7 +163,7 @@ public class StockAdjustmentService {
         stockAdjustment.setSubmittedAt(LocalDateTime.now());
         applyLineItems(stockAdjustment, creationDto.getLineItems(), organization);
         StockAdjustment saved = stockAdjustmentRepository.saveAndFlush(stockAdjustment);
-        return stockAdjustmentMapper.toDto(saved);
+        return stockAdjustmentMapper.toDto(saved, namesFor(saved));
     }
 
     @Transactional(readOnly = true)
@@ -165,15 +172,16 @@ public class StockAdjustmentService {
                 .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Stock adjustment with ID " + id + " was not found in this organization"));
-        return stockAdjustmentMapper.toDto(stockAdjustment);
+        return stockAdjustmentMapper.toDto(stockAdjustment, namesFor(stockAdjustment));
     }
 
 
     @Transactional(readOnly = true)
     public Page<StockAdjustmentDto> getAll(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return stockAdjustmentRepository.findAll(pageable)
-                .map(stockAdjustmentMapper::toDto);
+        Page<StockAdjustment> adjustments = stockAdjustmentRepository.findAll(pageable);
+        UserNameLookup names = namesFor(adjustments.getContent());
+        return adjustments.map(adjustment -> stockAdjustmentMapper.toDto(adjustment, names));
     }
 
     /**
@@ -205,7 +213,7 @@ public class StockAdjustmentService {
         // saveAndFlush before mapping so the freshly inserted line-item ids are populated
         // on the returned DTO (documented gotcha: without the flush the child ids are null).
         StockAdjustment saved = stockAdjustmentRepository.saveAndFlush(stockAdjustment);
-        return stockAdjustmentMapper.toDto(saved);
+        return stockAdjustmentMapper.toDto(saved, namesFor(saved));
     }
 
     /**
@@ -364,7 +372,7 @@ public class StockAdjustmentService {
         stockAdjustment.setProcessedAt(postedAt);
 
         StockAdjustment saved = stockAdjustmentRepository.saveAndFlush(stockAdjustment);
-        return stockAdjustmentMapper.toDto(saved);
+        return stockAdjustmentMapper.toDto(saved, namesFor(saved));
     }
 
     /**
@@ -431,7 +439,7 @@ public class StockAdjustmentService {
         stockAdjustment.setRejectionReason(statedReason);
 
         StockAdjustment saved = stockAdjustmentRepository.saveAndFlush(stockAdjustment);
-        return stockAdjustmentMapper.toDto(saved);
+        return stockAdjustmentMapper.toDto(saved, namesFor(saved));
     }
 
     /**
@@ -624,5 +632,33 @@ public class StockAdjustmentService {
         return materialRepository.findByIdAndOrganization_Id(materialId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Material with ID " + materialId + " was not found in this organization"));
+    }
+
+    /**
+     * Reads the display names for every workflow stamp on the adjustments about to be mapped.
+     *
+     * <p>One call covers a whole page, so the query count does not follow the row count. The
+     * mapper cannot do this for itself: a document holds only the user id, and a lookup inside
+     * the conversion would cost a round trip per stamp per row with nothing at the call site to
+     * show it, which is what {@code MapperDatabaseAccessTest} exists to prevent.
+     *
+     * @param adjustments The adjustments being converted.
+     * @return Their stamp names, with an id that no longer resolves reading as a placeholder.
+     */
+    private UserNameLookup namesFor(Collection<StockAdjustment> adjustments) {
+        return userNameDirectory.namesFor(adjustments.stream()
+                .flatMap(adjustment -> Stream.of(adjustment.getSubmittedBy(), adjustment.getApprovedBy(),
+                        adjustment.getRejectedBy(), adjustment.getProcessedBy()))
+                .toList());
+    }
+
+    /**
+     * Reads the display names for the workflow stamps on one adjustment.
+     *
+     * @param adjustment The adjustment being converted.
+     * @return Its stamp names.
+     */
+    private UserNameLookup namesFor(StockAdjustment adjustment) {
+        return namesFor(List.of(adjustment));
     }
 }

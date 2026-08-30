@@ -62,6 +62,53 @@ class UserRepositoryIT extends AbstractIntegrationTest {
                 .containsExactlyInAnyOrder(a1.getId(), a2.getId());
     }
 
+    @Test
+    void findDisplayNamesByIdIn_resolvesAUserWhoHasNoEmployeeRecord() {
+        // The stamp on a document is a user id, so the name has to come from the user row.
+        // Resolving it through the employee lookup, as the web app used to, misses exactly this
+        // account: a user with no employment, which is the shape a QA raiser or a bootstrap
+        // administrator has.
+        User withoutEmployment = persistUser("raiser");
+        em.flush();
+        em.clear();
+
+        List<UserDisplayName> found =
+                userRepository.findDisplayNamesByIdIn(List.of(withoutEmployment.getId()));
+
+        assertThat(found).singleElement()
+                .extracting(UserDisplayName::name).isEqualTo("raiser");
+    }
+
+    @Test
+    void findDisplayNamesByIdIn_isNotScopedToAnOrganization() {
+        // A document outlives the approver's employment. Scoping the name read would blank the
+        // approver on exactly the historical records the stamp exists for.
+        Organization orgA = persistOrganization("Org C");
+        User member = persistUser("member");
+        User outsider = persistUser("outsider");
+        persistEmployee(orgA, member);
+        em.flush();
+        em.clear();
+
+        List<UserDisplayName> found = userRepository.findDisplayNamesByIdIn(
+                List.of(member.getId(), outsider.getId()));
+
+        assertThat(found).extracting(UserDisplayName::id)
+                .containsExactlyInAnyOrder(member.getId(), outsider.getId());
+    }
+
+    @Test
+    void findDisplayNamesByIdIn_omitsAnIdWithNoRow() {
+        User present = persistUser("present");
+        em.flush();
+        em.clear();
+
+        List<UserDisplayName> found =
+                userRepository.findDisplayNamesByIdIn(List.of(present.getId(), 999_999L));
+
+        assertThat(found).extracting(UserDisplayName::id).containsExactly(present.getId());
+    }
+
     private Organization persistOrganization(String name) {
         Organization org = new Organization();
         org.setOrganizationName(name);

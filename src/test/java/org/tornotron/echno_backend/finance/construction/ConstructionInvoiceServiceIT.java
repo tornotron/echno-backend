@@ -60,7 +60,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         InvoicePostingProperties.class, UserContextService.class,
         org.tornotron.echno_backend.finance.posting.service.PostingAccountResolver.class,
         org.tornotron.echno_backend.finance.settings.FinanceSettingsService.class,
-        SelfApprovalPolicy.class, OrganizationSecurityService.class})
+        SelfApprovalPolicy.class, OrganizationSecurityService.class,
+        org.tornotron.echno_backend.user.UserNameDirectory.class})
 class ConstructionInvoiceServiceIT extends AbstractIntegrationTest {
 
     @Autowired

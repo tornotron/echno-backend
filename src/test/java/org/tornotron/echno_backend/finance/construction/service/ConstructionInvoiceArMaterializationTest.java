@@ -35,6 +35,7 @@ import org.tornotron.echno_backend.finance.settings.FinanceSettingsService;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.UserContextService;
+import org.tornotron.echno_backend.user.UserNameDirectory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -68,6 +69,7 @@ class ConstructionInvoiceArMaterializationTest {
     private static final long PROJECT_ID = 41L;
 
     @Mock private ConstructionInvoiceRepository invoiceRepo;
+    @Mock private UserNameDirectory userNameDirectory;
     @Mock private EntryNumberGenerator numberGen;
     @Mock private ConstructionInvoiceMapper mapper;
     @Mock private TenantEntityHelper tenantEntityHelper;
@@ -95,7 +97,7 @@ class ConstructionInvoiceArMaterializationTest {
         service = new ConstructionInvoiceService(invoiceRepo, numberGen, mapper, tenantEntityHelper,
                 journalRepo, postingService, postingAccountResolver, financeSettingsService,
                 projectRepository, userContextService, costCategoryRepository, customerRepository,
-                invoiceService, selfApprovalPolicy);
+                invoiceService, selfApprovalPolicy, userNameDirectory);
     }
 
     @AfterEach

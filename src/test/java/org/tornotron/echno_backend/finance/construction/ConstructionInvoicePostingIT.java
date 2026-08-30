@@ -79,7 +79,8 @@ import static org.mockito.Mockito.when;
         InvoicePostingProperties.class, ChartOfAccountsSeeder.class,
         org.tornotron.echno_backend.finance.posting.service.PostingAccountResolver.class,
         org.tornotron.echno_backend.finance.settings.FinanceSettingsService.class,
-        SelfApprovalPolicy.class, OrganizationSecurityService.class})
+        SelfApprovalPolicy.class, OrganizationSecurityService.class,
+        org.tornotron.echno_backend.user.UserNameDirectory.class})
 class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
 
     private static final long PROJECT_ID = 4001L;

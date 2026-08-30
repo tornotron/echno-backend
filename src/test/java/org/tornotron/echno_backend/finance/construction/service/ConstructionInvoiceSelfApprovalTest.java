@@ -30,6 +30,7 @@ import org.tornotron.echno_backend.finance.posting.service.PostingAccountResolve
 import org.tornotron.echno_backend.finance.settings.FinanceSettingsService;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.UserContextService;
+import org.tornotron.echno_backend.user.UserNameDirectory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -60,6 +61,7 @@ class ConstructionInvoiceSelfApprovalTest {
     private static final long OTHER_APPROVER = 32L;
 
     @Mock private ConstructionInvoiceRepository invoiceRepo;
+    @Mock private UserNameDirectory userNameDirectory;
     @Mock private EntryNumberGenerator numberGen;
     @Mock private ConstructionInvoiceMapper mapper;
     @Mock private TenantEntityHelper tenantEntityHelper;
@@ -82,7 +84,7 @@ class ConstructionInvoiceSelfApprovalTest {
         service = new ConstructionInvoiceService(invoiceRepo, numberGen, mapper, tenantEntityHelper,
                 journalRepo, postingService, postingAccountResolver, financeSettingsService,
                 projectRepository, userContextService, costCategoryRepository, customerRepository,
-                invoiceService, new SelfApprovalPolicy(orgSecurity));
+                invoiceService, new SelfApprovalPolicy(orgSecurity), userNameDirectory);
     }
 
     @AfterEach
