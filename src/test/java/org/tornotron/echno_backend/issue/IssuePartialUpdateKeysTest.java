@@ -15,6 +15,7 @@ import org.mockito.quality.Strictness;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
@@ -64,6 +65,8 @@ class IssuePartialUpdateKeysTest {
     private IssueMapper issueMapper;
     @Mock
     private EmployeeRepository employeeRepository;
+    @Mock
+    private CurrentEmployeeService currentEmployeeService;
 
     private IssueService service;
     private Issue existing;
@@ -73,7 +76,8 @@ class IssuePartialUpdateKeysTest {
         factory = Validation.buildDefaultValidatorFactory();
         Validator validator = factory.getValidator();
         service = new IssueService(issueRepository, taskRepository, attachmentService,
-                issueMapper, employeeRepository, new PayloadValidator(validator));
+                issueMapper, employeeRepository, currentEmployeeService,
+                new PayloadValidator(validator));
 
         TenantContext.setCurrentOrgId(1L);
 

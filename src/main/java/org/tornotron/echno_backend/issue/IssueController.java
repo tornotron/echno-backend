@@ -82,7 +82,7 @@ public class IssueController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Issue created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid issue JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the issue create or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the issue create or admin authority, or has no employee record in the current tenant, so the record would name nobody")
     })
     public ResponseEntity<IssueSimpleDto> createIssue(
             @Parameter(schema = @Schema(implementation = IssueCreationDto.class))

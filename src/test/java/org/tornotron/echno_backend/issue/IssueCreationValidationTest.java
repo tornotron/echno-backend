@@ -12,6 +12,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.issue.dto.IssueCreationDto;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
@@ -48,6 +49,8 @@ class IssueCreationValidationTest {
     private IssueMapper issueMapper;
     @Mock
     private EmployeeRepository employeeRepository;
+    @Mock
+    private CurrentEmployeeService currentEmployeeService;
 
     private IssueService service;
 
@@ -56,7 +59,8 @@ class IssueCreationValidationTest {
         factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
         service = new IssueService(issueRepository, taskRepository, attachmentService,
-                issueMapper, employeeRepository, new PayloadValidator(validator));
+                issueMapper, employeeRepository, currentEmployeeService,
+                new PayloadValidator(validator));
     }
 
     @AfterAll
@@ -73,7 +77,6 @@ class IssueCreationValidationTest {
         dto.setType("quality");
         dto.setStatus(IssueStatus.open);
         dto.setTaskId(11L);
-        dto.setCreatedById(5L);
         return dto;
     }
 

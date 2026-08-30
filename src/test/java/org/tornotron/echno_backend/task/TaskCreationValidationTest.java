@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.category.CategoryRepository;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.task.dto.TaskCreationDto;
@@ -52,6 +53,8 @@ class TaskCreationValidationTest {
     @Mock
     private AttachmentService attachmentService;
     @Mock
+    private CurrentEmployeeService currentEmployeeService;
+    @Mock
     private TaskMapper taskMapper;
 
     private TaskService service;
@@ -61,7 +64,8 @@ class TaskCreationValidationTest {
         factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
         service = new TaskService(taskRepository, employeeRepository, projectRepository,
-                categoryRepository, attachmentService, taskMapper, new PayloadValidator(validator));
+                categoryRepository, attachmentService, currentEmployeeService, taskMapper,
+                new PayloadValidator(validator));
     }
 
     @AfterAll
@@ -75,7 +79,6 @@ class TaskCreationValidationTest {
         TaskCreationDto dto = new TaskCreationDto();
         dto.setTitle("Pour foundation slab, block A");
         dto.setStatus("upcoming");
-        dto.setCreatorId(5L);
         dto.setProjectId(42L);
         dto.setCategoryId(3L);
         dto.setProgress(0.0);
@@ -111,17 +114,6 @@ class TaskCreationValidationTest {
 
         assertThatThrownBy(() -> service.addTask(dto, null))
                 .isInstanceOf(ConstraintViolationException.class);
-    }
-
-    @Test
-    void addTask_rejectsAMissingCreatorId() {
-        TaskCreationDto dto = validDto();
-        dto.setCreatorId(null);
-
-        assertThatThrownBy(() -> service.addTask(dto, null))
-                .isInstanceOf(ConstraintViolationException.class);
-
-        verify(taskRepository, never()).save(ArgumentMatchers.any());
     }
 
     @Test

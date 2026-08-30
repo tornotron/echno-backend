@@ -6,6 +6,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveApprovalActionDto;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestDto;
@@ -22,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -51,6 +53,7 @@ class LeaveApprovalServiceTest {
     @Mock private LeaveBalanceRepository balanceRepository;
     @Mock private LeaveTransactionRepository transactionRepository;
     @Mock private EmployeeRepository employeeRepository;
+    @Mock private CurrentEmployeeService currentEmployeeService;
     @Mock private LeaveCalendarService calendarService;
     @Mock private NotificationService notificationService;
     @Mock private LeaveRequestMapper leaveRequestMapper;
@@ -62,6 +65,7 @@ class LeaveApprovalServiceTest {
                 balanceRepository,
                 transactionRepository,
                 employeeRepository,
+                currentEmployeeService,
                 calendarService,
                 notificationService,
                 leaveRequestMapper);
@@ -175,10 +179,9 @@ class LeaveApprovalServiceTest {
                 .thenReturn(Optional.empty());
         when(leaveRequestMapper.toDto(request)).thenReturn(new LeaveRequestDto());
 
-        LeaveApprovalActionDto action = new LeaveApprovalActionDto();
-        action.setApproverId(lineManager.getId());
+        when(currentEmployeeService.requireCurrentEmployee(anyString())).thenReturn(lineManager);
 
-        service.approve(REQUEST_ID, action);
+        service.approve(REQUEST_ID, new LeaveApprovalActionDto());
 
         // maxApprovalLevel == 1, so the first approval finalizes rather than advancing.
         assertThat(request.getStatus()).isEqualTo(LeaveStatus.APPROVED);

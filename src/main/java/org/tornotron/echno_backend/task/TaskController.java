@@ -78,7 +78,7 @@ public class TaskController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Task created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid task JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task create or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task create or admin authority, or has no employee record in the current tenant, so the record would name nobody")
     })
     public ResponseEntity<TaskSimpleDto> createTask(
             @Parameter(schema = @Schema(implementation = TaskCreationDto.class))

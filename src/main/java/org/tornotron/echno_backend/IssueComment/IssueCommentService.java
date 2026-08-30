@@ -12,8 +12,8 @@ import org.tornotron.echno_backend.IssueComment.dto.IssueCommentDto;
 import org.tornotron.echno_backend.IssueComment.dto.IssueCommentSimpleDto;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.issue.IssueRepository;
 
 import java.util.List;
@@ -24,23 +24,36 @@ public class IssueCommentService {
 
     private final IssueCommentRepository issueCommentRepository;
     private final IssueRepository issueRepository;
-    private final EmployeeRepository employeeRepository;
+    private final CurrentEmployeeService currentEmployeeService;
     private final IssueCommentMapper issueCommentMapper;
 
-    public IssueCommentService(IssueCommentRepository issueCommentRepository, IssueRepository issueRepository, EmployeeRepository employeeRepository, IssueCommentMapper issueCommentMapper) {
+    public IssueCommentService(IssueCommentRepository issueCommentRepository, IssueRepository issueRepository, CurrentEmployeeService currentEmployeeService, IssueCommentMapper issueCommentMapper) {
         this.issueCommentRepository = issueCommentRepository;
         this.issueRepository = issueRepository;
-        this.employeeRepository = employeeRepository;
+        this.currentEmployeeService = currentEmployeeService;
         this.issueCommentMapper = issueCommentMapper;
     }
 
+    /**
+     * Posts a comment on an issue, attributed to the signed-in caller.
+     *
+     * <p>The author is resolved from the session rather than read off the payload. An
+     * {@code authorId} the caller sends is not an author, it is a claim: the endpoint's guard is
+     * tenant membership, so the only check the old code could make was that the id named some
+     * employee of the tenant, and every member could therefore leave a comment in a colleague's
+     * name. A comment is read as its author's own statement, so the field it is stored under has
+     * to come from the session that wrote it.
+     *
+     * @param issueCommentCreationDto The comment text and the issue it belongs to.
+     * @return The saved comment.
+     * @throws org.springframework.security.access.AccessDeniedException if the caller has no
+     *     employee record in this organization, so the comment would name nobody.
+     * @throws ResourceNotFoundException if the issue is not in this organization.
+     */
     @Transactional
     public IssueCommentSimpleDto addIssueComment(IssueCommentCreationDto issueCommentCreationDto) {
         IssueComment issueComment = new IssueComment();
-        if(!employeeRepository.existsByIdAndOrganization_Id(issueCommentCreationDto.getAuthorId(), TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("Author (employee) with ID " + issueCommentCreationDto.getAuthorId() + " was not found in this organization");
-        }
-        issueComment.setAuthorId(issueCommentCreationDto.getAuthorId());
+        issueComment.setAuthorId(currentEmployeeService.requireCurrentEmployee("comment on an issue").getId());
         issueComment.setComment(issueCommentCreationDto.getComment());
         if(issueCommentCreationDto.getIssueId() != null) {
             var issue = issueRepository.findByIdAndOrganization_Id(issueCommentCreationDto.getIssueId(), TenantContext.getCurrentOrgId())
