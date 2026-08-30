@@ -29,6 +29,21 @@ public class IssueUpdateFieldsDto {
     @Schema(description = "Category of the issue.")
     private IssueType type;
 
+    /**
+     * The same field under the name every published echno-core sends it as. It is here because the
+     * endpoint really does accept it, and a schema that left it out would be describing an
+     * endpoint that does not exist.
+     *
+     * <p>Transitional, and the reason it exists is the ordering: echno-core reaches the deployed
+     * web app only through a package release, so the name cannot change on both sides at once.
+     * It goes, along with the second case in {@code IssueService.partialUpdateAnIssue} and the
+     * {@code @JsonAlias} on {@link IssueCreationDto}, once echno-web is running a core that sends
+     * {@code type}.
+     */
+    @Schema(description = "Category of the issue, under the name the web client currently sends. "
+            + "Deprecated alias of type; send type instead.", deprecated = true)
+    private IssueType issueType;
+
     @Schema(description = "Lifecycle status of the issue.")
     private IssueStatus status;
 

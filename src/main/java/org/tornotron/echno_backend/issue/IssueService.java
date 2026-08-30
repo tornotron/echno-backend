@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.issue;
 
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,12 +32,32 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class IssueService {
 
+    private static final Logger log = LoggerFactory.getLogger(IssueService.class);
+
     private static final String ISSUES_FOLDER = "issues";
+
+    /**
+     * Keys the web client puts in an issue update that this endpoint has no field for, and drops
+     * on purpose rather than noisily.
+     *
+     * <p>{@code attachments} is the client telling the difference between "no upload" and
+     * "untouched": it sets {@code attachments: []} on every update, and the files themselves
+     * travel as their own multipart part, so the key in the JSON part carries nothing to apply.
+     * {@code priority} is a field the client's form offers and the {@code Issue} entity has no
+     * column for.
+     *
+     * <p>Everything else falls to the {@code default} branch and is logged, because a key nobody
+     * declared is how the {@code issueType} bug stayed invisible: the update answered 200 and
+     * changed nothing. Naming the two known ones here is what keeps that warning worth reading.
+     * Both are on the list in echno-core#57, and this set shrinks as that list is worked down.
+     */
+    private static final Set<String> SILENTLY_DROPPED_UPDATE_KEYS = Set.of("attachments", "priority");
 
     /**
      * The state an issue starts in, and the only one create accepts. It is what the web client's
@@ -264,6 +286,7 @@ public class IssueService {
                     issue.setDescription((String) value);
                     break;
                 case "type":
+                case "issueType":
                     issue.setType(parseIssueType((String) value));
                     break;
                 case "status":
@@ -274,6 +297,14 @@ public class IssueService {
                     Employee assignee = employeeRepository.findByIdAndOrganizationId(assigneeId, TenantContext.getCurrentOrgId())
                             .orElseThrow(() -> new ResourceNotFoundException("Assignee (employee) with ID " + assigneeId + " was not found in this organization"));
                     issue.setAssignedTo(assignee);
+                    break;
+                default:
+                    if (!SILENTLY_DROPPED_UPDATE_KEYS.contains(key)) {
+                        log.warn("Ignoring '{}' on the update of issue {}: this endpoint changes no such "
+                                + "field, so the caller was told the update succeeded and nothing about that "
+                                + "field changed. Either the client is sending the wrong name or the field "
+                                + "belongs here and does not exist yet.", key, issue.getId());
+                    }
                     break;
             }
         });

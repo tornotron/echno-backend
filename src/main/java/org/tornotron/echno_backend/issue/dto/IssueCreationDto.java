@@ -29,8 +29,15 @@ public class IssueCreationDto {
     @Size(min = 5, max = 2000, message = "Description must be between 5 and 2000 characters")
     private String description;
 
-    // The web client (echno-core) sends this field as "issueType"; accept both
-    // that and the canonical "type" so a create from the web populates it.
+    /**
+     * The canonical name is {@code type}, which is what the column and the entity call it.
+     *
+     * <p>The alias is transitional. Published versions of echno-core send {@code issueType} and
+     * reach the deployed web app only through a package release, so the name cannot change on
+     * both sides at once: the backend accepts either until every client has moved, and the
+     * update path in {@code IssueService} takes both for the same reason. Once echno-web is
+     * running a core that sends {@code type}, the alias and that second case both go.
+     */
     @NotNull
     @Enumerated(EnumType.STRING)
     @JsonAlias("issueType")
