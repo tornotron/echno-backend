@@ -1,11 +1,12 @@
 package org.tornotron.echno_backend.pdfGeneration;
 
 import org.springframework.security.access.prepost.PreAuthorize;
-import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -15,14 +16,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
-import org.tornotron.echno_backend.category.CategoryService;
 import org.tornotron.echno_backend.common.conversions.DateConversion;
+import org.tornotron.echno_backend.common.exception.ReportRenderingException;
 import org.tornotron.echno_backend.indent.IndentService;
 import org.tornotron.echno_backend.organization.OrganizationService;
 import org.tornotron.echno_backend.project.ProjectService;
 import org.tornotron.echno_backend.task.TaskService;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.springframework.data.domain.Page;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
@@ -39,20 +39,24 @@ import org.tornotron.echno_backend.task.dto.TaskDto;
 )
 public class ReportController {
 
+    private static final Logger logger = LoggerFactory.getLogger(ReportController.class);
+
+    private static final String TEMPLATE = "report/report";
+
     private final OrganizationService organizationService;
     private final TaskService taskService;
     private final PdfReportService pdfReportService;
     private final SpringTemplateEngine pdfTemplateEngine;
-    private final CategoryService categoryService;
+    private final PdfRenderer pdfRenderer;
     private final DateConversion dateConversion;
     private final ProjectService projectService;
     private final IndentService indentService;
 
     public ReportController(TaskService taskService,
                             PdfReportService pdfReportService,
-                            CategoryService categoryService,
                             DateConversion dateConversion,
                             @Qualifier("pdfTemplateEngine") SpringTemplateEngine pdfTemplateEngine,
+                            PdfRenderer pdfRenderer,
                             ProjectService projectService,
                             OrganizationService organizationService,
                             IndentService indentService) {
@@ -60,9 +64,9 @@ public class ReportController {
         this.projectService = projectService;
         this.dateConversion = dateConversion;
         this.pdfReportService = pdfReportService;
-        this.categoryService = categoryService;
         this.taskService = taskService;
         this.pdfTemplateEngine = pdfTemplateEngine;
+        this.pdfRenderer = pdfRenderer;
         this.indentService = indentService;
     }
 
@@ -83,7 +87,6 @@ public class ReportController {
         ctx.setVariable("taskTotal", tasks.getTotalElements());
         ctx.setVariable("counts", pdfReportService.statusCount());
         ctx.setVariable("delayedCounts", pdfReportService.statusCount());
-        ctx.setVariable("category", categoryService);
         ctx.setVariable("dateConverter", dateConversion);
         ctx.setVariable("project",projectService);
         ctx.setVariable("organization",organizationService);
@@ -111,25 +114,47 @@ public class ReportController {
             @ApiResponse(responseCode = "500", description = "PDF rendering failed")
     })
     public ResponseEntity<byte[]> pdfReport() {
-        Context ctx = populateContext();
+        byte[] pdf = render(populateContext());
 
-        String html = pdfTemplateEngine.process("report/report", ctx);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=report.pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
 
-        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-            PdfRendererBuilder builder = new PdfRendererBuilder();
-            builder.withHtmlContent(html, "classpath:/templates/");
-            builder.toStream(os);
-            builder.run();
+    /**
+     * Renders the report and says what went wrong when it cannot.
+     *
+     * <p>Each half used to lose the one fact worth keeping. An expression the template
+     * cannot evaluate escaped unhandled and arrived as "An unexpected error occurred",
+     * logged as "Unknown error occurred", with nothing naming the document. The write
+     * half was worse: caught into a bare 500 with an empty body and a
+     * {@code // Log the exception} comment standing in for the logging. That is how a
+     * report which has never rendered for any tenant holding an indent went unnoticed.
+     * Both now name the template, in the log line and in the response.
+     *
+     * <p>The bytes come from the shared {@link PdfRenderer} rather than a
+     * {@code PdfRendererBuilder} assembled here, which is what every other report in
+     * the codebase already does. The private copy this replaces had drifted: it never
+     * called {@code useFastMode()}, so this one endpoint ran on a different renderer
+     * path from the rest for no reason anyone chose.
+     */
+    private byte[] render(Context ctx) {
+        String html;
+        try {
+            html = pdfTemplateEngine.process(TEMPLATE, ctx);
+        } catch (RuntimeException e) {
+            logger.error("Template {} failed to evaluate", TEMPLATE, e);
+            throw new ReportRenderingException(
+                    "The " + TEMPLATE + " template could not be evaluated: " + e.getMessage(), e);
+        }
 
-            byte[] pdf = os.toByteArray();
-
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=report.pdf")
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .body(pdf);
-        } catch (IOException e) {
-            // Log the exception
-            return ResponseEntity.internalServerError().build();
+        try {
+            return pdfRenderer.render(html);
+        } catch (IOException | RuntimeException e) {
+            logger.error("Template {} evaluated but could not be written as a PDF", TEMPLATE, e);
+            throw new ReportRenderingException(
+                    "The " + TEMPLATE + " document could not be written as a PDF: " + e.getMessage(), e);
         }
     }
 }

@@ -10,11 +10,14 @@ import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.tornotron.echno_backend.indent.enums.IndentStatus;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -200,5 +203,60 @@ class GlobalExceptionHandlerTest {
         assertThat(pd.getDetail())
                 .startsWith("Invalid value 'BOGUS' provided for enum 'AccountType'. Available values:")
                 .contains("ASSET");
+    }
+
+    /**
+     * The case that prompted the handler: {@code GET /api/v1/indents/web/paginated} has no
+     * {@code /paginated} route, so "paginated" binds to {@code /{id}} and fails to convert.
+     * That used to fall through to the catch-all and answer 500, telling the caller the server
+     * had broken when the value was simply wrong.
+     */
+    @Test
+    void pathParameterOfTheWrongType_isA400NamingTheParameterAndTheValue() {
+        MethodArgumentTypeMismatchException ex = mock(MethodArgumentTypeMismatchException.class);
+        when(ex.getValue()).thenReturn("paginated");
+        when(ex.getName()).thenReturn("id");
+        doReturn(Long.class).when(ex).getRequiredType();
+
+        ProblemDetail pd = handler.handleMethodArgumentTypeMismatch(
+                ex, requestWithPath("uri=/api/v1/indents/web/paginated"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(pd.getTitle()).isEqualTo("Invalid Parameter");
+        assertThat(pd.getDetail()).isEqualTo(
+                "\"paginated\" is not a valid value for the parameter 'id', "
+                        + "which expects a value of type Long.");
+        assertThat(pd.getProperties()).containsEntry("details", "uri=/api/v1/indents/web/paginated");
+    }
+
+    @Test
+    void enumParameterOfTheWrongType_listsWhatItAccepts() {
+        MethodArgumentTypeMismatchException ex = mock(MethodArgumentTypeMismatchException.class);
+        when(ex.getValue()).thenReturn("BOGUS");
+        when(ex.getName()).thenReturn("status");
+        doReturn(IndentStatus.class).when(ex).getRequiredType();
+
+        ProblemDetail pd = handler.handleMethodArgumentTypeMismatch(
+                ex, requestWithPath("uri=/api/v1/indents/web"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(pd.getDetail())
+                .startsWith("\"BOGUS\" is not a valid value for the parameter 'status', "
+                        + "which expects one of:")
+                .contains("ON_SITE")
+                .contains("CANCELLED");
+    }
+
+    @Test
+    void reportRenderingFailure_isA500NamingTheTemplate() {
+        ProblemDetail pd = handler.handleReportRenderingException(
+                new ReportRenderingException(
+                        "Could not build the report/report report: Exception evaluating SpringEL expression",
+                        new IllegalStateException("boom")),
+                requestWithPath("uri=/api/v1/generate-report/pdf"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        assertThat(pd.getTitle()).isEqualTo("Report Generation Failed");
+        assertThat(pd.getDetail()).contains("report/report");
     }
 }
