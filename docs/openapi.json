@@ -11968,6 +11968,52 @@
         },
         "type": "object"
       },
+      "PageStatusTransitionDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/StatusTransitionDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageStockAdjustmentDto": {
         "properties": {
           "content": {
@@ -13084,6 +13130,12 @@
             "format": "date-time",
             "type": "string"
           },
+          "createdBy": {
+            "description": "Id of the user who created the project. Null on projects created before this was recorded.",
+            "example": 17,
+            "format": "int64",
+            "type": "integer"
+          },
           "customerId": {
             "description": "Finance customer the project is billed to. Null when no client is set.",
             "example": "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d",
@@ -13193,6 +13245,18 @@
               "$ref": "#/components/schemas/TaskDto"
             },
             "type": "array"
+          },
+          "updatedAt": {
+            "description": "When the project was last written. Null on projects not written since this was recorded. It is a last-write stamp, so it is overwritten by the next edit to any field: to read who moved the project's status and when, use GET /api/v1/project/web/{id}/status-history.",
+            "example": "2026-08-28T16:41:12",
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedBy": {
+            "description": "Id of the user who last wrote the project.",
+            "example": 17,
+            "format": "int64",
+            "type": "integer"
           }
         },
         "type": "object"
@@ -14970,6 +15034,55 @@
               "dimensional-check",
               "progress-check"
             ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "StatusTransitionDto": {
+        "description": "One entry in a record's status trail: what it moved from, what it moved to, when, by whom, and whether the status was set at creation or changed afterwards. Entries are never edited or deleted.",
+        "properties": {
+          "changedBy": {
+            "description": "Id of the user who made the change. Null where no user context was available, which is the case for every BASELINE entry.",
+            "example": 17,
+            "format": "int64",
+            "type": "integer"
+          },
+          "changedByName": {
+            "description": "That user's name as it read at the time, kept beside the id so a rename or a removal does not rewrite history.",
+            "example": "Anand Rajashekar",
+            "type": "string"
+          },
+          "fromStatus": {
+            "description": "Status held before this entry. Null when there was none: the record was created in the status below, or this is the baseline entry written when the trail began.",
+            "example": "upcoming",
+            "type": "string"
+          },
+          "id": {
+            "description": "Database id of the entry.",
+            "example": 84,
+            "format": "int64",
+            "type": "integer"
+          },
+          "note": {
+            "description": "Anything recorded about the change beyond the two statuses. Optional.",
+            "example": "Approved after the site survey was signed off",
+            "type": "string"
+          },
+          "occurredAt": {
+            "description": "When the status came to be held. For a BASELINE entry this is when the trail began, not when the record was created.",
+            "example": "2026-08-30T11:14:02",
+            "format": "date-time",
+            "type": "string"
+          },
+          "source": {
+            "description": "How the status came about. CREATION means the record was created holding it, UPDATE means it was changed on an existing record, and BASELINE means it is the status the record was observed to hold when the trail began, before which nothing was recorded.",
+            "example": "UPDATE",
+            "type": "string"
+          },
+          "toStatus": {
+            "description": "Status held after this entry.",
+            "example": "approved",
             "type": "string"
           }
         },
@@ -80643,6 +80756,146 @@
           }
         },
         "summary": "Partially update a project",
+        "tags": [
+          "Projects"
+        ]
+      }
+    },
+    "/api/v1/project/web/{id}/status-history": {
+      "get": {
+        "description": "Returns a page of the project's status entries, newest first: what it moved from, what it moved to, when, by whom, and whether the status was set when the project was created or changed afterwards. Approval is the transition that carries behaviour, since it draws up the project's compliance inspections, so this is where to read who approved a project and when. Entries begin where recording began: a project created before the trail existed carries a single BASELINE entry naming the status it was observed to hold at that moment, with no actor and no earlier status, because nothing else can truthfully be said about a history nobody recorded.",
+        "operationId": "readStatusHistory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageStatusTransitionDto"
+                }
+              }
+            },
+            "description": "Page of status entries returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No project with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Read a project's status trail",
         "tags": [
           "Projects"
         ]

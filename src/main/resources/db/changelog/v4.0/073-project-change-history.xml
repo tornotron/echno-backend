@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The last-write stamp on a project.
+
+        created_at has been there all along and never recorded who made the project, and nothing
+        recorded a write after the create at all. These three answer "when did this last change,
+        and by whom", which is all a stamp can answer: the next patch overwrites it, so it does
+        not survive as a record of who approved the project. That question belongs to the status
+        trail below, which is why both exist.
+
+        Null on every project that predates this changeset. Nothing can be backfilled: the writes
+        that would have filled it have already happened and left no trace.
+    -->
+    <changeSet id="073-01-add-project-audit-columns" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="project" columnName="updated_at"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="project">
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="updated_by" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+    <!--
+        The shared status trail: what a record moved from, what it moved to, when, by whom, and
+        whether the status was set at creation or changed afterwards.
+
+        Append-only. Nothing updates or deletes a row, and the repository declares no delete at
+        all, so append-only is a property of the type rather than a convention. There is nothing
+        to correct either: an entry records what was observed at the time, and a later change is
+        a further entry.
+
+        Keyed by entity_type and entity_id rather than by a foreign key to one owner, the way the
+        attachment table already is. Two reasons. One, seven records here carry a status enum with
+        a gated transition, and a per-owner history table repeated seven times is seven tables of
+        identical shape that drift, which is what already happened to the bespoke approved_by and
+        submitted_by columns scattered across those entities. Two, and more important, a status
+        trail has to outlive the record it describes: a foreign key with ON DELETE CASCADE would
+        erase the evidence of who approved a project the moment the project was deleted, and one
+        with RESTRICT would make an approved project undeletable. Without a foreign key the
+        organization column is the whole of the row's tenant scope, which is why every read names
+        the organization and why an index leads with the entity key.
+
+        changed_by_name sits beside changed_by for the reason asset_movement snapshots its names:
+        history that evaporates when a user is renamed or removed is not history.
+    -->
+    <changeSet id="073-02-create-status-transition" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="status_transition"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="status_transition">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <column name="entity_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT"/>
+
+            <column name="from_status" type="VARCHAR(50)"/>
+            <column name="to_status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="occurred_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="BIGINT"/>
+            <column name="changed_by_name" type="VARCHAR(200)"/>
+            <column name="note" type="VARCHAR(500)"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="status_transition"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_status_transition_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex tableName="status_transition" indexName="idx_status_transition_entity">
+            <column name="entity_type"/>
+            <column name="entity_id"/>
+            <column name="occurred_at"/>
+        </createIndex>
+        <createIndex tableName="status_transition" indexName="idx_status_transition_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!--
+        Where the trail begins for projects that already exist.
+
+        One BASELINE row each, naming the status the project is observed to hold at the moment the
+        trail is introduced. It is not a transition and does not claim to be one; it exists so a
+        reader can tell a project whose status has not moved since recording began from a project
+        whose history was never recorded at all.
+
+        Dated CURRENT_TIMESTAMP, deliberately NOT the project's created_at. Dating the observed
+        status at creation time would assert the project was created in that state, and that is
+        exactly the claim that could not be checked for the approved project with no compliance
+        inspections. It is the one thing that must not be written here.
+
+        changed_by and changed_by_name are null for the same reason: nothing recorded who last
+        moved these projects, and inventing an actor would be worse than leaving the column empty.
+    -->
+    <changeSet id="073-03-seed-project-status-baseline" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM status_transition WHERE entity_type = 'PROJECT'
+            </sqlCheck>
+        </preConditions>
+
+        <sql>
+            INSERT INTO status_transition (
+                entity_type, entity_id, organization_id,
+                from_status, to_status, source, occurred_at, note
+            )
+            SELECT 'PROJECT',
+                   p.id,
+                   p.organization_id,
+                   NULL,
+                   p.status,
+                   'BASELINE',
+                   CURRENT_TIMESTAMP,
+                   'The status this project was observed to hold when its status trail began. What it was before that date, and who set it, was not recorded.'
+            FROM project p
+            WHERE p.status IS NOT NULL;
+        </sql>
+        <rollback>
+            <sql>DELETE FROM status_transition WHERE entity_type = 'PROJECT' AND source = 'BASELINE';</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

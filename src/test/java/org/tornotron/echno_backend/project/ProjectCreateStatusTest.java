@@ -15,6 +15,9 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+import org.tornotron.echno_backend.common.history.StatusTransitionRecorder;
+import org.tornotron.echno_backend.common.history.StatusTransitionRepository;
+import org.tornotron.echno_backend.common.history.mapper.StatusTransitionMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.tornotron.echno_backend.common.service.AttachmentService;
@@ -26,6 +29,7 @@ import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.project.mapper.ProjectMapper;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.util.Optional;
 
@@ -70,6 +74,14 @@ class ProjectCreateStatusTest {
     private ApplicationEventPublisher eventPublisher;
     @Mock
     private CustomerRepository customerRepository;
+    @Mock
+    private UserContextService userContextService;
+    @Mock
+    private StatusTransitionRecorder statusTransitionRecorder;
+    @Mock
+    private StatusTransitionRepository statusTransitionRepository;
+    @Mock
+    private StatusTransitionMapper statusTransitionMapper;
 
     private ProjectService service;
 
@@ -79,7 +91,8 @@ class ProjectCreateStatusTest {
         Validator validator = factory.getValidator();
         service = new ProjectService(repository, organizationRepository, employeeRepository,
                 attachmentService, projectMapper, employeeMapper, eventPublisher,
-                customerRepository, new PayloadValidator(validator));
+                customerRepository, new PayloadValidator(validator), userContextService,
+                statusTransitionRecorder, statusTransitionRepository, statusTransitionMapper);
 
         TenantContext.setCurrentOrgId(1L);
         Organization organization = new Organization();
