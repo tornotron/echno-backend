@@ -385,6 +385,11 @@ public class ProjectService {
      * "when did this last change, and by whom" and never "who approved it". That second question
      * belongs to the status trail, which is why both exist.
      *
+     * <p>Called from every path that saves a project, the team changes included. A stamp that
+     * covered only the field patch would report a project as untouched since last month while its
+     * team was rebuilt yesterday, which is worse than no stamp: it is a wrong answer to the one
+     * question it exists to answer.
+     *
      * @param project The project being written.
      * @param actor   The user making the change, or null where there was no user context.
      */
@@ -629,6 +634,8 @@ public class ProjectService {
         }
 
         project.getEmployees().add(employee);
+        // Adding somebody to the team is a change to the project, so it stamps like any other.
+        stampWrite(project, userContextService.getCurrentUser());
         repository.save(project);
 
         return project.getEmployees().stream()
@@ -653,6 +660,7 @@ public class ProjectService {
             throw new ResourceNotFoundException("Employee with ID " + employeeId + " is not assigned to project with ID " + projectId);
         }
 
+        stampWrite(project, userContextService.getCurrentUser());
         repository.save(project);
     }
 
