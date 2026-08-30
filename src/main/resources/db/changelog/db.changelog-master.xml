@@ -352,4 +352,7 @@
     <!-- v4.0 - Regularizations: the raiser's user id, so the self-approval rule always has one -->
     <include file="db/changelog/v4.0/072-add-regularization-requested-by-user-id.xml"/>
 
+    <!-- v4.0 - Employees: drop the free-text reporting_manager; manager_id is the reporting line -->
+    <include file="db/changelog/v4.0/074-drop-employee-reporting-manager.xml"/>
+
 </databaseChangeLog>

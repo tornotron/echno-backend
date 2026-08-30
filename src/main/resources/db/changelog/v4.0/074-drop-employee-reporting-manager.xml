@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="074-01-drop-employee-reporting-manager" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="employee" columnName="reporting_manager"/>
+        </preConditions>
+
+        <comment>
+            Removes the employee.reporting_manager string.
+
+            The reporting line is manager_id, the self-referencing foreign key behind
+            Employee.manager: it is validated by EmployeeHierarchyService.validateManager
+            (same organization, not self, no cycle) and read by findByManager_Id for the
+            subordinates listing. reporting_manager is the older free-text column that
+            052-refactor-reporting-manager replaced in v1.2 without dropping. No entity
+            field, DTO field or query has referenced it since, so Hibernate has never read
+            or written it, and on staging it was null on all thirty rows while manager_id
+            carried four real reporting lines.
+
+            Nothing is backfilled and nothing is lost: no application code could have put a
+            value there, and the column is empty everywhere it has been measured.
+        </comment>
+
+        <dropColumn tableName="employee" columnName="reporting_manager"/>
+    </changeSet>
+
+</databaseChangeLog>
