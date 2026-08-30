@@ -358,4 +358,7 @@
     <!-- v4.0 - Employees: drop the free-text reporting_manager; manager_id is the reporting line -->
     <include file="db/changelog/v4.0/074-drop-employee-reporting-manager.xml"/>
 
+    <!-- v4.0 - Payables: the number is the tenant's own series, so scope it to the organization -->
+    <include file="db/changelog/v4.0/075-payable-number-per-org-uniqueness.xml"/>
+
 </databaseChangeLog>
