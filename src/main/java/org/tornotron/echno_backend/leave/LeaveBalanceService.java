@@ -168,9 +168,14 @@ public class LeaveBalanceService {
         summary.setEmployeeName(employee.getEmployeeName());
         summary.setYear(year);
         summary.setBalances(balances.stream().map(leaveBalanceMapper::toDto).collect(Collectors.toList()));
-        summary.setTotalAvailable(balances.stream().mapToDouble(LeaveBalance::getAvailableBalance).sum());
-        summary.setTotalUsed(balances.stream().mapToDouble(LeaveBalance::getUsed).sum());
-        summary.setTotalPending(balances.stream().mapToDouble(LeaveBalance::getPending).sum());
+        // Rounded again after the sum: adding several rounded figures can still land on a
+        // value the double type cannot hold exactly, and this total goes straight to a screen.
+        summary.setTotalAvailable(LeaveDays.round(
+                balances.stream().mapToDouble(LeaveBalance::getAvailableBalance).sum()));
+        summary.setTotalUsed(LeaveDays.round(
+                balances.stream().mapToDouble(LeaveBalance::getUsed).sum()));
+        summary.setTotalPending(LeaveDays.round(
+                balances.stream().mapToDouble(LeaveBalance::getPending).sum()));
         return summary;
     }
 
@@ -230,12 +235,12 @@ public class LeaveBalanceService {
                 .orElseGet(() -> initializeBalance(employee, policy, year));
 
         double balanceBefore = balance.getAvailableBalance();
-        double balanceAfter = balanceBefore + dto.getDays();
+        double balanceAfter = LeaveDays.round(balanceBefore + dto.getDays());
 
         if (dto.getDays() > 0) {
-            balance.setAccrued(balance.getAccrued() + dto.getDays());
+            balance.setAccrued(LeaveDays.round(balance.getAccrued() + dto.getDays()));
         } else {
-            balance.setUsed(balance.getUsed() + Math.abs(dto.getDays()));
+            balance.setUsed(LeaveDays.round(balance.getUsed() + Math.abs(dto.getDays())));
         }
 
         balance = balanceRepository.save(balance);

@@ -293,6 +293,83 @@ class LeaveAccrualServiceTest {
         assertThat(balance.getPending()).isEqualTo(1.5);
     }
 
+    @Test
+    void recalculate_quotaThatDoesNotDivideByTwelve_isReportedRounded() {
+        // Joined in May, so months 5..12 of the past year accrue: eight twelfths of a
+        // 91-day quota. That is 60.666666666666664 as a double, which is what reached the
+        // My Leaves screen.
+        Employee employee = employee(LocalDateTime.of(PAST_YEAR, 5, 4, 0, 0));
+        LeaveBalance balance = balance(employee, policy(null, 91.0), PAST_YEAR);
+        stubNoPriorAccrualsNoAttendance();
+
+        service.recalculate(balance);
+
+        assertThat(balance.getAccrued()).isEqualTo(60.67);
+        verify(transactionRepository, times(8)).save(any(LeaveTransaction.class));
+    }
+
+    @Test
+    void recalculate_manualCredit_survivesTheRecalculation() {
+        // A manual adjustment is applied to the balance and recorded as an ADJUSTMENT
+        // transaction. Rebuilding accrued from the accrual ledger alone used to drop it the
+        // first time a new month rolled over.
+        Employee employee = employee(LocalDateTime.of(2018, 1, 1, 0, 0));
+        LeaveBalance balance = balance(employee, policy(1.0, null), PAST_YEAR);
+        stubNoPriorAccrualsNoAttendance();
+        when(transactionRepository.sumAdjustmentCredits(BALANCE_ID)).thenReturn(3.0);
+
+        service.recalculate(balance);
+
+        // 12 months x 1.0 accrued, plus the 3 days granted by hand
+        assertThat(balance.getAccrued()).isEqualTo(15.0);
+    }
+
+    @Test
+    void recalculate_manualDebit_survivesTheRecalculation() {
+        Employee employee = employee(LocalDateTime.of(2018, 1, 1, 0, 0));
+        LeaveBalance balance = balance(employee, policy(1.0, null), PAST_YEAR);
+        stubNoPriorAccrualsNoAttendance();
+        when(requestRepository.sumApprovedDaysByEmployeePolicyYear(anyLong(), anyLong(), anyInt()))
+                .thenReturn(4.0);
+        when(transactionRepository.sumAdjustmentDebits(BALANCE_ID)).thenReturn(2.5);
+
+        service.recalculate(balance);
+
+        // 4 days of approved leave plus the 2.5 days taken back by hand
+        assertThat(balance.getUsed()).isEqualTo(6.5);
+    }
+
+    @Test
+    void recalculate_manualCredit_isNotCappedByTheAnnualQuota() {
+        // The cap belongs to accrual. A grant above the quota is a deliberate act.
+        Employee employee = employee(LocalDateTime.of(2018, 1, 1, 0, 0));
+        LeaveBalance balance = balance(employee, policy(5.0, 20.0), PAST_YEAR);
+        stubNoPriorAccrualsNoAttendance();
+        when(transactionRepository.sumAdjustmentCredits(BALANCE_ID)).thenReturn(4.0);
+
+        service.recalculate(balance);
+
+        assertThat(balance.getAccrued()).isEqualTo(24.0);
+    }
+
+    @Test
+    void recalculate_halfDaysUsedAndPending_areCarriedExactly() {
+        Employee employee = employee(LocalDateTime.of(2018, 1, 1, 0, 0));
+        LeaveBalance balance = balance(employee, policy(1.0, null), PAST_YEAR);
+        stubNoPriorAccrualsNoAttendance();
+        when(requestRepository.sumApprovedDaysByEmployeePolicyYear(anyLong(), anyLong(), anyInt()))
+                .thenReturn(3.5);
+        when(requestRepository.sumPendingDaysByEmployeePolicyYear(anyLong(), anyLong(), anyInt()))
+                .thenReturn(0.5);
+
+        service.recalculate(balance);
+
+        assertThat(balance.getUsed()).isEqualTo(3.5);
+        assertThat(balance.getPending()).isEqualTo(0.5);
+        assertThat(balance.getAvailableBalance()).isEqualTo(8.5);
+        assertThat(balance.getBookableBalance()).isEqualTo(8.0);
+    }
+
     private Attendance attendanceWith(AttendanceStatus status) {
         return Attendance.builder().status(status).build();
     }

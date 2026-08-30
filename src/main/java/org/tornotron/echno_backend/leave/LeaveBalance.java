@@ -20,8 +20,10 @@ import java.util.List;
  *
  * <p>One row per employee/policy/year (enforced by a unique constraint). Available balance is
  * {@code openingBalance + accrued - used}; bookable balance subtracts {@code pending} on top,
- * so a request in flight cannot be double-booked. The last-calculation fields let the accrual
- * service skip recomputation until a new month rolls over.
+ * so a request in flight cannot be double-booked. Both are rounded through {@link LeaveDays},
+ * because a monthly accrual of {@code annualQuota / 12} does not generally divide evenly and
+ * the raw difference would otherwise carry a long floating-point tail. The last-calculation
+ * fields let the accrual service skip recomputation until a new month rolls over.
  */
 @Entity
 @Data
@@ -93,11 +95,11 @@ public class LeaveBalance implements TenantScopedEntity {
 
     @Transient
     public Double getAvailableBalance() {
-        return openingBalance + accrued - used;
+        return LeaveDays.round(openingBalance + accrued - used);
     }
 
     @Transient
     public Double getBookableBalance() {
-        return getAvailableBalance() - pending;
+        return LeaveDays.round(getAvailableBalance() - pending);
     }
 }
