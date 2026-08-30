@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.attendance.service;
 
 import jakarta.validation.ValidationException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.attendance.*;
@@ -11,6 +12,7 @@ import org.tornotron.echno_backend.attendance.mapper.AttendanceRegularizationMap
 import org.tornotron.echno_backend.common.approval.ApprovalParty;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -56,6 +58,7 @@ public class AttendanceRegularizationService {
     private final AttendanceRegularizationMapper regularizationMapper;
     private final UserContextService userContextService;
     private final SelfApprovalPolicy selfApprovalPolicy;
+    private final AttendanceSecurityService attendanceSecurity;
 
     public AttendanceRegularizationService(AttendanceRegularizationRepository regularizationRepository,
                                             AttendanceRepository attendanceRepository,
@@ -65,7 +68,8 @@ public class AttendanceRegularizationService {
                                             AttendanceCalculationService calculationService,
                                             AttendanceRegularizationMapper regularizationMapper,
                                             UserContextService userContextService,
-                                            SelfApprovalPolicy selfApprovalPolicy) {
+                                            SelfApprovalPolicy selfApprovalPolicy,
+                                            AttendanceSecurityService attendanceSecurity) {
         this.regularizationRepository = regularizationRepository;
         this.attendanceRepository = attendanceRepository;
         this.organizationRepository = organizationRepository;
@@ -75,6 +79,7 @@ public class AttendanceRegularizationService {
         this.regularizationMapper = regularizationMapper;
         this.userContextService = userContextService;
         this.selfApprovalPolicy = selfApprovalPolicy;
+        this.attendanceSecurity = attendanceSecurity;
     }
 
     /** Who the authenticated caller is, as recorded on a request: a display name, their platform
@@ -99,6 +104,8 @@ public class AttendanceRegularizationService {
      * @throws ResourceNotFoundException if the organization or the attendance record is not found.
      * @throws ValidationException if self-service regularization is off for the project, the
      *         monthly cap is reached, or a request is already pending for that record.
+     * @throws AccessDeniedException if the caller is neither the employee the attendance record
+     *         belongs to nor a holder of an attendance record-management role.
      */
     @Transactional
     public AttendanceRegularizationDto submitRequest(RegularizationRequestDto dto) {
@@ -111,6 +118,17 @@ public class AttendanceRegularizationService {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(dto.getAttendanceId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Attendance record with ID " + dto.getAttendanceId() + " was not found"));
+
+        // The attendance record is chosen by the caller, so who it belongs to is settled here
+        // against the stored record: its own employee, or someone holding a record-management
+        // role. On a project configured to auto-approve, the corrections below are applied
+        // immediately, so without this check any member of the tenant could rewrite a
+        // colleague's clock events there.
+        if (!attendanceSecurity.canRecordFor(attendance.getEmployeeId())) {
+            throw new AccessDeniedException(
+                    "A regularization can only be raised on your own attendance, unless you hold "
+                            + "an attendance record-management role");
+        }
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, attendance.getProjectId());
 

@@ -19,6 +19,7 @@ import org.tornotron.echno_backend.attendance.mapper.AttendanceMapper;
 import org.tornotron.echno_backend.attendance.validator.ClockEventSequenceValidator;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -60,6 +61,7 @@ class AttendanceServiceApprovalTest {
     @Mock private AttachmentService attachmentService;
     @Mock private FileStorageService fileStorageService;
     @Mock private UserContextService userContextService;
+    @Mock private AttendanceSecurityService attendanceSecurity;
 
     private AttendanceService service;
 
@@ -70,7 +72,8 @@ class AttendanceServiceApprovalTest {
                 organizationRepository, projectRepository, settingsService, calculationService,
                 sequenceValidator, attendanceMapper, attachmentService, fileStorageService,
                 userContextService,
-                new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
+                new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()),
+                attendanceSecurity);
     }
 
     @AfterEach

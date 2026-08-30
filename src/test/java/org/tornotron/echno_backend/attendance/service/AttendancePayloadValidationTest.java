@@ -20,6 +20,7 @@ import org.tornotron.echno_backend.attendance.enums.ClockEventType;
 import org.tornotron.echno_backend.attendance.mapper.AttendanceMapper;
 import org.tornotron.echno_backend.attendance.validator.ClockEventSequenceValidator;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
@@ -29,6 +30,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
@@ -59,6 +61,7 @@ class AttendancePayloadValidationTest {
     @Mock private AttachmentService attachmentService;
     @Mock private FileStorageService fileStorageService;
     @Mock private UserContextService userContextService;
+    @Mock private AttendanceSecurityService attendanceSecurity;
 
     private AttendanceService service;
 
@@ -69,7 +72,10 @@ class AttendancePayloadValidationTest {
         service = new AttendanceService(attendanceRepository, shiftTimingRepository,
                 employeeRepository, organizationRepository, projectRepository, settingsService,
                 calculationService, sequenceValidator, attendanceMapper, attachmentService,
-                fileStorageService, userContextService, new PayloadValidator(validator));
+                fileStorageService, userContextService, new PayloadValidator(validator),
+                attendanceSecurity);
+        // Not the concern here: every payload test should fail on the payload, not on who is calling.
+        lenient().when(attendanceSecurity.canRecordFor(org.mockito.ArgumentMatchers.any())).thenReturn(true);
     }
 
     @AfterAll

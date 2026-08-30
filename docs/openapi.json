@@ -20854,7 +20854,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee the attendance record belongs to nor a holder of an attendance record-management role"
           },
           "404": {
             "content": {
@@ -21071,7 +21071,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee the attendance record belongs to nor a holder of an attendance record-management role"
           },
           "404": {
             "content": {
@@ -22984,7 +22984,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee named nor a holder of an attendance record-management role"
           },
           "404": {
             "content": {
@@ -23111,7 +23111,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee the record belongs to nor a holder of an attendance record-management role"
           },
           "404": {
             "content": {
@@ -23807,7 +23807,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee named nor a holder of an attendance record-management role"
           },
           "404": {
             "content": {
@@ -23934,7 +23934,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee the record belongs to nor a holder of an attendance record-management role"
           },
           "404": {
             "content": {
@@ -73220,7 +73220,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee involved nor a holder of an attendance record-management role"
           },
           "404": {
             "content": {
@@ -73459,7 +73459,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee involved nor a holder of an attendance record-management role"
           },
           "404": {
             "content": {

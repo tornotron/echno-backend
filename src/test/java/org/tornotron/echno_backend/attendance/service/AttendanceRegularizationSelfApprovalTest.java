@@ -23,6 +23,7 @@ import org.tornotron.echno_backend.attendance.mapper.AttendanceRegularizationMap
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -84,6 +85,7 @@ class AttendanceRegularizationSelfApprovalTest {
     @Mock private AttendanceRegularizationMapper regularizationMapper;
     @Mock private UserContextService userContextService;
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private AttendanceSecurityService attendanceSecurity;
 
     private AttendanceRegularizationService service;
 
@@ -92,7 +94,10 @@ class AttendanceRegularizationSelfApprovalTest {
         TenantContext.setCurrentOrgId(ORG);
         service = new AttendanceRegularizationService(regularizationRepository, attendanceRepository,
                 organizationRepository, employeeRepository, settingsService, calculationService,
-                regularizationMapper, userContextService, new SelfApprovalPolicy(orgSecurity));
+                regularizationMapper, userContextService, new SelfApprovalPolicy(orgSecurity),
+                attendanceSecurity);
+        // Not the concern here: these tests exercise the self-approval rule, not who may raise.
+        org.mockito.Mockito.lenient().when(attendanceSecurity.canRecordFor(org.mockito.ArgumentMatchers.any())).thenReturn(true);
     }
 
     @AfterEach

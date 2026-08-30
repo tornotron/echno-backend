@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.attendance.service;
 
 import jakarta.validation.ValidationException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.attendance.*;
@@ -8,6 +9,7 @@ import org.tornotron.echno_backend.attendance.dto.MovementRecordCreationDto;
 import org.tornotron.echno_backend.attendance.dto.MovementRecordDto;
 import org.tornotron.echno_backend.attendance.mapper.MovementRecordMapper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -28,23 +30,52 @@ public class MovementRecordService {
     private final OrganizationRepository organizationRepository;
     private final AttendanceSettingsService settingsService;
     private final MovementRecordMapper movementRecordMapper;
+    private final AttendanceSecurityService attendanceSecurity;
 
     public MovementRecordService(MovementRecordRepository movementRecordRepository,
                                   AttendanceRepository attendanceRepository,
                                   EmployeeRepository employeeRepository,
                                   OrganizationRepository organizationRepository,
                                   AttendanceSettingsService settingsService,
-                                  MovementRecordMapper movementRecordMapper) {
+                                  MovementRecordMapper movementRecordMapper,
+                                  AttendanceSecurityService attendanceSecurity) {
         this.movementRecordRepository = movementRecordRepository;
         this.attendanceRepository = attendanceRepository;
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
         this.settingsService = settingsService;
         this.movementRecordMapper = movementRecordMapper;
+        this.attendanceSecurity = attendanceSecurity;
     }
 
+    /**
+     * Refuses the call unless the caller is the given employee or holds an attendance
+     * record-management role. See {@link AttendanceSecurityService#canRecordFor}.
+     */
+    private void requireActorMayRecordFor(Long employeeId) {
+        if (attendanceSecurity.canRecordFor(employeeId)) {
+            return;
+        }
+        throw new AccessDeniedException(
+                "Movements can only be recorded for yourself, unless you hold an attendance "
+                        + "record-management role");
+    }
+
+    /**
+     * Logs a movement on an attendance record.
+     *
+     * <p>The employee named on the call and the employee the attendance record belongs to must
+     * each be the caller or fall under the caller's record-management role. Both ids arrive from
+     * the request, so checking them here against the caller is what stops one member of the
+     * tenant writing movements onto a colleague's attendance trail; the {@code @PreAuthorize}
+     * guard on the handlers only sees the caller's word.
+     *
+     * @throws AccessDeniedException if the caller is neither the employee involved nor a holder
+     *     of an attendance record-management role.
+     */
     @Transactional
     public MovementRecordDto addMovement(MovementRecordCreationDto dto, Long employeeId) {
+        requireActorMayRecordFor(employeeId);
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
@@ -56,6 +87,10 @@ public class MovementRecordService {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(dto.getAttendanceId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Attendance record with ID " + dto.getAttendanceId() + " was not found"));
+
+        if (!attendance.getEmployeeId().equals(employeeId)) {
+            requireActorMayRecordFor(attendance.getEmployeeId());
+        }
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, attendance.getProjectId());
 
