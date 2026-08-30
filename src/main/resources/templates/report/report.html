@@ -55,12 +55,8 @@
     <div class="task-block" th:classappend="${task.getProgress() == 100 ? 'completed' : (task.getProgress() > 0 ? 'inprogress' : 'notstarted')}">
         <div class="section-heading">
             Task Created: <span th:text="${dateConverter.convertDateToString(task.getUpdatedAt())}"></span>
-            <span class="category-span">Category: <span th:text="${category.getACategory(task.getCategory().getId()).getName()}"></span></span>
+            <span class="category-span">Category: <span th:text="${task.category?.name ?: '-'}"></span></span>
         </div>
-<!--        <div class="section-title">-->
-<!--            Task Created: <span th:text="${dateConverter.convertDateToString(task.getUpdatedAt())}"></span>-->
-<!--            <span class="category-span">Category: <span th:text="${category.getACategory(task.getCategoryId()).getName()}"></span></span>-->
-<!--        </div>-->
 
         <table class="task-table">
             <tr>
@@ -127,7 +123,7 @@
                                 <tr>
                                     <td>
                                         <p class="font-medium text-gray-500">Created By</p>
-                                        <p class="text-gray-800" th:text="${indent.createdBy.name}"></p>
+                                        <p class="text-gray-800" th:text="${indent.createdBy?.employeeName ?: '-'}"></p>
                                     </td>
                                 </tr>
                             </table>

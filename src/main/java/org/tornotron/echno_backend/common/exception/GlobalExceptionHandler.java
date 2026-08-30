@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.tornotron.echno_backend.common.response.SubscriptionErrorResponse;
 
@@ -412,6 +413,58 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleFileUploadException(FileUploadException ex, WebRequest request) {
         logger.error("File upload failed: ", ex);
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "File Upload Failed", ex.getMessage(), request);
+    }
+
+    /**
+     * A report that could not be rendered, answered with the document that failed.
+     *
+     * <p>Still a 500, because nothing the caller sent is at fault and there is nothing
+     * for them to correct. What changes is that the body names the template and carries
+     * the underlying reason instead of "An unexpected error occurred", which is what a
+     * broken template expression used to look like from the outside.
+     */
+    @ExceptionHandler(ReportRenderingException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ProblemDetail handleReportRenderingException(ReportRenderingException ex, WebRequest request) {
+        logger.error("Report rendering failed: ", ex);
+        return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Report Generation Failed", ex.getMessage(), request);
+    }
+
+    /**
+     * A path or query parameter that could not be converted to the type the handler takes.
+     *
+     * <p>Without this the exception fell through to the catch-all and a mistyped URL came
+     * back as a 500. {@code GET /api/v1/indents/web/paginated} is the case that prompted
+     * it: there is no {@code /paginated} route on that controller, so "paginated" binds to
+     * {@code /{id}}, fails to convert to a {@code Long}, and the caller is told the server
+     * broke rather than that the value is wrong. The caller sent the value, so the value is
+     * safe to quote back at them, and naming the parameter is the difference between a
+     * usable answer and a guess.
+     *
+     * <p>An enum parameter lists what it will accept, matching what
+     * {@link #handleIllegalArgumentException} already does for the same mistake made
+     * somewhere the binder does not catch it, so the API answers a bad enum the same way
+     * wherever it arrives.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ProblemDetail handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex,
+                                                          WebRequest request) {
+        logger.warn("Parameter type mismatch: ", ex);
+        Class<?> required = ex.getRequiredType();
+        String expected;
+        if (required == null) {
+            expected = ".";
+        } else if (required.isEnum()) {
+            expected = ", which expects one of: " + Arrays.stream(required.getEnumConstants())
+                    .map(Object::toString)
+                    .collect(Collectors.joining(", ")) + ".";
+        } else {
+            expected = ", which expects a value of type " + required.getSimpleName() + ".";
+        }
+        String detail = "\"" + ex.getValue() + "\" is not a valid value for the parameter '"
+                + ex.getName() + "'" + expected;
+        return problem(HttpStatus.BAD_REQUEST, "Invalid Parameter", detail, request);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
