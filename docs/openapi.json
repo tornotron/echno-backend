@@ -6095,6 +6095,80 @@
         },
         "type": "object"
       },
+      "IndentSummaryDto": {
+        "description": "An indent as it appears in a list: its own fields, who raised it and how many lines it has, without the lines themselves. The full view carries every requested item, and every item carries a whole material with its stock figures, so a page of indents reads the material catalogue to render a list of indent numbers.",
+        "properties": {
+          "createdAt": {
+            "description": "Timestamp the indent was created.",
+            "example": "2026-01-15T09:00:00",
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdById": {
+            "description": "Id of the employee who raised the indent. Null where the raiser is no longer recorded.",
+            "example": 18,
+            "format": "int64",
+            "type": "integer"
+          },
+          "createdByName": {
+            "description": "Name of the employee who raised the indent.",
+            "example": "Ramesh Kumar",
+            "type": "string"
+          },
+          "expectedOn": {
+            "description": "Date the materials are expected on site.",
+            "example": "2026-02-05T00:00:00",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "Indent id.",
+            "example": 42,
+            "format": "int64",
+            "type": "integer"
+          },
+          "indentNumber": {
+            "description": "Indent number.",
+            "example": "IND-2026-0015",
+            "type": "string"
+          },
+          "itemCount": {
+            "description": "How many item lines the indent has. Read for the whole page in one aggregate; the lines themselves are on the detail view.",
+            "example": 10,
+            "format": "int64",
+            "type": "integer"
+          },
+          "projectId": {
+            "description": "Id of the project the indent is raised for.",
+            "example": 3,
+            "format": "int64",
+            "type": "integer"
+          },
+          "projectName": {
+            "description": "Name of the project.",
+            "example": "Asset Homes Perumbavoor Phase 2",
+            "type": "string"
+          },
+          "remarks": {
+            "description": "Free-text remarks on the indent.",
+            "example": "Required before slab pour on 2026-02-08",
+            "type": "string"
+          },
+          "status": {
+            "description": "Current lifecycle status of the indent.",
+            "enum": [
+              "ON_SITE",
+              "DELAYED",
+              "PENDING",
+              "ORDERED",
+              "CANCELLED"
+            ],
+            "example": "PENDING",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "IndentUpdateDto": {
         "description": "Payload to partially update an indent's number, project, status, expected date or remarks.",
         "properties": {
@@ -11216,6 +11290,52 @@
         },
         "type": "object"
       },
+      "PageIndentSummaryDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/IndentSummaryDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageInspectionDto": {
         "properties": {
           "content": {
@@ -11727,6 +11847,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/ProjectDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageProjectSummaryDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectSummaryDto"
             },
             "type": "array"
           },
@@ -13398,6 +13564,132 @@
             ],
             "example": "IN_PROGRESS",
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ProjectSummaryDto": {
+        "description": "A project as it appears in a list: every scalar field of the full project view, without the team, the tasks or the attachments. Progress still means what it means on the full view, the mean of the project's task progress, but it is read for the whole page in one aggregate rather than by loading each project's tasks.",
+        "properties": {
+          "createdAt": {
+            "description": "Creation timestamp.",
+            "example": "2026-08-01T09:00:00",
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "description": "Id of the user who created the project. Null on projects created before this was recorded.",
+            "example": 17,
+            "format": "int64",
+            "type": "integer"
+          },
+          "customerId": {
+            "description": "Finance customer the project is billed to. Null when no client is set.",
+            "example": "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d",
+            "format": "uuid",
+            "type": "string"
+          },
+          "endDate": {
+            "description": "Planned completion date of the project.",
+            "example": "2027-06-30T00:00:00",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique project id.",
+            "example": 42,
+            "format": "int64",
+            "type": "integer"
+          },
+          "progress": {
+            "description": "Overall completion of the project, as a fraction from 0 to 1. The same figure the full project view reports.",
+            "example": 0.35,
+            "format": "double",
+            "type": "number"
+          },
+          "projectAddress": {
+            "description": "Street address of the site, as one line.",
+            "example": 12,
+            "type": "string"
+          },
+          "projectCity": {
+            "description": "Town or city the site is in. Null when not recorded.",
+            "example": "Chennai",
+            "type": "string"
+          },
+          "projectLatitude": {
+            "description": "Site latitude in decimal degrees.",
+            "example": 13.0827,
+            "format": "float",
+            "type": "number"
+          },
+          "projectLongitude": {
+            "description": "Site longitude in decimal degrees.",
+            "example": 80.2707,
+            "format": "float",
+            "type": "number"
+          },
+          "projectName": {
+            "description": "Project name.",
+            "example": "Tower B, Riverside Residences",
+            "type": "string"
+          },
+          "projectPostalCode": {
+            "description": "Postal (PIN) code of the site. Null when not recorded.",
+            "example": 600004,
+            "type": "string"
+          },
+          "projectState": {
+            "description": "Indian state or union territory the site is in, used to match statutory compliances. Null when not recorded.",
+            "example": "Tamil Nadu",
+            "type": "string"
+          },
+          "projectType": {
+            "description": "Construction category of the project.",
+            "enum": [
+              "RESIDENTIAL",
+              "COMMERCIAL",
+              "INDUSTRIAL",
+              "INFRASTRUCTURE",
+              "INSTITUTIONAL",
+              "MIXED_USE",
+              "OTHER"
+            ],
+            "example": "RESIDENTIAL",
+            "type": "string"
+          },
+          "startDate": {
+            "description": "Planned start date of the project.",
+            "example": "2026-09-01T00:00:00",
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "Current project status.",
+            "enum": [
+              "open",
+              "closed",
+              "upcoming",
+              "completed",
+              "dropped",
+              "onHold",
+              "cancelled",
+              "approved"
+            ],
+            "example": "IN_PROGRESS",
+            "type": "string"
+          },
+          "updatedAt": {
+            "description": "When the project was last written. Null on projects not written since this was recorded.",
+            "example": "2026-08-28T16:41:12",
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedBy": {
+            "description": "Id of the user who last wrote the project.",
+            "example": 17,
+            "format": "int64",
+            "type": "integer"
           }
         },
         "type": "object"
@@ -46861,6 +47153,137 @@
         ]
       }
     },
+    "/api/v1/indents/web/summary": {
+      "get": {
+        "description": "Returns a single page of indents without their item lines, each carrying how many lines it has and who raised it. Use this for lists; use the full listing or the detail endpoint when the lines are needed.",
+        "operationId": "getAllIndentSummaries",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageIndentSummaryDto"
+                }
+              }
+            },
+            "description": "Page of indent summaries returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List indents as summaries, paginated",
+        "tags": [
+          "Indents (Web)"
+        ]
+      }
+    },
     "/api/v1/indents/web/{id}": {
       "delete": {
         "description": "Deletes the indent with the given id, along with its items.",
@@ -77363,6 +77786,124 @@
         ]
       }
     },
+    "/api/v1/organization/web/summary": {
+      "get": {
+        "description": "Returns the same organizations as the full listing, carrying only each organization's own fields: no projects, no employees, no attachments. This is what an organization picker needs.",
+        "operationId": "readAllOrganizationSummaries",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationSimpleDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of the caller's organizations, empty if they belong to none"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationSimpleDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Caller is not authenticated"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the current user's organizations, without their contents",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
     "/api/v1/organization/web/{id}": {
       "delete": {
         "description": "Deletes the organization with the given id.",
@@ -80410,6 +80951,145 @@
           }
         },
         "summary": "List projects, paginated and filtered",
+        "tags": [
+          "Projects"
+        ]
+      }
+    },
+    "/api/v1/project/web/summary": {
+      "get": {
+        "description": "Returns a single page of projects carrying every scalar field of the full project view and none of its collections: no team, no tasks, no attachments. Progress is the same figure the full view reports. Use this for lists and tables; use the full listing when the response is read for its contents. pageSize is clamped to 500.",
+        "operationId": "readAllProjectSummaries",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageProjectSummaryDto"
+                }
+              }
+            },
+            "description": "Page of project summaries returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List projects as summaries, paginated and filtered",
         "tags": [
           "Projects"
         ]

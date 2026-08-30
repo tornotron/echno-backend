@@ -263,6 +263,34 @@ public class OrganizationService {
     }
 
     /**
+     * The same organizations as {@link #getAllOrganization}, without their contents.
+     *
+     * <p>{@link OrganizationDto} carries every project in the organization, every project carries
+     * its team, its tasks and its attachments, and every task carries its own issues, assignees
+     * and attachments. So the organization picker, which needs a name and a logo, pulls the whole
+     * tenant for each organization the caller belongs to.
+     *
+     * <p>{@link OrganizationSimpleDto} is exactly the scalar half and already exists, so this
+     * reuses it rather than declaring a byte-identical twin under a second name. Its other use is
+     * as the reply to a create or an update, which is a different question about the same shape.
+     *
+     * <p>Offered alongside {@link #getAllOrganization} rather than replacing it: the published
+     * contract is hand-maintained, so moving an endpoint over is a decision per endpoint.
+     *
+     * @return The organizations the caller is a member of, without their contents, empty if none.
+     */
+    @Transactional(readOnly = true)
+    public List<OrganizationSimpleDto> getAllOrganizationsSummary() {
+        User user = userContextService.getCurrentUser();
+        if (user == null) {
+            return List.of();
+        }
+        return repository.findAllByUserEmail(user.getEmail()).stream()
+                .map(org -> organizationMapper.toSimpleDto(org))
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Retrieves a list of all organizations created by a specific user.
      * @param creatorId The ID of the user who created the organizations.
      * @return A {@link List} of {@link OrganizationDto}s.

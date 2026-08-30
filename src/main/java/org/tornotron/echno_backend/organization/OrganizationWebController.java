@@ -109,6 +109,34 @@ public class OrganizationWebController {
     }
 
     /**
+     * Lists the caller's organizations without their contents.
+     *
+     * <p>The same organizations as {@link #readAllOrganizations}, in the same order, carrying only
+     * the organization's own fields. The full view carries every project in the organization, and
+     * every project carries its team, its tasks and its attachments, so the picker this endpoint
+     * populates was reading the whole tenant to render a name and a logo.
+     *
+     * <p>It is an addition, not a replacement. {@link #readAllOrganizations} is unchanged.
+     *
+     * @return A {@link ResponseEntity} containing the caller's organizations without their contents.
+     */
+    @GetMapping("/summary")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "List the current user's organizations, without their contents",
+            description = "Returns the same organizations as the full listing, carrying only each "
+                    + "organization's own fields: no projects, no employees, no attachments. This "
+                    + "is what an organization picker needs."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "List of the caller's organizations, empty if they belong to none"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Caller is not authenticated")
+    })
+    public ResponseEntity<List<OrganizationSimpleDto>> readAllOrganizationSummaries() {
+        return ResponseEntity.status(HttpStatus.OK).body(service.getAllOrganizationsSummary());
+    }
+
+    /**
      * Retrieves a single organization by its ID.
      * User must be a member of the organization or a platform admin.
      *
