@@ -26,7 +26,6 @@ public class UserContextService {
 //    @Cacheable(value = "userContext", key = "#root.methodName + '_' + @userContextService.getCurrentKeycloakId()")
     public Long getCurrentUserId() {
         String keycloakId = getCurrentKeycloakId();
-        System.out.println(keycloakId);
         if (keycloakId == null) {
             return null;
         }
