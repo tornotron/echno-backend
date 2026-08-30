@@ -1,6 +1,5 @@
 package org.tornotron.echno_backend.issue.dto;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -30,17 +29,15 @@ public class IssueCreationDto {
     private String description;
 
     /**
-     * The canonical name is {@code type}, which is what the column and the entity call it.
+     * The name the column, the entity and now every client use.
      *
-     * <p>The alias is transitional. Published versions of echno-core send {@code issueType} and
-     * reach the deployed web app only through a package release, so the name cannot change on
-     * both sides at once: the backend accepts either until every client has moved, and the
-     * update path in {@code IssueService} takes both for the same reason. Once echno-web is
-     * running a core that sends {@code type}, the alias and that second case both go.
+     * <p>It carried a {@code @JsonAlias("issueType")} for one release, because echno-core sent the
+     * field under that name and reaches the deployed web app only through a package release, so
+     * the name could not change on both sides at once. echno-core 2.2.0 sends {@code type} and the
+     * deployed web app is on it, so the alias is gone and this is the only name accepted.
      */
     @NotNull
     @Enumerated(EnumType.STRING)
-    @JsonAlias("issueType")
     private String type;
 
     /**

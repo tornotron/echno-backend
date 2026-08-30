@@ -12,23 +12,17 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 /**
  * The create endpoint parses {@link IssueCreationDto} from a multipart string
  * part, so its Jackson binding is exercised directly rather than through
- * {@code @RequestBody}. The web client (echno-core) sends the domain category as
- * {@code issueType}; these tests pin that it binds to {@code type} (a mismatch
- * previously left {@code type} null and crashed create with a 500).
+ * {@code @RequestBody}.
+ *
+ * <p>The domain category is called {@code type} and nothing else. echno-core sent
+ * it as {@code issueType} until 2.2.0, and this payload carried a
+ * {@code @JsonAlias} for exactly as long as that client was deployed. These pin
+ * what is accepted now the alias is gone: the canonical name binds, and the old
+ * one does not quietly go on working.
  */
 class IssueCreationDtoTest {
 
     private final ObjectMapper mapper = new ObjectMapper();
-
-    @Test
-    void bindsWebClientIssueTypeAliasOntoType() throws Exception {
-        IssueCreationDto dto = mapper.readValue(
-                "{\"title\":\"A title\",\"description\":\"A description\",\"issueType\":\"safety\",\"status\":\"open\"}",
-                IssueCreationDto.class);
-
-        assertThat(dto.getType()).isEqualTo("safety");
-        assertThat(dto.getStatus()).isEqualTo(IssueStatus.open);
-    }
 
     @Test
     void bindsCanonicalTypeField() throws Exception {
@@ -37,6 +31,25 @@ class IssueCreationDtoTest {
                 IssueCreationDto.class);
 
         assertThat(dto.getType()).isEqualTo("quality");
+        assertThat(dto.getStatus()).isEqualTo(IssueStatus.open);
+    }
+
+    /**
+     * The alias is gone, so a payload that names only {@code issueType} leaves
+     * {@code type} unset. Spring's mapper ignores the unknown key rather than
+     * failing on it, which is why the refusal has to come from {@code @NotNull}
+     * on {@code type} and not from binding. Asserted here so the removal shows up
+     * as a null rather than as a field that mysteriously still works.
+     */
+    @Test
+    void leavesTypeUnsetWhenOnlyTheRetiredNameIsSent() throws Exception {
+        ObjectMapper springMapper = Jackson2ObjectMapperBuilder.json().build();
+
+        IssueCreationDto dto = springMapper.readValue(
+                "{\"title\":\"A title\",\"description\":\"A description\",\"issueType\":\"safety\",\"status\":\"open\"}",
+                IssueCreationDto.class);
+
+        assertThat(dto.getType()).isNull();
     }
 
     /**

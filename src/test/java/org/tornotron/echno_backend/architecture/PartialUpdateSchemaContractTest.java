@@ -3,20 +3,11 @@ package org.tornotron.echno_backend.architecture;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.tornotron.echno_backend.employee.dto.EmployeeUpdateFieldsDto;
-import org.tornotron.echno_backend.issue.dto.IssueUpdateFieldsDto;
-import org.tornotron.echno_backend.leave.dto.LeavePolicyUpdateFieldsDto;
-import org.tornotron.echno_backend.leave.dto.LeaveRequestUpdateFieldsDto;
-import org.tornotron.echno_backend.organization.dto.OrganizationUpdateFieldsDto;
-import org.tornotron.echno_backend.project.dto.ProjectUpdateFieldsDto;
-import org.tornotron.echno_backend.task.dto.TaskUpdateFieldsDto;
-import org.tornotron.echno_backend.user.dto.UserUpdateFieldsDto;
+import org.tornotron.echno_backend.architecture.PartialUpdateSurfaces.UpdateSurface;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -47,13 +38,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * moved apart in either direction. Adding a key to a service switch without adding it to the schema
  * fails here, and so does the reverse.
  *
- * <p>Source rather than bytecode because a {@code switch} over strings compiles to a hash cascade
- * that no longer carries the labels in a form worth reconstructing. Plain JUnit rather than a
- * Spring context, because it reads two files and needs nothing else.
+ * <p>The list of surfaces and the source reading live in {@link PartialUpdateSurfaces}, shared with
+ * {@link PartialUpdateDefaultBranchTest}.
  */
 class PartialUpdateSchemaContractTest {
-
-    private static final Path SOURCE_ROOT = Path.of("src", "main", "java");
 
     /**
      * A {@code case} label in a string switch. Matches both the arrow and colon forms, since the
@@ -61,56 +49,8 @@ class PartialUpdateSchemaContractTest {
      */
     private static final Pattern CASE_LABEL = Pattern.compile("case\\s+\"([^\"]+)\"");
 
-    /**
-     * One partial-update surface: the schema class published for it, and the service method whose
-     * switch decides what it really accepts.
-     *
-     * @param schema The documentation-only class named as the endpoint's request schema.
-     * @param serviceClass Fully qualified name of the service holding the update method.
-     * @param methodSignature The opening text of the method declaration, used to find it in the
-     *                        source. Must be unique within the file.
-     */
-    private record UpdateSurface(Class<?> schema, String serviceClass, String methodSignature) {
-        @Override
-        public String toString() {
-            return schema.getSimpleName();
-        }
-    }
-
     static List<UpdateSurface> surfaces() {
-        return List.of(
-                new UpdateSurface(
-                        TaskUpdateFieldsDto.class,
-                        "org.tornotron.echno_backend.task.TaskService",
-                        "private void partialUpdateATask(Map<String, Object> updates, Task task)"),
-                new UpdateSurface(
-                        IssueUpdateFieldsDto.class,
-                        "org.tornotron.echno_backend.issue.IssueService",
-                        "private void partialUpdateAnIssue(Map<String, Object> updates, Issue issue)"),
-                new UpdateSurface(
-                        ProjectUpdateFieldsDto.class,
-                        "org.tornotron.echno_backend.project.ProjectService",
-                        "private void partialUpdateAProject(Map<String, Object> updates, Project project)"),
-                new UpdateSurface(
-                        OrganizationUpdateFieldsDto.class,
-                        "org.tornotron.echno_backend.organization.OrganizationService",
-                        "private void partialUpdateAnOrganization(Map<String, Object> updates, Organization organization)"),
-                new UpdateSurface(
-                        UserUpdateFieldsDto.class,
-                        "org.tornotron.echno_backend.user.UserService",
-                        "private void applyUpdates(Map<String, Object> updates, User user)"),
-                new UpdateSurface(
-                        EmployeeUpdateFieldsDto.class,
-                        "org.tornotron.echno_backend.employee.EmployeeService",
-                        "private void partialUpdateAnEmployee(Map<String, Object> updates, Employee employee)"),
-                new UpdateSurface(
-                        LeavePolicyUpdateFieldsDto.class,
-                        "org.tornotron.echno_backend.leave.LeavePolicyService",
-                        "public LeavePolicyDto updatePolicy(Long policyId, Map<String, Object> updates)"),
-                new UpdateSurface(
-                        LeaveRequestUpdateFieldsDto.class,
-                        "org.tornotron.echno_backend.leave.LeaveRequestService",
-                        "public LeaveRequestDto updateRequest(Long requestId, Map<String, Object> updates)"));
+        return PartialUpdateSurfaces.surfaces();
     }
 
     @ParameterizedTest(name = "{0} describes exactly the keys its service accepts")
@@ -131,7 +71,7 @@ class PartialUpdateSchemaContractTest {
 
     /** The keys the service's update switch names, read out of the method's own source. */
     private static Set<String> acceptedKeys(UpdateSurface surface) throws IOException {
-        String body = methodBody(surface);
+        String body = PartialUpdateSurfaces.methodBody(surface);
         Set<String> keys = new LinkedHashSet<>();
         Matcher matcher = CASE_LABEL.matcher(body);
         while (matcher.find()) {
@@ -151,44 +91,5 @@ class PartialUpdateSchemaContractTest {
                 .filter(field -> !Modifier.isStatic(field.getModifiers()))
                 .map(Field::getName)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
-    }
-
-    /**
-     * The text of the named method, from its declaration to its closing brace.
-     *
-     * <p>Brace counting is enough here and does not need a parser: these methods hold a switch over
-     * string literals and no brace ever appears inside one of them.
-     */
-    private static String methodBody(UpdateSurface surface) throws IOException {
-        Path source = SOURCE_ROOT.resolve(surface.serviceClass().replace('.', '/') + ".java");
-        assertThat(source)
-                .as("service source for %s, read relative to the project directory", surface.serviceClass())
-                .exists();
-        String text = Files.readString(source);
-
-        int start = text.indexOf(surface.methodSignature());
-        assertThat(start)
-                .as("method %s was not found in %s; if it has been renamed or its parameters "
-                        + "reformatted, update the signature this test looks for",
-                        surface.methodSignature(), source)
-                .isNotEqualTo(-1);
-        assertThat(text.indexOf(surface.methodSignature(), start + 1))
-                .as("method signature %s appears more than once in %s", surface.methodSignature(), source)
-                .isEqualTo(-1);
-
-        int cursor = text.indexOf('{', start);
-        int depth = 0;
-        for (int i = cursor; i < text.length(); i++) {
-            char character = text.charAt(i);
-            if (character == '{') {
-                depth++;
-            } else if (character == '}') {
-                depth--;
-                if (depth == 0) {
-                    return text.substring(cursor, i + 1);
-                }
-            }
-        }
-        throw new AssertionError("unbalanced braces after " + surface.methodSignature() + " in " + source);
     }
 }

@@ -73,6 +73,22 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
     @Query("SELECT e FROM Employee e JOIN FETCH e.user WHERE e.id = :id AND e.organization.id = :orgId")
     Optional<Employee> findByIdAndOrganizationIdWithUser(@Param("id") Long id, @Param("orgId") Long orgId);
 
+    /**
+     * Finds the employees among the given ids that belong to one organization.
+     *
+     * <p>Resolves a whole set of assignees in a single query and drops anyone outside the
+     * organization, so the caller can compare what came back with what it asked for and name the
+     * ids that are not assignable rather than reading the organization's entire roster to find out.
+     *
+     * @param ids   The employee ids to resolve.
+     * @param orgId The organization the employees must belong to.
+     * @return The matching employees; ids outside the organization or absent altogether are simply
+     *         not in the result.
+     */
+    @Query("SELECT e FROM Employee e WHERE e.id IN :ids AND e.organization.id = :orgId")
+    List<Employee> findAllByIdInAndOrganizationId(@Param("ids") Collection<Long> ids,
+                                                  @Param("orgId") Long orgId);
+
     @Query("SELECT e FROM Employee e WHERE e.user.id = :userId AND e.organization.id = :orgId")
     Optional<Employee> findByUserIdAndOrganizationId(@Param("userId") Long userId, @Param("orgId") Long orgId);
     /**

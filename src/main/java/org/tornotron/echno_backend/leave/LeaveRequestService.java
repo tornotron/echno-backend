@@ -3,6 +3,8 @@ package org.tornotron.echno_backend.leave;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
+import org.tornotron.echno_backend.common.payload.PartialUpdateKeys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @Validated
+@Slf4j
 public class LeaveRequestService {
 
     private final LeaveRequestRepository requestRepository;
@@ -308,6 +311,9 @@ public class LeaveRequestService {
                 case "handoverToId" -> request.setHandoverToId(
                         value != null ? ((Number) value).longValue() : null);
                 case "handoverNotes" -> request.setHandoverNotes((String) value);
+                // Nothing is dropped on purpose here: echno-core sends this endpoint no key it
+                // does not declare. See echno-core#57.
+                default -> PartialUpdateKeys.reportUnknown(log, "leave request", requestId, key);
             }
         });
 

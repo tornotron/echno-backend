@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.project;
 
+import lombok.extern.slf4j.Slf4j;
+import org.tornotron.echno_backend.common.payload.PartialUpdateKeys;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -40,6 +42,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -48,9 +51,28 @@ import java.util.stream.Collectors;
  * Handles business logic related to project creation, retrieval, updates, and deletion.
  */
 @Service
+@Slf4j
 public class ProjectService {
 
     private static final String PROJECTS_FOLDER = "projects";
+
+    /**
+     * Keys the web client puts in a project update that this endpoint has no field for, and drops
+     * on purpose rather than noisily. See {@link PartialUpdateKeys} for why the rest are warned
+     * about rather than refused.
+     *
+     * <p>{@code attachments} is the only one: the client sets {@code attachments: []} on every
+     * multipart update so the backend can tell "no upload" from "untouched", and the files
+     * themselves travel as their own part.
+     *
+     * <p>{@code organizationId} is deliberately not here even though the client sends it on every
+     * update, because it is the one key worth a warning every time. The organization comes from
+     * {@code TenantContext}, and honouring a value from the payload would be a tenant-isolation
+     * hole. {@code description} and {@code employees} are warned about too: both are on the list
+     * in echno-core#57, description as a form field that writes to a concept no layer has, members
+     * as something the project-employee routes already do properly.
+     */
+    private static final Set<String> DELIBERATELY_DROPPED_UPDATE_KEYS = Set.of("attachments");
 
     /**
      * The state a project starts in when the create payload names none. It is what the web
@@ -339,6 +361,10 @@ public class ProjectService {
                     } else {
                         throw new IllegalArgumentException("Latitude must be between -90 and 90");
                     }
+                    break;
+                default:
+                    PartialUpdateKeys.reportUnknown(log, "project", project.getId(), key,
+                            DELIBERATELY_DROPPED_UPDATE_KEYS);
                     break;
             }
         });

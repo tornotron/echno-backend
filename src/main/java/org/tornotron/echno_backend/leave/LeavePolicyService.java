@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.leave;
 
+import org.tornotron.echno_backend.common.payload.PartialUpdateKeys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @Validated
+@Slf4j
 public class LeavePolicyService {
 
     private final LeavePolicyRepository policyRepository;
@@ -251,6 +254,9 @@ public class LeavePolicyService {
                 case "multiLevelApprovalEnabled" -> policy.setMultiLevelApprovalEnabled((Boolean) value);
                 case "displayOrder" -> policy.setDisplayOrder(
                         value != null ? ((Number) value).intValue() : null);
+                // Nothing is dropped on purpose here: echno-core sends this endpoint no key it
+                // does not declare. See echno-core#57.
+                default -> PartialUpdateKeys.reportUnknown(log, "leave policy", policyId, key);
             }
         });
 

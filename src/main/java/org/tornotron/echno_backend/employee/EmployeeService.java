@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.tornotron.echno_backend.common.payload.PartialUpdateKeys;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -372,6 +373,14 @@ public class EmployeeService {
                                     "Manager with ID " + managerId + " was not found in this organization"));
                     employeeHierarchyService.validateManager(employee, manager);
                     employee.setManager(manager);
+                    break;
+                default:
+                    // Nothing is dropped on purpose here. The keys echno-core sends that this
+                    // endpoint has no field for (address, experience, gender, organizationId,
+                    // qualification, skills) all arrive only when a caller sets them, and five of
+                    // them are real columns on User reachable through PATCH /user/web/{id}. A
+                    // warning naming the key is exactly the signal wanted. See echno-core#57.
+                    PartialUpdateKeys.reportUnknown(log, "employee", employee.getId(), key);
                     break;
             }
         });

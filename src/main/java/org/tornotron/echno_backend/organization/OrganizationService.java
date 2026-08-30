@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
+import org.tornotron.echno_backend.common.payload.PartialUpdateKeys;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -340,6 +341,13 @@ public class OrganizationService {
                     break;
                 case "organizationLogo":
                     organization.setOrganizationLogo((String) value);
+                    break;
+                default:
+                    // Nothing is dropped on purpose here. The one key echno-core sends that this
+                    // endpoint has no field for is isActive, behind an "Active Organization"
+                    // checkbox that no route can currently honour, and a warning naming it is the
+                    // point. See echno-core#57.
+                    PartialUpdateKeys.reportUnknown(log, "organization", organization.getId(), key);
                     break;
             }
         });

@@ -54,4 +54,15 @@ public class TaskUpdateFieldsDto {
     @Schema(description = "Free-form labels on the task. Replaces the existing labels rather than "
             + "adding to them, and must be a list of strings.", example = "[\"concrete\", \"block-a\"]")
     private List<String> tags;
+
+    @Schema(description = "Employees the task is assigned to. Replaces the existing assignees "
+            + "rather than adding to them, so a shorter list unassigns and an empty list or a null "
+            + "clears the task. Every id must belong to an employee of the caller's organization.",
+            example = "[12, 31]")
+    private List<Long> assigneeIds;
+
+    @Schema(description = "Work category the task belongs to. Cannot be cleared: a task is created "
+            + "with a category and a task without one is a state creation cannot produce.",
+            example = "4")
+    private Long categoryId;
 }

@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.issue;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tornotron.echno_backend.common.payload.PartialUpdateKeys;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -44,7 +45,8 @@ public class IssueService {
 
     /**
      * Keys the web client puts in an issue update that this endpoint has no field for, and drops
-     * on purpose rather than noisily.
+     * on purpose rather than noisily. See {@link PartialUpdateKeys} for why the rest are warned
+     * about rather than refused.
      *
      * <p>{@code attachments} is the client telling the difference between "no upload" and
      * "untouched": it sets {@code attachments: []} on every update, and the files themselves
@@ -57,7 +59,7 @@ public class IssueService {
      * changed nothing. Naming the two known ones here is what keeps that warning worth reading.
      * Both are on the list in echno-core#57, and this set shrinks as that list is worked down.
      */
-    private static final Set<String> SILENTLY_DROPPED_UPDATE_KEYS = Set.of("attachments", "priority");
+    private static final Set<String> DELIBERATELY_DROPPED_UPDATE_KEYS = Set.of("attachments", "priority");
 
     /**
      * The state an issue starts in, and the only one create accepts. It is what the web client's
@@ -286,7 +288,6 @@ public class IssueService {
                     issue.setDescription((String) value);
                     break;
                 case "type":
-                case "issueType":
                     issue.setType(parseIssueType((String) value));
                     break;
                 case "status":
@@ -299,12 +300,8 @@ public class IssueService {
                     issue.setAssignedTo(assignee);
                     break;
                 default:
-                    if (!SILENTLY_DROPPED_UPDATE_KEYS.contains(key)) {
-                        log.warn("Ignoring '{}' on the update of issue {}: this endpoint changes no such "
-                                + "field, so the caller was told the update succeeded and nothing about that "
-                                + "field changed. Either the client is sending the wrong name or the field "
-                                + "belongs here and does not exist yet.", key, issue.getId());
-                    }
+                    PartialUpdateKeys.reportUnknown(log, "issue", issue.getId(), key,
+                            DELIBERATELY_DROPPED_UPDATE_KEYS);
                     break;
             }
         });

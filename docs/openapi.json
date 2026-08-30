@@ -7315,24 +7315,6 @@
             "example": "Spacing measured at 220 mm against a specified 200 mm across grid C.",
             "type": "string"
           },
-          "issueType": {
-            "deprecated": true,
-            "description": "Category of the issue, under the name the web client currently sends. Deprecated alias of type; send type instead.",
-            "enum": [
-              "technical",
-              "design",
-              "quality",
-              "safety",
-              "material",
-              "equipment",
-              "labour",
-              "weather",
-              "permit",
-              "coordination",
-              "other"
-            ],
-            "type": "string"
-          },
           "status": {
             "description": "Lifecycle status of the issue.",
             "enum": [
@@ -16758,6 +16740,24 @@
       "TaskUpdateFieldsDto": {
         "description": "Fields a partial task update may change. Every field is optional; only the fields present in the request are applied, and a field sent as null is cleared. Keys not listed here are ignored.",
         "properties": {
+          "assigneeIds": {
+            "description": "Employees the task is assigned to. Replaces the existing assignees rather than adding to them, so a shorter list unassigns and an empty list or a null clears the task. Every id must belong to an employee of the caller's organization.",
+            "example": [
+              12,
+              31
+            ],
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "categoryId": {
+            "description": "Work category the task belongs to. Cannot be cleared: a task is created with a category and a task without one is a state creation cannot produce.",
+            "example": 4,
+            "format": "int64",
+            "type": "integer"
+          },
           "description": {
             "description": "Longer description of the work to be done.",
             "example": "Complete formwork, reinforcement and concrete pour for the block A raft.",
