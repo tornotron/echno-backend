@@ -10,10 +10,9 @@ import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 /**
  * Maps {@link Employee} to its DTO. Most profile fields live on the associated
  * {@code User}, and the organization/manager associations are flattened to id + name.
- * The attachment list is signed through {@link AttachmentMapper}.
- *
- * {@code isManager} is deliberately left unset to match the previous converter, which
- * never populated it (the DTO field stays null rather than the entity's boolean false).
+ * The attachment list is signed through {@link AttachmentMapper}. Whether an employee
+ * manages is read from {@code orgRoles}, which this copies straight across; there is no
+ * separate flag to populate.
  */
 @Mapper(componentModel = "spring", uses = {AttachmentMapper.class, ShiftTimingMapper.class})
 public interface EmployeeMapper {
@@ -37,6 +36,5 @@ public interface EmployeeMapper {
     @Mapping(source = "user.createdAt", target = "createdAt")
     @Mapping(source = "user.updatedAt", target = "updatedAt")
     @Mapping(source = "user.attachments", target = "attachments")
-    @Mapping(target = "isManager", ignore = true)
     EmployeeDto toDto(Employee employee);
 }

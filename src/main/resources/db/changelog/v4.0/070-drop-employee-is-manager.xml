@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="070-01-drop-employee-is-manager" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="employee" columnName="is_manager"/>
+        </preConditions>
+
+        <comment>
+            Removes the employee.is_manager boolean.
+
+            Whether someone manages is decided by their organization role, mirrored from the
+            Keycloak group their token carries: OrgRole.getManagerRoles() is what the
+            @PreAuthorize checks read, and what the client library's isManager() computes. The
+            column was a second, stored answer to the same question, and nothing ever wrote it.
+            On staging it was false on all thirty rows while five people held a manager role, so
+            the one query that read it returned an empty manager list for every organization.
+            That query now reads the roles, and the two queries left against the column had no
+            callers at all.
+
+            Nothing is backfilled and nothing is lost: the column carried no information that
+            employee_org_roles does not already hold, and every row in it was false.
+        </comment>
+
+        <dropColumn tableName="employee" columnName="is_manager"/>
+    </changeSet>
+
+</databaseChangeLog>
