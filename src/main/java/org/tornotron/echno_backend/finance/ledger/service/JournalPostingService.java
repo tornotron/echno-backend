@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.common.exception.InvalidJournalException;
 import org.tornotron.echno_backend.common.exception.UnbalancedEntryException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
+import org.tornotron.echno_backend.finance.ledger.JournalLimits;
 import org.tornotron.echno_backend.finance.ledger.JournalStatus;
 import org.tornotron.echno_backend.finance.ledger.domain.Account;
 import org.tornotron.echno_backend.finance.ledger.domain.JournalEntry;
@@ -174,13 +175,23 @@ public class JournalPostingService {
      * id of the reversal; the reversal records the id of the entry it reverses. Only a POSTED entry
      * that has not already been reversed can be reversed.
      *
+     * <p>The reason is bounded here and not only at whatever endpoint supplied it. It is the
+     * ledger that turns a reason into a description, by putting a prefix in front of it, so the
+     * ledger is the only place that knows how much room is actually left; a caller that constructs
+     * the request itself, as the two invoice cancel paths do, runs no bean validation at all, and
+     * one that does bind it still cannot see the prefix. Refusing here means an over-long reason
+     * is an argument the ledger rejects before it writes anything, rather than a column overflow
+     * discovered on flush and surfaced as a server error.
+     *
      * @param entryId The id of the entry to reverse.
      * @param req Carries the reason recorded on the reversal's description.
      * @return The newly posted reversal entry as a DTO.
-     * @throws org.tornotron.echno_backend.common.exception.InvalidJournalException if the entry does not exist, is not POSTED, or was already reversed.
+     * @throws org.tornotron.echno_backend.common.exception.InvalidJournalException if the entry does not exist, is not POSTED, was already reversed, or the reason is blank or longer than {@link JournalLimits#REVERSAL_REASON_MAX_LENGTH}.
      */
     @Transactional
     public JournalEntryDto reverse(UUID entryId, ReverseJournalRequest req) {
+        String reason = requireStorableReason(req);
+
         JournalEntry original = journalRepo.findByIdWithLines(entryId)
                 .orElseThrow(() -> new InvalidJournalException("Journal entry with ID " + entryId + " was not found"));
 
@@ -205,7 +216,7 @@ public class JournalPostingService {
 
         PostJournalRequest reversalReq = new PostJournalRequest(
                 LocalDate.now(),
-                "Reversal of " + original.getEntryNumber() + " - " + req.reason(),
+                JournalLimits.reversalDescription(original.getEntryNumber(), reason),
                 original.getEntryNumber(),
                 reversedLines
         );
@@ -218,6 +229,31 @@ public class JournalPostingService {
 
         log.info("Reversed entry {} via {}", original.getEntryNumber(), reversal.getEntryNumber());
         return mapper.toDto(reversal);
+    }
+
+    /**
+     * Checks that a reversal reason will fit the description the ledger builds around it.
+     *
+     * @param req The reversal request, which a service caller may have constructed by hand.
+     * @return The reason, trimmed of surrounding whitespace.
+     * @throws InvalidJournalException if the request or its reason is missing, blank, or longer
+     *         than {@link JournalLimits#REVERSAL_REASON_MAX_LENGTH}.
+     */
+    private String requireStorableReason(ReverseJournalRequest req) {
+        String reason = req == null || req.reason() == null ? null : req.reason().trim();
+        if (reason == null || reason.isEmpty()) {
+            throw new InvalidJournalException(
+                    "A reversal reason is required; it is recorded on the reversing entry's description");
+        }
+        if (reason.length() > JournalLimits.REVERSAL_REASON_MAX_LENGTH) {
+            throw new InvalidJournalException(
+                    "The reversal reason is " + reason.length() + " characters; at most "
+                    + JournalLimits.REVERSAL_REASON_MAX_LENGTH + " fit alongside the "
+                    + "\"" + JournalLimits.REVERSAL_DESCRIPTION_PREFIX + "<entry number>"
+                    + JournalLimits.REVERSAL_DESCRIPTION_SEPARATOR + "\" prefix in the "
+                    + JournalLimits.DESCRIPTION_MAX_LENGTH + "-character description");
+        }
+        return reason;
     }
 
     /**

@@ -21,6 +21,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.finance.ledger.AccountType;
+import org.tornotron.echno_backend.finance.ledger.JournalLimits;
 import org.tornotron.echno_backend.finance.ledger.JournalStatus;
 import org.tornotron.echno_backend.finance.ledger.domain.Account;
 import org.tornotron.echno_backend.finance.ledger.domain.JournalEntry;
@@ -213,6 +214,49 @@ class JournalPostingServiceIT extends AbstractIntegrationTest {
                 .filter(l -> l.getAccount().getId().equals(cashId))
                 .map(l -> l.getCredit()).findFirst().orElseThrow();
         assertThat(cashCreditOnReversal).isEqualByComparingTo("100");
+    }
+
+    @Test
+    void reverse_reasonTooLongForTheDescriptionColumn_isRejectedBeforeAnythingIsWritten() {
+        JournalEntry original = service.postInternal(
+                request(line(cashId, "100", "0"), line(revenueId, "0", "100")), "MANUAL", null);
+        String tooLong = "x".repeat(JournalLimits.REVERSAL_REASON_MAX_LENGTH + 1);
+
+        // Without the bound this is a column overflow on flush, so it arrives as a database error
+        // rather than as a refusal naming the field, and the caller sees a 500.
+        assertThatExceptionOfType(InvalidJournalException.class)
+                .isThrownBy(() -> service.reverse(original.getId(), new ReverseJournalRequest(tooLong)))
+                .withMessageContaining("reversal reason");
+
+        JournalEntry reloaded = journalRepo.findByIdWithLines(original.getId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(JournalStatus.POSTED);
+        assertThat(reloaded.getReversedByEntryId()).isNull();
+    }
+
+    @Test
+    void reverse_reasonOfExactlyTheMaximumLength_isAccepted() {
+        JournalEntry original = service.postInternal(
+                request(line(cashId, "100", "0"), line(revenueId, "0", "100")), "MANUAL", null);
+        String atTheLimit = "x".repeat(JournalLimits.REVERSAL_REASON_MAX_LENGTH);
+
+        service.reverse(original.getId(), new ReverseJournalRequest(atTheLimit));
+
+        JournalEntry reversal = journalRepo
+                .findByIdWithLines(journalRepo.findByIdWithLines(original.getId()).orElseThrow()
+                        .getReversedByEntryId())
+                .orElseThrow();
+        assertThat(reversal.getDescription())
+                .endsWith(atTheLimit)
+                .hasSizeLessThanOrEqualTo(JournalLimits.DESCRIPTION_MAX_LENGTH);
+    }
+
+    @Test
+    void reverse_blankReason_isRejectedRatherThanLeavingADanglingSeparator() {
+        JournalEntry original = service.postInternal(
+                request(line(cashId, "100", "0"), line(revenueId, "0", "100")), "MANUAL", null);
+
+        assertThatExceptionOfType(InvalidJournalException.class)
+                .isThrownBy(() -> service.reverse(original.getId(), new ReverseJournalRequest("   ")));
     }
 
     @Test

@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,7 +15,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.finance.ledger.JournalLimits;
 import org.tornotron.echno_backend.finance.construction.ConstructionInvoiceStatus;
 import org.tornotron.echno_backend.finance.construction.ConstructionInvoiceType;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceDto;
@@ -27,6 +31,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @RestController
+@Validated
 @RequestMapping("/api/v1/finance/construction-invoices/web")
 @RequiredArgsConstructor
 @Tag(
@@ -178,15 +183,22 @@ public class ConstructionInvoiceControllerWeb {
     @Operation(
             summary = "Cancel an invoice",
             description = "Cancels an invoice and records the supplied reason. If the invoice was already "
-                    + "posted, the ledger entry is reversed."
+                    + "posted, the ledger entry is reversed. "
+                    + "The reason is recorded on the reversing entry's description, which also carries a "
+                    + "prefix naming the entry being reversed, so it must be present and at most 455 "
+                    + "characters."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Invoice cancelled"),
-            @ApiResponse(responseCode = "400", description = "Invoice is already paid or otherwise cannot be cancelled"),
+            @ApiResponse(responseCode = "400",
+                    description = "The reason is blank or longer than 455 characters, or the invoice "
+                            + "is already paid or otherwise cannot be cancelled"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant")
     })
-    public ConstructionInvoiceDto cancel(@PathVariable UUID id, @RequestParam String reason) {
+    public ConstructionInvoiceDto cancel(
+            @PathVariable UUID id,
+            @RequestParam @NotBlank @Size(max = JournalLimits.REVERSAL_REASON_MAX_LENGTH) String reason) {
         return service.cancel(id, reason);
     }
 
