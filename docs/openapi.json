@@ -7323,6 +7323,24 @@
             "example": "Spacing measured at 220 mm against a specified 200 mm across grid C.",
             "type": "string"
           },
+          "issueType": {
+            "deprecated": true,
+            "description": "Category of the issue, under the name the web client currently sends. Deprecated alias of type; send type instead.",
+            "enum": [
+              "technical",
+              "design",
+              "quality",
+              "safety",
+              "material",
+              "equipment",
+              "labour",
+              "weather",
+              "permit",
+              "coordination",
+              "other"
+            ],
+            "type": "string"
+          },
           "status": {
             "description": "Lifecycle status of the issue.",
             "enum": [
