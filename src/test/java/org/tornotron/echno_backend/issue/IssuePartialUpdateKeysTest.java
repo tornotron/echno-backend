@@ -37,15 +37,16 @@ import static org.mockito.Mockito.when;
  * the keys, so an unrecognised key is not a 400: it is dropped, and the caller is told the update
  * succeeded.
  *
- * <p>That is how changing an issue's type through the product came to do nothing. echno-core sends
+ * <p>That is how changing an issue's type through the product came to do nothing. echno-core sent
  * the field as {@code issueType}; the switch only named {@code type}. Create escaped it because
- * create binds a real DTO and {@code @JsonAlias("issueType")} catches the name there, and a map
- * has no property binding for an alias to attach to. So the two paths disagreed and only one of
- * them was wrong.
+ * create binds a real DTO and a {@code @JsonAlias} caught the name there, and a map has no
+ * property binding for an alias to attach to. So the two paths disagreed and only one of them was
+ * wrong. Both names were accepted here while the deployed client still sent the old one; echno-core
+ * 2.2.0 sends {@code type} and the compatibility half is gone.
  *
- * <p>These pin both halves: the update takes the name the client actually sends, and the keys the
- * endpoint has no field for stay dropped rather than becoming a rejection that would fail every
- * update the deployed web app makes.
+ * <p>These pin what is left: the update applies the canonical name, the retired one is treated like
+ * any other key nobody declared, and the keys the endpoint has no field for stay dropped rather
+ * than becoming a rejection that would fail every update the deployed web app makes.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -105,27 +106,18 @@ class IssuePartialUpdateKeysTest {
     }
 
     @Test
-    void update_changesTheTypeWhenTheClientNamesItIssueType() {
-        // The name every published echno-core sends. Before this was handled the call returned 200
-        // and the type stayed exactly as it was.
-        service.partialUpdateAnIssue(Map.of("issueType", "safety"), 7L, null, "ISSUE_ATTACHMENTS");
-
-        assertThat(existing.getType()).isEqualTo(IssueType.safety);
-    }
-
-    @Test
-    void update_stillChangesTheTypeUnderItsCanonicalName() {
+    void update_changesTheTypeUnderItsCanonicalName() {
         service.partialUpdateAnIssue(Map.of("type", "safety"), 7L, null, "ISSUE_ATTACHMENTS");
 
         assertThat(existing.getType()).isEqualTo(IssueType.safety);
     }
 
     @Test
-    void update_appliesTheOtherFieldsAlongsideTheAliasedOne() {
-        // Ordering matters here: the aliased key must not shadow or short-circuit the rest.
+    void update_appliesTheOtherFieldsAlongsideTheType() {
+        // Ordering matters here: no key may shadow or short-circuit the rest.
         Map<String, Object> updates = new LinkedHashMap<>();
         updates.put("title", "Honeycombing along the north edge");
-        updates.put("issueType", "safety");
+        updates.put("type", "safety");
         updates.put("status", "resolved");
 
         service.partialUpdateAnIssue(updates, 7L, null, "ISSUE_ATTACHMENTS");
@@ -133,6 +125,15 @@ class IssuePartialUpdateKeysTest {
         assertThat(existing.getTitle()).isEqualTo("Honeycombing along the north edge");
         assertThat(existing.getType()).isEqualTo(IssueType.safety);
         assertThat(existing.getStatus()).isEqualTo(IssueStatus.resolved);
+    }
+
+    @Test
+    void update_ignoresTheRetiredNameRatherThanApplyingIt() {
+        // The compatibility case is gone with the alias on the create payload. A caller still on a
+        // core older than 2.2.0 gets what any undeclared key gets: dropped, logged, and no change.
+        service.partialUpdateAnIssue(Map.of("issueType", "safety"), 7L, null, "ISSUE_ATTACHMENTS");
+
+        assertThat(existing.getType()).isEqualTo(IssueType.quality);
     }
 
     @Test
@@ -144,7 +145,7 @@ class IssuePartialUpdateKeysTest {
         updates.put("attachments", java.util.List.of());
         updates.put("priority", "high");
         updates.put("somethingNobodyDeclared", "x");
-        updates.put("issueType", "safety");
+        updates.put("type", "safety");
 
         service.partialUpdateAnIssue(updates, 7L, null, "ISSUE_ATTACHMENTS");
 

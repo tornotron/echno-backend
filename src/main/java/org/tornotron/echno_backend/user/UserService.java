@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.payload.PartialUpdateKeys;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -237,7 +238,10 @@ public class UserService {
                 case "profilePictureUrl" -> user.setProfilePictureUrl((String) value);
                 case "skills" -> user.setSkills(parseSkills(value));
                 case "certifications" -> user.setCertifications(parseCertifications(value));
-                default -> { }
+                // Nothing is dropped on purpose here: echno-core sends this endpoint no key it
+                // does not declare. The branch used to be an empty block, which is the same silent
+                // drop written down. See echno-core#57.
+                default -> PartialUpdateKeys.reportUnknown(logger, "user", user.getId(), key);
             }
         });
     }

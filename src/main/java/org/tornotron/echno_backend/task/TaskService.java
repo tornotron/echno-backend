@@ -1,6 +1,10 @@
 package org.tornotron.echno_backend.task;
 
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.tornotron.echno_backend.category.Category;
+import org.tornotron.echno_backend.common.payload.PartialUpdateKeys;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -42,7 +46,27 @@ import java.util.stream.Collectors;
 @Service
 public class TaskService {
 
+    private static final Logger log = LoggerFactory.getLogger(TaskService.class);
+
     private static final String TASKS_FOLDER = "tasks";
+
+    /**
+     * Keys the web client puts in a task update that this endpoint has no field for, and drops on
+     * purpose rather than noisily. See {@link PartialUpdateKeys} for why the rest are warned about
+     * rather than refused.
+     *
+     * <p>{@code attachments} is the only one: the client sets {@code attachments: []} on every
+     * update so the backend can tell "no upload" from "untouched", and the files themselves travel
+     * as their own multipart part, so the key in the JSON part carries nothing to apply.
+     *
+     * <p>{@code creatorId}, {@code priority} and {@code projectId} are deliberately not here.
+     * They arrive only when a caller sets them, and each is on the list in echno-core#57 as
+     * something the client should stop sending: {@code creatorId} carries the editing user, so
+     * honouring it would rewrite a task's creator to whoever last touched it; {@code priority} has
+     * no column anywhere; and there is no "move task" screen behind {@code projectId}. A warning
+     * for each is the point.
+     */
+    private static final Set<String> DELIBERATELY_DROPPED_UPDATE_KEYS = Set.of("attachments");
 
     private final TaskRepository taskRepository;
     private final EmployeeRepository employeeRepository;
@@ -319,8 +343,88 @@ public class TaskService {
                 case "tags":
                     updateTags(value, task);
                     break;
+                case "assigneeIds":
+                    task.setAssignees(resolveAssignees(value));
+                    break;
+                case "categoryId":
+                    task.setCategory(resolveCategory(value));
+                    break;
+                default:
+                    PartialUpdateKeys.reportUnknown(log, "task", task.getId(), key,
+                            DELIBERATELY_DROPPED_UPDATE_KEYS);
+                    break;
             }
         });
+    }
+
+    /**
+     * Resolves the replacement assignee set for a task update.
+     *
+     * <p>The list is the whole set, not an addition: the client sends every assignee the task
+     * should end up with, so a shorter list unassigns and an empty one or a null clears the task.
+     * That is the shape the edit form already submits.
+     *
+     * <p>Everyone named has to be an employee of the caller's organization, which is checked in one
+     * query rather than by trusting the ids. Reassignment used to be dropped here in silence, so an
+     * id belonging to another tenant reaching a task is the failure worth being loud about.
+     *
+     * @param value The raw {@code assigneeIds} value from the update map.
+     * @return The employees to assign, empty when the caller sent nothing to assign.
+     * @throws InvalidRequestException if the value is not a list of ids, or names anyone who is not
+     *                                 an employee of this organization.
+     */
+    private Set<Employee> resolveAssignees(Object value) {
+        if (value == null) {
+            return new HashSet<>();
+        }
+        if (!(value instanceof List<?> rawIds)) {
+            throw new InvalidRequestException("assigneeIds must be provided as a list of employee ids");
+        }
+        if (rawIds.isEmpty()) {
+            return new HashSet<>();
+        }
+
+        Set<Long> requested = new LinkedHashSet<>();
+        for (Object rawId : rawIds) {
+            if (!(rawId instanceof Number number)) {
+                throw new InvalidRequestException("Each assignee id must be a number");
+            }
+            requested.add(number.longValue());
+        }
+
+        List<Employee> found = employeeRepository.findAllByIdInAndOrganizationId(
+                requested, TenantContext.getCurrentOrgId());
+        if (found.size() != requested.size()) {
+            Set<Long> missing = new LinkedHashSet<>(requested);
+            found.forEach(employee -> missing.remove(employee.getId()));
+            throw new InvalidRequestException("Employee IDs " + missing
+                    + " are not members of this organization and cannot be assigned to this task");
+        }
+        return new HashSet<>(found);
+    }
+
+    /**
+     * Resolves the category a task update moves the task to.
+     *
+     * <p>Clearing is refused rather than allowed: {@code addTask} insists on a category, so a task
+     * with none is a state creation cannot produce and nothing downstream expects.
+     *
+     * @param value The raw {@code categoryId} value from the update map.
+     * @return The category to set.
+     * @throws InvalidRequestException if the value is null or not a number.
+     * @throws ResourceNotFoundException if no such category exists in this organization.
+     */
+    private Category resolveCategory(Object value) {
+        if (value == null) {
+            throw new InvalidRequestException("A task must have a category; categoryId cannot be cleared");
+        }
+        if (!(value instanceof Number number)) {
+            throw new InvalidRequestException("categoryId must be a number");
+        }
+        Long categoryId = number.longValue();
+        return categoryRepository.findByIdAndOrganization_Id(categoryId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Category with ID " + categoryId + " was not found in this organization"));
     }
 
     private void updateTags(Object rawTags, Task task) {
