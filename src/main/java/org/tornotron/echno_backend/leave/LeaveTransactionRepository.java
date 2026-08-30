@@ -48,6 +48,20 @@ public interface LeaveTransactionRepository extends JpaRepository<LeaveTransacti
             @Param("balanceId") Long balanceId,
             @Param("type") TransactionType type);
 
+    /** Total days granted by manual adjustments on this balance, as a positive figure. */
+    @Query("SELECT COALESCE(SUM(CASE WHEN lt.days > 0 THEN lt.days ELSE 0 END), 0) " +
+           "FROM LeaveTransaction lt " +
+           "WHERE lt.leaveBalance.id = :balanceId " +
+           "AND lt.transactionType = org.tornotron.echno_backend.leave.enums.TransactionType.ADJUSTMENT")
+    Double sumAdjustmentCredits(@Param("balanceId") Long balanceId);
+
+    /** Total days taken back by manual adjustments on this balance, as a positive figure. */
+    @Query("SELECT COALESCE(SUM(CASE WHEN lt.days < 0 THEN -lt.days ELSE 0 END), 0) " +
+           "FROM LeaveTransaction lt " +
+           "WHERE lt.leaveBalance.id = :balanceId " +
+           "AND lt.transactionType = org.tornotron.echno_backend.leave.enums.TransactionType.ADJUSTMENT")
+    Double sumAdjustmentDebits(@Param("balanceId") Long balanceId);
+
     boolean existsByLeaveBalanceIdAndTransactionTypeAndReferenceMonthAndReferenceYear(
             Long balanceId, TransactionType type, Integer month, Integer year);
 }

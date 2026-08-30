@@ -20,6 +20,10 @@ import java.util.List;
  * transactions for months not yet accrued, and refreshes the balance's
  * accrued / used / pending figures.
  *
+ * The refreshed figures are rebuilt from the ledger and the request rows rather than
+ * adjusted in place, so they also carry the manual ADJUSTMENT transactions; every
+ * figure is rounded through {@link LeaveDays} before it is stored.
+ *
  * Extracted from {@link LeaveBalanceService}, which keeps the balance-query and
  * summary responsibilities. The methods here run inside the caller's transaction
  * (they are invoked from {@code @Transactional} balance methods), so they carry no
@@ -82,15 +86,27 @@ public class LeaveAccrualService {
             totalAccrued = Math.min(totalAccrued, policy.getAnnualQuota());
         }
 
-        balance.setAccrued(totalAccrued);
+        // A manual adjustment is applied straight to accrued or used and recorded as an
+        // ADJUSTMENT transaction. Recomputing from the accrual ledger and the request rows
+        // alone would drop it, so the same month an adjustment was granted it would silently
+        // disappear the next time a new month rolled over. Folding the adjustments back in
+        // here keeps them, and matches how adjustBalance applies them: a credit raises
+        // accrued, a debit raises used. The annual-quota cap applies to accrual only:
+        // a manual grant above the quota is deliberate.
+        double adjustmentCredits = LeaveDays.round(
+                transactionRepository.sumAdjustmentCredits(balance.getId()));
+        double adjustmentDebits = LeaveDays.round(
+                transactionRepository.sumAdjustmentDebits(balance.getId()));
+
+        balance.setAccrued(LeaveDays.round(totalAccrued + adjustmentCredits));
 
         Double usedDays = requestRepository.sumApprovedDaysByEmployeePolicyYear(
                 employee.getId(), policy.getId(), year);
         Double pendingDays = requestRepository.sumPendingDaysByEmployeePolicyYear(
                 employee.getId(), policy.getId(), year);
 
-        balance.setUsed(usedDays != null ? usedDays : 0.0);
-        balance.setPending(pendingDays != null ? pendingDays : 0.0);
+        balance.setUsed(LeaveDays.round(LeaveDays.round(usedDays) + adjustmentDebits));
+        balance.setPending(LeaveDays.round(pendingDays));
         balance.setLastCalculationMonth(currentMonth);
         balance.setLastCalculatedAt(LocalDateTime.now());
 
