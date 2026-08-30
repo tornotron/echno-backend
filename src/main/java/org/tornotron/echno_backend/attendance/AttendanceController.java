@@ -48,6 +48,8 @@ public class AttendanceController {
     }
 
     @PostMapping(value = "/check-in",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    // Ownership is settled in AttendanceService against the employee the payload names:
+    // the employee id travels inside the multipart data part, where this guard cannot read it.
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Check in for the day",
@@ -58,7 +60,7 @@ public class AttendanceController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Check-in recorded"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid check-in JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee named nor a holder of an attendance record-management role")
     })
     public ResponseEntity<AttendanceResponseDto> checkIn(
             @Parameter(schema = @Schema(implementation = AttendanceCheckInDto.class))
@@ -71,6 +73,8 @@ public class AttendanceController {
 
 
     @PostMapping(value = "/clock-event",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    // Ownership is settled in AttendanceService against the stored attendance record's
+    // employee: the payload names only an attendance id, which is the caller's word.
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Record a clock event",
@@ -81,7 +85,7 @@ public class AttendanceController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Clock event recorded"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid clock event JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee the record belongs to nor a holder of an attendance record-management role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No attendance record with the given id")
     })
     public ResponseEntity<AttendanceResponseDto> recordClockEvent(

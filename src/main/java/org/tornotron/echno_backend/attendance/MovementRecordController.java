@@ -36,6 +36,8 @@ public class MovementRecordController {
     }
 
     @PostMapping
+    // Ownership is settled in MovementRecordService against both the employee named and the
+    // stored attendance record's employee: ids on the request are the caller's word.
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Log a movement",
@@ -45,7 +47,7 @@ public class MovementRecordController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Movement record created"),
             @ApiResponse(responseCode = "400", description = "attendanceId, movementType, fromLocation, startTime or purpose is missing or invalid"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller is neither the employee involved nor a holder of an attendance record-management role"),
             @ApiResponse(responseCode = "404", description = "No attendance record or employee with the given id")
     })
     public ResponseEntity<MovementRecordDto> create(

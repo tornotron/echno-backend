@@ -58,4 +58,17 @@ public class AttendanceSecurityService {
     public boolean canViewEmployeeRecords(Long employeeId) {
         return orgSecurity.isSelfOrHasAnyOrgRole(employeeId, recordManagementRoles);
     }
+
+    /**
+     * Record or correct attendance for one employee: the employee themselves, or a manager / HR.
+     *
+     * <p>Same policy as {@link #canViewEmployeeRecords}, named separately because the write
+     * endpoints resolve the employee from the stored record (or, on a check-in, from the payload)
+     * in the service rather than from an annotation: the id on the request is the caller's word,
+     * not evidence, so the {@code @PreAuthorize} guard on those handlers only checks tenant
+     * membership and the services call this with the id the record actually names.
+     */
+    public boolean canRecordFor(Long employeeId) {
+        return orgSecurity.isSelfOrHasAnyOrgRole(employeeId, recordManagementRoles);
+    }
 }

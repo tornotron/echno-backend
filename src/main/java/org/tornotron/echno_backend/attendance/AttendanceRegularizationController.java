@@ -37,6 +37,8 @@ public class AttendanceRegularizationController {
     }
 
     @PostMapping("/request")
+    // Ownership is settled in AttendanceRegularizationService against the stored attendance
+    // record's employee: the payload names only an attendance id, which is the caller's word.
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Submit a regularization request",
@@ -48,7 +50,7 @@ public class AttendanceRegularizationController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Regularization request submitted"),
             @ApiResponse(responseCode = "400", description = "attendanceId, reason or missingEvents is missing or invalid"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller is neither the employee the attendance record belongs to nor a holder of an attendance record-management role"),
             @ApiResponse(responseCode = "404", description = "No attendance record with the given attendanceId")
     })
     public ResponseEntity<AttendanceRegularizationDto> submitRequest(

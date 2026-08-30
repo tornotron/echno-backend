@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.attendance;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import jakarta.validation.ValidationException;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -20,6 +21,7 @@ import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -65,6 +67,7 @@ public class AttendanceService {
     private final FileStorageService fileStorageService;
     private final UserContextService userContextService;
     private final PayloadValidator payloadValidator;
+    private final AttendanceSecurityService attendanceSecurity;
 
     public AttendanceService(AttendanceRepository attendanceRepository,
                              ShiftTimingRepository shiftTimingRepository,
@@ -78,7 +81,8 @@ public class AttendanceService {
                              AttachmentService attachmentService,
                              FileStorageService fileStorageService,
                              UserContextService userContextService,
-                             PayloadValidator payloadValidator) {
+                             PayloadValidator payloadValidator,
+                             AttendanceSecurityService attendanceSecurity) {
         this.attendanceRepository = attendanceRepository;
         this.shiftTimingRepository = shiftTimingRepository;
         this.employeeRepository = employeeRepository;
@@ -92,6 +96,31 @@ public class AttendanceService {
         this.fileStorageService = fileStorageService;
         this.userContextService = userContextService;
         this.payloadValidator = payloadValidator;
+        this.attendanceSecurity = attendanceSecurity;
+    }
+
+    /**
+     * Refuses the call unless the caller is the employee the attendance belongs to, or holds an
+     * attendance record-management role.
+     *
+     * <p>This lives here rather than in the {@code @PreAuthorize} guard for the same reason the
+     * leave family's check does ({@code LeaveRequestService}): the guard can only see what the
+     * caller sent. A check-in names its employee inside the multipart {@code data} part, and a
+     * clock event names an attendance record whose owner only the database knows, so the employee
+     * id the annotation could read is an argument, not evidence. Left at tenant membership, any
+     * member could fabricate a colleague's check-in or clock them out.
+     *
+     * @param employeeId The employee the record belongs to, read off the stored record where one
+     *     exists rather than off the request.
+     * @throws AccessDeniedException if the caller is neither that employee nor a record manager.
+     */
+    private void requireActorMayRecordFor(Long employeeId) {
+        if (attendanceSecurity.canRecordFor(employeeId)) {
+            return;
+        }
+        throw new AccessDeniedException(
+                "Attendance can only be recorded for yourself, unless you hold an attendance "
+                        + "record-management role");
     }
 
     /**
@@ -107,10 +136,13 @@ public class AttendanceService {
      * @return The created attendance record.
      * @throws ResourceNotFoundException if the organization, employee, project, or shift is not found.
      * @throws jakarta.validation.ValidationException if a required photo or location is missing, the photo is not an image, or a record already exists for the day.
+     * @throws AccessDeniedException if the caller is neither the employee named nor a holder of an
+     *     attendance record-management role.
      */
     @Transactional
     public AttendanceResponseDto checkIn(AttendanceCheckInDto dto, MultipartFile photo) {
         payloadValidator.requireValid(dto);
+        requireActorMayRecordFor(dto.getEmployeeId());
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
@@ -245,6 +277,8 @@ public class AttendanceService {
      * @return The updated attendance record.
      * @throws ResourceNotFoundException if the organization or attendance record is not found.
      * @throws jakarta.validation.ValidationException if a required photo or location is missing, the photo is not an image, or the event breaks the allowed sequence.
+     * @throws AccessDeniedException if the caller is neither the employee the record belongs to
+     *     nor a holder of an attendance record-management role.
      */
     @Transactional
     public AttendanceResponseDto recordClockEvent(AttendanceClockEventDto dto, MultipartFile photo) {
@@ -256,6 +290,8 @@ public class AttendanceService {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(dto.getAttendanceId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Attendance record with ID " + dto.getAttendanceId() + " was not found"));
+
+        requireActorMayRecordFor(attendance.getEmployeeId());
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, attendance.getProjectId());
 
