@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="071-add-compliance-job-jurisdiction" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="compliance_generation_jobs" columnName="jurisdiction"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            A generation job recorded how much work it was (rules_total) but not what the work
+            was about. That is enough to answer "when was this project last assessed" and not
+            enough to answer "is that assessment still the right one".
+
+            The case it gets wrong: a project assessed under Tamil Nadu whose state is later
+            corrected to Kerala. Its timestamp is recent, so the nightly sweep compares it
+            against Kerala's newest rule, finds those rules older, and reads the project as up
+            to date. Nothing is ever generated for the state it is actually in, and the symptom
+            is an empty compliance list nobody can explain.
+
+            The value is the pair the rule query matches on, lower-cased state and project type,
+            joined by a pipe: "tamil nadu|RESIDENTIAL". One column rather than two because it is
+            compared whole and never filtered on either half, and lower-cased at the point of
+            writing because the rule lookup is case-insensitive and two spellings of one state
+            must not read as two jurisdictions.
+
+            Nullable, and deliberately not backfilled. There is no honest value for a run that
+            happened before this was recorded: the project's state today is not evidence of what
+            it was assessed under. The sweep reads null as "not known" and falls back to the
+            timestamp alone, which is what it did before this column existed. Backfilling from
+            the project instead would assert a fact we do not have, and defaulting it to
+            anything would make every historical run look like a jurisdiction change and queue
+            an inference call for every approved project in every tenant on the first pass.
+        </comment>
+
+        <addColumn tableName="compliance_generation_jobs">
+            <column name="jurisdiction" type="VARCHAR(120)"/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="compliance_generation_jobs" columnName="jurisdiction"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

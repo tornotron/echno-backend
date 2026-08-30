@@ -99,6 +99,31 @@ public class ComplianceGenerationJob implements TenantScopedEntity {
     @Column(name = "rules_total", nullable = false)
     private int rulesTotal;
 
+    /**
+     * Which jurisdiction the run was accepted for, in the form
+     * {@link org.tornotron.echno_backend.compliance.Jurisdiction#key}: the project's state and
+     * type at accept time.
+     *
+     * <p>Recorded because "when was this project last assessed" is not on its own enough to
+     * decide whether it still is. A project assessed under one state and then corrected to
+     * another has an assessment that covers nothing it is now subject to, and comparing its
+     * timestamp against the new jurisdiction's newest rule can perfectly well say it is up to
+     * date. The sweep therefore compares the jurisdiction as well as the timestamp, and this
+     * is the column that lets it.
+     *
+     * <p>Accept time rather than run time, for the same reason {@link #rulesTotal} is: the row
+     * describes what was accepted. If the project's state is changed in the gap between accept
+     * and run, this says the old jurisdiction while the run covers the new one, and the sweep
+     * then sees a mismatch and queues one more run than it needed to. That is the harmless
+     * direction, and generation is idempotent per rule, so the extra run creates nothing.
+     *
+     * <p>Null on every row written before the column existed, and null is read as "not known",
+     * which falls back to the timestamp comparison alone rather than declaring the whole
+     * backlog stale.
+     */
+    @Column(name = "jurisdiction", length = 120)
+    private String jurisdiction;
+
     /** Rules the model has come back on so far. Only ever moves forward within an attempt. */
     @Column(name = "rules_assessed", nullable = false)
     private int rulesAssessed;

@@ -16,6 +16,7 @@ import org.tornotron.echno_backend.project.enums.ProjectType;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -98,6 +100,13 @@ class ComplianceRuleSweepTest {
     private ComplianceGenerationJobRepository.SweepCandidate project(long id,
                                                                     String state,
                                                                     LocalDateTime lastAssessedAt) {
+        return project(id, state, lastAssessedAt, null);
+    }
+
+    private ComplianceGenerationJobRepository.SweepCandidate project(long id,
+                                                                    String state,
+                                                                    LocalDateTime lastAssessedAt,
+                                                                    String assessedJurisdiction) {
         return new ComplianceGenerationJobRepository.SweepCandidate() {
             @Override
             public Long getProjectId() {
@@ -126,6 +135,16 @@ class ComplianceRuleSweepTest {
 
             @Override
             public LocalDateTime getLastAssessedAt() {
+                return lastAssessedAt;
+            }
+
+            @Override
+            public String getLastAssessedJurisdiction() {
+                return assessedJurisdiction;
+            }
+
+            @Override
+            public LocalDateTime getLastAttemptAt() {
                 return lastAssessedAt;
             }
         };
@@ -201,6 +220,54 @@ class ComplianceRuleSweepTest {
         verify(jobService, never()).submit(anyLong(), anyLong());
     }
 
+    // -------------------------------------------------------------------------------
+    // The jurisdiction half of the comparison
+    // -------------------------------------------------------------------------------
+
+    /**
+     * A recent assessment is only evidence about the jurisdiction it was made in. Correct a
+     * project's state after it has been assessed and its timestamp still looks fresh, so on
+     * the timestamp alone the sweep leaves it alone and the project keeps an empty compliance
+     * list for the state it is actually in, permanently.
+     */
+    @Test
+    void queuesAProjectWhoseJurisdictionChangedSinceItWasAssessed() {
+        catalogueChangedAt(RULE_CHANGED);
+        candidates(project(1L, "Tamil Nadu", RULE_CHANGED.plusDays(1), "kerala|RESIDENTIAL"));
+        submitCreates(true);
+
+        sweep.runPass();
+
+        verify(jobService).submit(1L, ORG_ID);
+    }
+
+    /** The same jurisdiction is not a change, and must not cost a run every night. */
+    @Test
+    void leavesAProjectAssessedInTheSameJurisdictionAlone() {
+        catalogueChangedAt(RULE_CHANGED);
+        candidates(project(1L, "Tamil Nadu", RULE_CHANGED.plusDays(1), "tamil nadu|RESIDENTIAL"));
+
+        sweep.runPass();
+
+        verify(jobService, never()).submit(anyLong(), anyLong());
+    }
+
+    /**
+     * Runs from before the jurisdiction was recorded say nothing about it, and "nothing" has
+     * to read as no change rather than as a change. Reading it the other way would put every
+     * approved project in every tenant through a model call on the first pass after the
+     * upgrade, which is a bill arriving overnight for no new answers.
+     */
+    @Test
+    void treatsAnUnrecordedJurisdictionAsNoChange() {
+        catalogueChangedAt(RULE_CHANGED);
+        candidates(project(1L, "Tamil Nadu", RULE_CHANGED.plusDays(1), null));
+
+        sweep.runPass();
+
+        verify(jobService, never()).submit(anyLong(), anyLong());
+    }
+
     /** State is matched the way generation matches it, so casing cannot hide a rule change. */
     @Test
     void matchesTheJurisdictionCaseInsensitively() {
@@ -237,6 +304,38 @@ class ComplianceRuleSweepTest {
         verify(jobService).submit(2L, ORG_ID);
         verify(jobService, never()).submit(3L, ORG_ID);
         verify(jobService, never()).submit(4L, ORG_ID);
+    }
+
+    /**
+     * The cap is a budget every replica shares, not one each.
+     *
+     * <p>{@code @Scheduled} elects no leader, so on three replicas this pass runs three times
+     * on the same night and a cap counted in a local variable authorises three times the spend
+     * it says. Reading what has already been queued is what turns it back into one number.
+     * Here twenty of the twenty-five are already spoken for by other replicas, so this one may
+     * queue five and no more, however many stale projects it can see.
+     */
+    @Test
+    void sharesThePerRunCapWithTheOtherReplicas() {
+        properties.setMaxProjectsPerRun(25);
+        catalogueChangedAt(RULE_CHANGED);
+        candidates(project(1L, "Tamil Nadu", null), project(2L, "Tamil Nadu", null),
+                project(3L, "Tamil Nadu", null), project(4L, "Tamil Nadu", null),
+                project(5L, "Tamil Nadu", null), project(6L, "Tamil Nadu", null),
+                project(7L, "Tamil Nadu", null), project(8L, "Tamil Nadu", null));
+        // Twenty jobs are already on the table from the other replicas, and every job this
+        // pass queues joins them, exactly as the count would see it against a real database.
+        AtomicLong queuedAnywhere = new AtomicLong(20);
+        when(jobRepository.countCreatedSince(any(LocalDateTime.class)))
+                .thenAnswer(call -> queuedAnywhere.get());
+        when(jobService.submit(anyLong(), anyLong())).thenAnswer(call -> {
+            queuedAnywhere.incrementAndGet();
+            return new ComplianceGenerationJobService.Accepted((ComplianceGenerationJobDto) null, true);
+        });
+
+        sweep.runPass();
+
+        verify(jobService, times(5)).submit(anyLong(), anyLong());
     }
 
     /**

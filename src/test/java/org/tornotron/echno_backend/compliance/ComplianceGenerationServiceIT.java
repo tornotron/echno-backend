@@ -16,6 +16,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
@@ -24,6 +26,12 @@ import org.tornotron.echno_backend.common.retry.SqlStateDetector;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.compliance.ai.OpenAiCompatibleComplianceService;
+import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
+import org.tornotron.echno_backend.compliance.domain.ComplianceRule;
+import org.tornotron.echno_backend.compliance.job.ComplianceGenerationJobDto;
+import org.tornotron.echno_backend.compliance.job.ComplianceGenerationJobService;
+import org.tornotron.echno_backend.compliance.sweep.ComplianceRuleSweep;
+import org.tornotron.echno_backend.compliance.sweep.ComplianceSweepProperties;
 import org.tornotron.echno_backend.compliance.job.ComplianceGenerationJobRepository;
 import org.tornotron.echno_backend.compliance.job.ComplianceJobStatus;
 import org.tornotron.echno_backend.compliance.repository.ComplianceRuleRepository;
@@ -41,6 +49,7 @@ import org.tornotron.echno_backend.project.enums.ProjectType;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.List;
 import java.util.UUID;
 
@@ -48,6 +57,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -99,6 +112,9 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
     @Autowired
     private ComplianceRuleRepository ruleRepository;
 
+    @Autowired
+    private TransactionRetryTemplate retryTemplate;
+
     private Long orgAId;
     private Long projectId;
 
@@ -147,6 +163,9 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
         // Committed seed rows survive the rollback; remove them by hand. The global
         // compliance_rules seed is left intact (it is shared reference data).
         inCommittedTx(() -> {
+            entityManager.createNativeQuery(
+                            "DELETE FROM compliance_rules WHERE code LIKE 'IT-RACE-%'")
+                    .executeUpdate();
             entityManager.createNativeQuery(
                             "DELETE FROM compliance_generation_jobs WHERE organization_id = :org")
                     .setParameter("org", orgAId).executeUpdate();
@@ -431,6 +450,25 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
     }
 
     /**
+     * And it counts it from when it started, which is the only moment it can honestly vouch
+     * for. A run reads the rule catalogue once and then spends minutes in the model, so
+     * everything it knows about was in force at the start; a rule written during those minutes
+     * is older than the finish and yet was never assessed.
+     */
+    @Test
+    void countsASucceededRunFromWhenItStartedNotWhenItFinished() {
+        LocalDateTime finishedAt = LocalDateTime.now().withNano(0);
+        LocalDateTime startedAt = finishedAt.minusMinutes(5);
+        inCommittedTx(() -> insertFinishedJob(projectId, ComplianceJobStatus.SUCCEEDED,
+                startedAt, finishedAt, "tamil nadu|RESIDENTIAL"));
+
+        ComplianceGenerationJobRepository.SweepCandidate candidate = sweepCandidateForSeededProject();
+
+        assertThat(candidate.getLastAssessedAt()).isEqualTo(startedAt);
+        assertThat(candidate.getLastAssessedJurisdiction()).isEqualTo("tamil nadu|RESIDENTIAL");
+    }
+
+    /**
      * A failed run assessed nothing, so it must not make the project look done. A project whose
      * only run failed belongs in the backlog, which is where the sweep will find it.
      */
@@ -454,6 +492,132 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
         assertThat(sweepCandidateForSeededProject().getLastAssessedAt()).isNotNull();
     }
 
+    /**
+     * The race the watermark exists to survive, run rather than described.
+     *
+     * <p>The project has a run in flight: claimed, so its start is on the row, and not yet
+     * finished. The run reads the catalogue and hands it to the model, and it is while the
+     * model is answering that a rule is written for the project's jurisdiction. Nothing about
+     * that rule can reach this run, because the snapshot was taken before it existed, and the
+     * run then finishes and writes a {@code finished_at} later than the rule's
+     * {@code effective_from}. Watermarked on the finish, the sweep reads the project as
+     * covering a rule nothing has ever assessed it against, and does so on every pass after
+     * this one as well: the rule is lost, not delayed.
+     *
+     * <p>The three timestamps are asserted before the sweep runs, so a change that stopped
+     * producing the race would fail here rather than quietly turn this into a test of nothing.
+     */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void queuesAProjectForARuleWrittenWhileItsLastRunWasStillGoing() {
+        UUID jobId = UUID.randomUUID();
+        inCommittedTx(() -> {
+            entityManager.createNativeQuery(
+                            "INSERT INTO compliance_generation_jobs (id, organization_id, project_id, "
+                                    + "status, rules_total, rules_assessed, batches_total, batches_done, "
+                                    + "created_count, attempt, max_attempts, jurisdiction, created_at, "
+                                    + "updated_at) VALUES (:id, :org, :project, 'QUEUED', 6, 0, 1, 0, 0, "
+                                    + "0, 3, 'tamil nadu|RESIDENTIAL', now()::timestamp, now()::timestamp)")
+                    .setParameter("id", jobId)
+                    .setParameter("org", orgAId)
+                    .setParameter("project", projectId)
+                    .executeUpdate();
+            LocalDateTime claimedAt = LocalDateTime.now();
+            jobRepository.claim(jobId, "replica-a", claimedAt.plusMinutes(5), claimedAt);
+        });
+
+        // The curator writes the rule while the model is answering. loadInputs has already
+        // run by the time this stub is called, so the rule cannot be in the run's snapshot.
+        AtomicReference<ComplianceRule> writtenMidRun = new AtomicReference<>();
+        when(complianceAiService.suggestCompliances(
+                any(Project.class), anyString(), any(), any(ComplianceGenerationProgress.class)))
+                .thenAnswer(call -> {
+                    inCommittedTx(() -> writtenMidRun.set(insertRuleInForceNow("IT-RACE-1")));
+                    return List.of(new ComplianceSuggestion(RULE_PRE, true, "critical",
+                            List.of("Obtain the building plan approval"), "Required before work starts",
+                            "pre-construction"));
+                });
+
+        TenantContext.setCurrentOrgId(orgAId);
+        service.generateForProject(projectId, orgAId);
+        LocalDateTime finishedAt = LocalDateTime.now();
+        inCommittedTx(() -> entityManager.createNativeQuery(
+                        "UPDATE compliance_generation_jobs SET status = 'SUCCEEDED', "
+                                + "finished_at = :finishedAt, updated_at = :finishedAt WHERE id = :id")
+                .setParameter("id", jobId)
+                .setParameter("finishedAt", finishedAt)
+                .executeUpdate());
+
+        ComplianceGenerationJobRepository.SweepCandidate candidate = sweepCandidateForSeededProject();
+        LocalDateTime effectiveFrom = writtenMidRun.get().getEffectiveFrom();
+        assertThat(candidate.getLastAssessedAt())
+                .as("the run has to have started before the rule was written, or there is no race "
+                        + "here to survive")
+                .isBefore(effectiveFrom);
+        assertThat(effectiveFrom)
+                .as("and the rule has to have been written before the run finished, which is what "
+                        + "makes a finished_at watermark hide it")
+                .isBefore(finishedAt);
+
+        ComplianceGenerationJobService jobService = sweepWith(unboundedSweep());
+
+        verify(jobService).submit(projectId, orgAId);
+    }
+
+    /**
+     * The jurisdiction half of the same guarantee. A project assessed under one state and then
+     * corrected to another has a recent, successful assessment covering rules it is no longer
+     * subject to, and every rule in the state it is actually in predates that assessment. On
+     * timestamps alone it reads as up to date and its compliance list stays empty for ever.
+     */
+    @Test
+    void queuesAProjectWhoseStateWasCorrectedAfterItWasAssessed() {
+        LocalDateTime finishedAt = LocalDateTime.now().withNano(0);
+        inCommittedTx(() -> insertFinishedJob(projectId, ComplianceJobStatus.SUCCEEDED,
+                finishedAt.minusMinutes(5), finishedAt, "kerala|RESIDENTIAL"));
+
+        ComplianceGenerationJobService jobService = sweepWith(unboundedSweep());
+
+        verify(jobService).submit(projectId, orgAId);
+    }
+
+    /**
+     * Ordering, which is what decides whether a capped pass ever reaches new work. A project
+     * that fails every night is not assessed and does not block its own resubmission, so
+     * ordering on successful runs alone leaves it tied with the never-attempted backlog and,
+     * having the lower id, ahead of it. Twenty-five of those and nothing else is ever queued.
+     * Being attempted has to be enough to move it down.
+     */
+    @Test
+    void putsAProjectThatKeepsFailingBehindOneThatWasNeverTried() {
+        LocalDateTime finishedAt = LocalDateTime.now().withNano(0);
+        Long[] ids = new Long[2];
+        inCommittedTx(() -> {
+            ids[0] = persistApprovedProject("Keeps Failing");
+            ids[1] = persistApprovedProject("Never Tried");
+            insertFinishedJob(ids[0], ComplianceJobStatus.FAILED,
+                    finishedAt.minusMinutes(5), finishedAt, null);
+        });
+
+        List<Long> order = jobRepository.findSweepCandidates(500).stream()
+                .map(ComplianceGenerationJobRepository.SweepCandidate::getProjectId)
+                .filter(id -> id.equals(ids[0]) || id.equals(ids[1]))
+                .toList();
+
+        assertThat(order)
+                .as("the never-tried project comes first even though the failing one has the "
+                        + "lower id, which is the tiebreak that used to starve the pass")
+                .containsExactly(ids[1], ids[0]);
+    }
+
+    /** A pass wide enough that nothing another test left behind can crowd this one out. */
+    private ComplianceSweepProperties unboundedSweep() {
+        ComplianceSweepProperties properties = new ComplianceSweepProperties();
+        properties.setScanLimit(2000);
+        properties.setMaxProjectsPerRun(2000);
+        return properties;
+    }
+
     private ComplianceGenerationJobRepository.SweepCandidate sweepCandidateForSeededProject() {
         return jobRepository.findSweepCandidates(200).stream()
                 .filter(candidate -> projectId.equals(candidate.getProjectId()))
@@ -463,19 +627,68 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
     }
 
     private void insertFinishedJob(ComplianceJobStatus status, LocalDateTime finishedAt) {
+        insertFinishedJob(projectId, status, finishedAt.minusMinutes(5), finishedAt, null);
+    }
+
+    private void insertFinishedJob(Long project,
+                                   ComplianceJobStatus status,
+                                   LocalDateTime startedAt,
+                                   LocalDateTime finishedAt,
+                                   String jurisdiction) {
         entityManager.createNativeQuery(
                         "INSERT INTO compliance_generation_jobs (id, organization_id, project_id, "
                                 + "status, rules_total, rules_assessed, batches_total, batches_done, "
-                                + "created_count, attempt, max_attempts, finished_at, created_at, "
-                                + "updated_at) VALUES "
-                                + "(:id, :org, :project, :status, 6, 6, 1, 1, 0, 1, 3, :finishedAt, "
-                                + "now()::timestamp, now()::timestamp)")
+                                + "created_count, attempt, max_attempts, started_at, finished_at, "
+                                + "jurisdiction, created_at, updated_at) VALUES "
+                                + "(:id, :org, :project, :status, 6, 6, 1, 1, 0, 1, 3, :startedAt, "
+                                + ":finishedAt, :jurisdiction, now()::timestamp, now()::timestamp)")
                 .setParameter("id", UUID.randomUUID())
                 .setParameter("org", orgAId)
-                .setParameter("project", projectId)
+                .setParameter("project", project)
                 .setParameter("status", status.name())
+                .setParameter("startedAt", startedAt)
                 .setParameter("finishedAt", finishedAt)
+                .setParameter("jurisdiction", jurisdiction)
                 .executeUpdate();
+    }
+
+    /** A second approved project in the same organization and jurisdiction. */
+    private Long persistApprovedProject(String name) {
+        Project project = new Project();
+        project.setProjectName(name);
+        project.setProjectAddress("9 Anna Salai, Chennai, Tamil Nadu, India");
+        project.setProjectType(ProjectType.RESIDENTIAL);
+        project.setStatus(ProjectCreationStatus.approved);
+        project.setOrganization(entityManager.find(Organization.class, orgAId));
+        entityManager.persist(project);
+        entityManager.flush();
+        return project.getId();
+    }
+
+    /** A rule written into the shared catalogue now, as a curator adding one would. */
+    private ComplianceRule insertRuleInForceNow(String code) {
+        ComplianceRule rule = new ComplianceRule();
+        rule.setState("Tamil Nadu");
+        rule.setProjectType(ProjectType.RESIDENTIAL);
+        rule.setPhase(CompliancePhase.PRE_CONSTRUCTION);
+        rule.setCode(code);
+        rule.setName("Rule added mid-run");
+        rule.setDescription("Written while a generation run was in flight");
+        rule.setDefaultRiskLevel(ComplianceRiskLevel.CRITICAL);
+        rule.setAuthority("Test authority");
+        rule.setActive(true);
+        rule.setEffectiveFrom(LocalDateTime.now());
+        return ruleRepository.saveAndFlush(rule);
+    }
+
+    /** The sweep, built by hand so this class needs no second application context. */
+    private ComplianceGenerationJobService sweepWith(ComplianceSweepProperties properties) {
+        ComplianceGenerationJobService jobService = mock(ComplianceGenerationJobService.class);
+        lenient().when(jobService.submit(anyLong(), anyLong())).thenReturn(
+                new ComplianceGenerationJobService.Accepted((ComplianceGenerationJobDto) null, true));
+        new ComplianceRuleSweep(ruleRepository, jobRepository, jobService,
+                new TenantScopedJobRunner(), retryTemplate, properties).sweep();
+        return jobService;
     }
 
     private UUID insertJob(ComplianceJobStatus status) {
