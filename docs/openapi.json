@@ -14476,7 +14476,7 @@
             "description": "Reason the entry is being reversed, recorded on the reversing entry. The reversing entry's description is the reason with a fixed prefix naming the entry being reversed, so the bound is the description column less that prefix.",
             "example": "Vendor bill cancelled after posting",
             "maxLength": 455,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           }
         },
@@ -37003,7 +37003,7 @@
             "required": true,
             "schema": {
               "maxLength": 455,
-              "minLength": 0,
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -39646,7 +39646,7 @@
             "required": true,
             "schema": {
               "maxLength": 455,
-              "minLength": 0,
+              "minLength": 1,
               "type": "string"
             }
           }

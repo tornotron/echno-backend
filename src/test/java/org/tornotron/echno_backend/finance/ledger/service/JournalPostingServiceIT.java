@@ -260,6 +260,17 @@ class JournalPostingServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void reverse_reasonOfOnlyUnicodeWhitespace_isRejected() {
+        JournalEntry original = service.postInternal(
+                request(line(cashId, "100", "0"), line(revenueId, "0", "100")), "MANUAL", null);
+
+        // An em space survives trim(), which stops at U+0020, so a reason made only of one would
+        // have posted a reversal whose description ends in a dangling separator.
+        assertThatExceptionOfType(InvalidJournalException.class)
+                .isThrownBy(() -> service.reverse(original.getId(), new ReverseJournalRequest("\u2003")));
+    }
+
+    @Test
     void reverse_alreadyReversedEntry_isRejected() {
         JournalEntry original = service.postInternal(
                 request(line(cashId, "100", "0"), line(revenueId, "0", "100")), "MANUAL", null);
