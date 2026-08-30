@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="075-add-per-org-payable-number-uniqueness" author="echno">
+        <comment>
+            Payable was left out of 061, which moved the purchase order, site transfer, indent and
+            GRN numbers from a global unique constraint to a per-organization one. It has the same
+            disagreement: createPayable asks whether the number is already taken within the current
+            organization, while uk_payable_number reserves it across every organization at once. A
+            second tenant reusing a number the first has used gets past the service check and is
+            then rejected by a constraint over rows it cannot see, which both replaces the intended
+            409 with a constraint violation and tells that tenant something about another tenant's
+            numbering. Payable numbers are the customer's own reference series, so the overlap is
+            the normal case rather than an unlucky one.
+
+            Unlike the four documents in 061 these numbers are supplied by the caller rather than
+            allocated by the server, so there is no counter to seed alongside the constraint.
+
+            The per-organization constraint is added before the global one is dropped, so the
+            numbers are never unconstrained in between.
+        </comment>
+
+        <addUniqueConstraint tableName="payable"
+                             columnNames="organization_id, payable_number"
+                             constraintName="uk_payable_org_number"/>
+
+        <rollback>
+            <dropUniqueConstraint tableName="payable" constraintName="uk_payable_org_number"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="075-drop-global-payable-number-uniqueness" author="echno">
+        <comment>
+            Removes the cross-tenant constraint now that the per-tenant one above stands in its
+            place. DROP INDEX rather than DROP CONSTRAINT because CockroachDB backs a UNIQUE column
+            constraint with an index of the same name and that is how it is removed. This follows
+            061's fourth changeset exactly.
+        </comment>
+
+        <sql>
+            DROP INDEX IF EXISTS payable@uk_payable_number CASCADE;
+        </sql>
+
+        <rollback>
+            <comment>
+                Restoring a global unique constraint would fail on any data that has since made
+                use of the per-tenant scope, so the rollback does not pretend it can.
+            </comment>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

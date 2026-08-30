@@ -36,7 +36,13 @@ public class Payable implements TenantScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "payable_number", nullable = false, unique = true)
+    /**
+     * The tenant's own reference for the amount owed, supplied by the caller. Unique per
+     * organization rather than globally: the constraint that enforces it is
+     * {@code uk_payable_org_number} in the schema, and it is composite, so it cannot be
+     * declared here as a column-level unique.
+     */
+    @Column(name = "payable_number", nullable = false)
     private String payableNumber;
 
     @Column(name = "contactor_name", nullable = false)

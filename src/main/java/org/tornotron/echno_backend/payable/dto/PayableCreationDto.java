@@ -2,6 +2,8 @@ package org.tornotron.echno_backend.payable.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -22,8 +24,17 @@ public class PayableCreationDto {
     private String contractType;
 
     @NotNull(message = "amount recorded is required")
+    @Positive(message = "amount recorded must be greater than zero")
     private BigDecimal amountRecorded;
 
+    /**
+     * The amount already settled when the payable is first recorded, for a debt that is
+     * being carried in part-paid rather than raised from nothing. Optional, defaults to
+     * zero, and may not exceed the recorded amount: every later payment goes through
+     * {@code recordPayment}, which refuses to push the paid total past the recorded one,
+     * so an opening figure above it would create a balance no payment could ever move.
+     */
+    @PositiveOrZero(message = "amount paid cannot be negative")
     private BigDecimal amountPaid;
 
     private Long vendorId;

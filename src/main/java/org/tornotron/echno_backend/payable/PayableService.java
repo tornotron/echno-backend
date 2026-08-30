@@ -35,7 +35,10 @@ import java.util.stream.Collectors;
  *
  * <p>On create it validates the referenced employee and project (both required) and the
  * optional vendor and goods-received note, all within the current organization, and
- * defaults the paid amount to zero. Recording a payment takes a pessimistic lock on the
+ * defaults the paid amount to zero. The payable number is unique within the organization,
+ * not across the estate: it is the tenant's own reference series, so two tenants may
+ * legitimately use the same one. An opening paid amount is held to the same ceiling
+ * recordPayment enforces. Recording a payment takes a pessimistic lock on the
  * payable so concurrent payments serialize their read-modify-write on the paid amount, and
  * rejects a payment that would push the paid total past the recorded amount.
  */
@@ -74,11 +77,30 @@ public class PayableService {
      *
      * @param creationDto The payable details, including the creating employee, project, and optional vendor and GRN.
      * @return The created payable DTO.
+     * @throws InvalidRequestException if the recorded amount is not positive, or the opening paid amount is negative or exceeds it.
      * @throws DuplicateResourceException if a payable with the same number already exists in the organization.
      * @throws ResourceNotFoundException if the employee, project, vendor, or goods-received note cannot be found in the organization.
      */
     @Transactional
     public PayableDto createPayable(PayableCreationDto creationDto) {
+        BigDecimal amountRecorded = creationDto.getAmountRecorded();
+        if (amountRecorded == null || amountRecorded.signum() <= 0) {
+            throw new InvalidRequestException("Amount recorded must be greater than zero");
+        }
+
+        // The opening paid amount is held to the same rule recordPayment enforces on every
+        // later payment. Without it a payable can be created already past its recorded
+        // amount, and since no payment may push the paid total any higher and the module has
+        // no update or delete endpoint, that negative balance would stand for good.
+        BigDecimal openingPaid = creationDto.getAmountPaid() != null ? creationDto.getAmountPaid() : BigDecimal.ZERO;
+        if (openingPaid.signum() < 0) {
+            throw new InvalidRequestException("Amount paid cannot be negative");
+        }
+        if (openingPaid.compareTo(amountRecorded) > 0) {
+            throw new InvalidRequestException(
+                    "Opening amount paid of " + openingPaid + " exceeds the recorded amount of " + amountRecorded);
+        }
+
         // Check for duplicate payable number
         if (payableRepository.existsByPayableNumberAndOrganization_Id(creationDto.getPayableNumber(),TenantContext.getCurrentOrgId())) {
             throw new DuplicateResourceException("Payable with number " + creationDto.getPayableNumber() + " already exists");
@@ -110,8 +132,8 @@ public class PayableService {
         payable.setPayableNumber(creationDto.getPayableNumber());
         payable.setContractorName(creationDto.getContractorName());
         payable.setContractType(ContractType.valueOf(creationDto.getContractType()));
-        payable.setAmountRecorded(creationDto.getAmountRecorded());
-        payable.setAmountPaid(creationDto.getAmountPaid() != null ? creationDto.getAmountPaid() : BigDecimal.ZERO);
+        payable.setAmountRecorded(amountRecorded);
+        payable.setAmountPaid(openingPaid);
         payable.setVendor(vendor);
         payable.setGoodsReceivedNote(grn);
         payable.setCreatedBy(createdBy);
