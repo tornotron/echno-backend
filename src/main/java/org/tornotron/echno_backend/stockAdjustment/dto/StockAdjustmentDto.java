@@ -65,7 +65,9 @@ public class StockAdjustmentDto {
     @Schema(description = "Id of the user who submitted the adjustment.", example = "18")
     private Long submittedBy;
 
-    @Schema(description = "Name of the user who submitted the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never submitted.",
+    @Schema(description = "Name of the user who submitted the adjustment, or their email where the "
+            + "account carries no name. Reads \"User #<id>\" when the account has since been "
+            + "deleted; null only when the adjustment was never submitted.",
             example = "Anand Rajashekar")
     private String submittedByName;
 
@@ -75,7 +77,9 @@ public class StockAdjustmentDto {
     @Schema(description = "Id of the user who approved the adjustment.", example = "3")
     private Long approvedBy;
 
-    @Schema(description = "Name of the user who approved the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never approved.",
+    @Schema(description = "Name of the user who approved the adjustment, or their email where the "
+            + "account carries no name. Reads \"User #<id>\" when the account has since been "
+            + "deleted; null only when the adjustment was never approved.",
             example = "Aneesh Johny")
     private String approvedByName;
 
@@ -85,7 +89,9 @@ public class StockAdjustmentDto {
     @Schema(description = "Id of the user who rejected the adjustment, if it was rejected.", example = "3")
     private Long rejectedBy;
 
-    @Schema(description = "Name of the user who rejected the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never rejected.",
+    @Schema(description = "Name of the user who rejected the adjustment, or their email where the "
+            + "account carries no name. Reads \"User #<id>\" when the account has since been "
+            + "deleted; null only when the adjustment was never rejected.",
             example = "Aneesh Johny")
     private String rejectedByName;
 
@@ -98,7 +104,9 @@ public class StockAdjustmentDto {
     @Schema(description = "Id of the user who processed the adjustment.", example = "3")
     private Long processedBy;
 
-    @Schema(description = "Name of the user who processed the adjustment. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never processed.",
+    @Schema(description = "Name of the user who processed the adjustment, or their email where the "
+            + "account carries no name. Reads \"User #<id>\" when the account has since been "
+            + "deleted; null only when the adjustment was never processed.",
             example = "Aneesh Johny")
     private String processedByName;
 

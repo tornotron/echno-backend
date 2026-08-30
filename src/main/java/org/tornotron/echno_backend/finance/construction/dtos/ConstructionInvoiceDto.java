@@ -88,8 +88,9 @@ public record ConstructionInvoiceDto(
         @Schema(description = "User id that submitted the invoice for approval.", example = "5")
         Long submittedBy,
 
-        @Schema(description = "Name of the user that submitted the invoice. Reads \"User #<id>\" when the "
-                + "account has since been deleted; null only when the invoice was never submitted.",
+        @Schema(description = "Name of the user that submitted the invoice, or their email where the "
+                + "account carries no name. Reads \"User #<id>\" when the account has since been "
+                + "deleted; null only when the invoice was never submitted.",
                 example = "Anand Rajashekar")
         String submittedByName,
 
@@ -99,8 +100,9 @@ public record ConstructionInvoiceDto(
         @Schema(description = "User id that approved the invoice.", example = "2")
         Long approvedBy,
 
-        @Schema(description = "Name of the user that approved the invoice. Reads \"User #<id>\" when the "
-                + "account has since been deleted; null only when the invoice was never approved.",
+        @Schema(description = "Name of the user that approved the invoice, or their email where the "
+                + "account carries no name. Reads \"User #<id>\" when the account has since been "
+                + "deleted; null only when the invoice was never approved.",
                 example = "Aneesh Johny")
         String approvedByName,
 
@@ -110,9 +112,9 @@ public record ConstructionInvoiceDto(
         @Schema(description = "User id that recorded the most recent payment.", example = "5")
         Long paymentRecordedBy,
 
-        @Schema(description = "Name of the user that recorded the most recent payment. Reads "
-                + "\"User #<id>\" when the account has since been deleted; null only when no payment has "
-                + "been recorded.",
+        @Schema(description = "Name of the user that recorded the most recent payment, or their email "
+                + "where the account carries no name. Reads \"User #<id>\" when the account has since "
+                + "been deleted; null only when no payment has been recorded.",
                 example = "Anand Rajashekar")
         String paymentRecordedByName,
 
