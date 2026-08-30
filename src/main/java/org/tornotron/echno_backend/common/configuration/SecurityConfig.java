@@ -70,8 +70,14 @@ public class SecurityConfig {
                         // touches tenant-scoped data, it does not belong on this list; scope the
                         // read on something the caller proved and put it behind an authenticated
                         // path instead. PublicEndpointTenantExposureTest walks the handler chain
-                        // of every @PreAuthorize("permitAll()") endpoint and fails the build on
-                        // one that reaches a tenant-scoped repository.
+                        // of every endpoint whose @PreAuthorize lets an unauthenticated caller
+                        // through, and fails the build on one that reaches a tenant-scoped
+                        // repository, an EntityManager query or a JdbcTemplate statement,
+                        // whether it reaches it by a direct call, through an interface, or
+                        // across a published event into a synchronous listener. What it cannot
+                        // see is a call dispatched by a value rather than by a type: a lambda
+                        // handed across a boundary, reflection, a proxy resolved by name. That
+                        // limit is stated on the test itself.
                         //
                         // /actuator is the exception, and only because TenantFilter skips it
                         // outright rather than declaring anything: an entity load from there is
