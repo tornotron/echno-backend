@@ -297,6 +297,8 @@ public class OrganizationService {
      * of an organization as provided in the updates map.
      * @param updates A {@link Map} where keys are the field names to update and values are the new values.
      * @param id The ID of the organization to update.
+     * @param attachments Files to attach, or null when the request carried no attachments part.
+     * @param entityType What the uploaded files are, for example ORGANIZATION_LOGO.
      * @return An {@link OrganizationSimpleDto} representing the updated organization.
      * @throws ResourceNotFoundException if no organization with the given ID is found.
      */
@@ -306,9 +308,14 @@ public class OrganizationService {
                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + id + " was not found"));
        partialUpdateAnOrganization(updates,organization);
 
-       for (MultipartFile att:attachments) {
-           Attachment attachment = attachmentService.uploadAttachment(att,entityType,id,ORGANIZATION_FOLDER);
-           organization.addAttachment(attachment);
+       // The attachments part is optional, and Spring hands back null rather than an empty list
+       // when a multipart request omits it. Every organization edit that does not also replace
+       // the logo arrives that way, which is most of them.
+       if (attachments != null) {
+           for (MultipartFile att : attachments) {
+               Attachment attachment = attachmentService.uploadAttachment(att,entityType,id,ORGANIZATION_FOLDER);
+               organization.addAttachment(attachment);
+           }
        }
         return organizationMapper.toSimpleDto(repository.save(organization));
     }

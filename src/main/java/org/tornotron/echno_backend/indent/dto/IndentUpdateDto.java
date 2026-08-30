@@ -12,7 +12,7 @@ public class IndentUpdateDto {
     private String indentNumber;
 
     @Schema(description = "Id of the employee who raised the indent.", example = "8")
-    private Long createdByemployeeId;
+    private Long createdByEmployeeId;
 
     @Schema(description = "Id of the project the indent is raised for.", example = "3")
     private Long projectId;

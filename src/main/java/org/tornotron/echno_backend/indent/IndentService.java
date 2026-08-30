@@ -107,9 +107,9 @@ public class IndentService {
             indent.setIndentNumber(indentDto.getIndentNumber());
         }
 
-        if(indentDto.getCreatedByemployeeId() != null) {
-            Employee employee = employeeRepository.findByIdAndOrganizationId(indentDto.getCreatedByemployeeId(), TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + indentDto.getCreatedByemployeeId() + " was not found in this organization"));
+        if(indentDto.getCreatedByEmployeeId() != null) {
+            Employee employee = employeeRepository.findByIdAndOrganizationId(indentDto.getCreatedByEmployeeId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + indentDto.getCreatedByEmployeeId() + " was not found in this organization"));
             indent.setCreatedBy(employee);
         }
 

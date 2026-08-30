@@ -6083,7 +6083,7 @@
       "IndentUpdateDto": {
         "description": "Payload to partially update an indent's number, project, status, expected date or remarks.",
         "properties": {
-          "createdByemployeeId": {
+          "createdByEmployeeId": {
             "description": "Id of the employee who raised the indent.",
             "example": 8,
             "format": "int64",
