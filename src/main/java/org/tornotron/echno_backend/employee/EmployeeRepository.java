@@ -28,8 +28,27 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
      */
     Optional<Employee> findEmployeeByEmployeeName(String employeeName);
 
+    /**
+     * Finds every employee holding at least one of the given organization roles.
+     *
+     * <p>Membership of a role is what makes someone a manager here. The roles are mirrored
+     * from the Keycloak group the token carries, which is the same source the
+     * {@code @PreAuthorize} checks read, so a query written this way agrees with the
+     * authorization layer by construction.
+     */
     @Query("SELECT DISTINCT e FROM Employee e JOIN e.orgRoles r WHERE r IN :roles")
     List<Employee> findEmployeesByOrgRoles(@Param("roles") Set<OrgRole> roles);
+
+    /**
+     * The same read, narrowed to one organization.
+     *
+     * @param organizationId The organization to look within.
+     * @param roles          The roles that count as managing.
+     */
+    @Query("SELECT DISTINCT e FROM Employee e JOIN e.orgRoles r "
+            + "WHERE e.organization.id = :orgId AND r IN :roles")
+    List<Employee> findEmployeesByOrganizationIdAndOrgRoles(@Param("orgId") Long organizationId,
+                                                            @Param("roles") Set<OrgRole> roles);
 
     /**
      * Checks if an employee record exists for a given user and organization.
@@ -69,14 +88,6 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
     List<Employee> findByManager_Id(Long managerId);
 
     boolean existsByManager_Id(Long managerId);
-
-
-    List<Employee> findEmployeesByIsManager(boolean isManager);
-
-    List<Employee> findEmployeesByOrganization_IdAndIsManager(Long organizationId, boolean isManager);
-
-    @Query("select e.id from Employee e where e.isManager = true")
-    List<Long> findAllManagerIds();
 
     @Query("SELECT e FROM Employee e JOIN e.orgRoles r WHERE e.organization.id = :orgId AND r = :role")
     List<Employee> findByOrganizationIdAndOrgRole(Long orgId, OrgRole role);

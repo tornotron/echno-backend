@@ -343,4 +343,7 @@
     <!-- v4.0 - Compliance rules: when a rule was written, and when it came into force -->
     <include file="db/changelog/v4.0/069-add-compliance-rule-timestamps.xml"/>
 
+    <!-- v4.0 - Employees: drop the unwritten is_manager flag; the org role is the answer -->
+    <include file="db/changelog/v4.0/070-drop-employee-is-manager.xml"/>
+
 </databaseChangeLog>

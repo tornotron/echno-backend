@@ -79,7 +79,4 @@ public class EmployeeCreationDto {
     @Schema(description = "Name of the organization the employee belongs to.", example = "Asset Homes")
     @Size(max = 255, message = "organizationName must be at most 255 characters")
     private String organizationName;
-
-    @Schema(description = "Whether the employee is a manager.", example = "false")
-    private boolean isManager;
 }

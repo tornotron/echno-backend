@@ -101,9 +101,6 @@ public class EmployeeDto {
             example = "https://cdn.echno.xyz/avatars/emp-0042.png")
     private String profilePictureUrl;
 
-    @Schema(description = "Whether the employee is a manager.", example = "false")
-    private Boolean isManager;
-
     @Schema(description = "Organization roles granted to the employee.", example = "[\"project-manager\"]")
     private Set<OrgRole> orgRoles;
 

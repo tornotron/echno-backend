@@ -316,7 +316,7 @@ public class EmployeeControllerWeb {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     @Operation(
             summary = "List all managers",
-            description = "Returns every employee flagged as a manager in the current tenant."
+            description = "Returns every employee holding a manager organization role in the current tenant."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Managers returned"),
@@ -330,7 +330,7 @@ public class EmployeeControllerWeb {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     @Operation(
             summary = "List managers for an organization",
-            description = "Returns every employee flagged as a manager within the given organization."
+            description = "Returns every employee holding a manager organization role within the given organization."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Managers returned"),

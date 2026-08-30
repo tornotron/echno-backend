@@ -112,6 +112,15 @@ public class EmployeeHierarchyService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lists the employees who manage: the holders of an organization role in
+     * {@link OrgRole#getManagerRoles()}.
+     *
+     * <p>The role is what decides this, because the role is what the authorization layer
+     * already reads. It comes from the Keycloak group on the caller's token, so a manager
+     * list built from roles is the same set of people the {@code @PreAuthorize} checks let
+     * through.
+     */
     @Transactional(readOnly = true)
     public List<EmployeeDto> readAllTheManagers() {
         return employeeRepository.findEmployeesByOrgRoles(OrgRole.getManagerRoles())
@@ -120,9 +129,18 @@ public class EmployeeHierarchyService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * The same list, narrowed to one organization.
+     *
+     * <p>This used to read an {@code is_manager} boolean on the employee row, which nothing
+     * ever set: it was false on every row on staging, so the endpoint returned an empty list
+     * for every organization while the unscoped read above returned the right people. Both
+     * now answer from the org roles.
+     */
     @Transactional(readOnly = true)
     public List<EmployeeDto> readAllTheManagersByOrganizationId(Long organizationId) {
-        return employeeRepository.findEmployeesByOrganization_IdAndIsManager(organizationId,true)
+        return employeeRepository
+                .findEmployeesByOrganizationIdAndOrgRoles(organizationId, OrgRole.getManagerRoles())
                 .stream()
                 .map(employee -> employeeMapper.toDto(employee))
                 .collect(Collectors.toList());

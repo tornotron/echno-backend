@@ -119,9 +119,11 @@ public class Employee implements TenantScopedEntity {
     @Column(name = "date_of_birth",nullable = false)
     private LocalDateTime dateOfBirth;
 
-    @Column(name = "is_manager", nullable = false)
-    private boolean isManager = false;
-
+    /**
+     * The organization roles this employee holds, mirrored from the Keycloak groups on their
+     * token. This is the only record of whether someone manages: there is no separate boolean,
+     * because a second copy of the same fact only ever drifted from this one.
+     */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "employee_org_roles", joinColumns = @JoinColumn(name = "employee_id"))
     @Column(name = "role")

@@ -4714,9 +4714,6 @@
             "format": "date-time",
             "type": "string"
           },
-          "manager": {
-            "type": "boolean"
-          },
           "managerId": {
             "description": "Id of this employee's reporting manager.",
             "example": 5,
@@ -4848,11 +4845,6 @@
             "example": 7,
             "format": "int64",
             "type": "integer"
-          },
-          "isManager": {
-            "description": "Whether the employee is a manager.",
-            "example": false,
-            "type": "boolean"
           },
           "joiningDate": {
             "description": "Date the employee joined.",
@@ -32547,7 +32539,7 @@
     },
     "/api/v1/employee/web/managers": {
       "get": {
-        "description": "Returns every employee flagged as a manager in the current tenant.",
+        "description": "Returns every employee holding a manager organization role in the current tenant.",
         "operationId": "getAllTheManagers",
         "responses": {
           "200": {
@@ -32652,7 +32644,7 @@
     },
     "/api/v1/employee/web/managers/organizationId/{organizationId}": {
       "get": {
-        "description": "Returns every employee flagged as a manager within the given organization.",
+        "description": "Returns every employee holding a manager organization role within the given organization.",
         "operationId": "getAllManagersForAnOrganization",
         "parameters": [
           {
