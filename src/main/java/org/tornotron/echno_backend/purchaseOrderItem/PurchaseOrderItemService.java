@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.indentItem.IndentItem;
 import org.tornotron.echno_backend.indentItem.IndentItemRepository;
@@ -153,10 +154,38 @@ public class PurchaseOrderItemService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Applies a partial update to a line item, then recomputes its total and the parent order's.
+     *
+     * <p>The material may be changed only while nothing has been received against the line.
+     * Once a goods received note has posted against it the line is the record of what arrived,
+     * and swapping the material underneath it would move that receipt onto stock that was never
+     * delivered.
+     *
+     * @param updateDto The item id and the fields to change.
+     * @return The updated line item.
+     * @throws ResourceNotFoundException if no item with the given id exists in this organization,
+     *     or the payload names a material that does not.
+     * @throws InvalidRequestException if the material is changed on a line that has already
+     *     received stock.
+     */
     @Transactional
     public PurchaseOrderItemResponseDto updatePurchaseOrderItem(PurchaseOrderItemUpdateDto updateDto) {
         PurchaseOrderItem item = purchaseOrderItemRepository.findByIdAndOrganization_Id(updateDto.getId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order item with ID " + updateDto.getId() + " was not found in this organization"));
+
+        if (updateDto.getMaterialId() != null
+                && !updateDto.getMaterialId().equals(item.getMaterial().getId())) {
+            if (item.getReceivedQuantity() != null && item.getReceivedQuantity() > 0) {
+                throw new InvalidRequestException(
+                        "Purchase order item " + updateDto.getId() + " has already received stock, so its "
+                                + "material cannot be changed; cancel the line and add a new one instead");
+            }
+            Material material = materialRepository.findByIdAndOrganization_Id(updateDto.getMaterialId(), TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Material with ID " + updateDto.getMaterialId() + " was not found in this organization"));
+            item.setMaterial(material);
+        }
 
         if (updateDto.getOrderedQuantity() != null) {
             item.setOrderedQuantity(updateDto.getOrderedQuantity());
