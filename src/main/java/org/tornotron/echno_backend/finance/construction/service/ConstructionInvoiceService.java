@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.approval.ApprovalParty;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.configuration.MoneyUtils;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
@@ -260,8 +261,9 @@ public class ConstructionInvoiceService {
                     "Only PENDING construction invoices can be approved; invoice "
                             + inv.getInvoiceNumber() + " is currently " + inv.getStatus());
         }
-        selfApprovalPolicy.checkSelfApproval(inv.getSubmittedBy(),
-                userContextService.getCurrentUserId(),
+        selfApprovalPolicy.checkSelfApproval(
+                ApprovalParty.ofUser(inv.getSubmittedBy()),
+                ApprovalParty.ofUser(userContextService.getCurrentUserId()),
                 "Construction invoice " + inv.getInvoiceNumber());
         postAndApprove(inv);
         return mapper.toDto(inv);

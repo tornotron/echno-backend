@@ -45,6 +45,17 @@ public class AttendanceRegularization implements TenantScopedEntity {
     @Column(name = "requested_by_id")
     private Long requestedById;
 
+    /**
+     * The platform user id of whoever raised the request.
+     *
+     * <p>Stamped alongside {@code requestedById} because that one is an employee id, and a caller
+     * can hold a role in the tenant without having an employee record in it yet, which left the
+     * request with no id at all and the self-approval rule with nothing to compare. Every
+     * authenticated caller has a user id, so this is the identity the rule can always fall back to.
+     */
+    @Column(name = "requested_by_user_id")
+    private Long requestedByUserId;
+
     @Column(name = "requested_at")
     private LocalDateTime requestedAt;
 

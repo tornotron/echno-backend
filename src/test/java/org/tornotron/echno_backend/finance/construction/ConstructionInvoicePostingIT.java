@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.common.exception.AccountNotFoundException;
 import org.tornotron.echno_backend.common.exception.InvalidJournalException;
@@ -47,12 +48,14 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.UserContextService;
 
 import java.math.BigDecimal;
+import java.util.concurrent.atomic.AtomicLong;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.Mockito.when;
 
 /**
  * Pins the money path of the construction invoice approval workflow against a real
@@ -73,13 +76,27 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
         org.tornotron.echno_backend.finance.invoice.mapper.InvoiceMapperImpl.class,
         TenantEntityHelper.class, EntryNumberGenerator.class, JpaAuditingConfig.class,
         JournalPostingService.class, JournalEntryMapperImpl.class, ConstructionPostingProperties.class,
-        InvoicePostingProperties.class, UserContextService.class, ChartOfAccountsSeeder.class,
+        InvoicePostingProperties.class, ChartOfAccountsSeeder.class,
         org.tornotron.echno_backend.finance.posting.service.PostingAccountResolver.class,
         org.tornotron.echno_backend.finance.settings.FinanceSettingsService.class,
         SelfApprovalPolicy.class, OrganizationSecurityService.class})
 class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
 
     private static final long PROJECT_ID = 4001L;
+
+    /**
+     * Two people, because approving an invoice is subject to the segregation-of-duties rule in
+     * {@link SelfApprovalPolicy} and this suite submits and approves in the same test. The session
+     * used to resolve to nobody here, which meant the rule had no approver to compare and these
+     * tests were posting entries without it ever running.
+     */
+    private static final long SUBMITTER_USER_ID = 7001L;
+    private static final long APPROVER_USER_ID = 7002L;
+
+    private final AtomicLong currentUserId = new AtomicLong(SUBMITTER_USER_ID);
+
+    @MockitoBean
+    private UserContextService userContextService;
 
     @Autowired
     private ConstructionInvoiceService service;
@@ -108,6 +125,8 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
     // The invoice and its journal entry stay in the rolled-back test transaction.
     @BeforeEach
     void seed() {
+        currentUserId.set(SUBMITTER_USER_ID);
+        when(userContextService.getCurrentUserId()).thenAnswer(inv -> currentUserId.get());
         TenantContext.clear();
         inCommittedTx(() -> {
             Organization org = persistOrganization("Posting Org");
@@ -144,13 +163,23 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
         });
     }
 
+    /** Approves as somebody other than whoever submitted, which is what the rule requires. */
+    private ConstructionInvoiceDto approveAsSomeoneElse(UUID invoiceId) {
+        handOverToTheApprover();
+        return service.approve(invoiceId);
+    }
+
+    private void handOverToTheApprover() {
+        currentUserId.set(APPROVER_USER_ID);
+    }
+
     @Test
     void approve_purchaseInvoice_postsExpenseGstInputAgainstPayable() {
         ConstructionInvoiceDto created = service.create(request(ConstructionInvoiceType.PURCHASE));
         ConstructionInvoiceDto pending = service.submit(created.id());
         assertThat(pending.status()).isEqualTo(ConstructionInvoiceStatus.PENDING);
 
-        ConstructionInvoiceDto approved = service.approve(created.id());
+        ConstructionInvoiceDto approved = approveAsSomeoneElse(created.id());
         assertThat(approved.status()).isEqualTo(ConstructionInvoiceStatus.APPROVED);
         assertThat(approved.journalEntryId()).isNotNull();
 
@@ -168,7 +197,7 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
         ConstructionInvoiceDto created = service.create(request(ConstructionInvoiceType.SALES));
         service.submit(created.id());
 
-        ConstructionInvoiceDto approved = service.approve(created.id());
+        ConstructionInvoiceDto approved = approveAsSomeoneElse(created.id());
         assertThat(approved.status()).isEqualTo(ConstructionInvoiceStatus.APPROVED);
         assertThat(approved.journalEntryId()).isNotNull();
 
@@ -191,7 +220,7 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
     void cancel_approvedInvoice_reversesTheJournalEntry() {
         ConstructionInvoiceDto created = service.create(request(ConstructionInvoiceType.PURCHASE));
         service.submit(created.id());
-        ConstructionInvoiceDto approved = service.approve(created.id());
+        ConstructionInvoiceDto approved = approveAsSomeoneElse(created.id());
         UUID originalJeId = approved.journalEntryId();
 
         ConstructionInvoiceDto cancelled = service.cancel(created.id(), "Ordered in error");
@@ -220,6 +249,7 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
         ConstructionInvoiceDto created = service.create(request(ConstructionInvoiceType.PURCHASE));
         service.submit(created.id());
 
+        handOverToTheApprover();
         assertThatExceptionOfType(AccountNotFoundException.class)
                 .isThrownBy(() -> service.approve(created.id()));
     }
@@ -236,7 +266,7 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
         ConstructionInvoiceDto created = service.create(clientRequest(seedClientProject()));
         service.submit(created.id());
 
-        ConstructionInvoiceDto approved = service.approve(created.id());
+        ConstructionInvoiceDto approved = approveAsSomeoneElse(created.id());
         assertThat(approved.arInvoiceId()).isNotNull();
 
         InvoiceDto ar = invoiceService.findById(approved.arInvoiceId());
@@ -262,7 +292,7 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
     void cancel_theArInvoiceOnItsOwn_isRefused_whileCancellingTheConstructionInvoiceUnwindsBoth() {
         ConstructionInvoiceDto created = service.create(clientRequest(seedClientProject()));
         service.submit(created.id());
-        ConstructionInvoiceDto approved = service.approve(created.id());
+        ConstructionInvoiceDto approved = approveAsSomeoneElse(created.id());
         UUID arInvoiceId = approved.arInvoiceId();
 
         // The AR door is shut: the construction invoice owns the entry they share.

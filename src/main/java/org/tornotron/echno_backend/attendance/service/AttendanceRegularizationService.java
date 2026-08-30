@@ -8,6 +8,7 @@ import org.tornotron.echno_backend.attendance.dto.*;
 import org.tornotron.echno_backend.attendance.enums.ClockEventType;
 import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 import org.tornotron.echno_backend.attendance.mapper.AttendanceRegularizationMapper;
+import org.tornotron.echno_backend.common.approval.ApprovalParty;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -76,9 +77,14 @@ public class AttendanceRegularizationService {
         this.selfApprovalPolicy = selfApprovalPolicy;
     }
 
-    /** Who the authenticated caller is, as recorded on a request: a display name and, when the
-     *  caller has an employee record in this tenant, that employee's id. */
-    private record Actor(String name, Long employeeId) {
+    /** Who the authenticated caller is, as recorded on a request: a display name, their platform
+     *  user id, and, when the caller has an employee record in this tenant, that employee's id. */
+    private record Actor(String name, Long userId, Long employeeId) {
+
+        /** The same identity as the self-approval rule compares parties by. */
+        ApprovalParty party() {
+            return new ApprovalParty(userId, employeeId);
+        }
     }
 
     /**
@@ -142,6 +148,7 @@ public class AttendanceRegularizationService {
                 .reason(dto.getReason())
                 .requestedBy(requestedBy)
                 .requestedById(requester.employeeId())
+                .requestedByUserId(requester.userId())
                 .status(settings.getRegularizationApprovalRequired()
                         ? RegularizationStatus.PENDING : RegularizationStatus.APPROVED)
                 .missingEvents(regularizationMapper.serializeMissingEvents(dto.getMissingEvents()))
@@ -179,8 +186,12 @@ public class AttendanceRegularizationService {
      * record, and refusing a self-rejection would leave an employee unable to withdraw a request
      * they raised by mistake.
      *
-     * <p>Requests stored before the requester was stamped from the session name nobody, so there is
-     * nothing to compare them against and they are let through.
+     * <p>The rule is applied to whichever identity the two sides share. A request records both the
+     * raiser's employee id and their platform user id, because a caller can hold a decision role in
+     * the tenant while having no employee record in it yet, and comparing employee ids alone left
+     * that caller free to raise a request and approve it themselves. Only a request that shares no
+     * identity with the approver at all, which now means one stored before the user id was kept,
+     * goes through without the comparison, and the policy logs that it could not be made.
      *
      * @param regularizationId The request to decide.
      * @param dto The decision and, on a rejection, the reason.
@@ -207,8 +218,9 @@ public class AttendanceRegularizationService {
         Actor approver = resolveCurrentActor();
         boolean selfApproved = dto.getStatus() == RegularizationStatus.APPROVED
                 && selfApprovalPolicy.checkSelfApproval(
-                        regularization.getRequestedById(),
-                        approver.employeeId(),
+                        new ApprovalParty(regularization.getRequestedByUserId(),
+                                regularization.getRequestedById()),
+                        approver.party(),
                         "Regularization request with ID " + regularizationId);
 
         regularization.setStatus(dto.getStatus());
@@ -309,11 +321,13 @@ public class AttendanceRegularizationService {
      * Resolves the authenticated caller into what gets recorded on a request.
      *
      * <p>The caller's employee record in the current organization is preferred, because the
-     * employee id is what the self-approval rule compares and what the web client links a
-     * requester by. A caller with no employee record in this tenant, for instance a bootstrap
-     * administrator, still gets a stable identity: their authenticated username, which is not
-     * something they can choose per request. Only a caller with no identity at all falls back to
-     * {@value #SYSTEM_ACTOR}, which the endpoint's authorization rules already rule out.
+     * employee id is what the attendance record carries and what the web client links a requester
+     * by. A caller with no employee record in this tenant, for instance a bootstrap administrator,
+     * still gets a stable identity: their authenticated username to display, and their platform
+     * user id to be compared by, which is the identity the self-approval rule falls back to when
+     * there is no employee on one side. Only a caller with no identity at all falls back to
+     * {@value #SYSTEM_ACTOR}, which the endpoint's authorization rules already rule out and which
+     * the self-approval rule now refuses to approve on rather than assuming it cannot happen.
      */
     private Actor resolveCurrentActor() {
         Long userId = userContextService.getCurrentUserId();
@@ -321,9 +335,9 @@ public class AttendanceRegularizationService {
                 : employeeRepository.findByUserIdAndOrganizationId(userId, TenantContext.getCurrentOrgId())
                         .orElse(null);
         if (employee != null) {
-            return new Actor(employee.getEmployeeName(), employee.getId());
+            return new Actor(employee.getEmployeeName(), userId, employee.getId());
         }
         String username = userContextService.getCurrentUsername();
-        return new Actor(username == null || username.isBlank() ? SYSTEM_ACTOR : username, null);
+        return new Actor(username == null || username.isBlank() ? SYSTEM_ACTOR : username, userId, null);
     }
 }
