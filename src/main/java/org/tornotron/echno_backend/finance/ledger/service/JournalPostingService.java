@@ -240,8 +240,11 @@ public class JournalPostingService {
      *         than {@link JournalLimits#REVERSAL_REASON_MAX_LENGTH}.
      */
     private String requireStorableReason(ReverseJournalRequest req) {
-        String reason = req == null || req.reason() == null ? null : req.reason().trim();
-        if (reason == null || reason.isEmpty()) {
+        // strip() and isBlank() rather than trim() and isEmpty(): trim() only removes characters
+        // up to U+0020, so a reason of a single em space would have passed and left a reversal
+        // whose description ends in a dangling separator, which is the failure this refuses.
+        String reason = req == null || req.reason() == null ? null : req.reason().strip();
+        if (reason == null || reason.isBlank()) {
             throw new InvalidJournalException(
                     "A reversal reason is required; it is recorded on the reversing entry's description");
         }

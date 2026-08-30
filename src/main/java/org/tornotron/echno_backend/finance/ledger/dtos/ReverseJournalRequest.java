@@ -11,6 +11,6 @@ public record ReverseJournalRequest(
                 + "The reversing entry's description is the reason with a fixed prefix naming the "
                 + "entry being reversed, so the bound is the description column less that prefix.",
                 example = "Vendor bill cancelled after posting")
-        @NotBlank @Size(max = JournalLimits.REVERSAL_REASON_MAX_LENGTH) String reason
+        @NotBlank @Size(min = 1, max = JournalLimits.REVERSAL_REASON_MAX_LENGTH) String reason
 ) {
 }

@@ -198,7 +198,8 @@ public class ConstructionInvoiceControllerWeb {
     })
     public ConstructionInvoiceDto cancel(
             @PathVariable UUID id,
-            @RequestParam @NotBlank @Size(max = JournalLimits.REVERSAL_REASON_MAX_LENGTH) String reason) {
+            @RequestParam @NotBlank
+            @Size(min = 1, max = JournalLimits.REVERSAL_REASON_MAX_LENGTH) String reason) {
         return service.cancel(id, reason);
     }
 
