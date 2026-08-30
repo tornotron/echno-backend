@@ -7,7 +7,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapper;
+import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
 import org.tornotron.echno_backend.common.service.FileStorageService;
@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({EmployeeHierarchyService.class, EmployeeMapperImpl.class,
-        AttachmentMapperImpl.class, ShiftTimingMapper.class})
+        AttachmentMapperImpl.class, ShiftTimingMapperImpl.class})
 class EmployeeManagerListingIT extends AbstractIntegrationTest {
 
     @Autowired

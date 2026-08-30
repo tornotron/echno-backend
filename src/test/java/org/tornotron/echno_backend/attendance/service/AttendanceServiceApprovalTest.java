@@ -101,7 +101,7 @@ class AttendanceServiceApprovalTest {
         when(userContextService.getCurrentUserId()).thenReturn(USER_ID);
         when(employeeRepository.findByUserIdAndOrganizationId(USER_ID, ORG)).thenReturn(Optional.of(approver()));
         when(attendanceRepository.save(any(Attendance.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(attendanceMapper.toResponseDto(any(Attendance.class), any(FileStorageService.class)))
+        when(attendanceMapper.toResponseDto(any(Attendance.class)))
                 .thenReturn(AttendanceResponseDto.builder().build());
 
         service.approveAttendance(ATT_ID, approvalDto());
@@ -122,7 +122,7 @@ class AttendanceServiceApprovalTest {
         when(attendanceRepository.findByIdAndOrganization_Id(ATT_ID, ORG)).thenReturn(Optional.of(record));
         when(userContextService.getCurrentUserId()).thenReturn(null);
         when(attendanceRepository.save(any(Attendance.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(attendanceMapper.toResponseDto(any(Attendance.class), any(FileStorageService.class)))
+        when(attendanceMapper.toResponseDto(any(Attendance.class)))
                 .thenReturn(AttendanceResponseDto.builder().build());
 
         service.approveAttendance(ATT_ID, approvalDto());

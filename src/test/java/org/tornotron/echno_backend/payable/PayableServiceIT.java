@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({PayableService.class, PayableMapperImpl.class, EmployeeMapperImpl.class,
         AttachmentMapperImpl.class, TenantEntityHelper.class,
-        org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapper.class})
+        org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl.class})
 class PayableServiceIT extends AbstractIntegrationTest {
 
     @Autowired
