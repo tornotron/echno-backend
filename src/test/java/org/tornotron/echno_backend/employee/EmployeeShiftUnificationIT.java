@@ -9,7 +9,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.tornotron.echno_backend.attendance.ShiftTiming;
-import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapper;
+import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -41,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({EmployeeService.class, EmployeeHierarchyService.class, EmployeeMapperImpl.class,
-        AttachmentMapperImpl.class, ShiftTimingMapper.class})
+        AttachmentMapperImpl.class, ShiftTimingMapperImpl.class})
 class EmployeeShiftUnificationIT extends AbstractIntegrationTest {
 
     @Autowired

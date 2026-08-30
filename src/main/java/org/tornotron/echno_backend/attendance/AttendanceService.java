@@ -243,7 +243,7 @@ public class AttendanceService {
             clockEvent.addAttachment(clockEventAttachment);
         }
 
-        return attendanceMapper.toResponseDto(savedAttendance,fileStorageService);
+        return attendanceMapper.toResponseDto(savedAttendance);
     }
 
     private void registerStorageCleanupOnRollback(String storageKey) {
@@ -356,7 +356,7 @@ public class AttendanceService {
             clockEvent.addAttachment(clockEventAttachment);
         }
 
-        return attendanceMapper.toResponseDto(savedAttendance,fileStorageService);
+        return attendanceMapper.toResponseDto(savedAttendance);
     }
 
     /**
@@ -370,7 +370,7 @@ public class AttendanceService {
     public AttendanceResponseDto getAttendanceById(Long id) {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance record with ID " + id + " was not found"));
-        return attendanceMapper.toResponseDto(attendance,fileStorageService);
+        return attendanceMapper.toResponseDto(attendance);
     }
 
     /**
@@ -387,7 +387,7 @@ public class AttendanceService {
                                                                 LocalDate endDate) {
         return attendanceRepository.findByEmployeeIdAndAttendanceDateBetween(employeeId, startDate, endDate)
                 .stream()
-                .map(attendance -> attendanceMapper.toResponseDto(attendance,fileStorageService))
+                .map(attendance -> attendanceMapper.toResponseDto(attendance))
                 .collect(Collectors.toList());
     }
 
@@ -415,7 +415,7 @@ public class AttendanceService {
                 : "%" + search.toLowerCase() + "%";
         return attendanceRepository
                 .findWithFilters(projectId, date, status, searchPattern, pageable)
-                .map(attendance -> attendanceMapper.toResponseDto(attendance,fileStorageService)).getContent();
+                .map(attendance -> attendanceMapper.toResponseDto(attendance)).getContent();
     }
 
     /**
@@ -452,7 +452,7 @@ public class AttendanceService {
             attendance.setRemarks(dto.getRemarks());
         }
 
-        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance),fileStorageService);
+        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance));
     }
 
     /**
@@ -517,7 +517,7 @@ public class AttendanceService {
         attendance.setStatus(AttendanceStatus.ABSENT);
         attendance.setApprovalStatus(ApprovalStatus.APPROVED);
 
-        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance),fileStorageService);
+        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance));
     }
 
     /**
@@ -573,7 +573,7 @@ public class AttendanceService {
         attendance.setLeaveType(leaveType);
         attendance.setApprovalStatus(ApprovalStatus.APPROVED);
 
-        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance),fileStorageService);
+        return attendanceMapper.toResponseDto(attendanceRepository.save(attendance));
     }
 
     /**

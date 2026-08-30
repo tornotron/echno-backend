@@ -1,53 +1,25 @@
 package org.tornotron.echno_backend.attendance.mapper;
 
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.tornotron.echno_backend.attendance.ClockEvent;
 import org.tornotron.echno_backend.attendance.dto.ClockEventDto;
-import org.tornotron.echno_backend.common.entity.Attachment;
-import org.tornotron.echno_backend.common.entity.AttachmentDto;
-import org.tornotron.echno_backend.common.service.FileStorageService;
+import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 
-import java.time.Duration;
-import java.util.stream.Collectors;
+/**
+ * Maps {@link ClockEvent} to its DTO. Scalar fields copy by name; the attached photos map
+ * through the shared {@link AttachmentMapper}, which signs their download URLs.
+ *
+ * <p>This class used to sign those URLs itself, from a second copy of the attachment conversion
+ * that took {@code FileStorageService} as a parameter and threaded it down from the service. The
+ * copy filled fewer fields than the shared mapper does, so the same file described one way when
+ * it hung off a clock event and another way everywhere else. Delegating removes both the
+ * duplicate and the parameter.
+ */
+@Mapper(componentModel = "spring", uses = AttachmentMapper.class)
+public interface ClockEventMapper {
 
-@Component
-public class ClockEventMapper {
-
-    public static AttachmentDto convertAttachmentToDto(Attachment attachment, FileStorageService fileStorageService) {
-        AttachmentDto dto = new AttachmentDto();
-        dto.setId(attachment.getId());
-        dto.setUrl(fileStorageService.generateDownloadUrl(attachment.getStorageKey(), Duration.ofHours(1)));
-        dto.setEntityType(attachment.getEntityType());
-        dto.setContentType(attachment.getContentType());
-        dto.setFileSize(attachment.getFileSize());
-        dto.setFileName(attachment.getOriginalFilename());
-        dto.setCreatedAt(attachment.getCreatedAt().toString());
-        dto.setUpdatedAt(attachment.getUpdatedAt().toString());
-        return dto;
-    }
-
-    public static ClockEventDto toDto(ClockEvent entity,FileStorageService fileStorageService) {
-        if (entity == null) return null;
-        return ClockEventDto.builder()
-                .id(entity.getId())
-                .eventType(entity.getEventType())
-                .eventTimestamp(entity.getEventTimestamp())
-                .latitude(entity.getLatitude())
-                .longitude(entity.getLongitude())
-                .gpsAccuracy(entity.getGpsAccuracy())
-                .projectId(entity.getProjectId())
-                .projectName(entity.getProjectName())
-                .devicePlatform(entity.getDevicePlatform())
-                .isWithinGeofence(entity.getIsWithinGeofence())
-                .distanceFromProject(entity.getDistanceFromProject())
-                .remarks(entity.getRemarks())
-                .verifiedBy(entity.getVerifiedBy())
-                .verifiedAt(entity.getVerifiedAt())
-                .isRegularized(entity.getIsRegularized())
-                .regularizationReason(entity.getRegularizationReason())
-                .attachments(entity.getAttachments().stream()
-                        .map(attachment -> convertAttachmentToDto(attachment, fileStorageService))
-                        .collect(Collectors.toList()))
-                .build();
-    }
+    /** The entity has no photo URL of its own; the photos are attachments. */
+    @Mapping(target = "photoUrl", ignore = true)
+    ClockEventDto toDto(ClockEvent entity);
 }

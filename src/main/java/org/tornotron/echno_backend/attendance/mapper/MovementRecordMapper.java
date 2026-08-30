@@ -2,51 +2,40 @@ package org.tornotron.echno_backend.attendance.mapper;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.tornotron.echno_backend.attendance.MovementRecord;
 import org.tornotron.echno_backend.attendance.dto.MovementRecordDto;
 
 import java.util.Collections;
 import java.util.List;
 
-@Component
-public class MovementRecordMapper {
+/**
+ * Maps {@link MovementRecord} to its DTO. The parent attendance flattens to its id and the
+ * attachment list is held on the row as a JSON string, so it is read back here; everything else
+ * copies by name.
+ *
+ * <p>Abstract class rather than interface because the JSON pair is real code: the write path
+ * calls {@link #serializeAttachments} on the way in and the read path
+ * {@link #deserializeAttachments} on the way out, and both belong next to each other.
+ */
+@Mapper(componentModel = "spring")
+public abstract class MovementRecordMapper {
 
-    private final ObjectMapper objectMapper;
+    @Autowired
+    protected ObjectMapper objectMapper;
 
-    public MovementRecordMapper(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
+    @Mapping(source = "attendance.id", target = "attendanceId")
+    @Mapping(target = "attachments", expression = "java(deserializeAttachments(entity.getAttachments()))")
+    public abstract MovementRecordDto toDto(MovementRecord entity);
 
-    public MovementRecordDto toDto(MovementRecord entity) {
-        if (entity == null) return null;
-        return MovementRecordDto.builder()
-                .id(entity.getId())
-                .attendanceId(entity.getAttendance() != null ? entity.getAttendance().getId() : null)
-                .employeeId(entity.getEmployeeId())
-                .employeeName(entity.getEmployeeName())
-                .movementType(entity.getMovementType())
-                .fromLocation(entity.getFromLocation())
-                .toLocation(entity.getToLocation())
-                .startTime(entity.getStartTime())
-                .endTime(entity.getEndTime())
-                .durationMinutes(entity.getDurationMinutes())
-                .distanceKm(entity.getDistanceKm())
-                .purpose(entity.getPurpose())
-                .remarks(entity.getRemarks())
-                .startLatitude(entity.getStartLatitude())
-                .startLongitude(entity.getStartLongitude())
-                .endLatitude(entity.getEndLatitude())
-                .endLongitude(entity.getEndLongitude())
-                .attachments(deserializeAttachments(entity.getAttachments()))
-                .verifiedBy(entity.getVerifiedBy())
-                .verifiedAt(entity.getVerifiedAt())
-                .isVerified(entity.getIsVerified())
-                .createdAt(entity.getCreatedAt())
-                .updatedAt(entity.getUpdatedAt())
-                .build();
-    }
-
+    /**
+     * Renders the attachment references for storage in the row's JSON column.
+     *
+     * @param attachments The references to store, possibly null or empty.
+     * @return The JSON array, or null where there is nothing to store or it could not be written.
+     */
     public String serializeAttachments(List<String> attachments) {
         if (attachments == null || attachments.isEmpty()) return null;
         try {
@@ -56,6 +45,12 @@ public class MovementRecordMapper {
         }
     }
 
+    /**
+     * Reads the attachment references back out of the row's JSON column.
+     *
+     * @param json The stored JSON, possibly null, blank or unreadable.
+     * @return The references, or an empty list where there are none or they could not be read.
+     */
     public List<String> deserializeAttachments(String json) {
         if (json == null || json.isBlank()) return Collections.emptyList();
         try {

@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({PayableService.class, PayableMapperImpl.class, EmployeeMapperImpl.class,
         AttachmentMapperImpl.class, TenantEntityHelper.class,
-        org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapper.class})
+        org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl.class})
 class PayableCreationIT extends AbstractIntegrationTest {
 
     private static final String SHARED_NUMBER = "PAY-2026-000001";
