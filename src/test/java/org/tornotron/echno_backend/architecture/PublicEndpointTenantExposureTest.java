@@ -400,8 +400,18 @@ class PublicEndpointTenantExposureTest {
             return everyListener;
         }
 
+        /**
+         * Whether a listener runs inside the request that published the event.
+         *
+         * <p>The owner is checked as well as the method, because Spring applies a type-level
+         * {@code @Async} to every method the type declares. Reading only the method would put
+         * a listener that never touches the request thread back into the reported path, and a
+         * gate that reports work the load boundary already refuses is a gate people learn to
+         * ignore.
+         */
         private static boolean runsOnTheRequestThread(JavaMethod listener) {
-            return !listener.isAnnotatedWith(Async.class);
+            return !listener.isAnnotatedWith(Async.class)
+                    && !listener.getOwner().isAnnotatedWith(Async.class);
         }
 
         private void indexListeners() {
