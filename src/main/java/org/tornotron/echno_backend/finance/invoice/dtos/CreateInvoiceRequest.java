@@ -27,7 +27,14 @@ public record CreateInvoiceRequest(
         @Schema(description = "Invoice line items. At least one line is required.")
         @NotNull @Size(min = 1) @Valid List<LineRequest> lines
 ) {
-    @Schema(description = "A single line on a customer invoice.")
+    /**
+     * Named rather than left to the simple name, which {@code PostJournalRequest.LineRequest}
+     * also carries. Two schemas cannot share one name: the journal line won, so the document
+     * described an invoice line as an account id with a debit and a credit, and a client
+     * following it sent a body this endpoint rejects. Nothing here changes about the journal
+     * line, which keeps the name it had.
+     */
+    @Schema(name = "InvoiceLineRequest", description = "A single line on a customer invoice.")
     public record LineRequest(
             @Schema(description = "What the line is charging for.", example = "Structural design consultancy")
             @NotBlank @Size(max = 500) String description,
