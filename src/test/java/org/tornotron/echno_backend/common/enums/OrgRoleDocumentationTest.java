@@ -66,10 +66,20 @@ class OrgRoleDocumentationTest {
         String text = guide();
 
         assertThat(text)
-                .as("ensureRoleSubgroup creates a missing subgroup on first assignment, "
-                        + "so the guide must not send anyone to the Keycloak console to make one")
+                .as("ensureRoleSubgroup creates a missing subgroup on first assignment, so the "
+                        + "guide must not send anyone to the Keycloak console to make one, nor "
+                        + "suggest recreating an organization to get it")
                 .doesNotContain("create child group")
-                .doesNotContain("add subgroups via the Keycloak admin console");
+                .doesNotContain("add subgroups via the Keycloak admin console")
+                .doesNotContain("recreate them");
+
+        // Removing the wrong instruction is only half of it. Silence would leave a reader who has
+        // just added a role to the enum with no answer at all about existing tenants, and the
+        // answer they would reach for is the console one that was just deleted.
+        assertThat(text)
+                .as("the guide must say what does happen for an organization that predates a role")
+                .contains("ensureRoleSubgroup")
+                .contains("first assignment");
     }
 
     @Test
@@ -80,8 +90,12 @@ class OrgRoleDocumentationTest {
         // OrgRole.getManagerRoles(), and that set decides who may be named the manager on a project
         // invite code and who appears in the manager listings, so removing it is a behaviour change.
         assertThat(OrgRole.getManagerRoles()).contains(OrgRole.ORG_MANAGER);
+
         assertThat(text)
-                .as("the guide must not leave org-manager looking inert")
-                .contains("getManagerRoles");
+                .as("naming getManagerRoles is not enough: the guide has to say what holding one "
+                        + "of them does, or a reader still concludes org-manager is inert")
+                .contains("getManagerRoles")
+                .contains("project invite code")
+                .contains("manager listings");
     }
 }
