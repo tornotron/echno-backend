@@ -41,10 +41,17 @@ import static org.mockito.Mockito.when;
  * update payload the wrapper, so the same field went out under two names, the client sent
  * {@code active} to both, and every deactivate bound to nothing and was dropped with a 200.
  *
- * <p>Both payloads settle on {@code isActive} and carry a transitional {@code @JsonAlias} for
- * {@code active}, so the deployed client keeps working while echno-core catches up. These pin
- * both spellings on both payloads, so the contract step that deletes the aliases has to delete
- * the assertions that cover them and cannot do it by accident.
+ * <p>Both payloads settled on {@code isActive}, each carrying a transitional {@code @JsonAlias}
+ * for {@code active} so the deployed client kept working while echno-core caught up. That was the
+ * expand step. This is the contract step: the aliases are gone, and the two tests that pinned the
+ * older spelling now assert it is <em>not</em> bound. They fail if either alias comes back.
+ *
+ * <p>The ordering that made the deletion safe, checked rather than assumed: echno-core emits
+ * {@code isActive} on both payloads from v3.3.0; echno-web declares {@code ^3.4.0} with its
+ * lockfile pinned there; and the staging build deployed from that lockfile is the one serving
+ * traffic. Deleting the aliases before that would not have failed loudly. Jackson ignores an
+ * undeclared property rather than refusing it, so a deactivate sent under the old name would have
+ * gone back to answering 200 and changing nothing, which is the exact bug the expand step fixed.
  *
  * <p>The create payload also has a second fault of its own: a primitive defaults to false, and
  * the service applied it unconditionally, so a create that named the key at all made the location
@@ -98,12 +105,12 @@ class StorageLocationActiveFlagTest {
     }
 
     @Test
-    @DisplayName("the update payload binds the older name active, which is what the client sends")
-    void updateDto_bindsTheAliasedActive() throws Exception {
+    @DisplayName("the update payload no longer binds the retired name active")
+    void updateDto_ignoresTheRetiredActive() throws Exception {
         StorageLocationUpdateDto dto =
                 mapper.readValue("{\"active\":false}", StorageLocationUpdateDto.class);
 
-        assertThat(dto.getIsActive()).isFalse();
+        assertThat(dto.getIsActive()).isNull();
     }
 
     @Test
@@ -116,12 +123,12 @@ class StorageLocationActiveFlagTest {
     }
 
     @Test
-    @DisplayName("the create payload binds the older name active, which is what the client sends")
-    void creationDto_bindsTheAliasedActive() throws Exception {
+    @DisplayName("the create payload no longer binds the retired name active")
+    void creationDto_ignoresTheRetiredActive() throws Exception {
         StorageLocationCreationDto dto =
                 mapper.readValue("{\"active\":false}", StorageLocationCreationDto.class);
 
-        assertThat(dto.getIsActive()).isFalse();
+        assertThat(dto.getIsActive()).isNull();
     }
 
     @Test
@@ -135,8 +142,8 @@ class StorageLocationActiveFlagTest {
     }
 
     @Test
-    @DisplayName("a deactivate sent as active reaches the entity")
-    void updateStorageLocation_deactivatesFromTheAliasedName() throws Exception {
+    @DisplayName("a deactivate sent as isActive reaches the entity")
+    void updateStorageLocation_deactivatesFromTheCanonicalName() throws Exception {
         StorageLocation existing = new StorageLocation();
         existing.setLocationName("Central Warehouse");
         existing.setLocationType(StorageLocationType.WAREHOUSE);
@@ -144,9 +151,23 @@ class StorageLocationActiveFlagTest {
                 .thenReturn(Optional.of(existing));
 
         service.updateStorageLocation(18L,
-                mapper.readValue("{\"active\":false}", StorageLocationUpdateDto.class));
+                mapper.readValue("{\"isActive\":false}", StorageLocationUpdateDto.class));
 
         assertThat(existing.isActive()).isFalse();
+    }
+
+    @Test
+    @DisplayName("a create naming the retired active is still active, so the deletion costs no data")
+    void createStorageLocation_stillActiveWhenTheRetiredNameIsSent() throws Exception {
+        // The two halves of the retirement do not cost the same. An old caller's create arrives
+        // with the flag unset rather than false, so the null guard hands it the entity default and
+        // the location is active, which is what it wanted. Only a deactivate is lost, and nothing
+        // deployed sends one under the old name.
+        service.createStorageLocation(mapper.readValue(
+                "{\"locationName\":\"Old Godown\",\"locationType\":\"GODOWN\",\"active\":false}",
+                StorageLocationCreationDto.class));
+
+        assertThat(savedLocation().isActive()).isTrue();
     }
 
     @Test
@@ -163,7 +184,7 @@ class StorageLocationActiveFlagTest {
     @DisplayName("a create that asks for an inactive location gets one")
     void createStorageLocation_appliesAnExplicitFalse() throws Exception {
         service.createStorageLocation(mapper.readValue(
-                "{\"locationName\":\"Old Godown\",\"locationType\":\"GODOWN\",\"active\":false}",
+                "{\"locationName\":\"Old Godown\",\"locationType\":\"GODOWN\",\"isActive\":false}",
                 StorageLocationCreationDto.class));
 
         assertThat(savedLocation().isActive()).isFalse();
