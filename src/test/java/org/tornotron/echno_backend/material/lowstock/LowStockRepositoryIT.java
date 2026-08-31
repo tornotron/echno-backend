@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.material.lowstock;
 
+import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -176,6 +177,35 @@ class LowStockRepositoryIT extends AbstractIntegrationTest {
         // number and not the rows. A count derived from the page would report two.
         assertThat(firstOfFive.getContent()).hasSize(2);
         assertThat(firstOfFive.getTotalElements()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("the tenant filter does not turn the organization-scope outer join into an inner one")
+    void organizationScope_survivesTheTenantFilterBeingEnabled() {
+        Organization org = persistOrganization("filter-on");
+        Project project = persistProject(org, "Site");
+        StorageLocation store = persistLocation(org, "Store");
+        Material stocked = persistMaterial(org, "FLT-1", "Cement", 100.0);
+        persistStock(org, stocked, project, store, 10.0);
+        Material neverStocked = persistMaterial(org, "FLT-2", "Red Bricks", 25000.0);
+        em.flush();
+        em.clear();
+
+        // Every entity this query touches carries the orgFilter, which is enabled per request in
+        // the running application and not in a plain @DataJpaTest. A filter restriction placed in
+        // the WHERE clause rather than the ON clause would silently turn the outer join into an
+        // inner one and drop the material with no stock row, which is the one case the
+        // organization scope exists to catch. The filter is enabled here so that cannot regress
+        // unnoticed on a Hibernate upgrade.
+        em.getEntityManager().unwrap(Session.class)
+                .enableFilter("orgFilter")
+                .setParameter("organizationId", org.getId());
+
+        Page<LowStockRow> page = lowStockRepository.findLowStockForOrganization(org.getId(), FIRST_PAGE);
+
+        assertThat(page.getContent()).extracting(LowStockRow::materialId)
+                .containsExactly(neverStocked.getId(), stocked.getId());
+        assertThat(page.getTotalElements()).isEqualTo(2);
     }
 
     @Test
