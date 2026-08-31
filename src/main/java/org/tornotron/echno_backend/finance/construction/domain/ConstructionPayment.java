@@ -135,6 +135,14 @@ public class ConstructionPayment extends BaseEntity implements TenantScopedEntit
     @Column(name = "verified_at")
     private Instant verifiedAt;
 
+    /**
+     * Why the voucher was voided, written only by the cancel action and never replaced. On a
+     * voucher that had been verified this is the only record of why somebody's check was set
+     * aside, which is why the action requires it.
+     */
+    @Column(name = "cancellation_reason", length = 1000)
+    private String cancellationReason;
+
     @Column(length = 1000)
     private String description;
 

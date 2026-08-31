@@ -2029,6 +2029,19 @@
         },
         "type": "object"
       },
+      "CancelConstructionPaymentRequest": {
+        "description": "Why a payment voucher is being voided. Required: a cancelled voucher that does not say what was wrong with it explains nothing, and on a verified voucher this is the only record of why the verification was set aside.",
+        "properties": {
+          "reason": {
+            "description": "What was wrong with the voucher.",
+            "example": "Duplicate of CPMT-000118, raised twice for the same invoice",
+            "maxLength": 1000,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "CategoryCreationDto": {
         "description": "Payload to create a work category used to classify tasks.",
         "properties": {
@@ -3418,6 +3431,11 @@
           "bankName": {
             "description": "Bank the payment was drawn on.",
             "example": "HDFC Bank",
+            "type": "string"
+          },
+          "cancellationReason": {
+            "description": "Why the voucher was voided, recorded by the cancel action. Null on a voucher that has not been cancelled.",
+            "example": "Duplicate of CPMT-000118, raised twice for the same invoice",
             "type": "string"
           },
           "currency": {
@@ -37349,7 +37367,7 @@
     "/api/v1/finance/construction-invoices/web/{id}/cancel": {
       "post": {
         "description": "Cancels an invoice and records the supplied reason. If the invoice was already posted, the ledger entry is reversed. The reason is recorded on the reversing entry's description, which also carries a prefix naming the entry being reversed, so it must be present and at most 455 characters.",
-        "operationId": "cancel_1",
+        "operationId": "cancel_2",
         "parameters": [
           {
             "in": "path",
@@ -38224,7 +38242,7 @@
         ]
       },
       "put": {
-        "description": "Replaces the editable fields of a payment voucher, including its status, which is set directly. No ledger journal entry is created on any status transition.",
+        "description": "Replaces the editable fields of a payment voucher, including its status, which is set directly. No ledger journal entry is created on any status transition. A verified voucher is frozen and cannot be edited, because the verification would then stand against figures nobody checked; cancel it and raise a replacement. The cancelled status cannot be set here either: use the cancel action, which records why.",
         "operationId": "update_4",
         "parameters": [
           {
@@ -38266,7 +38284,7 @@
                 }
               }
             },
-            "description": "Validation failed, or the voucher is not in an editable state"
+            "description": "Validation failed, the voucher is verified or cancelled, or the payload asks for the cancelled status"
           },
           "402": {
             "content": {
@@ -38340,6 +38358,129 @@
           }
         },
         "summary": "Update a construction payment voucher",
+        "tags": [
+          "Construction Payments"
+        ]
+      }
+    },
+    "/api/v1/finance/construction-payments/web/{id}/cancel": {
+      "post": {
+        "description": "Voids a voucher and records why. This is the only route to the cancelled status, and it is how a verified voucher is corrected, since a verified voucher can no longer be edited: cancel it and raise a replacement. The verification stamp stays on the cancelled voucher, so the record still shows who checked it. Cancelling is one-way, and a cancelled voucher's reason is not replaced.",
+        "operationId": "cancel_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelConstructionPaymentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConstructionPaymentDto"
+                }
+              }
+            },
+            "description": "Voucher cancelled, and returned carrying the reason"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reason given, or the voucher is already cancelled"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No voucher with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Cancel a construction payment voucher",
         "tags": [
           "Construction Payments"
         ]

@@ -145,6 +145,33 @@ class ConstructionPaymentVerificationStampTest {
         verify(service).verify(id);
     }
 
+    @Test
+    void cancel_isRoleGated_andRefusesAVoucherVoidedWithNoReasonGiven() throws Exception {
+        UUID id = UUID.randomUUID();
+
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager"))
+                .thenReturn(false);
+        mockMvc.perform(post("/api/v1/finance/construction-payments/web/{id}/cancel", id)
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\": \"Duplicate of CPMT-000118\"}"))
+                .andExpect(status().isForbidden());
+
+        allowElevatedRole();
+        mockMvc.perform(post("/api/v1/finance/construction-payments/web/{id}/cancel", id)
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\": \"   \"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/v1/finance/construction-payments/web/{id}/cancel", id)
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\": \"Duplicate of CPMT-000118\"}"))
+                .andExpect(status().isOk());
+        verify(service).cancel(id, "Duplicate of CPMT-000118");
+    }
+
     private void allowElevatedRole() {
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager"))
                 .thenReturn(true);

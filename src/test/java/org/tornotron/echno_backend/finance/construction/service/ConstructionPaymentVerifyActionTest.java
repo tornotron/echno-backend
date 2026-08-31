@@ -94,18 +94,25 @@ class ConstructionPaymentVerifyActionTest {
     }
 
     @Test
-    void anUpdateCannotWriteTheStamp_soAVerifiedVoucherSurvivesAnEdit() {
+    void anEditIsRefusedOnceTheVoucherIsVerified_ratherThanOutlivingTheStamp() {
         ConstructionPayment payment = pending();
         when(userContextService.getCurrentUserId()).thenReturn(VERIFIER);
         service.verify(payment.getId());
 
         Long stampedBy = payment.getVerifiedBy();
         Instant stampedAt = payment.getVerifiedAt();
+        BigDecimal checkedAmount = payment.getAmount();
 
-        service.update(payment.getId(), anEdit());
+        // This case used to assert only that the stamp survived the edit. It did survive, and
+        // that was the wrong half of the answer: the figures underneath it changed, so the stamp
+        // went on attesting to an amount nobody had checked. See #636.
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.update(payment.getId(), anEdit()))
+                .withMessageContaining("cannot be edited");
 
         assertThat(payment.getVerifiedBy()).isEqualTo(stampedBy);
         assertThat(payment.getVerifiedAt()).isEqualTo(stampedAt);
+        assertThat(payment.getAmount()).isEqualByComparingTo(checkedAmount);
     }
 
     @Test
@@ -209,8 +216,9 @@ class ConstructionPaymentVerifyActionTest {
         payment.setId(id);
         payment.setPaymentNumber("CPMT-2026-0031");
         payment.setStatus(ConstructionPaymentVoucherStatus.PENDING);
+        payment.setAmount(new BigDecimal("1000.00"));
         payment.setRaisedBy(RAISER);
-        when(paymentRepo.findByIdScoped(id)).thenReturn(Optional.of(payment));
+        when(paymentRepo.lockByIdScoped(id)).thenReturn(Optional.of(payment));
         return payment;
     }
 }

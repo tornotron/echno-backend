@@ -267,6 +267,62 @@ class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
         assertThat(service.findById(created.id()).verifiedAt()).isNull();
     }
 
+    @Test
+    void aVerifiedVoucherIsFrozen_andCancellingIsWhatCorrectsIt() {
+        when(userContextService.getCurrentUserId()).thenReturn(RAISER);
+        ConstructionPaymentDto created = service.create(minimalCreateRequest());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        when(userContextService.getCurrentUserId()).thenReturn(VERIFIER);
+        service.verify(created.id());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // Read back from the row rather than from the object verify left behind.
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.update(created.id(), anEditRaisingTheAmount()))
+                .withMessageContaining("cannot be edited");
+        assertThat(service.findById(created.id()).amount()).isEqualByComparingTo(bd("1000"));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // This half only passes because changelog 082 ran: cancellation_reason is a real column
+        // here, not a field on a mock.
+        ConstructionPaymentDto cancelled = service.cancel(created.id(), "Duplicate of the August run");
+
+        entityManager.flush();
+        entityManager.clear();
+
+        ConstructionPaymentDto reread = service.findById(cancelled.id());
+        assertThat(reread.status()).isEqualTo(ConstructionPaymentVoucherStatus.CANCELLED);
+        assertThat(reread.cancellationReason()).isEqualTo("Duplicate of the August run");
+        assertThat(reread.verifiedBy()).isEqualTo(VERIFIER);
+    }
+
+    /** An edit that moves the figure the verification was about. */
+    private UpdateConstructionPaymentRequest anEditRaisingTheAmount() {
+        return new UpdateConstructionPaymentRequest(
+                ConstructionPaymentType.INVOICE,
+                ConstructionPaymentVoucherStatus.COMPLETED,
+                ConstructionPaymentMethod.BANK_TRANSFER,
+                ConstructionPayeeType.VENDOR,
+                projectId,
+                null, null,
+                42L,
+                null, null, null,
+                "Acme Supplies", null,
+                bd("100000"),
+                "INR",
+                LocalDate.of(2026, 8, 1),
+                null, null, null, null, null,
+                "Running payment", null
+        );
+    }
+
     private CreateConstructionPaymentRequest minimalCreateRequest() {
         return new CreateConstructionPaymentRequest(
                 ConstructionPaymentType.INVOICE,

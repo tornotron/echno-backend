@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="083-add-construction-payment-cancellation-reason" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="construction_payments" columnName="cancellation_reason"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Record why a payment voucher was voided. A verified voucher can no longer be edited,
+            because the verification would otherwise stand against figures nobody checked, so
+            cancelling and raising a replacement becomes the correction route. A cancellation that
+            does not say what was wrong with the voucher explains nothing, and on a verified one it
+            is the only record of why somebody's check was set aside. Vouchers cancelled before this
+            column exists keep a null here.
+        </comment>
+
+        <addColumn tableName="construction_payments">
+            <column name="cancellation_reason" type="VARCHAR(1000)"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>
