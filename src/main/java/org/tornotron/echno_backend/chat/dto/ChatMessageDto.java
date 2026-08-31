@@ -33,14 +33,14 @@ public class ChatMessageDto {
     @Schema(description = "Id of the message this one replies to, if any.", example = "1198")
     private Long replyToId;
 
-    @Schema(description = "Preview of the replied-to message; null when this is not a reply.")
+    @Schema(description = "Preview of the replied-to message; null when this is not a reply.", nullable = true)
     private ChatMessageReplyDto replyTo;
 
     @Schema(description = "Whether the message has been edited.", example = "false")
     @JsonProperty("isEdited")
     private boolean edited;
 
-    @Schema(description = "When the message was edited; null if never.", example = "2026-08-22T14:20:00")
+    @Schema(description = "When the message was edited; null if never.", example = "2026-08-22T14:20:00", nullable = true)
     private LocalDateTime editedAt;
 
     @Schema(description = "Whether the message has been deleted.", example = "false")

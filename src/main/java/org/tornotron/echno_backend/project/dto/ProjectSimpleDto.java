@@ -22,14 +22,14 @@ public class ProjectSimpleDto {
     @Schema(description = "Street address of the site, as one line.", example = "12 Marina Road, Mylapore")
     private String projectAddress;
 
-    @Schema(description = "Town or city the site is in. Null when not recorded.", example = "Chennai")
+    @Schema(description = "Town or city the site is in. Null when not recorded.", example = "Chennai", nullable = true)
     private String projectCity;
 
     @Schema(description = "Indian state or union territory the site is in, used to match statutory "
-            + "compliances. Null when not recorded.", example = "Tamil Nadu")
+            + "compliances. Null when not recorded.", example = "Tamil Nadu", nullable = true)
     private String projectState;
 
-    @Schema(description = "Postal (PIN) code of the site. Null when not recorded.", example = "600004")
+    @Schema(description = "Postal (PIN) code of the site. Null when not recorded.", example = "600004", nullable = true)
     private String projectPostalCode;
 
     @Schema(description = "Creation timestamp.", example = "2026-08-01T09:00:00")
@@ -42,7 +42,7 @@ public class ProjectSimpleDto {
     private ProjectType projectType;
 
     @Schema(description = "Finance customer the project is billed to. Null when no client is set.",
-            example = "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d")
+            example = "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d", nullable = true)
     private UUID customerId;
 
     @Schema(description = "Site latitude in decimal degrees.", example = "13.0827")

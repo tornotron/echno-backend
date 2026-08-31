@@ -91,7 +91,7 @@ public record ConstructionInvoiceDto(
         @Schema(description = "Name of the user that submitted the invoice, or their email where the "
                 + "account carries no name. Reads \"User #<id>\" when the account has since been "
                 + "deleted; null only when the invoice was never submitted.",
-                example = "Anand Rajashekar")
+                example = "Anand Rajashekar", nullable = true)
         String submittedByName,
 
         @Schema(description = "Timestamp the invoice was submitted.", example = "2026-08-02T09:15:00Z")
@@ -103,7 +103,7 @@ public record ConstructionInvoiceDto(
         @Schema(description = "Name of the user that approved the invoice, or their email where the "
                 + "account carries no name. Reads \"User #<id>\" when the account has since been "
                 + "deleted; null only when the invoice was never approved.",
-                example = "Aneesh Johny")
+                example = "Aneesh Johny", nullable = true)
         String approvedByName,
 
         @Schema(description = "Timestamp the invoice was approved.", example = "2026-08-03T11:40:00Z")
@@ -115,7 +115,7 @@ public record ConstructionInvoiceDto(
         @Schema(description = "Name of the user that recorded the most recent payment, or their email "
                 + "where the account carries no name. Reads \"User #<id>\" when the account has since "
                 + "been deleted; null only when no payment has been recorded.",
-                example = "Anand Rajashekar")
+                example = "Anand Rajashekar", nullable = true)
         String paymentRecordedByName,
 
         @Schema(description = "Ledger journal entry posted when the invoice was approved.",
@@ -127,7 +127,7 @@ public record ConstructionInvoiceDto(
 
         @Schema(description = "AR invoice raised for this invoice on approval. Present on a sales or "
                 + "service invoice whose project has a client; null otherwise.",
-                example = "1c9d4b7a-0f2e-4a63-8b11-5d7c2e9f4a88")
+                example = "1c9d4b7a-0f2e-4a63-8b11-5d7c2e9f4a88", nullable = true)
         UUID arInvoiceId,
 
         @Schema(description = "Invoice line items.")

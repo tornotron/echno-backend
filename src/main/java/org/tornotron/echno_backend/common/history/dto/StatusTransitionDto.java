@@ -17,7 +17,7 @@ public class StatusTransitionDto {
     @Schema(description = "Status held before this entry. Null when there was none: the record was "
             + "created in the status below, or this is the baseline entry written when the trail "
             + "began.",
-            example = "upcoming")
+            example = "upcoming", nullable = true)
     private String fromStatus;
 
     @Schema(description = "Status held after this entry.", example = "approved")
@@ -37,7 +37,7 @@ public class StatusTransitionDto {
 
     @Schema(description = "Id of the user who made the change. Null where no user context was "
             + "available, which is the case for every BASELINE entry.",
-            example = "17")
+            example = "17", nullable = true)
     private Long changedBy;
 
     @Schema(description = "That user's name as it read at the time, kept beside the id so a rename "

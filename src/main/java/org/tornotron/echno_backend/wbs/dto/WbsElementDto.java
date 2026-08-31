@@ -49,9 +49,9 @@ public class WbsElementDto {
     private Long projectId;
     @Schema(description = "Name of the project this element belongs to.", example = "Asset Homes - Kochi Riverside Phase 2")
     private String projectName;
-    @Schema(description = "Id of the parent WBS element, or null for a root element.", example = "12")
+    @Schema(description = "Id of the parent WBS element, or null for a root element.", example = "12", nullable = true)
     private Long parentId;
-    @Schema(description = "wbsCode of the parent WBS element, or null for a root element.", example = "1.2")
+    @Schema(description = "wbsCode of the parent WBS element, or null for a root element.", example = "1.2", nullable = true)
     private String parentWbsCode;
     @Schema(description = "Employee who created this element.")
     private EmployeeDto createdBy;
@@ -59,6 +59,6 @@ public class WbsElementDto {
     private LocalDateTime createdAt;
     @Schema(description = "Timestamp the element was last updated.", example = "2026-02-05T14:12:00")
     private LocalDateTime updatedAt;
-    @Schema(description = "Child elements, present on tree responses; empty or null on other reads.")
+    @Schema(description = "Child elements, present on tree responses; empty or null on other reads.", nullable = true)
     private List<WbsElementDto> children;
 }

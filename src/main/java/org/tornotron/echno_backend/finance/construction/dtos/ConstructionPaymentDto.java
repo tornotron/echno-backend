@@ -85,12 +85,12 @@ public record ConstructionPaymentDto(
         String ifscCode,
 
         @Schema(description = "User id that raised the voucher, taken from the session that created "
-                + "it. Null on vouchers raised before the voucher recorded this.", example = "8")
+                + "it. Null on vouchers raised before the voucher recorded this.", example = "8", nullable = true)
         Long raisedBy,
 
         @Schema(description = "Name of the user that raised the voucher, on the same fallbacks as "
                 + "the verifier name. Null only where the voucher does not record who raised it.",
-                example = "Hrishi")
+                example = "Hrishi", nullable = true)
         String raisedByName,
 
         @Schema(description = "User id that verified the voucher, taken from the session that "
@@ -100,7 +100,7 @@ public record ConstructionPaymentDto(
         @Schema(description = "Name of the user that verified the voucher, or their email where the "
                 + "account carries no name. Reads \"User #<id>\" when the account has since been "
                 + "deleted; null only when the voucher was never verified.",
-                example = "Aneesh Johny")
+                example = "Aneesh Johny", nullable = true)
         String verifiedByName,
 
         @Schema(description = "Timestamp the voucher was verified.", example = "2026-08-06T10:20:00Z")

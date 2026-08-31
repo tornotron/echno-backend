@@ -17,10 +17,10 @@ public record CostCategoryDto(
         String code,
 
         @Schema(description = "Ledger expense account this head maps to, or null.",
-                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10")
+                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10", nullable = true)
         UUID expenseAccountId,
 
-        @Schema(description = "Code of the mapped expense account, or null.", example = "5100")
+        @Schema(description = "Code of the mapped expense account, or null.", example = "5100", nullable = true)
         String expenseAccountCode,
 
         @Schema(description = "Whether the head is active and available for tagging.", example = "true")

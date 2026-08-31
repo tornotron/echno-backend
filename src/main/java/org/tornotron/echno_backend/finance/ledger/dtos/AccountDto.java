@@ -20,7 +20,7 @@ public record AccountDto(
         AccountType type,
 
         @Schema(description = "Parent account id, or null for a root account.",
-                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10")
+                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10", nullable = true)
         UUID parentId,
 
         @Schema(description = "Whether the account is active and available for posting.", example = "true")

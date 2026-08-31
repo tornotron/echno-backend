@@ -33,7 +33,7 @@ public class PlanDto {
     Boolean isPublic;
     @Schema(description = "Number of trial days granted on first subscription.", example = "14")
     Integer trialDays;
-    @Schema(description = "Maximum number of users allowed under this plan, or null for unlimited.", example = "25")
+    @Schema(description = "Maximum number of users allowed under this plan, or null for unlimited.", example = "25", nullable = true)
     Integer maxUsers;
     @Schema(description = "Display order relative to other plans, ascending.", example = "2")
     Integer sortOrder;

@@ -29,6 +29,6 @@ public class WbsElementFlatDto {
     private Double progress;
     @Schema(description = "Whether this element has no children.", example = "true")
     private Boolean isLeaf;
-    @Schema(description = "Id of the parent WBS element, or null for a root element.", example = "12")
+    @Schema(description = "Id of the parent WBS element, or null for a root element.", example = "12", nullable = true)
     private Long parentId;
 }

@@ -18,6 +18,6 @@ public class ChatParticipantDto {
     @Schema(description = "When the employee joined the room.", example = "2026-08-20T09:00:00")
     private LocalDateTime joinedAt;
 
-    @Schema(description = "How far the employee has read the room; null if never read.", example = "2026-08-22T14:20:00")
+    @Schema(description = "How far the employee has read the room; null if never read.", example = "2026-08-22T14:20:00", nullable = true)
     private LocalDateTime lastReadAt;
 }
