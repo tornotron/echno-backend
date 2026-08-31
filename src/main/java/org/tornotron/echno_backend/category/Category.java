@@ -30,7 +30,13 @@ public class Category implements TenantScopedEntity {
     @Column(name = "category_name", nullable = false)
     private String name;
 
-    @Column(name = "normalized_name", unique = true)
+    /**
+     * The name with case, punctuation and spacing folded away, used to decide whether a category
+     * already exists. Unique per organization rather than globally: the constraint that enforces
+     * it is {@code uk_category_org_normalized_name} in the schema, and it is composite, so it
+     * cannot be declared here as a column-level unique.
+     */
+    @Column(name = "normalized_name")
     private String normalizedName;
 
     /** A brief description of the category. */

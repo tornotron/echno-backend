@@ -361,4 +361,7 @@
     <!-- v4.0 - Payables: the number is the tenant's own series, so scope it to the organization -->
     <include file="db/changelog/v4.0/075-payable-number-per-org-uniqueness.xml"/>
 
+    <!-- v4.0 - Labour contacts and category names: scope them to the organization; drop the issue title constraint -->
+    <include file="db/changelog/v4.0/076-tenant-scoped-uniqueness.xml"/>
+
 </databaseChangeLog>

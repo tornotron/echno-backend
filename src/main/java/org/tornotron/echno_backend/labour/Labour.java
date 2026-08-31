@@ -40,13 +40,20 @@ public class Labour extends BaseEntity implements TenantScopedEntity {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @Column(name = "email", nullable = true,unique = true)
+    /**
+     * Unique per organization rather than globally, so the same worker can be on two
+     * contractors' books. The constraint is {@code uk_labour_org_email} in the schema, and it is
+     * composite, so it cannot be declared here as a column-level unique. Nullable, and NULLs are
+     * distinct, so any number of workers may have no email recorded.
+     */
+    @Column(name = "email", nullable = true)
     private String email;
 
     @Column(name = "address", nullable = true)
     private String address;
 
-    @Column(name = "phone_number", nullable = false,unique = true)
+    /** Unique per organization; see {@link #email}. The constraint is {@code uk_labour_org_phone_number}. */
+    @Column(name = "phone_number", nullable = false)
     private String phoneNumber;
 
     @Column(name = "emergency_contact_name", nullable = true)
@@ -86,7 +93,8 @@ public class Labour extends BaseEntity implements TenantScopedEntity {
     @Column(name = "over_time_rate")
     private BigDecimal overTimeRate;
 
-    @Column(name = "bank_account_number",unique = true)
+    /** Unique per organization; see {@link #email}. The constraint is {@code uk_labour_org_bank_account_number}. */
+    @Column(name = "bank_account_number")
     private String bankAccountNumber;
 
     @Column(name = "bank_name")

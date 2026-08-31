@@ -22,7 +22,12 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     Optional<Category> findByIdAndOrganization_Id(Long id, Long organizationId);
 
-    boolean existsByNormalizedName(String normalizedName);
+    /**
+     * Whether this organization already holds a category whose name normalizes to the given
+     * string. Scoped to the organization because the constraint behind it,
+     * {@code uk_category_org_normalized_name}, is: two tenants may both have a "Civil Works".
+     */
+    boolean existsByNormalizedNameAndOrganization_Id(String normalizedName, Long organizationId);
 
     boolean existsByIdAndOrganization_Id(Long id, Long organizationId);
 }
