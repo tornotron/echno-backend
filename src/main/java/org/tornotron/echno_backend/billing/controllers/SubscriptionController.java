@@ -219,9 +219,8 @@ public class SubscriptionController {
      * @param userId User ID
      * @return Active subscription or empty
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @GetMapping("/user/{userId}")
-//    @PreAuthorize("hasAuthority('billing:admin')")
     @Operation(
             summary = "Get a user's subscription",
             description = "Returns the active subscription for the given user id. An empty body with 204 "
@@ -230,7 +229,7 @@ public class SubscriptionController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Active subscription returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "User has no active subscription"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role")
     })
     public ResponseEntity<SubscriptionDto> getUserSubscription(@PathVariable Long userId) {
         return subscriptionService.getActiveSubscription(userId)
@@ -245,9 +244,8 @@ public class SubscriptionController {
      * @param userId User ID
      * @return List of subscriptions
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @GetMapping("/user/{userId}/history")
-//    @PreAuthorize("hasAuthority('billing:admin')")
     @Operation(
             summary = "Get a user's subscription history",
             description = "Returns every subscription the given user has ever held, most recently created "
@@ -255,7 +253,7 @@ public class SubscriptionController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subscription history returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role")
     })
     public ResponseEntity<List<SubscriptionDto>> getUserSubscriptionHistory(@PathVariable Long userId) {
         return ResponseEntity.ok(subscriptionService.getSubscriptionHistory(userId));
@@ -269,9 +267,8 @@ public class SubscriptionController {
      * @param dto    Subscription creation data
      * @return Created subscription
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @PostMapping("/user/{userId}")
-//    @PreAuthorize("hasAuthority('billing:admin')")
     @Operation(
             summary = "Create a subscription for a user",
             description = "Subscribes the given user to the plan identified by planCode, for the given "
@@ -280,7 +277,7 @@ public class SubscriptionController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Subscription created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given code"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "User already has an active subscription")
     })
@@ -299,9 +296,8 @@ public class SubscriptionController {
      * @param dto    Plan change data
      * @return Updated subscription
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @PutMapping("/user/{userId}/change-plan")
-//    @PreAuthorize("hasAuthority('billing:admin')")
     @Operation(
             summary = "Change a user's plan",
             description = "Moves the given user's active subscription to a different plan, identified by "
@@ -310,7 +306,7 @@ public class SubscriptionController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subscription moved to the new plan"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User has no active subscription, or no plan with the given code")
     })
     public ResponseEntity<SubscriptionDto> changeSubscriptionForUser(
@@ -327,9 +323,8 @@ public class SubscriptionController {
      * @param dto    Cancellation options
      * @return Success message
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @PostMapping("/user/{userId}/cancel")
-//    @PreAuthorize("hasAuthority('billing:admin')")
     @Operation(
             summary = "Cancel a user's subscription",
             description = "Cancels the given user's active subscription. By default it stays active until "
@@ -338,7 +333,7 @@ public class SubscriptionController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subscription canceled"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User has no active subscription")
     })
     public ResponseEntity<ApiResponse> cancelSubscriptionForUser(

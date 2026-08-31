@@ -27,8 +27,8 @@ import java.util.List;
         name = "Billing Features",
         description = "Individually toggleable capabilities that a plan can grant, such as report exports "
                 + "or a device quota. A feature has a type (boolean, quota or metered) and, once deactivated, "
-                + "is no longer offered on new plans. All endpoints are restricted to the billing admin "
-                + "authority."
+                + "is no longer offered on new plans. The feature catalogue is platform-wide rather than "
+                + "per-customer, so every endpoint here is restricted to the platform-admin role."
 )
 public class FeatureController {
 
@@ -40,9 +40,8 @@ public class FeatureController {
      *
      * @return List of active features
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @GetMapping
-//    @PreAuthorize("hasAuthority('billing:read') or hasAuthority('billing:admin')")
     @Operation(
             summary = "List active features",
             description = "Returns the features that are currently active and available for assignment to "
@@ -50,7 +49,7 @@ public class FeatureController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "List of active features"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role")
     })
     public ResponseEntity<List<FeatureDto>> getActiveFeatures() {
         List<Feature> features = featureService.getAllActiveFeatures();
@@ -63,16 +62,15 @@ public class FeatureController {
      *
      * @return List of all features
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @GetMapping("/all")
-//    @PreAuthorize("hasAuthority('billing:admin')")
     @Operation(
             summary = "List all features",
             description = "Returns every feature, including deactivated ones, for administration."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "List of all features"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role")
     })
     public ResponseEntity<List<FeatureDto>> getAllFeatures() {
         List<Feature> features = featureService.getAllFeatures();
@@ -85,16 +83,15 @@ public class FeatureController {
      * @param id Feature ID
      * @return Feature details
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @GetMapping("/{id}")
-//    @PreAuthorize("hasAuthority('billing:read') or hasAuthority('billing:admin')")
     @Operation(
             summary = "Get a feature by id",
             description = "Returns a single feature by its numeric id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Feature found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No feature with the given id")
     })
     public ResponseEntity<FeatureDto> getFeatureById(@PathVariable Long id) {
@@ -108,16 +105,15 @@ public class FeatureController {
      * @param code Feature code
      * @return Feature details
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @GetMapping("/code/{code}")
-//    @PreAuthorize("hasAuthority('billing:read') or hasAuthority('billing:admin')")
     @Operation(
             summary = "Get a feature by code",
             description = "Returns a single feature by its unique code, such as report-export."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Feature found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No feature with the given code")
     })
     public ResponseEntity<FeatureDto> getFeatureByCode(@PathVariable String code) {
@@ -132,9 +128,8 @@ public class FeatureController {
      * @param dto Feature creation data
      * @return Created feature
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @PostMapping
-//    @PreAuthorize("hasAuthority('billing:admin')")
     @Operation(
             summary = "Create a feature",
             description = "Creates a new feature that can subsequently be assigned to plans."
@@ -142,7 +137,7 @@ public class FeatureController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Feature created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role")
     })
     public ResponseEntity<FeatureDto> createFeature(@Valid @RequestBody FeatureCreateDto dto) {
         Feature feature = featureService.createFeature(dto);
@@ -157,9 +152,8 @@ public class FeatureController {
      * @param dto Feature update data
      * @return Updated feature
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @PutMapping("/{id}")
-//    @PreAuthorize("hasAuthority('billing:admin')")
     @Operation(
             summary = "Update a feature",
             description = "Updates the details of an existing feature identified by id."
@@ -167,7 +161,7 @@ public class FeatureController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Feature updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No feature with the given id")
     })
     public ResponseEntity<FeatureDto> updateFeature(@PathVariable Long id, @Valid @RequestBody FeatureCreateDto dto) {
@@ -182,9 +176,8 @@ public class FeatureController {
      * @param id Feature ID
      * @return Success message
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @DeleteMapping("/{id}")
-//    @PreAuthorize("hasAuthority('billing:admin')")
     @Operation(
             summary = "Deactivate a feature",
             description = "Soft-deletes a feature so it can no longer be assigned to new plans. Plans that "
@@ -192,7 +185,7 @@ public class FeatureController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Feature deactivated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No feature with the given id")
     })
     public ResponseEntity<ApiResponse> deactivateFeature(@PathVariable Long id) {
@@ -207,16 +200,15 @@ public class FeatureController {
      * @param id Feature ID
      * @return Success message
      */
-    @PreAuthorize("hasAuthority('billing:admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @PostMapping("/{id}/activate")
-//    @PreAuthorize("hasAuthority('billing:admin')")
     @Operation(
             summary = "Reactivate a feature",
             description = "Reactivates a previously deactivated feature so it can be assigned to plans again."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Feature activated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the billing admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the platform-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No feature with the given id")
     })
     public ResponseEntity<ApiResponse> activateFeature(@PathVariable Long id) {

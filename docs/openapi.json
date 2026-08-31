@@ -25870,7 +25870,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -25980,7 +25980,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -26085,7 +26085,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -26197,7 +26197,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -26310,7 +26310,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -26421,7 +26421,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -26542,7 +26542,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -26655,7 +26655,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -26760,7 +26760,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -26870,7 +26870,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -26982,7 +26982,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller is not authenticated"
           },
           "404": {
             "content": {
@@ -27087,7 +27087,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller is not authenticated"
           },
           "404": {
             "content": {
@@ -27200,7 +27200,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -27311,7 +27311,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller is not authenticated"
           },
           "404": {
             "content": {
@@ -27432,7 +27432,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -27545,7 +27545,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -27668,7 +27668,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -27789,7 +27789,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -28688,7 +28688,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -28809,7 +28809,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -28931,7 +28931,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -29054,7 +29054,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -29170,7 +29170,7 @@
                 }
               }
             },
-            "description": "Caller lacks the billing admin authority"
+            "description": "Caller lacks the platform-admin role"
           },
           "404": {
             "content": {
@@ -105375,11 +105375,11 @@
       "name": "Auth"
     },
     {
-      "description": "Individually toggleable capabilities that a plan can grant, such as report exports or a device quota. A feature has a type (boolean, quota or metered) and, once deactivated, is no longer offered on new plans. All endpoints are restricted to the billing admin authority.",
+      "description": "Individually toggleable capabilities that a plan can grant, such as report exports or a device quota. A feature has a type (boolean, quota or metered) and, once deactivated, is no longer offered on new plans. The feature catalogue is platform-wide rather than per-customer, so every endpoint here is restricted to the platform-admin role.",
       "name": "Billing Features"
     },
     {
-      "description": "Subscription plans such as Starter, Professional or Enterprise, each carrying a price per billing period and a set of assigned features. Endpoints cover listing public plans, full plan administration, and attaching or detaching features on a plan. All administrative endpoints require the billing admin authority.",
+      "description": "Subscription plans such as Starter, Professional or Enterprise, each carrying a price per billing period and a set of assigned features. Endpoints cover listing public plans, full plan administration, and attaching or detaching features on a plan. All administrative endpoints require the platform-admin role.",
       "name": "Billing Plans"
     },
     {
