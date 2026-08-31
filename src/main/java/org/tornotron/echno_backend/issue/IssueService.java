@@ -306,10 +306,7 @@ public class IssueService {
                     issue.setStatus(parseIssueStatus((String) value));
                     break;
                 case "assignedToId":
-                    Long assigneeId = ((Number) value).longValue();
-                    Employee assignee = employeeRepository.findByIdAndOrganizationId(assigneeId, TenantContext.getCurrentOrgId())
-                            .orElseThrow(() -> new ResourceNotFoundException("Assignee (employee) with ID " + assigneeId + " was not found in this organization"));
-                    issue.setAssignedTo(assignee);
+                    issue.setAssignedTo(resolveAssignee(value));
                     break;
                 default:
                     PartialUpdateKeys.reportUnknown(log, "issue", issue.getId(), key,
@@ -318,6 +315,33 @@ public class IssueService {
             }
         });
     }
+
+    /**
+     * Reads the {@code assignedToId} key of a partial issue update.
+     *
+     * <p>Null clears the assignment, which is what {@code assigned_to} being a nullable join
+     * column already allows and what unassigning an issue means. Before this branch existed the
+     * value went straight into {@code ((Number) value).longValue()} and a null answered 500, so
+     * there was no way to unassign. See #645.
+     *
+     * @param value The raw map value: an employee id, or null to unassign.
+     * @return The resolved employee, or null.
+     * @throws InvalidRequestException if the value is neither null nor a number.
+     * @throws ResourceNotFoundException if no such employee belongs to the caller's organization.
+     */
+    private Employee resolveAssignee(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (!(value instanceof Number number)) {
+            throw new InvalidRequestException("assignedToId must be a number");
+        }
+        Long assigneeId = number.longValue();
+        return employeeRepository.findByIdAndOrganizationId(assigneeId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Assignee (employee) with ID " + assigneeId + " was not found in this organization"));
+    }
+
 
     @Transactional
     public void deleteAnIssue(Long id) {

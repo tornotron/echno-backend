@@ -5269,67 +5269,100 @@
         "type": "object"
       },
       "EmployeeUpdateFieldsDto": {
-        "description": "Fields a partial employee update may change. Every field is optional; only the fields present in the request are applied. Keys not listed here are ignored.",
+        "description": "Fields a partial employee update may change. Every field is optional and an absent field is left untouched. A field this schema declares nullable is cleared by sending an explicit null; a field it does not declare nullable refuses a null with a 400 rather than clearing. Keys not listed here are ignored.",
         "properties": {
           "dateOfBirth": {
             "description": "Date of birth.",
             "example": "1998-04-12T00:00:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "department": {
             "description": "Department the employee belongs to.",
             "example": "Execution",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "designation": {
             "description": "Job title held.",
             "example": "Site Engineer",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "emailAddress": {
             "description": "Work email address.",
             "example": "hrishi@echno.xyz",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "employeeId": {
             "description": "Employee code within the organization.",
             "example": "ECH-0412",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "employeeName": {
             "description": "Full name of the employee.",
             "example": "Hrishikesh R",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "joiningDate": {
             "description": "Date the employee joined.",
             "example": "2024-06-01T00:00:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "managerId": {
-            "description": "Id of the employee's manager. Must belong to the caller's organization, and may not introduce a cycle in the reporting line.",
+            "description": "Id of the employee's manager. Must belong to the caller's organization, and may not introduce a cycle in the reporting line. Send null to detach the employee from their manager.",
             "example": 7,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "phoneNumber": {
             "description": "Contact phone number.",
             "example": "+91 99400 00000",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "salary": {
             "description": "Monthly salary. Must be sent as a decimal number.",
             "example": 62000.0,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "shiftTimingId": {
             "description": "Id of the shift timing the employee works. Must belong to the employee's organization; null clears the assignment.",
             "example": 3,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "status": {
             "description": "Employment status of the employee.",
@@ -5342,7 +5375,10 @@
               "probation",
               "suspended"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -7636,21 +7672,27 @@
         "type": "object"
       },
       "IssueUpdateFieldsDto": {
-        "description": "Fields a partial issue update may change. Every field is optional; only the fields present in the request are applied. Keys not listed here are ignored.",
+        "description": "Fields a partial issue update may change. Every field is optional and an absent field is left untouched. A field this schema declares nullable is cleared by sending an explicit null; a field it does not declare nullable refuses a null with a 400 rather than clearing. Keys not listed here are ignored.",
         "properties": {
           "assignedToId": {
-            "description": "Id of the employee the issue is assigned to. The employee must belong to the caller's organization.",
+            "description": "Id of the employee the issue is assigned to. The employee must belong to the caller's organization. Send null to unassign the issue.",
             "example": 17,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "description": {
             "description": "Longer description of the issue.",
             "example": "Spacing measured at 220 mm against a specified 200 mm across grid C.",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
-            "description": "Lifecycle status of the issue.",
+            "description": "Lifecycle status of the issue. Cannot be cleared: a null or blank value is refused with a 400 rather than applied.",
             "enum": [
               "open",
               "inProgress",
@@ -7666,10 +7708,13 @@
           "title": {
             "description": "Short issue title.",
             "example": "Rebar spacing off on grid C",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "type": {
-            "description": "Category of the issue.",
+            "description": "Category of the issue. Cannot be cleared: a null or blank value is refused with a 400 rather than applied.",
             "enum": [
               "technical",
               "design",
@@ -9060,27 +9105,36 @@
         "type": "object"
       },
       "LeavePolicyUpdateFieldsDto": {
-        "description": "Fields a partial leave-policy update may change. Every field is optional; only the fields present in the request are applied. Keys not listed here are ignored.",
+        "description": "Fields a partial leave-policy update may change. Every field is optional and an absent field is left untouched. A field this schema declares nullable is cleared by sending an explicit null; a field it does not declare nullable refuses a null with a 400 rather than clearing. Keys not listed here are ignored.",
         "properties": {
           "accrualRatePerMonth": {
             "description": "Days accrued per completed month.",
             "example": 1.0,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "advanceNoticeDays": {
             "description": "Minimum days of notice required before the leave starts.",
             "example": 2,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "allowHalfDay": {
             "description": "Whether requests under this policy can be for half a day.",
             "example": true,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "annualQuota": {
-            "description": "Total days granted per year under this policy. Must be a number; null is rejected.",
+            "description": "Total days granted per year under this policy. Cannot be cleared: the column is NOT NULL, so a null is refused with a 400 rather than applied. It is the one numeric field here that refuses a null; every other numeric column on a policy is nullable and clears.",
             "example": 12.0,
             "format": "double",
             "type": "number"
@@ -9088,79 +9142,121 @@
           "applicableGenders": {
             "description": "Genders this policy applies to.",
             "example": "ALL",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "attachmentRequiredAfterDays": {
             "description": "Consecutive days after which an attachment becomes required.",
             "example": 3,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "carryForwardExpiryMonths": {
             "description": "Months into the next year before carried-forward days expire.",
             "example": 3,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "carryForwardLimit": {
             "description": "Maximum days that can be carried forward into the next year.",
             "example": 5.0,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "description": {
             "description": "Description of the leave type and when it applies.",
             "example": "Short-notice leave for personal matters.",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "displayOrder": {
             "description": "Order this policy is shown in, relative to the organization's others.",
             "example": 1,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "isActive": {
             "description": "Whether the policy is available for new requests.",
             "example": true,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "isPaid": {
             "description": "Whether leave taken under this policy is paid.",
             "example": true,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "leaveTypeName": {
             "description": "Display name of the leave type.",
             "example": "Casual Leave",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "maxDaysPerRequest": {
             "description": "Largest number of days that can be requested at once.",
             "example": 15.0,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "minDaysPerRequest": {
             "description": "Smallest number of days that can be requested at once.",
             "example": 0.5,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "minServiceMonths": {
             "description": "Months of service before an employee becomes eligible.",
             "example": 6,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "multiLevelApprovalEnabled": {
             "description": "Whether requests go through the full multi-level approval chain.",
             "example": true,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "requiresAttachment": {
             "description": "Whether a supporting attachment is required.",
             "example": false,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -9421,15 +9517,18 @@
         "type": "object"
       },
       "LeaveRequestUpdateFieldsDto": {
-        "description": "Fields a partial leave-request update may change, accepted only while the request is a draft. Every field is optional; only the fields present in the request are applied. Keys not listed here are ignored.",
+        "description": "Fields a partial leave-request update may change, accepted only while the request is a draft. Every field is optional and an absent field is left untouched. A field this schema declares nullable is cleared by sending an explicit null; a field it does not declare nullable refuses a null with a 400 rather than clearing. Keys not listed here are ignored.",
         "properties": {
           "contactDuringLeave": {
             "description": "How to reach the employee during the leave.",
             "example": "+91 99400 00000",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "endDate": {
-            "description": "Last day of leave. Must be a date; null is rejected.",
+            "description": "Last day of leave. Cannot be cleared: the column is NOT NULL and the total-days figure is recomputed from both dates after every update, so a null is refused with a 400 rather than applied.",
             "example": "2026-09-18",
             "format": "date",
             "type": "string"
@@ -9441,26 +9540,38 @@
               "FIRST_HALF",
               "SECOND_HALF"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "handoverNotes": {
             "description": "Notes for the person taking over.",
             "example": "Block A pour is scheduled for the 16th; drawings are in the shared folder.",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "handoverToId": {
             "description": "Id of the employee taking over the work.",
             "example": 7,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "reason": {
             "description": "Reason given for the leave.",
             "example": "Family function",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "startDate": {
-            "description": "First day of leave. Must be a date; null is rejected.",
+            "description": "First day of leave. Cannot be cleared: the column is NOT NULL and the total-days figure is recomputed from both dates after every update, so a null is refused with a 400 rather than applied.",
             "example": "2026-09-14",
             "format": "date",
             "type": "string"
@@ -9472,7 +9583,10 @@
               "FIRST_HALF",
               "SECOND_HALF"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -11119,37 +11233,55 @@
         "type": "object"
       },
       "OrganizationUpdateFieldsDto": {
-        "description": "Fields a partial organization update may change. Every field is optional; only the fields present in the request are applied. Keys not listed here are ignored.",
+        "description": "Fields a partial organization update may change. Every field is optional and an absent field is left untouched. A field this schema declares nullable is cleared by sending an explicit null; a field it does not declare nullable refuses a null with a 400 rather than clearing. Keys not listed here are ignored.",
         "properties": {
           "organizationAddress": {
             "description": "Postal address of the organization.",
             "example": "IIT Madras Research Park, Chennai 600113",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "organizationEmail": {
             "description": "Contact email for the organization.",
             "example": "info@echno.xyz",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "organizationLogo": {
             "description": "Stored key or URL of the organization logo.",
             "example": "organizations/2/logo.png",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "organizationName": {
             "description": "Registered name of the organization.",
             "example": "Asset Homes",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "organizationPhone": {
             "description": "Contact phone number for the organization.",
             "example": "+91 44 4000 0000",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "organizationWebsite": {
             "description": "Public website of the organization.",
             "example": "https://echno.xyz",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -14243,62 +14375,92 @@
         "type": "object"
       },
       "ProjectUpdateFieldsDto": {
-        "description": "Fields a partial project update may change. Every field is optional; only the fields present in the request are applied. Keys not listed here are ignored.",
+        "description": "Fields a partial project update may change. Every field is optional and an absent field is left untouched. A field this schema declares nullable is cleared by sending an explicit null; a field it does not declare nullable refuses a null with a 400 rather than clearing. Keys not listed here are ignored.",
         "properties": {
           "customerId": {
             "description": "Id of the finance customer the project bills to, as a UUID string. The customer must belong to the caller's organization; null or blank clears the link.",
             "example": "3f2a1c64-7b21-4d1e-9c8f-0a2b3c4d5e6f",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "description": {
             "description": "Free-text description of the project.",
             "example": "Twelve-storey residential tower, two basement levels, handover Q2 2027.",
             "maxLength": 2000,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "endDate": {
             "description": "Planned end of the project.",
             "example": "2027-03-31T18:00:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectAddress": {
             "description": "Street address of the site.",
             "example": 12,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectCity": {
             "description": "City the site is in. Trimmed, and cleared when blank.",
             "example": "Chennai",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectLatitude": {
             "description": "Site latitude, between -90 and 90.",
             "example": 12.9915,
             "format": "float",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "projectLongitude": {
             "description": "Site longitude, between -180 and 180.",
             "example": 80.2412,
             "format": "float",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "projectName": {
             "description": "Name of the project.",
             "example": "Marina Heights, phase 2",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectPostalCode": {
             "description": "Postal code of the site. Trimmed, and cleared when blank.",
             "example": 600113,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectState": {
             "description": "State the site is in. Recorded in the canonical spelling for the state.",
             "example": "Tamil Nadu",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectType": {
             "description": "Kind of work the project covers.",
@@ -14311,13 +14473,19 @@
               "MIXED_USE",
               "OTHER"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "startDate": {
             "description": "Planned start of the project.",
             "example": "2026-09-01T09:00:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "description": "Lifecycle status of the project.",
@@ -14331,7 +14499,10 @@
               "cancelled",
               "approved"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -17667,7 +17838,7 @@
         "type": "object"
       },
       "TaskUpdateFieldsDto": {
-        "description": "Fields a partial task update may change. Every field is optional; only the fields present in the request are applied, and a field sent as null is cleared. Keys not listed here are ignored.",
+        "description": "Fields a partial task update may change. Every field is optional and an absent field is left untouched. A field this schema declares nullable is cleared by sending an explicit null; a field it does not declare nullable refuses a null with a 400 rather than clearing. Keys not listed here are ignored.",
         "properties": {
           "assigneeIds": {
             "description": "Employees the task is assigned to. Replaces the existing assignees rather than adding to them, so a shorter list unassigns and an empty list or a null clears the task. Every id must belong to an employee of the caller's organization.",
@@ -17679,10 +17850,13 @@
               "format": "int64",
               "type": "integer"
             },
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "categoryId": {
-            "description": "Work category the task belongs to. Cannot be cleared: a task is created with a category and a task without one is a state creation cannot produce.",
+            "description": "Work category the task belongs to. Cannot be cleared: a task is created with a category and a task without one is a state creation cannot produce. This one is a product rule rather than a column rule, since the join column itself is nullable. A null is refused with a 400.",
             "example": 4,
             "format": "int64",
             "type": "integer"
@@ -17690,28 +17864,40 @@
           "description": {
             "description": "Longer description of the work to be done.",
             "example": "Complete formwork, reinforcement and concrete pour for the block A raft.",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "endDate": {
             "description": "Planned end of the task.",
             "example": "2026-09-07T17:00:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "progress": {
             "description": "Fraction of the task completed, between 0 and 1. A value that is neither null nor a number is ignored.",
             "example": 0.4,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "startDate": {
             "description": "Planned start of the task.",
             "example": "2026-09-05T08:00:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
-            "description": "Lifecycle status of the task.",
+            "description": "Lifecycle status of the task. Cannot be cleared: the column is NOT NULL, so a null is refused with a 400 rather than applied.",
             "enum": [
               "upcoming",
               "onGoing",
@@ -17729,12 +17915,18 @@
             "items": {
               "type": "string"
             },
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "title": {
             "description": "Short task title.",
             "example": "Pour foundation slab, block A",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -18763,17 +18955,23 @@
         "type": "object"
       },
       "UserUpdateFieldsDto": {
-        "description": "Fields a partial user update may change. Every field is optional; only the fields present in the request are applied. Keys not listed here are ignored.",
+        "description": "Fields a partial user update may change. Every field is optional and an absent field is left untouched. A field this schema declares nullable is cleared by sending an explicit null; a field it does not declare nullable refuses a null with a 400 rather than clearing. Keys not listed here are ignored.",
         "properties": {
           "address": {
             "description": "Postal address of the user.",
             "example": 18,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "bloodGroup": {
             "description": "Blood group recorded for the user.",
             "example": "O+",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "certifications": {
             "description": "Certifications recorded for the user. Replaces the existing list rather than adding to it.",
@@ -18783,65 +18981,101 @@
             "items": {
               "type": "string"
             },
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "cvUrl": {
             "description": "Stored key or URL of the uploaded CV.",
             "example": "users/31/cv.pdf",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "dateOfBirth": {
             "description": "Date of birth, sent as an ISO date-time string.",
             "example": "1998-04-12T00:00:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "defaultOrganizationId": {
             "description": "Id of the organization the user lands in after signing in. Must be sent as a number.",
             "example": 2,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "email": {
             "description": "Contact email of the user.",
             "example": "hrishi@echno.xyz",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "emergencyContact": {
             "description": "Emergency contact for the user.",
             "example": "Anand, +91 88485 42511",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "experience": {
             "description": "Years of experience. Must be sent as a whole number.",
             "example": 6,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "gender": {
             "description": "Gender recorded for the user.",
             "example": "MALE",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "name": {
             "description": "Full name of the user.",
             "example": "Hrishikesh R",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "phone": {
             "description": "Contact phone number of the user.",
             "example": "+91 99400 00000",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "profilePictureUrl": {
             "description": "Stored key or URL of the profile picture.",
             "example": "users/31/profile.jpg",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "qualification": {
             "description": "Highest qualification held.",
             "example": "B.Tech Civil Engineering",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "role": {
             "description": "Platform role held by the user.",
@@ -18854,7 +19088,10 @@
               "MANAGEMENT",
               "ADMINISTRATOR"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "skills": {
             "description": "Skills recorded for the user. Replaces the existing list rather than adding to it.",
@@ -18865,7 +19102,10 @@
             "items": {
               "type": "string"
             },
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "type": "object"

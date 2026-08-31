@@ -382,7 +382,7 @@ public class ProjectService {
                     project.setProjectPostalCode(trimToNull((String) value));
                     break;
                 case "status":
-                    project.setStatus(ProjectCreationStatus.valueOf((String) value));
+                    project.setStatus(value != null ? ProjectCreationStatus.valueOf((String) value) : null);
                     break;
                 case "startDate":
                     project.setStartDate(DateConversion.parseLocalDateTime(value));
@@ -401,20 +401,10 @@ public class ProjectService {
                             : requireCustomerInTenant(UUID.fromString(customerId)));
                     break;
                 case "projectLongitude":
-                    float longitude = ((Number) value).floatValue();
-                    if(longitude >= -180 && longitude <= 180) {
-                        project.setProjectLongitude(longitude);
-                    } else {
-                        throw new IllegalArgumentException("Longitude must be between -180 and 180");
-                    }
+                    project.setProjectLongitude(coordinateWithin(value, -180, 180, "Longitude"));
                     break;
                 case "projectLatitude":
-                    float latitude = ((Number) value).floatValue();
-                    if (latitude >= -90 && latitude <= 90) {
-                        project.setProjectLatitude(latitude);
-                    } else {
-                        throw new IllegalArgumentException("Latitude must be between -90 and 90");
-                    }
+                    project.setProjectLatitude(coordinateWithin(value, -90, 90, "Latitude"));
                     break;
                 default:
                     PartialUpdateKeys.reportUnknown(log, "project", project.getId(), key,
@@ -431,6 +421,35 @@ public class ProjectService {
         recordStatusChange(project, previousStatus, actor);
         stampWrite(project, actor);
     }
+
+    /**
+     * Reads one of the two coordinate keys of a partial project update.
+     *
+     * <p>Null clears the coordinate: both columns are nullable and a project whose location is not
+     * known is the state every project starts in. Before this helper existed the value went
+     * straight into {@code ((Number) value).floatValue()} and a null answered 500. See #645.
+     *
+     * @param value The raw map value: a number, or null to clear the coordinate.
+     * @param minimum Lowest value the coordinate may take.
+     * @param maximum Highest value the coordinate may take.
+     * @param name The coordinate's name, used in the message.
+     * @return The coordinate, or null.
+     * @throws IllegalArgumentException if the value is not a number, or is out of range.
+     */
+    private Float coordinateWithin(Object value, int minimum, int maximum, String name) {
+        if (value == null) {
+            return null;
+        }
+        if (!(value instanceof Number number)) {
+            throw new IllegalArgumentException(name + " must be a number");
+        }
+        float coordinate = number.floatValue();
+        if (coordinate < minimum || coordinate > maximum) {
+            throw new IllegalArgumentException(name + " must be between " + minimum + " and " + maximum);
+        }
+        return coordinate;
+    }
+
 
     /**
      * Appends a status change to the project's trail, if the patch was one.

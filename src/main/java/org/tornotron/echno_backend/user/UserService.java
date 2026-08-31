@@ -234,7 +234,7 @@ public class UserService {
                 case "experience" -> user.setExperience((Integer) value);
                 case "cvUrl" -> user.setCvUrl((String) value);
                 case "emergencyContact" -> user.setEmergencyContact((String) value);
-                case "role" -> user.setRole(UserRole.valueOf((String) value));
+                case "role" -> user.setRole(value != null ? UserRole.valueOf((String) value) : null);
                 case "profilePictureUrl" -> user.setProfilePictureUrl((String) value);
                 case "skills" -> user.setSkills(parseSkills(value));
                 case "certifications" -> user.setCertifications(parseCertifications(value));
@@ -247,6 +247,9 @@ public class UserService {
     }
 
     private Long parseDefaultOrganizationId(Object value) {
+        if (value == null) {
+            return null;
+        }
         if (value instanceof Number number) {
             return number.longValue();
         }

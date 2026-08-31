@@ -22,6 +22,7 @@ import org.tornotron.echno_backend.leave.enums.LeaveStatus;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -300,10 +301,10 @@ public class LeaveRequestService {
 
         updates.forEach((key, value) -> {
             switch (key) {
-                case "startDate" -> request.setStartDate(LocalDate.parse((String) value));
+                case "startDate" -> request.setStartDate(requireLeaveDate(value, "startDate"));
                 case "startHalfDayType" -> request.setStartHalfDayType(
                         value != null ? HalfDayType.valueOf((String) value) : null);
-                case "endDate" -> request.setEndDate(LocalDate.parse((String) value));
+                case "endDate" -> request.setEndDate(requireLeaveDate(value, "endDate"));
                 case "endHalfDayType" -> request.setEndHalfDayType(
                         value != null ? HalfDayType.valueOf((String) value) : null);
                 case "reason" -> request.setReason((String) value);
@@ -327,6 +328,42 @@ public class LeaveRequestService {
         LeaveRequest saved = requestRepository.save(request);
         return leaveRequestMapper.toDto(saved);
     }
+
+    /**
+     * Reads one of the two date keys of a partial leave-request update.
+     *
+     * <p>Null is refused rather than applied. Both columns are {@code NOT NULL}, and
+     * {@code calculateTotalDays} runs over both dates after the switch, so a cleared one could not
+     * be saved or counted. Before this refusal existed the branch reached
+     * {@code LocalDate.parse(null)} and answered 500, and an unparseable string answered 500 too,
+     * since {@code DateTimeParseException} is not an {@code IllegalArgumentException} and reached
+     * no handler. See #645.
+     *
+     * @param value The raw map value: an ISO date string, an already-typed date, or null.
+     * @param field The key's name, used in the message.
+     * @return The parsed date.
+     * @throws InvalidRequestException if the value is null, not a date, or unparseable.
+     */
+    private LocalDate requireLeaveDate(Object value, String field) {
+        if (value == null) {
+            throw new InvalidRequestException(
+                    "A leave request must have both dates; " + field + " cannot be cleared");
+        }
+        if (value instanceof LocalDate date) {
+            return date;
+        }
+        if (!(value instanceof String text)) {
+            throw new InvalidRequestException(
+                    field + " must be an ISO date, for example 2026-09-05");
+        }
+        try {
+            return LocalDate.parse(text);
+        } catch (DateTimeParseException e) {
+            throw new InvalidRequestException(
+                    field + " must be an ISO date, for example 2026-09-05, but got \"" + text + "\"");
+        }
+    }
+
 
     /**
      * Submits a draft request for approval, validating it and holding its days as pending.
