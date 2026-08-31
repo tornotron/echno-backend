@@ -1,10 +1,6 @@
 name: Staging
 
-# Promotion to staging.
-#
-# Triggered by a pull request merging into `staging`, not by a push. Previously
-# a bare `git push` reached a live server with nothing in between, so a mistake
-# went straight to a running environment.
+# Deploy to the DigitalOcean staging box.
 #
 # The image is published to the GitHub Container Registry, private, and the
 # server pulls it by digest. Deployment runs the Ansible playbook from
@@ -12,10 +8,11 @@ name: Staging
 # path serves CI, an operator's laptop, and the IIT Madras host.
 
 on:
-  # The DO staging box was destroyed to save cost, so this no longer fires on a
-  # merge; the merge-to-staging deploy now targets IITM (deploy-staging-iitm.yml).
-  # It remains here, dispatch-only, to rebuild and redeploy the DO box from the
-  # IaC if it is ever brought back.
+  # Dispatch-only, and dormant. The DO staging box was destroyed to save cost and
+  # IITM took over staging (deploy-staging-iitm.yml), so this exists to rebuild
+  # and redeploy the DO box from the IaC if it is ever brought back. It once ran
+  # on a merge into `staging`; that branch has since been retired
+  # (echno-deployment#38).
   workflow_dispatch:
 
 concurrency:
@@ -31,8 +28,6 @@ env:
 
 jobs:
   build:
-    # workflow_dispatch carries no pull request, so let it through explicitly.
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.build.outputs.digest }}
