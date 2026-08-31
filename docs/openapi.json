@@ -9525,6 +9525,69 @@
         },
         "type": "object"
       },
+      "LowStockMaterialDto": {
+        "description": "A material whose stock has reached or fallen below the reorder level in force at the scope that was asked about.",
+        "properties": {
+          "currentStock": {
+            "description": "Quantity on hand at the scope that was asked about. Zero when the material has no stock there at all.",
+            "example": 3501,
+            "format": "double",
+            "type": "number"
+          },
+          "materialId": {
+            "description": "Material id.",
+            "example": 12,
+            "format": "int64",
+            "type": "integer"
+          },
+          "materialName": {
+            "description": "Name of the material.",
+            "example": "TMT Bar 12mm",
+            "type": "string"
+          },
+          "moq": {
+            "description": "The minimum order quantity in force at that scope, as the smallest quantity a purchase can be raised for. Null when none is recorded.",
+            "example": 10000,
+            "format": "double",
+            "type": "number"
+          },
+          "projectId": {
+            "description": "Project the stock was counted within, null when the whole organization was counted.",
+            "example": 5,
+            "format": "int64",
+            "type": "integer"
+          },
+          "reorderLevel": {
+            "description": "The reorder level that was applied. At storage-location scope this is the location's override when it has one, and the material's own level otherwise.",
+            "example": 11000,
+            "format": "double",
+            "type": "number"
+          },
+          "shortfall": {
+            "description": "How far below the reorder level the stock is, never negative. Zero for a material sitting exactly on its level.",
+            "example": 7499,
+            "format": "double",
+            "type": "number"
+          },
+          "sku": {
+            "description": "Stock keeping unit code.",
+            "example": "TMT-12MM-001",
+            "type": "string"
+          },
+          "storageLocationId": {
+            "description": "Storage location the stock was counted at, null unless one was asked about.",
+            "example": 2,
+            "format": "int64",
+            "type": "integer"
+          },
+          "unit": {
+            "description": "Unit of measure for the material.",
+            "example": "kg",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "MaterialConsumptionCreationDto": {
         "description": "Payload to record material consumed against a project. Stock sufficiency is checked at the material and project level, or at the storage location level when one is given.",
         "properties": {
@@ -11723,6 +11786,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/LeaveRequestDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageLowStockMaterialDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/LowStockMaterialDto"
             },
             "type": "array"
           },
@@ -72198,6 +72307,155 @@
         ]
       }
     },
+    "/api/v1/materials/low-stock": {
+      "get": {
+        "description": "Returns a page of the materials whose stock has reached the reorder level in force, most depleted first as a fraction of that level. With neither id, stock is totalled across the organization and every material in the catalogue is a candidate, including one holding nothing anywhere. With projectId, stock is totalled over that project's storage locations and only materials held on the project are candidates. With both ids, stock is read at that one location and its threshold override applies in place of the material's global level. A material with no reorder level set is never reported. The comparison is at or below, matching the low-stock badge in the console. X-Total-Count is not used here: the page's totalElements is the true count, so a caller wanting only the number can ask for pageSize=1 and read it.",
+        "operationId": "getLowStockMaterials_1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storageLocationId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageLowStockMaterialDto"
+                }
+              }
+            },
+            "description": "Page of low-stock materials returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A storage location was given without a project, or belongs to a different project"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the material read or admin authority"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No project or storage location with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List materials at or below their reorder level",
+        "tags": [
+          "Materials"
+        ]
+      }
+    },
     "/api/v1/materials/search": {
       "get": {
         "description": "Returns materials whose name matches the given search term, such as \"Cement\" or \"TMT\".",
@@ -72654,6 +72912,155 @@
           }
         },
         "summary": "List materials, paginated",
+        "tags": [
+          "Materials (Web)"
+        ]
+      }
+    },
+    "/api/v1/materials/web/low-stock": {
+      "get": {
+        "description": "Returns a page of the materials whose stock has reached the reorder level in force, most depleted first as a fraction of that level. With neither id, stock is totalled across the organization and every material in the catalogue is a candidate, including one holding nothing anywhere. With projectId, stock is totalled over that project's storage locations and only materials held on the project are candidates. With both ids, stock is read at that one location and its threshold override applies in place of the material's global level. A material with no reorder level set is never reported. The comparison is at or below, matching the low-stock badge in the console. X-Total-Count is not used here: the page's totalElements is the true count, so a caller wanting only the number can ask for pageSize=1 and read it.",
+        "operationId": "getLowStockMaterials",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storageLocationId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageLowStockMaterialDto"
+                }
+              }
+            },
+            "description": "Page of low-stock materials returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A storage location was given without a project, or belongs to a different project"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No project or storage location with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List materials at or below their reorder level",
         "tags": [
           "Materials (Web)"
         ]
