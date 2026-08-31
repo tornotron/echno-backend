@@ -21,7 +21,10 @@ org-5/                      ← This is a folder (Keycloak group) for the organi
     ├── system-admin        ← This is a subfolder (subgroup) for the role
     ├── org-manager
     ├── hr-admin
-    └── project-manager
+    ├── project-manager
+    ├── qa-engineer
+    ├── safety-officer
+    └── site-engineer
 ```
 
 - When a user **joins an organization**, they are placed inside the `org-5` folder.
@@ -43,7 +46,7 @@ When someone creates an organization (let's say org with ID 5), your `Organizati
 
 This method does two things:
 1. Creates the parent group `org-5` in Keycloak (this already existed before)
-2. **NEW**: Creates role subgroups inside it: `system-admin`, `org-manager`, `hr-admin`, `project-manager`
+2. Creates one role subgroup inside it for every value of `OrgRole`
 
 After this, Keycloak's group tree looks like:
 ```
@@ -51,7 +54,10 @@ org-5/
     ├── system-admin
     ├── org-manager
     ├── hr-admin
-    └── project-manager
+    ├── project-manager
+    ├── qa-engineer
+    ├── safety-officer
+    └── site-engineer
 ```
 
 **File:** `KeycloakGroupService.java` → `createOrganizationGroup()` and `createDefaultRoleSubgroups()`
@@ -166,10 +172,27 @@ This is just an enum that lists what roles exist. Each role has a `groupName` wh
 
 ```java
 SYSTEM_ADMIN("system-admin")       // Full control over the organization
-ORG_MANAGER("org-manager")         // Can manage org settings and employees
+ORG_MANAGER("org-manager")         // Manager standing only; no endpoint checks it
 HR_ADMIN("hr-admin")               // Can manage HR features (leave, attendance)
 PROJECT_MANAGER("project-manager") // Can manage projects within the org
+QA_ENGINEER("qa-engineer")         // Quality inspections, checklists, quality NCRs
+SAFETY_OFFICER("safety-officer")   // Safety inspections and safety NCRs
+SITE_ENGINEER("site-engineer")     // Reads inspections, reports corrective action
 ```
+
+The three inspection roles sit here rather than among the realm occupation roles because this is the
+layer `@PreAuthorize` actually reads. The realm has a `site-engineer` and a `safety-officer`
+occupation role as well, but occupation roles gate nothing in application code: they are a catalogue
+for assignment, not an authority.
+
+The enum also carries a second, smaller idea. `getManagerRoles()` names the four that count as
+manager standing (`SYSTEM_ADMIN`, `ORG_MANAGER`, `HR_ADMIN`, `PROJECT_MANAGER`), and that set decides
+who may be named the manager on a project invite code and who appears in the manager listings. The
+inspection roles are deliberately outside it: a QA engineer signs off quality, not headcount.
+
+That set is also the whole of what `ORG_MANAGER` does. No `@PreAuthorize` anywhere names
+`'org-manager'`, and the web role picker does not offer it, so it can only be granted through the
+API. It is not inert, though, and removing it would silently narrow `MANAGER_ROLES`.
 
 **When would you change this file?**
 - When you want to add a new role (e.g., `FINANCE_ADMIN("finance-admin")`)
@@ -210,9 +233,15 @@ This is the service that makes API calls to Keycloak to manage groups and subgro
 | `removeOrgRole(userId, orgId, role)` | Takes away a role from a user in an org |
 | `getUserOrgRoles(userId, orgId)` | Lists all roles a user has in a specific org |
 
+`assignOrgRole` creates the subgroup if the organization does not have one, through the private
+`ensureRoleSubgroup`. That is what makes adding a role to the enum a non-event: an organization
+created before the role existed has no subgroup for it, and rather than refuse the assignment and
+leave someone clicking through the Keycloak console once per tenant, the first assignment creates it.
+The name always comes from the enum, so this cannot invent an authority. Two assignments of the same
+new role can race, and the loser is told the group already exists, which is the outcome it wanted.
+
 **When would you change this file?**
 - When you need new ways to manage roles (e.g., bulk role assignment)
-- When you need to create a subgroup for a role that doesn't exist yet in an existing org
 
 ---
 
@@ -303,9 +332,8 @@ public ResponseEntity<?> approveLeave(@PathVariable Long orgId) { ... }
 
 2. For **new** organizations, the subgroup will be created automatically when the org is created.
 
-3. For **existing** organizations, you need to manually create the subgroup. You can do this by:
-   - Going to the Keycloak admin console → Groups → find `org-{id}` → create child group `finance-admin`
-   - Or writing a one-time migration script that calls `createDefaultRoleSubgroups` for all existing orgs
+3. For **existing** organizations, nothing to do. `assignOrgRole` creates the subgroup the first time
+   somebody is given the role, so there is no backfill and no console work.
 
 4. Use it in controllers:
    ```java
@@ -419,4 +447,4 @@ All of these are available in `@PreAuthorize` for checking.
 
 4. **The `OrgRole` enum is for type safety only.** It doesn't enforce anything in Keycloak. You could technically create a subgroup with any name in the Keycloak admin console and it would work. The enum just prevents typos in your Java code.
 
-5. **Existing organizations won't have subgroups.** Organizations created before this change don't have the role subgroups. You'll need to either recreate them or add subgroups via the Keycloak admin console.
+5. **A missing subgroup repairs itself.** An organization created before a role was added to the enum has no subgroup for it. The first assignment of that role creates it, so an organization does not need recreating and nobody has to add subgroups by hand in the Keycloak console.
