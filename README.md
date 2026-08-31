@@ -183,6 +183,35 @@ Mark only what you have checked. A field the document declares non-null is a fie
 entitled to parse without a guard, so leaving one unmarked is recoverable and marking one wrongly
 is not.
 
+### Saying what a field will be rejected for
+
+Validation constraints on a DTO are published, so writing one is also writing the contract:
+
+```java
+@NotBlank @Size(max = 1000) String reason
+```
+
+comes out as `"minLength": 1, "maxLength": 1000` with `reason` in the schema's `required`.
+
+Left to swagger-core it does not. `required` is written from `@NotNull` and nothing else, so a
+`@NotBlank` field read as optional; `@Size` assigns `minLength` after `@NotBlank` has set it and
+its `min` defaults to 0, so the pairing above published `minLength: 0`, which positively permits
+the empty string the endpoint refuses; and `@Positive`, `@PositiveOrZero`, `@Negative`,
+`@NegativeOrZero` and `@Email` were not read at all. `ValidationConstraintsModelConverter` fills
+those in and `OpenApiValidationConstraintsTest` fails when an annotated field is not described.
+
+It states only what the annotation itself guarantees. `@NotBlank` also rejects a string of blanks
+and `minLength: 1` does not say so, which is deliberate: a document that understates a constraint
+costs a client one rejected request, and one that overstates it makes the client refuse input the
+server would have taken. `@Min`, `@Max`, `@DecimalMin`, `@DecimalMax`, `@Size` and `@Pattern` are
+already published correctly and are left alone; `@Past`, `@Future`, `@Digits`, cross-field rules
+and constraints naming validation groups have no keyword that means what they mean, so the
+document says nothing about them.
+
+Two nested types with the same simple name cannot both be published, and the loser is silently
+replaced by the winner rather than reported. Give one of them a name of its own with
+`@Schema(name = "...")` when that happens.
+
 Serving the document from a deployment is a separate decision: `/v3/api-docs` and the Swagger UI
 answer 401 unless `SWAGGER_PUBLIC_ACCESS=true` is set for that environment.
 

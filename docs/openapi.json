@@ -446,6 +446,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "AssetDto": {
@@ -684,7 +687,7 @@
             "description": "Why the asset moved. Required: an entry with no stated reason is what makes a ledger unexplainable.",
             "example": "Mobilised to the Marina Heights site for the piling phase",
             "maxLength": 255,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "referenceNumber": {
@@ -720,6 +723,9 @@
             "type": "integer"
           }
         },
+        "required": [
+          "reason"
+        ],
         "type": "object"
       },
       "AssetMovementDto": {
@@ -1621,7 +1627,8 @@
           "movementTrackingEnabled",
           "photoRequiredOnCheckIn",
           "photoRequiredOnCheckOut",
-          "regularizationApprovalRequired"
+          "regularizationApprovalRequired",
+          "settingName"
         ],
         "type": "object"
       },
@@ -2063,10 +2070,13 @@
             "description": "What was wrong with the voucher.",
             "example": "Duplicate of CPMT-000118, raised twice for the same invoice",
             "maxLength": 1000,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           }
         },
+        "required": [
+          "reason"
+        ],
         "type": "object"
       },
       "CategoryCreationDto": {
@@ -2076,7 +2086,7 @@
             "description": "Short description of what the category covers.",
             "example": "TMT bars, wire mesh and other reinforcement materials",
             "maxLength": 255,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "icon": {
@@ -2096,6 +2106,10 @@
             "type": "string"
           }
         },
+        "required": [
+          "description",
+          "name"
+        ],
         "type": "object"
       },
       "CategoryDto": {
@@ -2557,14 +2571,14 @@
             "description": "Grouping the check point belongs to.",
             "example": "Reinforcement",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "checkPoint": {
             "description": "What is being checked.",
             "example": "Main bar spacing matches the bar bending schedule",
             "maxLength": 500,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "expectedValue": {
@@ -2601,6 +2615,10 @@
             "type": "string"
           }
         },
+        "required": [
+          "category",
+          "checkPoint"
+        ],
         "type": "object"
       },
       "ChecklistTemplateRequest": {
@@ -2628,7 +2646,7 @@
             "description": "Name of the checklist.",
             "example": "Reinforcement inspection checklist",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "trade": {
@@ -2656,6 +2674,8 @@
           }
         },
         "required": [
+          "items",
+          "name",
           "trade"
         ],
         "type": "object"
@@ -3422,7 +3442,7 @@
             "description": "Description of the billed item or work.",
             "example": "Ready-mix concrete M25",
             "maxLength": 500,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "discountRate": {
@@ -3461,7 +3481,7 @@
             "description": "Unit of measure for the quantity.",
             "example": "cubic metre",
             "maxLength": 50,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "unitPrice": {
@@ -3472,7 +3492,9 @@
           }
         },
         "required": [
+          "description",
           "quantity",
+          "unit",
           "unitPrice"
         ],
         "type": "object"
@@ -3814,7 +3836,7 @@
             "description": "Account name.",
             "example": "Cash and Cash Equivalents",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "parentId": {
@@ -3831,6 +3853,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "CreateCompanyBankAccountRequest": {
@@ -3840,21 +3865,21 @@
             "description": "Name on the account.",
             "example": "Fereydon Pvt Ltd",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "accountNumber": {
             "description": "Account number.",
             "example": 50100234567890,
             "maxLength": 50,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "bankName": {
             "description": "Name of the bank.",
             "example": "HDFC Bank",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "ifscCode": {
@@ -3884,6 +3909,9 @@
           }
         },
         "required": [
+          "accountHolderName",
+          "accountNumber",
+          "bankName",
           "ledgerAccountId"
         ],
         "type": "object"
@@ -4011,6 +4039,7 @@
           "amount": {
             "description": "Amount to pay. Must be positive.",
             "example": 40000.0,
+            "exclusiveMinimum": 0,
             "type": "number"
           },
           "bankName": {
@@ -4202,10 +4231,13 @@
             "description": "Cost category name, unique within the tenant.",
             "example": "Materials",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           }
         },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "CreateCustomerRequest": {
@@ -4219,7 +4251,7 @@
             "description": "Customer code, unique within the tenant.",
             "example": "CUST-0042",
             "maxLength": 30,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "creditLimit": {
@@ -4231,6 +4263,7 @@
           "email": {
             "description": "Contact email address.",
             "example": "accounts@assethomes.example",
+            "format": "email",
             "maxLength": 200,
             "minLength": 0,
             "type": "string"
@@ -4246,7 +4279,7 @@
             "description": "Customer name.",
             "example": "Asset Homes Pvt Ltd",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "pan": {
@@ -4272,6 +4305,10 @@
             "type": "string"
           }
         },
+        "required": [
+          "code",
+          "name"
+        ],
         "type": "object"
       },
       "CreateDirectRoomDto": {
@@ -4373,6 +4410,7 @@
             "description": "Duration of the inspection in minutes.",
             "example": 75,
             "format": "int32",
+            "minimum": 0,
             "type": "integer"
           },
           "inspectorId": {
@@ -4418,7 +4456,7 @@
             "description": "Short title of the inspection.",
             "example": "Foundation Pour - Block C",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "trade": {
@@ -4471,6 +4509,7 @@
         "required": [
           "inspectorId",
           "scheduledDate",
+          "title",
           "type"
         ],
         "type": "object"
@@ -4499,7 +4538,7 @@
           "lines": {
             "description": "Invoice line items. At least one line is required.",
             "items": {
-              "$ref": "#/components/schemas/LineRequest"
+              "$ref": "#/components/schemas/InvoiceLineRequest"
             },
             "maxItems": 2147483647,
             "minItems": 1,
@@ -4534,7 +4573,7 @@
             "description": "What does not conform, and against what requirement.",
             "example": "Clear cover measured at 25 mm against a specified 40 mm at grid C3 to C6.",
             "maxLength": 2000,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "inspectionId": {
@@ -4569,12 +4608,14 @@
             "description": "Short title of the non-conformance.",
             "example": "Cover to slab reinforcement below specification",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           }
         },
         "required": [
-          "inspectionId"
+          "description",
+          "inspectionId",
+          "title"
         ],
         "type": "object"
       },
@@ -4702,7 +4743,7 @@
             "description": "The photo to draw on, exactly as it appears in the defect's photos list.",
             "example": "https://cdn.example.com/inspections/6f1c-crack.jpg",
             "maxLength": 500,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "shape": {
@@ -4745,6 +4786,7 @@
           }
         },
         "required": [
+          "photo",
           "shape",
           "x1",
           "x2",
@@ -4763,6 +4805,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "content"
+        ],
         "type": "object"
       },
       "EmployeeCreationDto": {
@@ -4799,7 +4844,7 @@
             "description": "Contact email address.",
             "example": "ravi.kumar@example.com",
             "maxLength": 255,
-            "minLength": 0,
+            "minLength": 1,
             "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$",
             "type": "string"
           },
@@ -4862,7 +4907,13 @@
           }
         },
         "required": [
-          "dateOfBirth"
+          "dateOfBirth",
+          "department",
+          "designation",
+          "emailAddress",
+          "employeeName",
+          "gender",
+          "phoneNumber"
         ],
         "type": "object"
       },
@@ -5163,6 +5214,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "status"
+        ],
         "type": "object"
       },
       "EmployeeLookupDto": {
@@ -5381,7 +5435,8 @@
           }
         },
         "required": [
-          "amount"
+          "amount",
+          "description"
         ],
         "type": "object"
       },
@@ -5590,7 +5645,8 @@
           }
         },
         "required": [
-          "amount"
+          "amount",
+          "description"
         ],
         "type": "object"
       },
@@ -5641,7 +5697,7 @@
             "description": "Unique code identifying the feature.",
             "example": "report-export",
             "maxLength": 100,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "description": {
@@ -5662,6 +5718,11 @@
             "type": "string"
           }
         },
+        "required": [
+          "code",
+          "featureType",
+          "name"
+        ],
         "type": "object"
       },
       "FeatureDto": {
@@ -5799,6 +5860,7 @@
           }
         },
         "required": [
+          "items",
           "projectId",
           "receivedByEmployeeId",
           "receivedOn",
@@ -6043,7 +6105,8 @@
         },
         "required": [
           "createdByEmployeeId",
-          "projectId"
+          "projectId",
+          "status"
         ],
         "type": "object"
       },
@@ -6149,6 +6212,7 @@
           "requestedQuantity": {
             "description": "Quantity requested.",
             "example": 500,
+            "exclusiveMinimum": 0,
             "format": "int32",
             "type": "integer"
           }
@@ -6208,6 +6272,7 @@
             "type": "string"
           },
           "requestedQuantity": {
+            "exclusiveMinimum": 0,
             "format": "int32",
             "type": "integer"
           }
@@ -6412,14 +6477,14 @@
             "description": "Grouping the check point belongs to.",
             "example": "Reinforcement",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "checkPoint": {
             "description": "What is being checked.",
             "example": "Rebar spacing matches drawing",
             "maxLength": 500,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "expectedValue": {
@@ -6491,6 +6556,8 @@
           }
         },
         "required": [
+          "category",
+          "checkPoint",
           "status"
         ],
         "type": "object"
@@ -6565,14 +6632,14 @@
             "description": "Action required to correct the defect.",
             "example": "Chip out and re-pour affected section",
             "maxLength": 1000,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "description": {
             "description": "Description of the defect.",
             "example": "Honeycombing observed on column C4 at ground level",
             "maxLength": 1000,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "location": {
@@ -6632,6 +6699,10 @@
             "type": "string"
           }
         },
+        "required": [
+          "correctiveAction",
+          "description"
+        ],
         "type": "object"
       },
       "InspectionDto": {
@@ -7054,6 +7125,11 @@
             "type": "integer"
           }
         },
+        "required": [
+          "department",
+          "designation",
+          "status"
+        ],
         "type": "object"
       },
       "InviteCodePatchDto": {
@@ -7082,6 +7158,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "code"
+        ],
         "type": "object"
       },
       "InvoiceDto": {
@@ -7242,6 +7321,51 @@
         },
         "type": "object"
       },
+      "InvoiceLineRequest": {
+        "description": "A single line on a customer invoice.",
+        "properties": {
+          "description": {
+            "description": "What the line is charging for.",
+            "example": "Structural design consultancy",
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "quantity": {
+            "description": "Quantity billed. Must be greater than zero.",
+            "example": 10,
+            "minimum": 1.0E-4,
+            "type": "number"
+          },
+          "revenueAccountId": {
+            "description": "Revenue account the line is credited to.",
+            "example": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+            "format": "uuid",
+            "type": "string"
+          },
+          "taxRate": {
+            "description": "Tax rate applied to the line, as a percentage between 0 and 100.",
+            "example": 18.0,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "unitPrice": {
+            "description": "Price per unit.",
+            "example": 5000.0,
+            "minimum": 0.0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "revenueAccountId",
+          "taxRate",
+          "unitPrice"
+        ],
+        "type": "object"
+      },
       "IssueCommentCreationDto": {
         "description": "Payload to leave a comment on an issue. The author is taken from the signed-in session, not from the request.",
         "properties": {
@@ -7249,7 +7373,7 @@
             "description": "The comment text.",
             "example": "Rebar spacing on the east face still needs checking.",
             "maxLength": 500,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "issueId": {
@@ -7260,6 +7384,7 @@
           }
         },
         "required": [
+          "comment",
           "issueId"
         ],
         "type": "object"
@@ -7337,6 +7462,8 @@
           }
         },
         "required": [
+          "description",
+          "title",
           "type"
         ],
         "type": "object"
@@ -7708,6 +7835,10 @@
             "type": "string"
           }
         },
+        "required": [
+          "code",
+          "name"
+        ],
         "type": "object"
       },
       "LabourCreationDto": {
@@ -7749,6 +7880,7 @@
           "email": {
             "description": "Contact email address.",
             "example": "suresh.pillai@example.com",
+            "format": "email",
             "maxLength": 255,
             "minLength": 0,
             "type": "string"
@@ -7771,14 +7903,14 @@
             "description": "Employment arrangement. One of DAILY_WAGE, MONTHLY, CONTRACT, PIECE_RATE.",
             "example": "DAILY_WAGE",
             "maxLength": 255,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "fullName": {
             "description": "Full name of the worker.",
             "example": "Suresh Pillai",
             "maxLength": 255,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "ifscCode": {
@@ -7796,7 +7928,7 @@
             "description": "Organization-assigned labour code.",
             "example": "LAB-0087",
             "maxLength": 15,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "overTimeRate": {
@@ -7808,14 +7940,14 @@
             "description": "Ten-digit contact phone number.",
             "example": 9847098470,
             "maxLength": 255,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "skillLevel": {
             "description": "Skill level. One of SKILLED, SEMI_SKILLED, HIGHLY_SKILLED, UNSKILLED.",
             "example": "SKILLED",
             "maxLength": 255,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "specialization": {
@@ -7829,12 +7961,18 @@
             "description": "Employment status. One of ACTIVE, INACTIVE, ON_LEAVE, TERMINATED.",
             "example": "ACTIVE",
             "maxLength": 255,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           }
         },
         "required": [
-          "joiningDate"
+          "employmentType",
+          "fullName",
+          "joiningDate",
+          "labourID",
+          "phoneNumber",
+          "skillLevel",
+          "status"
         ],
         "type": "object"
       },
@@ -8122,6 +8260,7 @@
           "email": {
             "description": "Contact email address.",
             "example": "suresh.pillai@example.com",
+            "format": "email",
             "maxLength": 255,
             "minLength": 0,
             "type": "string"
@@ -8350,7 +8489,7 @@
             "description": "Reason for the adjustment.",
             "example": "Correcting a missed accrual for July 2026",
             "maxLength": 500,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           }
         },
@@ -8358,7 +8497,8 @@
           "adjustedById",
           "days",
           "employeeId",
-          "leavePolicyId"
+          "leavePolicyId",
+          "reason"
         ],
         "type": "object"
       },
@@ -8639,6 +8779,7 @@
           "annualQuota": {
             "description": "Total days granted per year under this policy.",
             "example": 12.0,
+            "exclusiveMinimum": 0,
             "format": "double",
             "type": "number"
           },
@@ -8687,14 +8828,14 @@
             "description": "Short code identifying the leave type.",
             "example": "CL",
             "maxLength": 50,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "leaveTypeName": {
             "description": "Display name of the leave type.",
             "example": "Casual Leave",
             "maxLength": 100,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "maxDaysPerRequest": {
@@ -8734,6 +8875,8 @@
         },
         "required": [
           "annualQuota",
+          "leaveTypeCode",
+          "leaveTypeName",
           "organizationId"
         ],
         "type": "object"
@@ -9071,7 +9214,7 @@
             "description": "Reason for the leave.",
             "example": "Attending sister's wedding in Coimbatore",
             "maxLength": 1000,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "startDate": {
@@ -9099,6 +9242,7 @@
         "required": [
           "endDate",
           "leavePolicyId",
+          "reason",
           "startDate"
         ],
         "type": "object"
@@ -9587,6 +9731,7 @@
         },
         "required": [
           "consumptionDate",
+          "consumptionType",
           "createdBy",
           "materialId",
           "projectId",
@@ -9786,7 +9931,9 @@
           }
         },
         "required": [
-          "createdBy"
+          "createdBy",
+          "materialName",
+          "unit"
         ],
         "type": "object"
       },
@@ -10377,7 +10524,9 @@
         },
         "required": [
           "attendanceId",
+          "fromLocation",
           "movementType",
+          "purpose",
           "startTime"
         ],
         "type": "object"
@@ -10766,7 +10915,7 @@
           },
           "organizationEmail": {
             "maxLength": 255,
-            "minLength": 0,
+            "minLength": 1,
             "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,24}$",
             "type": "string"
           },
@@ -10789,6 +10938,12 @@
             "type": "string"
           }
         },
+        "required": [
+          "organizationAddress",
+          "organizationEmail",
+          "organizationName",
+          "organizationPhone"
+        ],
         "type": "object"
       },
       "OrganizationDto": {
@@ -12642,9 +12797,11 @@
       "PayableCreationDto": {
         "properties": {
           "amountPaid": {
+            "minimum": 0,
             "type": "number"
           },
           "amountRecorded": {
+            "exclusiveMinimum": 0,
             "type": "number"
           },
           "contractType": {
@@ -12680,7 +12837,10 @@
         },
         "required": [
           "amountRecorded",
+          "contractType",
+          "contractorName",
           "createdBy",
+          "payableNumber",
           "projectId"
         ],
         "type": "object"
@@ -12830,6 +12990,7 @@
       "PaymentRecordDto": {
         "properties": {
           "paymentAmount": {
+            "exclusiveMinimum": 0,
             "type": "number"
           }
         },
@@ -12870,6 +13031,7 @@
           }
         },
         "required": [
+          "name",
           "policies",
           "resources",
           "scopes"
@@ -12888,7 +13050,7 @@
             "description": "Unique code identifying the plan.",
             "example": "professional-monthly",
             "maxLength": 50,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "currency": {
@@ -12939,7 +13101,9 @@
           }
         },
         "required": [
-          "monthlyPrice"
+          "code",
+          "monthlyPrice",
+          "name"
         ],
         "type": "object"
       },
@@ -13063,6 +13227,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "featureCode"
+        ],
         "type": "object"
       },
       "PlanFeatureDto": {
@@ -13128,7 +13295,7 @@
             "description": "Description of the entry.",
             "example": "Vendor bill CINV-2026-0042 posted",
             "maxLength": 500,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "entryDate": {
@@ -13155,6 +13322,7 @@
           }
         },
         "required": [
+          "description",
           "entryDate",
           "lines"
         ],
@@ -13473,6 +13641,10 @@
             "type": "string"
           }
         },
+        "required": [
+          "projectAddress",
+          "projectName"
+        ],
         "type": "object"
       },
       "ProjectDto": {
@@ -14258,6 +14430,7 @@
           "unitPrice": {
             "description": "Unit price in INR. Required. Zero is allowed, for a line supplied free of charge, but it has to be sent deliberately: an empty price field is rejected rather than treated as zero, which is how orders were being saved with a total of nothing.",
             "example": 62.5,
+            "minimum": 0,
             "type": "number"
           }
         },
@@ -14485,6 +14658,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "emoji"
+        ],
         "type": "object"
       },
       "ReceiptCreationDto": {
@@ -14599,7 +14775,8 @@
           }
         },
         "required": [
-          "amount"
+          "amount",
+          "receivedFrom"
         ],
         "type": "object"
       },
@@ -14856,7 +15033,8 @@
           }
         },
         "required": [
-          "amount"
+          "amount",
+          "receivedFrom"
         ],
         "type": "object"
       },
@@ -14997,7 +15175,9 @@
           }
         },
         "required": [
-          "attendanceId"
+          "attendanceId",
+          "missingEvents",
+          "reason"
         ],
         "type": "object"
       },
@@ -15047,6 +15227,10 @@
             "uniqueItems": true
           }
         },
+        "required": [
+          "displayName",
+          "name"
+        ],
         "type": "object"
       },
       "ReverseJournalRequest": {
@@ -15060,6 +15244,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "reason"
+        ],
         "type": "object"
       },
       "RoleCreationDto": {
@@ -15072,6 +15259,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "RolePolicyDefinitionDto": {
@@ -15091,6 +15281,9 @@
             "uniqueItems": true
           }
         },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "SearchHit": {
@@ -15142,6 +15335,9 @@
             "type": "integer"
           }
         },
+        "required": [
+          "content"
+        ],
         "type": "object"
       },
       "ShiftTimingCreationDto": {
@@ -15205,6 +15401,7 @@
           "lunchBreakStart",
           "minimumWorkHours",
           "overtimeThreshold",
+          "shiftName",
           "startTime"
         ],
         "type": "object"
@@ -15389,6 +15586,7 @@
         },
         "required": [
           "issueDate",
+          "items",
           "receivingProjectId",
           "sendingPerson",
           "sendingProjectId"
@@ -15742,6 +15940,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "justification"
+        ],
         "type": "object"
       },
       "StockAdjustmentDto": {
@@ -16128,10 +16329,13 @@
             "description": "Why the adjustment is being refused. Required.",
             "example": "Variance not supported by the count sheet",
             "maxLength": 500,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           }
         },
+        "required": [
+          "reason"
+        ],
         "type": "object"
       },
       "StockDto": {
@@ -16219,6 +16423,10 @@
             "type": "integer"
           }
         },
+        "required": [
+          "locationName",
+          "locationType"
+        ],
         "type": "object"
       },
       "StorageLocationDto": {
@@ -16576,6 +16784,10 @@
             "type": "string"
           }
         },
+        "required": [
+          "contractName",
+          "contractorName"
+        ],
         "type": "object"
       },
       "SubContractDto": {
@@ -16858,6 +17070,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "newPlanCode"
+        ],
         "type": "object"
       },
       "SubscriptionCreateDto": {
@@ -16879,6 +17094,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "planCode"
+        ],
         "type": "object"
       },
       "SubscriptionDto": {
@@ -17081,7 +17299,9 @@
         "required": [
           "categoryId",
           "progress",
-          "projectId"
+          "projectId",
+          "status",
+          "title"
         ],
         "type": "object"
       },
@@ -17504,7 +17724,7 @@
             "description": "Account code, unique within the tenant. Because postings resolve by account id, changing the code is safe.",
             "example": 1100,
             "maxLength": 20,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "description": {
@@ -17518,7 +17738,7 @@
             "description": "Account name.",
             "example": "Cash and Cash Equivalents",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "parentId": {
@@ -17529,7 +17749,9 @@
           }
         },
         "required": [
-          "active"
+          "active",
+          "code",
+          "name"
         ],
         "type": "object"
       },
@@ -17692,6 +17914,7 @@
           "amount": {
             "description": "Amount to pay. Must be positive.",
             "example": 40000.0,
+            "exclusiveMinimum": 0,
             "type": "number"
           },
           "bankName": {
@@ -17902,12 +18125,13 @@
             "description": "Cost category name, unique within the tenant.",
             "example": "Materials",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           }
         },
         "required": [
-          "active"
+          "active",
+          "name"
         ],
         "type": "object"
       },
@@ -17927,6 +18151,7 @@
           "email": {
             "description": "Contact email address.",
             "example": "accounts@assethomes.example",
+            "format": "email",
             "maxLength": 200,
             "minLength": 0,
             "type": "string"
@@ -17942,7 +18167,7 @@
             "description": "Customer name.",
             "example": "Asset Homes Pvt Ltd",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "pan": {
@@ -17968,6 +18193,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "UpdateFinanceSettingsRequest": {
@@ -17976,6 +18204,7 @@
           "approvalThreshold": {
             "description": "Auto-approval threshold. Send null to require manual approval on every construction invoice; send a value T to auto-approve invoices whose total is below T.",
             "example": 50000.0,
+            "minimum": 0,
             "type": "number"
           }
         },
@@ -18065,6 +18294,7 @@
             "description": "Duration of the inspection in minutes.",
             "example": 75,
             "format": "int32",
+            "minimum": 0,
             "type": "integer"
           },
           "inspectorId": {
@@ -18136,7 +18366,7 @@
             "description": "Short title of the inspection.",
             "example": "Foundation Pour - Block C",
             "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "trade": {
@@ -18190,6 +18420,7 @@
           "inspectorId",
           "scheduledDate",
           "status",
+          "title",
           "type"
         ],
         "type": "object"
@@ -18257,7 +18488,8 @@
           }
         },
         "required": [
-          "amount"
+          "amount",
+          "featureCode"
         ],
         "type": "object"
       },
@@ -18379,8 +18611,9 @@
             "type": "integer"
           },
           "email": {
+            "format": "email",
             "maxLength": 100,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "gender": {
@@ -18410,7 +18643,13 @@
           }
         },
         "required": [
-          "dateOfBirth"
+          "dateOfBirth",
+          "email",
+          "gender",
+          "name",
+          "password",
+          "phone",
+          "userName"
         ],
         "type": "object"
       },
@@ -18545,6 +18784,10 @@
             "type": "string"
           }
         },
+        "required": [
+          "accountNumber",
+          "bankName"
+        ],
         "type": "object"
       },
       "VendorBankAccountDto": {
@@ -18584,6 +18827,7 @@
             "type": "string"
           },
           "email": {
+            "format": "email",
             "minLength": 1,
             "type": "string"
           },
@@ -18595,6 +18839,11 @@
             "type": "boolean"
           }
         },
+        "required": [
+          "contactPerson",
+          "email",
+          "phone"
+        ],
         "type": "object"
       },
       "VendorContactDto": {
@@ -18677,6 +18926,7 @@
             "type": "string"
           },
           "vendorEmail": {
+            "format": "email",
             "minLength": 1,
             "type": "string"
           },
@@ -18689,6 +18939,12 @@
             "type": "string"
           }
         },
+        "required": [
+          "status",
+          "type",
+          "vendorEmail",
+          "vendorName"
+        ],
         "type": "object"
       },
       "VendorDto": {
@@ -18868,7 +19124,8 @@
           }
         },
         "required": [
-          "type"
+          "type",
+          "value"
         ],
         "type": "object"
       },
@@ -18961,14 +19218,14 @@
             "description": "Name of the WBS element.",
             "example": "RCC Column Casting - Block A",
             "maxLength": 255,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "wbsCode": {
             "description": "Project-unique code identifying this element's position in the WBS hierarchy.",
             "example": "1.2.3",
             "maxLength": 50,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "weight": {
@@ -18978,6 +19235,10 @@
             "type": "number"
           }
         },
+        "required": [
+          "title",
+          "wbsCode"
+        ],
         "type": "object"
       },
       "WbsElementDto": {
