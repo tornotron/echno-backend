@@ -13738,8 +13738,9 @@
             "type": "string"
           },
           "description": {
-            "description": "Free-text description of the project. At most 2000 characters.",
+            "description": "Free-text description of the project.",
             "example": "Twelve-storey residential tower, two basement levels, handover Q2 2027.",
+            "maxLength": 2000,
             "type": "string"
           },
           "endDate": {

@@ -25,7 +25,8 @@ public class ProjectUpdateFieldsDto {
     @Schema(description = "Name of the project.", example = "Marina Heights, phase 2")
     private String projectName;
 
-    @Schema(description = "Free-text description of the project. At most 2000 characters.",
+    @Schema(description = "Free-text description of the project.",
+            maxLength = ProjectCreationDto.MAX_DESCRIPTION_LENGTH,
             example = "Twelve-storey residential tower, two basement levels, handover Q2 2027.")
     private String description;
 
