@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -70,4 +71,31 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
            "FROM InventoryTransaction it WHERE it.storageLocation.id = :storageLocationId " +
            "GROUP BY it.material.id, it.material.materialName")
     List<Object[]> findStockGroupedByMaterialAtStorageLocation(@Param("storageLocationId") Long storageLocationId);
+
+    /**
+     * The unit cost the earliest movement of one type carried for a material against a document.
+     *
+     * <p>This exists so a movement that answers an earlier one can be priced at what the earlier
+     * one carried. A site transfer's inbound leg is written days after its outbound leg, by which
+     * time the sending balance has moved on and may hold nothing at all: pricing the arrival off
+     * that balance would value it at zero and silently destroy the stock value that left the site.
+     * The outbound movement is the only record of what the material was worth when it went, so it
+     * is read back rather than recomputed.
+     *
+     * <p>Ordered by id, with the caller passing a {@code Pageable} of one row, so a document that
+     * wrote more than one movement of the same type for the same material yields the first
+     * deterministically instead of raising a non-unique result. Deliberately not wrapped in a
+     * default method: a default method on a repository interface is mocked along with the rest of
+     * it, so a caller's stub of this query would be silently bypassed in tests.
+     */
+    @Query("SELECT it.unitCost FROM InventoryTransaction it "
+            + "WHERE it.referenceNumber = :referenceNumber AND it.material.id = :materialId "
+            + "AND it.transactionType = :transactionType AND it.organization.id = :organizationId "
+            + "AND it.unitCost IS NOT NULL ORDER BY it.id")
+    List<BigDecimal> findUnitCostsForReference(@Param("referenceNumber") String referenceNumber,
+                                               @Param("materialId") Long materialId,
+                                               @Param("transactionType") InventoryTransactionType transactionType,
+                                               @Param("organizationId") Long organizationId,
+                                               Pageable pageable);
+
 }

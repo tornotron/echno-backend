@@ -13,7 +13,9 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferCancellationDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferCreationDto;
+import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferReceiptDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferDto;
 import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferStatus;
 
@@ -158,13 +160,20 @@ public class SiteTransferController {
 
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAuthority('site-transfer:update') or hasAuthority('site-transfer:admin')")
+    @Deprecated
     @Operation(
-            summary = "Update a site transfer's status",
-            description = "Sets the status of an existing site transfer, for example moving it from PENDING "
-                    + "to IN_TRANSIT or COMPLETED."
+            deprecated = true,
+            summary = "Deprecated: a transfer's status can no longer be set from a payload",
+            description = "Always refuses, and names the endpoint that does what the caller "
+                    + "wants. This used to assign whatever status it was handed and move no stock, "
+                    + "which is how a transfer could read COMPLETED with nothing confirmed. Every "
+                    + "state a transfer can hold now follows from a movement: record a delivery "
+                    + "with POST /{id}/receive, or abandon one that never arrived with POST "
+                    + "/{id}/cancel. The route is kept so an existing client gets an answer that "
+                    + "names its replacement rather than a 404."
     )
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Site transfer status updated"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Always: the status is derived from movements and cannot be set"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the site-transfer update or admin authority"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No site transfer with the given id")
     })
@@ -174,5 +183,62 @@ public class SiteTransferController {
     ) {
         siteTransferService.updateSiteTransferStatus(id, status);
         return ResponseEntity.ok(new ApiResponse("Site transfer status updated successfully"));
+    }
+
+    @PostMapping("/{id}/receive")
+    @PreAuthorize("hasAuthority('site-transfer:update') or hasAuthority('site-transfer:admin')")
+    @Operation(
+            summary = "Record what the receiving site took delivery of",
+            description = "Posts the stock that actually arrived at the receiving project and "
+                    + "location, writes each line's received quantity, and works the transfer's "
+                    + "status out from the arithmetic: everything received is COMPLETED, some "
+                    + "received is PARTIALLY_TRANSFERRED, nothing received leaves it PENDING. Who "
+                    + "confirmed the delivery is taken from the session, never from the payload, so "
+                    + "the receipt is that person's own statement. Receiving less than was sent is "
+                    + "accepted and leaves an open variance on the transfer, visible as each line's "
+                    + "in-transit quantity and closed by a stock adjustment naming the transfer; the "
+                    + "transfer writes no loss movement of its own, because that would be a stock "
+                    + "correction nobody authorised. Receiving more than was sent is refused unless "
+                    + "the payload sets allowOverReceipt. Only a transfer that crosses a project "
+                    + "boundary can be received: one between two stores on a single project had both "
+                    + "of its legs written at creation, because the material never left that site's "
+                    + "custody."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Receipt recorded and the stock that arrived posted"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The transfer never left one project, or it is already completed or cancelled, or a named line is not on it, or a line would be over-received without allowOverReceipt"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the site-transfer update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No site transfer with the given id")
+    })
+    public ResponseEntity<SiteTransferDto> receiveSiteTransfer(
+            @PathVariable Long id,
+            @Valid @RequestBody SiteTransferReceiptDto receiptDto
+    ) {
+        return ResponseEntity.ok(siteTransferService.receiveSiteTransfer(id, receiptDto));
+    }
+
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAuthority('site-transfer:update') or hasAuthority('site-transfer:admin')")
+    @Operation(
+            summary = "Cancel a transfer that never arrived",
+            description = "Abandons a PENDING transfer and returns the whole sent quantity to the "
+                    + "sending project and location it was drawn from. Without the reversal a "
+                    + "transfer written off in transit would leave the sending project permanently "
+                    + "short with no way back. Only a PENDING transfer can be cancelled: once "
+                    + "something has been received, part of the material is standing at the far "
+                    + "site and what to do about the rest is a decision for a stock adjustment "
+                    + "rather than a reversal."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Transfer cancelled and its outbound leg reversed"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The transfer is in any state but PENDING, or no reason was given"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the site-transfer update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No site transfer with the given id")
+    })
+    public ResponseEntity<SiteTransferDto> cancelSiteTransfer(
+            @PathVariable Long id,
+            @Valid @RequestBody SiteTransferCancellationDto cancellationDto
+    ) {
+        return ResponseEntity.ok(siteTransferService.cancelSiteTransfer(id, cancellationDto));
     }
 }

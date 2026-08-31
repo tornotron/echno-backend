@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        A site transfer becomes a two-step document across a project boundary: the outbound leg is
+        written at creation and the inbound leg waits for somebody at the receiving site to record
+        what arrived.
+
+        Every transfer that already exists was written with both legs. The migration below makes
+        the documents agree with the ledger and not the other way round. Rewriting the ledger to
+        match the new model would break the property the whole materials module rests on, which is
+        that every balance is explainable from its movements: a TRANSFER_IN that was posted, that
+        a receiving site counted, and that later movements built on cannot be withdrawn because
+        the document that caused it has since changed shape. So the existing rows are made to
+        describe what actually happened, which is that the stock did arrive.
+
+        A note on timing. Liquibase runs at boot, before the instance serves traffic, so nothing
+        creates a transfer under the old rules between the backfill and the new code taking over
+        on that instance. A rolling deploy that leaves an older instance serving alongside is the
+        one window in which an old-style both-legs PENDING transfer could be written after the
+        backfill; it would then read as unreceived while its stock had moved, and be corrected by
+        a receipt naming what the ledger already holds. Staging and the compose environments
+        replace the single instance rather than rolling, so the window does not arise there.
+    -->
+
+    <changeSet id="086-01-add-site-transfer-item-received-quantity" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="site_transfer_item" columnName="received_quantity"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            How much of a transfer line has been recorded as arriving at the receiving site.
+
+            Nullable, and null is a meaningful state rather than a missing value: it says nobody
+            has confirmed anything about this line yet, which is different from confirming that
+            nothing came. A line that is confirmed as receiving nothing carries zero.
+
+            Until this column existed a short delivery could not be recorded even as a note, so
+            ten sent against eight arriving left two bags of stock at a site that did not have
+            them, and the only way to say so was a stock adjustment reading as an unexplained
+            count variance.
+        </comment>
+
+        <addColumn tableName="site_transfer_item">
+            <column name="received_quantity" type="BIGINT"/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="site_transfer_item" columnName="received_quantity"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="086-02-backfill-site-transfer-received-quantity" author="echno">
+        <comment>
+            Every line of every transfer that already exists is received in full, whatever status
+            its transfer holds.
+
+            This is the truth about them rather than a convenience. Each of these transfers wrote
+            its inbound leg at creation for the whole sent quantity, so the stock reached the
+            receiving balance and every count taken there since has included it. Leaving a PENDING
+            transfer's lines unreceived would say the material is on a lorry when the receiving
+            site has been drawing it down for weeks, which is exactly the disagreement between
+            document and ledger this work exists to remove.
+
+            Scoped to rows whose received quantity is null, so re-running it cannot overwrite a
+            receipt recorded under the new rules.
+        </comment>
+
+        <sql>
+            UPDATE site_transfer_item
+            SET received_quantity = sent_quantity
+            WHERE received_quantity IS NULL;
+        </sql>
+
+        <rollback>
+            <sql>UPDATE site_transfer_item SET received_quantity = NULL;</sql>
+        </rollback>
+    </changeSet>
+
+    <!--
+        Where the trail begins for site transfers that already exist.
+
+        One BASELINE row each, naming the status the transfer is observed to hold at the moment
+        its trail is introduced, exactly as 073 did for projects and 084 for purchase orders. It
+        is not a transition and does not claim to be one.
+
+        It runs before the correction below, deliberately. A reader of a transfer that was PENDING
+        with its stock already moved then sees the trail it should: a BASELINE naming PENDING,
+        followed by a SYSTEM entry saying the status was corrected to match movements that had
+        already been posted. Seeding after the correction would leave a BASELINE of COMPLETED and
+        no record that anything was ever changed.
+    -->
+    <changeSet id="086-03-seed-site-transfer-status-baseline" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM status_transition WHERE entity_type = 'SITE_TRANSFER'
+            </sqlCheck>
+        </preConditions>
+
+        <sql>
+            INSERT INTO status_transition (
+                entity_type, entity_id, organization_id,
+                from_status, to_status, source, occurred_at, note
+            )
+            SELECT 'SITE_TRANSFER',
+                   st.id,
+                   st.organization_id,
+                   NULL,
+                   st.status,
+                   'BASELINE',
+                   CURRENT_TIMESTAMP,
+                   'The status this site transfer was observed to hold when its status trail began. What it was before that date, and who set it, was not recorded.'
+            FROM site_transfer st
+            WHERE st.status IS NOT NULL;
+        </sql>
+        <rollback>
+            <sql>DELETE FROM status_transition WHERE entity_type = 'SITE_TRANSFER' AND source = 'BASELINE';</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="086-04-complete-transfers-whose-stock-already-moved" author="echno">
+        <comment>
+            Moves every existing PENDING and PARTIALLY_TRANSFERRED transfer to COMPLETED, and
+            records why.
+
+            Their stock has already moved: both legs were written when they were created. A
+            transfer left reading PENDING would say its material is in transit while the ledger
+            says it arrived, and the two-step document's whole point is that the status and the
+            movements agree. Under the new rules a transfer only holds one of those statuses while
+            something really is outstanding, so leaving these behind would also mean a receipt
+            could later be recorded against them and post the stock a second time.
+
+            The entry is SYSTEM rather than UPDATE because nobody decided it. It is not BASELINE
+            either: BASELINE is an observation of a status that was already held, and this is a
+            real change of status that the migration made, so it is recorded as one with a note
+            saying what it was and why it moved.
+
+            Nothing is written to the ledger here. The movements these transfers posted stand
+            exactly as they are.
+        </comment>
+
+        <sql>
+            INSERT INTO status_transition (
+                entity_type, entity_id, organization_id,
+                from_status, to_status, source, occurred_at, note
+            )
+            SELECT 'SITE_TRANSFER',
+                   st.id,
+                   st.organization_id,
+                   st.status,
+                   'COMPLETED',
+                   'SYSTEM',
+                   CURRENT_TIMESTAMP,
+                   'Status corrected to match movements that had already been posted. This transfer wrote both of its inventory legs when it was created, so its stock reached the receiving site whatever its status said; the status is moved to agree with the ledger rather than the ledger being changed to agree with the status.'
+            FROM site_transfer st
+            WHERE st.status IN ('PENDING', 'PARTIALLY_TRANSFERRED');
+        </sql>
+
+        <sql>
+            UPDATE site_transfer
+            SET status = 'COMPLETED'
+            WHERE status IN ('PENDING', 'PARTIALLY_TRANSFERRED');
+        </sql>
+
+        <!--
+            The entries written above are what makes this reversible: each one carries the status
+            its transfer held before the correction, so the rollback puts them back from the trail
+            rather than guessing, and only then removes the entries it read.
+        -->
+        <rollback>
+            <sql>
+                UPDATE site_transfer st
+                SET status = (
+                    SELECT stt.from_status FROM status_transition stt
+                    WHERE stt.entity_type = 'SITE_TRANSFER' AND stt.source = 'SYSTEM'
+                      AND stt.to_status = 'COMPLETED' AND stt.entity_id = st.id
+                    ORDER BY stt.id LIMIT 1)
+                WHERE EXISTS (
+                    SELECT 1 FROM status_transition stt
+                    WHERE stt.entity_type = 'SITE_TRANSFER' AND stt.source = 'SYSTEM'
+                      AND stt.to_status = 'COMPLETED' AND stt.entity_id = st.id);
+            </sql>
+            <sql>
+                DELETE FROM status_transition
+                WHERE entity_type = 'SITE_TRANSFER' AND source = 'SYSTEM' AND to_status = 'COMPLETED';
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

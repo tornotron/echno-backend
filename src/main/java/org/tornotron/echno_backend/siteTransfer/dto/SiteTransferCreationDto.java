@@ -50,16 +50,21 @@ public class SiteTransferCreationDto {
     private Long receivingStorageLocationId;
 
     /**
-     * The state the transfer starts in. Optional, and {@code PENDING} is the only value
-     * accepted: the other two say the far end has received the materials, and that is recorded
-     * through the transfer's own status endpoint. See {@code SiteTransferService.createSiteTransfer}.
+     * The state the transfer starts in. Optional, and {@code PENDING} is the only value a caller
+     * may ask for: the others all say something happened after the transfer was issued. The
+     * server writes {@code COMPLETED} itself for a transfer that stays inside one project, where
+     * both inventory legs are posted at creation. See {@code SiteTransferService.createSiteTransfer}.
      */
     @Schema(description = "State the transfer starts in. Optional, and PENDING is the only value "
-            + "accepted, so leaving it out is the same as sending PENDING. "
-            + "PARTIALLY_TRANSFERRED and COMPLETED say the receiving site has taken delivery, "
-            + "which is recorded through PATCH /{id}/status; that endpoint wants a different "
-            + "authority from create, and a transfer issued as COMPLETED would stand as received "
-            + "with nobody having confirmed receipt.",
+            + "accepted, so leaving it out is the same as sending PENDING. A transfer between two "
+            + "projects is issued PENDING with only its outbound leg posted, and the quantity is "
+            + "in transit until somebody at the receiving site records what arrived with POST "
+            + "/{id}/receive. A transfer between two storage locations on one project is written "
+            + "COMPLETED by the server, because the material never leaves that site's custody and "
+            + "both legs are posted at once; that is the server's own finding and cannot be asked "
+            + "for here. PARTIALLY_TRANSFERRED and COMPLETED say the receiving site has taken "
+            + "delivery and CANCELLED says the stock came back, and each of those now follows from "
+            + "a movement rather than from a payload.",
             example = "PENDING", allowableValues = {"PENDING"})
     private SiteTransferStatus status;
 

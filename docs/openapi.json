@@ -15637,6 +15637,22 @@
         },
         "type": "object"
       },
+      "SiteTransferCancellationDto": {
+        "description": "Why a transfer that never arrived is being abandoned. Cancelling returns the stock to the sending project and location it was drawn from, which is a real movement on the ledger, so the reason is required and is kept on the transfer's status trail beside the movement it caused.",
+        "properties": {
+          "reason": {
+            "description": "Why the transfer is being cancelled.",
+            "example": "Lorry turned back at the gate, materials never left the yard",
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
       "SiteTransferCreationDto": {
         "description": "Payload to create a site transfer moving materials from a sending project to a receiving project. The transfer number is allocated by the server and returned on the created transfer; it is not part of this payload. The two sides must differ: a transfer naming the same project and the same storage location on both sides moves nothing and is refused, while two storage locations inside one project is a real move and is accepted.",
         "properties": {
@@ -15685,7 +15701,7 @@
             "type": "integer"
           },
           "status": {
-            "description": "State the transfer starts in. Optional, and PENDING is the only value accepted, so leaving it out is the same as sending PENDING. PARTIALLY_TRANSFERRED and COMPLETED say the receiving site has taken delivery, which is recorded through PATCH /{id}/status; that endpoint wants a different authority from create, and a transfer issued as COMPLETED would stand as received with nobody having confirmed receipt.",
+            "description": "State the transfer starts in. Optional, and PENDING is the only value accepted, so leaving it out is the same as sending PENDING. A transfer between two projects is issued PENDING with only its outbound leg posted, and the quantity is in transit until somebody at the receiving site records what arrived with POST /{id}/receive. A transfer between two storage locations on one project is written COMPLETED by the server, because the material never leaves that site's custody and both legs are posted at once; that is the server's own finding and cannot be asked for here. PARTIALLY_TRANSFERRED and COMPLETED say the receiving site has taken delivery and CANCELLED says the stock came back, and each of those now follows from a movement rather than from a payload.",
             "enum": [
               "PENDING"
             ],
@@ -15773,13 +15789,14 @@
             "type": "string"
           },
           "status": {
-            "description": "Current status of the transfer.",
+            "description": "Current status of the transfer. PENDING means it has left the sending site and nothing has been recorded as arriving, so its quantity is in transit; PARTIALLY_TRANSFERRED and COMPLETED follow from what the receiving site confirmed; CANCELLED means it was abandoned in transit and its stock returned to the sender.",
             "enum": [
               "PENDING",
               "PARTIALLY_TRANSFERRED",
-              "COMPLETED"
+              "COMPLETED",
+              "CANCELLED"
             ],
-            "example": "IN_TRANSIT",
+            "example": "PENDING",
             "type": "string"
           },
           "transferNumber": {
@@ -15799,6 +15816,13 @@
             "format": "int64",
             "type": "integer"
           },
+          "inTransitQuantity": {
+            "description": "How much of this line is neither at the sending site nor recorded as having reached the receiving one: sent minus received, or the whole sent quantity while nothing has been received. On a transfer still in transit this is stock on a lorry. On one that has been received it is an open variance, closed by a stock adjustment naming this transfer rather than by the transfer writing a loss of its own. Zero once everything sent has arrived.",
+            "example": 0,
+            "format": "int32",
+            "readOnly": true,
+            "type": "integer"
+          },
           "materialId": {
             "description": "Id of the material being transferred.",
             "example": 21,
@@ -15809,6 +15833,16 @@
             "description": "Name of the material being transferred.",
             "example": "TMT Bar 12mm",
             "type": "string"
+          },
+          "receivedQuantity": {
+            "description": "Quantity recorded as having arrived at the receiving site, in the material's unit. Null while the transfer is in transit and nobody has confirmed anything about this line yet, which is not the same as saying nothing arrived. A transfer between two stores on one project is received in full at creation, since the material never leaves that site's custody.",
+            "example": 18,
+            "format": "int32",
+            "readOnly": true,
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "remarks": {
             "description": "Optional remarks for this line item.",
@@ -15826,6 +15860,64 @@
         "required": [
           "materialId",
           "sentQuantity"
+        ],
+        "type": "object"
+      },
+      "SiteTransferReceiptDto": {
+        "description": "What arrived at the receiving site against a transfer that is in transit. Only the quantities are in this payload: who confirmed the delivery is taken from the session, not from the request, so a receipt is the caller's own statement and cannot be filed under a colleague's name.",
+        "properties": {
+          "allowOverReceipt": {
+            "description": "Set when the delivery really did carry more than the transfer sent. Without it an over-receipt is refused and the refusal names the line and the figures, which is enough to recognise a typed digit. With it the excess is recorded and the stock is posted, because material standing in the yard is there whether the system likes it or not and a receipt that cannot be filed leaves it outside the ledger. A short delivery needs no such flag: recording less than was sent puts nothing false into the ledger and leaves an open variance for a stock adjustment to close.",
+            "example": false,
+            "type": "boolean"
+          },
+          "items": {
+            "description": "One entry per transfer line being confirmed. Lines left out of the payload are untouched, so a delivery that answers only part of a transfer names only the lines it answers.",
+            "items": {
+              "$ref": "#/components/schemas/SiteTransferReceiptLineDto"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "receivedOn": {
+            "description": "Date and time the delivery was taken. Optional; the moment the receipt is filed is used when it is left out. It dates the inbound movements this receipt writes.",
+            "example": "2026-01-17T14:05:00",
+            "format": "date-time",
+            "type": "string"
+          },
+          "remarks": {
+            "description": "Optional note about the delivery, carried onto the inbound movements and the transfer's status trail.",
+            "example": "Two bags split in transit, driver informed",
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "SiteTransferReceiptLineDto": {
+        "description": "How much of one transfer line arrived. The line is named by its own id rather than by its material, because a transfer may carry the same material on more than one line and a receipt has to say which of them it answers.",
+        "properties": {
+          "itemId": {
+            "description": "Id of the site transfer line this quantity is against.",
+            "example": 84,
+            "format": "int64",
+            "type": "integer"
+          },
+          "receivedQuantity": {
+            "description": "Quantity that arrived, in the material's unit. Zero is a legitimate answer and means this line's material did not arrive on this delivery; the quantity stays in transit and the transfer is not moved on by it.",
+            "example": 18,
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "itemId",
+          "receivedQuantity"
         ],
         "type": "object"
       },
@@ -82879,7 +82971,7 @@
     "/api/v1/project/web/{id}/status-history": {
       "get": {
         "description": "Returns a page of the project's status entries, newest first: what it moved from, what it moved to, when, by whom, and whether the status was set when the project was created or changed afterwards. Approval is the transition that carries behaviour, since it draws up the project's compliance inspections, so this is where to read who approved a project and when. Entries begin where recording began: a project created before the trail existed carries a single BASELINE entry naming the status it was observed to hold at that moment, with no actor and no earlier status, because nothing else can truthfully be said about a history nobody recorded.",
-        "operationId": "readStatusHistory_1",
+        "operationId": "readStatusHistory_2",
         "parameters": [
           {
             "in": "path",
@@ -90209,7 +90301,7 @@
     "/api/v1/purchase-orders/web/{id}/status-history": {
       "get": {
         "description": "Returns a page of the order's status entries, newest first: what it moved from, what it moved to, when, and by whom. An entry sourced SYSTEM names no person because none decided it: the order reached PARTIALLY_RECEIVED or FULLY_RECEIVED because the quantities received against it said so, and the note on the entry names the goods receipt that last moved it. Follow that receipt to find who filed it. Entries begin where recording began, so an order raised before the trail existed carries a single BASELINE entry naming the status it was observed to hold at that moment.",
-        "operationId": "readStatusHistory",
+        "operationId": "readStatusHistory_1",
         "parameters": [
           {
             "in": "path",
@@ -93116,7 +93208,8 @@
               "enum": [
                 "PENDING",
                 "PARTIALLY_TRANSFERRED",
-                "COMPLETED"
+                "COMPLETED",
+                "CANCELLED"
               ],
               "type": "string"
             }
@@ -93814,7 +93907,8 @@
               "enum": [
                 "PENDING",
                 "PARTIALLY_TRANSFERRED",
-                "COMPLETED"
+                "COMPLETED",
+                "CANCELLED"
               ],
               "type": "string"
             }
@@ -94034,9 +94128,256 @@
         ]
       }
     },
+    "/api/v1/site-transfers/web/{id}/cancel": {
+      "post": {
+        "description": "Abandons a PENDING transfer and returns the whole sent quantity to the sending project and location it was drawn from. Without the reversal a transfer written off in transit would leave the sending project permanently short with no way back. Only a PENDING transfer can be cancelled: once something has been received, part of the material is standing at the far site and what to do about the rest is a decision for a stock adjustment rather than a reversal.",
+        "operationId": "cancelSiteTransfer_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteTransferCancellationDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteTransferDto"
+                }
+              }
+            },
+            "description": "Transfer cancelled and its outbound leg reversed"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The transfer is in any state but PENDING, or no reason was given"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No site transfer with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Cancel a transfer that never arrived",
+        "tags": [
+          "Site Transfers (Web)"
+        ]
+      }
+    },
+    "/api/v1/site-transfers/web/{id}/receive": {
+      "post": {
+        "description": "Posts the stock that actually arrived at the receiving project and location, writes each line's received quantity, and works the transfer's status out from the arithmetic: everything received is COMPLETED, some received is PARTIALLY_TRANSFERRED, nothing received leaves it PENDING. Who confirmed the delivery is taken from the session, never from the payload, so the receipt is that person's own statement. Receiving less than was sent is accepted and leaves an open variance on the transfer, visible as each line's in-transit quantity and closed by a stock adjustment naming the transfer; the transfer writes no loss movement of its own, because that would be a stock correction nobody authorised. Receiving more than was sent is refused unless the payload sets allowOverReceipt. Only a transfer that crosses a project boundary can be received: one between two stores on a single project had both of its legs written at creation, because the material never left that site's custody.",
+        "operationId": "receiveSiteTransfer_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteTransferReceiptDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteTransferDto"
+                }
+              }
+            },
+            "description": "Receipt recorded and the stock that arrived posted"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The transfer never left one project, or it is already completed or cancelled, or a named line is not on it, or a line would be over-received without allowOverReceipt"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No site transfer with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Record what the receiving site took delivery of",
+        "tags": [
+          "Site Transfers (Web)"
+        ]
+      }
+    },
     "/api/v1/site-transfers/web/{id}/status": {
       "patch": {
-        "description": "Sets the status of an existing site transfer, for example moving it from PENDING to IN_TRANSIT or COMPLETED.",
+        "deprecated": true,
+        "description": "Always refuses, and names the endpoint that does what the caller wants. This used to assign whatever status it was handed and move no stock, which is how a transfer could read COMPLETED with nothing confirmed. Every state a transfer can hold now follows from a movement: record a delivery with POST /{id}/receive, or abandon one that never arrived with POST /{id}/cancel. The route is kept so an existing client gets an answer that names its replacement rather than a 404.",
         "operationId": "updateSiteTransferStatus_1",
         "parameters": [
           {
@@ -94056,7 +94397,8 @@
               "enum": [
                 "PENDING",
                 "PARTIALLY_TRANSFERRED",
-                "COMPLETED"
+                "COMPLETED",
+                "CANCELLED"
               ],
               "type": "string"
             }
@@ -94071,7 +94413,147 @@
                 }
               }
             },
-            "description": "Site transfer status updated"
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Always: the status is derived from movements and cannot be set"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No site transfer with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Deprecated: a transfer's status can no longer be set from a payload",
+        "tags": [
+          "Site Transfers (Web)"
+        ]
+      }
+    },
+    "/api/v1/site-transfers/web/{id}/status-history": {
+      "get": {
+        "description": "Returns a page of the transfer's status entries, newest first: what it moved from, what it moved to, when, and by whom. Unlike a purchase order's receipt-driven move, a transfer reaching PARTIALLY_TRANSFERRED or COMPLETED is somebody's act, so those entries name the person who confirmed the delivery. Entries begin where recording began, so a transfer raised before the trail existed carries a single BASELINE entry naming the status it was observed to hold at that moment, and one raised before the two-step document existed may carry a SYSTEM entry recording that its status was corrected to match movements that had already been posted.",
+        "operationId": "readStatusHistory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageStatusTransitionDto"
+                }
+              }
+            },
+            "description": "Page of status entries returned"
           },
           "400": {
             "content": {
@@ -94154,7 +94636,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Update a site transfer's status",
+        "summary": "Read a site transfer's status trail",
         "tags": [
           "Site Transfers (Web)"
         ]
@@ -94273,10 +94755,10 @@
         ]
       }
     },
-    "/api/v1/site-transfers/{id}/status": {
-      "patch": {
-        "description": "Sets the status of an existing site transfer, for example moving it from PENDING to IN_TRANSIT or COMPLETED.",
-        "operationId": "updateSiteTransferStatus",
+    "/api/v1/site-transfers/{id}/cancel": {
+      "post": {
+        "description": "Abandons a PENDING transfer and returns the whole sent quantity to the sending project and location it was drawn from. Without the reversal a transfer written off in transit would leave the sending project permanently short with no way back. Only a PENDING transfer can be cancelled: once something has been received, part of the material is standing at the far site and what to do about the rest is a decision for a stock adjustment rather than a reversal.",
+        "operationId": "cancelSiteTransfer",
         "parameters": [
           {
             "in": "path",
@@ -94286,31 +94768,28 @@
               "format": "int64",
               "type": "integer"
             }
-          },
-          {
-            "in": "query",
-            "name": "status",
-            "required": true,
-            "schema": {
-              "enum": [
-                "PENDING",
-                "PARTIALLY_TRANSFERRED",
-                "COMPLETED"
-              ],
-              "type": "string"
-            }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteTransferCancellationDto"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/SiteTransferDto"
                 }
               }
             },
-            "description": "Site transfer status updated"
+            "description": "Transfer cancelled and its outbound leg reversed"
           },
           "400": {
             "content": {
@@ -94320,7 +94799,7 @@
                 }
               }
             },
-            "description": "Bad Request"
+            "description": "The transfer is in any state but PENDING, or no reason was given"
           },
           "402": {
             "content": {
@@ -94393,7 +94872,258 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Update a site transfer's status",
+        "summary": "Cancel a transfer that never arrived",
+        "tags": [
+          "Site Transfers"
+        ]
+      }
+    },
+    "/api/v1/site-transfers/{id}/receive": {
+      "post": {
+        "description": "Posts the stock that actually arrived at the receiving project and location, writes each line's received quantity, and works the transfer's status out from the arithmetic: everything received is COMPLETED, some received is PARTIALLY_TRANSFERRED, nothing received leaves it PENDING. Who confirmed the delivery is taken from the session, never from the payload, so the receipt is that person's own statement. Receiving less than was sent is accepted and leaves an open variance on the transfer, visible as each line's in-transit quantity and closed by a stock adjustment naming the transfer; the transfer writes no loss movement of its own, because that would be a stock correction nobody authorised. Receiving more than was sent is refused unless the payload sets allowOverReceipt. Only a transfer that crosses a project boundary can be received: one between two stores on a single project had both of its legs written at creation, because the material never left that site's custody.",
+        "operationId": "receiveSiteTransfer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteTransferReceiptDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteTransferDto"
+                }
+              }
+            },
+            "description": "Receipt recorded and the stock that arrived posted"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The transfer never left one project, or it is already completed or cancelled, or a named line is not on it, or a line would be over-received without allowOverReceipt"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the site-transfer update or admin authority"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No site transfer with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Record what the receiving site took delivery of",
+        "tags": [
+          "Site Transfers"
+        ]
+      }
+    },
+    "/api/v1/site-transfers/{id}/status": {
+      "patch": {
+        "deprecated": true,
+        "description": "Always refuses, and names the endpoint that does what the caller wants. This used to assign whatever status it was handed and move no stock, which is how a transfer could read COMPLETED with nothing confirmed. Every state a transfer can hold now follows from a movement: record a delivery with POST /{id}/receive, or abandon one that never arrived with POST /{id}/cancel. The route is kept so an existing client gets an answer that names its replacement rather than a 404.",
+        "operationId": "updateSiteTransferStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": true,
+            "schema": {
+              "enum": [
+                "PENDING",
+                "PARTIALLY_TRANSFERRED",
+                "COMPLETED",
+                "CANCELLED"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Always: the status is derived from movements and cannot be set"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the site-transfer update or admin authority"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No site transfer with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Deprecated: a transfer's status can no longer be set from a payload",
         "tags": [
           "Site Transfers"
         ]

@@ -24,6 +24,23 @@ public class SiteTransferItemDto {
     @Min(value = 1, message = "sent quantity must be at least 1")
     private Integer sentQuantity;
 
+    @Schema(description = "Quantity recorded as having arrived at the receiving site, in the "
+            + "material's unit. Null while the transfer is in transit and nobody has confirmed "
+            + "anything about this line yet, which is not the same as saying nothing arrived. A "
+            + "transfer between two stores on one project is received in full at creation, since "
+            + "the material never leaves that site's custody.",
+            example = "18", nullable = true, accessMode = Schema.AccessMode.READ_ONLY)
+    private Integer receivedQuantity;
+
+    @Schema(description = "How much of this line is neither at the sending site nor recorded as "
+            + "having reached the receiving one: sent minus received, or the whole sent quantity "
+            + "while nothing has been received. On a transfer still in transit this is stock on a "
+            + "lorry. On one that has been received it is an open variance, closed by a stock "
+            + "adjustment naming this transfer rather than by the transfer writing a loss of its "
+            + "own. Zero once everything sent has arrived.",
+            example = "0", accessMode = Schema.AccessMode.READ_ONLY)
+    private Integer inTransitQuantity;
+
     @Schema(description = "Optional remarks for this line item.", example = "For column casting, Block C")
     private String remarks;
 }

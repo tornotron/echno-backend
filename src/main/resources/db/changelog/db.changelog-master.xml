@@ -391,4 +391,7 @@
     <!-- v4.0 - Payment vouchers: index the payee, verifier and raiser the listing can now filter on -->
     <include file="db/changelog/v4.0/085-index-construction-payment-people-columns.xml"/>
 
+    <!-- v4.0 - Site transfers: record what arrived, and make existing rows agree with the ledger -->
+    <include file="db/changelog/v4.0/086-site-transfer-two-step-receipt.xml"/>
+
 </databaseChangeLog>
