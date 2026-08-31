@@ -265,7 +265,7 @@ public class AttendanceRegularizationService {
     @Transactional(readOnly = true)
     public Page<AttendanceRegularizationDto> getPendingRegularizations(int pageNo, int pageSize) {
         return regularizationRepository
-                .findByStatus(RegularizationStatus.PENDING, PageRequest.of(pageNo, pageSize))
+                .findByStatus(RegularizationStatus.PENDING, PageRequest.of(pageNo, pageSize, AttendanceRegularizationSpecifications.LIST_ORDER))
                 .map(regularizationMapper::toDto);
     }
 
@@ -308,7 +308,7 @@ public class AttendanceRegularizationService {
         return regularizationRepository
                 .findAll(AttendanceRegularizationSpecifications
                                 .withFilters(status, approvedById, requestedById),
-                        PageRequest.of(pageNo, pageSize))
+                        PageRequest.of(pageNo, pageSize, AttendanceRegularizationSpecifications.LIST_ORDER))
                 .map(regularizationMapper::toDto);
     }
 

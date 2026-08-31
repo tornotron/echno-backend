@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.attendance;
 
 import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 
@@ -27,6 +28,27 @@ import java.util.List;
  * request could not be filtered on at all.
  */
 public final class AttendanceRegularizationSpecifications {
+
+    /**
+     * The order every page of the register is read in.
+     *
+     * <p>A page with no order is a page in whatever order the storage engine happened to produce,
+     * which on a distributed engine is not stable between two requests: the same request can
+     * appear on page one and again on page two while another never appears at all. A register that
+     * silently drops a row from a traversal is the failure this listing was added to stop, so it
+     * cannot be left unordered.
+     *
+     * <p>Newest request first is what an approver's queue wants. The id breaks the tie between two
+     * raised in the same instant, and being the primary key it is unique, so no two rows compare
+     * equal and no page boundary can fall inside a run of ties.
+     *
+     * <p>Lives here beside the filters rather than in the service because it is part of the same
+     * thing: the shape of the query this register is read with. Both paged reads share it, and the
+     * test reads it from here rather than restating it, so a test cannot pass against an order the
+     * production code does not use.
+     */
+    public static final Sort LIST_ORDER =
+            Sort.by(Sort.Order.desc("requestedAt"), Sort.Order.desc("id"));
 
     private AttendanceRegularizationSpecifications() {}
 
