@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="077-add-project-description" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="project" columnName="description"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Give a project somewhere to keep its description. The create and edit forms have both
+            rendered a labelled description textarea and submitted what was typed in it, but no
+            layer of the backend had the field, so the value was dropped on the way in and the box
+            came back empty when the project was reopened. TEXT because it is a paragraph and any
+            character bound chosen here would be arbitrary; the API bounds the accepted length on
+            the payload instead, where raising it costs no migration. Nullable, since every
+            existing project has no description and none is required.
+        </comment>
+
+        <addColumn tableName="project">
+            <column name="description" type="TEXT"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

@@ -364,4 +364,10 @@
     <!-- v4.0 - Labour contacts and category names: scope them to the organization; drop the issue title constraint -->
     <include file="db/changelog/v4.0/076-tenant-scoped-uniqueness.xml"/>
 
+    <!-- v4.0 - Projects: the description the create and edit forms have always submitted -->
+    <include file="db/changelog/v4.0/077-add-project-description.xml"/>
+
+    <!-- v4.0 - Materials: lead time consumption, the input the stock levels are derived from -->
+    <include file="db/changelog/v4.0/078-add-material-ltc.xml"/>
+
 </databaseChangeLog>

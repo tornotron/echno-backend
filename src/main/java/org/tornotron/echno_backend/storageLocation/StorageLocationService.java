@@ -59,7 +59,11 @@ public class StorageLocationService {
         storageLocation.setAddress(creationDto.getAddress());
         storageLocation.setLatitude(creationDto.getLatitude());
         storageLocation.setLongitude(creationDto.getLongitude());
-        storageLocation.setActive(creationDto.isActive());
+        // Left to the entity's own default of true when the payload says nothing. Applying it
+        // unconditionally off a primitive made every create that omitted the key inactive.
+        if (creationDto.getIsActive() != null) {
+            storageLocation.setActive(creationDto.getIsActive());
+        }
         storageLocation.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
         // Project is optional - central warehouses/godowns may serve multiple projects

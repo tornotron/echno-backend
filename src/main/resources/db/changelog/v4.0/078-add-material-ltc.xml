@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="078-add-material-ltc" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="material" columnName="ltc"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Store lead time consumption on a material: the quantity expected to be consumed over
+            the supplier's lead time. The material create and edit forms take it as a labelled
+            input and the client uses it to recompute the minimum stock, reorder level and maximum
+            stock, so the derived numbers were persisted while the input behind them was not.
+            Reopening the form therefore recomputed from a blank field. DOUBLE and
+            nullable, matching min_stock, max_stock, safety_stock, reorder_level, moq and
+            opening_stock, which are the levels it is derived into and are held in the same unit.
+        </comment>
+
+        <addColumn tableName="material">
+            <column name="ltc" type="DOUBLE"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>
