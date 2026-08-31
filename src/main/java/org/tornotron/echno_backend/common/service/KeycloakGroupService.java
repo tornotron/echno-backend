@@ -277,8 +277,8 @@ public class KeycloakGroupService {
      * Creates default role subgroups under an organization group.
      * Called automatically when a new organization is created.
      *
-     * Each OrgRole enum value becomes a subgroup. For example, under "org-5":
-     *   system-admin, org-manager, hr-admin, project-manager
+     * Every OrgRole enum value becomes a subgroup, so the list is whatever the enum holds rather
+     * than a set named here that would go stale the next time a role is added.
      */
     private void createDefaultRoleSubgroups(Keycloak keycloak, String orgGroupId, String organizationId) {
         for (OrgRole role : OrgRole.values()) {
