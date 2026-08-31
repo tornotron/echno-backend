@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +14,10 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.attendance.dto.AttendanceRegularizationDto;
 import org.tornotron.echno_backend.attendance.dto.RegularizationActionDto;
 import org.tornotron.echno_backend.attendance.dto.RegularizationRequestDto;
+import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 import org.tornotron.echno_backend.attendance.service.AttendanceRegularizationService;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
 
@@ -87,14 +91,48 @@ public class AttendanceRegularizationControllerWeb {
     @PreAuthorize("@attendanceSecurity.canManageRecords()")
     @Operation(
             summary = "List pending regularization requests",
-            description = "Returns every regularization request awaiting approval or rejection."
+            description = "Returns the regularization requests awaiting approval or rejection, up to a "
+                    + "fixed ceiling. The response carries X-Total-Count with the true number of pending "
+                    + "requests, and X-Result-Capped when there were more than one response can hold. To "
+                    + "page through the register, or to see requests that have already been decided, use "
+                    + "the listing at the collection root instead."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Pending regularization requests returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records")
     })
     public ResponseEntity<List<AttendanceRegularizationDto>> getPending() {
-        return ResponseEntity.ok(regularizationService.getPendingRegularizations());
+        return UnpagedResultCap.respond(regularizationService.getPendingRegularizations(
+                0, UnpagedResultCap.MAX_ROWS));
+    }
+
+    @GetMapping
+    @PreAuthorize("@attendanceSecurity.canManageRecords()")
+    @Operation(
+            summary = "List regularization requests",
+            description = "Returns a paged list of regularization requests in the current tenant, in any "
+                    + "status. The optional status, approver and requester parameters narrow the result; "
+                    + "omitting a parameter leaves that dimension unfiltered.\n\n"
+                    + "The approver and the rejecter are recorded in the same pair of columns, so "
+                    + "approvedById on its own means \"requests this person decided\". Pair it with status "
+                    + "to separate the two: approvedById with status=APPROVED is what that person "
+                    + "approved, and with status=REJECTED what they rejected.\n\n"
+                    + "Both ids are employee ids. A request decided by a caller who has no employee "
+                    + "record in this tenant carries no approver id and is not matched by any "
+                    + "approvedById."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Page of matching regularization requests"),
+            @ApiResponse(responseCode = "400", description = "pageNo or pageSize is out of range"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records")
+    })
+    public Page<AttendanceRegularizationDto> list(
+            @RequestParam(required = false) RegularizationStatus status,
+            @RequestParam(required = false) Long approvedById,
+            @RequestParam(required = false) Long requestedById,
+            PageQuery pageQuery) {
+        return regularizationService.findAll(status, approvedById, requestedById,
+                pageQuery.getPageNo(), pageQuery.getPageSize());
     }
 
     @GetMapping("/{id}")

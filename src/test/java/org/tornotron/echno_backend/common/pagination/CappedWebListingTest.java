@@ -9,6 +9,9 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.tornotron.echno_backend.asset.AssetControllerWeb;
+import org.tornotron.echno_backend.attendance.AttendanceRegularizationController;
+import org.tornotron.echno_backend.attendance.AttendanceRegularizationControllerWeb;
+import org.tornotron.echno_backend.attendance.service.AttendanceRegularizationService;
 import org.tornotron.echno_backend.asset.AssetService;
 import org.tornotron.echno_backend.asset.dto.AssetDto;
 import org.tornotron.echno_backend.employee.EmployeeControllerWeb;
@@ -69,6 +72,7 @@ import static org.mockito.Mockito.when;
 class CappedWebListingTest {
 
     @Mock private AssetService assetService;
+    @Mock private AttendanceRegularizationService attendanceRegularizationService;
     @Mock private EmployeeService employeeService;
     @Mock private ExpenseService expenseService;
     @Mock private GoodsReceivedNoteService goodsReceivedNoteService;
@@ -83,6 +87,36 @@ class CappedWebListingTest {
     @Mock private StorageLocationService storageLocationService;
     @Mock private SubContractService subContractService;
     @Mock private VendorService vendorService;
+
+    /**
+     * The pending regularization register reads one capped page.
+     *
+     * <p>It read every pending request the tenant held, through an unpaged derived query rather
+     * than a {@code findAll}, which is why the {@code UnboundedRepositoryReadTest} ratchet never
+     * saw it. The register grows with attendance history, so it belongs here with the rest.
+     */
+    @Test
+    void pendingRegularizationsReadTheFirstCappedPage() {
+        when(attendanceRegularizationService.getPendingRegularizations(anyInt(), anyInt()))
+                .thenReturn(Page.empty());
+
+        new AttendanceRegularizationControllerWeb(attendanceRegularizationService).getPending();
+
+        verify(attendanceRegularizationService)
+                .getPendingRegularizations(0, UnpagedResultCap.MAX_ROWS);
+    }
+
+    /** The mobile register reads the same capped page, through the same service method. */
+    @Test
+    void theMobilePendingRegularizationRegisterReadsTheFirstCappedPage() {
+        when(attendanceRegularizationService.getPendingRegularizations(anyInt(), anyInt()))
+                .thenReturn(Page.empty());
+
+        new AttendanceRegularizationController(attendanceRegularizationService).getPending();
+
+        verify(attendanceRegularizationService)
+                .getPendingRegularizations(0, UnpagedResultCap.MAX_ROWS);
+    }
 
     @Test
     void assetsReadTheFirstCappedPage() {

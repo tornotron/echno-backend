@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.attendance.dto.AttendanceRegularizationDto;
 import org.tornotron.echno_backend.attendance.dto.RegularizationActionDto;
 import org.tornotron.echno_backend.attendance.dto.RegularizationRequestDto;
 import org.tornotron.echno_backend.attendance.service.AttendanceRegularizationService;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
 
@@ -87,14 +88,17 @@ public class AttendanceRegularizationController {
     @PreAuthorize("@attendanceSecurity.canManageRecords()")
     @Operation(
             summary = "List pending regularization requests",
-            description = "Returns every regularization request awaiting approval or rejection."
+            description = "Returns the regularization requests awaiting approval or rejection, up to a "
+                    + "fixed ceiling. The response carries X-Total-Count with the true number of pending "
+                    + "requests, and X-Result-Capped when there were more than one response can hold."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Pending regularization requests returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records")
     })
     public ResponseEntity<List<AttendanceRegularizationDto>> getPending() {
-        return ResponseEntity.ok(regularizationService.getPendingRegularizations());
+        return UnpagedResultCap.respond(regularizationService.getPendingRegularizations(
+                0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/{id}")
