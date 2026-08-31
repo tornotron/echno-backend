@@ -10,8 +10,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.test.context.transaction.AfterTransaction;
@@ -86,7 +90,9 @@ class NcrServiceIT extends AbstractIntegrationTest {
     private Long orgAId;
     private Long orgBId;
     private Long projectId;
+    private Long foreignProjectId;
     private Long siteEngineerId;
+    private Long qaLeadId;
     private Long foreignSiteEngineerId;
 
     @BeforeEach
@@ -101,14 +107,31 @@ class NcrServiceIT extends AbstractIntegrationTest {
             project.setOrganization(orgA);
             entityManager.persist(project);
 
+            Project foreignProject = new Project();
+            foreignProject.setProjectName("Tower C");
+            foreignProject.setOrganization(orgB);
+            entityManager.persist(foreignProject);
+
+            // Users with no employee record, seeded first so the two sequences no longer
+            // run in lockstep. Without them a fresh database hands the same number out as
+            // a user id and as an employee id, and a test that mixed the two up would pass
+            // on the coincidence. This is the same confusion that shipped as a real defect
+            // on the web side, so the ids are pushed apart deliberately.
+            persistUser("kc-ncr-spare-1", "Spare One");
+            persistUser("kc-ncr-spare-2", "Spare Two");
+            persistUser("kc-ncr-spare-3", "Spare Three");
+
             Employee siteEngineer = persistEmployee(orgA, "kc-ncr-a", "Site Engineer A");
+            Employee qaLead = persistEmployee(orgA, "kc-ncr-qa", "QA Lead A");
             Employee otherOrgEngineer = persistEmployee(orgB, "kc-ncr-b", "Site Engineer B");
 
             entityManager.flush();
             orgAId = orgA.getId();
             orgBId = orgB.getId();
             projectId = project.getId();
+            foreignProjectId = foreignProject.getId();
             siteEngineerId = siteEngineer.getId();
+            qaLeadId = qaLead.getId();
             foreignSiteEngineerId = otherOrgEngineer.getId();
         });
         TenantContext.setCurrentOrgId(orgAId);
@@ -123,6 +146,7 @@ class NcrServiceIT extends AbstractIntegrationTest {
     void clearTenantState() {
         entityManager.unwrap(Session.class).disableFilter("orgFilter");
         TenantContext.clear();
+        SecurityContextHolder.clearContext();
     }
 
     /**
@@ -157,7 +181,9 @@ class NcrServiceIT extends AbstractIntegrationTest {
             // the users are not org-scoped, so they are named by the ids seeded above.
             deleteForOrgs("DELETE FROM employee WHERE organization_id IN (:a,:b)");
             entityManager.createNativeQuery(
-                            "DELETE FROM users_table WHERE keycloak_id IN ('kc-ncr-a','kc-ncr-b')")
+                            "DELETE FROM users_table WHERE keycloak_id IN "
+                                    + "('kc-ncr-a','kc-ncr-qa','kc-ncr-b',"
+                                    + "'kc-ncr-spare-1','kc-ncr-spare-2','kc-ncr-spare-3')")
                     .executeUpdate();
             deleteForOrgs("DELETE FROM organization WHERE id IN (:a,:b)");
         });
@@ -380,21 +406,208 @@ class NcrServiceIT extends AbstractIntegrationTest {
         entityManager.clear();
         Pageable pageable = PageRequest.of(0, 10);
 
-        assertThat(service.findAll(null, null, null, null, true, pageable).getContent())
+        assertThat(service.findAll(null, null, null, null, null, null, null, true, pageable).getContent())
                 .extracting(NcrDto::id).containsExactly(open);
-        assertThat(service.findAll(null, null, null, null, false, pageable).getContent())
+        assertThat(service.findAll(null, null, null, null, null, null, null, false, pageable).getContent())
                 .extracting(NcrDto::id).containsExactly(done);
-        assertThat(service.findAll(null, NcrType.QUALITY, null, siteEngineerId, null, pageable)
+        assertThat(service.findAll(null, NcrType.QUALITY, null, siteEngineerId, null, null, null, null, pageable)
                 .getTotalElements()).isEqualTo(2);
-        assertThat(service.findAll(null, NcrType.SAFETY, null, null, null, pageable)
+        assertThat(service.findAll(null, NcrType.SAFETY, null, null, null, null, null, null, pageable)
                 .getTotalElements()).isZero();
 
         enableOrgFilter(orgBId);
-        assertThat(service.findAll(null, null, null, null, null, pageable).getTotalElements())
+        assertThat(service.findAll(null, null, null, null, null, null, null, null, pageable).getTotalElements())
                 .isZero();
         assertThatThrownBy(() -> service.findById(open))
                 .isInstanceOf(ResourceNotFoundException.class);
         disableOrgFilter();
+    }
+
+    /**
+     * The three people on the trail are employee ids, not user ids. The distinction is not
+     * cosmetic: the same mistake was made on the web side and it resolved for a minority of ids
+     * and named the wrong person on a collision. This asserts on the whole chain rather than on
+     * the values matching by luck, so it fails if any of the three is ever written from
+     * {@code getCurrentUserId()} directly.
+     */
+    @Test
+    void theTrailRecordsEmployeeIdsRatherThanUserIds() {
+        Long qaUserId = userIdOf("kc-ncr-qa");
+        authenticateAs("kc-ncr-qa");
+        UUID id = assignedNcr();
+        service.markCorrectiveActionComplete(id, "Re-poured");
+        service.verify(id, "Accepted");
+        service.close(id);
+
+        NcrDto closed = service.findById(id);
+        assertThat(closed.raisedById()).isEqualTo(qaLeadId);
+        assertThat(closed.verifiedById()).isEqualTo(qaLeadId);
+        assertThat(closed.closedById()).isEqualTo(qaLeadId);
+        // and the two are genuinely different numbers here, so none of the three could
+        // have been written from the user id and passed
+        assertThat(qaLeadId).isNotEqualTo(qaUserId);
+    }
+
+    /**
+     * The register can be asked for one person's trail: what they raised, what they accepted on
+     * re-inspection and what they closed. Each assertion names the ids it expects rather than a
+     * count alone, so a filter that was silently ignored returns the whole register and fails
+     * here rather than passing on a coincidence of totals.
+     */
+    @Test
+    void listsByTheThreePeopleOnTheTrail() {
+        Trail trail = seedTrail();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        assertThat(service.findAll(null, null, null, null, qaLeadId, null, null, null, pageable)
+                .getContent()).extracting(NcrDto::id)
+                .containsExactlyInAnyOrder(trail.raisedByQa, trail.alsoRaisedByQa)
+                .doesNotContain(trail.raisedByEngineer);
+        assertThat(service.findAll(null, null, null, null, siteEngineerId, null, null, null, pageable)
+                .getContent()).extracting(NcrDto::id).containsExactly(trail.raisedByEngineer);
+
+        assertThat(service.findAll(null, null, null, null, null, qaLeadId, null, null, pageable)
+                .getContent()).extracting(NcrDto::id).containsExactly(trail.raisedByQa);
+        assertThat(service.findAll(null, null, null, null, null, siteEngineerId, null, null, pageable)
+                .getContent()).extracting(NcrDto::id).containsExactly(trail.alsoRaisedByQa);
+
+        assertThat(service.findAll(null, null, null, null, null, null, qaLeadId, null, pageable)
+                .getContent()).extracting(NcrDto::id).containsExactly(trail.raisedByQa);
+        assertThat(service.findAll(null, null, null, null, null, null, siteEngineerId, null, pageable)
+                .getContent()).extracting(NcrDto::id).containsExactly(trail.alsoRaisedByQa);
+
+        // nobody raised anything as the org B engineer in org A, and an id that matches no row
+        // returns nothing rather than everything
+        assertThat(service.findAll(null, null, null, null, foreignSiteEngineerId, null, null, null,
+                pageable).getTotalElements()).isZero();
+    }
+
+    /**
+     * The new filters narrow with the ones already there rather than replacing them, which is the
+     * whole reason they are predicates on one specification: asking for what a person raised and
+     * somebody else closed has to mean both conditions at once.
+     */
+    @Test
+    void theNewFiltersAndWithTheOnesAlreadyThere() {
+        Trail trail = seedTrail();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        assertThat(service.findAll(null, null, null, null, qaLeadId, siteEngineerId, null, null,
+                pageable).getContent()).extracting(NcrDto::id).containsExactly(trail.alsoRaisedByQa);
+        assertThat(service.findAll(null, NcrType.SAFETY, null, null, qaLeadId, null, null, null,
+                pageable).getTotalElements()).isZero();
+        assertThat(service.findAll(null, null, NcrStatus.CLOSED, null, qaLeadId, null, null, null,
+                pageable).getContent()).extracting(NcrDto::id)
+                .containsExactlyInAnyOrder(trail.raisedByQa, trail.alsoRaisedByQa);
+        // raised by the QA lead and still outstanding: neither of the two closed ones
+        assertThat(service.findAll(null, null, null, null, qaLeadId, null, null, true, pageable)
+                .getTotalElements()).isZero();
+    }
+
+    /**
+     * A filter parameter is a place where the caller supplies an id, so it is the place to check
+     * that it cannot be used to reach across organizations. Org B has its own NCR raised by its
+     * own employee; asking from org A for that employee's reports returns nothing, and asking from
+     * org B for org A's employees returns nothing either, so the leak would be caught whichever
+     * tenant a broken query favoured.
+     *
+     * <p>The count is asserted alongside the rows. {@code getTotalElements} comes from a separate
+     * count query that the specification is applied to independently, so a total that includes
+     * another tenant's rows would say how many reports a rival has against a named person even
+     * when no row of theirs comes back.
+     */
+    @Test
+    void thePeopleFiltersCannotReachAcrossOrganizations() {
+        Trail trail = seedTrail();
+        UUID foreign = seedForeignTrail();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        enableOrgFilter(orgAId);
+        Page<NcrDto> mine = service.findAll(null, null, null, null, qaLeadId, null, null, null, pageable);
+        assertThat(mine.getContent()).extracting(NcrDto::id)
+                .containsExactlyInAnyOrder(trail.raisedByQa, trail.alsoRaisedByQa)
+                .doesNotContain(foreign);
+        assertThat(mine.getTotalElements()).isEqualTo(2);
+        // the org B employee is a real employee, and their reports are still out of reach
+        Page<NcrDto> reachingOut = service.findAll(null, null, null, null, foreignSiteEngineerId,
+                null, null, null, pageable);
+        assertThat(reachingOut.getContent()).isEmpty();
+        assertThat(reachingOut.getTotalElements()).isZero();
+        disableOrgFilter();
+
+        enableOrgFilter(orgBId);
+        Page<NcrDto> theirs = service.findAll(null, null, null, null, foreignSiteEngineerId,
+                null, null, null, pageable);
+        assertThat(theirs.getContent()).extracting(NcrDto::id).containsExactly(foreign);
+        assertThat(theirs.getTotalElements()).isEqualTo(1);
+        // and org A's people are equally out of reach from org B, on all three filters
+        assertThat(service.findAll(null, null, null, null, qaLeadId, null, null, null, pageable)
+                .getTotalElements()).isZero();
+        assertThat(service.findAll(null, null, null, null, null, qaLeadId, null, null, pageable)
+                .getTotalElements()).isZero();
+        assertThat(service.findAll(null, null, null, null, null, null, siteEngineerId, null, pageable)
+                .getTotalElements()).isZero();
+        disableOrgFilter();
+    }
+
+    /** The ids of the three NCRs {@link #seedTrail()} leaves behind. */
+    private record Trail(UUID raisedByQa, UUID alsoRaisedByQa, UUID raisedByEngineer) {}
+
+    /**
+     * Three NCRs in org A with the trail deliberately split between two people: the QA lead raises
+     * two and takes one of them all the way through, the site engineer raises the third and
+     * verifies and closes the other one. Nothing lines up by accident, so a filter on any of the
+     * three columns has a different answer.
+     */
+    private Trail seedTrail() {
+        authenticateAs("kc-ncr-qa");
+        UUID raisedByQa = assignedNcr();
+        UUID alsoRaisedByQa = assignedNcr();
+        service.markCorrectiveActionComplete(raisedByQa, "Re-poured");
+        service.markCorrectiveActionComplete(alsoRaisedByQa, "Re-poured");
+        service.verify(raisedByQa, "Accepted");
+        service.close(raisedByQa);
+
+        authenticateAs("kc-ncr-a");
+        UUID raisedByEngineer = assignedNcr();
+        service.verify(alsoRaisedByQa, "Accepted");
+        service.close(alsoRaisedByQa);
+
+        entityManager.flush();
+        entityManager.clear();
+        return new Trail(raisedByQa, alsoRaisedByQa, raisedByEngineer);
+    }
+
+    /** One NCR in org B, raised by org B's own employee, for the cross-tenant assertions. */
+    private UUID seedForeignTrail() {
+        TenantContext.setCurrentOrgId(orgBId);
+        authenticateAs("kc-ncr-b");
+        InspectionDto inspection = inspectionService.create(new CreateInspectionRequest(
+                "Slab check", InspectionType.QUALITY, null, null, foreignProjectId,
+                "Block A", null, null, LocalDate.of(2026, 8, 20), null,
+                null, null, null, 100L, null, null, null, null, null,
+                null, null));
+        UUID id = service.create(new CreateNcrRequest(inspection.id(), null,
+                "Their non-conformance", "Org B's own report", DefectSeverity.MAJOR,
+                foreignSiteEngineerId, null)).id();
+        entityManager.flush();
+        entityManager.clear();
+        TenantContext.setCurrentOrgId(orgAId);
+        return id;
+    }
+
+    /** Puts the given Keycloak subject in the security context, the way a request would. */
+    private void authenticateAs(String keycloakId) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(keycloakId, "n/a",
+                        AuthorityUtils.NO_AUTHORITIES));
+    }
+
+    private Long userIdOf(String keycloakId) {
+        return ((Number) entityManager
+                .createNativeQuery("SELECT id FROM users_table WHERE keycloak_id = :kc")
+                .setParameter("kc", keycloakId)
+                .getSingleResult()).longValue();
     }
 
     private UUID assignedNcr() {
@@ -446,11 +659,16 @@ class NcrServiceIT extends AbstractIntegrationTest {
         tt.executeWithoutResult(status -> work.run());
     }
 
-    private Employee persistEmployee(Organization org, String keycloakId, String name) {
+    private User persistUser(String keycloakId, String name) {
         User user = new User();
         user.setKeycloakId(keycloakId);
         user.setName(name);
         entityManager.persist(user);
+        return user;
+    }
+
+    private Employee persistEmployee(Organization org, String keycloakId, String name) {
+        User user = persistUser(keycloakId, name);
 
         Employee employee = new Employee();
         employee.setOrganization(org);

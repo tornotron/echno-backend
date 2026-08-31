@@ -44,7 +44,10 @@ import java.util.UUID;
                 @Index(name = "idx_ncr_defect", columnList = "defect_id"),
                 @Index(name = "idx_ncr_status", columnList = "status"),
                 @Index(name = "idx_ncr_type", columnList = "type"),
-                @Index(name = "idx_ncr_site_engineer", columnList = "site_engineer_id")
+                @Index(name = "idx_ncr_site_engineer", columnList = "site_engineer_id"),
+                @Index(name = "idx_ncr_raised_by", columnList = "raised_by_id"),
+                @Index(name = "idx_ncr_verified_by", columnList = "verified_by_id"),
+                @Index(name = "idx_ncr_closed_by", columnList = "closed_by_id")
         })
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Getter @Setter
