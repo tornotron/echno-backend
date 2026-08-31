@@ -46,7 +46,9 @@ import static org.mockito.Mockito.when;
  * Approving a stock adjustment is the only way to set or correct a balance, so this covers
  * what that has to guarantee: a ledger entry carrying the reason is written before the
  * balance moves, a physical count lands the balance on the counted figure, a movement with
- * no stated reason is refused, an adjustment cannot be posted twice or edited afterwards,
+ * no stated reason is refused, an approval whose balance has moved since the document was
+ * raised is refused so that what is approved is what was raised, an adjustment cannot be
+ * posted twice or edited afterwards,
  * and it cannot be used to book stock onto a location belonging to another project that
  * holds no balance for it, or to push a balance below zero. The one relaxation the
  * adjustment path carries is covered too: a balance that already sits on another project's
@@ -181,11 +183,88 @@ class StockAdjustmentApprovalTest {
     }
 
     @Test
-    void aCountIsPostedAgainstTheBalanceAsItStandsNotTheSystemQuantityOnTheCountSheet() {
+    void aCountedLineIsRefusedWhenTheBalanceHasMovedSinceTheDocumentWasRaised() {
         StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
         StockAdjustmentLineItem line = line(adjustment, 46.0, null, "damage");
-        // The count sheet was written when the system said 48; a receipt has since taken it to 50.
+        // The count sheet was raised when the system said 48; a receipt has since taken it to 50.
         line.setSystemQuantity(48.0);
+        balanceAtLocation(50.0);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.approve(ADJUSTMENT))
+                .withMessageContaining("48.0")
+                .withMessageContaining("50.0");
+
+        // Posting it would have driven the balance to the counted 46, quietly taking back the
+        // receipt that moved it. Nothing reaches the ledger and no balance moves.
+        verify(inventoryTransactionRepository, never()).save(any());
+        verify(inventoryService, never()).updateCurrentStock(any(), any(), any(), any(), any(), any());
+        assertThat(adjustment.getProcessedAt()).isNull();
+        assertThat(adjustment.getStatus()).isNotEqualTo("processed");
+        // And the figures on the document are still the ones it was raised with, so what the
+        // window did is still readable afterwards.
+        assertThat(line.getSystemQuantity()).isEqualTo(48.0);
+    }
+
+    @Test
+    void aSignedDeltaLineIsRefusedWhenTheBalanceHasMovedToo() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        StockAdjustmentLineItem line = line(adjustment, null, 30.0, "data correction");
+        // A line that states no count, only "book 30 more here". Raised when the location stood
+        // at 400, so the approver is agreeing to a closing figure of 430; it now stands at 420,
+        // and posting would land on 450 instead. The closing figure stays well clear of zero, so
+        // nothing but the moved balance can be what refuses this.
+        line.setSystemQuantity(400.0);
+        balanceAtLocation(420.0);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.approve(ADJUSTMENT))
+                .withMessageContaining("400.0")
+                .withMessageContaining("420.0");
+
+        verify(inventoryTransactionRepository, never()).save(any());
+        verify(inventoryService, never()).updateCurrentStock(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void anApprovalPostsTheFiguresTheDocumentWasRaisedWith() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        StockAdjustmentLineItem line = line(adjustment, 46.0, -2.0, "damage");
+        line.setSystemQuantity(48.0);
+        balanceAtLocation(48.0);
+
+        service.approve(ADJUSTMENT);
+
+        ArgumentCaptor<InventoryTransaction> captor = ArgumentCaptor.forClass(InventoryTransaction.class);
+        verify(inventoryTransactionRepository).save(captor.capture());
+        assertThat(captor.getValue().getOpeningStock()).isEqualTo(48.0);
+        assertThat(captor.getValue().getQuantityChanged()).isEqualTo(-2.0);
+        assertThat(captor.getValue().getClosingStock()).isEqualTo(46.0);
+        // Approval changed neither figure on the line, so the document that was approved is the
+        // document that was raised and the ledger entry describes the same movement it does.
+        assertThat(line.getSystemQuantity()).isEqualTo(48.0);
+        assertThat(line.getPhysicalQuantity()).isEqualTo(46.0);
+        assertThat(line.getAdjustmentQuantity()).isEqualTo(-2.0);
+    }
+
+    @Test
+    void aBalanceMovedOnlyByFloatingPointResidueIsNotTreatedAsMoved() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        StockAdjustmentLineItem line = line(adjustment, 46.0, null, "damage");
+        line.setSystemQuantity(48.0);
+        balanceAtLocation(48.0 + 1e-12);
+
+        service.approve(ADJUSTMENT);
+
+        verify(inventoryTransactionRepository).save(any());
+    }
+
+    @Test
+    void aLineRaisedWithNoOpeningBalanceIsPostedAndHasItsFiguresFilledIn() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        // Raised before the opening balance was stamped onto lines: there is nothing to compare,
+        // so there is nothing the approver can be said to have disagreed with.
+        StockAdjustmentLineItem line = line(adjustment, 46.0, null, "damage");
         balanceAtLocation(50.0);
 
         service.approve(ADJUSTMENT);
@@ -193,7 +272,8 @@ class StockAdjustmentApprovalTest {
         ArgumentCaptor<InventoryTransaction> captor = ArgumentCaptor.forClass(InventoryTransaction.class);
         verify(inventoryTransactionRepository).save(captor.capture());
         assertThat(captor.getValue().getQuantityChanged()).isEqualTo(-4.0);
-        assertThat(captor.getValue().getClosingStock()).isEqualTo(46.0);
+        assertThat(line.getSystemQuantity()).isEqualTo(50.0);
+        assertThat(line.getAdjustmentQuantity()).isEqualTo(-4.0);
     }
 
     @Test

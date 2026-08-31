@@ -14,13 +14,20 @@ public class StockAdjustmentLineItemCreationDto {
     @Schema(description = "Free-text description of the line item.", example = "OPC 53 Grade Cement, damaged bags found during count")
     private String description;
 
-    @Schema(description = "Quantity on record before the adjustment.", example = "480.0")
+    @Schema(description = "The quantity on record before the adjustment. Stamped from the balance this "
+            + "line is raised against, so any value sent here is ignored: it is the opening figure the "
+            + "approval is checked against and therefore the server's to state. A value sent for a line "
+            + "naming no material, or on a document naming no project, is kept, because there is no "
+            + "balance to read; such a line cannot be approved either way.", example = "480.0")
     private Double systemQuantity;
 
     @Schema(description = "Quantity found during the physical count.", example = "460.0")
     private Double physicalQuantity;
 
-    @Schema(description = "Adjustment quantity (physical minus system).", example = "-20.0")
+    @Schema(description = "Adjustment quantity (physical minus system). Recomputed from the stamped "
+            + "system quantity whenever a physical count is given, so the line's three figures are one "
+            + "piece of arithmetic. Sent on its own, with no physical count, it is the signed movement "
+            + "the line posts and is kept as sent.", example = "-20.0")
     private Double adjustmentQuantity;
 
     @Schema(description = "Unit of measure for the quantities.", example = "bags")

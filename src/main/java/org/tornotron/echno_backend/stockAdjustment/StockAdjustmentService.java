@@ -51,10 +51,16 @@ import java.util.stream.Stream;
  * then moves the balance, so the resulting figure stays explainable from the ledger like
  * every other movement.
  *
- * <p>{@link #create} and {@link #update} persist the document only. Posting happens once,
- * through {@link #approve}, and a posted document is then frozen: edits and deletes are
- * refused, because changing the lines afterwards would leave the ledger describing a
- * document that no longer exists.
+ * <p>{@link #create} and {@link #update} persist the document only, with one thing read from
+ * the stock rather than the request: each line is stamped with the balance it is being raised
+ * against, by {@link #stampOpeningBalance}. Posting happens once, through {@link #approve}, and
+ * a posted document is then frozen: edits and deletes are refused, because changing the lines
+ * afterwards would leave the ledger describing a document that no longer exists.
+ *
+ * <p>Those two halves meet at {@link #requireBalanceUnmoved}: an approval is refused when the
+ * balance has moved since the document was raised. The figures approved are then the figures
+ * raised, which on a document whose whole purpose is to be an auditable correction is what the
+ * second signature is a signature on.
  *
  * <p>A draft has one other way off the line: {@link #reject}, which records that an approver
  * looked at the correction and refused it. It moves no stock, and it is the only outcome that
@@ -238,14 +244,19 @@ public class StockAdjustmentService {
      * Approves a stock adjustment and posts its lines to the stock ledger.
      *
      * <p>This is the controlled way to set or correct a balance. Each line resolves the
-     * balance row it applies to, from the line's own storage location or the document's,
-     * and the movement it needs to reach the counted figure. A line carrying a physical
-     * count is posted as the difference between that count and the balance <em>as it stands
-     * now</em>, not the {@code systemQuantity} recorded when the count sheet was written, so
-     * the balance ends at exactly the counted figure even if stock moved in between; the
-     * line is rewritten with the figures actually posted. A line with no count falls back to
+     * balance row it applies to, from the line's own storage location or the document's, and
+     * the movement it needs to reach the counted figure: a line carrying a physical count posts
+     * the difference between that count and the balance, and a line with no count falls back to
      * its signed {@code adjustmentQuantity}. Lines that come out at no movement are skipped
      * rather than writing a ledger row that changes nothing.
+     *
+     * <p>The approval is refused when the balance has moved since the document was raised, so
+     * what is posted is the arithmetic the approver read and not a recomputation of it. See
+     * {@link #requireBalanceUnmoved}, which carries the reasoning; the opening figure it checks
+     * against is stamped onto the line when the document is written, by
+     * {@link #stampOpeningBalance}. Because the balance is then known to be the one on the line,
+     * the figures written back to the line are the raised figures, and the document, the count
+     * sheet and the ledger all describe one movement.
      *
      * <p>The approval is refused up front when the person approving is the one who raised the
      * document, unless they hold the break-glass role, in which case the posting is allowed and
@@ -267,7 +278,7 @@ public class StockAdjustmentService {
      * @param id The document to approve and post.
      * @return The posted document as a DTO.
      * @throws ResourceNotFoundException if no such document exists in this organization.
-     * @throws InvalidRequestException if the document is already posted, is being approved by whoever raised it without the break-glass role, names no project, has no lines, or a line is missing a material, a reason, or a quantity, names a location on another project that holds no balance for it, or would drive a balance negative.
+     * @throws InvalidRequestException if the document is already posted, is being approved by whoever raised it without the break-glass role, names no project, has no lines, or a line is missing a material, a reason, or a quantity, was raised against a balance that has since moved, names a location on another project that holds no balance for it, or would drive a balance negative.
      */
     @Transactional
     public StockAdjustmentDto approve(Long id) {
@@ -314,15 +325,17 @@ public class StockAdjustmentService {
                     ? line.getLocation()
                     : stockAdjustment.getLocation();
 
-            Optional<Double> existingBalance = location != null
-                    ? inventoryService.findStockAtLocation(material.getId(), project.getId(), location.getId())
-                    : inventoryService.findUnlocatedStock(material.getId(), project.getId());
+            Optional<Double> existingBalance = readBalance(material, project, location);
             StorageLocationScope.requireUsableForBalanceCorrection(location, project.getId(),
                     existingBalance::isPresent);
             Double balance = existingBalance.orElse(0.0);
+            requireBalanceUnmoved(line, balance, material, id);
             Double movement = resolveMovement(line, balance, material, id);
 
-            // Record what was actually posted, so the document and the ledger agree.
+            // Record what was posted, so the document and the ledger agree. The guard above has
+            // already established that this is the opening figure the document was raised
+            // against, so on any line carrying one these two writes change nothing; they are
+            // what fills the figures in on a line raised before the opening balance was stamped.
             line.setSystemQuantity(balance);
             line.setAdjustmentQuantity(movement);
 
@@ -527,6 +540,110 @@ public class StockAdjustmentService {
         return reason + detail;
     }
 
+    /**
+     * The balance row a line applies to, empty when no such row exists.
+     *
+     * <p>Shared by the two places that need it and must agree: {@link #stampOpeningBalance},
+     * which records the figure on the draft, and {@link #approve}, which posts against it. If
+     * they read different rows the stamped opening balance would look moved on every approval.
+     *
+     * @param material The material the line adjusts.
+     * @param project The project the document corrects a balance on.
+     * @param location The line's location, else the document's, else null for the unlocated row.
+     * @return The quantity on hand, or empty when the balance row does not exist.
+     */
+    private Optional<Double> readBalance(Material material, Project project, StorageLocation location) {
+        return location != null
+                ? inventoryService.findStockAtLocation(material.getId(), project.getId(), location.getId())
+                : inventoryService.findUnlocatedStock(material.getId(), project.getId());
+    }
+
+    /**
+     * Refuses an approval whose balance has moved since the document was raised.
+     *
+     * <p>This is what makes the second signature mean something. A stock adjustment is approved
+     * by someone other than the person who raised it, and what they are agreeing to is an
+     * arithmetic: this material stood at the opening figure on the line, the count found the
+     * physical figure, so post the difference. If the balance moves in between, approving posts a
+     * different arithmetic from the one on the document, and it does so silently: a line carrying
+     * a count always drives the balance to exactly the counted figure, so a goods receipt booked
+     * after the count is reversed by the approval and nothing anywhere says it was. The receipt
+     * stays on the ledger; the stock does not.
+     *
+     * <p>Refusing is the only outcome that keeps the approval honest. Posting the drafted variance
+     * instead would guess the other way, and it is a guess: whether goods received after a count
+     * were already on the shelf when it was taken is not something the data can answer, so a
+     * default either absorbs a real receipt or double-counts one. Both need a human, and this is
+     * the point at which one is present.
+     *
+     * <p>The way forward is to save the document again, which re-reads the opening balance onto
+     * every line (see {@link #stampOpeningBalance}), and approve it once the count has been
+     * checked against the figure that moved. That keeps the decision with a person and leaves the
+     * document saying what was agreed.
+     *
+     * <p>A line carrying no opening balance is let through: it was raised before the figure was
+     * stamped, so there is nothing to compare and nothing the approver can be said to have
+     * disagreed with. {@link #approve} then fills the figure in from what it posts.
+     *
+     * @param line The line being posted.
+     * @param balance The balance as it stands now.
+     * @param material The material the line adjusts, named in the message.
+     * @param id The document being approved, named in the message.
+     * @throws InvalidRequestException if the line was raised against a different opening balance.
+     */
+    private void requireBalanceUnmoved(StockAdjustmentLineItem line, Double balance, Material material, Long id) {
+        Double opening = line.getSystemQuantity();
+        if (opening == null || Math.abs(opening - balance) < NO_MOVEMENT) {
+            return;
+        }
+        throw new InvalidRequestException("The line adjusting material ID " + material.getId()
+                + " on stock adjustment with ID " + id + " was raised against a balance of " + opening
+                + ", and the balance now stands at " + balance + ". Something moved this stock after "
+                + "the count sheet was written, so approving it would post a correction nobody has "
+                + "agreed to and would silently reverse whatever moved it. Check the count against "
+                + "the figure it now stands at, save the document to take up the current balance, "
+                + "and approve it again.");
+    }
+
+    /**
+     * Records the balance a line is being raised against, and the variance that follows from it.
+     *
+     * <p>{@code systemQuantity} is the system's own figure, not a number the person raising the
+     * document gets to assert, so it is read from the stock here the same way {@code submittedBy}
+     * is read from the session rather than the request body. Before this it
+     * was whatever the client sent: on the web app a hand-typed box defaulting to zero, checked
+     * against nothing. That left it decorative, which mattered once {@link #approve} started
+     * refusing an approval whose balance has moved, because a guard against a hand-typed number
+     * fires on typing mistakes rather than on stock moving.
+     *
+     * <p>Where the line carries a count, the variance is recomputed from the stamped figure too.
+     * The three numbers on a line are one piece of arithmetic and a document showing an opening
+     * balance, a count, and a difference that is not the difference between them is worse than one
+     * showing no opening balance at all.
+     *
+     * <p>A line too incomplete to read a balance for, naming no material or sitting on a document
+     * naming no project, keeps what the client sent. There is no balance to read, and such a line
+     * cannot be approved anyway: {@link #approve} refuses both.
+     *
+     * @param item The line being written.
+     * @param stockAdjustment The document it belongs to, for the project and the fallback location.
+     */
+    private void stampOpeningBalance(StockAdjustmentLineItem item, StockAdjustment stockAdjustment) {
+        Material material = item.getMaterial();
+        Project project = stockAdjustment.getProject();
+        if (material == null || project == null) {
+            return;
+        }
+        StorageLocation location = item.getLocation() != null
+                ? item.getLocation()
+                : stockAdjustment.getLocation();
+        Double balance = readBalance(material, project, location).orElse(0.0);
+        item.setSystemQuantity(balance);
+        if (item.getPhysicalQuantity() != null) {
+            item.setAdjustmentQuantity(item.getPhysicalQuantity() - balance);
+        }
+    }
+
     /** The signed movement a line posts: to the counted figure where there is one, else the stated delta. */
     private Double resolveMovement(StockAdjustmentLineItem line, Double balance, Material material, Long id) {
         if (line.getPhysicalQuantity() != null) {
@@ -580,7 +697,12 @@ public class StockAdjustmentService {
         stockAdjustment.setProject(resolveProject(dto.getProjectId()));
     }
 
-    /** Builds and attaches the line items, resolving each line's material and location. */
+    /**
+     * Builds and attaches the line items, resolving each line's material and location.
+     *
+     * <p>Runs after {@link #applyHeaderFields}, because the opening balance each line is stamped
+     * with is read against the document's project and falls back to its location.
+     */
     private void applyLineItems(StockAdjustment stockAdjustment,
                                 List<StockAdjustmentLineItemCreationDto> lineItemDtos,
                                 Organization organization) {
@@ -590,6 +712,8 @@ public class StockAdjustmentService {
         for (StockAdjustmentLineItemCreationDto lineDto : lineItemDtos) {
             StockAdjustmentLineItem item = new StockAdjustmentLineItem();
             item.setDescription(lineDto.getDescription());
+            // Kept only as the fallback for a line no balance can be read for; where one can be,
+            // stampOpeningBalance below overwrites it with the figure the system actually holds.
             item.setSystemQuantity(lineDto.getSystemQuantity());
             item.setPhysicalQuantity(lineDto.getPhysicalQuantity());
             item.setAdjustmentQuantity(lineDto.getAdjustmentQuantity());
@@ -603,6 +727,7 @@ public class StockAdjustmentService {
             item.setMaterial(resolveMaterial(lineDto.getMaterialId()));
             item.setLocation(resolveLocation(lineDto.getLocationId()));
             item.setOrganization(organization);
+            stampOpeningBalance(item, stockAdjustment);
             stockAdjustment.addLineItem(item);
         }
     }
