@@ -35,7 +35,9 @@ import org.tornotron.echno_backend.user.UserNameLookup;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -312,6 +314,11 @@ public class StockAdjustmentService {
                 : postedAt;
         String referenceNumber = referenceNumber(stockAdjustment);
         double totalVariance = 0.0;
+        // What this approval has already posted to each balance row, so a later line on the same
+        // row is measured against the balance as it stood when the approval began. See
+        // requireBalanceUnmoved: a document may split one shelf's variance across several lines,
+        // one per reason, and the approver read all of them.
+        Map<BalanceRow, Double> postedHere = new HashMap<>();
 
         for (StockAdjustmentLineItem line : stockAdjustment.getLineItems()) {
             Material material = line.getMaterial();
@@ -329,7 +336,8 @@ public class StockAdjustmentService {
             StorageLocationScope.requireUsableForBalanceCorrection(location, project.getId(),
                     existingBalance::isPresent);
             Double balance = existingBalance.orElse(0.0);
-            requireBalanceUnmoved(line, balance, material, id);
+            BalanceRow row = new BalanceRow(material.getId(), location != null ? location.getId() : null);
+            requireBalanceUnmoved(line, balance - postedHere.getOrDefault(row, 0.0), material, id);
             Double movement = resolveMovement(line, balance, material, id);
 
             // Record what was posted, so the document and the ledger agree. The guard above has
@@ -375,6 +383,7 @@ public class StockAdjustmentService {
                     movement, movement > 0 ? unitCost : null);
 
             totalVariance += movement;
+            postedHere.merge(row, movement, Double::sum);
         }
 
         stockAdjustment.setTotalVarianceQuantity(totalVariance);
@@ -541,6 +550,19 @@ public class StockAdjustmentService {
     }
 
     /**
+     * Identifies the balance row a line moves, within one document's project.
+     *
+     * <p>Several lines may share one: a count sheet can split a shelf's variance across a line
+     * per reason, so much damaged and so much lost. {@link #approve} needs to tell those apart
+     * from stock that moved underneath the document.
+     *
+     * @param materialId The material.
+     * @param locationId The storage location, or null for the row held against no location.
+     */
+    private record BalanceRow(Long materialId, Long locationId) {
+    }
+
+    /**
      * The balance row a line applies to, empty when no such row exists.
      *
      * <p>Shared by the two places that need it and must agree: {@link #stampOpeningBalance},
@@ -581,12 +603,18 @@ public class StockAdjustmentService {
      * checked against the figure that moved. That keeps the decision with a person and leaves the
      * document saying what was agreed.
      *
+     * <p>What the approval has itself already posted to the same balance row is discounted first,
+     * so this measures stock that moved underneath the document and not the document's own work.
+     * A count sheet may split one shelf's variance across a line per reason, and the approver read
+     * all of those lines; refusing the second because the first had just moved the balance would
+     * refuse a document nobody wrote wrongly.
+     *
      * <p>A line carrying no opening balance is let through: it was raised before the figure was
      * stamped, so there is nothing to compare and nothing the approver can be said to have
      * disagreed with. {@link #approve} then fills the figure in from what it posts.
      *
      * @param line The line being posted.
-     * @param balance The balance as it stands now.
+     * @param balance The balance as it stood when this approval began.
      * @param material The material the line adjusts, named in the message.
      * @param id The document being approved, named in the message.
      * @throws InvalidRequestException if the line was raised against a different opening balance.
@@ -598,11 +626,11 @@ public class StockAdjustmentService {
         }
         throw new InvalidRequestException("The line adjusting material ID " + material.getId()
                 + " on stock adjustment with ID " + id + " was raised against a balance of " + opening
-                + ", and the balance now stands at " + balance + ". Something moved this stock after "
-                + "the count sheet was written, so approving it would post a correction nobody has "
-                + "agreed to and would silently reverse whatever moved it. Check the count against "
-                + "the figure it now stands at, save the document to take up the current balance, "
-                + "and approve it again.");
+                + ", and the balance stood at " + balance + " when this approval began. Something "
+                + "moved this stock after the count sheet was written, so approving it would post a "
+                + "correction nobody has agreed to and would silently reverse whatever moved it. "
+                + "Check the count against the figure it now stands at, save the document to take "
+                + "up the current balance, and approve it again.");
     }
 
     /**

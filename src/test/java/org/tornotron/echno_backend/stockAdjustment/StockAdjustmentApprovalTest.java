@@ -39,6 +39,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -245,6 +246,31 @@ class StockAdjustmentApprovalTest {
         assertThat(line.getSystemQuantity()).isEqualTo(48.0);
         assertThat(line.getPhysicalQuantity()).isEqualTo(46.0);
         assertThat(line.getAdjustmentQuantity()).isEqualTo(-2.0);
+    }
+
+    @Test
+    void aShelfWhoseVarianceIsSplitAcrossSeveralLinesPostsAllOfThem() {
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        // One shelf, one count, the variance attributed a line per reason. Both lines were raised
+        // against the same opening balance, and the approver read both of them.
+        StockAdjustmentLineItem damaged = line(adjustment, null, -20.0, "damage");
+        damaged.setSystemQuantity(400.0);
+        StockAdjustmentLineItem lost = line(adjustment, null, -10.0, "loss");
+        lost.setSystemQuantity(400.0);
+        // The first line takes the row to 380 before the second is looked at. That is the
+        // document's own work, not stock moving underneath it, so it is not drift.
+        when(inventoryService.findStockAtLocation(MATERIAL, PROJECT, LOCATION))
+                .thenReturn(Optional.of(400.0), Optional.of(380.0));
+
+        service.approve(ADJUSTMENT);
+
+        ArgumentCaptor<InventoryTransaction> captor = ArgumentCaptor.forClass(InventoryTransaction.class);
+        verify(inventoryTransactionRepository, times(2)).save(captor.capture());
+        assertThat(captor.getAllValues().get(0).getQuantityChanged()).isEqualTo(-20.0);
+        assertThat(captor.getAllValues().get(0).getClosingStock()).isEqualTo(380.0);
+        assertThat(captor.getAllValues().get(1).getQuantityChanged()).isEqualTo(-10.0);
+        assertThat(captor.getAllValues().get(1).getClosingStock()).isEqualTo(370.0);
+        assertThat(adjustment.getTotalVarianceQuantity()).isEqualTo(-30.0);
     }
 
     @Test
