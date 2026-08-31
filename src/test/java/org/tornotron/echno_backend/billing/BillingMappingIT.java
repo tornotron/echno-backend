@@ -448,6 +448,66 @@ class BillingMappingIT extends AbstractIntegrationTest {
         return plan;
     }
 
+    /**
+     * The plan catalogue the organization-creation gate reads is seeded by the changelog.
+     *
+     * <p>{@code requireCreateOrganizationEntitlement} exempts a caller's first organization and
+     * puts every one after it through {@code checkFeatureAccess} on {@code CREATE_ORGANIZATION}.
+     * Nothing had ever configured what that reads: no changelog inserted a plan, a feature or a
+     * plan_feature, and the rows on staging were typed in by hand and existed nowhere else. So a
+     * gate that was working as designed refused everybody, in every environment built from this
+     * changelog, for want of a catalogue to read.
+     *
+     * <p>Running against a database the migrations have actually been applied to is the point.
+     * The changesets are guarded on their tables being empty, and the plan_feature rows resolve
+     * their parent ids through subqueries on the code rather than literal ids, so a version of
+     * this that only parsed the XML would miss both a precondition that skips when it should not
+     * and a subquery that resolves to the wrong tier. See #642.
+     */
+    @Test
+    void theChangelogSeedsThePlanCatalogueTheOrganizationGateReads() {
+        PlanDto free = planService.getPlanByCode("FREE");
+
+        assertThat(free.getFeatures())
+                .as("the free tier grants the organization limit the gate checks")
+                .anySatisfy(feature -> {
+                    assertThat(feature.getFeatureCode()).isEqualTo("CREATE_ORGANIZATION");
+                    assertThat(feature.getQuotaLimit()).isEqualTo(1L);
+                    assertThat(feature.getQuotaPeriod().name()).isEqualTo("TOTAL");
+                });
+
+        // Every tier grants it, and they ascend. A paid tier that granted less than free, or did
+        // not grant it at all, is the shape the hand-seeded staging box was actually in.
+        assertThat(planService.getPlanByCode("STARTER").getFeatures())
+                .anySatisfy(f -> assertThat(f.getQuotaLimit()).isEqualTo(3L));
+        assertThat(planService.getPlanByCode("PRO").getFeatures())
+                .anySatisfy(f -> assertThat(f.getQuotaLimit()).isEqualTo(5L));
+
+        // A null limit is how "unmetered" is expressed: hasQuota needs a limit above zero, so
+        // enterprise falls through to allowed rather than being compared against a number.
+        assertThat(planService.getPlanByCode("ENTERPRISE").getFeatures())
+                .anySatisfy(f -> {
+                    assertThat(f.getFeatureCode()).isEqualTo("CREATE_ORGANIZATION");
+                    assertThat(f.getQuotaLimit()).isNull();
+                });
+    }
+
+    /**
+     * The price list is a business decision that has not been made, so the seed does not invent
+     * one, and it keeps the unpriced catalogue off the pricing page until it has. Staging carries
+     * figures somebody typed in May 2026 that were never signed off; promoting those into every
+     * environment would have made them look decided.
+     */
+    @Test
+    void theSeededCatalogueIsNeitherPricedNorPublic() {
+        for (String code : List.of("FREE", "STARTER", "PRO", "ENTERPRISE")) {
+            PlanDto plan = planService.getPlanByCode(code);
+            assertThat(plan.getMonthlyPrice()).as("%s monthly price", code).isNull();
+            assertThat(plan.getAnnualPrice()).as("%s annual price", code).isNull();
+            assertThat(plan.getIsPublic()).as("%s is not on the pricing page yet", code).isFalse();
+        }
+    }
+
     private void executeUpdate(String sql) {
         entityManager.createNativeQuery(sql).executeUpdate();
     }
