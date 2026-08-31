@@ -78,9 +78,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * from.
  *
  * <p>Nor does it cover the authenticated-but-unscoped paths that {@code TenantFilter} enumerates
- * ({@code /user/web}, {@code /billing/**}, and the no-membership state). Those already read
- * tenant-scoped rows knowingly, scoped by the caller's own user id rather than by the tenant
- * layer, so a rule over them would be an allowlist of its own contents and would say nothing.
+ * ({@code /user/web} and the no-membership state). Those already read tenant-scoped rows
+ * knowingly, scoped by the caller's own user id rather than by the tenant layer, so a rule over
+ * them would be an allowlist of its own contents and would say nothing. {@code /billing/**} was
+ * a third entry here and is no longer unscoped: the declaration left the tenant id null, which
+ * refused every billing endpoint outright, and billing now runs inside tenant isolation like any
+ * other authenticated surface. See #640.
  *
  * <h2>What the walk follows</h2>
  *
