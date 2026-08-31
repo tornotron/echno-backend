@@ -145,13 +145,21 @@ class OpenApiPageSizeDefaultTest {
                 .map(JavaClass::reflect)
                 .forEach(controller -> {
                     for (Method method : controller.getDeclaredMethods()) {
+                        RequestMapping mapping = AnnotatedElementUtils
+                                .findMergedAnnotation(method, RequestMapping.class);
+                        if (mapping == null) {
+                            // Not a request handler. A helper that happens to take the page pair
+                            // has no path and no verb, so treating it as an endpoint would invent
+                            // one on the class's own mapping and on every verb there is.
+                            continue;
+                        }
                         Class<?> pageQueryType = pageQueryParameterOf(method);
                         if (pageQueryType == null) {
                             continue;
                         }
                         int served = servedDefault(pageQueryType);
-                        for (String path : pathsOf(controller, method)) {
-                            for (RequestMethod httpMethod : httpMethodsOf(method)) {
+                        for (String path : pathsOf(controller, mapping)) {
+                            for (RequestMethod httpMethod : httpMethodsOf(mapping)) {
                                 endpoints.add(
                                         new PaginatedEndpoint(path, httpMethod.name(), served));
                             }
@@ -186,10 +194,11 @@ class OpenApiPageSizeDefaultTest {
     }
 
     /** The full paths a handler answers on, class mapping and method mapping joined. */
-    private static Set<String> pathsOf(Class<?> controller, Method method) {
+    private static Set<String> pathsOf(Class<?> controller, RequestMapping mapping) {
         Set<String> paths = new LinkedHashSet<>();
-        for (String base : declaredPaths(controller)) {
-            for (String tail : declaredPaths(method)) {
+        for (String base : declaredPaths(
+                AnnotatedElementUtils.findMergedAnnotation(controller, RequestMapping.class))) {
+            for (String tail : declaredPaths(mapping)) {
                 paths.add(normalise(base + "/" + tail));
             }
         }
@@ -197,20 +206,16 @@ class OpenApiPageSizeDefaultTest {
     }
 
     /** The paths a single {@code @RequestMapping} or one of its shorthands declares. */
-    private static List<String> declaredPaths(java.lang.reflect.AnnotatedElement element) {
-        RequestMapping mapping =
-                AnnotatedElementUtils.findMergedAnnotation(element, RequestMapping.class);
+    private static List<String> declaredPaths(RequestMapping mapping) {
         if (mapping == null || mapping.path().length == 0) {
             return List.of("");
         }
         return List.of(mapping.path());
     }
 
-    /** The verbs a handler answers on, defaulting to every one when the mapping names none. */
-    private static List<RequestMethod> httpMethodsOf(Method method) {
-        RequestMapping mapping =
-                AnnotatedElementUtils.findMergedAnnotation(method, RequestMapping.class);
-        if (mapping == null || mapping.method().length == 0) {
+    /** The verbs a handler answers on, defaulting to every one when its mapping names none. */
+    private static List<RequestMethod> httpMethodsOf(RequestMapping mapping) {
+        if (mapping.method().length == 0) {
             return List.of(RequestMethod.values());
         }
         return List.of(mapping.method());
