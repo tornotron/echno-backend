@@ -29,6 +29,7 @@ import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
+import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderReceiptReconciler;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
@@ -49,6 +50,12 @@ import java.util.stream.Collectors;
  * purchase order, storage location, and each line's material) against the current tenant,
  * persists the note and its line items, then publishes a {@link GrnCreatedEvent} so the
  * inventory ledger raises stock for the received materials in the same transaction.
+ *
+ * <p>The receipt is also posted back onto the purchase order it cites, by
+ * {@link PurchaseOrderReceiptReconciler}: the received quantities are added to the order's
+ * lines, an over-receipt is refused unless the payload acknowledged it, and the order's status
+ * follows from the arithmetic. That runs inside the create transaction and before the stock
+ * event is published, so an order that refuses a delivery refuses it before any stock moves.
  */
 @Service
 public class GoodsReceivedNoteService {
@@ -66,6 +73,7 @@ public class GoodsReceivedNoteService {
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final DocumentNumberAllocator documentNumberAllocator;
     private final TransactionRetryTemplate retryTemplate;
+    private final PurchaseOrderReceiptReconciler purchaseOrderReceiptReconciler;
 
     public GoodsReceivedNoteService(GoodsReceivedNoteRepository goodsReceivedNoteRepository,
                                     GrnItemRepository grnItemRepository,
@@ -80,7 +88,8 @@ public class GoodsReceivedNoteService {
                                     StorageLocationRepository storageLocationRepository,
                                     PurchaseOrderRepository purchaseOrderRepository,
                                     DocumentNumberAllocator documentNumberAllocator,
-                                    TransactionRetryTemplate retryTemplate) {
+                                    TransactionRetryTemplate retryTemplate,
+                                    PurchaseOrderReceiptReconciler purchaseOrderReceiptReconciler) {
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.grnItemRepository = grnItemRepository;
         this.vendorRepository = vendorRepository;
@@ -94,6 +103,7 @@ public class GoodsReceivedNoteService {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.documentNumberAllocator = documentNumberAllocator;
         this.retryTemplate = retryTemplate;
+        this.purchaseOrderReceiptReconciler = purchaseOrderReceiptReconciler;
     }
 
     /**
@@ -113,6 +123,9 @@ public class GoodsReceivedNoteService {
      * @param creationDto The GRN header fields and the list of received line items.
      * @return The created GRN as a DTO.
      * @throws ResourceNotFoundException if any referenced vendor, employee, project, purchase order, storage location, or material is not found in this organization.
+     * @throws org.tornotron.echno_backend.common.exception.InvalidRequestException if a line would
+     *     take a material past the quantity the purchase order asked for and the payload did not
+     *     set {@code allowOverReceipt}.
      */
     public GoodsReceivedNoteDto createGoodsReceivedNote(GoodsReceivedNoteCreationDto creationDto) {
         return retryTemplate.execute(
@@ -183,6 +196,21 @@ public class GoodsReceivedNoteService {
 
         grnItemRepository.saveAll(items);
         grn.setItems(items);
+
+        // Post the receipt back onto the order it cites. This runs before the stock event so a
+        // refused over-receipt takes the whole note with it and no stock is raised for a
+        // delivery the order would not accept. The reconciler may correct a line's ordered
+        // quantity from the order, so the lines are saved again after it.
+        PurchaseOrderReceiptReconciler.ReceiptOutcome outcome = purchaseOrderReceiptReconciler.applyReceipt(
+                purchaseOrder, grn, items, Boolean.TRUE.equals(creationDto.getAllowOverReceipt()));
+        if (outcome.matchedLines() > 0) {
+            grnItemRepository.saveAll(items);
+        }
+        if (outcome.overReceipt()) {
+            grn.setOverReceiptAcknowledged(true);
+            grn = goodsReceivedNoteRepository.save(grn);
+            grn.setItems(items);
+        }
 
         // Publish GrnCreatedEvent for automatic inventory update
         eventPublisher.publishEvent(new GrnCreatedEvent(this, grn));

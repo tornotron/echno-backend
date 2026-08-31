@@ -72,6 +72,10 @@ class PurchaseOrderServiceTest {
     @Mock private IndentItemRepository indentItemRepository;
     @Mock private DocumentNumberAllocator documentNumberAllocator;
     @Mock private TransactionRetryTemplate retryTemplate;
+    @Mock private org.tornotron.echno_backend.common.history.StatusTransitionRecorder statusTransitionRecorder;
+    @Mock private org.tornotron.echno_backend.common.history.StatusTransitionRepository statusTransitionRepository;
+    @Mock private org.tornotron.echno_backend.common.history.mapper.StatusTransitionMapper statusTransitionMapper;
+    @Mock private org.tornotron.echno_backend.user.UserContextService userContextService;
 
     private PurchaseOrderService service;
 
@@ -82,7 +86,8 @@ class PurchaseOrderServiceTest {
         service = new PurchaseOrderService(purchaseOrderRepository, vendorRepository, indentRepository,
                 purchaseOrderMapper, tenantEntityHelper, employeeRepository, projectRepository,
                 purchaseOrderItemRepository, materialRepository, indentItemRepository,
-                documentNumberAllocator, retryTemplate);
+                documentNumberAllocator, retryTemplate, statusTransitionRecorder,
+                statusTransitionRepository, statusTransitionMapper, userContextService);
         // The template's own behaviour is covered by its own tests; here it just runs the work.
         lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
                 .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());

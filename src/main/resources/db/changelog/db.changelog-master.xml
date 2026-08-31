@@ -385,4 +385,7 @@
     <!-- v4.0 - Payment vouchers: record why one was voided, now that cancelling is how a verified voucher is corrected -->
     <include file="db/changelog/v4.0/083-add-construction-payment-cancellation-reason.xml"/>
 
+    <!-- v4.0 - Goods receipts: mark an acknowledged over-receipt, and open the purchase order status trail -->
+    <include file="db/changelog/v4.0/084-grn-purchase-order-reconciliation.xml"/>
+
 </databaseChangeLog>

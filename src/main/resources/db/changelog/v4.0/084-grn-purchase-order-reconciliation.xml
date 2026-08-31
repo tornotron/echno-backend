@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="084-01-add-grn-over-receipt-acknowledged" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="goods_received_note" columnName="over_receipt_acknowledged"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Whether a receipt took a material past the quantity its purchase order asked for, and
+            whoever filed it said in the payload that the excess was real.
+
+            An over-receipt is now refused unless the payload acknowledges it, so a note carrying
+            this flag is one somebody deliberately let through. It is stored on the document rather
+            than worked out later because the order's received quantities go on moving with every
+            further delivery: months on, the arithmetic no longer says which receipt was the one
+            that exceeded the order, and nothing at all says the excess was deliberate.
+
+            Every receipt that already exists is false. That is accurate for them: nothing refused
+            an over-receipt before this, so none of them was acknowledged.
+        </comment>
+
+        <addColumn tableName="goods_received_note">
+            <column name="over_receipt_acknowledged" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="goods_received_note" columnName="over_receipt_acknowledged"/>
+        </rollback>
+    </changeSet>
+
+    <!--
+        Where the trail begins for purchase orders that already exist.
+
+        One BASELINE row each, naming the status the order is observed to hold at the moment its
+        trail is introduced, exactly as 073 did for projects. It is not a transition and does not
+        claim to be one: it lets a reader tell an order whose status has not moved since recording
+        began from one whose history was never recorded at all.
+
+        Dated CURRENT_TIMESTAMP and not the order's created_at, because dating the observed status
+        at creation time would assert the order was created in that state, which is the one claim
+        that cannot be made about anything predating the trail. changed_by and changed_by_name are
+        null for the same reason: nothing recorded who moved these orders, and inventing an actor
+        would be worse than leaving the columns empty.
+    -->
+    <changeSet id="084-02-seed-purchase-order-status-baseline" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM status_transition WHERE entity_type = 'PURCHASE_ORDER'
+            </sqlCheck>
+        </preConditions>
+
+        <sql>
+            INSERT INTO status_transition (
+                entity_type, entity_id, organization_id,
+                from_status, to_status, source, occurred_at, note
+            )
+            SELECT 'PURCHASE_ORDER',
+                   po.id,
+                   po.organization_id,
+                   NULL,
+                   po.status,
+                   'BASELINE',
+                   CURRENT_TIMESTAMP,
+                   'The status this purchase order was observed to hold when its status trail began. What it was before that date, and who set it, was not recorded.'
+            FROM purchase_order po
+            WHERE po.status IS NOT NULL;
+        </sql>
+        <rollback>
+            <sql>DELETE FROM status_transition WHERE entity_type = 'PURCHASE_ORDER' AND source = 'BASELINE';</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

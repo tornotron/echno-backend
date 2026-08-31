@@ -59,4 +59,8 @@ public class GoodsReceivedNoteDto {
 
     @Schema(description = "Received line items.")
     private List<GrnItemDto> items;
+
+    @Schema(description = "True when this receipt took a material past the quantity its purchase order "
+            + "asked for and the excess was acknowledged on the payload.", example = "false")
+    private boolean overReceiptAcknowledged;
 }

@@ -21,7 +21,9 @@ public class GrnItemDto {
     @Schema(description = "Material name.", example = "Portland Cement 53 grade")
     private String materialName;
 
-    @Schema(description = "Quantity ordered for this material.", example = "100")
+    @Schema(description = "Quantity ordered for this material. Where the material is on the cited "
+            + "purchase order, the value returned is the order's, not the one submitted: the order is "
+            + "the authority on what was ordered.", example = "100")
     @NotNull(message = "ordered quantity is required")
     @Min(value = 0, message = "ordered quantity must be at least 0")
     private Integer orderedQuantity;

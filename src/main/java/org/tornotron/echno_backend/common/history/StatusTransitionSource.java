@@ -18,6 +18,20 @@ public enum StatusTransitionSource {
     UPDATE,
 
     /**
+     * The status was moved by the application itself, working it out from records the user
+     * changed rather than from a status the user asked for.
+     *
+     * <p>It is separate from {@code UPDATE} because there is no actor to name. A purchase order
+     * reaching {@code FULLY_RECEIVED} because the quantities received against it finally met the
+     * quantities ordered is nobody's decision: the person filed a goods receipt, and the order's
+     * status is arithmetic over that receipt and the ones before it. Recording it as an
+     * {@code UPDATE} with a null actor would leave a reader unable to tell a transition nobody
+     * made from one whose actor was lost. The document that caused it is named in the note, and
+     * that document carries the person who filed it.
+     */
+    SYSTEM,
+
+    /**
      * The status a record was observed to hold when its trail began, written once by the
      * migration that introduced the trail.
      *

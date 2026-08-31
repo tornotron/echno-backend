@@ -68,6 +68,34 @@ public class StatusTransitionRecorder {
                 StatusTransitionSource.UPDATE, actor, note);
     }
 
+    /**
+     * Records a change of status the application worked out for itself, if it is one.
+     *
+     * <p>The same rule as {@link #recordChange}: nothing is written when the two statuses are
+     * equal. What differs is that there is no acting user and none is invented. The entry is
+     * sourced {@link StatusTransitionSource#SYSTEM} and the note is where the caller names the
+     * document whose arithmetic moved the status, so a reader can follow it to the person who
+     * filed that document.
+     *
+     * @param entityType   The kind of record, for example {@code PURCHASE_ORDER}.
+     * @param entityId     The record's id.
+     * @param organization The organization the record belongs to.
+     * @param fromStatus   The status held before the change, possibly null.
+     * @param toStatus     The status held after it.
+     * @param note         The document or rule that moved it. Give one; an unexplained system
+     *                     transition is the thing this method exists to avoid.
+     * @return The entry that was written, or null when nothing changed.
+     */
+    public StatusTransition recordSystemChange(String entityType, Long entityId,
+                                               Organization organization, String fromStatus,
+                                               String toStatus, String note) {
+        if (Objects.equals(fromStatus, toStatus)) {
+            return null;
+        }
+        return append(entityType, entityId, organization, fromStatus, toStatus,
+                StatusTransitionSource.SYSTEM, null, note);
+    }
+
     private StatusTransition append(String entityType, Long entityId, Organization organization,
                                     String fromStatus, String toStatus,
                                     StatusTransitionSource source, User actor, String note) {

@@ -9,6 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.purchaseOrder.mapper.PurchaseOrderMapper;
 import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
 import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
+import org.tornotron.echno_backend.common.history.StatusTransitionRecorder;
+import org.tornotron.echno_backend.common.history.StatusTransitionRepository;
+import org.tornotron.echno_backend.common.history.dto.StatusTransitionDto;
+import org.tornotron.echno_backend.common.history.mapper.StatusTransitionMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
@@ -33,6 +37,8 @@ import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItem;
 import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItemRepository;
 import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemCreationDto;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.user.User;
+import org.tornotron.echno_backend.user.UserContextService;
 import org.tornotron.echno_backend.vendor.Vendor;
 import org.tornotron.echno_backend.vendor.VendorRepository;
 
@@ -53,9 +59,19 @@ import java.util.stream.Collectors;
  * to the vendor and every later state change go through the status endpoint, so that approval
  * is a separate act on an order that already exists rather than a value the create form can
  * choose for itself.
+ *
+ * <p>Every status an order holds is written to the shared status trail. A change somebody made
+ * carries that person; the moves into {@link PurchaseOrderStatus#PARTIALLY_RECEIVED} and
+ * {@link PurchaseOrderStatus#FULLY_RECEIVED} are made by
+ * {@link PurchaseOrderReceiptReconciler} out of the quantities received and carry the receipt
+ * that caused them instead. Recording only the manual ones would leave a trail that skips
+ * exactly the transitions nobody typed.
  */
 @Service
 public class PurchaseOrderService {
+
+    /** The kind this module files its status trail under. */
+    public static final String HISTORY_ENTITY_TYPE = "PURCHASE_ORDER";
 
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final VendorRepository vendorRepository;
@@ -69,6 +85,10 @@ public class PurchaseOrderService {
     private final IndentItemRepository indentItemRepository;
     private final DocumentNumberAllocator documentNumberAllocator;
     private final TransactionRetryTemplate retryTemplate;
+    private final StatusTransitionRecorder statusTransitionRecorder;
+    private final StatusTransitionRepository statusTransitionRepository;
+    private final StatusTransitionMapper statusTransitionMapper;
+    private final UserContextService userContextService;
 
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                                 VendorRepository vendorRepository,
@@ -81,7 +101,11 @@ public class PurchaseOrderService {
                                 MaterialRepository materialRepository,
                                 IndentItemRepository indentItemRepository,
                                 DocumentNumberAllocator documentNumberAllocator,
-                                TransactionRetryTemplate retryTemplate) {
+                                TransactionRetryTemplate retryTemplate,
+                                StatusTransitionRecorder statusTransitionRecorder,
+                                StatusTransitionRepository statusTransitionRepository,
+                                StatusTransitionMapper statusTransitionMapper,
+                                UserContextService userContextService) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.vendorRepository = vendorRepository;
         this.indentRepository = indentRepository;
@@ -94,6 +118,10 @@ public class PurchaseOrderService {
         this.indentItemRepository = indentItemRepository;
         this.documentNumberAllocator = documentNumberAllocator;
         this.retryTemplate = retryTemplate;
+        this.statusTransitionRecorder = statusTransitionRecorder;
+        this.statusTransitionRepository = statusTransitionRepository;
+        this.statusTransitionMapper = statusTransitionMapper;
+        this.userContextService = userContextService;
     }
 
     /**
@@ -173,6 +201,9 @@ public class PurchaseOrderService {
         }
 
         purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
+        statusTransitionRecorder.recordCreation(HISTORY_ENTITY_TYPE, purchaseOrder.getId(),
+                purchaseOrder.getOrganization(), purchaseOrder.getStatus().name(),
+                userContextService.getCurrentUser());
         return purchaseOrderMapper.toDto(purchaseOrder);
     }
 
@@ -284,6 +315,7 @@ public class PurchaseOrderService {
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(updateDto.getId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + updateDto.getId() + " was not found in this organization"));
 
+        PurchaseOrderStatus previousStatus = purchaseOrder.getStatus();
         if (updateDto.getStatus() != null) {
             purchaseOrder.setStatus(PurchaseOrderStatus.valueOf(updateDto.getStatus()));
         }
@@ -304,6 +336,7 @@ public class PurchaseOrderService {
         }
 
         purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
+        recordStatusChange(purchaseOrder, previousStatus);
         return purchaseOrderMapper.toDto(purchaseOrder);
     }
 
@@ -319,11 +352,58 @@ public class PurchaseOrderService {
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + id + " was not found in this organization"));
 
+        PurchaseOrderStatus previousStatus = purchaseOrder.getStatus();
         purchaseOrder.setStatus(status);
         purchaseOrderRepository.save(purchaseOrder);
+        recordStatusChange(purchaseOrder, previousStatus);
+    }
+
+    /**
+     * Reads a purchase order's status trail.
+     *
+     * <p>This is where the receipt-driven moves are explained. An entry sourced {@code SYSTEM}
+     * names no person because none decided it: its note names the goods receipt whose quantities
+     * moved the order, and that receipt records who filed it.
+     *
+     * @param id The purchase order whose trail to read.
+     * @param pageNo Zero-based page index.
+     * @param pageSize Entries per page.
+     * @return A page of trail entries, newest first.
+     * @throws ResourceNotFoundException if no purchase order with the given id exists in this organization.
+     */
+    @Transactional(readOnly = true)
+    public Page<StatusTransitionDto> getStatusHistory(Long id, int pageNo, int pageSize) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        if (purchaseOrderRepository.findByIdAndOrganization_Id(id, orgId).isEmpty()) {
+            throw new ResourceNotFoundException(
+                    "Purchase order with ID " + id + " was not found in this organization");
+        }
+        return statusTransitionRepository
+                .findByEntityTypeAndEntityIdAndOrganization_IdOrderByOccurredAtDescIdDesc(
+                        HISTORY_ENTITY_TYPE, id, orgId, PageRequest.of(pageNo, pageSize))
+                .map(statusTransitionMapper::toDto);
     }
 
     // ==================== Helper Methods ====================
+
+    /**
+     * Files a status change somebody made, against the person who made it.
+     *
+     * <p>{@link StatusTransitionRecorder#recordChange} writes nothing when the two statuses are
+     * equal, so this is safe to call on every save without first working out whether the status
+     * moved.
+     */
+    private void recordStatusChange(PurchaseOrder purchaseOrder, PurchaseOrderStatus previousStatus) {
+        User actor = userContextService.getCurrentUser();
+        statusTransitionRecorder.recordChange(
+                HISTORY_ENTITY_TYPE,
+                purchaseOrder.getId(),
+                purchaseOrder.getOrganization(),
+                previousStatus != null ? previousStatus.name() : null,
+                purchaseOrder.getStatus() != null ? purchaseOrder.getStatus().name() : null,
+                actor,
+                null);
+    }
 
     private PurchaseOrderItem mapToPurchaseOrderItemEntity(PurchaseOrderItemCreationDto dto) {
         Material material = materialRepository.findByIdAndOrganization_Id(dto.getMaterialId(),TenantContext.getCurrentOrgId())

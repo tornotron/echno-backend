@@ -46,11 +46,15 @@ public class GoodsReceivedNoteController {
     @Operation(
             summary = "Create a goods received note",
             description = "Records a goods receipt from a vendor with its line items. The received "
-                    + "quantities are posted into stock at the given storage location as GRN transactions."
+                    + "quantities are posted into stock at the given storage location as GRN transactions, "
+                    + "and added to the matching lines of the purchase order the note cites, whose status "
+                    + "then follows from the quantities received against it. A line that would take a "
+                    + "material past the quantity ordered is refused unless the payload sets "
+                    + "allowOverReceipt, and nothing is posted when it is refused."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "GRN created and returned"),
-            @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
+            @ApiResponse(responseCode = "400", description = "Validation failed on the request body, or a line would take a material past the quantity its purchase order asked for and the over-receipt was not acknowledged"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the grn create or admin authority"),
             @ApiResponse(responseCode = "404", description = "A referenced vendor, project, storage location or material was not found")
     })
