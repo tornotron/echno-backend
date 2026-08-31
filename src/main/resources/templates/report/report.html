@@ -69,9 +69,16 @@
                 </td>
                 <td class="task-right">
                     <div class="valbox">
-                        <div class="label">Progress Till Date</div>
+                        <!--
+                          The percentage is printed beside the caption rather than inside the bar.
+                          Inside, a task at 0% drew its "0%" in a bar of zero width, so the label
+                          spilled over the empty track and read as though it belonged to it. Widening
+                          the bar to fit the label would have been worse: it would show a task that
+                          has not started as though it had.
+                        -->
+                        <div class="label">Progress Till Date<span class="progress-value" th:text="${task.getProgress()} + '%'">0%</span></div>
                         <div class="progress-bar-container">
-                            <div class="progress-bar" th:classappend="${task.getProgress() == 100 ? 'completed' : ''}" th:style="'width: ' + ${task.getProgress()} + '%;'" th:text="${task.getProgress()} + '%'"></div>
+                            <div class="progress-bar" th:classappend="${task.getProgress() == 100 ? 'completed' : ''}" th:style="'width: ' + ${task.getProgress()} + '%;'"></div>
                         </div>
                     </div>
                     <!--                    <div class="valbox"><div class="label">Today's Update</div><div class="value" th:text="${task.progressPercent} + '%'">0%</div></div>-->
@@ -91,11 +98,19 @@
     <main>
         <section id="active-requests">
             <h2 class="text-2xl font-semibold mb-4">Active Resource Requests</h2>
+                <!--
+                  The status decides three classes, and all three are derived from the constant
+                  name rather than matched against a list of spellings. Every one of these used to
+                  compare #strings.toLowerCase(indent.status) against 'on-site', which the enum
+                  never equals: it lowercases to on_site, with an underscore. ON_SITE therefore got
+                  no border, no pill and no dot, while the four constants with no underscore in
+                  them happened to match, which is why the fault looked intermittent. Deriving the
+                  suffix removes the whole class of it, and it covers CANCELLED, which none of the
+                  branches named at all.
+                -->
                 <div th:each="indent : ${indents}" class="bg-white rounded-xl shadow-md overflow-hidden mb-6"
-                     th:classappend="${#strings.toLowerCase(indent.status) == 'on-site' ? 'status-on-site' :
-                                       (#strings.toLowerCase(indent.status) == 'delayed' ? 'status-delaayed' :
-                                       (#strings.toLowerCase(indent.status) == 'pending' ? 'status-pending' :
-                                       (#strings.toLowerCase(indent.status) == 'ordered' ? 'status-ordered' : '')))}">
+                     th:with="statusKey=${#strings.replace(#strings.toLowerCase(indent.status), '_', '-')}"
+                     th:classappend="${'status-' + statusKey}">
                     <div class="indent-header">
                         <table style="width: 100%;">
                             <tr>
@@ -103,18 +118,11 @@
                                     <p class="text-sm text-gray-500">Indent Number</p>
                                     <h3 class="text-lg font-semibold text-gray-900" th:text="${indent.indentNumber}">INT-0000</h3>
                                 </td>
-                                <td style="text-align: right; vertical-align: top;">
-                                    <span class="text-sm font-semibold px-3 py-1 rounded-full"
-                                          th:classappend="${#strings.toLowerCase(indent.status) == 'on-site' ? 'text-green-600 bg-green-100' :
-                                                           (#strings.toLowerCase(indent.status) == 'delayed' ? 'text-red-600 bg-red-100' :
-                                                           (#strings.toLowerCase(indent.status) == 'pending' ? 'text-yellow-600 bg-yellow-100' :
-                                                           (#strings.toLowerCase(indent.status) == 'ordered' ? 'text-blue-600 bg-blue-100' : '')))}">
-                                        <span class="status-dot"
-                                              th:classappend="${#strings.toLowerCase(indent.status) == 'on-site' ? 'bg-green-500' :
-                                                               (#strings.toLowerCase(indent.status) == 'delayed' ? 'bg-red-500' :
-                                                               (#strings.toLowerCase(indent.status) == 'pending' ? 'bg-yellow-500' :
-                                                               (#strings.toLowerCase(indent.status) == 'ordered' ? 'bg-blue-500' : '')))}"></span>
-                                        <span th:text="${indent.status}">Status</span>
+                                <td class="status-cell">
+                                    <span class="status-badge text-sm font-semibold px-3 py-1 rounded-full"
+                                          th:classappend="${'badge-' + statusKey}">
+                                        <span class="status-dot" th:classappend="${'dot-' + statusKey}"></span>
+                                        <span th:text="${indent.status.label}">Status</span>
                                     </span>
                                 </td>
                             </tr>

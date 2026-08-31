@@ -38,6 +38,7 @@ body { font-family: Inter, sans-serif; font-size: 12px; color: #2b2b2b; }
 
 .valbox { margin-bottom:6px }
 .valbox .label { font-size:11px; color:#666 }
+.valbox .label .progress-value { float: right; font-weight: 600; color: #2b2b2b; }
 .valbox .value { font-size:13px; font-weight:600 }
 
 .category-span {
@@ -97,7 +98,48 @@ body { font-family: Inter, sans-serif; font-size: 12px; color: #2b2b2b; }
     border-left-color: #60A5FA; /* Tailwind blue-400 */
 }
 
-.container { width: 100%; margin-left: auto; margin-right: auto; padding-left: 1rem; padding-right: 1rem; }
+/* Status: Cancelled (Grey) */
+.status-cancelled {
+    border-left-width: 4px;
+    border-left-color: #9CA3AF; /* Tailwind gray-400 */
+}
+
+/*
+ * The status badge. The cell keeps it on one line and hard against the right edge of the
+ * indent header; without the nowrap the pill broke across two lines as soon as the label
+ * carried a space, which "On site" does and "ORDERED" did not.
+ */
+.status-cell {
+    text-align: right;
+    vertical-align: top;
+    white-space: nowrap;
+}
+
+.status-badge {
+    white-space: nowrap;
+}
+
+/* Badge fill and text, one pair per status, keyed off the enum constant. */
+.badge-on-site { color: #059669; background-color: #D1FAE5; }
+.badge-delayed { color: #DC2626; background-color: #FEE2E2; }
+.badge-pending { color: #D97706; background-color: #FEF3C7; }
+.badge-ordered { color: #2563EB; background-color: #DBEAFE; }
+.badge-cancelled { color: #4B5563; background-color: #F3F4F6; }
+
+.dot-on-site { background-color: #10B981; }
+.dot-delayed { background-color: #EF4444; }
+.dot-pending { background-color: #F59E0B; }
+.dot-ordered { background-color: #3B82F6; }
+.dot-cancelled { background-color: #6B7280; }
+
+/*
+ * No width here on purpose. A block-level div already fills its parent, and stating
+ * width:100% alongside the padding made the box 100% *plus* the padding: the element carries
+ * both this rule's 1rem and .md\:p-8's 2rem, so the indent section ran 4rem past the right
+ * page margin and the status badge, being the rightmost thing in it, was the part the page
+ * edge cut off. The task section never showed the fault because it does not use .container.
+ */
+.container { margin-left: auto; margin-right: auto; padding-left: 1rem; padding-right: 1rem; }
 .p-4 { padding: 1rem; }
 .md\:p-8 { padding: 2rem; }
 .p-6 { padding: 1.5rem; }
