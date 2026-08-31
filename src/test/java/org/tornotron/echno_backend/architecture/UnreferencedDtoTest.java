@@ -34,6 +34,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * count as reached. Being referenced is not the same as being useful and this test does not claim
  * it is. It catches the one failure mode where the answer is not a judgement call: nothing at all
  * refers to the class.
+ *
+ * <p>Two kinds of transfer object fall outside it, both because the rule keys off the name. The
+ * finance and inspection {@code dtos} packages hold 33 records named {@code *Request} or
+ * {@code *Report}, and {@code AttachmentDto} and {@code ComplianceGenerationJobDto} sit outside any
+ * {@code dto} package. None of the 35 is orphaned today, so widening the filter is a follow-up
+ * rather than a fix; it is recorded here so the next reader does not mistake the rule for
+ * complete coverage.
  */
 @AnalyzeClasses(
         packages = "org.tornotron.echno_backend",
@@ -44,8 +51,9 @@ class UnreferencedDtoTest {
      * The one orphan left standing, and why it is not deleted here.
      *
      * <p>{@code UserCreationDto} is the request body of a {@code POST /users} endpoint that is
-     * still in the tree as a commented-out block in {@code UserControllerWeb}. Commit
-     * {@code 0a56a62} removed {@code UserService.addUser}, so nothing can build one today and
+     * still in the tree as a commented-out block in {@code UserControllerWeb}. Two commits on the
+     * same day took the endpoint apart: {@code 0a56a62} removed {@code UserController.createUser}
+     * and {@code e0164c8} removed {@code UserService.addUser}. Nothing can build one today and
      * nothing publishes its schema, but the commented block reads as an endpoint somebody meant to
      * bring back rather than as a leftover. Whether user creation returns to the API at all is a
      * product question, not a cleanup, and issue #620 carries it.
