@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
-import org.tornotron.echno_backend.user.dto.UserCreationDto;
 import org.tornotron.echno_backend.user.dto.UserDto;
 import org.tornotron.echno_backend.user.dto.UserPatchDto;
 
