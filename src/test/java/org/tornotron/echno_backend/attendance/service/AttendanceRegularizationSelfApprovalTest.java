@@ -93,9 +93,9 @@ class AttendanceRegularizationSelfApprovalTest {
     void setUp() {
         TenantContext.setCurrentOrgId(ORG);
         service = new AttendanceRegularizationService(regularizationRepository, attendanceRepository,
-                organizationRepository, employeeRepository, settingsService, calculationService,
-                regularizationMapper, userContextService, new SelfApprovalPolicy(orgSecurity),
-                attendanceSecurity);
+                organizationRepository, settingsService, calculationService,
+                regularizationMapper, new AttendanceActorResolver(userContextService, employeeRepository),
+                new SelfApprovalPolicy(orgSecurity), attendanceSecurity);
         // Not the concern here: these tests exercise the self-approval rule, not who may raise.
         org.mockito.Mockito.lenient().when(attendanceSecurity.canRecordFor(org.mockito.ArgumentMatchers.any())).thenReturn(true);
     }

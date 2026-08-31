@@ -10407,9 +10407,15 @@
             "type": "string"
           },
           "verifiedBy": {
-            "description": "Name or id of the person who verified the movement.",
+            "description": "Name of the person who verified the movement, taken from their session.",
             "example": "Anand Rajashekar",
             "type": "string"
+          },
+          "verifiedById": {
+            "description": "Employee id of the person who verified the movement, null where the verifier has no employee record in this organization.",
+            "example": 17,
+            "format": "int64",
+            "type": "integer"
           }
         },
         "type": "object"
@@ -74447,7 +74453,7 @@
     },
     "/api/v1/movement-records/web/{id}/verify": {
       "post": {
-        "description": "Marks a movement record as verified by the given approver, for example after checking the reported distance and purpose.",
+        "description": "Records that the movement has been checked, for example against the reported distance and purpose. The verifier is taken from the authenticated session, not from the request: the caller does not choose whose name the record carries. The employee the movement belongs to cannot verify their own movement, and a movement already verified is not verified again.",
         "operationId": "verify_2",
         "parameters": [
           {
@@ -74457,14 +74463,6 @@
             "schema": {
               "format": "int64",
               "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "verifiedBy",
-            "required": true,
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -74487,7 +74485,7 @@
                 }
               }
             },
-            "description": "Bad Request"
+            "description": "Already verified, verified by the employee it belongs to, or the session resolves to no user of this organization"
           },
           "402": {
             "content": {
@@ -74681,7 +74679,7 @@
     },
     "/api/v1/movement-records/{id}/verify": {
       "post": {
-        "description": "Marks a movement record as verified by the given approver, for example after checking the reported distance and purpose.",
+        "description": "Records that the movement has been checked, for example against the reported distance and purpose. The verifier is taken from the authenticated session, not from the request: the caller does not choose whose name the record carries. The employee the movement belongs to cannot verify their own movement, and a movement already verified is not verified again.",
         "operationId": "verify_1",
         "parameters": [
           {
@@ -74691,14 +74689,6 @@
             "schema": {
               "format": "int64",
               "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "verifiedBy",
-            "required": true,
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -74721,7 +74711,7 @@
                 }
               }
             },
-            "description": "Bad Request"
+            "description": "Already verified, verified by the employee it belongs to, or the session resolves to no user of this organization"
           },
           "402": {
             "content": {

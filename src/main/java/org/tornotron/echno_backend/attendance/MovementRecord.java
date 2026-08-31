@@ -83,6 +83,15 @@ public class MovementRecord implements TenantScopedEntity {
     @Column(name = "verified_by")
     private String verifiedBy;
 
+    /**
+     * The verifier's employee id, next to the name in {@code verified_by}. Stamped from the
+     * session, and null for a verifier who holds a record-management role without an employee
+     * record in this tenant, the same way {@code Attendance.approvedById} is. Names are not
+     * identities: two people can share one and a person can change theirs.
+     */
+    @Column(name = "verified_by_id")
+    private Long verifiedById;
+
     @Column(name = "verified_at")
     private LocalDateTime verifiedAt;
 

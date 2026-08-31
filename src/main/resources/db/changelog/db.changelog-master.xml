@@ -376,4 +376,7 @@
     <!-- v4.0 - Payment vouchers: record the raiser, so a verification has someone to be compared against -->
     <include file="db/changelog/v4.0/080-add-construction-payment-raised-by.xml"/>
 
+    <!-- v4.0 - Movement records: record the verifier's employee id, not just the name they were stamped with -->
+    <include file="db/changelog/v4.0/081-add-movement-record-verified-by-id.xml"/>
+
 </databaseChangeLog>

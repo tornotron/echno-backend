@@ -112,7 +112,8 @@ class AttendanceActorAuthorizationTest {
     private MovementRecordService movementRecordService() {
         return new MovementRecordService(movementRecordRepository, attendanceRepository,
                 employeeRepository, organizationRepository, settingsService, movementRecordMapper,
-                attendanceSecurity);
+                attendanceSecurity, new AttendanceActorResolver(userContextService, employeeRepository),
+                org.mockito.Mockito.mock(SelfApprovalPolicy.class));
     }
 
     private Organization organization() {
@@ -262,8 +263,9 @@ class AttendanceActorAuthorizationTest {
         SelfApprovalPolicy selfApprovalPolicy = org.mockito.Mockito.mock(SelfApprovalPolicy.class);
         AttendanceRegularizationService regularizationService = new AttendanceRegularizationService(
                 regularizationRepository, attendanceRepository, organizationRepository,
-                employeeRepository, settingsService, calculationService, regularizationMapper,
-                userContextService, selfApprovalPolicy, attendanceSecurity);
+                settingsService, calculationService, regularizationMapper,
+                new AttendanceActorResolver(userContextService, employeeRepository),
+                selfApprovalPolicy, attendanceSecurity);
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(organization()));
         when(attendanceRepository.findByIdAndOrganization_Id(ATTENDANCE_ID, ORG_ID))
                 .thenReturn(Optional.of(colleaguesAttendance()));

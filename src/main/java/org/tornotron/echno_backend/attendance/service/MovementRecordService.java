@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.attendance.service;
 
 import jakarta.validation.ValidationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -8,6 +9,10 @@ import org.tornotron.echno_backend.attendance.*;
 import org.tornotron.echno_backend.attendance.dto.MovementRecordCreationDto;
 import org.tornotron.echno_backend.attendance.dto.MovementRecordDto;
 import org.tornotron.echno_backend.attendance.mapper.MovementRecordMapper;
+import org.tornotron.echno_backend.attendance.service.AttendanceActorResolver.Actor;
+import org.tornotron.echno_backend.common.approval.ApprovalParty;
+import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -21,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class MovementRecordService {
 
@@ -31,6 +37,8 @@ public class MovementRecordService {
     private final AttendanceSettingsService settingsService;
     private final MovementRecordMapper movementRecordMapper;
     private final AttendanceSecurityService attendanceSecurity;
+    private final AttendanceActorResolver actorResolver;
+    private final SelfApprovalPolicy selfApprovalPolicy;
 
     public MovementRecordService(MovementRecordRepository movementRecordRepository,
                                   AttendanceRepository attendanceRepository,
@@ -38,7 +46,9 @@ public class MovementRecordService {
                                   OrganizationRepository organizationRepository,
                                   AttendanceSettingsService settingsService,
                                   MovementRecordMapper movementRecordMapper,
-                                  AttendanceSecurityService attendanceSecurity) {
+                                  AttendanceSecurityService attendanceSecurity,
+                                  AttendanceActorResolver actorResolver,
+                                  SelfApprovalPolicy selfApprovalPolicy) {
         this.movementRecordRepository = movementRecordRepository;
         this.attendanceRepository = attendanceRepository;
         this.employeeRepository = employeeRepository;
@@ -46,6 +56,8 @@ public class MovementRecordService {
         this.settingsService = settingsService;
         this.movementRecordMapper = movementRecordMapper;
         this.attendanceSecurity = attendanceSecurity;
+        this.actorResolver = actorResolver;
+        this.selfApprovalPolicy = selfApprovalPolicy;
     }
 
     /**
@@ -132,15 +144,60 @@ public class MovementRecordService {
         return movementRecordMapper.toDto(movementRecordRepository.save(record));
     }
 
+    /**
+     * Records that a movement has been checked, stamping the checker from the session.
+     *
+     * <p>The verifier used to arrive as a request parameter, and the web client sent whatever
+     * name it had to hand, so the person a movement record named as its verifier was a value the
+     * caller chose. A verification is a statement that somebody looked at the reported distance,
+     * times and purpose; a name typed by the person asking for the stamp is not evidence that
+     * anyone did. It is read from the authenticated session here instead, which is the shape
+     * {@code ConstructionPaymentService.verify} and
+     * {@link AttendanceRegularizationService#processRegularization} both settled on.
+     *
+     * <p>The employee the movement belongs to cannot verify it, on the rule every other
+     * second-pair-of-eyes check here follows: see {@link SelfApprovalPolicy}. A movement record is
+     * the employee's own account of where they went during a work day, so the check on it has to
+     * come from somebody else. The record already carries the employee id to compare against, so
+     * unlike the payment voucher this needed no new column. A verifier who holds a
+     * record-management role without having an employee record in the tenant shares no identity
+     * with the employee, and the policy allows that verification through at WARN rather than
+     * stranding it.
+     *
+     * <p>A movement already verified is not verified again. Re-verifying is not an idempotent
+     * no-op, it would overwrite a stamp somebody else's check produced, so the existing stamp
+     * stands. There is deliberately no action to clear one.
+     *
+     * @param movementId The movement record to verify.
+     * @return The verified movement, naming the verifier.
+     * @throws ResourceNotFoundException if no such movement exists in this organization.
+     * @throws InvalidRequestException if the movement is already verified, if the verifier is the
+     *         employee the movement belongs to and does not hold the break-glass role, or if the
+     *         session resolves to no user of this organization.
+     */
     @Transactional
-    public MovementRecordDto verifyMovement(Long movementId, String verifiedBy) {
+    public MovementRecordDto verifyMovement(Long movementId) {
         MovementRecord record = movementRecordRepository.findByIdAndOrganization_Id(movementId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Movement record with ID " + movementId + " was not found"));
 
+        if (Boolean.TRUE.equals(record.getIsVerified())) {
+            throw new InvalidRequestException(
+                    "Movement record with ID " + movementId + " has already been verified, and a "
+                            + "verification cannot be replaced");
+        }
+
+        Actor verifier = actorResolver.resolveCurrentActor();
+        selfApprovalPolicy.checkSelfApproval(
+                new ApprovalParty(null, record.getEmployeeId()),
+                verifier.party(),
+                "Movement record with ID " + movementId);
+
         record.setIsVerified(true);
-        record.setVerifiedBy(verifiedBy);
+        record.setVerifiedBy(verifier.name());
+        record.setVerifiedById(verifier.employeeId());
         record.setVerifiedAt(LocalDateTime.now());
 
+        log.info("Verified movement record {}", movementId);
         return movementRecordMapper.toDto(movementRecordRepository.save(record));
     }
 
