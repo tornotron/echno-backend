@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="085-index-construction-payment-people-columns" author="echno">
+        <comment>
+            The construction payment listing can now be narrowed to the employee a voucher was paid
+            to, the user who verified it and the user who raised it, the same way it could already
+            be narrowed to a project, vendor, status, type and payee type. Those three columns had
+            no index, because until now nothing selected on them: they were written once and read
+            back on the one voucher being looked at.
+
+            A filter turns them into a query predicate over the whole register, so each gets the
+            index the other list dimensions already have. Without them the equality filter degrades
+            to a scan of every voucher in the tenant, which is the shape that stops being cheap
+            exactly when a client has enough payment history to want the filter.
+
+            The three are not the same kind of id and are indexed separately rather than together:
+            employee_id is an employee id and is the payee on a salary or advance voucher, while
+            verified_by and raised_by are platform user ids stamped from the session. No filter
+            combines them, so there is no composite to build.
+
+            Same change as 079 made to the NCR register, for the same reason and under the same
+            piece of work: a person named on a document should be clickable through to that
+            module's list narrowed to them, and that list has to narrow in the query.
+        </comment>
+
+        <createIndex tableName="construction_payments" indexName="idx_cpmt_employee">
+            <column name="employee_id"/>
+        </createIndex>
+        <createIndex tableName="construction_payments" indexName="idx_cpmt_verified_by">
+            <column name="verified_by"/>
+        </createIndex>
+        <createIndex tableName="construction_payments" indexName="idx_cpmt_raised_by">
+            <column name="raised_by"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="construction_payments" indexName="idx_cpmt_employee"/>
+            <dropIndex tableName="construction_payments" indexName="idx_cpmt_verified_by"/>
+            <dropIndex tableName="construction_payments" indexName="idx_cpmt_raised_by"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

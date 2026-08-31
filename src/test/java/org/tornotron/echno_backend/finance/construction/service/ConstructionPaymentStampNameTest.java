@@ -137,7 +137,7 @@ class ConstructionPaymentStampNameTest {
                 new UserDisplayName(VERIFIER, "Aneesh Johny", "aneesh@echno.test"))));
 
         List<ConstructionPaymentDto> dtos = service
-                .findAll(null, null, null, null, null, Pageable.unpaged()).getContent();
+                .findAll(null, null, null, null, null, null, null, null, 0, 10).getContent();
 
         ArgumentCaptor<Collection<Long>> asked = ArgumentCaptor.captor();
         verify(userNameDirectory, times(1)).namesFor(asked.capture());

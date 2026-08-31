@@ -10,8 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -81,6 +80,21 @@ class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
 
     private static final long RAISER = 7L;
     private static final long VERIFIER = 8L;
+
+    /** Employee the payee filter looks for. An employee id, deliberately unlike any user id here. */
+    private static final long PAYEE_EMPLOYEE = 4100L;
+
+    /** A second employee, so a filter that matched everything would be caught. */
+    private static final long OTHER_EMPLOYEE = 4200L;
+
+    /**
+     * One number used as both an employee id and a user id, on two different vouchers.
+     *
+     * <p>The two sequences run independently and nothing stops them colliding, so a filter reading
+     * the wrong column returns the wrong voucher rather than none. Sharing the number on purpose
+     * is what makes that visible.
+     */
+    private static final long SHARED_ID = 4300L;
 
     private Long orgAId;
     private Long orgBId;
@@ -182,19 +196,18 @@ class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        Pageable pageable = PageRequest.of(0, 10);
-
         // tenant scoping - invisible to another organization
         enableOrgFilter(orgBId);
-        assertThat(service.findAll(null, null, null, null, null, pageable).getTotalElements()).isZero();
+        assertThat(listAll().getTotalElements()).isZero();
         assertThat(paymentRepo.findByIdScoped(id)).isEmpty();
 
         // visible and listable to the owning organization, including the filters
         disableOrgFilter();
         enableOrgFilter(orgAId);
-        assertThat(service.findAll(null, null, null, null, null, pageable).getTotalElements()).isEqualTo(1);
+        assertThat(listAll().getTotalElements()).isEqualTo(1);
         assertThat(service.findAll(projectId, 42L, ConstructionPaymentVoucherStatus.PENDING,
-                ConstructionPaymentType.INVOICE, ConstructionPayeeType.VENDOR, pageable)
+                ConstructionPaymentType.INVOICE, ConstructionPayeeType.VENDOR,
+                null, null, null, 0, 10)
                 .getTotalElements()).isEqualTo(1);
         assertThat(paymentRepo.findByIdScoped(id)).isPresent();
         disableOrgFilter();
@@ -321,6 +334,119 @@ class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
                 null, null, null, null, null,
                 "Running payment", null
         );
+    }
+
+    /**
+     * The employee filter is scoped to the tenant, and the count behind it is scoped too.
+     *
+     * <p>{@code employeeId} is an id the caller supplies, so the one thing it must never do is
+     * widen the read. The {@code orgFilter} is fail-closed by construction since issue #507, but a
+     * criteria query has two halves and only one of them returns rows: {@code getTotalElements}
+     * comes from a separate count query, and a total that counted every tenant's vouchers would
+     * leak the size of a competitor's payment register through a page of the caller's own.
+     *
+     * <p>The page is deliberately smaller than the number of matching rows. Spring's
+     * {@code PageableExecutionUtils} skips the count query when the first page comes back short
+     * and reports the row-list length as the total, so a count assertion on a short page passes
+     * whatever the count query would have done, and proves nothing. Asking for two of the three
+     * matching rows forces the count to run, and the assertion that the total is three while the
+     * page holds two is what shows it ran: a skipped count could only have said two.
+     *
+     * <p>The other tenant holds two vouchers matching the same employee id, so a count that
+     * ignored the filter would read five rather than three.
+     */
+    @Test
+    void theEmployeeFilterAndItsCountAreBothScopedToTheTenant() {
+        when(userContextService.getCurrentUserId()).thenReturn(RAISER);
+
+        TenantContext.setCurrentOrgId(orgAId);
+        createForEmployee(PAYEE_EMPLOYEE);
+        createForEmployee(PAYEE_EMPLOYEE);
+        createForEmployee(PAYEE_EMPLOYEE);
+        createForEmployee(OTHER_EMPLOYEE);
+
+        TenantContext.setCurrentOrgId(orgBId);
+        createForEmployee(PAYEE_EMPLOYEE);
+        createForEmployee(PAYEE_EMPLOYEE);
+
+        TenantContext.setCurrentOrgId(orgAId);
+        entityManager.flush();
+        entityManager.clear();
+
+        enableOrgFilter(orgAId);
+        Page<ConstructionPaymentDto> page = service.findAll(
+                null, null, null, null, null, PAYEE_EMPLOYEE, null, null, 0, 2);
+
+        assertThat(page.getContent())
+                .as("the page is smaller than the match count, which is what makes the count query run")
+                .hasSize(2);
+        assertThat(page.getTotalElements())
+                .as("three matching vouchers in this tenant, and the other tenant's two are not "
+                        + "counted; a total of two would mean the count query never ran, and five "
+                        + "would mean it ran unscoped")
+                .isEqualTo(3);
+        assertThat(page.getContent())
+                .allSatisfy(dto -> assertThat(dto.employeeId()).isEqualTo(PAYEE_EMPLOYEE));
+        disableOrgFilter();
+    }
+
+    /**
+     * The payee and the verifier are read from their own columns.
+     *
+     * <p>{@code employeeId} is an employee id and {@code verifiedBy} is a platform user id, from
+     * two different sequences. Both are {@code Long} and both sit on the same voucher, so a
+     * specification that reads one column for the other compiles and, on a tenant whose sequences
+     * still run close together, returns plausible rows. That is the wrong-person bug echno-web#346
+     * removed, so the two filters are given the same number here on different rows: whichever
+     * column a filter is reading, only one voucher can be the right answer.
+     */
+    @Test
+    void thePayeeFilterAndTheVerifierFilterReadDifferentColumns() {
+        when(userContextService.getCurrentUserId()).thenReturn(RAISER);
+        TenantContext.setCurrentOrgId(orgAId);
+
+        ConstructionPaymentDto paidToTheEmployee = createForEmployee(SHARED_ID);
+        ConstructionPaymentDto verifiedByTheUser = createForEmployee(OTHER_EMPLOYEE);
+
+        when(userContextService.getCurrentUserId()).thenReturn(SHARED_ID);
+        service.verify(verifiedByTheUser.id());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        enableOrgFilter(orgAId);
+        assertThat(service.findAll(null, null, null, null, null, SHARED_ID, null, null, 0, 10)
+                .getContent())
+                .as("filtering by payee must read employee_id, not verified_by")
+                .extracting(ConstructionPaymentDto::id)
+                .containsExactly(paidToTheEmployee.id());
+        assertThat(service.findAll(null, null, null, null, null, null, SHARED_ID, null, 0, 10)
+                .getContent())
+                .as("filtering by verifier must read verified_by, not employee_id")
+                .extracting(ConstructionPaymentDto::id)
+                .containsExactly(verifiedByTheUser.id());
+        disableOrgFilter();
+    }
+
+    private Page<ConstructionPaymentDto> listAll() {
+        return service.findAll(null, null, null, null, null, null, null, null, 0, 10);
+    }
+
+    private ConstructionPaymentDto createForEmployee(Long employeeId) {
+        return service.create(new CreateConstructionPaymentRequest(
+                ConstructionPaymentType.SALARY,
+                ConstructionPaymentMethod.BANK_TRANSFER,
+                ConstructionPayeeType.EMPLOYEE,
+                projectId,
+                null, null, null,
+                employeeId,
+                null, null,
+                "Site mason", null,
+                bd("1000"),
+                "INR",
+                LocalDate.of(2026, 8, 1),
+                null, null, null, null, null,
+                "Wages", null));
     }
 
     private CreateConstructionPaymentRequest minimalCreateRequest() {

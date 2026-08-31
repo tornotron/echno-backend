@@ -7,11 +7,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.finance.construction.ConstructionPayeeType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentVoucherStatus;
@@ -36,6 +36,19 @@ import java.util.UUID;
                 + "system administrators and project managers."
 )
 public class ConstructionPaymentControllerWeb {
+
+    /**
+     * Rows this listing answers with when the caller names no page size.
+     *
+     * <p>Twenty is what the endpoint has been returning, though nothing here said so: it took a
+     * Spring {@code Pageable}, whose default comes from
+     * {@code spring.data.web.pageable.default-page-size}, and that property is not set. The point
+     * of issue #638 is that the number was invisible and unreachable, not that it was twenty, so
+     * it is written down here rather than changed. Folding the endpoint onto
+     * {@link PageQuery#DEFAULT_PAGE_SIZE} would halve what every caller who omits the parameter
+     * receives today, which is a contract change with nothing to do with the fix.
+     */
+    private static final int SHIPPED_PAGE_SIZE = 20;
 
     private final ConstructionPaymentService service;
 
@@ -75,11 +88,19 @@ public class ConstructionPaymentControllerWeb {
     @Operation(
             summary = "List construction payment vouchers",
             description = "Returns a paged list of payment vouchers in the current tenant. The optional "
-                    + "project, vendor, status, type and payee type parameters narrow the result; omitting "
-                    + "a parameter leaves that dimension unfiltered."
+                    + "project, vendor, status, type, payee type, employee, verifier and raiser parameters "
+                    + "narrow the result; omitting a parameter leaves that dimension unfiltered.\n\n"
+                    + "Narrow here rather than in the client. A filter applied to the rows one page came "
+                    + "back in narrows that page and not the register, so it answers a different question "
+                    + "from the one it appears to, and an empty result then reads as a complete answer.\n\n"
+                    + "The three person parameters carry ids from two different sequences and are not "
+                    + "interchangeable. employeeId is the payee on a salary or advance voucher and is an "
+                    + "employee id; verifiedBy and raisedBy are platform user ids, the same ids the "
+                    + "response returns beside verifiedByName and raisedByName."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of matching vouchers"),
+            @ApiResponse(responseCode = "400", description = "pageNo or pageSize is out of range"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public Page<ConstructionPaymentDto> list(@RequestParam(required = false) Long projectId,
@@ -87,8 +108,13 @@ public class ConstructionPaymentControllerWeb {
                                              @RequestParam(required = false) ConstructionPaymentVoucherStatus status,
                                              @RequestParam(required = false) ConstructionPaymentType type,
                                              @RequestParam(required = false) ConstructionPayeeType payeeType,
-                                             Pageable pageable) {
-        return service.findAll(projectId, vendorId, status, type, payeeType, pageable);
+                                             @RequestParam(required = false) Long employeeId,
+                                             @RequestParam(required = false) Long verifiedBy,
+                                             @RequestParam(required = false) Long raisedBy,
+                                             PageQuery pageQuery) {
+        return service.findAll(projectId, vendorId, status, type, payeeType,
+                employeeId, verifiedBy, raisedBy,
+                pageQuery.getPageNo(), pageQuery.pageSizeOr(SHIPPED_PAGE_SIZE));
     }
 
     @PutMapping("/{id}")

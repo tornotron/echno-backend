@@ -11028,6 +11028,52 @@
         },
         "type": "object"
       },
+      "PageAttendanceRegularizationDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/AttendanceRegularizationDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageChatMessageDto": {
         "properties": {
           "content": {
@@ -21365,7 +21411,7 @@
     },
     "/api/v1/attendance-regularizations/pending": {
       "get": {
-        "description": "Returns every regularization request awaiting approval or rejection.",
+        "description": "Returns the regularization requests awaiting approval or rejection, up to a fixed ceiling. The response carries X-Total-Count with the true number of pending requests, and X-Result-Capped when there were more than one response can hold.",
         "operationId": "getPending_1",
         "responses": {
           "200": {
@@ -21580,9 +21626,171 @@
         ]
       }
     },
+    "/api/v1/attendance-regularizations/web": {
+      "get": {
+        "description": "Returns a paged list of regularization requests in the current tenant, in any status. The optional status, approver and requester parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nThe approver and the rejecter are recorded in the same pair of columns, so approvedById on its own means \"requests this person decided\". Pair it with status to separate the two: approvedById with status=APPROVED is what that person approved, and with status=REJECTED what they rejected.\n\nBoth ids are employee ids. A request decided by a caller who has no employee record in this tenant carries no approver id and is not matched by any approvedById.",
+        "operationId": "list_12",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "approvedById",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "requestedById",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageAttendanceRegularizationDto"
+                }
+              }
+            },
+            "description": "Page of matching regularization requests"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "pageNo or pageSize is out of range"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks permission to manage attendance records"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List regularization requests",
+        "tags": [
+          "Attendance Regularizations (Web)"
+        ]
+      }
+    },
     "/api/v1/attendance-regularizations/web/pending": {
       "get": {
-        "description": "Returns every regularization request awaiting approval or rejection.",
+        "description": "Returns the regularization requests awaiting approval or rejection, up to a fixed ceiling. The response carries X-Total-Count with the true number of pending requests, and X-Result-Capped when there were more than one response can hold. To page through the register, or to see requests that have already been decided, use the listing at the collection root instead.",
         "operationId": "getPending",
         "responses": {
           "200": {
@@ -38030,7 +38238,7 @@
     },
     "/api/v1/finance/construction-payments/web": {
       "get": {
-        "description": "Returns a paged list of payment vouchers in the current tenant. The optional project, vendor, status, type and payee type parameters narrow the result; omitting a parameter leaves that dimension unfiltered.",
+        "description": "Returns a paged list of payment vouchers in the current tenant. The optional project, vendor, status, type, payee type, employee, verifier and raiser parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nNarrow here rather than in the client. A filter applied to the rows one page came back in narrows that page and not the register, so it answers a different question from the one it appears to, and an empty result then reads as a complete answer.\n\nThe three person parameters carry ids from two different sequences and are not interchangeable. employeeId is the payee on a salary or advance voucher and is an employee id; verifiedBy and raisedBy are platform user ids, the same ids the response returns beside verifiedByName and raisedByName.",
         "operationId": "list_4",
         "parameters": [
           {
@@ -38107,10 +38315,56 @@
           },
           {
             "in": "query",
-            "name": "pageable",
-            "required": true,
+            "name": "employeeId",
+            "required": false,
             "schema": {
-              "$ref": "#/components/schemas/Pageable"
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "verifiedBy",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "raisedBy",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
             }
           }
         ],
@@ -38133,7 +38387,7 @@
                 }
               }
             },
-            "description": "Bad Request"
+            "description": "pageNo or pageSize is out of range"
           },
           "402": {
             "content": {
