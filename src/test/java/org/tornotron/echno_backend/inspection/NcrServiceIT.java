@@ -511,41 +511,52 @@ class NcrServiceIT extends AbstractIntegrationTest {
      * org B for org A's employees returns nothing either, so the leak would be caught whichever
      * tenant a broken query favoured.
      *
-     * <p>The count is asserted alongside the rows. {@code getTotalElements} comes from a separate
-     * count query that the specification is applied to independently, so a total that includes
-     * another tenant's rows would say how many reports a rival has against a named person even
-     * when no row of theirs comes back.
+     * <p>The count is asserted alongside the rows, on a page small enough to force it to be
+     * computed. {@code getTotalElements} comes from a count query the specification is applied to
+     * separately, and Spring skips that query altogether when the first page came back short, so
+     * a total read off a roomy page proves nothing about it. Asking for one row at a time when
+     * two match makes the count query actually run under the tenant scope. It matters because a
+     * total that counted another tenant's rows would say how many reports a rival has against a
+     * named person even when no row of theirs came back.
      */
     @Test
     void thePeopleFiltersCannotReachAcrossOrganizations() {
         Trail trail = seedTrail();
         UUID foreign = seedForeignTrail();
         Pageable pageable = PageRequest.of(0, 10);
+        Pageable onePerPage = PageRequest.of(0, 1);
 
         enableOrgFilter(orgAId);
         Page<NcrDto> mine = service.findAll(null, null, null, null, qaLeadId, null, null, null, pageable);
         assertThat(mine.getContent()).extracting(NcrDto::id)
                 .containsExactlyInAnyOrder(trail.raisedByQa, trail.alsoRaisedByQa)
                 .doesNotContain(foreign);
-        assertThat(mine.getTotalElements()).isEqualTo(2);
-        // the org B employee is a real employee, and their reports are still out of reach
+        // a full page, so the count query is issued rather than inferred from the rows
+        Page<NcrDto> counted = service.findAll(null, null, null, null, qaLeadId, null, null, null,
+                onePerPage);
+        assertThat(counted.getContent()).hasSize(1);
+        assertThat(counted.getTotalElements()).isEqualTo(2);
+        assertThat(counted.getTotalPages()).isEqualTo(2);
+        // the org B employee is a real employee, and their reports are still out of reach. Asked
+        // one row at a time, a scope that let them through would fill the page and then count
+        // them, so both assertions here would fail rather than only the first.
         Page<NcrDto> reachingOut = service.findAll(null, null, null, null, foreignSiteEngineerId,
-                null, null, null, pageable);
+                null, null, null, onePerPage);
         assertThat(reachingOut.getContent()).isEmpty();
         assertThat(reachingOut.getTotalElements()).isZero();
         disableOrgFilter();
 
         enableOrgFilter(orgBId);
         Page<NcrDto> theirs = service.findAll(null, null, null, null, foreignSiteEngineerId,
-                null, null, null, pageable);
+                null, null, null, onePerPage);
         assertThat(theirs.getContent()).extracting(NcrDto::id).containsExactly(foreign);
         assertThat(theirs.getTotalElements()).isEqualTo(1);
         // and org A's people are equally out of reach from org B, on all three filters
-        assertThat(service.findAll(null, null, null, null, qaLeadId, null, null, null, pageable)
+        assertThat(service.findAll(null, null, null, null, qaLeadId, null, null, null, onePerPage)
                 .getTotalElements()).isZero();
-        assertThat(service.findAll(null, null, null, null, null, qaLeadId, null, null, pageable)
+        assertThat(service.findAll(null, null, null, null, null, qaLeadId, null, null, onePerPage)
                 .getTotalElements()).isZero();
-        assertThat(service.findAll(null, null, null, null, null, null, siteEngineerId, null, pageable)
+        assertThat(service.findAll(null, null, null, null, null, null, siteEngineerId, null, onePerPage)
                 .getTotalElements()).isZero();
         disableOrgFilter();
     }
