@@ -16,7 +16,7 @@ The entire system is built on one simple concept from Keycloak: **groups can hav
 
 Think of it like folders on your computer:
 
-```
+```text
 org-5/                      ← This is a folder (Keycloak group) for the organization
     ├── system-admin        ← This is a subfolder (subgroup) for the role
     ├── org-manager
@@ -49,7 +49,7 @@ This method does two things:
 2. Creates one role subgroup inside it for every value of `OrgRole`
 
 After this, Keycloak's group tree looks like:
-```
+```text
 org-5/
     ├── system-admin
     ├── org-manager
@@ -238,7 +238,9 @@ This is the service that makes API calls to Keycloak to manage groups and subgro
 created before the role existed has no subgroup for it, and rather than refuse the assignment and
 leave someone clicking through the Keycloak console once per tenant, the first assignment creates it.
 The name always comes from the enum, so this cannot invent an authority. Two assignments of the same
-new role can race, and the loser is told the group already exists, which is the outcome it wanted.
+new role can race, and the loser's create fails with the group already existing; that is handled
+inside `ensureRoleSubgroup`, which reads the subgroup back and lets the assignment go through, so
+both callers succeed.
 
 **When would you change this file?**
 - When you need new ways to manage roles (e.g., bulk role assignment)

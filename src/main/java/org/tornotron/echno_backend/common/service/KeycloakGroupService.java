@@ -51,12 +51,9 @@ public class KeycloakGroupService {
     /**
      * Creates the top-level organization group in Keycloak and its default role subgroups.
      *
-     * After this call, the Keycloak group tree will look like:
-     *   org-{organizationId}/
-     *     ├── system-admin
-     *     ├── org-manager
-     *     ├── hr-admin
-     *     └── project-manager
+     * After this call the Keycloak group tree holds org-{organizationId} with one subgroup per
+     * OrgRole value beneath it. The list is not repeated here: naming it is what let this comment
+     * and the guide fall three roles behind the enum.
      *
      * @return the Keycloak group ID of the parent org group
      */
