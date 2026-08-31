@@ -36,7 +36,13 @@ public class Issue implements TenantScopedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "title", nullable = false, unique = true)
+    /**
+     * What was found on site, as a sentence. Deliberately not unique, in any scope: it is a
+     * description rather than a reference, nothing looks an issue up by it, and one project can
+     * genuinely raise the same finding on many tasks. It used to be unique across every
+     * organization at once; migration 076 removed that.
+     */
+    @Column(name = "title", nullable = false)
     private String title;
 
     @Column(name = "description", nullable = true)

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="076-add-per-org-labour-uniqueness" author="echno">
+        <comment>
+            Finishes the sweep 061 started and 075 continued. A labour record is tenant scoped
+            (it implements TenantScopedEntity and carries the orgFilter), but its email, phone
+            number and bank account number were reserved across every organization at once, so
+            the first contractor to register a worker took that worker's contact details away
+            from every other contractor on the platform. A labourer on two contractors' books is
+            an ordinary arrangement on a construction site rather than an unlucky one, and the
+            second contractor had no way to record them and no explanation for why: nothing in
+            the service checks for a duplicate, so the rejection arrived as a constraint
+            violation over rows they cannot see.
+
+            The three constraints are composite on organization_id, which is what the tenant
+            filter has always meant. All three columns stay nullable and CockroachDB treats NULLs
+            as distinct, so a worker with no email or no bank account is unaffected, as before.
+
+            They are added before the global ones are dropped, so the columns are never
+            unconstrained in between.
+        </comment>
+
+        <addUniqueConstraint tableName="labour"
+                             columnNames="organization_id, email"
+                             constraintName="uk_labour_org_email"/>
+
+        <addUniqueConstraint tableName="labour"
+                             columnNames="organization_id, phone_number"
+                             constraintName="uk_labour_org_phone_number"/>
+
+        <addUniqueConstraint tableName="labour"
+                             columnNames="organization_id, bank_account_number"
+                             constraintName="uk_labour_org_bank_account_number"/>
+
+        <rollback>
+            <dropUniqueConstraint tableName="labour" constraintName="uk_labour_org_email"/>
+            <dropUniqueConstraint tableName="labour" constraintName="uk_labour_org_phone_number"/>
+            <dropUniqueConstraint tableName="labour" constraintName="uk_labour_org_bank_account_number"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="076-add-per-org-category-normalized-name-uniqueness" author="echno">
+        <comment>
+            Same shape on the category's normalized name. This one also contradicted the
+            constraint sitting beside it: uk_category_name_org already scopes the raw
+            category_name to the organization, while uq_category_normalized_name reserved the
+            normalized form globally. Two tenants could therefore not both have a "Civil Works"
+            category, even though the per-organization constraint on the same table says they
+            may. The service check agreed with the global constraint rather than the scoped one,
+            so the refusal at least arrived as a message rather than a constraint violation, but
+            the message named a category the caller cannot see.
+
+            uk_category_name_org is left in place. It is not redundant: normalized_name is
+            nullable, and two different raw names can normalize to the same string, so neither
+            constraint implies the other.
+        </comment>
+
+        <addUniqueConstraint tableName="category"
+                             columnNames="organization_id, normalized_name"
+                             constraintName="uk_category_org_normalized_name"/>
+
+        <rollback>
+            <dropUniqueConstraint tableName="category" constraintName="uk_category_org_normalized_name"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="076-drop-global-labour-and-category-uniqueness" author="echno">
+        <comment>
+            Removes the cross-tenant constraints now that the per-tenant ones above stand in
+            their place. DROP INDEX rather than DROP CONSTRAINT because CockroachDB backs a
+            UNIQUE column constraint with an index of the same name and that is how it is
+            removed. This follows 061's fourth changeset and 075's second.
+        </comment>
+
+        <sql>
+            DROP INDEX IF EXISTS labour@uq_labour_email CASCADE;
+            DROP INDEX IF EXISTS labour@uq_labour_phone_number CASCADE;
+            DROP INDEX IF EXISTS labour@uq_labour_bank_account_number CASCADE;
+            DROP INDEX IF EXISTS category@uq_category_normalized_name CASCADE;
+        </sql>
+
+        <rollback>
+            <comment>
+                Restoring a global unique constraint would fail on any data that has since made
+                use of the per-tenant scope, so the rollback does not pretend it can.
+            </comment>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="076-drop-global-issue-title-uniqueness" author="echno">
+        <comment>
+            The issue title is dropped outright rather than rescoped to the organization, which
+            is where it differs from every other column in this sweep.
+
+            An issue title is a sentence describing something found on site, not a reference
+            series. The two comparable free-text names in this schema, task.title and
+            project.project_name, carry no unique constraint at all, and nothing looks an issue
+            up by title: the only read of the column is a LIKE in IssueRepository.search, which
+            a unique index does not serve. Repetition within one organization is the expected
+            case rather than the unlucky one, because an issue is raised against a task and a
+            project of forty identical flats genuinely raises "Tiles not level" on forty of
+            them.
+
+            So a per-organization constraint would not be restoring an invariant, it would be
+            inventing one, and it would start refusing creates that succeed today. That is the
+            other difference from 061 and 075: those aligned the schema to a check the service
+            had always made, and IssueService makes no such check. Making the schema agree with
+            the code here means removing the constraint, not narrowing it.
+
+            uk_issue_title is the name on databases built from the v1, v2, v3 and v4 baselines
+            alike, so one statement covers all of them.
+        </comment>
+
+        <sql>
+            DROP INDEX IF EXISTS issue@uk_issue_title CASCADE;
+        </sql>
+
+        <rollback>
+            <comment>
+                Restoring it would fail on any organization that has since raised two issues
+                with the same title, which is the whole point of removing it.
+            </comment>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

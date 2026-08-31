@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.labour.mapper.LabourMapper;
+import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
@@ -30,6 +31,13 @@ import org.tornotron.echno_backend.project.ProjectRepository;
 @Service
 public class LabourService {
 
+    /**
+     * Stands in for "this worker does not exist yet" in the duplicate checks below, which all
+     * exclude one id so an update that resends a worker's own details does not clash with
+     * itself. On a create there is no id to exclude, and no row can carry a negative one.
+     */
+    private static final long NO_EXISTING_WORKER = -1L;
+
     private final LabourRepository labourRepository;
     private final TenantEntityHelper tenantEntityHelper;
     private final ProjectRepository projectRepository;
@@ -46,12 +54,22 @@ public class LabourService {
      * Creates a labour record and assigns it to the given current project.
      *
      * @param labourCreationDto The worker's identity, contact, employment, and pay details, plus the current project ID.
+     * <p>The worker's email, phone number and bank account number are each checked against the
+     * rest of this organization first, which is the scope the constraints behind them enforce.
+     * The same person on another contractor's books is not a clash and is accepted.
+     *
      * @return The created labour as a simple DTO.
      * @throws ResourceNotFoundException if the referenced current project cannot be found in the organization.
+     * @throws DuplicateResourceException if another worker in this organization already holds one
+     *         of those three details.
      */
     @Transactional
     public LabourSimpleDto createLabour(LabourCreationDto labourCreationDto) {
         Organization org = tenantEntityHelper.resolveCurrentOrganization();
+        requireContactDetailsFree(org.getId(), NO_EXISTING_WORKER,
+                labourCreationDto.getEmail(),
+                labourCreationDto.getPhoneNumber(),
+                labourCreationDto.getBankAccountNumber());
         Labour labour = new Labour();
         labour.setLabourID(labourCreationDto.getLabourID());
         labour.setOrganization(org);
@@ -126,6 +144,8 @@ public class LabourService {
     }
 
     private void applyUpdates(LabourUpdateDto updates, Labour labour, Organization org) {
+        requireContactDetailsFree(org.getId(), labour.getId(),
+                updates.getEmail(), updates.getPhoneNumber(), updates.getBankAccountNumber());
         if (updates.getLabourID() != null) labour.setLabourID(updates.getLabourID());
         if (updates.getFullName() != null) labour.setFullName(updates.getFullName());
         if (updates.getEmail() != null) labour.setEmail(updates.getEmail());
@@ -149,6 +169,45 @@ public class LabourService {
             labour.setCurrentProject(projectRepository.findByIdAndOrganization_Id(projectId, org.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization")));
         }
+    }
+
+    /**
+     * Refuses a worker whose email, phone number or bank account number is already held by
+     * another worker in the same organization.
+     *
+     * <p>Until migration 076 these three were reserved across every organization at once, and
+     * nothing here checked them, so a contractor registering a worker another contractor had
+     * already registered was turned away by a constraint over rows they cannot see. The
+     * constraints are now per organization, and this says so before the insert reaches them, so
+     * the caller is told which detail clashed rather than being handed a bare integrity
+     * violation. Both answer 409, so no caller sees a different status than before.
+     *
+     * <p>A null or blank value is not a duplicate of anything: all three columns are free to be
+     * absent, and on an update a null means the field was not supplied at all.
+     *
+     * @param organizationId The organization to look within.
+     * @param excludedId     The worker being updated, so their own details do not clash with
+     *                       themselves, or {@link #NO_EXISTING_WORKER} on a create.
+     */
+    private void requireContactDetailsFree(Long organizationId, Long excludedId,
+                                           String email, String phoneNumber, String bankAccountNumber) {
+        long selfId = (excludedId == null) ? NO_EXISTING_WORKER : excludedId;
+        if (isPresent(email)
+                && labourRepository.existsByEmailAndOrganization_IdAndIdNot(email, organizationId, selfId)) {
+            throw new DuplicateResourceException("A worker with email " + email + " is already registered in this organization");
+        }
+        if (isPresent(phoneNumber)
+                && labourRepository.existsByPhoneNumberAndOrganization_IdAndIdNot(phoneNumber, organizationId, selfId)) {
+            throw new DuplicateResourceException("A worker with phone number " + phoneNumber + " is already registered in this organization");
+        }
+        if (isPresent(bankAccountNumber)
+                && labourRepository.existsByBankAccountNumberAndOrganization_IdAndIdNot(bankAccountNumber, organizationId, selfId)) {
+            throw new DuplicateResourceException("A worker with bank account number " + bankAccountNumber + " is already registered in this organization");
+        }
+    }
+
+    private static boolean isPresent(String value) {
+        return value != null && !value.isBlank();
     }
 
     /**

@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.organization.Organization;
 
 
 /**
@@ -47,12 +48,13 @@ public class CategoryService {
      */
     @Transactional
     public CategorySimpleDto addCategory(CategoryCreationDto categoryCreationDto) {
+        Organization organization = tenantEntityHelper.resolveCurrentOrganization();
         String normalized = CategoryNormalizer.normalize(categoryCreationDto.getName());
-        if(categoryRepository.existsByNormalizedName(normalized)) {
+        if(categoryRepository.existsByNormalizedNameAndOrganization_Id(normalized, organization.getId())) {
             throw new IllegalArgumentException("Category with name " + normalized + " already exists.");
         }
         Category category = new Category();
-        category.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
+        category.setOrganization(organization);
         category.setName(categoryCreationDto.getName());
         category.setNormalizedName(normalized);
         category.setDescription(categoryCreationDto.getDescription());
