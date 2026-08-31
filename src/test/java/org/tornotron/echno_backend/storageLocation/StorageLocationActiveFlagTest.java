@@ -52,6 +52,8 @@ import static org.mockito.Mockito.when;
  * traffic. Deleting the aliases before that would not have failed loudly. Jackson ignores an
  * undeclared property rather than refusing it, so a deactivate sent under the old name would have
  * gone back to answering 200 and changing nothing, which is the exact bug the expand step fixed.
+ * A create naming the old key is not honoured either; it simply falls back to the entity default
+ * instead of writing the wrong value, which is why the two halves are tested separately.
  *
  * <p>The create payload also has a second fault of its own: a primitive defaults to false, and
  * the service applied it unconditionally, so a create that named the key at all made the location
@@ -157,12 +159,14 @@ class StorageLocationActiveFlagTest {
     }
 
     @Test
-    @DisplayName("a create naming the retired active is still active, so the deletion costs no data")
-    void createStorageLocation_stillActiveWhenTheRetiredNameIsSent() throws Exception {
-        // The two halves of the retirement do not cost the same. An old caller's create arrives
-        // with the flag unset rather than false, so the null guard hands it the entity default and
-        // the location is active, which is what it wanted. Only a deactivate is lost, and nothing
-        // deployed sends one under the old name.
+    @DisplayName("a create naming the retired active is left active rather than corrupted")
+    void createStorageLocation_keepsTheDefaultWhenTheRetiredNameIsSent() throws Exception {
+        // The two halves of the retirement do not cost the same, though neither is free. This
+        // payload asks for an inactive location and does not get one: with the alias gone the key
+        // is undeclared, the flag arrives null, and the guard hands it the entity default. So the
+        // request is not honoured, but it also cannot corrupt anything, which is the opposite of
+        // the update path, where the same silence would put a location back in service. Nothing
+        // deployed sends either under the old name.
         service.createStorageLocation(mapper.readValue(
                 "{\"locationName\":\"Old Godown\",\"locationType\":\"GODOWN\",\"active\":false}",
                 StorageLocationCreationDto.class));
