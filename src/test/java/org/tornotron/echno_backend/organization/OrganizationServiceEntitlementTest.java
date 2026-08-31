@@ -146,13 +146,58 @@ class OrganizationServiceEntitlementTest {
                     // The refusal names the entitlement, so support can tell which one to look at.
                     org.assertj.core.api.Assertions.assertThat(ex.getFeatureCode())
                             .isEqualTo(CREATE_ORGANIZATION);
+                    // The message used to be the raw reason, "No active subscription". True, and
+                    // no use to someone who has never been asked to subscribe to anything and is
+                    // looking at a button that stopped working. It has to say what governs the
+                    // decision. See #642.
                     org.assertj.core.api.Assertions.assertThat(ex.getMessage())
-                            .isEqualTo("No active subscription");
+                            .contains("needs a plan")
+                            .contains("first organization is always free");
                 });
 
         // Nothing was created, and no Keycloak group was left behind for an org that does not exist.
         verify(repository, never()).save(any(Organization.class));
         verifyNoInteractions(keycloakGroupService);
+    }
+
+    @Test
+    void aRefusalOnAQuotaNamesTheLimitAndWhatHasBeenUsedAgainstIt() {
+        // The case once a plan is actually granted, which is what the seeded catalogue makes
+        // possible. A caller who has used their allowance needs to be told the number, not handed
+        // the bare reason "Quota exceeded".
+        creator();
+        when(repository.existsByCreatorId(CREATOR_USER_ID.intValue())).thenReturn(true);
+        when(repository.existsByOrganizationEmail(any())).thenReturn(false);
+        when(subscriptionService.checkFeatureAccess(CREATOR_USER_ID, CREATE_ORGANIZATION))
+                .thenReturn(FeatureAccessResultDto.quotaExceeded(3L, 3L));
+
+        assertThatExceptionOfType(SubscriptionAccessDeniedException.class)
+                .isThrownBy(() -> service().addOrganization(creationDto(), null))
+                .satisfies(ex -> {
+                    org.assertj.core.api.Assertions.assertThat(ex.getMessage())
+                            .contains("covers 3 organizations")
+                            .contains("already created 3");
+                    // The numbers still travel on the result for the frontend to render.
+                    org.assertj.core.api.Assertions.assertThat(ex.getQuotaLimit()).isEqualTo(3L);
+                    org.assertj.core.api.Assertions.assertThat(ex.getCurrentUsage()).isEqualTo(3L);
+                });
+
+        verify(repository, never()).save(any(Organization.class));
+    }
+
+    @Test
+    void aRefusalOnASingleOrganizationLimitReadsAsSingular() {
+        // The free tier's limit is 1, so this is the wording most callers will actually meet.
+        creator();
+        when(repository.existsByCreatorId(CREATOR_USER_ID.intValue())).thenReturn(true);
+        when(repository.existsByOrganizationEmail(any())).thenReturn(false);
+        when(subscriptionService.checkFeatureAccess(CREATOR_USER_ID, CREATE_ORGANIZATION))
+                .thenReturn(FeatureAccessResultDto.quotaExceeded(1L, 1L));
+
+        assertThatExceptionOfType(SubscriptionAccessDeniedException.class)
+                .isThrownBy(() -> service().addOrganization(creationDto(), null))
+                .withMessageContaining("covers 1 organization and")
+                .withMessageNotContaining("1 organizations");
     }
 
     @Test

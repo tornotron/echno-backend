@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Seeds the plan catalogue the entitlement gate reads.
+
+        OrganizationService.requireCreateOrganizationEntitlement exempts a caller's first
+        organization and puts every one after it through checkFeatureAccess on the
+        CREATE_ORGANIZATION feature. That gate is deliberate (b6e2f63, closes #521), but
+        nothing has ever configured what it reads: no changelog inserts a plan, a feature or
+        a plan_feature. The rows on the IITM staging box were put there by hand in May 2026
+        and exist in no other environment, so every environment built from this changelog
+        comes up with an empty catalogue and no plan can be granted to anyone. See #642.
+
+        Each changeSet is guarded on its table being empty and marked as run otherwise, so an
+        environment that was already seeded by hand keeps exactly the rows it has. That is
+        what makes this safe to apply to staging, where it is a no-op.
+
+        Two things are deliberately NOT decided here, because they are business decisions and
+        are open questions on the payment-gateway ticket (ClickUp 86d456frt):
+
+          - Price. Staging carries figures somebody typed in May; they were never signed off,
+            and the RBI e-mandate threshold makes the monthly figure a decision with product
+            consequences rather than a number to copy forward. Prices are left null.
+          - Public visibility. is_public is false on every row, so an unpriced catalogue
+            cannot appear on a pricing page by accident. PlanService.getAllPublicPlans filters
+            on it. Flip it per tier when the price list is agreed.
+
+        What this does give is a catalogue that exists, so a plan can be granted by hand and
+        the first customers can be invoiced, which is the whole of what the gate needs to stop
+        being an accidental hard block.
+
+        The per-tier organization limits below reproduce the two that are actually in use on
+        staging (FREE 1, PRO 5). STARTER and ENTERPRISE had no grant of this feature there at
+        all, which would leave a paying customer worse off than a free one, so they are given
+        the monotonic reading: STARTER sits between the two, ENTERPRISE is unmetered. Those
+        two numbers are provisional and want confirming with the tier matrix.
+    -->
+
+    <changeSet id="082-seed-billing-features" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM feature</sqlCheck>
+        </preConditions>
+
+        <insert tableName="feature">
+            <column name="code" value="CREATE_ORGANIZATION"/>
+            <column name="name" value="Organization Limit"/>
+            <column name="description"
+                    value="How many organizations an account may create. The first is always free and is part of signing up; this limit governs every one after it."/>
+            <column name="feature_type" value="QUOTA"/>
+            <column name="category" value="PLATFORM"/>
+            <column name="is_active" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="082-seed-billing-plans" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM plan</sqlCheck>
+        </preConditions>
+
+        <insert tableName="plan">
+            <column name="code" value="FREE"/>
+            <column name="name" value="Free Plan"/>
+            <column name="description" value="Basic access for small teams to explore the platform."/>
+            <column name="version" valueNumeric="1"/>
+            <column name="currency" value="INR"/>
+            <column name="is_active" valueBoolean="true"/>
+            <column name="is_public" valueBoolean="false"/>
+            <column name="trial_days" valueNumeric="0"/>
+            <column name="max_users" valueNumeric="3"/>
+            <column name="sort_order" valueNumeric="1"/>
+        </insert>
+
+        <insert tableName="plan">
+            <column name="code" value="STARTER"/>
+            <column name="name" value="Starter Plan"/>
+            <column name="description" value="For small teams needing essential features and basic support."/>
+            <column name="version" valueNumeric="1"/>
+            <column name="currency" value="INR"/>
+            <column name="is_active" valueBoolean="true"/>
+            <column name="is_public" valueBoolean="false"/>
+            <column name="trial_days" valueNumeric="14"/>
+            <column name="max_users" valueNumeric="10"/>
+            <column name="sort_order" valueNumeric="2"/>
+        </insert>
+
+        <insert tableName="plan">
+            <column name="code" value="PRO"/>
+            <column name="name" value="Professional Plan"/>
+            <column name="description" value="For growing teams with higher usage limits and priority support."/>
+            <column name="version" valueNumeric="1"/>
+            <column name="currency" value="INR"/>
+            <column name="is_active" valueBoolean="true"/>
+            <column name="is_public" valueBoolean="false"/>
+            <column name="trial_days" valueNumeric="14"/>
+            <column name="max_users" valueNumeric="50"/>
+            <column name="sort_order" valueNumeric="3"/>
+        </insert>
+
+        <insert tableName="plan">
+            <column name="code" value="ENTERPRISE"/>
+            <column name="name" value="Enterprise Plan"/>
+            <column name="description" value="For large organizations with unlimited users and dedicated support."/>
+            <column name="version" valueNumeric="1"/>
+            <column name="currency" value="INR"/>
+            <column name="is_active" valueBoolean="true"/>
+            <column name="is_public" valueBoolean="false"/>
+            <column name="trial_days" valueNumeric="30"/>
+            <column name="sort_order" valueNumeric="4"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="082-seed-billing-plan-features" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM plan_feature</sqlCheck>
+        </preConditions>
+
+        <!--
+            The ids are looked up by code rather than written literally: both parent tables
+            are auto-increment, so an environment that seeded them in a different order would
+            otherwise get the limits attached to the wrong tiers.
+
+            A null quota_limit is how "unmetered" is expressed. PlanFeatureSnapshot.hasQuota
+            requires a limit above zero, so ENTERPRISE falls through to allowed outright
+            rather than being compared against a number.
+        -->
+        <insert tableName="plan_feature">
+            <column name="plan_id" valueComputed="(SELECT id FROM plan WHERE code = 'FREE')"/>
+            <column name="feature_id" valueComputed="(SELECT id FROM feature WHERE code = 'CREATE_ORGANIZATION')"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="quota_limit" valueNumeric="1"/>
+            <column name="quota_period" value="TOTAL"/>
+        </insert>
+
+        <insert tableName="plan_feature">
+            <column name="plan_id" valueComputed="(SELECT id FROM plan WHERE code = 'STARTER')"/>
+            <column name="feature_id" valueComputed="(SELECT id FROM feature WHERE code = 'CREATE_ORGANIZATION')"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="quota_limit" valueNumeric="3"/>
+            <column name="quota_period" value="TOTAL"/>
+        </insert>
+
+        <insert tableName="plan_feature">
+            <column name="plan_id" valueComputed="(SELECT id FROM plan WHERE code = 'PRO')"/>
+            <column name="feature_id" valueComputed="(SELECT id FROM feature WHERE code = 'CREATE_ORGANIZATION')"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="quota_limit" valueNumeric="5"/>
+            <column name="quota_period" value="TOTAL"/>
+        </insert>
+
+        <insert tableName="plan_feature">
+            <column name="plan_id" valueComputed="(SELECT id FROM plan WHERE code = 'ENTERPRISE')"/>
+            <column name="feature_id" valueComputed="(SELECT id FROM feature WHERE code = 'CREATE_ORGANIZATION')"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="quota_period" value="TOTAL"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

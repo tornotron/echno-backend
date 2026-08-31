@@ -126,9 +126,38 @@ public class OrganizationService {
 
         FeatureAccessResultDto access = subscriptionService.checkFeatureAccess(currentUser.getId(), CREATE_ORGANIZATION_FEATURE);
         if (!access.isAllowed()) {
-            String message = access.getMessage() != null ? access.getMessage() : access.getReason();
-            throw new SubscriptionAccessDeniedException(message, CREATE_ORGANIZATION_FEATURE, access);
+            throw new SubscriptionAccessDeniedException(
+                    explainOrganizationDenial(access), CREATE_ORGANIZATION_FEATURE, access);
         }
+    }
+
+    /**
+     * Turns a refused entitlement into something the person who hit it can act on.
+     *
+     * <p>The generic result carries a {@code reason} written for a log reader, and for the case
+     * that matters most here it reads "No active subscription": true, and useless to someone who
+     * has never been asked to subscribe to anything and is looking at a button that stopped
+     * working. What a caller needs is the limit, what they have used against it, and the fact that
+     * a plan governs it.
+     *
+     * <p>Two shapes reach this. A quota result knows the numbers, so the message quotes them. A
+     * refusal for any other reason, including the account having no plan at all, does not, so it
+     * says what governs the decision without inventing a figure.
+     *
+     * @param access The refused access result.
+     * @return A message naming what was exceeded, or what governs the decision when no limit is known.
+     */
+    private String explainOrganizationDenial(FeatureAccessResultDto access) {
+        Long limit = access.getQuotaLimit();
+        if (limit != null) {
+            Long used = access.getCurrentUsage();
+            return "Your plan covers " + limit + (limit == 1L ? " organization" : " organizations")
+                    + " and you have already created " + (used == null ? limit : used)
+                    + ". Moving to a plan with a higher organization limit will let you create another.";
+        }
+        return "Creating more than one organization needs a plan that covers additional "
+                + "organizations, and this account is not on one. The first organization is always "
+                + "free and does not need a plan.";
     }
 
     /**

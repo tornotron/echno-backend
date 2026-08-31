@@ -379,4 +379,7 @@
     <!-- v4.0 - Movement records: record the verifier's employee id, not just the name they were stamped with -->
     <include file="db/changelog/v4.0/081-add-movement-record-verified-by-id.xml"/>
 
+    <!-- v4.0 - Billing: seed the plan catalogue the organization-creation gate reads -->
+    <include file="db/changelog/v4.0/082-seed-billing-plans.xml"/>
+
 </databaseChangeLog>
