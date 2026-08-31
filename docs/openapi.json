@@ -15957,7 +15957,7 @@
         "description": "A single material line on a stock adjustment, comparing the system quantity to the physically counted quantity.",
         "properties": {
           "adjustmentQuantity": {
-            "description": "Adjustment quantity (physical minus system).",
+            "description": "Adjustment quantity (physical minus system). Recomputed from the stamped system quantity whenever a physical count is given, so the line's three figures are one piece of arithmetic. Sent on its own, with no physical count, it is the signed movement the line posts and is kept as sent.",
             "example": -20.0,
             "format": "double",
             "type": "number"
@@ -16006,7 +16006,7 @@
             "type": "string"
           },
           "systemQuantity": {
-            "description": "Quantity on record before the adjustment.",
+            "description": "The quantity on record before the adjustment. Stamped from the balance this line is raised against, so any value sent here is ignored: it is the opening figure the approval is checked against and therefore the server's to state. A value sent for a line naming no material, or on a document naming no project, is kept, because there is no balance to read; such a line cannot be approved either way.",
             "example": 480.0,
             "format": "double",
             "type": "number"
@@ -16098,7 +16098,7 @@
             "type": "string"
           },
           "systemQuantity": {
-            "description": "Quantity on record before the adjustment.",
+            "description": "Quantity on record before the adjustment, read from the balance when the document was last written. An approval is refused if the balance has moved away from it, so on a posted line this is also the opening figure the ledger entry carries.",
             "example": 480.0,
             "format": "double",
             "type": "number"

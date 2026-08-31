@@ -20,7 +20,10 @@ public class StockAdjustmentLineItemDto {
     @Schema(description = "Free-text description of the line item.", example = "Damaged bags found during count")
     private String description;
 
-    @Schema(description = "Quantity on record before the adjustment.", example = "480.0")
+    @Schema(description = "Quantity on record before the adjustment, read from the balance when the "
+            + "document was last written. An approval is refused if the balance has moved away from it, "
+            + "so on a posted line this is also the opening figure the ledger entry carries.",
+            example = "480.0")
     private Double systemQuantity;
 
     @Schema(description = "Quantity found during the physical count.", example = "460.0")

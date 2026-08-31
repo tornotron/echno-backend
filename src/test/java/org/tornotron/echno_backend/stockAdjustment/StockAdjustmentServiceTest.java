@@ -42,8 +42,9 @@ import static org.mockito.Mockito.when;
  * Unit tests for the drafting half of StockAdjustmentService: an id that names nothing in
  * the current tenant is rejected, a null id resolves to no association rather than an
  * error, line items are wired to their parent and stamped with the organization, and an
- * update replaces the whole line-item collection, and the user who raised the document is
- * taken from the session rather than from the request body. The repositories, mapper, and
+ * update replaces the whole line-item collection, the opening balance a line is raised
+ * against is read from the stock rather than taken from the request body, and the user who
+ * raised the document is taken from the session rather than from the request body. The repositories, mapper, and
  * tenant helper are mocked; assertions read the entity captured on saveAndFlush. Posting to
  * the stock ledger is covered by {@link StockAdjustmentApprovalTest}.
  */
@@ -154,6 +155,93 @@ class StockAdjustmentServiceTest {
         assertThat(saved.getLocation()).isNull();
         assertThat(saved.getProject()).isNull();
         assertThat(saved.getLineItems()).isEmpty();
+    }
+
+    @Test
+    void create_stampsTheOpeningBalanceRatherThanTrustingTheFigureSent() {
+        stubReferenceLookups();
+        when(inventoryService.findStockAtLocation(MATERIAL, PROJECT, LOCATION))
+                .thenReturn(Optional.of(400.0));
+        StockAdjustmentCreationDto dto = baseDto();
+        dto.setProjectId(PROJECT);
+        StockAdjustmentLineItemCreationDto line = line(MATERIAL, LOCATION);
+        // On the web form this is a box somebody types into, defaulting to zero and checked
+        // against nothing. It is the figure the approval is now measured against, so the server
+        // reads it rather than taking it on trust.
+        line.setSystemQuantity(999.0);
+        dto.setLineItems(List.of(line));
+
+        service.create(dto);
+
+        ArgumentCaptor<StockAdjustment> captor = ArgumentCaptor.forClass(StockAdjustment.class);
+        verify(stockAdjustmentRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getLineItems().get(0).getSystemQuantity()).isEqualTo(400.0);
+    }
+
+    @Test
+    void create_recomputesTheVarianceFromTheStampedOpeningBalance() {
+        stubReferenceLookups();
+        when(inventoryService.findStockAtLocation(MATERIAL, PROJECT, LOCATION))
+                .thenReturn(Optional.of(400.0));
+        StockAdjustmentCreationDto dto = baseDto();
+        dto.setProjectId(PROJECT);
+        StockAdjustmentLineItemCreationDto line = line(MATERIAL, LOCATION);
+        line.setSystemQuantity(500.0);
+        line.setPhysicalQuantity(370.0);
+        line.setAdjustmentQuantity(-130.0);
+        dto.setLineItems(List.of(line));
+
+        service.create(dto);
+
+        ArgumentCaptor<StockAdjustment> captor = ArgumentCaptor.forClass(StockAdjustment.class);
+        verify(stockAdjustmentRepository).saveAndFlush(captor.capture());
+        StockAdjustmentLineItem saved = captor.getValue().getLineItems().get(0);
+        // The three figures on a line are one piece of arithmetic; a document showing 400, a count
+        // of 370 and a difference of -130 says nothing anyone can act on.
+        assertThat(saved.getSystemQuantity()).isEqualTo(400.0);
+        assertThat(saved.getPhysicalQuantity()).isEqualTo(370.0);
+        assertThat(saved.getAdjustmentQuantity()).isEqualTo(-30.0);
+    }
+
+    @Test
+    void create_lineWithNoMaterial_keepsTheFigureSent() {
+        StockAdjustmentCreationDto dto = baseDto();
+        StockAdjustmentLineItemCreationDto line = line(null, null);
+        line.setSystemQuantity(500.0);
+        dto.setLineItems(List.of(line));
+
+        service.create(dto);
+
+        ArgumentCaptor<StockAdjustment> captor = ArgumentCaptor.forClass(StockAdjustment.class);
+        verify(stockAdjustmentRepository).saveAndFlush(captor.capture());
+        // There is no balance to read for a line that names no material, and such a half-filled
+        // line cannot be approved anyway, so nothing is gained by throwing the number away.
+        assertThat(captor.getValue().getLineItems().get(0).getSystemQuantity()).isEqualTo(500.0);
+    }
+
+    @Test
+    void update_restampsTheOpeningBalance() {
+        stubReferenceLookups();
+        when(inventoryService.findUnlocatedStock(MATERIAL, PROJECT)).thenReturn(Optional.of(370.0));
+        StockAdjustment existing = new StockAdjustment();
+        Organization org = new Organization();
+        org.setId(ORG);
+        existing.setOrganization(org);
+        when(stockAdjustmentRepository.lockByIdAndOrganizationId(5L, ORG)).thenReturn(Optional.of(existing));
+
+        StockAdjustmentCreationDto dto = baseDto();
+        dto.setProjectId(PROJECT);
+        StockAdjustmentLineItemCreationDto line = line(MATERIAL, null);
+        line.setSystemQuantity(400.0);
+        dto.setLineItems(List.of(line));
+
+        service.update(5L, dto);
+
+        ArgumentCaptor<StockAdjustment> captor = ArgumentCaptor.forClass(StockAdjustment.class);
+        verify(stockAdjustmentRepository).saveAndFlush(captor.capture());
+        // Saving the document again is the way back from an approval refused because the balance
+        // moved, so an edit has to take up the current figure rather than leave the stale one.
+        assertThat(captor.getValue().getLineItems().get(0).getSystemQuantity()).isEqualTo(370.0);
     }
 
     @Test
