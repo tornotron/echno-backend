@@ -21,7 +21,7 @@ public class ChatRoomDto {
     @Schema(description = "Kind of room.", example = "direct")
     private String type;
 
-    @Schema(description = "Room name; null for a direct room (the client derives it).", example = "Block C site team")
+    @Schema(description = "Room name; null for a direct room (the client derives it).", example = "Block C site team", nullable = true)
     private String name;
 
     @Schema(description = "Room description.", example = "Coordination for the block C interior work")
@@ -33,7 +33,7 @@ public class ChatRoomDto {
     @Schema(description = "Participants of the room.")
     private List<ChatParticipantDto> participants = List.of();
 
-    @Schema(description = "The latest non-deleted message in the room; null when the room is empty.")
+    @Schema(description = "The latest non-deleted message in the room; null when the room is empty.", nullable = true)
     private ChatMessageDto lastMessage;
 
     @Schema(description = "Number of messages the caller has not yet read.", example = "3")

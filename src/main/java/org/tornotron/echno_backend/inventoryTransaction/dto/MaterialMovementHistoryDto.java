@@ -60,7 +60,7 @@ public class MaterialMovementHistoryDto {
 
     @Schema(description = "Display name of the employee who booked the movement. For automated movements this "
             + "is the actor who triggered the source event. Null when the ledger row records no creator.",
-            example = "Asha Menon")
+            example = "Asha Menon", nullable = true)
     private String createdByName;
 
     @Schema(description = "Source document reference for the movement, for example a GRN or challan number.",

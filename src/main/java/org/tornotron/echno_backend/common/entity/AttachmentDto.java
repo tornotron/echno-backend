@@ -42,14 +42,14 @@ public class AttachmentDto {
     private LocalDate issuedOn;
 
     @Schema(description = "Date the document stops being valid. Null for a file that does not expire.",
-            example = "2027-06-10")
+            example = "2027-06-10", nullable = true)
     private LocalDate expiresOn;
 
     @Schema(description = "Whether the document has already expired. Null where it carries no expiry.",
-            example = "false")
+            example = "false", nullable = true)
     private Boolean expired;
 
     @Schema(description = "Whole days until the document expires, negative once it has. Null where "
-            + "it carries no expiry.", example = "285")
+            + "it carries no expiry.", example = "285", nullable = true)
     private Long daysUntilExpiry;
 }

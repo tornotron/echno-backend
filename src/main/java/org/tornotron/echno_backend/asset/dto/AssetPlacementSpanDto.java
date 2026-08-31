@@ -14,7 +14,7 @@ public class AssetPlacementSpanDto {
     @Schema(description = "Id of the ledger entry that started this placement.", example = "412")
     private Long movementId;
 
-    @Schema(description = "Id of the project the asset was on, null if it was on none.", example = "5")
+    @Schema(description = "Id of the project the asset was on, null if it was on none.", example = "5", nullable = true)
     private Long projectId;
     @Schema(description = "Name of the project the asset was on, as it read at the time.",
             example = "Silver Oak Residences")
@@ -36,7 +36,7 @@ public class AssetPlacementSpanDto {
     private LocalDateTime from;
 
     @Schema(description = "When it left. Null on the placement it is still in.",
-            example = "2026-08-04T16:30:00")
+            example = "2026-08-04T16:30:00", nullable = true)
     private LocalDateTime to;
 
     @Schema(description = "How many whole days the placement lasted, counted to now on the "

@@ -23,7 +23,7 @@ public class IndentSummaryDto {
     private LocalDateTime createdAt;
 
     @Schema(description = "Id of the employee who raised the indent. Null where the raiser is no "
-            + "longer recorded.", example = "18")
+            + "longer recorded.", example = "18", nullable = true)
     private Long createdById;
 
     @Schema(description = "Name of the employee who raised the indent.", example = "Ramesh Kumar")

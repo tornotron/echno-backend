@@ -9,7 +9,7 @@ import java.util.UUID;
         + "what has been committed and spent, and what remains.")
 public record ProjectCostControlLineDto(
         @Schema(description = "Cost category (budget head) id, or null for the project total row.",
-                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10")
+                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10", nullable = true)
         UUID costCategoryId,
 
         @Schema(description = "Cost category name, or 'Total' for the project total row.", example = "Materials")

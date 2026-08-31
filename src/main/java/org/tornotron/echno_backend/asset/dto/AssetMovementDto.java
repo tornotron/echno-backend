@@ -21,12 +21,12 @@ public class AssetMovementDto {
             example = "TRANSFER")
     private String movementType;
 
-    @Schema(description = "Id of the project the asset left, null if it was on none.", example = "3")
+    @Schema(description = "Id of the project the asset left, null if it was on none.", example = "3", nullable = true)
     private Long fromProjectId;
     @Schema(description = "Name of the project the asset left, as it read at the time.",
             example = "Central Yard")
     private String fromProjectName;
-    @Schema(description = "Id of the project the asset moved to, null if it is on none.", example = "5")
+    @Schema(description = "Id of the project the asset moved to, null if it is on none.", example = "5", nullable = true)
     private Long toProjectId;
     @Schema(description = "Name of the project the asset moved to, as it read at the time.",
             example = "Silver Oak Residences")

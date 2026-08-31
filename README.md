@@ -162,6 +162,27 @@ runs the check on every pull request, so a stale copy fails the build rather tha
 The task needs Docker (it starts CockroachDB through Testcontainers, as the test suite does) and
 runs in a JVM of its own, which is why it is not part of `test` or `check`.
 
+### Saying that a field may be null
+
+A field that can come back null is marked on the DTO:
+
+```java
+@Schema(description = "Finance customer the project is billed to. Null when no client is set.",
+        example = "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d", nullable = true)
+private UUID customerId;
+```
+
+The document is OpenAPI 3.1, where that is written as a type union rather than a `nullable` flag,
+so the property comes out as `"type": ["string", "null"]`. swagger-core reads the annotation but
+does not translate it under 3.1, so `NullableSchemaCustomizer` does the conversion and
+`OpenApiNullabilityTest` fails if an annotated field is not described that way in the committed
+document. Before that existed the annotation produced no output at all, which is why nothing in
+the document was marked nullable for as long as it has been published.
+
+Mark only what you have checked. A field the document declares non-null is a field a client is
+entitled to parse without a guard, so leaving one unmarked is recoverable and marking one wrongly
+is not.
+
 Serving the document from a deployment is a separate decision: `/v3/api-docs` and the Swagger UI
 answer 401 unless `SWAGGER_PUBLIC_ACCESS=true` is set for that environment.
 

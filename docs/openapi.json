@@ -34,7 +34,10 @@
             "description": "Parent account id, or null for a root account.",
             "example": "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "type": {
             "description": "Root account type this account belongs to.",
@@ -760,7 +763,10 @@
             "description": "Id of the project the asset left, null if it was on none.",
             "example": 3,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "fromProjectName": {
             "description": "Name of the project the asset left, as it read at the time.",
@@ -837,7 +843,10 @@
             "description": "Id of the project the asset moved to, null if it is on none.",
             "example": 5,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "toProjectName": {
             "description": "Name of the project the asset moved to, as it read at the time.",
@@ -899,7 +908,10 @@
             "description": "Id of the project the asset was on, null if it was on none.",
             "example": 5,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "projectName": {
             "description": "Name of the project the asset was on, as it read at the time.",
@@ -915,7 +927,10 @@
             "description": "When it left. Null on the placement it is still in.",
             "example": "2026-08-04T16:30:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -983,7 +998,10 @@
             "description": "Whole days until the document expires, negative once it has. Null where it carries no expiry.",
             "example": 285,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "documentType": {
             "description": "What kind of document this is, where it is a document.",
@@ -998,13 +1016,19 @@
           "expired": {
             "description": "Whether the document has already expired. Null where it carries no expiry.",
             "example": false,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "expiresOn": {
             "description": "Date the document stops being valid. Null for a file that does not expire.",
             "example": "2027-06-10",
             "format": "date",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "fileName": {
             "description": "Original filename as uploaded.",
@@ -1694,7 +1718,10 @@
             "description": "Id of the project this profile applies to, or null for the organization-level default.",
             "example": 12,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "regularizationApprovalRequired": {
             "description": "Whether a manager must approve a regularization request before it takes effect.",
@@ -2182,7 +2209,10 @@
             "description": "When the message was edited; null if never.",
             "example": "2026-08-22T14:20:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "entityMentions": {
             "description": "Task, issue or project references in the message body.",
@@ -2223,7 +2253,14 @@
             "type": "array"
           },
           "replyTo": {
-            "$ref": "#/components/schemas/ChatMessageReplyDto",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatMessageReplyDto"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Preview of the replied-to message; null when this is not a reply."
           },
           "replyToId": {
@@ -2295,7 +2332,10 @@
             "description": "How far the employee has read the room; null if never read.",
             "example": "2026-08-22T14:20:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "role": {
             "description": "Role of the participant in the room.",
@@ -2356,13 +2396,23 @@
             "type": "boolean"
           },
           "lastMessage": {
-            "$ref": "#/components/schemas/ChatMessageDto",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatMessageDto"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "The latest non-deleted message in the room; null when the room is empty."
           },
           "name": {
             "description": "Room name; null for a direct room (the client derives it).",
             "example": "Block C site team",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "participants": {
             "description": "Participants of the room.",
@@ -3042,13 +3092,19 @@
           "approvedByName": {
             "description": "Name of the user that approved the invoice, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the invoice was never approved.",
             "example": "Aneesh Johny",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "arInvoiceId": {
             "description": "AR invoice raised for this invoice on approval. Present on a sales or service invoice whose project has a client; null otherwise.",
             "example": "1c9d4b7a-0f2e-4a63-8b11-5d7c2e9f4a88",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "balanceAmount": {
             "description": "Outstanding balance still due.",
@@ -3137,7 +3193,10 @@
           "paymentRecordedByName": {
             "description": "Name of the user that recorded the most recent payment, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when no payment has been recorded.",
             "example": "Anand Rajashekar",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "paymentStatus": {
             "description": "Settlement status derived from paid and outstanding amounts.",
@@ -3204,7 +3263,10 @@
           "submittedByName": {
             "description": "Name of the user that submitted the invoice, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the invoice was never submitted.",
             "example": "Anand Rajashekar",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "subtotal": {
             "description": "Sum of line amounts before tax and discount.",
@@ -3554,12 +3616,18 @@
             "description": "User id that raised the voucher, taken from the session that created it. Null on vouchers raised before the voucher recorded this.",
             "example": 8,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "raisedByName": {
             "description": "Name of the user that raised the voucher, on the same fallbacks as the verifier name. Null only where the voucher does not record who raised it.",
             "example": "Hrishi",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "referenceNumber": {
             "description": "Cheque or reference number for the payment.",
@@ -3624,7 +3692,10 @@
           "verifiedByName": {
             "description": "Name of the user that verified the voucher, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the voucher was never verified.",
             "example": "Aneesh Johny",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -3694,13 +3765,19 @@
           "expenseAccountCode": {
             "description": "Code of the mapped expense account, or null.",
             "example": 5100,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "expenseAccountId": {
             "description": "Ledger expense account this head maps to, or null.",
             "example": "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "description": "Unique cost category id.",
@@ -4967,7 +5044,14 @@
             "type": "number"
           },
           "shiftTiming": {
-            "$ref": "#/components/schemas/ShiftTimingDto",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShiftTimingDto"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "The resolved structured shift assigned to the employee. Null when unassigned."
           },
           "shiftTimingId": {
@@ -5633,7 +5717,10 @@
           "approvalThreshold": {
             "description": "Auto-approval threshold. Null means every construction invoice needs manual approval; a value T auto-approves invoices whose total is below T.",
             "example": 50000.0,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -6140,7 +6227,10 @@
             "description": "Id of the employee who raised the indent. Null where the raiser is no longer recorded.",
             "example": 18,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "createdByName": {
             "description": "Name of the employee who raised the indent.",
@@ -9941,7 +10031,10 @@
           "createdByName": {
             "description": "Display name of the employee who booked the movement. For automated movements this is the actor who triggered the source event. Null when the ledger row records no creator.",
             "example": "Asha Menon",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "direction": {
             "description": "Direction the movement type moves stock in: INCREASE, DECREASE, or EITHER when the sign comes from the signed quantity.",
@@ -10443,7 +10536,10 @@
             "description": "Employee id of the person who verified the movement, null where the verifier has no employee record in this organization.",
             "example": 17,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -12851,7 +12947,10 @@
             "description": "Maximum number of users allowed under this plan, or null for unlimited.",
             "example": 25,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "monthlyPrice": {
             "description": "Price charged per month, in the plan currency.",
@@ -13193,7 +13292,10 @@
             "description": "Cost category (budget head) id, or null for the project total row.",
             "example": "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "costCategoryName": {
             "description": "Cost category name, or 'Total' for the project total row.",
@@ -13347,18 +13449,27 @@
             "description": "Id of the user who created the project. Null on projects created before this was recorded.",
             "example": 17,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "customerId": {
             "description": "Finance customer the project is billed to. Null when no client is set.",
             "example": "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "description": {
             "description": "Free-text description of the project. Null when not recorded.",
             "example": "Twelve-storey residential tower, two basement levels, handover Q2 2027.",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "employees": {
             "description": "Employees assigned to the project team.",
@@ -13393,7 +13504,10 @@
           "projectCity": {
             "description": "Town or city the site is in. Null when not recorded.",
             "example": "Chennai",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectLatitude": {
             "description": "Site latitude in decimal degrees.",
@@ -13415,12 +13529,18 @@
           "projectPostalCode": {
             "description": "Postal (PIN) code of the site. Null when not recorded.",
             "example": 600004,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectState": {
             "description": "Indian state or union territory the site is in, used to match statutory compliances. Null when not recorded.",
             "example": "Tamil Nadu",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectType": {
             "description": "Construction category of the project.",
@@ -13468,7 +13588,10 @@
             "description": "When the project was last written. Null on projects not written since this was recorded. It is a last-write stamp, so it is overwritten by the next edit to any field: to read who moved the project's status and when, use GET /api/v1/project/web/{id}/status-history.",
             "example": "2026-08-28T16:41:12",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "updatedBy": {
             "description": "Id of the user who last wrote the project.",
@@ -13541,7 +13664,10 @@
             "description": "Finance customer the project is billed to. Null when no client is set.",
             "example": "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "endDate": {
             "description": "Planned completion date of the project.",
@@ -13569,7 +13695,10 @@
           "projectCity": {
             "description": "Town or city the site is in. Null when not recorded.",
             "example": "Chennai",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectLatitude": {
             "description": "Site latitude in decimal degrees.",
@@ -13591,12 +13720,18 @@
           "projectPostalCode": {
             "description": "Postal (PIN) code of the site. Null when not recorded.",
             "example": 600004,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectState": {
             "description": "Indian state or union territory the site is in, used to match statutory compliances. Null when not recorded.",
             "example": "Tamil Nadu",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectType": {
             "description": "Construction category of the project.",
@@ -13649,13 +13784,19 @@
             "description": "Id of the user who created the project. Null on projects created before this was recorded.",
             "example": 17,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "customerId": {
             "description": "Finance customer the project is billed to. Null when no client is set.",
             "example": "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "endDate": {
             "description": "Planned completion date of the project.",
@@ -13683,7 +13824,10 @@
           "projectCity": {
             "description": "Town or city the site is in. Null when not recorded.",
             "example": "Chennai",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectLatitude": {
             "description": "Site latitude in decimal degrees.",
@@ -13705,12 +13849,18 @@
           "projectPostalCode": {
             "description": "Postal (PIN) code of the site. Null when not recorded.",
             "example": 600004,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectState": {
             "description": "Indian state or union territory the site is in, used to match statutory compliances. Null when not recorded.",
             "example": "Tamil Nadu",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectType": {
             "description": "Construction category of the project.",
@@ -13751,7 +13901,10 @@
             "description": "When the project was last written. Null on projects not written since this was recorded.",
             "example": "2026-08-28T16:41:12",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "updatedBy": {
             "description": "Id of the user who last wrote the project.",
@@ -15396,7 +15549,10 @@
             "description": "Id of the user who made the change. Null where no user context was available, which is the case for every BASELINE entry.",
             "example": 17,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "changedByName": {
             "description": "That user's name as it read at the time, kept beside the id so a rename or a removal does not rewrite history.",
@@ -15406,7 +15562,10 @@
           "fromStatus": {
             "description": "Status held before this entry. Null when there was none: the record was created in the status below, or this is the baseline entry written when the trail began.",
             "example": "upcoming",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "description": "Database id of the entry.",
@@ -15568,7 +15727,10 @@
           "approvedByName": {
             "description": "Name of the user who approved the adjustment, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never approved.",
             "example": "Aneesh Johny",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "countMethod": {
             "description": "Method used to perform the physical count.",
@@ -15654,7 +15816,10 @@
           "processedByName": {
             "description": "Name of the user who processed the adjustment, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never processed.",
             "example": "Aneesh Johny",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectId": {
             "description": "Id of the project the adjustment applies to.",
@@ -15682,7 +15847,10 @@
           "rejectedByName": {
             "description": "Name of the user who rejected the adjustment, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never rejected.",
             "example": "Aneesh Johny",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "rejectionReason": {
             "description": "Reason given for rejecting the adjustment.",
@@ -15709,7 +15877,10 @@
           "submittedByName": {
             "description": "Name of the user who submitted the adjustment, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the adjustment was never submitted.",
             "example": "Anand Rajashekar",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "totalAdjustmentValue": {
             "description": "Total monetary value of the adjustment across all line items.",
@@ -18793,7 +18964,10 @@
             "items": {
               "$ref": "#/components/schemas/WbsElementDto"
             },
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "createdAt": {
             "description": "Timestamp the element was created.",
@@ -18837,12 +19011,18 @@
             "description": "Id of the parent WBS element, or null for a root element.",
             "example": 12,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "parentWbsCode": {
             "description": "wbsCode of the parent WBS element, or null for a root element.",
             "example": 1.2,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "progress": {
             "description": "Completion percentage, from 0 to 100, weighted from children if this element is not a leaf.",
@@ -18944,7 +19124,10 @@
             "description": "Id of the parent WBS element, or null for a root element.",
             "example": 12,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "progress": {
             "description": "Completion percentage, from 0 to 100.",

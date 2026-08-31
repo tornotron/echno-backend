@@ -74,7 +74,7 @@ public class MovementRecordDto {
     @Schema(description = "Name of the person who verified the movement, taken from their session.", example = "Anand Rajashekar")
     private String verifiedBy;
 
-    @Schema(description = "Employee id of the person who verified the movement, null where the verifier has no employee record in this organization.", example = "17")
+    @Schema(description = "Employee id of the person who verified the movement, null where the verifier has no employee record in this organization.", example = "17", nullable = true)
     private Long verifiedById;
 
     @Schema(description = "Timestamp the movement was verified.", example = "2026-01-16T09:00:00")

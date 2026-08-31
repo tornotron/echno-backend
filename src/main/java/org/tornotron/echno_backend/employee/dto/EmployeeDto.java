@@ -70,7 +70,7 @@ public class EmployeeDto {
     @Schema(description = "Id of the structured shift timing assigned to the employee.", example = "5")
     private Long shiftTimingId;
 
-    @Schema(description = "The resolved structured shift assigned to the employee. Null when unassigned.")
+    @Schema(description = "The resolved structured shift assigned to the employee. Null when unassigned.", nullable = true)
     private ShiftTimingDto shiftTiming;
 
     @Schema(description = "Employment status.", example = "ACTIVE")

@@ -9,6 +9,6 @@ public record FinanceSettingsDto(
 
         @Schema(description = "Auto-approval threshold. Null means every construction invoice needs "
                 + "manual approval; a value T auto-approves invoices whose total is below T.",
-                example = "50000.0000")
+                example = "50000.0000", nullable = true)
         BigDecimal approvalThreshold
 ) {}

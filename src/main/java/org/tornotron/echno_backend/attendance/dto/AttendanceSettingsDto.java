@@ -21,7 +21,7 @@ public class AttendanceSettingsDto {
     @Schema(description = "Id of the owning organization.", example = "1")
     private Long organizationId;
 
-    @Schema(description = "Id of the project this profile applies to, or null for the organization-level default.", example = "12")
+    @Schema(description = "Id of the project this profile applies to, or null for the organization-level default.", example = "12", nullable = true)
     private Long projectId;
 
     @Schema(description = "Display name for this settings profile.", example = "Standard Site Attendance")

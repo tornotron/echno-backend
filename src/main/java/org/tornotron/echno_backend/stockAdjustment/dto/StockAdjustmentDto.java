@@ -68,7 +68,7 @@ public class StockAdjustmentDto {
     @Schema(description = "Name of the user who submitted the adjustment, or their email where the "
             + "account carries no name. Reads \"User #<id>\" when the account has since been "
             + "deleted; null only when the adjustment was never submitted.",
-            example = "Anand Rajashekar")
+            example = "Anand Rajashekar", nullable = true)
     private String submittedByName;
 
     @Schema(description = "Date and time the adjustment was submitted.", example = "2026-01-15T10:00:00")
@@ -80,7 +80,7 @@ public class StockAdjustmentDto {
     @Schema(description = "Name of the user who approved the adjustment, or their email where the "
             + "account carries no name. Reads \"User #<id>\" when the account has since been "
             + "deleted; null only when the adjustment was never approved.",
-            example = "Aneesh Johny")
+            example = "Aneesh Johny", nullable = true)
     private String approvedByName;
 
     @Schema(description = "Date and time the adjustment was approved.", example = "2026-01-16T09:00:00")
@@ -92,7 +92,7 @@ public class StockAdjustmentDto {
     @Schema(description = "Name of the user who rejected the adjustment, or their email where the "
             + "account carries no name. Reads \"User #<id>\" when the account has since been "
             + "deleted; null only when the adjustment was never rejected.",
-            example = "Aneesh Johny")
+            example = "Aneesh Johny", nullable = true)
     private String rejectedByName;
 
     @Schema(description = "Date and time the adjustment was rejected, if it was rejected.", example = "2026-01-16T09:00:00")
@@ -107,7 +107,7 @@ public class StockAdjustmentDto {
     @Schema(description = "Name of the user who processed the adjustment, or their email where the "
             + "account carries no name. Reads \"User #<id>\" when the account has since been "
             + "deleted; null only when the adjustment was never processed.",
-            example = "Aneesh Johny")
+            example = "Aneesh Johny", nullable = true)
     private String processedByName;
 
     @Schema(description = "Date and time the adjustment was processed.", example = "2026-01-16T11:00:00")
