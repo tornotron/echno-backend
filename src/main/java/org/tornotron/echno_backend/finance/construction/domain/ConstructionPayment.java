@@ -119,6 +119,16 @@ public class ConstructionPayment extends BaseEntity implements TenantScopedEntit
     @Column(name = "ifsc_code", length = 20)
     private String ifscCode;
 
+    // Who raised the voucher and who verified it, both platform user ids stamped from the
+    // session by the service (no cross-module FK, matching the submittedBy/approvedBy
+    // convention on ConstructionInvoice). raisedBy exists so the verification has a raiser
+    // to be compared against: without it the segregation-of-duties rule has nothing to read,
+    // and created_by holds an auditing string rather than an id. Vouchers written before this
+    // column carry a null and are verified without the comparison, which SelfApprovalPolicy
+    // logs.
+    @Column(name = "raised_by")
+    private Long raisedBy;
+
     @Column(name = "verified_by")
     private Long verifiedBy;
 

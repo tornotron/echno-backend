@@ -8,7 +8,6 @@ import org.tornotron.echno_backend.finance.construction.ConstructionPaymentType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentVoucherStatus;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -16,14 +15,19 @@ import java.util.UUID;
  * Full replacement of an editable construction payment voucher. The status is set
  * directly (no ledger posting in this increment); no JournalEntry is created on any
  * status transition.
+ *
+ * <p>The verification stamp is not part of the replacement. It is written only by the verify
+ * action, which reads the verifier from the session, so an edit can neither name a verifier
+ * nor clear one that a verification actually recorded.
  */
 @Schema(description = "Payload to fully replace an editable construction payment voucher. The status is "
-        + "set directly, and no ledger journal entry is created on any status transition.")
+        + "set directly, and no ledger journal entry is created on any status transition. The verification "
+        + "stamp is not replaced here: only the verify action writes it, from the session and the clock.")
 public record UpdateConstructionPaymentRequest(
         @Schema(description = "Kind of payment.", example = "VENDOR_PAYMENT")
         @NotNull ConstructionPaymentType type,
 
-        @Schema(description = "Lifecycle status to set on the voucher.", example = "VERIFIED")
+        @Schema(description = "Lifecycle status to set on the voucher.", example = "COMPLETED")
         @NotNull ConstructionPaymentVoucherStatus status,
 
         @Schema(description = "Method used to settle the payment.", example = "BANK_TRANSFER")
@@ -83,12 +87,6 @@ public record UpdateConstructionPaymentRequest(
 
         @Schema(description = "IFSC code of the paying bank branch.", example = "HDFC0001234")
         @Size(max = 20) String ifscCode,
-
-        @Schema(description = "User id that verified the voucher.", example = "2")
-        Long verifiedBy,
-
-        @Schema(description = "Timestamp the voucher was verified.", example = "2026-08-06T10:20:00Z")
-        Instant verifiedAt,
 
         @Schema(description = "Description of what the payment covers.", example = "Payment for cement supply, batch 2")
         @Size(max = 1000) String description,

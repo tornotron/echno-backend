@@ -29,9 +29,10 @@ import java.util.UUID;
         name = "Construction Payments",
         description = "Payment vouchers recording money paid out on construction projects to vendors, "
                 + "subcontractors, labour and employees. A voucher captures the amount, method and payee "
-                + "details and moves through a pending and verified lifecycle. This increment does not post "
-                + "ledger journal entries. All endpoints are tenant scoped and limited to system "
-                + "administrators and project managers."
+                + "details and moves through a pending and verified lifecycle. Verification is its own "
+                + "action, stamped from the session, and is not part of the update payload. This increment "
+                + "does not post ledger journal entries. All endpoints are tenant scoped and limited to "
+                + "system administrators and project managers."
 )
 public class ConstructionPaymentControllerWeb {
 
@@ -105,5 +106,25 @@ public class ConstructionPaymentControllerWeb {
     public ConstructionPaymentDto update(@PathVariable UUID id,
                                          @Valid @RequestBody UpdateConstructionPaymentRequest req) {
         return service.update(id, req);
+    }
+
+    @PostMapping("/{id}/verify")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @Operation(
+            summary = "Verify a construction payment voucher",
+            description = "Records that the voucher has been checked. The verifier is the signed-in user "
+                    + "and the time is the server clock; neither can be supplied, so a voucher cannot be "
+                    + "recorded as verified by somebody who did not verify it. Whoever raised the voucher "
+                    + "cannot verify it, and a verification already recorded is not replaced."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Voucher verified, and returned naming the verifier"),
+            @ApiResponse(responseCode = "400", description = "The voucher is cancelled, already verified, "
+                    + "or is being verified by whoever raised it"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No voucher with the given id in the current tenant")
+    })
+    public ConstructionPaymentDto verify(@PathVariable UUID id) {
+        return service.verify(id);
     }
 }

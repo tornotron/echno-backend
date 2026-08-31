@@ -7,7 +7,6 @@ import org.tornotron.echno_backend.finance.construction.ConstructionPaymentMetho
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentType;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -15,9 +14,15 @@ import java.util.UUID;
  * Creates a construction payment voucher. The status is not accepted here: a new
  * voucher always starts PENDING (no ledger posting in this increment). The payment
  * number is generated server-side with the CPMT sequence.
+ *
+ * <p>Neither is the verification stamp. A voucher is verified through the verify action,
+ * which takes the verifier from the session and the time from the clock; a payload that
+ * could name the verifier would let whoever raised the voucher record somebody else as
+ * having checked it.
  */
 @Schema(description = "Payload to create a construction payment voucher. The status is not accepted here: "
-        + "a new voucher always starts pending, and the payment number is generated server side.")
+        + "a new voucher always starts pending, and the payment number is generated server side. Nor is the "
+        + "verification stamp, which is written only by the verify action, from the session and the clock.")
 public record CreateConstructionPaymentRequest(
         @Schema(description = "Kind of payment.", example = "VENDOR_PAYMENT")
         @NotNull ConstructionPaymentType type,
@@ -79,12 +84,6 @@ public record CreateConstructionPaymentRequest(
 
         @Schema(description = "IFSC code of the paying bank branch.", example = "HDFC0001234")
         @Size(max = 20) String ifscCode,
-
-        @Schema(description = "User id that verified the voucher, if already verified.", example = "2")
-        Long verifiedBy,
-
-        @Schema(description = "Timestamp the voucher was verified, if already verified.", example = "2026-08-06T10:20:00Z")
-        Instant verifiedAt,
 
         @Schema(description = "Description of what the payment covers.", example = "Payment for cement supply, batch 2")
         @Size(max = 1000) String description,

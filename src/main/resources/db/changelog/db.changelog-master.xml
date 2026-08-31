@@ -373,4 +373,7 @@
     <!-- v4.0 - NCRs: index the people columns the listing can now be filtered on -->
     <include file="db/changelog/v4.0/079-index-ncr-people-columns.xml"/>
 
+    <!-- v4.0 - Payment vouchers: record the raiser, so a verification has someone to be compared against -->
+    <include file="db/changelog/v4.0/080-add-construction-payment-raised-by.xml"/>
+
 </databaseChangeLog>

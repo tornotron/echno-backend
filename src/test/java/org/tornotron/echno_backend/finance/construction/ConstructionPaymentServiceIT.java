@@ -12,10 +12,13 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
@@ -25,26 +28,36 @@ import org.tornotron.echno_backend.finance.construction.dtos.UpdateConstructionP
 import org.tornotron.echno_backend.finance.construction.mapper.ConstructionPaymentMapperImpl;
 import org.tornotron.echno_backend.finance.construction.repositories.ConstructionPaymentRepository;
 import org.tornotron.echno_backend.finance.construction.service.ConstructionPaymentService;
+import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.Mockito.when;
 
 /**
  * End-to-end exercise of the construction payment CRUD path against a real
  * CockroachDB: create stores the voucher and generates a CPMT number, get and list
  * return it, update replaces its fields and sets the status directly, and the org
  * filter keeps one tenant's payments invisible to another.
+ *
+ * <p>The verification stamp is exercised here as well as in the unit tests, because it is the
+ * half that depends on the schema: the raiser id the self-approval comparison reads is a column
+ * added by changelog 080, and a migration that had not run would leave the rule with nothing to
+ * compare while every mocked test still passed.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ConstructionPaymentService.class, ConstructionPaymentMapperImpl.class,
         TenantEntityHelper.class, EntryNumberGenerator.class, JpaAuditingConfig.class,
+        SelfApprovalPolicy.class,
         org.tornotron.echno_backend.user.UserNameDirectory.class})
 class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
 
@@ -54,11 +67,20 @@ class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
     @Autowired
     private ConstructionPaymentRepository paymentRepo;
 
+    @MockitoBean
+    private UserContextService userContextService;
+
+    @MockitoBean(name = "orgSecurity")
+    private OrganizationSecurityService orgSecurity;
+
     @PersistenceContext
     private EntityManager entityManager;
 
     @Autowired
     private PlatformTransactionManager txManager;
+
+    private static final long RAISER = 7L;
+    private static final long VERIFIER = 8L;
 
     private Long orgAId;
     private Long orgBId;
@@ -121,6 +143,7 @@ class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
 
     @Test
     void create_get_list_update_persistsVoucherAndScopesByTenant() {
+        when(userContextService.getCurrentUserId()).thenReturn(RAISER);
         CreateConstructionPaymentRequest createReq = new CreateConstructionPaymentRequest(
                 ConstructionPaymentType.INVOICE,
                 ConstructionPaymentMethod.BANK_TRANSFER,
@@ -134,7 +157,6 @@ class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
                 "INR",
                 LocalDate.of(2026, 8, 1),
                 "TXN-0001", "REF-0001", "State Bank", "0001112223", "SBIN0000001",
-                7L, null,
                 "First running payment", "Approved by PM"
         );
 
@@ -192,7 +214,6 @@ class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
                 "INR",
                 LocalDate.of(2026, 8, 2),
                 "TXN-0002", "REF-0002", "State Bank", "0001112223", "SBIN0000001",
-                7L, null,
                 "Revised running payment", "Settled"
         );
 
@@ -201,6 +222,67 @@ class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
         assertThat(updated.method()).isEqualTo(ConstructionPaymentMethod.UPI);
         assertThat(updated.amount()).isEqualByComparingTo(bd("16000"));
         assertThat(updated.paymentDate()).isEqualTo(LocalDate.of(2026, 8, 2));
+    }
+
+    @Test
+    void verify_stampsTheSessionAgainstThePersistedRaiser_andRefusesASecondVerification() {
+        when(userContextService.getCurrentUserId()).thenReturn(RAISER);
+        ConstructionPaymentDto created = service.create(minimalCreateRequest());
+        assertThat(created.raisedBy()).isEqualTo(RAISER);
+        assertThat(created.verifiedBy()).isNull();
+        assertThat(created.verifiedAt()).isNull();
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // The raiser is read back from the column, not from the object create left behind.
+        when(userContextService.getCurrentUserId()).thenReturn(VERIFIER);
+        ConstructionPaymentDto verified = service.verify(created.id());
+        assertThat(verified.verifiedBy()).isEqualTo(VERIFIER);
+        assertThat(verified.verifiedAt()).isNotNull();
+        assertThat(verified.raisedBy()).isEqualTo(RAISER);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.verify(created.id()))
+                .withMessageContaining("already been verified");
+    }
+
+    @Test
+    void verify_refusesTheRaiserOfTheVoucher() {
+        when(userContextService.getCurrentUserId()).thenReturn(RAISER);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+                .thenReturn(false);
+        ConstructionPaymentDto created = service.create(minimalCreateRequest());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.verify(created.id()))
+                .withMessageContaining("raised by the same person");
+
+        assertThat(service.findById(created.id()).verifiedAt()).isNull();
+    }
+
+    private CreateConstructionPaymentRequest minimalCreateRequest() {
+        return new CreateConstructionPaymentRequest(
+                ConstructionPaymentType.INVOICE,
+                ConstructionPaymentMethod.BANK_TRANSFER,
+                ConstructionPayeeType.VENDOR,
+                projectId,
+                null, null,
+                42L,
+                null, null, null,
+                "Acme Supplies", null,
+                bd("1000"),
+                "INR",
+                LocalDate.of(2026, 8, 1),
+                null, null, null, null, null,
+                "Running payment", null
+        );
     }
 
     private void enableOrgFilter(Long orgId) {

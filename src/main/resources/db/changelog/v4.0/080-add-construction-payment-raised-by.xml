@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="080-add-construction-payment-raised-by" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="construction_payments" columnName="raised_by"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Record the platform user id of whoever raised a payment voucher, next to the verified_by
+            id the voucher already stores. Verification is the second pair of eyes on money paid out,
+            so it has to come from someone other than whoever raised the voucher, and until now there
+            was nothing on the row to compare a verifier against: created_by holds the auditing
+            string, not a user id, and the two cannot be matched. Vouchers written before this column
+            exists keep a null here and are verified without the comparison, which the self-approval
+            rule logs rather than passing silently.
+        </comment>
+
+        <addColumn tableName="construction_payments">
+            <column name="raised_by" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

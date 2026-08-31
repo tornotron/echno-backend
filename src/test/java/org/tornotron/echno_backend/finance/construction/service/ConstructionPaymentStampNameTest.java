@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
@@ -18,6 +19,7 @@ import org.tornotron.echno_backend.finance.construction.dtos.ConstructionPayment
 import org.tornotron.echno_backend.finance.construction.mapper.ConstructionPaymentMapper;
 import org.tornotron.echno_backend.finance.construction.mapper.ConstructionPaymentMapperImpl;
 import org.tornotron.echno_backend.finance.construction.repositories.ConstructionPaymentRepository;
+import org.tornotron.echno_backend.user.UserContextService;
 import org.tornotron.echno_backend.user.UserDisplayName;
 import org.tornotron.echno_backend.user.UserNameDirectory;
 import org.tornotron.echno_backend.user.UserNameLookup;
@@ -47,6 +49,7 @@ import static org.mockito.Mockito.when;
 class ConstructionPaymentStampNameTest {
 
     private static final long ORG_ID = 9L;
+    private static final long RAISER = 40L;
     private static final long VERIFIER = 41L;
     private static final long NAMELESS_VERIFIER = 42L;
     private static final long DELETED_USER = 43L;
@@ -55,6 +58,8 @@ class ConstructionPaymentStampNameTest {
     @Mock private EntryNumberGenerator numberGen;
     @Mock private TenantEntityHelper tenantEntityHelper;
     @Mock private UserNameDirectory userNameDirectory;
+    @Mock private UserContextService userContextService;
+    @Mock private SelfApprovalPolicy selfApprovalPolicy;
 
     private final ConstructionPaymentMapper mapper = new ConstructionPaymentMapperImpl();
 
@@ -64,7 +69,7 @@ class ConstructionPaymentStampNameTest {
     void setUp() {
         TenantContext.setCurrentOrgId(ORG_ID);
         service = new ConstructionPaymentService(paymentRepo, numberGen, mapper, tenantEntityHelper,
-                userNameDirectory);
+                userNameDirectory, userContextService, selfApprovalPolicy);
     }
 
     @AfterEach
@@ -139,6 +144,25 @@ class ConstructionPaymentStampNameTest {
         assertThat(asked.getValue()).contains(VERIFIER, DELETED_USER);
         assertThat(dtos).extracting(ConstructionPaymentDto::verifiedByName)
                 .containsExactly("Aneesh Johny", null, "User #" + DELETED_USER);
+    }
+
+    @Test
+    void aVoucherAlsoNamesWhoRaisedIt_fromTheSameSingleRead() {
+        UUID id = UUID.randomUUID();
+        ConstructionPayment payment = payment(id, VERIFIER);
+        payment.setRaisedBy(RAISER);
+        when(paymentRepo.findByIdScoped(id)).thenReturn(Optional.of(payment));
+        when(userNameDirectory.namesFor(anyCollection())).thenReturn(UserNameLookup.of(List.of(
+                new UserDisplayName(VERIFIER, "Aneesh Johny", "aneesh@echno.test"),
+                new UserDisplayName(RAISER, "Hrishi", "hrishi@echno.test"))));
+
+        ConstructionPaymentDto dto = service.findById(id);
+
+        ArgumentCaptor<Collection<Long>> asked = ArgumentCaptor.captor();
+        verify(userNameDirectory, times(1)).namesFor(asked.capture());
+        assertThat(asked.getValue()).contains(RAISER, VERIFIER);
+        assertThat(dto.raisedByName()).isEqualTo("Hrishi");
+        assertThat(dto.verifiedByName()).isEqualTo("Aneesh Johny");
     }
 
     private ConstructionPayment payment(UUID id, Long verifiedBy) {
