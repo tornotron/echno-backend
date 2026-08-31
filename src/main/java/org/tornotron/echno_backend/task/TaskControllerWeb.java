@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springdoc.core.annotations.ParameterObject;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery20;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -145,10 +146,10 @@ public class TaskControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<TaskDto>> readAllTasksPaginated(
-            @Valid @ParameterObject PageQuery pageQuery,
+            @Valid @ParameterObject PageQuery20 pageQuery,
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) String search) {
-        return ResponseEntity.ok(service.getTasksPaginated(pageQuery.getPageNo(), pageQuery.pageSizeOr(20), projectId, search));
+        return ResponseEntity.ok(service.getTasksPaginated(pageQuery.getPageNo(), pageQuery.getPageSize(), projectId, search));
     }
 
     @GetMapping("/projectId/{projectId}")

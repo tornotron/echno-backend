@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springdoc.core.annotations.ParameterObject;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery20;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -150,9 +151,9 @@ public class ProjectControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<ProjectDto>> readAllProjectsPaginated(
-            @Valid @ParameterObject PageQuery pageQuery,
+            @Valid @ParameterObject PageQuery20 pageQuery,
             @RequestParam(required = false) String search) {
-        return ResponseEntity.ok(service.getProjectsPaginated(pageQuery.getPageNo(), pageQuery.pageSizeOr(20), search));
+        return ResponseEntity.ok(service.getProjectsPaginated(pageQuery.getPageNo(), pageQuery.getPageSize(), search));
     }
 
     /**
@@ -186,10 +187,10 @@ public class ProjectControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<ProjectSummaryDto>> readAllProjectSummaries(
-            @Valid @ParameterObject PageQuery pageQuery,
+            @Valid @ParameterObject PageQuery20 pageQuery,
             @RequestParam(required = false) String search) {
         return ResponseEntity.ok(
-                service.getProjectsSummaryPaginated(pageQuery.getPageNo(), pageQuery.pageSizeOr(20), search));
+                service.getProjectsSummaryPaginated(pageQuery.getPageNo(), pageQuery.getPageSize(), search));
     }
 
     /**
@@ -242,9 +243,9 @@ public class ProjectControllerWeb {
     })
     public ResponseEntity<Page<StatusTransitionDto>> readStatusHistory(
             @PathVariable Long id,
-            @Valid @ParameterObject PageQuery pageQuery) {
+            @Valid @ParameterObject PageQuery20 pageQuery) {
         return new ResponseEntity<>(
-                service.getStatusHistory(id, pageQuery.getPageNo(), pageQuery.pageSizeOr(20)),
+                service.getStatusHistory(id, pageQuery.getPageNo(), pageQuery.getPageSize()),
                 HttpStatus.OK);
     }
 

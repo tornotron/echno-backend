@@ -6,6 +6,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery20;
 import org.tornotron.echno_backend.finance.construction.ConstructionPayeeType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentVoucherStatus;
@@ -64,7 +65,7 @@ class ConstructionPaymentListingTest {
                 .thenReturn(Page.empty());
 
         new ConstructionPaymentControllerWeb(service)
-                .list(null, null, null, null, null, null, null, null, new PageQuery());
+                .list(null, null, null, null, null, null, null, null, new PageQuery20());
 
         verify(service).findAll(isNull(), isNull(), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(),
@@ -79,7 +80,7 @@ class ConstructionPaymentListingTest {
      */
     @Test
     void theCallersPageBoundsReachTheService() {
-        PageQuery pageQuery = new PageQuery();
+        PageQuery20 pageQuery = new PageQuery20();
         pageQuery.setPageNo(2);
         pageQuery.setPageSize(200);
         when(service.findAll(any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
@@ -104,7 +105,7 @@ class ConstructionPaymentListingTest {
                 ConstructionPaymentType.SALARY,
                 ConstructionPayeeType.EMPLOYEE,
                 33L, 44L, 55L,
-                new PageQuery());
+                new PageQuery20());
 
         verify(service).findAll(eq(11L), eq(22L),
                 eq(ConstructionPaymentVoucherStatus.COMPLETED),
@@ -129,7 +130,7 @@ class ConstructionPaymentListingTest {
                 .thenReturn(Page.empty());
 
         new ConstructionPaymentControllerWeb(service)
-                .list(null, null, null, null, null, 101L, 202L, 303L, new PageQuery());
+                .list(null, null, null, null, null, 101L, 202L, 303L, new PageQuery20());
 
         verify(service).findAll(isNull(), isNull(), isNull(), isNull(), isNull(),
                 eq(101L), eq(202L), eq(303L),
@@ -148,7 +149,7 @@ class ConstructionPaymentListingTest {
                 .thenAnswer(invocation -> page);
 
         assertThat(new ConstructionPaymentControllerWeb(service)
-                .list(null, null, null, null, null, null, null, null, new PageQuery()))
+                .list(null, null, null, null, null, null, null, null, new PageQuery20()))
                 .isSameAs(page);
     }
 }

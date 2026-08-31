@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery20;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemCreationDto;
 import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemResponseDto;
@@ -110,8 +111,8 @@ public class PurchaseOrderItemController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<PurchaseOrderItemResponseDto>> getPurchaseOrderItemsPaginated(
-            @Valid @ParameterObject PageQuery pageQuery) {
-        return ResponseEntity.ok(purchaseOrderItemService.getPurchaseOrderItemsPaginated(pageQuery.getPageNo(), pageQuery.pageSizeOr(20)));
+            @Valid @ParameterObject PageQuery20 pageQuery) {
+        return ResponseEntity.ok(purchaseOrderItemService.getPurchaseOrderItemsPaginated(pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")

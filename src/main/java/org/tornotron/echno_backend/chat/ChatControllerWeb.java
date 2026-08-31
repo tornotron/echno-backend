@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springdoc.core.annotations.ParameterObject;
-import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery30;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import jakarta.servlet.http.HttpServletResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -134,8 +134,8 @@ public class ChatControllerWeb {
     })
     public ResponseEntity<Page<ChatMessageDto>> readMessages(
             @PathVariable Long roomId,
-            @Valid @ParameterObject PageQuery pageQuery) {
-        return new ResponseEntity<>(chatService.getMessages(roomId, pageQuery.getPageNo(), pageQuery.pageSizeOr(30)), HttpStatus.OK);
+            @Valid @ParameterObject PageQuery30 pageQuery) {
+        return new ResponseEntity<>(chatService.getMessages(roomId, pageQuery.getPageNo(), pageQuery.getPageSize()), HttpStatus.OK);
     }
 
     @PostMapping(value = "/rooms/web/{roomId}/messages", consumes = MediaType.APPLICATION_JSON_VALUE)
