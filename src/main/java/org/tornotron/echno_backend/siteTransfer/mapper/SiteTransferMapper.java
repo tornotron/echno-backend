@@ -34,7 +34,25 @@ public interface SiteTransferMapper {
 
     @Mapping(source = "material.id", target = "materialId")
     @Mapping(source = "material.materialName", target = "materialName")
+    @Mapping(target = "inTransitQuantity", ignore = true)
     SiteTransferItemDto toItemDto(SiteTransferItem item);
+
+    /**
+     * Fills in how much of a line is neither at the sending site nor recorded as having reached
+     * the receiving one.
+     *
+     * <p>Derived rather than stored, so it cannot drift from the two quantities it is the
+     * difference of. A line nobody has confirmed yet carries a null received quantity, and the
+     * whole sent quantity is in transit. It is floored at zero because an acknowledged
+     * over-receipt would otherwise report a negative amount on a lorry; that a receipt exceeded
+     * what was sent is visible from the two quantities themselves.
+     */
+    @AfterMapping
+    default void deriveInTransitQuantity(SiteTransferItem item, @MappingTarget SiteTransferItemDto dto) {
+        int sent = item.getSentQuantity() != null ? item.getSentQuantity() : 0;
+        int received = item.getReceivedQuantity() != null ? item.getReceivedQuantity() : 0;
+        dto.setInTransitQuantity(Math.max(0, sent - received));
+    }
 
     @AfterMapping
     default void nullifyEmptyItems(@MappingTarget SiteTransferDto dto) {

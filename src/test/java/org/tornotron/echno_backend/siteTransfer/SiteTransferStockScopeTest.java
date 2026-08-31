@@ -11,7 +11,11 @@ import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator
 import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
 import org.tornotron.echno_backend.common.exception.InsufficientStockException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+import org.tornotron.echno_backend.common.history.StatusTransitionRecorder;
+import org.tornotron.echno_backend.common.history.StatusTransitionRepository;
+import org.tornotron.echno_backend.common.history.mapper.StatusTransitionMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.employee.Employee;
@@ -32,6 +36,7 @@ import org.tornotron.echno_backend.siteTransfer.mapper.SiteTransferMapper;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItemRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
+import org.tornotron.echno_backend.user.UserContextService;
 import org.tornotron.echno_backend.user.UserRepository;
 
 import java.time.LocalDateTime;
@@ -86,6 +91,11 @@ class SiteTransferStockScopeTest {
     @Mock private StorageLocationRepository storageLocationRepository;
     @Mock private DocumentNumberAllocator documentNumberAllocator;
     @Mock private TransactionRetryTemplate retryTemplate;
+    @Mock private CurrentEmployeeService currentEmployeeService;
+    @Mock private UserContextService userContextService;
+    @Mock private StatusTransitionRecorder statusTransitionRecorder;
+    @Mock private StatusTransitionRepository statusTransitionRepository;
+    @Mock private StatusTransitionMapper statusTransitionMapper;
 
     private SiteTransferService service;
 
@@ -98,7 +108,9 @@ class SiteTransferStockScopeTest {
         service = new SiteTransferService(siteTransferRepository, siteTransferItemRepository, userRepository,
                 materialRepository, inventoryService, eventPublisher, siteTransferMapper, tenantEntityHelper,
                 employeeRepository, projectRepository, storageLocationRepository,
-                documentNumberAllocator, retryTemplate);
+                documentNumberAllocator, retryTemplate, new SiteTransferReceiptReconciler(statusTransitionRecorder),
+                currentEmployeeService, userContextService, statusTransitionRecorder,
+                statusTransitionRepository, statusTransitionMapper);
         lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
                 .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
 

@@ -48,7 +48,11 @@ public class SiteTransferDto {
     @Schema(description = "Name of the receiving storage location.", example = "Site B Yard")
     private String receivingStorageLocationName;
 
-    @Schema(description = "Current status of the transfer.", example = "IN_TRANSIT")
+    @Schema(description = "Current status of the transfer. PENDING means it has left the sending "
+            + "site and nothing has been recorded as arriving, so its quantity is in transit; "
+            + "PARTIALLY_TRANSFERRED and COMPLETED follow from what the receiving site confirmed; "
+            + "CANCELLED means it was abandoned in transit and its stock returned to the sender.",
+            example = "PENDING")
     private SiteTransferStatus status;
 
     @Schema(description = "Line items listing each material and quantity being transferred.")

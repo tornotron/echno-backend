@@ -19,8 +19,11 @@ import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -77,6 +80,32 @@ class SiteTransferControllerWebAuthzTest {
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/site-transfers/web").with(jwt()))
+                .andExpect(status().isForbidden());
+    }
+
+    /**
+     * The receive endpoint posts stock into a project, so a caller who cannot be trusted with the
+     * rest of this controller must not reach it either. It is gated on the same role rather than
+     * being left open because it is new.
+     */
+    @Test
+    void receive_isForbidden_forACallerWithNoElevatedRole() throws Exception {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
+
+        mockMvc.perform(post("/api/v1/site-transfers/web/51/receive").with(jwt()).with(csrf())
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"items\":[{\"itemId\":84,\"receivedQuantity\":8}]}"))
+                .andExpect(status().isForbidden());
+    }
+
+    /** Cancelling returns stock to the sending project, so it is gated the same way. */
+    @Test
+    void cancel_isForbidden_forACallerWithNoElevatedRole() throws Exception {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
+
+        mockMvc.perform(post("/api/v1/site-transfers/web/51/cancel").with(jwt()).with(csrf())
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"reason\":\"Lorry turned back\"}"))
                 .andExpect(status().isForbidden());
     }
 

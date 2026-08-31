@@ -11,7 +11,11 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.tornotron.echno_backend.common.events.SiteTransferCreatedEvent;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.history.StatusTransitionRecorder;
+import org.tornotron.echno_backend.common.history.StatusTransitionRepository;
+import org.tornotron.echno_backend.common.history.mapper.StatusTransitionMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -32,6 +36,7 @@ import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItemRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
+import org.tornotron.echno_backend.user.UserContextService;
 import org.tornotron.echno_backend.user.UserRepository;
 
 import java.time.LocalDateTime;
@@ -86,6 +91,11 @@ class SiteTransferServiceTest {
     @Mock private StorageLocationRepository storageLocationRepository;
     @Mock private DocumentNumberAllocator documentNumberAllocator;
     @Mock private TransactionRetryTemplate retryTemplate;
+    @Mock private CurrentEmployeeService currentEmployeeService;
+    @Mock private UserContextService userContextService;
+    @Mock private StatusTransitionRecorder statusTransitionRecorder;
+    @Mock private StatusTransitionRepository statusTransitionRepository;
+    @Mock private StatusTransitionMapper statusTransitionMapper;
 
     private SiteTransferService service;
 
@@ -96,7 +106,9 @@ class SiteTransferServiceTest {
         service = new SiteTransferService(siteTransferRepository, siteTransferItemRepository, userRepository,
                 materialRepository, inventoryService, eventPublisher, siteTransferMapper, tenantEntityHelper,
                 employeeRepository, projectRepository, storageLocationRepository,
-                documentNumberAllocator, retryTemplate);
+                documentNumberAllocator, retryTemplate, new SiteTransferReceiptReconciler(statusTransitionRecorder),
+                currentEmployeeService, userContextService, statusTransitionRecorder,
+                statusTransitionRepository, statusTransitionMapper);
         // The template's own behaviour is covered by its own tests; here it just runs the work.
         lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
                 .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
@@ -383,15 +395,74 @@ class SiteTransferServiceTest {
                 .isThrownBy(() -> service.updateSiteTransferStatus(5L, SiteTransferStatus.COMPLETED));
     }
 
+    /**
+     * Between projects there is a lorry and a road, so the transfer is issued in transit with
+     * nothing received: writing the inbound leg here asserted stock had reached a site where
+     * nobody had seen it.
+     */
     @Test
-    void updateStatus_setsAndSaves() {
+    void create_betweenTwoProjects_isPendingWithNothingReceived() {
+        stubMasterLookups();
+
+        service.createSiteTransfer(baseDto());
+
+        ArgumentCaptor<SiteTransfer> captor = ArgumentCaptor.forClass(SiteTransfer.class);
+        verify(siteTransferRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(SiteTransferStatus.PENDING);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<SiteTransferItem>> itemsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(siteTransferItemRepository).saveAll(itemsCaptor.capture());
+        assertThat(itemsCaptor.getValue().get(0).getReceivedQuantity()).isNull();
+    }
+
+    /**
+     * Within one project the material never leaves that site's custody, so both legs are posted
+     * at creation and there is nothing to confirm. Leaving it PENDING would have it waiting on a
+     * confirmation that has nothing to confirm.
+     */
+    @Test
+    void create_betweenTwoStoresOnOneProject_isCompletedAndReceivedInFull() {
+        stubMasterLookups();
+        location(SENDING_LOCATION, SENDING_PROJECT);
+        location(RECEIVING_LOCATION, SENDING_PROJECT);
+
+        SiteTransferCreationDto dto = baseDto();
+        dto.setReceivingProjectId(SENDING_PROJECT);
+        dto.setSendingStorageLocationId(SENDING_LOCATION);
+        dto.setReceivingStorageLocationId(RECEIVING_LOCATION);
+
+        service.createSiteTransfer(dto);
+
+        ArgumentCaptor<SiteTransfer> captor = ArgumentCaptor.forClass(SiteTransfer.class);
+        verify(siteTransferRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(SiteTransferStatus.COMPLETED);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<SiteTransferItem>> itemsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(siteTransferItemRepository).saveAll(itemsCaptor.capture());
+        assertThat(itemsCaptor.getValue().get(0).getReceivedQuantity()).isEqualTo(4);
+    }
+
+    /**
+     * The endpoint used to write whatever status it was handed and move no stock, which is how a
+     * transfer could read COMPLETED with nothing confirmed. Every state now follows from a
+     * movement, so a status cannot be claimed by a payload; the refusal names the endpoint that
+     * does what the caller wanted rather than leaving them at a 404.
+     */
+    @Test
+    void updateStatus_refusesToClaimAStatusThatSaysStockMoved() {
         SiteTransfer transfer = new SiteTransfer();
+        transfer.setTransferNumber("TRF-2026-000042");
         transfer.setStatus(SiteTransferStatus.PENDING);
         when(siteTransferRepository.findByIdAndOrganization_Id(5L, ORG)).thenReturn(Optional.of(transfer));
 
-        service.updateSiteTransferStatus(5L, SiteTransferStatus.COMPLETED);
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.updateSiteTransferStatus(5L, SiteTransferStatus.COMPLETED))
+                .withMessageContaining("/receive")
+                .withMessageContaining("/cancel");
 
-        assertThat(transfer.getStatus()).isEqualTo(SiteTransferStatus.COMPLETED);
-        verify(siteTransferRepository).save(transfer);
+        assertThat(transfer.getStatus()).isEqualTo(SiteTransferStatus.PENDING);
+        verify(siteTransferRepository, never()).save(any());
     }
 }
