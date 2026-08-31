@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.finance.construction.ConstructionPayeeType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentVoucherStatus;
+import org.tornotron.echno_backend.finance.construction.dtos.CancelConstructionPaymentRequest;
 import org.tornotron.echno_backend.finance.construction.dtos.ConstructionPaymentDto;
 import org.tornotron.echno_backend.finance.construction.dtos.CreateConstructionPaymentRequest;
 import org.tornotron.echno_backend.finance.construction.dtos.UpdateConstructionPaymentRequest;
@@ -95,11 +96,14 @@ public class ConstructionPaymentControllerWeb {
     @Operation(
             summary = "Update a construction payment voucher",
             description = "Replaces the editable fields of a payment voucher, including its status, which "
-                    + "is set directly. No ledger journal entry is created on any status transition."
+                    + "is set directly. No ledger journal entry is created on any status transition. A "
+                    + "verified voucher is frozen and cannot be edited, because the verification would "
+                    + "then stand against figures nobody checked; cancel it and raise a replacement. The "
+                    + "cancelled status cannot be set here either: use the cancel action, which records why."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Voucher updated"),
-            @ApiResponse(responseCode = "400", description = "Validation failed, or the voucher is not in an editable state"),
+            @ApiResponse(responseCode = "400", description = "Validation failed, the voucher is verified or cancelled, or the payload asks for the cancelled status"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No voucher with the given id in the current tenant")
     })
@@ -126,5 +130,26 @@ public class ConstructionPaymentControllerWeb {
     })
     public ConstructionPaymentDto verify(@PathVariable UUID id) {
         return service.verify(id);
+    }
+
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @Operation(
+            summary = "Cancel a construction payment voucher",
+            description = "Voids a voucher and records why. This is the only route to the cancelled "
+                    + "status, and it is how a verified voucher is corrected, since a verified voucher "
+                    + "can no longer be edited: cancel it and raise a replacement. The verification stamp "
+                    + "stays on the cancelled voucher, so the record still shows who checked it. "
+                    + "Cancelling is one-way, and a cancelled voucher's reason is not replaced."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Voucher cancelled, and returned carrying the reason"),
+            @ApiResponse(responseCode = "400", description = "No reason given, or the voucher is already cancelled"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No voucher with the given id in the current tenant")
+    })
+    public ConstructionPaymentDto cancel(@PathVariable UUID id,
+                                          @Valid @RequestBody CancelConstructionPaymentRequest req) {
+        return service.cancel(id, req.reason());
     }
 }

@@ -115,9 +115,37 @@ public class ConstructionPaymentService {
         return toDto(saved);
     }
 
+    /**
+     * Replaces the editable fields of a voucher that has not been checked yet.
+     *
+     * <p><b>A verified voucher is frozen.</b> The verification says somebody looked at these
+     * figures; leaving them editable afterwards meant the stamp went on attesting to whatever
+     * replaced them, so a voucher raised for 1,000 and verified by a colleague could be edited to
+     * 100,000 with the verification still reading as current. The stamp itself has been
+     * unwritable from a payload since #631, which stopped it being forged but not being
+     * outlived. Freezing the document is the half that makes it mean something, and it is the
+     * rule {@code StockAdjustmentService} already applies once a document is posted.
+     *
+     * <p>The correction route is {@link #cancel} and raise a fresh voucher, not an edit and not an
+     * unverify. An unverify would be the same silent rewrite of the record from the other
+     * direction, which #631 declined for the same reason. A cancellation leaves the wrong voucher
+     * standing with its verification, its reason for being voided, and the replacement raised
+     * beside it, which is what makes the correction explainable afterwards.
+     *
+     * <p>Cancelling is not done here either, even on an unverified voucher. It is a transition
+     * with meaning rather than a field to set, it has to record why, and routing it through a full
+     * replacement of every other field is how a cancellation ends up also changing an amount.
+     *
+     * @param id The voucher to replace.
+     * @param req The replacement fields.
+     * @return The updated voucher.
+     * @throws ResourceNotFoundException if no such voucher exists in this organization.
+     * @throws InvalidRequestException if the voucher is verified or cancelled, or if the payload
+     *         asks for the cancelled status.
+     */
     @Transactional
     public ConstructionPaymentDto update(UUID id, UpdateConstructionPaymentRequest req) {
-        ConstructionPayment payment = paymentRepo.findByIdScoped(id)
+        ConstructionPayment payment = paymentRepo.lockByIdScoped(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Construction payment with ID " + id + " was not found"));
 
@@ -125,6 +153,19 @@ public class ConstructionPaymentService {
             throw new InvalidRequestException(
                     "Construction payment " + payment.getPaymentNumber()
                             + " is cancelled and cannot be updated");
+        }
+        if (payment.getVerifiedAt() != null) {
+            throw new InvalidRequestException(
+                    "Construction payment " + payment.getPaymentNumber() + " was verified on "
+                            + payment.getVerifiedAt() + " and cannot be edited, because the "
+                            + "verification would then stand against figures nobody checked. "
+                            + "Cancel it and raise a replacement.");
+        }
+        if (req.status() == ConstructionPaymentVoucherStatus.CANCELLED) {
+            throw new InvalidRequestException(
+                    "Construction payment " + payment.getPaymentNumber() + " cannot be cancelled "
+                            + "through an update. Use the cancel action, which records why the "
+                            + "voucher was voided.");
         }
 
         payment.setType(req.type());
@@ -184,7 +225,7 @@ public class ConstructionPaymentService {
      */
     @Transactional
     public ConstructionPaymentDto verify(UUID id) {
-        ConstructionPayment payment = paymentRepo.findByIdScoped(id)
+        ConstructionPayment payment = paymentRepo.lockByIdScoped(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Construction payment with ID " + id + " was not found"));
 
@@ -209,6 +250,48 @@ public class ConstructionPaymentService {
         payment.setVerifiedAt(Instant.now());
 
         log.info("Verified construction payment {}", payment.getPaymentNumber());
+        return toDto(payment);
+    }
+
+    /**
+     * Voids a voucher, recording why.
+     *
+     * <p>This is the only route to the cancelled status, and it is the correction route for a
+     * voucher that has been verified, since {@link #update} freezes one. A verified voucher can be
+     * cancelled: voiding a document is not editing the figures its verification attested to, it
+     * withdraws the document those figures were on, and the stamp stays where it is so the record
+     * still shows who checked what and that it was later thrown out.
+     *
+     * <p>The reason is required, for the reason {@code StockAdjustmentService.reject} requires
+     * one: a voided document whose purpose was to explain a payment explains nothing if the
+     * voiding does not say what was wrong with it, and on a verified voucher it is also the only
+     * record of why somebody's check was set aside.
+     *
+     * <p>Cancelling is deliberately one-way. There is no action to bring a voucher back, for the
+     * same reason there is no unverify: the replacement is raised alongside it.
+     *
+     * @param id The voucher to void.
+     * @param reason Why it is being voided.
+     * @return The cancelled voucher.
+     * @throws ResourceNotFoundException if no such voucher exists in this organization.
+     * @throws InvalidRequestException if the voucher is already cancelled.
+     */
+    @Transactional
+    public ConstructionPaymentDto cancel(UUID id, String reason) {
+        ConstructionPayment payment = paymentRepo.lockByIdScoped(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Construction payment with ID " + id + " was not found"));
+
+        if (payment.getStatus() == ConstructionPaymentVoucherStatus.CANCELLED) {
+            throw new InvalidRequestException(
+                    "Construction payment " + payment.getPaymentNumber()
+                            + " is already cancelled, and the reason it was cancelled for is not replaced");
+        }
+
+        payment.setStatus(ConstructionPaymentVoucherStatus.CANCELLED);
+        payment.setCancellationReason(reason);
+
+        log.info("Cancelled construction payment {}", payment.getPaymentNumber());
         return toDto(payment);
     }
 

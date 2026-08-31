@@ -382,4 +382,7 @@
     <!-- v4.0 - Billing: seed the plan catalogue the organization-creation gate reads -->
     <include file="db/changelog/v4.0/082-seed-billing-plans.xml"/>
 
+    <!-- v4.0 - Payment vouchers: record why one was voided, now that cancelling is how a verified voucher is corrected -->
+    <include file="db/changelog/v4.0/083-add-construction-payment-cancellation-reason.xml"/>
+
 </databaseChangeLog>

@@ -106,6 +106,11 @@ public record ConstructionPaymentDto(
         @Schema(description = "Timestamp the voucher was verified.", example = "2026-08-06T10:20:00Z")
         Instant verifiedAt,
 
+        @Schema(description = "Why the voucher was voided, recorded by the cancel action. Null on a "
+                + "voucher that has not been cancelled.",
+                example = "Duplicate of CPMT-000118, raised twice for the same invoice")
+        String cancellationReason,
+
         @Schema(description = "Description of what the payment covers.", example = "Payment for cement supply, batch 2")
         String description,
 
