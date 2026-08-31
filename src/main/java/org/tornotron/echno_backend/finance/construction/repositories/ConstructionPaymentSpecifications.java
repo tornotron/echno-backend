@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.finance.construction.repositories;
 
 import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.tornotron.echno_backend.finance.construction.ConstructionPayeeType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentType;
@@ -31,6 +32,28 @@ import java.util.List;
  * vouchers.
  */
 public final class ConstructionPaymentSpecifications {
+
+    /**
+     * The order every page of the listing is read in.
+     *
+     * <p>A page with no order is a page in whatever order the storage engine happened to produce,
+     * which on a distributed engine is not stable between two requests: the same voucher can
+     * appear on page one and again on page two while another never appears at all. That is the
+     * failure this listing exists to stop, so leaving the order out would reintroduce it one level
+     * down. It matters especially here, because the endpoint used to take a {@code Pageable} that
+     * could at least carry a caller's sort.
+     *
+     * <p>Newest payment first is what a payments screen wants. The payment number breaks the tie
+     * between two vouchers dated the same day, and it is unique per tenant, so no two rows compare
+     * equal and no page boundary can fall inside a run of ties. Same shape and same reason as the
+     * AR invoice listing's order.
+     *
+     * <p>Lives here beside the filters because it is part of the same thing: the shape of the
+     * query this register is read with. The test reads it from here rather than restating it, so a
+     * test cannot pass against an order the production code does not use.
+     */
+    public static final Sort LIST_ORDER =
+            Sort.by(Sort.Order.desc("paymentDate"), Sort.Order.desc("paymentNumber"));
 
     private ConstructionPaymentSpecifications() {}
 

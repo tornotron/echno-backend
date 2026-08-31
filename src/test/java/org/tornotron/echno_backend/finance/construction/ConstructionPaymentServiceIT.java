@@ -35,6 +35,9 @@ import org.tornotron.echno_backend.user.UserContextService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -426,6 +429,69 @@ class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
                 .extracting(ConstructionPaymentDto::id)
                 .containsExactly(verifiedByTheUser.id());
         disableOrgFilter();
+    }
+
+    /**
+     * The listing comes back newest first, and a full walk visits every voucher exactly once.
+     *
+     * <p>The endpoint used to take a {@code Pageable}, which could at least carry a caller's sort;
+     * it now builds its own {@code PageRequest}, so an order it does not set is an order the
+     * storage engine picks. On a distributed engine that is not stable between two requests, and a
+     * traversal can then hand back one voucher twice and never reach another. Handing a caller an
+     * incomplete register without saying so is the failure this whole change exists to stop, so it
+     * would be the same defect one level down.
+     *
+     * <p>The seeded dates are distinct on purpose: vouchers sharing a payment date would satisfy a
+     * descending-order assertion whatever the query did.
+     */
+    @Test
+    void theListingIsOrderedNewestFirstAndAFullWalkVisitsEveryVoucherOnce() {
+        when(userContextService.getCurrentUserId()).thenReturn(RAISER);
+        TenantContext.setCurrentOrgId(orgAId);
+
+        for (int day = 1; day <= 4; day++) {
+            createOn(LocalDate.of(2026, 8, day));
+        }
+
+        entityManager.flush();
+        entityManager.clear();
+
+        enableOrgFilter(orgAId);
+
+        assertThat(service.findAll(null, null, null, null, null, null, null, null, 0, 10)
+                .getContent())
+                .extracting(ConstructionPaymentDto::paymentDate)
+                .as("newest payment first")
+                .isSortedAccordingTo(Comparator.reverseOrder());
+
+        List<UUID> seen = new ArrayList<>();
+        for (int pageNo = 0; pageNo < 4; pageNo++) {
+            service.findAll(null, null, null, null, null, null, null, null, pageNo, 1)
+                    .getContent()
+                    .forEach(dto -> seen.add(dto.id()));
+        }
+        assertThat(seen)
+                .as("four vouchers, each visited once and none twice")
+                .hasSize(4)
+                .doesNotHaveDuplicates();
+        disableOrgFilter();
+    }
+
+    private ConstructionPaymentDto createOn(LocalDate paymentDate) {
+        return service.create(new CreateConstructionPaymentRequest(
+                ConstructionPaymentType.SALARY,
+                ConstructionPaymentMethod.BANK_TRANSFER,
+                ConstructionPayeeType.EMPLOYEE,
+                projectId,
+                null, null, null,
+                PAYEE_EMPLOYEE,
+                null, null,
+                "Site mason", null,
+                bd("1000"),
+                "INR",
+                paymentDate,
+                null, null, null, null, null,
+                "Wages", null));
     }
 
     private Page<ConstructionPaymentDto> listAll() {

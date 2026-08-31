@@ -18,6 +18,10 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -79,6 +83,15 @@ class RegularizationRegisterQueryIT extends AbstractIntegrationTest {
      * the one employee on the one project, so each needs its own day.
      */
     private int seededDay;
+
+    /**
+     * Base timestamp the seeded requests are spaced out from.
+     *
+     * <p>They must not share one: rows with an identical {@code requestedAt} would satisfy a
+     * descending-order assertion no matter what the query did, so the ordering test would pass
+     * against an unordered query.
+     */
+    private static final LocalDateTime REGISTER_EPOCH = LocalDateTime.of(2026, 8, 12, 8, 30);
 
     @BeforeEach
     void seed() {
@@ -247,6 +260,62 @@ class RegularizationRegisterQueryIT extends AbstractIntegrationTest {
                 .isZero();
     }
 
+    /**
+     * Walking the register one row at a time visits every request exactly once.
+     *
+     * <p>This is the property paging is for, and an unordered page silently breaks it. Without an
+     * {@code ORDER BY}, the engine may return rows in a different order for each {@code LIMIT ...
+     * OFFSET ...}, so a traversal can hand back the same row twice and never reach another. A
+     * register that quietly drops a request is precisely the failure this listing was added to
+     * stop, so it would be the same defect one level down.
+     *
+     * <p>Asserted as a set over a full walk rather than as a fixed order, because that is the
+     * guarantee callers actually depend on. {@link #theRegisterIsOrderedNewestFirst} pins the
+     * order itself. Deleting {@code LIST_ORDER} does not always fail this on a small table, since
+     * a scan of five rows tends to come back consistently; the ordering test is the one that
+     * fails outright, and this one states the reason the ordering is there.
+     */
+    @Test
+    void aFullWalkOfTheRegisterVisitsEveryRequestExactlyOnce() {
+        enableOrgFilter(orgAId);
+
+        List<Long> seen = new ArrayList<>();
+        for (int pageNo = 0; pageNo < 5; pageNo++) {
+            regularizationRepository.findAll(
+                            AttendanceRegularizationSpecifications.withFilters(null, null, null),
+                            PageRequest.of(pageNo, 1, AttendanceRegularizationSpecifications.LIST_ORDER))
+                    .getContent()
+                    .forEach(row -> seen.add(row.getId()));
+        }
+
+        assertThat(seen)
+                .as("five requests in this tenant, each visited once and none twice")
+                .hasSize(5)
+                .doesNotHaveDuplicates();
+    }
+
+    /**
+     * The register comes back newest first, with a unique tiebreaker underneath.
+     *
+     * <p>Newest first is what an approver's queue wants. The tiebreaker is what makes the order
+     * total: two requests raised in the same instant would otherwise compare equal, and a page
+     * boundary falling inside that run is where a traversal loses a row.
+     */
+    @Test
+    void theRegisterIsOrderedNewestFirst() {
+        enableOrgFilter(orgAId);
+
+        List<AttendanceRegularization> rows = regularizationRepository.findAll(
+                        AttendanceRegularizationSpecifications.withFilters(null, null, null),
+                        PageRequest.of(0, 10, AttendanceRegularizationSpecifications.LIST_ORDER))
+                .getContent();
+
+        assertThat(rows).hasSize(5);
+        assertThat(rows)
+                .extracting(AttendanceRegularization::getRequestedAt)
+                .isSortedAccordingTo(Comparator.reverseOrder());
+    }
+
     private long countMatching(RegularizationStatus status, Long approvedById) {
         return regularizationRepository.findAll(
                         AttendanceRegularizationSpecifications.withFilters(status, approvedById, null),
@@ -265,7 +334,7 @@ class RegularizationRegisterQueryIT extends AbstractIntegrationTest {
         Attendance attendance = Attendance.builder()
                 .employeeId(REQUESTER_EMPLOYEE)
                 .employeeName("Ravi Kumar")
-                .attendanceDate(LocalDate.of(2026, 8, 1).plusDays(seededDay++))
+                .attendanceDate(LocalDate.of(2026, 8, 1).plusDays(seededDay))
                 .projectId(1L)
                 .projectName("Tower A")
                 .status(AttendanceStatus.PRESENT)
@@ -282,7 +351,7 @@ class RegularizationRegisterQueryIT extends AbstractIntegrationTest {
                 .requestedBy("Ravi Kumar")
                 .requestedById(REQUESTER_EMPLOYEE)
                 .requestedByUserId(REQUESTER_USER)
-                .requestedAt(LocalDateTime.of(2026, 8, 12, 8, 30))
+                .requestedAt(REGISTER_EPOCH.plusHours(seededDay))
                 .status(status)
                 .organization(org)
                 .build();
@@ -292,6 +361,7 @@ class RegularizationRegisterQueryIT extends AbstractIntegrationTest {
             regularization.setApprovedAt(LocalDateTime.of(2026, 8, 12, 11, 0));
         }
         entityManager.persist(regularization);
+        seededDay++;
     }
 
     private Organization persistOrganization(String name) {

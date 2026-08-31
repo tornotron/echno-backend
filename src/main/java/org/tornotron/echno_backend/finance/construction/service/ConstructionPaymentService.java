@@ -106,7 +106,7 @@ public class ConstructionPaymentService {
         Page<ConstructionPayment> payments = paymentRepo.findAll(
                 ConstructionPaymentSpecifications.withFilters(
                         projectId, vendorId, status, type, payeeType, employeeId, verifiedBy, raisedBy),
-                PageRequest.of(pageNo, pageSize));
+                PageRequest.of(pageNo, pageSize, ConstructionPaymentSpecifications.LIST_ORDER));
         UserNameLookup names = namesFor(payments.getContent());
         return payments.map(payment -> mapper.toDto(payment, names));
     }
