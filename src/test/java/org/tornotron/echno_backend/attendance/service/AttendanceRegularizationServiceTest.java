@@ -89,8 +89,9 @@ class AttendanceRegularizationServiceTest {
     void setUp() {
         TenantContext.setCurrentOrgId(ORG);
         service = new AttendanceRegularizationService(regularizationRepository, attendanceRepository,
-                organizationRepository, employeeRepository, settingsService, calculationService,
-                regularizationMapper, userContextService, selfApprovalPolicy, attendanceSecurity);
+                organizationRepository, settingsService, calculationService, regularizationMapper,
+                new AttendanceActorResolver(userContextService, employeeRepository),
+                selfApprovalPolicy, attendanceSecurity);
         // Not the concern here: these tests exercise the lifecycle, not who may raise a request.
         lenient().when(attendanceSecurity.canRecordFor(org.mockito.ArgumentMatchers.any())).thenReturn(true);
         // The session is the requesting employee unless a test says otherwise.

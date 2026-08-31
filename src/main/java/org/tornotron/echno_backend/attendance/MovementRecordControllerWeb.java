@@ -92,16 +92,19 @@ public class MovementRecordControllerWeb {
     @PreAuthorize("@attendanceSecurity.canManageRecords()")
     @Operation(
             summary = "Verify a movement record",
-            description = "Marks a movement record as verified by the given approver, for example after "
-                    + "checking the reported distance and purpose."
+            description = "Records that the movement has been checked, for example against the reported "
+                    + "distance and purpose. The verifier is taken from the authenticated session, not "
+                    + "from the request: the caller does not choose whose name the record carries. The "
+                    + "employee the movement belongs to cannot verify their own movement, and a movement "
+                    + "already verified is not verified again."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Movement record verified"),
+            @ApiResponse(responseCode = "400", description = "Already verified, verified by the employee it belongs to, or the session resolves to no user of this organization"),
             @ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records"),
             @ApiResponse(responseCode = "404", description = "No movement record with the given id")
     })
-    public ResponseEntity<MovementRecordDto> verify(@PathVariable Long id,
-                                                     @RequestParam String verifiedBy) {
-        return ResponseEntity.ok(movementRecordService.verifyMovement(id, verifiedBy));
+    public ResponseEntity<MovementRecordDto> verify(@PathVariable Long id) {
+        return ResponseEntity.ok(movementRecordService.verifyMovement(id));
     }
 }

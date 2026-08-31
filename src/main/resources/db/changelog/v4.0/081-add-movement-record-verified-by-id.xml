@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="081-add-movement-record-verified-by-id" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="movement_record" columnName="verified_by_id"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Record the verifier's employee id next to the name in verified_by, the way attendance
+            and regularization records already store approved_by alongside approved_by_id. The name
+            used to arrive as a request parameter and was the only thing kept, so a movement record
+            named whoever the caller typed and there was no identity on the row at all. The name is
+            now stamped from the session, and the id makes it an identity rather than a label: two
+            people can share a name and a person can change theirs. Rows verified before this column
+            exists keep a null here and still show the name they were stamped with.
+        </comment>
+
+        <addColumn tableName="movement_record">
+            <column name="verified_by_id" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

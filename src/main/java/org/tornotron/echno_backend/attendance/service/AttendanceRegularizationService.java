@@ -9,16 +9,14 @@ import org.tornotron.echno_backend.attendance.dto.*;
 import org.tornotron.echno_backend.attendance.enums.ClockEventType;
 import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 import org.tornotron.echno_backend.attendance.mapper.AttendanceRegularizationMapper;
+import org.tornotron.echno_backend.attendance.service.AttendanceActorResolver.Actor;
 import org.tornotron.echno_backend.common.approval.ApprovalParty;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.employee.Employee;
-import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
-import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -42,9 +40,6 @@ import java.util.stream.Collectors;
 @Service
 public class AttendanceRegularizationService {
 
-    /** Recorded when the caller cannot be resolved to any identity at all. */
-    private static final String SYSTEM_ACTOR = "system";
-
     /** Note carried by the corrected clock events of a request approved under the break-glass role. */
     private static final String SELF_APPROVAL_NOTE =
             " (self-approved: raised and approved by the same person)";
@@ -52,44 +47,31 @@ public class AttendanceRegularizationService {
     private final AttendanceRegularizationRepository regularizationRepository;
     private final AttendanceRepository attendanceRepository;
     private final OrganizationRepository organizationRepository;
-    private final EmployeeRepository employeeRepository;
     private final AttendanceSettingsService settingsService;
     private final AttendanceCalculationService calculationService;
     private final AttendanceRegularizationMapper regularizationMapper;
-    private final UserContextService userContextService;
+    private final AttendanceActorResolver actorResolver;
     private final SelfApprovalPolicy selfApprovalPolicy;
     private final AttendanceSecurityService attendanceSecurity;
 
     public AttendanceRegularizationService(AttendanceRegularizationRepository regularizationRepository,
                                             AttendanceRepository attendanceRepository,
                                             OrganizationRepository organizationRepository,
-                                            EmployeeRepository employeeRepository,
                                             AttendanceSettingsService settingsService,
                                             AttendanceCalculationService calculationService,
                                             AttendanceRegularizationMapper regularizationMapper,
-                                            UserContextService userContextService,
+                                            AttendanceActorResolver actorResolver,
                                             SelfApprovalPolicy selfApprovalPolicy,
                                             AttendanceSecurityService attendanceSecurity) {
         this.regularizationRepository = regularizationRepository;
         this.attendanceRepository = attendanceRepository;
         this.organizationRepository = organizationRepository;
-        this.employeeRepository = employeeRepository;
         this.settingsService = settingsService;
         this.calculationService = calculationService;
         this.regularizationMapper = regularizationMapper;
-        this.userContextService = userContextService;
+        this.actorResolver = actorResolver;
         this.selfApprovalPolicy = selfApprovalPolicy;
         this.attendanceSecurity = attendanceSecurity;
-    }
-
-    /** Who the authenticated caller is, as recorded on a request: a display name, their platform
-     *  user id, and, when the caller has an employee record in this tenant, that employee's id. */
-    private record Actor(String name, Long userId, Long employeeId) {
-
-        /** The same identity as the self-approval rule compares parties by. */
-        ApprovalParty party() {
-            return new ApprovalParty(userId, employeeId);
-        }
     }
 
     /**
@@ -109,7 +91,7 @@ public class AttendanceRegularizationService {
      */
     @Transactional
     public AttendanceRegularizationDto submitRequest(RegularizationRequestDto dto) {
-        Actor requester = resolveCurrentActor();
+        Actor requester = actorResolver.resolveCurrentActor();
         String requestedBy = requester.name();
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
@@ -233,7 +215,7 @@ public class AttendanceRegularizationService {
                             + " and can no longer be actioned");
         }
 
-        Actor approver = resolveCurrentActor();
+        Actor approver = actorResolver.resolveCurrentActor();
         boolean selfApproved = dto.getStatus() == RegularizationStatus.APPROVED
                 && selfApprovalPolicy.checkSelfApproval(
                         new ApprovalParty(regularization.getRequestedByUserId(),
@@ -335,27 +317,4 @@ public class AttendanceRegularizationService {
         }
     }
 
-    /**
-     * Resolves the authenticated caller into what gets recorded on a request.
-     *
-     * <p>The caller's employee record in the current organization is preferred, because the
-     * employee id is what the attendance record carries and what the web client links a requester
-     * by. A caller with no employee record in this tenant, for instance a bootstrap administrator,
-     * still gets a stable identity: their authenticated username to display, and their platform
-     * user id to be compared by, which is the identity the self-approval rule falls back to when
-     * there is no employee on one side. Only a caller with no identity at all falls back to
-     * {@value #SYSTEM_ACTOR}, which the endpoint's authorization rules already rule out and which
-     * the self-approval rule now refuses to approve on rather than assuming it cannot happen.
-     */
-    private Actor resolveCurrentActor() {
-        Long userId = userContextService.getCurrentUserId();
-        Employee employee = userId == null ? null
-                : employeeRepository.findByUserIdAndOrganizationId(userId, TenantContext.getCurrentOrgId())
-                        .orElse(null);
-        if (employee != null) {
-            return new Actor(employee.getEmployeeName(), userId, employee.getId());
-        }
-        String username = userContextService.getCurrentUsername();
-        return new Actor(username == null || username.isBlank() ? SYSTEM_ACTOR : username, userId, null);
-    }
 }
