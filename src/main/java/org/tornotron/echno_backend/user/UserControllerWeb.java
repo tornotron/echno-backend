@@ -57,17 +57,6 @@ public class UserControllerWeb {
     }
 
     /**
-     * Creates a new user.
-     *
-     * @param userCreationDto DTO containing the details for the new user.
-     * @return A {@link ResponseEntity} with the created user's DTO and HTTP status 201 (Created).
-     */
-//    @PostMapping
-//    public ResponseEntity<UserDto> createUser(@RequestBody @Valid UserCreationDto userCreationDto) {
-//        return ResponseEntity.status(HttpStatus.CREATED).body(userService.addUser(userCreationDto));
-//    }
-
-    /**
      * Retrieves a paginated list of all users.
      *
      * @param pageQuery Page index and page size, bounded by {@link PageQuery}.
