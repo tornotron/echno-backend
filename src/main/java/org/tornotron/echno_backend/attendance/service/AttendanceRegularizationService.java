@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.attendance.service;
 
 import jakarta.validation.ValidationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -248,12 +250,66 @@ public class AttendanceRegularizationService {
         return regularizationMapper.toDto(regularizationRepository.save(regularization));
     }
 
+    /**
+     * One page of the requests still awaiting a decision.
+     *
+     * <p>Used to read every pending request the tenant held. That grows with attendance history
+     * and nothing bounded it, so the caller now names a page and the web endpoints ask for a
+     * single capped one. The page carries the true total, which is what lets a truncated answer
+     * say so instead of passing for a complete one.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return That page of pending requests.
+     */
     @Transactional(readOnly = true)
-    public List<AttendanceRegularizationDto> getPendingRegularizations() {
-        return regularizationRepository.findByStatus(RegularizationStatus.PENDING)
-                .stream()
-                .map(regularizationMapper::toDto)
-                .collect(Collectors.toList());
+    public Page<AttendanceRegularizationDto> getPendingRegularizations(int pageNo, int pageSize) {
+        return regularizationRepository
+                .findByStatus(RegularizationStatus.PENDING, PageRequest.of(pageNo, pageSize))
+                .map(regularizationMapper::toDto);
+    }
+
+    /**
+     * One page of the register, narrowed by any of status, approver and requester.
+     *
+     * <p>The register's only listing was pending-only, which made the approver impossible to
+     * filter on: {@link #processRegularization} stamps the approver in the same call that moves
+     * the request off {@code PENDING}, so a row with an approver was never in the list and a row
+     * in the list never had one. Widening the listing rather than adding a second one keeps the
+     * register a single collection; a "decided" endpoint beside a "pending" one would have to be
+     * stitched together by the client, which is the partial-view failure the pending-only listing
+     * already caused.
+     *
+     * <p>Every filter is applied in the query, not to the returned page. Narrowing a page in the
+     * browser hides the matches that fall outside it while still reading as a complete answer,
+     * which is the same defect one step further along.
+     *
+     * <p>The approver and the rejecter share one column pair, so {@code approvedById} alone means
+     * "decided by", and {@code status} is what separates an approval from a rejection. The two
+     * together answer both questions without a schema change.
+     *
+     * <p>Tenant scoping is the Hibernate {@code orgFilter}, which is fail-closed since issue #507
+     * and applies to the count query as well as the rows. The ids here are the caller's, so they
+     * are only ever allowed to narrow within the tenant.
+     *
+     * @param status        Status to return, or null for every status.
+     * @param approvedById  Employee id of whoever decided the request, or null for anyone.
+     * @param requestedById Employee id of whoever raised the request, or null for anyone.
+     * @param pageNo        Zero-based page index.
+     * @param pageSize      Rows per page.
+     * @return That page of matching requests.
+     */
+    @Transactional(readOnly = true)
+    public Page<AttendanceRegularizationDto> findAll(RegularizationStatus status,
+                                                     Long approvedById,
+                                                     Long requestedById,
+                                                     int pageNo,
+                                                     int pageSize) {
+        return regularizationRepository
+                .findAll(AttendanceRegularizationSpecifications
+                                .withFilters(status, approvedById, requestedById),
+                        PageRequest.of(pageNo, pageSize))
+                .map(regularizationMapper::toDto);
     }
 
     @Transactional(readOnly = true)
