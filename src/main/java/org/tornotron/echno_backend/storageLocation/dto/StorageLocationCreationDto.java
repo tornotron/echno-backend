@@ -1,6 +1,5 @@
 package org.tornotron.echno_backend.storageLocation.dto;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -40,13 +39,16 @@ public class StorageLocationCreationDto {
      * wrapper gets {@code getIsActive()}/{@code setIsActive()} and publishes {@code isActive}.
      * The update payload has always been the wrapper, so create said {@code active} and update
      * said {@code isActive} for the same field. Both say {@code isActive} now.
+     *
+     * <p>This carried a {@code @JsonAlias("active")} while the deployed client still sent the
+     * older spelling. That shim is gone: echno-core sends {@code isActive} from v3.3.0, and the
+     * deployed echno-web build runs v3.4.0. A caller still naming {@code active} now has the key
+     * ignored like any other undeclared property, which leaves the flag unset rather than false,
+     * so a create still produces an active location and only a deactivate is lost.
      */
     @Schema(description = "Whether the storage location is currently active. Optional; a location "
-            + "created without it is active. Also accepted under the older name \"active\".",
+            + "created without it is active.",
             example = "true")
-    // Transitional shim for echno-core#57: the deployed client sends this key as "active".
-    // Remove once a core release sends isActive and echno-web has moved to it.
-    @JsonAlias("active")
     private Boolean isActive;
 
     @Schema(description = "Id of the project this location serves. Optional, a central warehouse or "

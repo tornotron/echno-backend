@@ -15932,7 +15932,7 @@
             "type": "string"
           },
           "isActive": {
-            "description": "Whether the storage location is currently active. Optional; a location created without it is active. Also accepted under the older name \"active\".",
+            "description": "Whether the storage location is currently active. Optional; a location created without it is active.",
             "example": true,
             "type": "boolean"
           },
@@ -16058,7 +16058,7 @@
             "type": "string"
           },
           "isActive": {
-            "description": "New active status for the storage location. Also accepted under the older name \"active\".",
+            "description": "New active status for the storage location.",
             "example": true,
             "type": "boolean"
           },
