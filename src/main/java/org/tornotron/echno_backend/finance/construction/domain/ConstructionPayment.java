@@ -34,7 +34,12 @@ import java.util.UUID;
                 @Index(name = "idx_cpmt_status", columnList = "status"),
                 @Index(name = "idx_cpmt_type", columnList = "type"),
                 @Index(name = "idx_cpmt_payee_type", columnList = "payee_type"),
-                @Index(name = "idx_cpmt_payment_date", columnList = "payment_date")
+                @Index(name = "idx_cpmt_payment_date", columnList = "payment_date"),
+                // The three the listing gained a filter on under issue #638. Created by changelog
+                // 085; declared here so the entity and the schema describe the same table.
+                @Index(name = "idx_cpmt_employee", columnList = "employee_id"),
+                @Index(name = "idx_cpmt_verified_by", columnList = "verified_by"),
+                @Index(name = "idx_cpmt_raised_by", columnList = "raised_by")
         })
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Getter @Setter

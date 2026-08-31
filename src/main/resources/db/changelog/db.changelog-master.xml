@@ -388,4 +388,7 @@
     <!-- v4.0 - Goods receipts: mark an acknowledged over-receipt, and open the purchase order status trail -->
     <include file="db/changelog/v4.0/084-grn-purchase-order-reconciliation.xml"/>
 
+    <!-- v4.0 - Payment vouchers: index the payee, verifier and raiser the listing can now filter on -->
+    <include file="db/changelog/v4.0/085-index-construction-payment-people-columns.xml"/>
+
 </databaseChangeLog>

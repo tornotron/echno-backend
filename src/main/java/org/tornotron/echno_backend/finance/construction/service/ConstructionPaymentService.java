@@ -3,7 +3,7 @@ package org.tornotron.echno_backend.finance.construction.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.approval.ApprovalParty;
@@ -66,16 +66,47 @@ public class ConstructionPaymentService {
                         "Construction payment with ID " + id + " was not found")));
     }
 
+    /**
+     * One page of the voucher register, narrowed by any of the filters supplied.
+     *
+     * <p>Every dimension the payments screen narrows by is a query predicate here, including the
+     * three person filters. They were added under issue #638, where the web list was filtering a
+     * page of twenty by verifier in the browser and presenting the result as the register: a
+     * filter over one page answers a different question from the chip above it, and says nothing
+     * about the rows it never saw.
+     *
+     * <p>The page bounds arrive as a {@code PageQuery} on the endpoint rather than a Spring
+     * {@code Pageable}. A {@code Pageable} took its default size from
+     * {@code spring.data.web.pageable.default-page-size}, which was never set, so Spring's own
+     * default of twenty applied and no caller could tell where the number came from.
+     *
+     * @param projectId  Project the voucher is charged to, or null for every project.
+     * @param vendorId   Vendor being paid, or null for every vendor.
+     * @param status     Lifecycle status, or null for every status.
+     * @param type       Kind of payment, or null for every kind.
+     * @param payeeType  Category of party paid, or null for every category.
+     * @param employeeId Employee being paid. An employee id, or null for every payee.
+     * @param verifiedBy User id that verified the voucher, or null for any verifier.
+     * @param raisedBy   User id that raised the voucher, or null for any raiser.
+     * @param pageNo     Zero-based page index.
+     * @param pageSize   Rows per page.
+     * @return That page of matching vouchers.
+     */
     @Transactional(readOnly = true)
     public Page<ConstructionPaymentDto> findAll(Long projectId,
                                                 Long vendorId,
                                                 ConstructionPaymentVoucherStatus status,
                                                 ConstructionPaymentType type,
                                                 ConstructionPayeeType payeeType,
-                                                Pageable pageable) {
+                                                Long employeeId,
+                                                Long verifiedBy,
+                                                Long raisedBy,
+                                                int pageNo,
+                                                int pageSize) {
         Page<ConstructionPayment> payments = paymentRepo.findAll(
-                ConstructionPaymentSpecifications.withFilters(projectId, vendorId, status, type, payeeType),
-                pageable);
+                ConstructionPaymentSpecifications.withFilters(
+                        projectId, vendorId, status, type, payeeType, employeeId, verifiedBy, raisedBy),
+                PageRequest.of(pageNo, pageSize));
         UserNameLookup names = namesFor(payments.getContent());
         return payments.map(payment -> mapper.toDto(payment, names));
     }
