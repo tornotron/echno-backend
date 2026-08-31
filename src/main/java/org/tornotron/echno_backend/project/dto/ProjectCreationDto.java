@@ -23,6 +23,11 @@ public class ProjectCreationDto {
     @Size(min = 3,max = 50,message = "projectName must be between 3 and 50 characters")
     private String projectName;
 
+    @Schema(description = "Optional free-text description of the project.",
+            example = "Twelve-storey residential tower, two basement levels, handover Q2 2027.")
+    @Size(max = 2000, message = "description must be at most 2000 characters")
+    private String description;
+
     @Schema(description = "Street address of the site, as one line.", example = "12 Marina Road, Mylapore")
     @NotBlank(message = "projectAddress is required")
     @Size(min = 3,max = 255,message = "projectAddress must be between 3 and 255 characters")

@@ -40,6 +40,15 @@ public class Project implements TenantScopedEntity {
     @Column(name = "project_name",nullable = true)
     private String projectName;
 
+    /**
+     * Free-text description of the project: scope, client brief, anything the name and the
+     * address do not say. Optional, and held as TEXT because it is a paragraph typed into a
+     * textarea and any character bound picked here would be arbitrary. The length the API
+     * accepts is bounded on the payloads instead, where it can be changed without a migration.
+     */
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
     /** The street address of the site, as one line. */
     @Column(name = "project_address", nullable = true)
     private String projectAddress;

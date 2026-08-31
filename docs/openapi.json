@@ -9582,6 +9582,12 @@
             "example": 2523,
             "type": "string"
           },
+          "ltc": {
+            "description": "Lead time consumption: quantity expected to be consumed over the supplier's lead time. The planning input the stock levels are derived from.",
+            "example": 250,
+            "format": "double",
+            "type": "number"
+          },
           "materialName": {
             "description": "Name of the material.",
             "example": "OPC 53 Grade Cement",
@@ -9695,6 +9701,12 @@
             "example": 12,
             "format": "int64",
             "type": "integer"
+          },
+          "ltc": {
+            "description": "Lead time consumption: quantity expected to be consumed over the supplier's lead time. The planning input the stock levels are derived from.",
+            "example": 250,
+            "format": "double",
+            "type": "number"
           },
           "materialName": {
             "description": "Name of the material.",
@@ -10004,6 +10016,12 @@
             "description": "HSN code for the material, used on GST invoices.",
             "example": 2523,
             "type": "string"
+          },
+          "ltc": {
+            "description": "Lead time consumption: quantity expected to be consumed over the supplier's lead time. The planning input the stock levels are derived from.",
+            "example": 250,
+            "format": "double",
+            "type": "number"
           },
           "materialName": {
             "description": "Name of the material.",
@@ -13177,6 +13195,13 @@
             "format": "uuid",
             "type": "string"
           },
+          "description": {
+            "description": "Optional free-text description of the project.",
+            "example": "Twelve-storey residential tower, two basement levels, handover Q2 2027.",
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
+          },
           "endDate": {
             "description": "Planned completion date of the project.",
             "example": "2027-06-30T00:00:00",
@@ -13290,6 +13315,11 @@
             "description": "Finance customer the project is billed to. Null when no client is set.",
             "example": "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d",
             "format": "uuid",
+            "type": "string"
+          },
+          "description": {
+            "description": "Free-text description of the project. Null when not recorded.",
+            "example": "Twelve-storey residential tower, two basement levels, handover Q2 2027.",
             "type": "string"
           },
           "employees": {
@@ -13701,6 +13731,11 @@
             "description": "Id of the finance customer the project bills to, as a UUID string. The customer must belong to the caller's organization; null or blank clears the link.",
             "example": "3f2a1c64-7b21-4d1e-9c8f-0a2b3c4d5e6f",
             "format": "uuid",
+            "type": "string"
+          },
+          "description": {
+            "description": "Free-text description of the project. At most 2000 characters.",
+            "example": "Twelve-storey residential tower, two basement levels, handover Q2 2027.",
             "type": "string"
           },
           "endDate": {
@@ -15879,9 +15914,6 @@
       "StorageLocationCreationDto": {
         "description": "Payload to create a storage location where inventory is held, such as a site store, a central warehouse or a godown.",
         "properties": {
-          "active": {
-            "type": "boolean"
-          },
           "address": {
             "description": "Postal address of the storage location.",
             "example": "Plot 14, Ambattur Industrial Estate, Chennai",
@@ -15893,6 +15925,11 @@
             "description": "Storage capacity, free text since units vary by material.",
             "example": 5000,
             "type": "string"
+          },
+          "isActive": {
+            "description": "Whether the storage location is currently active. Optional; a location created without it is active. Also accepted under the older name \"active\".",
+            "example": true,
+            "type": "boolean"
           },
           "latitude": {
             "description": "Latitude of the storage location.",
@@ -16016,7 +16053,7 @@
             "type": "string"
           },
           "isActive": {
-            "description": "New active status for the storage location.",
+            "description": "New active status for the storage location. Also accepted under the older name \"active\".",
             "example": true,
             "type": "boolean"
           },

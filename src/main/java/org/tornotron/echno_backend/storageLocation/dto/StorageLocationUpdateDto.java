@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.storageLocation.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -24,7 +25,17 @@ public class StorageLocationUpdateDto {
     @Schema(description = "New storage capacity, free text since units vary by material.", example = "6000 sq ft")
     private String capacity;
 
-    @Schema(description = "New active status for the storage location.", example = "true")
+    /**
+     * Lombok names this wrapper's accessors {@code getIsActive()}/{@code setIsActive()}, so
+     * Jackson binds it from {@code isActive}. The client has been sending {@code active}, the
+     * name the create payload used to publish, so every attempt to deactivate a location bound
+     * to nothing and was silently dropped. The alias is what makes those requests land.
+     */
+    @Schema(description = "New active status for the storage location. Also accepted under the "
+            + "older name \"active\".", example = "true")
+    // Transitional shim for echno-core#57: the deployed client sends this key as "active".
+    // Remove once a core release sends isActive and echno-web has moved to it.
+    @JsonAlias("active")
     private Boolean isActive;
 
     @Schema(description = "New latitude of the storage location.", example = "13.0827")

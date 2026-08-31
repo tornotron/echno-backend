@@ -38,6 +38,10 @@ public class MaterialDto {
     private Double safetyStock;
     @Schema(description = "Stock level at which a reorder should be triggered.", example = "300")
     private Double reorderLevel;
+    @Schema(description = "Lead time consumption: quantity expected to be consumed over the "
+            + "supplier's lead time. The planning input the stock levels are derived from.",
+            example = "250")
+    private Double ltc;
     @Schema(description = "Current stock valued at unit cost.", example = "139570.00")
     private BigDecimal stockValue;
 }

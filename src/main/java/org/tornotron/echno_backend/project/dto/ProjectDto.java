@@ -22,6 +22,10 @@ public class ProjectDto {
     @Schema(description = "Project name.", example = "Tower B, Riverside Residences")
     private String projectName;
 
+    @Schema(description = "Free-text description of the project. Null when not recorded.",
+            example = "Twelve-storey residential tower, two basement levels, handover Q2 2027.")
+    private String description;
+
     @Schema(description = "Street address of the site, as one line.", example = "12 Marina Road, Mylapore")
     private String projectAddress;
 

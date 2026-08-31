@@ -73,6 +73,15 @@ public class Material implements TenantScopedEntity {
     @Column(name = "reorder_level")
     private Double reorderLevel;
 
+    /**
+     * Lead time consumption: how much of this material is expected to be consumed over the
+     * supplier's lead time. It is the planning input the reorder level, minimum stock and
+     * maximum stock are derived from, so it is stored in the same unit and the same type as
+     * they are.
+     */
+    @Column(name = "ltc")
+    private Double ltc;
+
     @OneToMany(mappedBy = "material")
     private List<IndentItem> indentItems;
 

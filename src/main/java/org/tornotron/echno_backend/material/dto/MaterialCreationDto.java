@@ -66,6 +66,11 @@ public class MaterialCreationDto {
     @Schema(description = "Stock level at which a reorder should be triggered.", example = "300")
     private Double reorderLevel;
 
+    @Schema(description = "Lead time consumption: quantity expected to be consumed over the "
+            + "supplier's lead time. The planning input the stock levels are derived from.",
+            example = "250")
+    private Double ltc;
+
     @Schema(description = "Cost per unit of the material.", example = "410.50")
     private BigDecimal unitCost;
 }

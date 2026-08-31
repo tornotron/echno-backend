@@ -108,6 +108,7 @@ public class MaterialService {
         material.setMaxStock(creationDto.getMaxStock());
         material.setSafetyStock(creationDto.getSafetyStock());
         material.setReorderLevel(creationDto.getReorderLevel());
+        material.setLtc(creationDto.getLtc());
 
         material = materialRepository.save(material);
 
@@ -264,6 +265,10 @@ public class MaterialService {
 
         if (updateDto.getReorderLevel() != null) {
             material.setReorderLevel(updateDto.getReorderLevel());
+        }
+
+        if (updateDto.getLtc() != null) {
+            material.setLtc(updateDto.getLtc());
         }
 
         material = materialRepository.save(material);

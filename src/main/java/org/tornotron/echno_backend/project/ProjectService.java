@@ -70,9 +70,9 @@ public class ProjectService {
      * <p>{@code organizationId} is deliberately not here even though the client sends it on every
      * update, because it is the one key worth a warning every time. The organization comes from
      * {@code TenantContext}, and honouring a value from the payload would be a tenant-isolation
-     * hole. {@code description} and {@code employees} are warned about too: both are on the list
-     * in echno-core#57, description as a form field that writes to a concept no layer has, members
-     * as something the project-employee routes already do properly.
+     * hole. {@code employees} is warned about too, as something the project-employee routes
+     * already do properly. {@code description} used to be warned about alongside it, as a form
+     * field writing to a concept no layer had; it is a real column now, so the switch applies it.
      */
     private static final Set<String> DELIBERATELY_DROPPED_UPDATE_KEYS = Set.of("attachments");
 
@@ -171,6 +171,7 @@ public class ProjectService {
 
             Project project = new Project();
             project.setProjectName(projectDto.getProjectName());
+            project.setDescription(trimToNull(projectDto.getDescription()));
             project.setProjectAddress(projectDto.getProjectAddress());
             project.setProjectCity(trimToNull(projectDto.getProjectCity()));
             project.setProjectState(canonicalState(projectDto.getProjectState()));
@@ -364,6 +365,9 @@ public class ProjectService {
             switch (key) {
                 case "projectName":
                     project.setProjectName((String) value);
+                    break;
+                case "description":
+                    project.setDescription(trimToNull((String) value));
                     break;
                 case "projectAddress":
                     project.setProjectAddress((String) value);
