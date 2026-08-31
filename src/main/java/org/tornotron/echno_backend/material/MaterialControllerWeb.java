@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,9 +14,11 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.material.dto.LowStockMaterialDto;
 import org.tornotron.echno_backend.material.dto.MaterialCreationDto;
 import org.tornotron.echno_backend.material.dto.MaterialDto;
 import org.tornotron.echno_backend.material.dto.MaterialWithStockDto;
+import org.tornotron.echno_backend.material.lowstock.LowStockService;
 import org.tornotron.echno_backend.material.threshold.MaterialLocationThresholdService;
 import org.tornotron.echno_backend.material.threshold.dto.MaterialLocationThresholdDto;
 import org.tornotron.echno_backend.material.threshold.dto.MaterialLocationThresholdUpsertDto;
@@ -37,11 +40,14 @@ public class MaterialControllerWeb {
 
     private final MaterialService materialService;
     private final MaterialLocationThresholdService thresholdService;
+    private final LowStockService lowStockService;
 
     public MaterialControllerWeb(MaterialService materialService,
-                                MaterialLocationThresholdService thresholdService) {
+                                MaterialLocationThresholdService thresholdService,
+                                LowStockService lowStockService) {
         this.materialService = materialService;
         this.thresholdService = thresholdService;
+        this.lowStockService = lowStockService;
     }
 
     @PostMapping
@@ -109,6 +115,36 @@ public class MaterialControllerWeb {
     ) {
         Page<MaterialDto> materials = materialService.getAllMaterials(pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(materials);
+    }
+
+    @GetMapping("/low-stock")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "List materials at or below their reorder level",
+            description = "Returns a page of the materials whose stock has reached the reorder level "
+                    + "in force, most depleted first as a fraction of that level. With neither id, "
+                    + "stock is totalled across the organization and every material in the catalogue "
+                    + "is a candidate, including one holding nothing anywhere. With projectId, stock "
+                    + "is totalled over that project's storage locations and only materials held on "
+                    + "the project are candidates. With both ids, stock is read at that one location "
+                    + "and its threshold override applies in place of the material's global level. A "
+                    + "material with no reorder level set is never reported. The comparison is at or "
+                    + "below, matching the low-stock badge in the console. X-Total-Count is not used "
+                    + "here: the page's totalElements is the true count, so a caller wanting only the "
+                    + "number can ask for pageSize=1 and read it."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of low-stock materials returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A storage location was given without a project, or belongs to a different project"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project or storage location with the given id")
+    })
+    public ResponseEntity<Page<LowStockMaterialDto>> getLowStockMaterials(
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) Long storageLocationId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.ok(lowStockService.findLowStock(projectId, storageLocationId,
+                PageRequest.of(pageQuery.getPageNo(), pageQuery.getPageSize())));
     }
 
     @GetMapping("/search")
