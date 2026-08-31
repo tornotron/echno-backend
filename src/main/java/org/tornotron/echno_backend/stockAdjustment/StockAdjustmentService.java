@@ -33,6 +33,7 @@ import org.tornotron.echno_backend.user.UserNameDirectory;
 import org.tornotron.echno_backend.user.UserNameLookup;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashMap;
@@ -170,6 +171,7 @@ public class StockAdjustmentService {
         stockAdjustment.setSubmittedBy(userContextService.getCurrentUserId());
         stockAdjustment.setSubmittedAt(LocalDateTime.now());
         applyLineItems(stockAdjustment, creationDto.getLineItems(), organization);
+        stampHeaderTotals(stockAdjustment);
         StockAdjustment saved = stockAdjustmentRepository.saveAndFlush(stockAdjustment);
         return stockAdjustmentMapper.toDto(saved, namesFor(saved));
     }
@@ -217,6 +219,7 @@ public class StockAdjustmentService {
         // rows) and re-add from the request, keeping Hibernate's collection tracking intact.
         stockAdjustment.getLineItems().clear();
         applyLineItems(stockAdjustment, creationDto.getLineItems(), organization);
+        stampHeaderTotals(stockAdjustment);
 
         // saveAndFlush before mapping so the freshly inserted line-item ids are populated
         // on the returned DTO (documented gotcha: without the flush the child ids are null).
@@ -271,6 +274,12 @@ public class StockAdjustmentService {
      * adjustment exists to correct: the strict rule is written for a new movement, and applying it
      * here would leave a wrongly located balance with no route back at all.
      *
+     * <p>The document's two totals are restated here from what was actually posted, rather than
+     * left at the sums the draft carried. They can differ by a line whose movement came out at
+     * nothing, which is skipped rather than posted, and the value total can differ on any line
+     * with no unit value of its own, because the cost such a line posts at is the running average
+     * at the moment of posting.
+     *
      * <p>Every posted line writes an {@code ADJUST} {@link InventoryTransaction} whose
      * remarks carry the reason, so the balance stays explainable, and only then moves the
      * balance. Both happen in this transaction: an approval that recorded no movement is the
@@ -314,6 +323,7 @@ public class StockAdjustmentService {
                 : postedAt;
         String referenceNumber = referenceNumber(stockAdjustment);
         double totalVariance = 0.0;
+        BigDecimal totalValue = BigDecimal.ZERO;
         // What this approval has already posted to each balance row, so a later line on the same
         // row is measured against the balance as it stood when the approval began. See
         // requireBalanceUnmoved: a document may split one shelf's variance across several lines,
@@ -349,6 +359,7 @@ public class StockAdjustmentService {
 
             if (Math.abs(movement) < NO_MOVEMENT) {
                 line.setAdjustmentQuantity(0.0);
+                line.setTotalAdjustmentValue(atColumnScale(BigDecimal.ZERO));
                 continue;
             }
             double closing = balance + movement;
@@ -382,11 +393,23 @@ public class StockAdjustmentService {
             inventoryService.updateCurrentStock(material, project, location, organization,
                     movement, movement > 0 ? unitCost : null);
 
+            // What the line is worth, at the cost the ledger entry was actually written with, so
+            // the document's money agrees with the movement it posted rather than with whatever
+            // the draft was able to work out. On a line carrying its own unit value this is the
+            // figure the draft already held; on one without, it is what the running average came
+            // to at the moment of posting, which no draft could have stated.
+            BigDecimal postedValue = lineValue(movement, unitCost);
+            if (postedValue != null) {
+                line.setTotalAdjustmentValue(postedValue);
+                totalValue = totalValue.add(postedValue);
+            }
+
             totalVariance += movement;
             postedHere.merge(row, movement, Double::sum);
         }
 
         stockAdjustment.setTotalVarianceQuantity(totalVariance);
+        stockAdjustment.setTotalAdjustmentValue(atColumnScale(totalValue));
         stockAdjustment.setStatus(POSTED_STATUS);
         stockAdjustment.setApprovedBy(approver);
         stockAdjustment.setApprovedAt(postedAt);
@@ -705,6 +728,12 @@ public class StockAdjustmentService {
      * <p>The status is not copied either. It is written here as {@link #DRAFT_STATUS} and moved
      * only by {@link #approve}; a body naming any other status is refused rather than ignored,
      * so a caller who believed they were posting a document finds out that they were not.
+     *
+     * <p>Neither total is copied. {@code totalVarianceQuantity} and {@code totalAdjustmentValue}
+     * are arithmetic over the lines, so they are summed from the lines once those exist, by
+     * {@link #stampHeaderTotals}. Copying them let a document assert a header figure that did not
+     * match the sum of its own lines, which it now always did, because the lines' own figures are
+     * stamped by the server and the client's header was summed from what it sent instead.
      */
     private void applyHeaderFields(StockAdjustment stockAdjustment, StockAdjustmentCreationDto dto) {
         requireDraftStatus(dto.getStatus());
@@ -713,13 +742,11 @@ public class StockAdjustmentService {
         stockAdjustment.setStatus(DRAFT_STATUS);
         stockAdjustment.setAdjustmentDate(dto.getAdjustmentDate());
         stockAdjustment.setEffectiveDate(dto.getEffectiveDate());
-        stockAdjustment.setTotalAdjustmentValue(dto.getTotalAdjustmentValue());
         stockAdjustment.setPrimaryReason(dto.getPrimaryReason());
         stockAdjustment.setJustification(dto.getJustification());
         stockAdjustment.setPhysicalCountDate(dto.getPhysicalCountDate());
         stockAdjustment.setPhysicalCountBy(dto.getPhysicalCountBy());
         stockAdjustment.setCountMethod(dto.getCountMethod());
-        stockAdjustment.setTotalVarianceQuantity(dto.getTotalVarianceQuantity());
 
         stockAdjustment.setLocation(resolveLocation(dto.getLocationId()));
         stockAdjustment.setProject(resolveProject(dto.getProjectId()));
@@ -747,6 +774,8 @@ public class StockAdjustmentService {
             item.setAdjustmentQuantity(lineDto.getAdjustmentQuantity());
             item.setUnit(lineDto.getUnit());
             item.setUnitValue(lineDto.getUnitValue());
+            // Kept only as the fallback for a line whose value cannot be computed, for the same
+            // reason systemQuantity above is; stampLineValue below overwrites it where it can.
             item.setTotalAdjustmentValue(lineDto.getTotalAdjustmentValue());
             item.setReason(lineDto.getReason());
             item.setReasonDetails(lineDto.getReasonDetails());
@@ -756,8 +785,80 @@ public class StockAdjustmentService {
             item.setLocation(resolveLocation(lineDto.getLocationId()));
             item.setOrganization(organization);
             stampOpeningBalance(item, stockAdjustment);
+            stampLineValue(item);
             stockAdjustment.addLineItem(item);
         }
+    }
+
+    /**
+     * Records what a line's variance is worth, from the variance the server stamped on it.
+     *
+     * <p>Same reasoning as {@link #stampOpeningBalance}, one step along: the value is the product
+     * of two figures already on the line, so it belongs where those figures are. Before this it
+     * was whatever the client sent, and once {@link #stampOpeningBalance} began overwriting the
+     * variance the sent value was a product of figures the server had since replaced. A line
+     * showing a quantity, a unit value and a total that is not their product is worse than one
+     * showing no total at all.
+     *
+     * <p>A line with no unit value keeps what was sent. There is nothing to multiply by, and the
+     * cost the posting will actually use is the running average at the time it posts, which is
+     * not a figure a draft can state: it moves with every receipt. {@link #approve} writes the
+     * true value onto such a line from the cost it posted at.
+     *
+     * @param item The line being written, after its variance has been stamped.
+     */
+    private void stampLineValue(StockAdjustmentLineItem item) {
+        BigDecimal value = lineValue(item.getAdjustmentQuantity(), item.getUnitValue());
+        if (value != null) {
+            item.setTotalAdjustmentValue(value);
+        }
+    }
+
+    /**
+     * A signed quantity valued at a unit price, at the scale the column stores, or null when
+     * either figure is missing.
+     */
+    private BigDecimal lineValue(Double quantity, BigDecimal unitValue) {
+        if (quantity == null || unitValue == null) {
+            return null;
+        }
+        return atColumnScale(BigDecimal.valueOf(quantity).multiply(unitValue));
+    }
+
+    /**
+     * Rounds to the two decimal places {@code total_adjustment_value} is declared with, so the
+     * figure held in memory is the figure the database keeps and a document read back straight
+     * after being written does not appear to have changed.
+     */
+    private BigDecimal atColumnScale(BigDecimal value) {
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Sums the header totals from the lines the document actually carries.
+     *
+     * <p>Both are arithmetic over the lines and nothing else, so neither is a figure the client
+     * gets to assert. {@link #approve} restates them from what it posted, which can differ: a line
+     * whose movement comes out at nothing is skipped there rather than posted, so a draft and the
+     * document it becomes are each the sum of their own lines at the moment they were written.
+     *
+     * <p>A document with no lines totals zero rather than keeping a number it cannot support.
+     *
+     * @param stockAdjustment The document, with its lines already attached.
+     */
+    private void stampHeaderTotals(StockAdjustment stockAdjustment) {
+        double variance = 0.0;
+        BigDecimal value = BigDecimal.ZERO;
+        for (StockAdjustmentLineItem line : stockAdjustment.getLineItems()) {
+            if (line.getAdjustmentQuantity() != null) {
+                variance += line.getAdjustmentQuantity();
+            }
+            if (line.getTotalAdjustmentValue() != null) {
+                value = value.add(line.getTotalAdjustmentValue());
+            }
+        }
+        stockAdjustment.setTotalVarianceQuantity(variance);
+        stockAdjustment.setTotalAdjustmentValue(atColumnScale(value));
     }
 
     private StorageLocation resolveLocation(Long locationId) {

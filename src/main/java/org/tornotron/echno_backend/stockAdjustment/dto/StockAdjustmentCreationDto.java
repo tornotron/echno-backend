@@ -51,7 +51,10 @@ public class StockAdjustmentCreationDto {
     @Schema(description = "Primary reason category for the adjustment.", example = "PHYSICAL_COUNT_VARIANCE")
     private String primaryReason;
 
-    @Schema(description = "Total monetary value of the adjustment across all line items.", example = "18500.00")
+    @Schema(description = "Total monetary value of the adjustment across all line items. Summed from "
+            + "the line items, so any value sent here is ignored: it is arithmetic over figures the "
+            + "server states and a header that disagreed with the sum of its own lines would be "
+            + "reporting neither. Approving restates it from what was posted.", example = "18500.00")
     private BigDecimal totalAdjustmentValue;
 
     @Schema(description = "Date the physical count was performed.", example = "2026-01-14")
@@ -69,7 +72,11 @@ public class StockAdjustmentCreationDto {
             accessMode = Schema.AccessMode.READ_ONLY, example = "18")
     private Long submittedBy;
 
-    @Schema(description = "Total variance quantity across all line items.", example = "-120.0")
+    @Schema(description = "Total variance quantity across all line items. Summed from the line "
+            + "items, so any value sent here is ignored: each line's variance is stamped from the "
+            + "balance it was raised against, so a header total computed by the client is a sum of "
+            + "figures the server has since replaced. Approving restates it from what was posted.",
+            example = "-120.0")
     private Double totalVarianceQuantity;
 
     @Schema(description = "Line items, one per material, listing the system quantity, the counted quantity, and the variance.")

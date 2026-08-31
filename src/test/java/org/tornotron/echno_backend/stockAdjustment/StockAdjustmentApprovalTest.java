@@ -496,4 +496,45 @@ class StockAdjustmentApprovalTest {
         verify(inventoryTransactionRepository).save(any(InventoryTransaction.class));
         assertThat(adjustment.getApprovedBy()).isEqualTo(APPROVER);
     }
+
+    @Test
+    void approvingRestatesBothTotalsFromWhatItActuallyPosted() {
+        // The variance total was already restated here; the value total was not, so a posted
+        // document could carry a money figure from a draft that no longer described it.
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        adjustment.setTotalVarianceQuantity(999.0);
+        adjustment.setTotalAdjustmentValue(new BigDecimal("999.00"));
+        StockAdjustmentLineItem line = line(adjustment, 46.0, null, "damage");
+        line.setUnitValue(new BigDecimal("100.00"));
+        line.setTotalAdjustmentValue(new BigDecimal("999.00"));
+        balanceAtLocation(48.0);
+
+        service.approve(ADJUSTMENT);
+
+        assertThat(line.getAdjustmentQuantity()).isEqualTo(-2.0);
+        assertThat(line.getTotalAdjustmentValue()).isEqualByComparingTo("-200.00");
+        assertThat(adjustment.getTotalVarianceQuantity()).isEqualTo(-2.0);
+        assertThat(adjustment.getTotalAdjustmentValue()).isEqualByComparingTo("-200.00");
+    }
+
+    @Test
+    void aLineThatMovesNothingContributesNothingToEitherTotal() {
+        // The count agrees with the balance, so the line posts no ledger row. A document whose
+        // header still claimed a variance would be reporting a correction that never happened.
+        StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
+        adjustment.setTotalVarianceQuantity(999.0);
+        adjustment.setTotalAdjustmentValue(new BigDecimal("999.00"));
+        StockAdjustmentLineItem line = line(adjustment, 48.0, null, "damage");
+        line.setUnitValue(new BigDecimal("100.00"));
+        line.setTotalAdjustmentValue(new BigDecimal("999.00"));
+        balanceAtLocation(48.0);
+
+        service.approve(ADJUSTMENT);
+
+        verify(inventoryTransactionRepository, never()).save(any());
+        assertThat(line.getAdjustmentQuantity()).isEqualTo(0.0);
+        assertThat(line.getTotalAdjustmentValue()).isEqualByComparingTo("0.00");
+        assertThat(adjustment.getTotalVarianceQuantity()).isEqualTo(0.0);
+        assertThat(adjustment.getTotalAdjustmentValue()).isEqualByComparingTo("0.00");
+    }
 }
