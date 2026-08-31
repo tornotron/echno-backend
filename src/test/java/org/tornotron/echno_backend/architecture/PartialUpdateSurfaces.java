@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,48 +44,88 @@ final class PartialUpdateSurfaces {
      * @param serviceClass Fully qualified name of the service holding the update method.
      * @param methodSignature The opening text of the method declaration, used to find it in the
      *                        source. Must be unique within the file.
+     * @param refusesNull The keys that refuse an explicit null with a 400 instead of clearing the
+     *                    field. Every other key on the surface clears. See {@link #refusesNull()}
+     *                    for why this is written down here rather than read off the source.
      */
-    record UpdateSurface(Class<?> schema, String serviceClass, String methodSignature) {
+    record UpdateSurface(Class<?> schema, String serviceClass, String methodSignature,
+                         Set<String> refusesNull) {
         @Override
         public String toString() {
             return schema.getSimpleName();
         }
     }
 
+    /**
+     * The surfaces, and for each the keys that refuse a null.
+     *
+     * <p>A partial update has to tell "field absent" from "field explicitly null", which is why
+     * these endpoints take a map rather than a bean. Absence always means untouched. What an
+     * explicit null means was, until #645, three different things depending on the key: most
+     * cleared the field, two refused with a 400, and eleven reached an unguarded
+     * {@code Enum.valueOf(null)} or {@code ((Number) null).longValue()} and answered 500. The
+     * class-level schema on {@code TaskUpdateFieldsDto} meanwhile stated flatly that a null clears,
+     * which was true of seven of its nine fields.
+     *
+     * <p>The rule the eleven were settled by is not a matter of taste: <b>a null is refused where
+     * the column behind the field is {@code NOT NULL}, and clears where it is nullable</b>. The
+     * database already enforces that, so the alternative was a 500 now or a constraint violation
+     * at flush. Two keys refuse a null although their column is nullable, and both say so on their
+     * own schema: {@code TaskUpdateFieldsDto.categoryId} is a stated product rule, and
+     * {@code IssueUpdateFieldsDto.type} and {@code status} are required by the enum parser they
+     * share with creation.
+     *
+     * <p>This list is written down rather than derived from the source because the two facts that
+     * have to agree live in different places: what the service does with a null, and what the
+     * published schema says about it. {@code PartialUpdateNullBehaviourTest} holds the first to
+     * this list by calling each surface with each key set to null, and
+     * {@code PartialUpdateNullContractTest} holds the second to it by reading the annotations. A
+     * key added to a switch without a decision fails both.
+     *
+     * @return Every partial-update surface in the application.
+     */
     static List<UpdateSurface> surfaces() {
         return List.of(
                 new UpdateSurface(
                         TaskUpdateFieldsDto.class,
                         "org.tornotron.echno_backend.task.TaskService",
-                        "private void partialUpdateATask(Map<String, Object> updates, Task task)"),
+                        "private void partialUpdateATask(Map<String, Object> updates, Task task)",
+                        Set.of("status", "categoryId")),
                 new UpdateSurface(
                         IssueUpdateFieldsDto.class,
                         "org.tornotron.echno_backend.issue.IssueService",
-                        "private void partialUpdateAnIssue(Map<String, Object> updates, Issue issue)"),
+                        "private void partialUpdateAnIssue(Map<String, Object> updates, Issue issue)",
+                        Set.of("type", "status")),
                 new UpdateSurface(
                         ProjectUpdateFieldsDto.class,
                         "org.tornotron.echno_backend.project.ProjectService",
-                        "private void partialUpdateAProject(Map<String, Object> updates, Project project)"),
+                        "private void partialUpdateAProject(Map<String, Object> updates, Project project)",
+                        Set.of()),
                 new UpdateSurface(
                         OrganizationUpdateFieldsDto.class,
                         "org.tornotron.echno_backend.organization.OrganizationService",
-                        "private void partialUpdateAnOrganization(Map<String, Object> updates, Organization organization)"),
+                        "private void partialUpdateAnOrganization(Map<String, Object> updates, Organization organization)",
+                        Set.of()),
                 new UpdateSurface(
                         UserUpdateFieldsDto.class,
                         "org.tornotron.echno_backend.user.UserService",
-                        "private void applyUpdates(Map<String, Object> updates, User user)"),
+                        "private void applyUpdates(Map<String, Object> updates, User user)",
+                        Set.of()),
                 new UpdateSurface(
                         EmployeeUpdateFieldsDto.class,
                         "org.tornotron.echno_backend.employee.EmployeeService",
-                        "private void partialUpdateAnEmployee(Map<String, Object> updates, Employee employee)"),
+                        "private void partialUpdateAnEmployee(Map<String, Object> updates, Employee employee)",
+                        Set.of()),
                 new UpdateSurface(
                         LeavePolicyUpdateFieldsDto.class,
                         "org.tornotron.echno_backend.leave.LeavePolicyService",
-                        "public LeavePolicyDto updatePolicy(Long policyId, Map<String, Object> updates)"),
+                        "public LeavePolicyDto updatePolicy(Long policyId, Map<String, Object> updates)",
+                        Set.of("annualQuota")),
                 new UpdateSurface(
                         LeaveRequestUpdateFieldsDto.class,
                         "org.tornotron.echno_backend.leave.LeaveRequestService",
-                        "public LeaveRequestDto updateRequest(Long requestId, Map<String, Object> updates)"));
+                        "public LeaveRequestDto updateRequest(Long requestId, Map<String, Object> updates)",
+                        Set.of("startDate", "endDate")));
     }
 
     /**

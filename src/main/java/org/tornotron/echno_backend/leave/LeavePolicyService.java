@@ -16,6 +16,7 @@ import org.tornotron.echno_backend.leave.dto.LeavePolicyDto;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.user.UserContextService;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -229,7 +230,7 @@ public class LeavePolicyService {
             switch (key) {
                 case "leaveTypeName" -> policy.setLeaveTypeName((String) value);
                 case "description" -> policy.setDescription((String) value);
-                case "annualQuota" -> policy.setAnnualQuota(((Number) value).doubleValue());
+                case "annualQuota" -> policy.setAnnualQuota(requireAnnualQuota(value));
                 case "accrualRatePerMonth" -> policy.setAccrualRatePerMonth(
                         value != null ? ((Number) value).doubleValue() : null);
                 case "carryForwardLimit" -> policy.setCarryForwardLimit(
@@ -263,6 +264,27 @@ public class LeavePolicyService {
         LeavePolicy saved = policyRepository.save(policy);
         return leavePolicyMapper.toDto(saved);
     }
+
+    /**
+     * Reads the {@code annualQuota} key of a partial leave-policy update.
+     *
+     * <p>Null is refused rather than applied. {@code annual_quota} is a {@code NOT NULL} column, so
+     * clearing it cannot be written; before this refusal existed the branch reached
+     * {@code ((Number) null).doubleValue()} and answered 500. Every other numeric key on this
+     * switch guards null and clears, because every other numeric column is nullable. See #645.
+     *
+     * @param value The raw map value.
+     * @return The quota.
+     * @throws InvalidRequestException if the value is null.
+     */
+    private Double requireAnnualQuota(Object value) {
+        if (value == null) {
+            throw new InvalidRequestException(
+                    "A leave policy must have an annual quota; annualQuota cannot be cleared");
+        }
+        return ((Number) value).doubleValue();
+    }
+
 
     /**
      * Marks a policy inactive, keeping it for historical reference.

@@ -30,6 +30,7 @@ import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
 
 import org.tornotron.echno_backend.common.enums.OrgRole;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -332,7 +333,7 @@ public class EmployeeService {
                     employee.setEmployeeId((String) value);
                     break;
                 case "status":
-                    employee.setStatus(EmployeeStatus.valueOf((String) value));
+                    employee.setStatus(value != null ? EmployeeStatus.valueOf((String) value) : null);
                     break;
                 case "employeeName":
                     employee.setEmployeeName((String) value);
@@ -367,12 +368,7 @@ public class EmployeeService {
                     employee.setDateOfBirth(DateConversion.parseLocalDateTime(value));
                     break;
                 case "managerId":
-                    Long managerId = ((Number) value).longValue();
-                    Employee manager = employeeRepository.findByIdAndOrganizationId(managerId,TenantContext.getCurrentOrgId())
-                            .orElseThrow(() -> new ResourceNotFoundException(
-                                    "Manager with ID " + managerId + " was not found in this organization"));
-                    employeeHierarchyService.validateManager(employee, manager);
-                    employee.setManager(manager);
+                    employee.setManager(resolveManager(value, employee));
                     break;
                 default:
                     // Nothing is dropped on purpose here. The keys echno-core sends that this
@@ -385,6 +381,36 @@ public class EmployeeService {
             }
         });
     }
+
+    /**
+     * Reads the {@code managerId} key of a partial employee update.
+     *
+     * <p>Null clears the manager, which is what {@code manager_id} being a nullable join column
+     * already allows and what the top of a reporting line is. Before this branch existed the value
+     * went straight into {@code ((Number) value).longValue()} and a null answered 500, so there
+     * was no way to detach an employee from their manager. See #645.
+     *
+     * @param value The raw map value: an employee id, or null to clear the manager.
+     * @param employee The employee being updated, needed to check the hierarchy stays acyclic.
+     * @return The resolved manager, or null.
+     * @throws InvalidRequestException if the value is neither null nor a number.
+     * @throws ResourceNotFoundException if no such employee belongs to the caller's organization.
+     */
+    private Employee resolveManager(Object value, Employee employee) {
+        if (value == null) {
+            return null;
+        }
+        if (!(value instanceof Number number)) {
+            throw new InvalidRequestException("managerId must be a number");
+        }
+        Long managerId = number.longValue();
+        Employee manager = employeeRepository.findByIdAndOrganizationId(managerId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Manager with ID " + managerId + " was not found in this organization"));
+        employeeHierarchyService.validateManager(employee, manager);
+        return manager;
+    }
+
 
     /**
      * Assigns a manager to an employee. Delegates to {@link EmployeeHierarchyService}.

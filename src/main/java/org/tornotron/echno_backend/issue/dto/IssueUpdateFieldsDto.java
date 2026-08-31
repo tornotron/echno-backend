@@ -14,25 +14,30 @@ import org.tornotron.echno_backend.issue.enums.IssueType;
  * <p>Its field list is kept honest by {@code PartialUpdateSchemaContractTest}, which reads the keys
  * {@code IssueService.partialUpdateAnIssue} actually accepts out of that method's source.
  */
-@Schema(description = "Fields a partial issue update may change. Every field is optional; only the "
-        + "fields present in the request are applied. Keys not listed here are ignored.")
+@Schema(description = "Fields a partial issue update may change. "
+        + "Every field is optional and an absent field is left untouched. A field this schema "
+        + "declares nullable is cleared by sending an explicit null; a field it does not declare "
+        + "nullable refuses a null with a 400 rather than clearing. Keys not listed here are "
+        + "ignored.")
 @Data
 public class IssueUpdateFieldsDto {
 
-    @Schema(description = "Short issue title.", example = "Rebar spacing off on grid C")
+    @Schema(nullable = true, description = "Short issue title.", example = "Rebar spacing off on grid C")
     private String title;
 
-    @Schema(description = "Longer description of the issue.",
+    @Schema(nullable = true, description = "Longer description of the issue.",
             example = "Spacing measured at 220 mm against a specified 200 mm across grid C.")
     private String description;
 
-    @Schema(description = "Category of the issue.")
+    @Schema(description = "Category of the issue. Cannot be cleared: a null or blank value is "
+            + "refused with a 400 rather than applied.")
     private IssueType type;
 
-    @Schema(description = "Lifecycle status of the issue.")
+    @Schema(description = "Lifecycle status of the issue. Cannot be cleared: a null or blank value "
+            + "is refused with a 400 rather than applied.")
     private IssueStatus status;
 
-    @Schema(description = "Id of the employee the issue is assigned to. The employee must belong to "
-            + "the caller's organization.", example = "17")
+    @Schema(nullable = true, description = "Id of the employee the issue is assigned to. The employee must belong to "
+            + "the caller's organization. Send null to unassign the issue.", example = "17")
     private Long assignedToId;
 }

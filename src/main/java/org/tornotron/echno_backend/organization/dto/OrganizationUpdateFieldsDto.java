@@ -13,28 +13,31 @@ import lombok.Data;
  * {@code OrganizationService.partialUpdateAnOrganization} actually accepts out of that method's
  * source.
  */
-@Schema(description = "Fields a partial organization update may change. Every field is optional; "
-        + "only the fields present in the request are applied. Keys not listed here are ignored.")
+@Schema(description = "Fields a partial organization update may change. "
+        + "Every field is optional and an absent field is left untouched. A field this schema "
+        + "declares nullable is cleared by sending an explicit null; a field it does not declare "
+        + "nullable refuses a null with a 400 rather than clearing. Keys not listed here are "
+        + "ignored.")
 @Data
 public class OrganizationUpdateFieldsDto {
 
-    @Schema(description = "Registered name of the organization.", example = "Asset Homes")
+    @Schema(nullable = true, description = "Registered name of the organization.", example = "Asset Homes")
     private String organizationName;
 
-    @Schema(description = "Postal address of the organization.",
+    @Schema(nullable = true, description = "Postal address of the organization.",
             example = "IIT Madras Research Park, Chennai 600113")
     private String organizationAddress;
 
-    @Schema(description = "Contact email for the organization.", example = "info@echno.xyz")
+    @Schema(nullable = true, description = "Contact email for the organization.", example = "info@echno.xyz")
     private String organizationEmail;
 
-    @Schema(description = "Contact phone number for the organization.", example = "+91 44 4000 0000")
+    @Schema(nullable = true, description = "Contact phone number for the organization.", example = "+91 44 4000 0000")
     private String organizationPhone;
 
-    @Schema(description = "Public website of the organization.", example = "https://echno.xyz")
+    @Schema(nullable = true, description = "Public website of the organization.", example = "https://echno.xyz")
     private String organizationWebsite;
 
-    @Schema(description = "Stored key or URL of the organization logo.",
+    @Schema(nullable = true, description = "Stored key or URL of the organization logo.",
             example = "organizations/2/logo.png")
     private String organizationLogo;
 }

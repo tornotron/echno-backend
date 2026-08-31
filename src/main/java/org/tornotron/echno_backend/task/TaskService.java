@@ -346,7 +346,7 @@ public class TaskService {
                     }
                     break;
                 case "status":
-                    task.setStatus(TaskStatus.valueOf((String) value));
+                    task.setStatus(requireStatus(value));
                     break;
                 case "tags":
                     updateTags(value, task);
@@ -364,6 +364,25 @@ public class TaskService {
             }
         });
     }
+
+    /**
+     * Reads the {@code status} key of a partial task update.
+     *
+     * <p>Null is refused rather than applied. {@code Task.status} is a {@code NOT NULL} column, so
+     * clearing it cannot be written; before this refusal existed the branch reached
+     * {@code TaskStatus.valueOf(null)} and answered 500. See #645.
+     *
+     * @param value The raw map value.
+     * @return The parsed status.
+     * @throws InvalidRequestException if the value is null.
+     */
+    private TaskStatus requireStatus(Object value) {
+        if (value == null) {
+            throw new InvalidRequestException("A task must have a status; status cannot be cleared");
+        }
+        return TaskStatus.valueOf((String) value);
+    }
+
 
     /**
      * Resolves the replacement assignee set for a task update.
