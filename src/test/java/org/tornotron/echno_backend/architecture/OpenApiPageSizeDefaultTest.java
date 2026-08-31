@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Every paginated endpoint publishes the page size it actually serves.
  *
  * <p>{@code PageQuery} is one parameter object shared by fifty-odd endpoints, so a page size
- * written on its field is one number for all of them. Twelve of them do not serve that number:
+ * written on its field is one number for all of them. Thirteen of them do not serve that number:
  * they serve twenty, and the chat message listing serves thirty. The document said ten for every
  * one of them, so a client that read the contract, planned for ten rows and sent no
  * {@code pageSize} was handed twenty with nothing to tell it why. That matters here more than it
@@ -46,9 +46,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * discover it, by constructing the declared parameter type exactly as Spring's binding does and
  * reading the size a caller who sends nothing is left with. So it fails for a document that is
  * stale, for a customizer that is removed, and for an endpoint that grows a default the document
- * was never told about, which is the thirteenth call site this whole arrangement exists to catch.
+ * was never told about, which is the next call site this whole arrangement exists to catch. The
+ * thirteenth arrived from another branch while this was being written, which is roughly the point.
  *
- * <p>Run against {@code docs/openapi.json} as it stood before the fix it reports all twelve.
+ * <p>Run against {@code docs/openapi.json} as it stood before the fix it reports all thirteen.
  *
  * <p>It reads the committed document rather than booting an application, for the reason
  * {@link OpenApiNullabilityTest} gives: {@code OpenApiSnapshotTest} already holds that copy to the
