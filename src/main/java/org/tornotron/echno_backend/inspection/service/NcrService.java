@@ -67,16 +67,29 @@ public class NcrService {
     /**
      * The NCR register, and with {@code open} the punch list the functional spec
      * asks for: every non-conformance still outstanding, across inspections.
+     *
+     * <p>{@code siteEngineerId}, {@code raisedById}, {@code verifiedById} and
+     * {@code closedById} are all employee ids, not user ids: every one of them is
+     * written from {@link #currentEmployeeId()} or from an assignment that was
+     * checked against this organization's employees. They answer the question a QA
+     * lead actually asks of a person, which is which reports they raised, accepted
+     * or closed, and they narrow the page server-side because narrowing it in the
+     * browser would filter one page of a paged result and quietly drop every match
+     * outside it.
      */
     @Transactional(readOnly = true)
     public Page<NcrDto> findAll(UUID inspectionId,
                                 NcrType type,
                                 NcrStatus status,
                                 Long siteEngineerId,
+                                Long raisedById,
+                                Long verifiedById,
+                                Long closedById,
                                 Boolean open,
                                 Pageable pageable) {
         return ncrRepo.findAll(
-                        NcrSpecifications.withFilters(inspectionId, type, status, siteEngineerId, open),
+                        NcrSpecifications.withFilters(inspectionId, type, status, siteEngineerId,
+                                raisedById, verifiedById, closedById, open),
                         pageable)
                 .map(mapper::toDto);
     }

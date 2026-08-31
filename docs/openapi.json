@@ -74696,7 +74696,7 @@
     },
     "/api/v1/ncrs/web": {
       "get": {
-        "description": "Returns a page of NCRs in the current tenant. Every parameter is an optional filter. Setting open=true returns the punch list: every NCR that has not been closed, whatever stage it has reached.",
+        "description": "Returns a page of NCRs in the current tenant. Every parameter is an optional filter, and they narrow together. Setting open=true returns the punch list: every NCR that has not been closed, whatever stage it has reached. siteEngineerId, raisedById, verifiedById and closedById are employee ids, the same ids the employee directory hands out, and they answer a person's trail through the register: what they were given, what they raised, what they accepted on re-inspection and what they closed.",
         "operationId": "list",
         "parameters": [
           {
@@ -74740,6 +74740,33 @@
           {
             "in": "query",
             "name": "siteEngineerId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "raisedById",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "verifiedById",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "closedById",
             "required": false,
             "schema": {
               "format": "int64",

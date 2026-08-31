@@ -85,8 +85,12 @@ public class NcrControllerWeb {
     @Operation(
             summary = "List non-conformance reports",
             description = "Returns a page of NCRs in the current tenant. Every parameter is an "
-                    + "optional filter. Setting open=true returns the punch list: every NCR that has "
-                    + "not been closed, whatever stage it has reached."
+                    + "optional filter, and they narrow together. Setting open=true returns the "
+                    + "punch list: every NCR that has not been closed, whatever stage it has "
+                    + "reached. siteEngineerId, raisedById, verifiedById and closedById are "
+                    + "employee ids, the same ids the employee directory hands out, and they "
+                    + "answer a person's trail through the register: what they were given, what "
+                    + "they raised, what they accepted on re-inspection and what they closed."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of matching NCRs"),
@@ -96,9 +100,13 @@ public class NcrControllerWeb {
                              @RequestParam(required = false) NcrType type,
                              @RequestParam(required = false) NcrStatus status,
                              @RequestParam(required = false) Long siteEngineerId,
+                             @RequestParam(required = false) Long raisedById,
+                             @RequestParam(required = false) Long verifiedById,
+                             @RequestParam(required = false) Long closedById,
                              @RequestParam(required = false) Boolean open,
                              Pageable pageable) {
-        return service.findAll(inspectionId, type, status, siteEngineerId, open, pageable);
+        return service.findAll(inspectionId, type, status, siteEngineerId,
+                raisedById, verifiedById, closedById, open, pageable);
     }
 
     @PostMapping("/{id}/assign")

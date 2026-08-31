@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="079-index-ncr-people-columns" author="echno">
+        <comment>
+            The NCR listing can now be narrowed to the person who raised a report, the person who
+            accepted the corrective work on re-inspection and the person who closed it, the same way
+            it could already be narrowed to the site engineer who owns it. Those three columns had no
+            index, because until now nothing selected on them: they were written once and read back
+            on the one report being looked at.
+
+            A filter turns them into a query predicate over the whole register, so each gets the index
+            site_engineer_id already has. Without them the equality filter degrades to a scan of every
+            NCR in the tenant, which is the shape that stops being cheap exactly when a client has
+            enough history to want the filter.
+        </comment>
+
+        <createIndex tableName="ncrs" indexName="idx_ncr_raised_by">
+            <column name="raised_by_id"/>
+        </createIndex>
+        <createIndex tableName="ncrs" indexName="idx_ncr_verified_by">
+            <column name="verified_by_id"/>
+        </createIndex>
+        <createIndex tableName="ncrs" indexName="idx_ncr_closed_by">
+            <column name="closed_by_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="ncrs" indexName="idx_ncr_raised_by"/>
+            <dropIndex tableName="ncrs" indexName="idx_ncr_verified_by"/>
+            <dropIndex tableName="ncrs" indexName="idx_ncr_closed_by"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

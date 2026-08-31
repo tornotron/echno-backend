@@ -165,7 +165,7 @@ class NcrReportPdfServiceTest {
                     LocalDateTime.of(2026, 8, 21, 10, 0), LocalDateTime.of(2026, 8, 21, 10, 0)));
         }
         Page<NcrDto> page = new PageImpl<>(content, PageRequest.of(0, 500), rows);
-        when(ncrService.findAll(any(), any(), any(), any(), eq(Boolean.TRUE), any()))
+        when(ncrService.findAll(any(), any(), any(), any(), any(), any(), any(), eq(Boolean.TRUE), any()))
                 .thenReturn(page);
     }
 

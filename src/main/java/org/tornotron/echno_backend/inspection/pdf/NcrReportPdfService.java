@@ -128,7 +128,7 @@ public class NcrReportPdfService {
     public RenderedReport renderPunchList(UUID inspectionId, NcrType type, Long siteEngineerId)
             throws IOException {
         Page<NcrDto> page = ncrService.findAll(
-                inspectionId, type, null, siteEngineerId, Boolean.TRUE,
+                inspectionId, type, null, siteEngineerId, null, null, null, Boolean.TRUE,
                 PageRequest.of(0, UnpagedResultCap.MAX_ROWS,
                         Sort.by(Sort.Direction.DESC, "createdAt")));
 

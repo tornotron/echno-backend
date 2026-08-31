@@ -24,6 +24,9 @@ public final class NcrSpecifications {
                                                  NcrType type,
                                                  NcrStatus status,
                                                  Long siteEngineerId,
+                                                 Long raisedById,
+                                                 Long verifiedById,
+                                                 Long closedById,
                                                  Boolean open) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -38,6 +41,20 @@ public final class NcrSpecifications {
             }
             if (siteEngineerId != null) {
                 predicates.add(cb.equal(root.get("siteEngineerId"), siteEngineerId));
+            }
+            // The three people the accountability trail names, each an employee id of
+            // this tenant. They narrow within the tenant and never past it: the org
+            // scope is a separate condition the filter adds to every query, so an id
+            // belonging to somebody in another organization matches no row here rather
+            // than reaching their reports.
+            if (raisedById != null) {
+                predicates.add(cb.equal(root.get("raisedById"), raisedById));
+            }
+            if (verifiedById != null) {
+                predicates.add(cb.equal(root.get("verifiedById"), verifiedById));
+            }
+            if (closedById != null) {
+                predicates.add(cb.equal(root.get("closedById"), closedById));
             }
             if (open != null) {
                 // The punch list: everything still outstanding, which is every NCR that
