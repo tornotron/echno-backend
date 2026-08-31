@@ -70,7 +70,7 @@ public class ProjectSummaryDto {
     @Schema(description = "Planned completion date of the project.", example = "2027-06-30T00:00:00")
     private LocalDateTime endDate;
 
-    @Schema(description = "Overall completion of the project, as a fraction from 0 to 1. The same "
-            + "figure the full project view reports.", example = "0.35")
+    @Schema(description = "Overall completion of the project, as a percentage from 0 to 100. The "
+            + "same figure the full project view reports.", example = "35.0")
     private Double progress;
 }

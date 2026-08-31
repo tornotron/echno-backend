@@ -13312,8 +13312,8 @@
             "type": "integer"
           },
           "progress": {
-            "description": "Overall completion of the project, as a fraction from 0 to 1.",
-            "example": 0.35,
+            "description": "Overall completion of the project, as a percentage from 0 to 100. The mean of the project's task progress values.",
+            "example": 35.0,
             "format": "double",
             "type": "number"
           },
@@ -13488,8 +13488,8 @@
             "type": "integer"
           },
           "progress": {
-            "description": "Overall completion of the project, as a fraction from 0 to 1.",
-            "example": 0.35,
+            "description": "Overall completion of the project, as a percentage from 0 to 100. The mean of the project's task progress values, the same figure the full project view reports. Zero for a project that has no tasks yet.",
+            "example": 35.0,
             "format": "double",
             "type": "number"
           },
@@ -13602,8 +13602,8 @@
             "type": "integer"
           },
           "progress": {
-            "description": "Overall completion of the project, as a fraction from 0 to 1. The same figure the full project view reports.",
-            "example": 0.35,
+            "description": "Overall completion of the project, as a percentage from 0 to 100. The same figure the full project view reports.",
+            "example": 35.0,
             "format": "double",
             "type": "number"
           },
@@ -16849,8 +16849,8 @@
             "type": "array"
           },
           "progress": {
-            "description": "Completion of the task, as a fraction from 0 to 1.",
-            "example": 0.5,
+            "description": "Completion of the task, as a percentage from 0 to 100.",
+            "example": 50.0,
             "format": "double",
             "type": "number"
           },
