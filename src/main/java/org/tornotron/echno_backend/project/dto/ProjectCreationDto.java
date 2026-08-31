@@ -18,6 +18,14 @@ import java.util.UUID;
 @Data
 public class ProjectCreationDto {
 
+    /**
+     * The longest description the API accepts. The column behind it is TEXT, so this is a policy
+     * bound rather than a storage one and can be raised without a migration. Read by
+     * {@code ProjectService} so the partial-update path holds the same line, and named on
+     * {@code ProjectUpdateFieldsDto} so the published schema says so.
+     */
+    public static final int MAX_DESCRIPTION_LENGTH = 2000;
+
     @Schema(description = "Project name.", example = "Tower B, Riverside Residences")
     @NotBlank(message = "projectName is required")
     @Size(min = 3,max = 50,message = "projectName must be between 3 and 50 characters")
@@ -25,7 +33,7 @@ public class ProjectCreationDto {
 
     @Schema(description = "Optional free-text description of the project.",
             example = "Twelve-storey residential tower, two basement levels, handover Q2 2027.")
-    @Size(max = 2000, message = "description must be at most 2000 characters")
+    @Size(max = MAX_DESCRIPTION_LENGTH, message = "description must be at most 2000 characters")
     private String description;
 
     @Schema(description = "Street address of the site, as one line.", example = "12 Marina Road, Mylapore")

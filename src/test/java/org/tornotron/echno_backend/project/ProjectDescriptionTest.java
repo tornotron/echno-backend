@@ -38,6 +38,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
@@ -165,6 +166,24 @@ class ProjectDescriptionTest {
         Project project = updateWith(existing, singletonUpdate("description", ""));
 
         assertThat(project.getDescription()).isNull();
+    }
+
+    @Test
+    @DisplayName("partial update refuses a description past the same bound the create payload uses")
+    void partialUpdate_boundsTheDescriptionLength() {
+        // No bean validation runs on the map the patch endpoint keeps, so without this the bound
+        // would apply to creates alone and a project could be patched to any length at all.
+        assertThatThrownBy(() -> updateWith(Map.of("description", "x".repeat(2001))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("description must be at most 2000 characters");
+    }
+
+    @Test
+    @DisplayName("partial update accepts a description exactly at the bound")
+    void partialUpdate_acceptsADescriptionAtTheBound() {
+        Project project = updateWith(Map.of("description", "x".repeat(2000)));
+
+        assertThat(project.getDescription()).hasSize(2000);
     }
 
     @Test

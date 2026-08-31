@@ -367,7 +367,7 @@ public class ProjectService {
                     project.setProjectName((String) value);
                     break;
                 case "description":
-                    project.setDescription(trimToNull((String) value));
+                    project.setDescription(requireDescriptionWithinBound(trimToNull((String) value)));
                     break;
                 case "projectAddress":
                     project.setProjectAddress((String) value);
@@ -588,6 +588,27 @@ public class ProjectService {
                             + "one. Set the project's state (for example Tamil Nadu) and approve it "
                             + "again.");
         }
+    }
+
+    /**
+     * Holds a patched description to the same length the create payload is validated against.
+     *
+     * <p>The patch endpoint keeps its payload as a map, so no bean validation runs on it and the
+     * bound the create payload publishes would otherwise apply to creates alone: a project could
+     * be created with at most 2000 characters and then patched to any length at all. The column
+     * is TEXT and would take it, which is what makes this worth checking rather than leaving to
+     * the database. The two bounds are the same constant, so they cannot drift apart.
+     *
+     * @param description The description as patched, already trimmed, possibly null.
+     * @return The same value, when it is within the bound.
+     * @throws IllegalArgumentException if it is longer than the payload accepts.
+     */
+    private String requireDescriptionWithinBound(String description) {
+        if (description != null && description.length() > ProjectCreationDto.MAX_DESCRIPTION_LENGTH) {
+            throw new IllegalArgumentException("description must be at most "
+                    + ProjectCreationDto.MAX_DESCRIPTION_LENGTH + " characters");
+        }
+        return description;
     }
 
     /**
