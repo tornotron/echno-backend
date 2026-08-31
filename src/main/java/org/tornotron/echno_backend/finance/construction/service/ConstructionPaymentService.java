@@ -159,11 +159,14 @@ public class ConstructionPaymentService {
      * Records that the voucher has been verified, stamping the verifier from the session and the
      * time from the clock.
      *
-     * <p>This is an action rather than a pair of editable fields for the reason every attribution
-     * stamp on this codebase became session-derived: a stamp a caller can write is a statement
-     * about someone else that nobody made. On a payment voucher it is wrong twice over, because
-     * the record would name a person who never checked the payment and would say so silently.
-     * {@link #update} therefore cannot reach these two columns at all.
+     * <p>This is an action rather than a pair of editable fields for the reason the attribution
+     * stamps in this module are session-derived: a stamp a caller can write is a statement about
+     * someone else that nobody made. On a payment voucher it is wrong twice over, because the
+     * record would name a person who never checked the payment and would say so silently.
+     * {@link #update} therefore cannot reach these two columns at all. The one instance of the
+     * same shape still outstanding is
+     * {@code MovementRecordService.verifyMovement}, which takes its verifier from a request
+     * parameter.
      *
      * <p>Verification is refused where there is nothing left to verify: a cancelled voucher, and a
      * voucher already verified. Re-verifying is not an idempotent no-op, it would overwrite a
