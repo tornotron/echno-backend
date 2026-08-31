@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.tornotron.echno_backend.common.history.dto.StatusTransitionDto;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderCreationDto;
@@ -69,6 +70,39 @@ public class PurchaseOrderControllerWeb {
     public ResponseEntity<PurchaseOrderDto> getPurchaseOrderById(@PathVariable Long id) {
         PurchaseOrderDto purchaseOrder = purchaseOrderService.getPurchaseOrderById(id);
         return ResponseEntity.ok(purchaseOrder);
+    }
+
+    /**
+     * Reads a purchase order's status trail.
+     *
+     * @param id        The ID of the purchase order whose trail to read.
+     * @param pageQuery The page bounds.
+     * @return A {@link ResponseEntity} containing a page of trail entries and HTTP status 200 (OK).
+     */
+    @GetMapping("/{id}/status-history")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @Operation(
+            summary = "Read a purchase order's status trail",
+            description = "Returns a page of the order's status entries, newest first: what it moved "
+                    + "from, what it moved to, when, and by whom. An entry sourced SYSTEM names no "
+                    + "person because none decided it: the order reached PARTIALLY_RECEIVED or "
+                    + "FULLY_RECEIVED because the quantities received against it said so, and the "
+                    + "note on the entry names the goods receipt that last moved it. Follow that "
+                    + "receipt to find who filed it. Entries begin where recording began, so an order "
+                    + "raised before the trail existed carries a single BASELINE entry naming the "
+                    + "status it was observed to hold at that moment."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of status entries returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No purchase order with the given id")
+    })
+    public ResponseEntity<Page<StatusTransitionDto>> readStatusHistory(
+            @PathVariable Long id,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return new ResponseEntity<>(
+                purchaseOrderService.getStatusHistory(id, pageQuery.getPageNo(), pageQuery.pageSizeOr(20)),
+                HttpStatus.OK);
     }
 
     @GetMapping

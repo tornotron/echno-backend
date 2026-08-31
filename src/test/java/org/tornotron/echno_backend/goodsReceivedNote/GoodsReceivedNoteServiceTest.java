@@ -28,6 +28,7 @@ import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
+import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderReceiptReconciler;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.user.UserRepository;
@@ -44,6 +45,7 @@ import java.util.function.Supplier;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -78,6 +80,7 @@ class GoodsReceivedNoteServiceTest {
     @Mock private PurchaseOrderRepository purchaseOrderRepository;
     @Mock private DocumentNumberAllocator documentNumberAllocator;
     @Mock private TransactionRetryTemplate retryTemplate;
+    @Mock private PurchaseOrderReceiptReconciler purchaseOrderReceiptReconciler;
 
     private GoodsReceivedNoteService service;
 
@@ -89,7 +92,9 @@ class GoodsReceivedNoteServiceTest {
                 vendorRepository, userRepository, materialRepository, eventPublisher,
                 goodsReceivedNoteMapper, tenantEntityHelper, employeeRepository, projectRepository,
                 storageLocationRepository, purchaseOrderRepository,
-                documentNumberAllocator, retryTemplate);
+                documentNumberAllocator, retryTemplate, purchaseOrderReceiptReconciler);
+        lenient().when(purchaseOrderReceiptReconciler.applyReceipt(any(), any(), any(), anyBoolean()))
+                .thenReturn(new PurchaseOrderReceiptReconciler.ReceiptOutcome(0, false, null));
         // The template's own behaviour is covered by its own tests; here it just runs the work.
         lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
                 .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());

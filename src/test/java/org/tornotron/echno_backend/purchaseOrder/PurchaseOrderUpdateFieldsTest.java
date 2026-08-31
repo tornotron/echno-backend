@@ -72,6 +72,10 @@ class PurchaseOrderUpdateFieldsTest {
     @Mock private IndentItemRepository indentItemRepository;
     @Mock private DocumentNumberAllocator documentNumberAllocator;
     @Mock private TransactionRetryTemplate retryTemplate;
+    @Mock private org.tornotron.echno_backend.common.history.StatusTransitionRecorder statusTransitionRecorder;
+    @Mock private org.tornotron.echno_backend.common.history.StatusTransitionRepository statusTransitionRepository;
+    @Mock private org.tornotron.echno_backend.common.history.mapper.StatusTransitionMapper statusTransitionMapper;
+    @Mock private org.tornotron.echno_backend.user.UserContextService userContextService;
     @Mock private PurchaseOrderService purchaseOrderService;
 
     @BeforeEach
@@ -97,7 +101,11 @@ class PurchaseOrderUpdateFieldsTest {
                 materialRepository,
                 indentItemRepository,
                 documentNumberAllocator,
-                retryTemplate);
+                retryTemplate,
+                statusTransitionRecorder,
+                statusTransitionRepository,
+                statusTransitionMapper,
+                userContextService);
     }
 
     private PurchaseOrderItemService itemService() {

@@ -5639,8 +5639,13 @@
         "type": "object"
       },
       "GoodsReceivedNoteCreationDto": {
-        "description": "Payload to record a goods received note. The received quantities on the items are posted into stock at the given storage location. The GRN number is allocated by the server and returned on the created note; it is not part of this payload.",
+        "description": "Payload to record a goods received note. The received quantities on the items are posted into stock at the given storage location and added to the matching lines of the purchase order, whose status then follows from the quantities received against it. The GRN number is allocated by the server and returned on the created note; it is not part of this payload.",
         "properties": {
+          "allowOverReceipt": {
+            "description": "Set this when the delivery really did exceed the purchase order and the site took it anyway. Without it, a line that would take a material past the quantity ordered is refused, which is what catches a mistyped quantity. With it the excess is recorded and the note is marked as an acknowledged over-receipt. It has no effect on a receipt that stays within the order.",
+            "example": false,
+            "type": "boolean"
+          },
           "deliveryChallanNumber": {
             "description": "Vendor delivery challan number.",
             "example": "DC-88213",
@@ -5750,6 +5755,11 @@
               "$ref": "#/components/schemas/GrnItemDto"
             },
             "type": "array"
+          },
+          "overReceiptAcknowledged": {
+            "description": "True when this receipt took a material past the quantity its purchase order asked for and the excess was acknowledged on the payload.",
+            "example": false,
+            "type": "boolean"
           },
           "projectId": {
             "description": "Project the goods were received for.",
@@ -5878,7 +5888,7 @@
             "type": "string"
           },
           "orderedQuantity": {
-            "description": "Quantity ordered for this material.",
+            "description": "Quantity ordered for this material. Where the material is on the cited purchase order, the value returned is the order's, not the one submitted: the order is the authority on what was ordered.",
             "example": 100,
             "format": "int32",
             "minimum": 0,
@@ -43022,7 +43032,7 @@
         ]
       },
       "post": {
-        "description": "Records a goods receipt from a vendor with its line items. The received quantities are posted into stock at the given storage location as GRN transactions.",
+        "description": "Records a goods receipt from a vendor with its line items. The received quantities are posted into stock at the given storage location as GRN transactions, and added to the matching lines of the purchase order the note cites, whose status then follows from the quantities received against it. A line that would take a material past the quantity ordered is refused unless the payload sets allowOverReceipt, and nothing is posted when it is refused.",
         "operationId": "createGrn",
         "requestBody": {
           "content": {
@@ -43053,7 +43063,7 @@
                 }
               }
             },
-            "description": "Validation failed on the request body"
+            "description": "Validation failed on the request body, or a line would take a material past the quantity its purchase order asked for and the over-receipt was not acknowledged"
           },
           "402": {
             "content": {
@@ -43719,7 +43729,7 @@
         ]
       },
       "post": {
-        "description": "Creates a GRN recording materials received against a vendor with its line items.",
+        "description": "Creates a GRN recording materials received against a vendor with its line items. The received quantities are posted into stock and added to the matching lines of the purchase order the note cites, whose status then follows from the quantities received against it. A line that would take a material past the quantity ordered is refused unless the payload sets allowOverReceipt, and nothing is posted when it is refused.",
         "operationId": "createGrn_1",
         "requestBody": {
           "content": {
@@ -43750,7 +43760,7 @@
                 }
               }
             },
-            "description": "A field failed validation"
+            "description": "A field failed validation, or a line would take a material past the quantity its purchase order asked for and the over-receipt was not acknowledged"
           },
           "402": {
             "content": {
@@ -81764,7 +81774,7 @@
     "/api/v1/project/web/{id}/status-history": {
       "get": {
         "description": "Returns a page of the project's status entries, newest first: what it moved from, what it moved to, when, by whom, and whether the status was set when the project was created or changed afterwards. Approval is the transition that carries behaviour, since it draws up the project's compliance inspections, so this is where to read who approved a project and when. Entries begin where recording began: a project created before the trail existed carries a single BASELINE entry naming the status it was observed to hold at that moment, with no actor and no earlier status, because nothing else can truthfully be said about a history nobody recorded.",
-        "operationId": "readStatusHistory",
+        "operationId": "readStatusHistory_1",
         "parameters": [
           {
             "in": "path",
@@ -89086,6 +89096,146 @@
           }
         },
         "summary": "Update a purchase order's status",
+        "tags": [
+          "Purchase Orders (Web)"
+        ]
+      }
+    },
+    "/api/v1/purchase-orders/web/{id}/status-history": {
+      "get": {
+        "description": "Returns a page of the order's status entries, newest first: what it moved from, what it moved to, when, and by whom. An entry sourced SYSTEM names no person because none decided it: the order reached PARTIALLY_RECEIVED or FULLY_RECEIVED because the quantities received against it said so, and the note on the entry names the goods receipt that last moved it. Follow that receipt to find who filed it. Entries begin where recording began, so an order raised before the trail existed carries a single BASELINE entry naming the status it was observed to hold at that moment.",
+        "operationId": "readStatusHistory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageStatusTransitionDto"
+                }
+              }
+            },
+            "description": "Page of status entries returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No purchase order with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Read a purchase order's status trail",
         "tags": [
           "Purchase Orders (Web)"
         ]

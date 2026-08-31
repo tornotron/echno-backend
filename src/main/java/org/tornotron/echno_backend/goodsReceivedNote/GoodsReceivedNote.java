@@ -71,6 +71,19 @@ public class GoodsReceivedNote implements TenantScopedEntity {
     @JoinColumn(name = "purchase_order_id")
     private PurchaseOrder purchaseOrder;
 
+    /**
+     * Whether this receipt took a material past the quantity its purchase order asked for, and
+     * whoever filed it said in the payload that the excess was real.
+     *
+     * <p>An over-receipt is refused by default, so a note carrying this flag is one somebody
+     * deliberately let through. It is kept on the document rather than derived later because the
+     * order's quantities go on moving after this receipt, and a reader six months on needs to
+     * know that this delivery was the one that exceeded the order and that it was not an
+     * accident.
+     */
+    @Column(name = "over_receipt_acknowledged", nullable = false)
+    private boolean overReceiptAcknowledged = false;
+
     @OneToMany(mappedBy = "goodsReceivedNote")
     private List<Payable> payables = new ArrayList<>();
 

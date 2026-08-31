@@ -43,11 +43,15 @@ public class GoodsReceivedNoteControllerWeb {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Create a goods received note",
-            description = "Creates a GRN recording materials received against a vendor with its line items."
+            description = "Creates a GRN recording materials received against a vendor with its line items. "
+                    + "The received quantities are posted into stock and added to the matching lines of the "
+                    + "purchase order the note cites, whose status then follows from the quantities received "
+                    + "against it. A line that would take a material past the quantity ordered is refused "
+                    + "unless the payload sets allowOverReceipt, and nothing is posted when it is refused."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Goods received note created"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation, or a line would take a material past the quantity its purchase order asked for and the over-receipt was not acknowledged"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<GoodsReceivedNoteDto> createGrn(@Valid @RequestBody GoodsReceivedNoteCreationDto creationDto) {
