@@ -36,7 +36,11 @@ public class StockAdjustmentLineItemCreationDto {
     @Schema(description = "Value per unit.", example = "380.00")
     private BigDecimal unitValue;
 
-    @Schema(description = "Total monetary value of this line's adjustment.", example = "-7600.00")
+    @Schema(description = "Total monetary value of this line's adjustment. Computed as the stamped "
+            + "adjustment quantity times the unit value, so any value sent here is ignored whenever "
+            + "both of those are known. A line carrying no unit value keeps what was sent, because "
+            + "there is nothing to multiply by; approving such a line writes its value from the "
+            + "running average cost the ledger entry was posted at.", example = "-7600.00")
     private BigDecimal totalAdjustmentValue;
 
     @Schema(description = "Reason category for this line's variance.", example = "DAMAGE")

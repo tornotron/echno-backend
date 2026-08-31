@@ -16033,12 +16033,12 @@
             "type": "integer"
           },
           "totalAdjustmentValue": {
-            "description": "Total monetary value of the adjustment across all line items.",
+            "description": "Total monetary value of the adjustment across all line items. Summed from the line items, so any value sent here is ignored: it is arithmetic over figures the server states and a header that disagreed with the sum of its own lines would be reporting neither. Approving restates it from what was posted.",
             "example": 18500.0,
             "type": "number"
           },
           "totalVarianceQuantity": {
-            "description": "Total variance quantity across all line items.",
+            "description": "Total variance quantity across all line items. Summed from the line items, so any value sent here is ignored: each line's variance is stamped from the balance it was raised against, so a header total computed by the client is a sum of figures the server has since replaced. Approving restates it from what was posted.",
             "example": -120.0,
             "format": "double",
             "type": "number"
@@ -16322,7 +16322,7 @@
             "type": "number"
           },
           "totalAdjustmentValue": {
-            "description": "Total monetary value of this line's adjustment.",
+            "description": "Total monetary value of this line's adjustment. Computed as the stamped adjustment quantity times the unit value, so any value sent here is ignored whenever both of those are known. A line carrying no unit value keeps what was sent, because there is nothing to multiply by; approving such a line writes its value from the running average cost the ledger entry was posted at.",
             "example": -7600.0,
             "type": "number"
           },
@@ -106979,7 +106979,7 @@
       "name": "Materials"
     },
     {
-      "description": "Web-console counterpart of the materials API, restricted to the system-admin role for the current tenant. Covers the same create, browse, search, update, stock lookup and delete operations as the standard materials endpoints, for use from the admin web console rather than the mobile app.",
+      "description": "Web-console counterpart of the materials API, gated by organization role for the current tenant. Covers the same create, browse, search, update, stock lookup and delete operations as the standard materials endpoints, for use from the admin web console rather than the mobile app. Reads, including the stock lookup, are open to the system-admin and project-manager roles, because a project manager raises and approves stock adjustments and those are documents about a material's balance. Changing the catalogue, its thresholds included, stays with system-admin.",
       "name": "Materials (Web)"
     },
     {
@@ -107095,7 +107095,7 @@
       "name": "Storage Locations"
     },
     {
-      "description": "Web-console counterpart of the storage location API, gated by organization role instead of a flat authority. Covers the same create, read and lookup operations as the mobile API plus partial update and delete, which the mobile API does not expose. Every operation requires the system-admin role in the caller's current tenant.",
+      "description": "Web-console counterpart of the storage location API, gated by organization role instead of a flat authority. Covers the same create, read and lookup operations as the mobile API plus partial update and delete, which the mobile API does not expose. Reads are open to the system-admin and project-manager roles in the caller's current tenant, because a project manager raises and approves stock adjustments and cannot pick a location to count without them. Creating, editing and deleting a location stays with system-admin.",
       "name": "Storage Locations (Web)"
     },
     {
