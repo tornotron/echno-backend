@@ -43,8 +43,10 @@ public class StorageLocationCreationDto {
      * <p>This carried a {@code @JsonAlias("active")} while the deployed client still sent the
      * older spelling. That shim is gone: echno-core sends {@code isActive} from v3.3.0, and the
      * deployed echno-web build runs v3.4.0. A caller still naming {@code active} now has the key
-     * ignored like any other undeclared property, which leaves the flag unset rather than false,
-     * so a create still produces an active location and only a deactivate is lost.
+     * ignored like any other undeclared property, so the flag arrives null rather than false and
+     * the guard below applies the entity default. Such a request is not honoured, but it cannot
+     * write the wrong value either, which is the milder of the two failure modes: on the update
+     * payload the same silence would leave a location in service.
      */
     @Schema(description = "Whether the storage location is currently active. Optional; a location "
             + "created without it is active.",
