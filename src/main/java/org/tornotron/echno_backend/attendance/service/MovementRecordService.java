@@ -166,7 +166,9 @@ public class MovementRecordService {
      *
      * <p>A movement already verified is not verified again. Re-verifying is not an idempotent
      * no-op, it would overwrite a stamp somebody else's check produced, so the existing stamp
-     * stands. There is deliberately no action to clear one.
+     * stands. There is deliberately no action to clear one. The row is read under a write lock so
+     * that two verifications arriving at once cannot each read it as unverified and both stamp,
+     * which would replace a verification through the very guard meant to prevent it.
      *
      * @param movementId The movement record to verify.
      * @return The verified movement, naming the verifier.
@@ -177,7 +179,8 @@ public class MovementRecordService {
      */
     @Transactional
     public MovementRecordDto verifyMovement(Long movementId) {
-        MovementRecord record = movementRecordRepository.findByIdAndOrganization_Id(movementId,TenantContext.getCurrentOrgId())
+        MovementRecord record = movementRecordRepository
+                .lockByIdAndOrganizationId(movementId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Movement record with ID " + movementId + " was not found"));
 
         if (Boolean.TRUE.equals(record.getIsVerified())) {
