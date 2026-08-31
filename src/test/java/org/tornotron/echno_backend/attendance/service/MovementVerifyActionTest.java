@@ -164,6 +164,21 @@ class MovementVerifyActionTest {
     }
 
     @Test
+    @DisplayName("reads the row under a write lock, so two verifications cannot both stamp it")
+    void readsTheRowUnderAWriteLock() {
+        storedMovement(unverified());
+        signedInAs(CHECKER_USER_ID, CHECKER_EMP_ID, "Anand Rajashekar");
+
+        service.verifyMovement(MOVEMENT_ID);
+
+        // The guard above reads the stamp and then writes it, so the two have to be one step.
+        // This pins that the locking finder is the one verification reads through; it cannot
+        // demonstrate the database behaviour, which the lock annotation is responsible for.
+        verify(movementRecordRepository).lockByIdAndOrganizationId(MOVEMENT_ID, ORG);
+        verify(movementRecordRepository, never()).findByIdAndOrganization_Id(any(), any());
+    }
+
+    @Test
     @DisplayName("does not replace a verification somebody else's check produced")
     void doesNotReplaceAnExistingVerification() {
         MovementRecord alreadyVerified = unverified();
@@ -193,7 +208,7 @@ class MovementVerifyActionTest {
     }
 
     private void storedMovement(MovementRecord record) {
-        when(movementRecordRepository.findByIdAndOrganization_Id(MOVEMENT_ID, ORG))
+        when(movementRecordRepository.lockByIdAndOrganizationId(MOVEMENT_ID, ORG))
                 .thenReturn(Optional.of(record));
     }
 
