@@ -51,7 +51,7 @@ public class PageQuery {
     private int pageNo = 0;
 
     // No defaultValue is declared here on purpose. It would have to be one number for every
-    // endpoint that takes the pair, and twelve of them do not serve that number, so the one
+    // endpoint that takes the pair, and thirteen of them do not serve that number, so the one
     // written here would be wrong wherever it was not also the endpoint's. PageSizeSchemaCustomizer
     // writes the default onto each operation from the type that operation declares, which is the
     // same value binding will hand the handler.

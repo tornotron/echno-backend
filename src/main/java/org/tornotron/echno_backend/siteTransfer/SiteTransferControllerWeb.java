@@ -13,6 +13,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.history.dto.StatusTransitionDto;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery20;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferCancellationDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferCreationDto;
@@ -263,8 +264,8 @@ public class SiteTransferControllerWeb {
     })
     public ResponseEntity<Page<StatusTransitionDto>> readStatusHistory(
             @PathVariable Long id,
-            @Valid @ParameterObject PageQuery pageQuery) {
+            @Valid @ParameterObject PageQuery20 pageQuery) {
         return ResponseEntity.ok(
-                siteTransferService.getStatusHistory(id, pageQuery.getPageNo(), pageQuery.pageSizeOr(20)));
+                siteTransferService.getStatusHistory(id, pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 }

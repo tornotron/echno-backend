@@ -17,12 +17,12 @@ import java.util.List;
  * type that operation declares.
  *
  * <p>{@link PageQuery} is one parameter object shared by fifty-odd endpoints, so a
- * {@code defaultValue} written on its {@code pageSize} field is one number for all of them. Twelve
- * of them do not serve that number: the eleven listings on {@link PageQuery20} serve twenty and
- * the chat messages listing on {@link PageQuery30} serves thirty. The document said ten for all
- * fifty-odd regardless, which is how twelve listings came to publish a page size no caller would
- * ever receive, and how a client reading the contract could plan for ten rows, ask for none, and
- * be handed twenty. Issue #662.
+ * {@code defaultValue} written on its {@code pageSize} field is one number for all of them.
+ * Thirteen of them do not serve that number: the twelve listings on {@link PageQuery20} serve
+ * twenty and the chat messages listing on {@link PageQuery30} serves thirty. The document said ten
+ * for all fifty-odd regardless, which is how thirteen listings came to publish a page size no
+ * caller would ever receive, and how a client reading the contract could plan for ten rows, ask
+ * for none, and be handed twenty. Issue #662.
  *
  * <p>The fix has to be one source of truth rather than two that happen to agree, because two is
  * the arrangement that produced this. So nothing here is declared: the customizer constructs the
