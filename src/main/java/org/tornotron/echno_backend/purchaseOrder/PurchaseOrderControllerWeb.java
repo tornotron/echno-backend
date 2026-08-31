@@ -13,6 +13,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.history.dto.StatusTransitionDto;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery20;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderCreationDto;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderDto;
@@ -99,9 +100,9 @@ public class PurchaseOrderControllerWeb {
     })
     public ResponseEntity<Page<StatusTransitionDto>> readStatusHistory(
             @PathVariable Long id,
-            @Valid @ParameterObject PageQuery pageQuery) {
+            @Valid @ParameterObject PageQuery20 pageQuery) {
         return new ResponseEntity<>(
-                purchaseOrderService.getStatusHistory(id, pageQuery.getPageNo(), pageQuery.pageSizeOr(20)),
+                purchaseOrderService.getStatusHistory(id, pageQuery.getPageNo(), pageQuery.getPageSize()),
                 HttpStatus.OK);
     }
 

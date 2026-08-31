@@ -11,7 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
-import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery20;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.task.dto.TaskDto;
 
@@ -170,8 +170,8 @@ class TaskControllerWebListingTest {
     }
 
     /** The page the request would have bound, built by hand for a direct controller call. */
-    private static PageQuery page(int pageNo, int pageSize) {
-        PageQuery pageQuery = new PageQuery();
+    private static PageQuery20 page(int pageNo, int pageSize) {
+        PageQuery20 pageQuery = new PageQuery20();
         pageQuery.setPageNo(pageNo);
         pageQuery.setPageSize(pageSize);
         return pageQuery;

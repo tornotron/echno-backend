@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.asset.dto.AssetMovementDto;
 import org.tornotron.echno_backend.asset.dto.AssetPlacementSpanDto;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery20;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
@@ -154,8 +155,8 @@ public class AssetControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No asset with the given id")
     })
     public ResponseEntity<Page<AssetMovementDto>> readMovements(@PathVariable Long id,
-                                                                @Valid @ParameterObject PageQuery pageQuery) {
-        return new ResponseEntity<>(assetService.getMovements(id, pageQuery.getPageNo(), pageQuery.pageSizeOr(20)), HttpStatus.OK);
+                                                                @Valid @ParameterObject PageQuery20 pageQuery) {
+        return new ResponseEntity<>(assetService.getMovements(id, pageQuery.getPageNo(), pageQuery.getPageSize()), HttpStatus.OK);
     }
 
     @GetMapping("/{id}/placement-history")

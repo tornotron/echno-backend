@@ -24,9 +24,14 @@ import org.springdoc.core.annotations.ParameterObject;
  * {@code GlobalExceptionHandler} as a 400 naming {@code pageNo} or {@code pageSize}. The query
  * parameters keep the names and the meaning they already had, so no caller has to change.
  *
- * <p>{@link #getPageSize()} answers the shared default. An endpoint that shipped with a different
- * default keeps it through {@link #pageSizeOr(int)}, which can tell an absent parameter from one
- * the caller set to the same value.
+ * <p>The rows a caller gets when they name no {@code pageSize} is not one number across the API:
+ * most endpoints serve {@link #DEFAULT_PAGE_SIZE}, a handful shipped with twenty, and the chat
+ * message listing shipped with thirty. An endpoint keeps the default it shipped with by declaring
+ * the subtype that carries it, {@link PageQuery20} or {@link PageQuery30}, in place of this class.
+ * The number then exists once, in that subtype's constructor, and
+ * {@link PageSizeSchemaCustomizer} reads it back off the declared type when the document is
+ * assembled, so what the contract publishes is the value the handler will actually be given
+ * rather than a second copy of it written by hand.
  */
 @ParameterObject
 public class PageQuery {
@@ -45,22 +50,38 @@ public class PageQuery {
             minimum = "0")
     private int pageNo = 0;
 
+    // No defaultValue is declared here on purpose. It would have to be one number for every
+    // endpoint that takes the pair, and twelve of them do not serve that number, so the one
+    // written here would be wrong wherever it was not also the endpoint's. PageSizeSchemaCustomizer
+    // writes the default onto each operation from the type that operation declares, which is the
+    // same value binding will hand the handler.
     @Min(value = 1, message = "pageSize must be at least 1")
     @Max(value = UnpagedResultCap.MAX_ROWS,
             message = "pageSize must not exceed " + UnpagedResultCap.MAX_ROWS)
     @Schema(description = "Rows per page.",
-            defaultValue = "" + DEFAULT_PAGE_SIZE,
             minimum = "1",
             maximum = "" + UnpagedResultCap.MAX_ROWS)
-    private int pageSize = DEFAULT_PAGE_SIZE;
+    private int pageSize;
 
     /**
-     * Whether the caller sent {@code pageSize} at all.
+     * Takes the shared default of {@link #DEFAULT_PAGE_SIZE} rows.
      *
-     * <p>Kept because the field carries a default, so its value alone cannot say whether it was
-     * asked for. {@link #pageSizeOr(int)} needs the difference.
+     * <p>Public and argument-free because Spring's model-attribute binding constructs the declared
+     * parameter type this way.
      */
-    private boolean pageSizeGiven;
+    public PageQuery() {
+        this(DEFAULT_PAGE_SIZE);
+    }
+
+    /**
+     * Takes the default a subtype exists to carry.
+     *
+     * @param defaultPageSize Rows per page when the caller names none. The one place this
+     *                        endpoint's default is written down.
+     */
+    protected PageQuery(int defaultPageSize) {
+        this.pageSize = defaultPageSize;
+    }
 
     /**
      * The requested page index, zero when the caller named none.
@@ -76,7 +97,7 @@ public class PageQuery {
     }
 
     /**
-     * The requested page size, {@link #DEFAULT_PAGE_SIZE} when the caller named none.
+     * The requested page size, this endpoint's own default when the caller named none.
      *
      * @return A page size between one and {@link UnpagedResultCap#MAX_ROWS}.
      */
@@ -86,22 +107,5 @@ public class PageQuery {
 
     public void setPageSize(int pageSize) {
         this.pageSize = pageSize;
-        this.pageSizeGiven = true;
-    }
-
-    /**
-     * The requested page size, falling back to this endpoint's own default rather than the shared
-     * one.
-     *
-     * <p>A handful of endpoints shipped with a default of twenty or thirty. Folding them onto the
-     * shared default would quietly shrink the page every caller who omits the parameter already
-     * receives, which is a change to a published contract and has nothing to do with the bound
-     * this class exists to apply.
-     *
-     * @param defaultPageSize Rows per page to use when the caller sent none.
-     * @return The caller's page size, or {@code defaultPageSize} if there was none.
-     */
-    public int pageSizeOr(int defaultPageSize) {
-        return pageSizeGiven ? pageSize : defaultPageSize;
     }
 }

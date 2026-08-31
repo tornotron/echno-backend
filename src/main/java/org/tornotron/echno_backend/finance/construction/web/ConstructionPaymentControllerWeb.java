@@ -11,7 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery20;
 import org.tornotron.echno_backend.finance.construction.ConstructionPayeeType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentVoucherStatus;
@@ -36,19 +36,6 @@ import java.util.UUID;
                 + "system administrators and project managers."
 )
 public class ConstructionPaymentControllerWeb {
-
-    /**
-     * Rows this listing answers with when the caller names no page size.
-     *
-     * <p>Twenty is what the endpoint has been returning, though nothing here said so: it took a
-     * Spring {@code Pageable}, whose default comes from
-     * {@code spring.data.web.pageable.default-page-size}, and that property is not set. The point
-     * of issue #638 is that the number was invisible and unreachable, not that it was twenty, so
-     * it is written down here rather than changed. Folding the endpoint onto
-     * {@link PageQuery#DEFAULT_PAGE_SIZE} would halve what every caller who omits the parameter
-     * receives today, which is a contract change with nothing to do with the fix.
-     */
-    private static final int SHIPPED_PAGE_SIZE = 20;
 
     private final ConstructionPaymentService service;
 
@@ -111,10 +98,10 @@ public class ConstructionPaymentControllerWeb {
                                              @RequestParam(required = false) Long employeeId,
                                              @RequestParam(required = false) Long verifiedBy,
                                              @RequestParam(required = false) Long raisedBy,
-                                             PageQuery pageQuery) {
+                                             PageQuery20 pageQuery) {
         return service.findAll(projectId, vendorId, status, type, payeeType,
                 employeeId, verifiedBy, raisedBy,
-                pageQuery.getPageNo(), pageQuery.pageSizeOr(SHIPPED_PAGE_SIZE));
+                pageQuery.getPageNo(), pageQuery.getPageSize());
     }
 
     @PutMapping("/{id}")
