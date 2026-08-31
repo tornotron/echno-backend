@@ -77,7 +77,8 @@ public class ProjectDto {
     @Schema(description = "Planned completion date of the project.", example = "2027-06-30T00:00:00")
     private LocalDateTime endDate;
 
-    @Schema(description = "Overall completion of the project, as a fraction from 0 to 1.", example = "0.35")
+    @Schema(description = "Overall completion of the project, as a percentage from 0 to 100. The "
+            + "mean of the project's task progress values.", example = "35.0")
     private Double progress;
 
     @Schema(description = "Tasks that belong to the project.")

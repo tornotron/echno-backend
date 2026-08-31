@@ -45,7 +45,7 @@ public class TaskDto {
     @Schema(description = "Category the task is filed under.")
     private CategoryDto category;
 
-    @Schema(description = "Completion of the task, as a fraction from 0 to 1.", example = "0.5")
+    @Schema(description = "Completion of the task, as a percentage from 0 to 100.", example = "50.0")
     private Double progress;
 
     @Schema(description = "Free-text tags applied to the task.", example = "[\"concrete\", \"structural\"]")
