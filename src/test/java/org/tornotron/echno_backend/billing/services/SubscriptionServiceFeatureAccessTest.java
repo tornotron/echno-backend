@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TimeZone;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -195,6 +196,42 @@ class SubscriptionServiceFeatureAccessTest {
         ArgumentCaptor<UsageRecord> saved = ArgumentCaptor.forClass(UsageRecord.class);
         verify(usageRecordRepository).save(saved.capture());
         assertThat(saved.getValue().getPeriodStart()).isBefore(saved.getValue().getPeriodEnd());
+    }
+
+    /**
+     * Quota windows are UTC, not the container's timezone.
+     *
+     * <p>These bounds are written onto every usage row and are also the window existing usage is
+     * summed over, so the two only agree while every process computing them agrees on where a day
+     * begins. Derived from {@code ZoneId.systemDefault()}, as they were, a deployment in a zone
+     * ahead of UTC starts its day five and a half hours early here, which moves a user between
+     * quota periods and can allow or refuse them against a window that does not match the rows
+     * being counted. Forcing a non-UTC default is what makes this fail against that version; under
+     * UTC the default is irrelevant, which is the whole point. See #644.
+     */
+    @Test
+    void quotaPeriodBoundsAreComputedInUtcWhateverTheContainerTimezone() {
+        TimeZone original = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Kolkata"));
+        try {
+            Feature f = Feature.builder().id(FEATURE_ID).code(CODE).featureType(FeatureType.QUOTA).build();
+            activeSubscriptionWith(PlanFeature.builder().feature(f).enabled(true)
+                    .quotaLimit(10L).quotaPeriod(QuotaPeriod.DAILY).build());
+
+            svc.recordUsage(USER, CODE, 1L);
+
+            ArgumentCaptor<UsageRecord> saved = ArgumentCaptor.forClass(UsageRecord.class);
+            verify(usageRecordRepository).save(saved.capture());
+
+            Instant utcDayStart = Instant.now().truncatedTo(ChronoUnit.DAYS);
+            assertThat(saved.getValue().getPeriodStart())
+                    .as("the daily window starts at UTC midnight, not at midnight in Asia/Kolkata")
+                    .isEqualTo(utcDayStart);
+            assertThat(saved.getValue().getPeriodEnd())
+                    .isEqualTo(utcDayStart.plus(1, ChronoUnit.DAYS));
+        } finally {
+            TimeZone.setDefault(original);
+        }
     }
 
     /**

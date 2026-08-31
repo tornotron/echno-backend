@@ -23,7 +23,7 @@ import org.tornotron.echno_backend.common.exception.NoActiveSubscriptionExceptio
 import org.tornotron.echno_backend.common.exception.PlanNotFoundException;
 
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -209,9 +209,24 @@ public class SubscriptionService {
         return FeatureAccessResultDto.allowed(currentUsage, quotaLimit);
     }
 
+    /**
+     * The start and end of the quota window a usage record falls in, for a given period.
+     *
+     * <p>Computed in UTC, deliberately. These bounds are both the window
+     * {@link #checkQuotaAccess} sums existing usage over and the {@code periodStart} and
+     * {@code periodEnd} {@link #recordUsage} stamps on every {@link UsageRecord} it writes, so
+     * the two only line up while every process computing them agrees on where a period begins.
+     * They were derived from {@code ZoneId.systemDefault()}, which made that agreement a
+     * property of the container's timezone: a month or year boundary moves by a whole day
+     * between two zones, which moves a user between quota periods and can allow or refuse them
+     * against a window that does not match the rows being counted.
+     *
+     * @param period The quota period to compute the current window for.
+     * @return The window start and end, in that order.
+     */
     private Instant[] calculatePeriodBounds(QuotaPeriod period) {
         Instant now = Instant.now();
-        ZonedDateTime zdt = now.atZone(ZoneId.systemDefault());
+        ZonedDateTime zdt = now.atZone(ZoneOffset.UTC);
 
         switch (period) {
             case HOURLY:
