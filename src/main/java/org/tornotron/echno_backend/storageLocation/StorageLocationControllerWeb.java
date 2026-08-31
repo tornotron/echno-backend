@@ -28,8 +28,11 @@ import java.util.List;
         name = "Storage Locations (Web)",
         description = "Web-console counterpart of the storage location API, gated by organization role "
                 + "instead of a flat authority. Covers the same create, read and lookup operations as the "
-                + "mobile API plus partial update and delete, which the mobile API does not expose. Every "
-                + "operation requires the system-admin role in the caller's current tenant."
+                + "mobile API plus partial update and delete, which the mobile API does not expose. Reads "
+                + "are open to the system-admin and project-manager roles in the caller's current tenant, "
+                + "because a project manager raises and approves stock adjustments and cannot pick a "
+                + "location to count without them. Creating, editing and deleting a location stays with "
+                + "system-admin."
 )
 public class StorageLocationControllerWeb {
 
@@ -60,7 +63,7 @@ public class StorageLocationControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Get a storage location by id",
             description = "Returns a single storage location, including its resolved project name and "
@@ -77,7 +80,7 @@ public class StorageLocationControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List all storage locations",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -92,7 +95,7 @@ public class StorageLocationControllerWeb {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List storage locations, paginated",
             description = "Returns a single page of storage locations. The pageNo and pageSize "
@@ -109,7 +112,7 @@ public class StorageLocationControllerWeb {
     }
 
     @GetMapping("/project/{projectId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List storage locations for a project",
             description = "Returns the storage locations linked to the given project id, for example the "
@@ -125,7 +128,7 @@ public class StorageLocationControllerWeb {
     }
 
     @GetMapping("/type/{locationType}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List storage locations by type",
             description = "Returns the storage locations of the given type, for example all WAREHOUSE "
