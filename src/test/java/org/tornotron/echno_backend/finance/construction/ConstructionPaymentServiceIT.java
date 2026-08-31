@@ -44,7 +44,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ConstructionPaymentService.class, ConstructionPaymentMapperImpl.class,
-        TenantEntityHelper.class, EntryNumberGenerator.class, JpaAuditingConfig.class})
+        TenantEntityHelper.class, EntryNumberGenerator.class, JpaAuditingConfig.class,
+        org.tornotron.echno_backend.user.UserNameDirectory.class})
 class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
 
     @Autowired

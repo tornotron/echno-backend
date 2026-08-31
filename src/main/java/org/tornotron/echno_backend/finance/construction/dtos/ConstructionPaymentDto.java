@@ -87,6 +87,12 @@ public record ConstructionPaymentDto(
         @Schema(description = "User id that verified the voucher.", example = "2")
         Long verifiedBy,
 
+        @Schema(description = "Name of the user that verified the voucher, or their email where the "
+                + "account carries no name. Reads \"User #<id>\" when the account has since been "
+                + "deleted; null only when the voucher was never verified.",
+                example = "Aneesh Johny")
+        String verifiedByName,
+
         @Schema(description = "Timestamp the voucher was verified.", example = "2026-08-06T10:20:00Z")
         Instant verifiedAt,
 

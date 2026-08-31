@@ -21,7 +21,11 @@ import org.tornotron.echno_backend.finance.construction.dtos.UpdateConstructionP
 import org.tornotron.echno_backend.finance.construction.mapper.ConstructionPaymentMapper;
 import org.tornotron.echno_backend.finance.construction.repositories.ConstructionPaymentRepository;
 import org.tornotron.echno_backend.finance.construction.repositories.ConstructionPaymentSpecifications;
+import org.tornotron.echno_backend.user.UserNameDirectory;
+import org.tornotron.echno_backend.user.UserNameLookup;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -42,10 +46,11 @@ public class ConstructionPaymentService {
     private final EntryNumberGenerator numberGen;
     private final ConstructionPaymentMapper mapper;
     private final TenantEntityHelper tenantEntityHelper;
+    private final UserNameDirectory userNameDirectory;
 
     @Transactional(readOnly = true)
     public ConstructionPaymentDto findById(UUID id) {
-        return mapper.toDto(paymentRepo.findByIdScoped(id)
+        return toDto(paymentRepo.findByIdScoped(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Construction payment with ID " + id + " was not found")));
     }
@@ -57,10 +62,11 @@ public class ConstructionPaymentService {
                                                 ConstructionPaymentType type,
                                                 ConstructionPayeeType payeeType,
                                                 Pageable pageable) {
-        return paymentRepo.findAll(
-                        ConstructionPaymentSpecifications.withFilters(projectId, vendorId, status, type, payeeType),
-                        pageable)
-                .map(mapper::toDto);
+        Page<ConstructionPayment> payments = paymentRepo.findAll(
+                ConstructionPaymentSpecifications.withFilters(projectId, vendorId, status, type, payeeType),
+                pageable);
+        UserNameLookup names = namesFor(payments.getContent());
+        return payments.map(payment -> mapper.toDto(payment, names));
     }
 
     @Transactional
@@ -96,7 +102,7 @@ public class ConstructionPaymentService {
 
         ConstructionPayment saved = paymentRepo.save(payment);
         log.info("Created construction payment {}", saved.getPaymentNumber());
-        return mapper.toDto(saved);
+        return toDto(saved);
     }
 
     @Transactional
@@ -138,10 +144,37 @@ public class ConstructionPaymentService {
         payment.setNotes(req.notes());
 
         log.info("Updated construction payment {}", payment.getPaymentNumber());
-        return mapper.toDto(payment);
+        return toDto(payment);
     }
 
     private String resolveCurrency(String currency) {
         return (currency == null || currency.isBlank()) ? DEFAULT_CURRENCY : currency;
+    }
+
+    /**
+     * Converts one voucher, resolving its verifier name first.
+     *
+     * @param payment The payment to convert.
+     * @return The payment DTO, with the verifier named.
+     */
+    private ConstructionPaymentDto toDto(ConstructionPayment payment) {
+        return mapper.toDto(payment, namesFor(List.of(payment)));
+    }
+
+    /**
+     * Reads the display name for every verifier stamp on the vouchers about to be mapped.
+     *
+     * <p>One call covers a whole page, so the query count does not follow the row count. The
+     * mapper cannot do this for itself: the voucher holds only the user id, and a lookup inside
+     * the conversion would cost a round trip per row with nothing at the call site to show it,
+     * which is what {@code MapperDatabaseAccessTest} exists to prevent.
+     *
+     * @param payments The payments being converted.
+     * @return Their verifier names, with an id that no longer resolves reading as a placeholder.
+     */
+    private UserNameLookup namesFor(Collection<ConstructionPayment> payments) {
+        return userNameDirectory.namesFor(payments.stream()
+                .map(ConstructionPayment::getVerifiedBy)
+                .toList());
     }
 }
