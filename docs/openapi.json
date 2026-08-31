@@ -3532,6 +3532,17 @@
             "format": "int64",
             "type": "integer"
           },
+          "raisedBy": {
+            "description": "User id that raised the voucher, taken from the session that created it. Null on vouchers raised before the voucher recorded this.",
+            "example": 8,
+            "format": "int64",
+            "type": "integer"
+          },
+          "raisedByName": {
+            "description": "Name of the user that raised the voucher, on the same fallbacks as the verifier name. Null only where the voucher does not record who raised it.",
+            "example": "Hrishi",
+            "type": "string"
+          },
           "referenceNumber": {
             "description": "Cheque or reference number for the payment.",
             "example": "CHQ-000123",
@@ -3547,7 +3558,7 @@
               "CANCELLED",
               "REFUNDED"
             ],
-            "example": "VERIFIED",
+            "example": "COMPLETED",
             "type": "string"
           },
           "subContractId": {
@@ -3587,7 +3598,7 @@
             "type": "string"
           },
           "verifiedBy": {
-            "description": "User id that verified the voucher.",
+            "description": "User id that verified the voucher, taken from the session that verified it.",
             "example": 2,
             "format": "int64",
             "type": "integer"
@@ -3893,7 +3904,7 @@
         "type": "object"
       },
       "CreateConstructionPaymentRequest": {
-        "description": "Payload to create a construction payment voucher. The status is not accepted here: a new voucher always starts pending, and the payment number is generated server side.",
+        "description": "Payload to create a construction payment voucher. The status is not accepted here: a new voucher always starts pending, and the payment number is generated server side. Nor is the verification stamp, which is written only by the verify action, from the session and the clock.",
         "properties": {
           "accountNumber": {
             "description": "Bank account number used for the payment.",
@@ -4063,18 +4074,6 @@
           "vendorId": {
             "description": "Vendor being paid, when the payee is a vendor.",
             "example": 17,
-            "format": "int64",
-            "type": "integer"
-          },
-          "verifiedAt": {
-            "description": "Timestamp the voucher was verified, if already verified.",
-            "example": "2026-08-06T10:20:00Z",
-            "format": "date-time",
-            "type": "string"
-          },
-          "verifiedBy": {
-            "description": "User id that verified the voucher, if already verified.",
-            "example": 2,
             "format": "int64",
             "type": "integer"
           }
@@ -17429,7 +17428,7 @@
         "type": "object"
       },
       "UpdateConstructionPaymentRequest": {
-        "description": "Payload to fully replace an editable construction payment voucher. The status is set directly, and no ledger journal entry is created on any status transition.",
+        "description": "Payload to fully replace an editable construction payment voucher. The status is set directly, and no ledger journal entry is created on any status transition. The verification stamp is not replaced here: only the verify action writes it, from the session and the clock.",
         "properties": {
           "accountNumber": {
             "description": "Bank account number used for the payment.",
@@ -17580,7 +17579,7 @@
               "CANCELLED",
               "REFUNDED"
             ],
-            "example": "VERIFIED",
+            "example": "COMPLETED",
             "type": "string"
           },
           "subContractId": {
@@ -17612,18 +17611,6 @@
           "vendorId": {
             "description": "Vendor being paid, when the payee is a vendor.",
             "example": 17,
-            "format": "int64",
-            "type": "integer"
-          },
-          "verifiedAt": {
-            "description": "Timestamp the voucher was verified.",
-            "example": "2026-08-06T10:20:00Z",
-            "format": "date-time",
-            "type": "string"
-          },
-          "verifiedBy": {
-            "description": "User id that verified the voucher.",
-            "example": 2,
             "format": "int64",
             "type": "integer"
           }
@@ -38346,6 +38333,119 @@
           }
         },
         "summary": "Update a construction payment voucher",
+        "tags": [
+          "Construction Payments"
+        ]
+      }
+    },
+    "/api/v1/finance/construction-payments/web/{id}/verify": {
+      "post": {
+        "description": "Records that the voucher has been checked. The verifier is the signed-in user and the time is the server clock; neither can be supplied, so a voucher cannot be recorded as verified by somebody who did not verify it. Whoever raised the voucher cannot verify it, and a verification already recorded is not replaced.",
+        "operationId": "verify_3",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConstructionPaymentDto"
+                }
+              }
+            },
+            "description": "Voucher verified, and returned naming the verifier"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The voucher is cancelled, already verified, or is being verified by whoever raised it"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No voucher with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Verify a construction payment voucher",
         "tags": [
           "Construction Payments"
         ]
@@ -105324,7 +105424,7 @@
       "name": "Construction Invoices"
     },
     {
-      "description": "Payment vouchers recording money paid out on construction projects to vendors, subcontractors, labour and employees. A voucher captures the amount, method and payee details and moves through a pending and verified lifecycle. This increment does not post ledger journal entries. All endpoints are tenant scoped and limited to system administrators and project managers.",
+      "description": "Payment vouchers recording money paid out on construction projects to vendors, subcontractors, labour and employees. A voucher captures the amount, method and payee details and moves through a pending and verified lifecycle. Verification is its own action, stamped from the session, and is not part of the update payload. This increment does not post ledger journal entries. All endpoints are tenant scoped and limited to system administrators and project managers.",
       "name": "Construction Payments"
     },
     {

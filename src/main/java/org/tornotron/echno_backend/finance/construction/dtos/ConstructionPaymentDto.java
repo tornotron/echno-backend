@@ -23,7 +23,7 @@ public record ConstructionPaymentDto(
         @Schema(description = "Kind of payment.", example = "VENDOR_PAYMENT")
         ConstructionPaymentType type,
 
-        @Schema(description = "Lifecycle status of the voucher.", example = "VERIFIED")
+        @Schema(description = "Lifecycle status of the voucher.", example = "COMPLETED")
         ConstructionPaymentVoucherStatus status,
 
         @Schema(description = "Method used to settle the payment.", example = "BANK_TRANSFER")
@@ -84,7 +84,17 @@ public record ConstructionPaymentDto(
         @Schema(description = "IFSC code of the paying bank branch.", example = "HDFC0001234")
         String ifscCode,
 
-        @Schema(description = "User id that verified the voucher.", example = "2")
+        @Schema(description = "User id that raised the voucher, taken from the session that created "
+                + "it. Null on vouchers raised before the voucher recorded this.", example = "8")
+        Long raisedBy,
+
+        @Schema(description = "Name of the user that raised the voucher, on the same fallbacks as "
+                + "the verifier name. Null only where the voucher does not record who raised it.",
+                example = "Hrishi")
+        String raisedByName,
+
+        @Schema(description = "User id that verified the voucher, taken from the session that "
+                + "verified it.", example = "2")
         Long verifiedBy,
 
         @Schema(description = "Name of the user that verified the voucher, or their email where the "
