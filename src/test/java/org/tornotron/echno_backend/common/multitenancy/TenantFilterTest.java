@@ -10,6 +10,7 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
 import java.util.List;
 
@@ -120,13 +121,43 @@ class TenantFilterTest {
     }
 
     @Test
-    void billingDeclaresItselfUnscoped() throws Exception {
+    void billingRunsInsideTenantIsolationLikeAnyOtherAuthenticatedSurface() throws Exception {
+        // This assertion used to be its exact opposite, and the opposite was the defect. The
+        // filter declared every /billing path unscoped, which left TenantContext with no
+        // organization id, and every endpoint on the billing surface is guarded by
+        // @orgSecurity.hasAnyOrgRoleForCurrentTenant or isMemberOfCurrentTenant, both of which
+        // refuse a null organization outright. The declaration was therefore refusing the whole
+        // self-service billing surface to every caller in every environment. See #640.
         authenticateWith(ORG_MEMBER_7);
 
         run("/api/v1/billing/subscriptions/web/current");
 
-        assertThat(observed.unscopedReason()).contains("Billing");
-        assertThat(observed.orgId()).isNull();
+        assertThat(observed.orgId()).isEqualTo(7L);
+        assertThat(observed.unscopedReason()).isNull();
+        assertThat(observed.bypassed()).isFalse();
+    }
+
+    @Test
+    void theBillingGuardsThatRefusedEveryoneNowResolve() throws Exception {
+        // The composed statement of #640, and the one worth keeping: it is not the declaration
+        // that mattered but what the declaration did to the guard downstream of it. Running the
+        // real OrganizationSecurityService inside the chain is what makes this a test of the
+        // defect rather than of the filter's internals. Against the old filter both of these
+        // are false for every caller, because both open with a null check on the organization id.
+        OrganizationSecurityService orgSecurity = new OrganizationSecurityService(null, null);
+        authenticateWith(ORG_MEMBER_7, "ORG_7_ROLE_system-admin");
+
+        boolean[] guards = new boolean[2];
+        MockHttpServletRequest request =
+                new MockHttpServletRequest("GET", "/api/v1/billing/subscriptions/web/current");
+        request.setRequestURI("/api/v1/billing/subscriptions/web/current");
+        filter.doFilter(request, response, (req, res) -> {
+            guards[0] = orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin");
+            guards[1] = orgSecurity.isMemberOfCurrentTenant();
+        });
+
+        assertThat(guards[0]).as("hasAnyOrgRoleForCurrentTenant on the billing surface").isTrue();
+        assertThat(guards[1]).as("isMemberOfCurrentTenant on the billing surface").isTrue();
     }
 
     @Test
@@ -169,6 +200,22 @@ class TenantFilterTest {
 
         assertThat(observed.bypassed()).isTrue();
         assertThat(observed.unscopedReason()).isNull();
+    }
+
+    @Test
+    void aMultiOrganizationCallerMustSayWhichOrganizationTheyAreBillingFor() throws Exception {
+        // The one thing removing the billing declaration actually changes for a caller. Billing
+        // now goes down the ordinary org-resolution branch, so a user who belongs to more than
+        // one organization has to name the one they mean, exactly as they already do everywhere
+        // else. Previously this request was declared unscoped and then refused by the guard, so
+        // the caller got a 403 that told them nothing about what to send.
+        authenticateWith(ORG_MEMBER_7, "ORG_MEMBER_9");
+
+        run("/api/v1/billing/subscriptions/web/current");
+
+        assertThat(response.getStatus()).isEqualTo(400);
+        assertThat(response.getContentAsString()).contains("X-Organization-Id");
+        assertThat(observed).as("the chain is not reached").isNull();
     }
 
     @Test
