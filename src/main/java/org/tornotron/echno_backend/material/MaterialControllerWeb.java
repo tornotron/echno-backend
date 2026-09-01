@@ -17,8 +17,10 @@ import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.material.dto.LowStockMaterialDto;
 import org.tornotron.echno_backend.material.dto.MaterialCreationDto;
 import org.tornotron.echno_backend.material.dto.MaterialDto;
+import org.tornotron.echno_backend.material.dto.MaterialStockSummaryDto;
 import org.tornotron.echno_backend.material.dto.MaterialWithStockDto;
 import org.tornotron.echno_backend.material.lowstock.LowStockService;
+import org.tornotron.echno_backend.material.summary.MaterialStockSummaryService;
 import org.tornotron.echno_backend.material.threshold.MaterialLocationThresholdService;
 import org.tornotron.echno_backend.material.threshold.dto.MaterialLocationThresholdDto;
 import org.tornotron.echno_backend.material.threshold.dto.MaterialLocationThresholdUpsertDto;
@@ -44,13 +46,16 @@ public class MaterialControllerWeb {
     private final MaterialService materialService;
     private final MaterialLocationThresholdService thresholdService;
     private final LowStockService lowStockService;
+    private final MaterialStockSummaryService stockSummaryService;
 
     public MaterialControllerWeb(MaterialService materialService,
                                 MaterialLocationThresholdService thresholdService,
-                                LowStockService lowStockService) {
+                                LowStockService lowStockService,
+                                MaterialStockSummaryService stockSummaryService) {
         this.materialService = materialService;
         this.thresholdService = thresholdService;
         this.lowStockService = lowStockService;
+        this.stockSummaryService = stockSummaryService;
     }
 
     @PostMapping
@@ -148,6 +153,33 @@ public class MaterialControllerWeb {
             @Valid @ParameterObject PageQuery pageQuery) {
         return ResponseEntity.ok(lowStockService.findLowStock(projectId, storageLocationId,
                 PageRequest.of(pageQuery.getPageNo(), pageQuery.getPageSize())));
+    }
+
+    @GetMapping("/summary")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(
+            summary = "Total the catalogue and the value of the stock on hand",
+            description = "Returns the figures a materials dashboard strip is built from, totalled "
+                    + "in the database: the value of the stock on hand, how many materials the "
+                    + "figures cover, and how many distinct units of measure those materials are "
+                    + "held in. None of them is derivable from a page of materials, which is why "
+                    + "they are here: the listing serves at most 500 rows, so a client adding up "
+                    + "what it holds describes 500 materials however large the catalogue is. With "
+                    + "projectId the figures cover that project's balance rows instead of the "
+                    + "whole catalogue, matching the scopes the low-stock read offers. "
+                    + "unvaluedHoldingCount reports how many holdings the value could not price, "
+                    + "because stock received with no unit cost carries none; those holdings are "
+                    + "in the total at the zero they hold, so a non-zero count means the total "
+                    + "understates and says by how many."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Summary returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
+    })
+    public ResponseEntity<MaterialStockSummaryDto> getStockSummary(
+            @RequestParam(required = false) Long projectId) {
+        return ResponseEntity.ok(stockSummaryService.summarize(projectId));
     }
 
     @GetMapping("/search")

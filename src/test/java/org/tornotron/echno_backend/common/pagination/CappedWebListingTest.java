@@ -191,7 +191,7 @@ class CappedWebListingTest {
     void materialsReadTheFirstCappedPage() {
         when(materialService.getAllMaterials(anyInt(), anyInt())).thenReturn(Page.empty());
 
-        new MaterialControllerWeb(materialService, null, null).getAllMaterials();
+        new MaterialControllerWeb(materialService, null, null, null).getAllMaterials();
 
         verify(materialService).getAllMaterials(0, UnpagedResultCap.MAX_ROWS);
     }

@@ -10448,6 +10448,44 @@
         },
         "type": "object"
       },
+      "MaterialStockSummaryDto": {
+        "description": "The figures a materials dashboard strip is built from, totalled in the database over the whole scope rather than over the rows a client happens to hold. Every figure is for the same scope: the organization, or one project when projectId is given.",
+        "properties": {
+          "distinctUnits": {
+            "description": "How many distinct units of measure those materials are held in.",
+            "example": 9,
+            "format": "int64",
+            "type": "integer"
+          },
+          "materialCount": {
+            "description": "How many materials the figures cover. At organization scope this is the catalogue size. At project scope it is how many materials the project carries a balance row for, which is the same set the value is summed over.",
+            "example": 743,
+            "format": "int64",
+            "type": "integer"
+          },
+          "projectId": {
+            "description": "The project these figures were totalled within, null when the whole organization was totalled.",
+            "example": 5,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "totalStockValue": {
+            "description": "The value of the stock on hand, summed over every balance row in scope at its running weighted-average cost. Zero when nothing is held.",
+            "example": 5.01483E7,
+            "type": "number"
+          },
+          "unvaluedHoldingCount": {
+            "description": "How many balance rows hold a quantity the total could not price, because the receipts behind them carried no unit cost and so added quantity at no value. Those rows are in the total at the zero they actually hold, so a non-zero count here means the total is an understatement and says by how many holdings. Zero means every holding in scope is priced and the total is complete.",
+            "example": 0,
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "MaterialUpdateDto": {
         "description": "Payload to partially update a material. Fields left null are left unchanged.",
         "properties": {
@@ -73769,6 +73807,119 @@
           }
         },
         "summary": "Search materials by name",
+        "tags": [
+          "Materials (Web)"
+        ]
+      }
+    },
+    "/api/v1/materials/web/summary": {
+      "get": {
+        "description": "Returns the figures a materials dashboard strip is built from, totalled in the database: the value of the stock on hand, how many materials the figures cover, and how many distinct units of measure those materials are held in. None of them is derivable from a page of materials, which is why they are here: the listing serves at most 500 rows, so a client adding up what it holds describes 500 materials however large the catalogue is. With projectId the figures cover that project's balance rows instead of the whole catalogue, matching the scopes the low-stock read offers. unvaluedHoldingCount reports how many holdings the value could not price, because stock received with no unit cost carries none; those holdings are in the total at the zero they hold, so a non-zero count means the total understates and says by how many.",
+        "operationId": "getStockSummary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialStockSummaryDto"
+                }
+              }
+            },
+            "description": "Summary returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No project with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Total the catalogue and the value of the stock on hand",
         "tags": [
           "Materials (Web)"
         ]

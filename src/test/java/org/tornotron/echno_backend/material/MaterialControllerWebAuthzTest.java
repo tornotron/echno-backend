@@ -18,8 +18,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.material.dto.MaterialStockSummaryDto;
 import org.tornotron.echno_backend.material.dto.MaterialWithStockDto;
 import org.tornotron.echno_backend.material.lowstock.LowStockService;
+import org.tornotron.echno_backend.material.summary.MaterialStockSummaryService;
 import org.tornotron.echno_backend.material.threshold.MaterialLocationThresholdService;
 
 import java.util.List;
@@ -75,6 +77,9 @@ class MaterialControllerWebAuthzTest {
     @MockitoBean
     private LowStockService lowStockService;
 
+    @MockitoBean
+    private MaterialStockSummaryService stockSummaryService;
+
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
@@ -104,6 +109,7 @@ class MaterialControllerWebAuthzTest {
                 .thenReturn(new MaterialWithStockDto());
         when(materialService.getMaterialWithAggregateStock(anyLong()))
                 .thenReturn(new MaterialWithStockDto());
+        when(stockSummaryService.summarize(any())).thenReturn(new MaterialStockSummaryDto());
     }
 
     /**
@@ -117,6 +123,8 @@ class MaterialControllerWebAuthzTest {
             "/api/v1/materials/web/1",
             "/api/v1/materials/web/search?name=Cement",
             "/api/v1/materials/web/low-stock",
+            "/api/v1/materials/web/summary",
+            "/api/v1/materials/web/summary?projectId=4",
             "/api/v1/materials/web/1/location-thresholds",
             "/api/v1/materials/web/1/stock",
             "/api/v1/materials/web/1/stock?projectId=4",
@@ -133,6 +141,7 @@ class MaterialControllerWebAuthzTest {
     @ParameterizedTest
     @ValueSource(strings = {
             "/api/v1/materials/web",
+            "/api/v1/materials/web/summary",
             "/api/v1/materials/web/1/stock?projectId=4&storageLocationId=7"
     })
     void aMemberHoldingNeitherRoleIsStillRefusedTheRead(String path) throws Exception {
