@@ -80,6 +80,82 @@ public interface CurrentStockRepository extends JpaRepository<CurrentStock, Long
     BigDecimal sumStockValueByMaterial(@Param("materialId") Long materialId);
 
     /**
+     * The value of every holding in the organization, in one aggregate.
+     *
+     * <p>The organization-wide counterpart of {@link #sumStockValueByMaterial}, which is the same
+     * aggregate with the material predicate dropped. It exists because a total over a catalogue is
+     * not derivable from a page of it: the console used to add up whatever rows one capped listing
+     * returned and label the answer "current inventory value", which was two thirds of the truth at
+     * 500 rows of a 743-row catalogue and read like a fact.
+     *
+     * <p>The organization is a predicate here rather than only the Hibernate {@code orgFilter},
+     * which is not the ordinary convention on this repository and is deliberate. The filter is off
+     * for a bypassed request, and on a sum that is invisible: a total spanning every tenant is
+     * still a number, and nobody reading it can tell. The filter still applies on top, which is
+     * what {@code MaterialStockSummaryIT} pins.
+     *
+     * @param organizationId The tenant to total within.
+     * @return The value on hand across every project and storage location, zero when nothing is held.
+     */
+    @Query("SELECT COALESCE(SUM(cs.stockValue), 0) FROM CurrentStock cs "
+            + "WHERE cs.organization.id = :organizationId")
+    BigDecimal sumStockValueForOrganization(@Param("organizationId") Long organizationId);
+
+    /** {@link #sumStockValueForOrganization} narrowed to one project's balance rows. */
+    @Query("SELECT COALESCE(SUM(cs.stockValue), 0) FROM CurrentStock cs "
+            + "WHERE cs.organization.id = :organizationId AND cs.project.id = :projectId")
+    BigDecimal sumStockValueForProject(@Param("organizationId") Long organizationId,
+                                       @Param("projectId") Long projectId);
+
+    /**
+     * How many holdings the value total cannot price.
+     *
+     * <p>A receipt posted with no unit cost adds quantity and no value, so the balance row it
+     * lands on carries stock at a value of zero. That zero is written by the posting path, not
+     * chosen by the sum, so the sum has nothing to exclude and no reason to refuse: it counts the
+     * row at the value the row holds. What it must not do is stay quiet about it, because a total
+     * that silently understates is the failure this whole read exists to correct. This is the
+     * count that lets the caller say so.
+     *
+     * @param organizationId The tenant to count within.
+     * @return How many balance rows hold a positive quantity at no value.
+     */
+    @Query("SELECT COUNT(cs.id) FROM CurrentStock cs WHERE cs.organization.id = :organizationId "
+            + "AND cs.currentQuantity > 0 AND cs.stockValue <= 0")
+    long countUnvaluedHoldingsForOrganization(@Param("organizationId") Long organizationId);
+
+    /** {@link #countUnvaluedHoldingsForOrganization} narrowed to one project's balance rows. */
+    @Query("SELECT COUNT(cs.id) FROM CurrentStock cs WHERE cs.organization.id = :organizationId "
+            + "AND cs.project.id = :projectId AND cs.currentQuantity > 0 AND cs.stockValue <= 0")
+    long countUnvaluedHoldingsForProject(@Param("organizationId") Long organizationId,
+                                         @Param("projectId") Long projectId);
+
+    /**
+     * How many distinct materials a project carries a balance row for.
+     *
+     * <p>The project-scope candidate set, matching the one
+     * {@code LowStockRepository.findLowStockForProject} uses: at project scope the materials that
+     * count are the ones held there, not the whole catalogue, because every catalogue material
+     * would otherwise be reported against a project that has never carried it. A row sitting at
+     * zero still counts, because the project carries the material and the value total sums that
+     * same row.
+     *
+     * @param organizationId The tenant to count within.
+     * @param projectId The project to count at.
+     * @return How many materials have a balance row on the project.
+     */
+    @Query("SELECT COUNT(DISTINCT cs.material.id) FROM CurrentStock cs "
+            + "WHERE cs.organization.id = :organizationId AND cs.project.id = :projectId")
+    long countDistinctMaterialsForProject(@Param("organizationId") Long organizationId,
+                                          @Param("projectId") Long projectId);
+
+    /** The distinct units of measure across the materials {@link #countDistinctMaterialsForProject} counts. */
+    @Query("SELECT COUNT(DISTINCT cs.material.unit) FROM CurrentStock cs "
+            + "WHERE cs.organization.id = :organizationId AND cs.project.id = :projectId")
+    long countDistinctUnitsForProject(@Param("organizationId") Long organizationId,
+                                      @Param("projectId") Long projectId);
+
+    /**
      * Totals quantity and value for many materials in one grouped read.
      *
      * <p>The batched form of {@link #sumCurrentQuantityByMaterial} and
