@@ -189,6 +189,37 @@ public class OrganizationSecurityService {
         return currentUserId != null && currentUserId.equals(userId);
     }
 
+    /**
+     * Checks that the organization the caller named is the one their session is scoped to.
+     *
+     * <p>For the endpoints that take an organization id from the caller and then load an
+     * {@code Organization} by it. That load is the one place tenant isolation cannot help:
+     * {@code Organization} is the tenant root, so it is not a {@code TenantScopedEntity},
+     * carries no {@code orgFilter}, and {@code TenantIsolationLoadListener} returns on its
+     * first line for anything that is not tenant-scoped. A caller-supplied id therefore
+     * resolves to any organization in the deployment unless a guard says otherwise.
+     *
+     * <p>Comparing against {@code TenantContext} is what makes it a check rather than a
+     * formality: {@code TenantFilter} only ever sets the current organization to one the
+     * caller holds an {@code ORG_MEMBER_} authority for, so equality with it establishes
+     * entitlement. Pair it with a role check, which answers what the caller may do; this
+     * answers where.
+     *
+     * <p>Usage in {@code @PreAuthorize}:
+     * {@code @orgSecurity.isCurrentTenant(#organizationId) and @orgSecurity.hasAnyOrgRoleForCurrentTenant('hr-admin')}
+     *
+     * @param organizationId the organization named by the caller
+     * @return true if it is the organization in force for this request
+     */
+    public boolean isCurrentTenant(Long organizationId) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        boolean result = orgId != null && orgId.equals(organizationId);
+        if (!result) {
+            log.debug("Current-tenant check refused organization {} against tenant {}", organizationId, orgId);
+        }
+        return result;
+    }
+
     public boolean isMemberOfCurrentTenant() {
         Long orgId = TenantContext.getCurrentOrgId();
         if (orgId == null) {

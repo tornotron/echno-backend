@@ -59,16 +59,18 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} with the created employee's DTO and HTTP status 201 (Created).
      */
     @PostMapping("/joinOrganization/userId/{userId}/organizationId/{orgId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#orgId)"
+            + " and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     @Operation(
             summary = "Add a user to an organization as an employee",
-            description = "Creates an employee record linking the given user to the given organization, "
-                    + "with the employment details supplied in the request body."
+            description = "Creates an employee record linking the given user to the organization named "
+                    + "in the path, which must be the organization the caller's session is scoped to. "
+                    + "Uses the employment details supplied in the request body."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Employee record created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant, or named an organization that is not it"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user or organization with the given id")
     })
     public ResponseEntity<EmployeeDto> joinOrganization(@PathVariable Long userId, @PathVariable Long orgId, @Valid @RequestBody EmployeeJoinOrgDto employeeJoinOrgDto) {

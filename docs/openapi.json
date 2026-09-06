@@ -33940,7 +33940,7 @@
     },
     "/api/v1/employee/web/joinOrganization/userId/{userId}/organizationId/{orgId}": {
       "post": {
-        "description": "Creates an employee record linking the given user to the given organization, with the employment details supplied in the request body.",
+        "description": "Creates an employee record linking the given user to the organization named in the path, which must be the organization the caller's session is scoped to. Uses the employment details supplied in the request body.",
         "operationId": "joinOrganization",
         "parameters": [
           {
@@ -34011,7 +34011,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller lacks the required role in the current tenant, or named an organization that is not it"
           },
           "404": {
             "content": {
@@ -55702,7 +55702,7 @@
     },
     "/api/v1/invitation/web/generateCode/organizationId/{organizationId}": {
       "post": {
-        "description": "Generates a new invite code for the given organization.",
+        "description": "Generates a new invite code for the organization named in the path, which must be the organization the caller's session is scoped to.",
         "operationId": "createInviteCode",
         "parameters": [
           {
@@ -55764,7 +55764,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller lacks the required role in the current tenant, or named an organization that is not it"
           },
           "404": {
             "content": {
@@ -55825,7 +55825,7 @@
     },
     "/api/v1/invitation/web/organizationId/{organizationId}": {
       "get": {
-        "description": "Returns every invite code generated for the given organization.",
+        "description": "Returns every invite code generated for the organization named in the path, which must be the organization the caller's session is scoped to.",
         "operationId": "readAllInviteCodes",
         "parameters": [
           {
@@ -55880,7 +55880,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller lacks the required role in the current tenant, or named an organization that is not it"
           },
           "404": {
             "content": {

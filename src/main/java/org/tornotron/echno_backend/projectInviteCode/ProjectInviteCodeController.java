@@ -47,40 +47,50 @@ public class ProjectInviteCodeController {
     }
 
     @GetMapping("/organizationId/{organizationId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#organizationId)"
+            + " and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     @Operation(
             summary = "List invite codes for an organization",
-            description = "Returns every invite code generated for the given organization."
+            description = "Returns every invite code generated for the organization named in the path, "
+                    + "which must be the organization the caller's session is scoped to."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Invite codes returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant, or named an organization that is not it")
     })
     public ResponseEntity<List<ProjectInviteCodeDto>> readAllInviteCodes(@PathVariable Long organizationId) {
-        return ResponseEntity.status(HttpStatus.OK).body(projectInviteCodeService.readAllProjectInviteCodes(organizationId));
+        return ResponseEntity.status(HttpStatus.OK).body(projectInviteCodeService.readAllProjectInviteCodes());
     }
 
     /**
-     * Creates a new invite code for an organization.
+     * Creates a new invite code for the caller's organization.
+     *
+     * <p>The organization is named in the path for the sake of the published route, and the
+     * guard is what makes that name binding: it must be the organization this session is
+     * scoped to. The code itself is minted against the session's organization rather than
+     * against the path segment, so the two cannot drift apart.
      *
      * @param inviteCodeGenerationDto DTO containing the details for generating the invite code.
+     * @param organizationId          The organization named by the caller, read by the guard.
      * @return A {@link ResponseEntity} with the created invite code DTO and HTTP status 201 (Created).
      */
     @PostMapping("/generateCode/organizationId/{organizationId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#organizationId)"
+            + " and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     @Operation(
             summary = "Generate an invite code",
-            description = "Generates a new invite code for the given organization."
+            description = "Generates a new invite code for the organization named in the path, which "
+                    + "must be the organization the caller's session is scoped to."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Invite code created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant, or named an organization that is not it"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<ProjectInviteCodeDto> createInviteCode(@Valid @RequestBody InviteCodeGenerationDto inviteCodeGenerationDto,
                                                                  @PathVariable Long organizationId) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(projectInviteCodeService.generateInviteCode(inviteCodeGenerationDto,organizationId));
+        return ResponseEntity.status(HttpStatus.CREATED).body(projectInviteCodeService.generateInviteCode(inviteCodeGenerationDto));
     }
 
     /**

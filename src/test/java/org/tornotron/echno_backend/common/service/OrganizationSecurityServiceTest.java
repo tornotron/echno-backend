@@ -181,4 +181,25 @@ class OrganizationSecurityServiceTest {
         authWith("ORG_MEMBER_5");
         assertThat(svc.isSelfOrHasAnyOrgRole(7L, "hr-admin")).isFalse();
     }
+
+    @Test
+    void isCurrentTenant_trueOnlyForTheOrganizationInForce() {
+        TenantContext.setCurrentOrgId(5L);
+        assertThat(svc.isCurrentTenant(5L)).isTrue();
+        assertThat(svc.isCurrentTenant(6L)).isFalse();
+    }
+
+    @Test
+    void isCurrentTenant_falseWhenNoTenantIsInForce() {
+        // Fail closed. A null tenant is a request that never established one, so there is
+        // nothing to compare the named organization against and nothing to allow.
+        assertThat(svc.isCurrentTenant(5L)).isFalse();
+    }
+
+    @Test
+    void isCurrentTenant_falseForANullOrganization() {
+        // A route that binds no id at all must not read as "matches whatever is in force".
+        TenantContext.setCurrentOrgId(5L);
+        assertThat(svc.isCurrentTenant(null)).isFalse();
+    }
 }

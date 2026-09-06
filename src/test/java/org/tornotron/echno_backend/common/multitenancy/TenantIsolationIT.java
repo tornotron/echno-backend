@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.category.CategoryRepository;
 import org.tornotron.echno_backend.common.exception.TenantAccessDeniedException;
 import org.tornotron.echno_backend.common.exception.UnscopedTenantAccessException;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,6 +41,9 @@ class TenantIsolationIT extends AbstractIntegrationTest {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private OrganizationRepository organizationRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -128,6 +132,22 @@ class TenantIsolationIT extends AbstractIntegrationTest {
             TenantContext.setCurrentOrgId(orgBId);
             assertThat(categoryRepository.findById(categoryId)).isPresent();
         }).doesNotThrowAnyException();
+    }
+
+    @Test
+    void findById_onTheTenantRootItself_isNotCoveredByEitherMechanism() {
+        // Organization is the one entity neither defence reaches, and necessarily so: it is
+        // the tenant root, so it implements no TenantScopedEntity, carries no orgFilter, and
+        // the load listener returns on its first line for it. Another organization therefore
+        // loads by id under any tenant, as this proves against a real database.
+        //
+        // That is not a defect to fix in the mechanism, since the root cannot scope itself.
+        // It is the reason an endpoint that takes an organization id from the caller and
+        // resolves it here has to establish entitlement in its own guard, having nothing
+        // underneath to fall back on. #687 was such an endpoint.
+        TenantContext.setCurrentOrgId(orgAId);
+
+        assertThat(organizationRepository.findById(orgBId)).isPresent();
     }
 
     private Organization persistOrganization(String name) {
