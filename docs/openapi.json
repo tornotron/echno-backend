@@ -56505,7 +56505,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/OrganizationDto"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             },
