@@ -123,6 +123,19 @@ class LeavePolicyReadGuardTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void anEmployeeStillCannotReadAColleaguesApplicablePolicies() throws Exception {
+        // The other side of widening this read to the administrators: the employee branch is
+        // still self, and only self. Without this the change looks the same as dropping the
+        // guard to bare tenant membership, which is the mistake the summary route in #689 was.
+        callerIsAnOrdinaryEmployee();
+
+        mockMvc.perform(get("/api/v1/leave-policies/employee/" + COLLEAGUE).with(jwt()))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(policyService);
+    }
+
     @TestConfiguration
     @EnableMethodSecurity
     static class TestSecurityConfig {
