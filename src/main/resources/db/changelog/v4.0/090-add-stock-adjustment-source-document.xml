@@ -40,7 +40,17 @@
         document, and inventing a reference for one would be asserting a cause nobody recorded.
     -->
 
-    <changeSet id="090-01-add-stock-adjustment-source-document-columns" author="echno">
+    <!--
+        One column per change set, each guarded on its own column.
+
+        The two are written together by the application and mean nothing apart, so the temptation
+        is to add them in one change set guarded on one of them. That guard is wrong in the one
+        case a guard is for: a database where only the first column is already present marks the
+        change set as ran and never adds the second, leaving the entity mapped to a column that
+        does not exist. Guarding each column on itself cannot do that, and the pair is still
+        written together because it is the write path, not the schema, that enforces it.
+    -->
+    <changeSet id="090-01-add-stock-adjustment-source-document-type" author="echno">
         <preConditions onFail="MARK_RAN">
             <not>
                 <columnExists tableName="stock_adjustment" columnName="source_document_type"/>
@@ -48,31 +58,48 @@
         </preConditions>
 
         <comment>
-            The kind of document the adjustment answers, and which document of that kind.
+            The kind of document the adjustment answers.
 
-            Both nullable, and null on both is the ordinary case: most adjustments answer no
-            document at all, because somebody counted a location and the count disagreed with the
-            balance. The two are written together or not at all. A type with no id names nothing
-            and an id with no type says nothing about what it points at, so either half on its own
-            is refused by the write path rather than saved as a reference that cannot be followed.
-
-            source_document_type holds the enum name, at the width the other enum-name columns in
-            the schema use. source_document_id is an id within that kind and is deliberately not a
-            foreign key: see the note above the change set.
+            Nullable, and null is the ordinary case: most adjustments answer no document at all,
+            because somebody counted a location and the count disagreed with the balance. Holds
+            the enum name, at the width the other enum-name columns in the schema use.
         </comment>
 
         <addColumn tableName="stock_adjustment">
             <column name="source_document_type" type="VARCHAR(40)"/>
-            <column name="source_document_id" type="BIGINT"/>
         </addColumn>
 
         <rollback>
             <dropColumn tableName="stock_adjustment" columnName="source_document_type"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="090-02-add-stock-adjustment-source-document-id" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="stock_adjustment" columnName="source_document_id"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Which document of that kind.
+
+            Deliberately not a foreign key: see the note above the change sets. Written together
+            with the type or not at all. A type with no id names nothing and an id with no type
+            says nothing about what it points at, so either half on its own is refused by the
+            write path rather than saved as a reference that cannot be followed.
+        </comment>
+
+        <addColumn tableName="stock_adjustment">
+            <column name="source_document_id" type="BIGINT"/>
+        </addColumn>
+
+        <rollback>
             <dropColumn tableName="stock_adjustment" columnName="source_document_id"/>
         </rollback>
     </changeSet>
 
-    <changeSet id="090-02-index-stock-adjustment-source-document" author="echno">
+    <changeSet id="090-03-index-stock-adjustment-source-document" author="echno">
         <preConditions onFail="MARK_RAN">
             <not>
                 <indexExists tableName="stock_adjustment" indexName="idx_stock_adjustment_source_document"/>
