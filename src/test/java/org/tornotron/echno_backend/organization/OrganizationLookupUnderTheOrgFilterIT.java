@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
-import org.tornotron.echno_backend.common.exception.TenantAccessDeniedException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantIsolationListenerRegistrar;
 import org.tornotron.echno_backend.common.multitenancy.UnscopedAccessGuard;
@@ -36,13 +35,16 @@ import static org.assertj.core.api.Assertions.catchThrowable;
  * endpoint resolving a caller-named organization through it is exploitable or merely dead. That
  * question was raised in #698 and could not be settled by reading.
  *
- * <p>The measured answer is that the filter does not reach the join. What refuses the foreign
- * organization is the fail-closed load listener, on the post-load of the joined {@code Employee}.
- * So the lookup is not a silent cross-tenant read, and equally it is not scoped by the mechanism
- * that looks like it should scope it. Either way the guard on such an endpoint has to establish
- * entitlement itself, which is the point
- * {@code TenantIsolationIT.findById_onTheTenantRootItself_isNotCoveredByEitherMechanism} makes for
- * the primary-key load. This pins the join-shaped case beside it.
+ * <p>The measured answer is that the filter does reach the join, so the query cannot resolve an
+ * organization that is not the current tenant and answers empty. That makes the lookup a
+ * not-found rather than a cross-tenant read, and it makes any endpoint built on it dead across
+ * organizations rather than exploitable.
+ *
+ * <p>It does not make the guard on such an endpoint optional. This query establishes employment,
+ * never a role, and the organization it is asked about still arrives from the caller.
+ * {@code TenantIsolationIT.findById_onTheTenantRootItself_isNotCoveredByEitherMechanism} makes
+ * the same point for the primary-key load, where nothing scopes the tenant root at all; this pins
+ * the join-shaped case beside it.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -63,6 +65,10 @@ class OrganizationLookupUnderTheOrgFilterIT extends AbstractIntegrationTest {
     @BeforeEach
     void seed() {
         TenantContext.clear();
+        // The filter is session state and each test says for itself whether it wants it on, so
+        // start from off rather than from whatever the previous method left. Without this the
+        // outcome of a test here depends on the order JUnit happens to run them in.
+        entityManager.unwrap(Session.class).disableFilter("orgFilter");
         Organization orgA = persistOrganization("Org A");
         Organization orgB = persistOrganization("Org B");
 
@@ -101,52 +107,31 @@ class OrganizationLookupUnderTheOrgFilterIT extends AbstractIntegrationTest {
         assertThat(organizationRepository.findByIdAndUserEmail(orgAId, EMAIL)).isPresent();
     }
 
-    /**
-     * The foreign-organization lookup, asserted one property per test rather than as a chain.
-     *
-     * <p>The build reports a failure by its exception class and its line, with
-     * {@code exceptionFormat 'short'}, so a chained assertion that fails says only that one link
-     * broke and not which. Each property therefore gets its own method, and the list of failures
-     * is the readout: whether anything is thrown at all, whether it is the cross-tenant denial,
-     * which entity it names, and which organizations it names. Nothing is given up by splitting
-     * them; every assertion that was in the chain is still made.
-     */
     @Test
-    void foreignOrganization_something_isThrown() {
+    void anotherOrganizationTheCallerIsAlsoEmployedByDoesNotResolveUnderTheFilter() {
+        // The measured answer to #698's open question. The filter reaches the explicit
+        // JOIN o.employees e: with it pinned to organization A the joined Employee rows are
+        // narrowed to A, so nothing satisfies the join for organization B even though the caller
+        // genuinely holds an employment record there. The lookup resolves nothing and the caller
+        // gets the not-found the service raises.
+        //
+        // Nothing is thrown on the way. The fail-closed load listener never sees a foreign row,
+        // because no foreign row is selected, so the filter is doing this on its own. That makes
+        // the cross-organization duplicate path dead rather than exploitable, which is the branch
+        // #698 named and could not settle by reading, and it is why the guard repair beside this
+        // is a correctness fix rather than the closing of a live hole.
+        //
+        // Asserted as emptiness rather than as a refusal. An earlier form of this test read the
+        // outcome as a TenantAccessDeniedException and said so; splitting the assertion one
+        // property per test showed that no throwable is raised at all, so the refusal reading was
+        // wrong and the claim is corrected here rather than softened.
         TenantContext.setCurrentOrgId(orgAId);
         enableOrgFilterFor(orgAId);
 
         assertThat(catchThrowable(() -> organizationRepository.findByIdAndUserEmail(orgBId, EMAIL)))
-                .as("a lookup of an organization that is not the current tenant")
-                .isNotNull();
-    }
-
-    @Test
-    void foreignOrganization_theThrowableIsTheCrossTenantDenial() {
-        TenantContext.setCurrentOrgId(orgAId);
-        enableOrgFilterFor(orgAId);
-
-        assertThat(catchThrowable(() -> organizationRepository.findByIdAndUserEmail(orgBId, EMAIL)))
-                .isInstanceOf(TenantAccessDeniedException.class);
-    }
-
-    @Test
-    void foreignOrganization_theRefusalNamesTheJoinedEmployee() {
-        TenantContext.setCurrentOrgId(orgAId);
-        enableOrgFilterFor(orgAId);
-
-        assertThat(catchThrowable(() -> organizationRepository.findByIdAndUserEmail(orgBId, EMAIL)))
-                .hasMessageContaining("Cross-tenant access denied: Employee");
-    }
-
-    @Test
-    void foreignOrganization_theRefusalNamesBothOrganizations() {
-        TenantContext.setCurrentOrgId(orgAId);
-        enableOrgFilterFor(orgAId);
-
-        assertThat(catchThrowable(() -> organizationRepository.findByIdAndUserEmail(orgBId, EMAIL)))
-                .hasMessageContaining("belongs to organization " + orgBId)
-                .hasMessageContaining("the request is scoped to organization " + orgAId);
+                .as("the lookup completes rather than being refused by the load listener")
+                .isNull();
+        assertThat(organizationRepository.findByIdAndUserEmail(orgBId, EMAIL)).isEmpty();
     }
 
     @Test

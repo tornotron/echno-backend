@@ -205,12 +205,13 @@ public class LeavePolicyController {
      * <p>What the repaired guard does not fix, and what a reader should know before relying on
      * this endpoint: it cannot currently succeed for any input.
      * {@code OrganizationLookupUnderTheOrgFilterIT} measured the target lookup against a database
-     * and it raises {@code TenantAccessDeniedException} for a foreign organization, because the
-     * fail-closed load listener refuses the joined {@code Employee} row. Naming the current tenant
-     * instead reaches the duplicate-code check, which the source policy's own code satisfies, so
-     * that answers 409. Whether cross-organization duplication is a feature at all is a product
-     * decision; if it is, the target resolution and the duplicate-code check both need to be
-     * deliberate cross-tenant reads rather than accidental ones.
+     * and the org filter reaches the {@code JOIN o.employees e} inside it, so a target that is not
+     * the current tenant resolves nothing and the method raises not-found. Naming the current
+     * tenant instead reaches the duplicate-code check, which the source policy's own leave-type
+     * code satisfies, so that answers 409. Whether cross-organization duplication is a feature at
+     * all is a product decision; if it is, the target resolution and the duplicate-code check both
+     * have to become deliberate cross-tenant reads rather than queries that quietly return
+     * nothing. Tracked separately.
      *
      * @param policyId The ID of the source policy, read from the caller's own organization.
      * @param targetOrganizationId The organization to copy into, in which the caller must hold
