@@ -60907,7 +60907,7 @@
     },
     "/api/v1/leave-approvals/requests/{requestId}/approve": {
       "post": {
-        "description": "Records an approval for the given request at its current approval level and advances the workflow. Returns the request with its updated status and approval trail.",
+        "description": "Records an approval for the given request at its current approval level and advances the workflow. The approval is recorded against the signed-in caller, who must be the request's current approver. Returns the request with its updated status and approval trail.",
         "operationId": "approve_1",
         "parameters": [
           {
@@ -60949,7 +60949,7 @@
                 }
               }
             },
-            "description": "The approval action payload failed validation"
+            "description": "The approval action payload failed validation, or the caller is not the request's current approver, or the request is not pending approval"
           },
           "402": {
             "content": {
@@ -60969,7 +60969,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the decision would name nobody"
           },
           "404": {
             "content": {
@@ -61030,21 +61030,12 @@
     },
     "/api/v1/leave-approvals/requests/{requestId}/can-approve": {
       "get": {
-        "description": "Returns whether the given employee is the current approver for the given leave request, as a single boolean flag.",
+        "description": "Returns whether the signed-in caller is the current approver for the given leave request, as a single boolean flag. This is the check a client makes before drawing an approve button. It used to take the employee to ask about as a query parameter, which let one employee probe another's place in a chain; a caller that still sends employeeId is answered for themselves, because a query parameter no handler declares is ignored.",
         "operationId": "canApprove_1",
         "parameters": [
           {
             "in": "path",
             "name": "requestId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "employeeId",
             "required": true,
             "schema": {
               "format": "int64",
@@ -61094,7 +61085,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave approve or admin authority"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -61147,7 +61138,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Check whether an employee can approve a request",
+        "summary": "Check whether you can approve a request",
         "tags": [
           "Leave Approvals"
         ]
@@ -61210,7 +61201,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave read or admin authority"
+            "description": "Caller is not a member of the current tenant, or takes no part in this request and holds neither the system-admin nor the hr-admin role"
           },
           "404": {
             "content": {
@@ -61271,7 +61262,7 @@
     },
     "/api/v1/leave-approvals/requests/{requestId}/delegate": {
       "post": {
-        "description": "Reassigns the current approval step for the given request to the delegate named in the payload. Returns the request with its updated approver and approval trail.",
+        "description": "Reassigns the current approval step for the given request to the delegate named in the payload, recording who handed it over. Only the request's current approver may delegate it. Returns the request with its updated approver and approval trail.",
         "operationId": "delegate_1",
         "parameters": [
           {
@@ -61313,7 +61304,7 @@
                 }
               }
             },
-            "description": "The approval action payload failed validation, or no delegate was given"
+            "description": "The approval action payload failed validation, no delegate was given, or the caller is not the request's current approver"
           },
           "402": {
             "content": {
@@ -61333,7 +61324,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave approve or admin authority, or has no employee record in the current tenant, so the record would name nobody"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the handover would name nobody"
           },
           "404": {
             "content": {
@@ -61343,7 +61334,7 @@
                 }
               }
             },
-            "description": "No leave request with the given id"
+            "description": "No leave request with the given id, or no such delegate in this organization"
           },
           "409": {
             "content": {
@@ -61394,7 +61385,7 @@
     },
     "/api/v1/leave-approvals/requests/{requestId}/history": {
       "get": {
-        "description": "Returns every approval action recorded against the given leave request, in the order they occurred.",
+        "description": "Returns every approval action recorded against the given leave request, in the order they occurred: who acted, at which level, with what comment, and when.",
         "operationId": "getApprovalHistory_1",
         "parameters": [
           {
@@ -61449,7 +61440,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave read or admin authority"
+            "description": "Caller is not a member of the current tenant, or takes no part in this request and holds neither the system-admin nor the hr-admin role"
           },
           "404": {
             "content": {
@@ -61510,7 +61501,7 @@
     },
     "/api/v1/leave-approvals/requests/{requestId}/reject": {
       "post": {
-        "description": "Records a rejection for the given request, stopping the approval workflow. Returns the request with its updated status and approval trail.",
+        "description": "Records a rejection for the given request, stopping the approval workflow and releasing the days it was holding. The rejection is recorded against the signed-in caller, who must be the request's current approver. Returns the request with its updated status and approval trail.",
         "operationId": "reject_2",
         "parameters": [
           {
@@ -61552,7 +61543,7 @@
                 }
               }
             },
-            "description": "The approval action payload failed validation"
+            "description": "The approval action payload failed validation, or the caller is not the request's current approver, or the request is not pending approval"
           },
           "402": {
             "content": {
@@ -61572,7 +61563,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave approve or admin authority, or has no employee record in the current tenant, so the record would name nobody"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the decision would name nobody"
           },
           "404": {
             "content": {
@@ -61633,7 +61624,7 @@
     },
     "/api/v1/leave-approvals/web/approve": {
       "post": {
-        "description": "Records an approval for the given request at its current approval level and advances the workflow. Returns the request with its updated status and approval trail.",
+        "description": "Records an approval for the given request at its current approval level and advances the workflow. The approval is recorded against the signed-in caller, who must be the request's current approver. Returns the request with its updated status and approval trail.",
         "operationId": "approve",
         "parameters": [
           {
@@ -61675,7 +61666,7 @@
                 }
               }
             },
-            "description": "The approval action payload failed validation"
+            "description": "The approval action payload failed validation, or the caller is not the request's current approver, or the request is not pending approval"
           },
           "402": {
             "content": {
@@ -61695,7 +61686,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the decision would name nobody"
           },
           "404": {
             "content": {
@@ -61756,21 +61747,12 @@
     },
     "/api/v1/leave-approvals/web/can-approve": {
       "get": {
-        "description": "Returns whether the given employee is the current approver for the given leave request, as a single boolean flag.",
+        "description": "Returns whether the signed-in caller is the current approver for the given leave request, as a single boolean flag. This is the check a client makes before drawing an approve button. It used to take the employee to ask about as a query parameter, which let one employee probe another's place in a chain; a caller that still sends employeeId is answered for themselves, because a query parameter no handler declares is ignored.",
         "operationId": "canApprove",
         "parameters": [
           {
             "in": "query",
             "name": "requestId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "employeeId",
             "required": true,
             "schema": {
               "format": "int64",
@@ -61820,7 +61802,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -61873,7 +61855,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Check whether an employee can approve a request",
+        "summary": "Check whether you can approve a request",
         "tags": [
           "Leave Approvals (Web)"
         ]
@@ -61936,7 +61918,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant, or takes no part in this request and holds neither the system-admin nor the hr-admin role"
           },
           "404": {
             "content": {
@@ -61997,7 +61979,7 @@
     },
     "/api/v1/leave-approvals/web/delegate": {
       "post": {
-        "description": "Reassigns the current approval step for the given request to the delegate named in the payload. Returns the request with its updated approver and approval trail.",
+        "description": "Reassigns the current approval step for the given request to the delegate named in the payload, recording who handed it over. Only the request's current approver may delegate it. Returns the request with its updated approver and approval trail.",
         "operationId": "delegate",
         "parameters": [
           {
@@ -62039,7 +62021,7 @@
                 }
               }
             },
-            "description": "The approval action payload failed validation, or no delegate was given"
+            "description": "The approval action payload failed validation, no delegate was given, or the caller is not the request's current approver"
           },
           "402": {
             "content": {
@@ -62059,7 +62041,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the handover would name nobody"
           },
           "404": {
             "content": {
@@ -62069,7 +62051,7 @@
                 }
               }
             },
-            "description": "No leave request with the given id"
+            "description": "No leave request with the given id, or no such delegate in this organization"
           },
           "409": {
             "content": {
@@ -62120,7 +62102,7 @@
     },
     "/api/v1/leave-approvals/web/history": {
       "get": {
-        "description": "Returns every approval action recorded against the given leave request, in the order they occurred.",
+        "description": "Returns every approval action recorded against the given leave request, in the order they occurred: who acted, at which level, with what comment, and when.",
         "operationId": "getApprovalHistory",
         "parameters": [
           {
@@ -62175,7 +62157,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant, or takes no part in this request and holds neither the system-admin nor the hr-admin role"
           },
           "404": {
             "content": {
@@ -62236,7 +62218,7 @@
     },
     "/api/v1/leave-approvals/web/reject": {
       "post": {
-        "description": "Records a rejection for the given request, stopping the approval workflow. Returns the request with its updated status and approval trail.",
+        "description": "Records a rejection for the given request, stopping the approval workflow and releasing the days it was holding. The rejection is recorded against the signed-in caller, who must be the request's current approver. Returns the request with its updated status and approval trail.",
         "operationId": "reject_1",
         "parameters": [
           {
@@ -62278,7 +62260,7 @@
                 }
               }
             },
-            "description": "The approval action payload failed validation"
+            "description": "The approval action payload failed validation, or the caller is not the request's current approver, or the request is not pending approval"
           },
           "402": {
             "content": {
@@ -62298,7 +62280,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the decision would name nobody"
           },
           "404": {
             "content": {
@@ -68350,19 +68332,8 @@
     },
     "/api/v1/leave-requests/pending-approvals": {
       "get": {
-        "description": "Returns the leave requests currently awaiting action from the given approver.",
+        "description": "Returns the leave requests currently awaiting a decision from the signed-in caller. The approver used to be a query parameter under a guard that only asked for a role, so an administrator could read a colleague's queue while the managers an approval chain is actually built from could not read their own; a caller that still sends approverId is served their own queue, because a query parameter no handler declares is ignored.",
         "operationId": "getPendingApprovals_1",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "approverId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -68405,7 +68376,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve"
           },
           "404": {
             "content": {
@@ -68415,7 +68386,7 @@
                 }
               }
             },
-            "description": "No approver with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -68458,7 +68429,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "List requests pending an approver's action",
+        "summary": "List the requests waiting on you",
         "tags": [
           "Leave Requests"
         ]
@@ -68466,19 +68437,8 @@
     },
     "/api/v1/leave-requests/pending-approvals/count": {
       "get": {
-        "description": "Returns the number of leave requests currently awaiting action from the given approver.",
+        "description": "Returns the number of leave requests currently awaiting a decision from the signed-in caller, for the badge a client draws on the menu.",
         "operationId": "getPendingApprovalCount_1",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "approverId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -68522,7 +68482,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to count"
           },
           "404": {
             "content": {
@@ -68532,7 +68492,7 @@
                 }
               }
             },
-            "description": "No approver with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -68575,7 +68535,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Count requests pending an approver's action",
+        "summary": "Count the requests waiting on you",
         "tags": [
           "Leave Requests"
         ]
@@ -69289,19 +69249,8 @@
     },
     "/api/v1/leave-requests/web/approver": {
       "get": {
-        "description": "Returns the leave requests, across all statuses, that name the given employee as an approver at any level of the approval chain.",
+        "description": "Returns the leave requests, across all statuses, that name the signed-in caller as an approver at any level of the approval chain. This is an approver's own record of what they have handled. A caller that still sends approverId is served their own list, because a query parameter no handler declares is ignored.",
         "operationId": "getRequestsByApprover",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "approverId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -69344,7 +69293,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it"
           },
           "404": {
             "content": {
@@ -69354,7 +69303,7 @@
                 }
               }
             },
-            "description": "No approver with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -69397,7 +69346,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "List requests routed to an approver",
+        "summary": "List the requests you have been an approver on",
         "tags": [
           "Leave Requests (Web)"
         ]
@@ -70393,19 +70342,8 @@
     },
     "/api/v1/leave-requests/web/pending-approvals": {
       "get": {
-        "description": "Returns the leave requests currently awaiting action from the given approver.",
+        "description": "Returns the leave requests currently awaiting a decision from the signed-in caller. The approver used to be a query parameter under a guard that only asked for a role, so an administrator could read a colleague's queue while the managers an approval chain is actually built from could not read their own; a caller that still sends approverId is served their own queue, because a query parameter no handler declares is ignored.",
         "operationId": "getPendingApprovals",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "approverId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -70448,7 +70386,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve"
           },
           "404": {
             "content": {
@@ -70458,7 +70396,7 @@
                 }
               }
             },
-            "description": "No approver with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -70501,7 +70439,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "List requests pending an approver's action",
+        "summary": "List the requests waiting on you",
         "tags": [
           "Leave Requests (Web)"
         ]
@@ -70509,19 +70447,8 @@
     },
     "/api/v1/leave-requests/web/pending-approvals/count": {
       "get": {
-        "description": "Returns the number of leave requests currently awaiting action from the given approver.",
+        "description": "Returns the number of leave requests currently awaiting a decision from the signed-in caller, for the badge a client draws on the menu.",
         "operationId": "getPendingApprovalCount",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "approverId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -70565,7 +70492,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to count"
           },
           "404": {
             "content": {
@@ -70575,7 +70502,7 @@
                 }
               }
             },
-            "description": "No approver with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -70618,7 +70545,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Count requests pending an approver's action",
+        "summary": "Count the requests waiting on you",
         "tags": [
           "Leave Requests (Web)"
         ]
@@ -108191,11 +108118,11 @@
       "name": "Labour"
     },
     {
-      "description": "Actions on the approval workflow of a submitted leave request: approve, reject, delegate to another approver, and read the approval history or the full approval chain. Approving is gated to the system-admin or hr-admin role in the caller's tenant; reject, delegate and the read endpoints are gated by the leave approve, read or admin authority.",
+      "description": "Actions on the approval workflow of a submitted leave request: approve, reject, delegate to another approver, and read the approval history or the full approval chain. Every endpoint is open to a member of the caller's tenant, and who may act is settled against the request itself: acting on one is the current approver's to do, and the approval trail is readable by the employee the leave belongs to, the approvers in its chain, and the system-admin or hr-admin roles.",
       "name": "Leave Approvals"
     },
     {
-      "description": "Web-console equivalent of the leave approval endpoints, addressing the request by a requestId query parameter instead of a path segment. Covers approve, reject, delegate, approval history and chain, and the can-approve check. All endpoints are gated to the system-admin or hr-admin role in the caller's tenant.",
+      "description": "Web-console equivalent of the leave approval endpoints, addressing the request by a requestId query parameter instead of a path segment. Covers approve, reject, delegate, approval history and chain, and the can-approve check. Every endpoint is open to a member of the caller's tenant, and who may act is settled against the request itself: acting on one is the current approver's to do, and the approval trail is readable by the employee the leave belongs to, the approvers in its chain, and the system-admin or hr-admin roles.",
       "name": "Leave Approvals (Web)"
     },
     {
