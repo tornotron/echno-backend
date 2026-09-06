@@ -523,14 +523,24 @@ public class AttendanceService {
     }
 
     /**
-     * Lists a project's attendance for a day, filtered by status and a name search.
+     * Lists a project's attendance for a day, filtered by status, approval and a name search.
      *
      * <p>A blank search matches all employees; otherwise it matches employee names
      * case-insensitively. Results are drawn from a single page and returned as a list.
      *
+     * <p>The two approval filters narrow different things. {@code approvalStatus} separates the
+     * days somebody has decided from the days nobody has; since a record is created PENDING and
+     * stays there until a decision is made, filtering on PENDING alone is close to the whole day's
+     * roll. {@code requiresApproval} is the flag set when a punch fell outside the project's
+     * geofence, and that is the narrow set: the days actually waiting on somebody. Passing both is
+     * what a screen asking "what is still outstanding on this site today" wants.
+     *
      * @param projectId The project's ID.
      * @param date The attendance date.
      * @param status The status to filter by, or {@code null} for any.
+     * @param approvalStatus The approval status to filter by, or {@code null} for any.
+     * @param requiresApproval Whether to return only the days held for a geofence decision
+     *     ({@code true}), only those not held ({@code false}), or both ({@code null}).
      * @param search An employee-name fragment, or {@code null}/blank for all.
      * @param pageable The pagination and sort parameters.
      * @return The matching attendance records for the page.
@@ -539,13 +549,16 @@ public class AttendanceService {
     public List<AttendanceResponseDto> getAttendanceByProject(Long projectId,
                                                                LocalDate date,
                                                                AttendanceStatus status,
+                                                               ApprovalStatus approvalStatus,
+                                                               Boolean requiresApproval,
                                                                String search,
                                                                Pageable pageable) {
         String searchPattern = (search == null || search.isBlank())
                 ? null
                 : "%" + search.toLowerCase(Locale.ROOT) + "%";
         return attendanceRepository
-                .findWithFilters(projectId, date, status, searchPattern, pageable)
+                .findWithFilters(projectId, date, status, approvalStatus, requiresApproval,
+                        searchPattern, pageable)
                 .map(attendance -> attendanceMapper.toResponseDto(attendance)).getContent();
     }
 

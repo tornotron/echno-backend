@@ -20,6 +20,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.attendance.dto.*;
+import org.tornotron.echno_backend.attendance.enums.ApprovalStatus;
 import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.response.ApiResponse;
@@ -140,8 +141,12 @@ public class AttendanceController {
     @Operation(
             summary = "List a project's attendance for a date",
             description = "Returns a page of attendance records for a project on a given date, optionally "
-                    + "filtered by status or a search term against the employee name, sorted by employee "
-                    + "name."
+                    + "filtered by status, by approval status, by whether the day is held for a geofence "
+                    + "decision, or by a search term against the employee name, sorted by employee name. "
+                    + "The two approval filters answer different questions: every record is created "
+                    + "pending and stays there until somebody decides, so approvalStatus=PENDING is close "
+                    + "to the whole day's roll, while requiresApproval=true is the small set of days "
+                    + "actually waiting on a decision because a punch fell outside the site."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Attendance records returned"),
@@ -152,11 +157,13 @@ public class AttendanceController {
             @PathVariable Long projectId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) AttendanceStatus status,
+            @RequestParam(required = false) ApprovalStatus approvalStatus,
+            @RequestParam(required = false) Boolean requiresApproval,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(attendanceService.getAttendanceByProject(
-                projectId, date, status, search,
+                projectId, date, status, approvalStatus, requiresApproval, search,
                 PageRequest.of(page, size, Sort.by("employeeName"))));
     }
 
