@@ -35,10 +35,10 @@ import java.util.Map;
  * exist: Spring Boot's cache auto-configuration keeps the in-process Caffeine cache manager
  * and no Redis connection is opened, so single-replica deployments behave exactly as before.
  *
- * <p>The {@link RedisClient} bean is the Lettuce client the Bucket4j starter picks up for its
- * Redis-backed rate limiter (see {@code bucket4j.cache-to-use=redis-lettuce}, set from the same
- * single switch by {@code EchnoCacheEnvironmentPostProcessor}). The distributed rate limiter is
- * therefore driven by the same {@code echno.cache.provider} property.
+ * <p>The {@link RedisClient} bean is the Lettuce client the service's own attempt limiters draw
+ * their buckets from, through {@code AttemptBucketsConfig}, which selects the Redis-backed
+ * implementation on the same condition this class carries. So the limits are shared across
+ * replicas exactly when the caches are, driven by the one {@code echno.cache.provider} property.
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(name = "echno.cache.provider", havingValue = "redis")
@@ -111,8 +111,10 @@ public class RedisConfig {
     }
 
     /**
-     * Lettuce {@link RedisClient} consumed by the Bucket4j Redis (lettuce) auto-configuration so
-     * rate-limit buckets live in Redis and are enforced cluster-wide. Shut down with the context.
+     * Lettuce {@link RedisClient} the attempt buckets are built over, so an allowance is one
+     * allowance across every replica rather than one per pod. Shut down with the context. The
+     * bean name is historical: it names the library the buckets are built with, not the
+     * bucket4j starter, whose filter machinery this application does not use (issue #706).
      */
     @Bean(destroyMethod = "shutdown")
     public RedisClient bucket4jRedisClient(RedisProperties props) {
