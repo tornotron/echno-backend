@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The curated statutory catalogue for the Kerala and Tamil Nadu pilot, transcribed from
+        the Master Compliance Table of the ECHNO Compliance Module product and technical
+        specification (version 1.0 draft, August 2026). Thirty rules: twelve national, nine
+        Kerala, nine Tamil Nadu.
+
+        This is the catalogue the compliance module was built against and has been waiting on.
+        What 037 seeded was a placeholder set written to exercise state and project-type
+        matching: it carries no statutory citation, no governing Act and no issuing authority
+        beyond a rough label. It was never the real catalogue and was never meant to reach a
+        customer.
+
+        TRANSCRIBED, NOT AUTHORED. Every legal fact below (the governing Act and section, the
+        authority, the applicability threshold, the evidence, the validity and renewal position
+        and the source citation) is copied from the specification. Nothing was completed from
+        elsewhere and no citation was corrected. Where the specification records a requirement
+        as only partly verified, that note is carried into the rule's description rather than
+        dropped, so the caveat travels with the rule instead of living in a document nobody
+        reads at the point of use.
+
+        WHAT THE SPECIFICATION SUPPLIES THAT THIS TABLE CANNOT HOLD. The specification's data
+        model has nineteen fields; compliance_rules has ten. There is no column for the
+        governing law, the applicability condition, the required evidence, the validity period,
+        the responsible stakeholder or the official source. All of them are folded into the
+        free-text description, which is also what the AI generation call reads, so nothing is
+        lost to the model. Nothing queries them, so expiry cannot be tracked off this table and
+        an applicability threshold cannot be evaluated in SQL. Both were already true before
+        this changelog and neither is made worse by it.
+
+        WHAT THE SPECIFICATION DOES NOT SUPPLY. It has no risk or severity column, and
+        default_risk_level is NOT NULL, so a value had to be chosen for every rule. The rule
+        used, applied uniformly and open to correction by whoever curates the catalogue:
+
+          CRITICAL  the obligation gates lawful commencement, sale or occupation
+          HIGH      a statutory precondition or licence granted by a named authority
+          MEDIUM    a continuing payment, filing, record-keeping or connection obligation
+
+        National rules are stored once per pilot jurisdiction because compliance_rules is keyed
+        by (state, project_type, code) with no national scope and no all-types value. Twelve
+        national plus nine state rules over two states and two project types is eighty-four
+        rows from thirty specification entries. Only RESIDENTIAL and COMMERCIAL are seeded: the
+        specification verified its items for building and construction projects and asserts
+        nothing about industrial, infrastructure or institutional work, and seeding those would
+        claim a verification that was never done.
+
+        Idempotent by ON CONFLICT DO NOTHING against uk_compliance_rule_code, so this applies
+        cleanly to an environment that already holds some of these rows and can be re-run
+        without duplicating anything.
+
+        effective_from is set to now rather than back-dated. Per the column's own contract a
+        back-dated rule reaches nobody who has already been assessed, which is wrong for a rule
+        that is new to us. The consequence is deliberate and worth stating: the nightly sweep
+        will find every approved project in every tenant stale against these jurisdictions and
+        re-assess it. That is the intended outcome, because those projects were assessed against
+        the placeholder catalogue and their answers are not worth keeping.
+    -->
+
+    <changeSet id="089-retire-placeholder-compliance-rules" author="abhijith">
+        <comment>
+            Switches off the 037 placeholders that the transcribed catalogue supersedes, so a
+            Kerala or Tamil Nadu project is not offered the same obligation twice under two
+            different codes. Deactivated rather than deleted: generated inspections reference
+            these codes in compliance_rule_ref, the sweep already excludes inactive rules from
+            staleness, and a switched-off row is recoverable where a deleted one is not.
+
+            Ten of the twelve are retired. KL-STRUCT-STAB and TN-STRUCT-STAB stay active on
+            purpose. A structural stability certificate is not in the specification at all, so
+            there is nothing here that supersedes them, and switching off a requirement this
+            catalogue does not cover would quietly narrow what a project is told to obtain.
+            Leaving them on is the safe direction of error. Whether they belong in a statutory
+            catalogue is a question for the catalogue's curator, not for this changelog.
+
+            Maharashtra is untouched. It is outside the pilot and is the only catalogue those
+            projects have; retiring it would leave a Maharashtra project with no candidate rules
+            at all, which generation rejects outright.
+        </comment>
+
+        <update tableName="compliance_rules">
+            <column name="active" valueBoolean="false"/>
+            <where>
+                state IN ('Kerala', 'Tamil Nadu')
+                AND code IN ('KL-BPA', 'KL-ENV-CLEAR', 'KL-FIRE-NOC', 'KL-LABOUR-LIC',
+                             'KL-OCC-CERT', 'TN-BPA', 'TN-ENV-CLEAR', 'TN-FIRE-NOC',
+                             'TN-LABOUR-LIC', 'TN-OCC-CERT')
+            </where>
+        </update>
+
+        <rollback>
+            <update tableName="compliance_rules">
+                <column name="active" valueBoolean="true"/>
+                <where>
+                    state IN ('Kerala', 'Tamil Nadu')
+                    AND code IN ('KL-BPA', 'KL-ENV-CLEAR', 'KL-FIRE-NOC', 'KL-LABOUR-LIC',
+                                 'KL-OCC-CERT', 'TN-BPA', 'TN-ENV-CLEAR', 'TN-FIRE-NOC',
+                                 'TN-LABOUR-LIC', 'TN-OCC-CERT')
+                </where>
+            </update>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="089-seed-national-compliance-rules" author="abhijith">
+        <comment>
+            The twelve national rules (NAT-01 to NAT-12), stored once per pilot jurisdiction.
+
+            NAT-04 is recorded against PRE_CONSTRUCTION although the specification tags it
+            "Pre-construction / Ongoing". The phase column holds one value, and the
+            specification resolves this itself: an item spanning stages is listed under its
+            primary trigger stage, with the continuing obligation described in the text. The
+            continuing consent-to-operate obligation is in the description.
+        </comment>
+
+        <sql><![CDATA[
+INSERT INTO compliance_rules (state, project_type, phase, code, name, description,
+                              default_risk_level, resolution_options, authority,
+                              active, created_at, updated_at, effective_from)
+SELECT j.state, j.project_type, r.phase, r.code, r.name, r.description,
+       r.risk, r.resolution_options, r.authority,
+       true, current_timestamp, current_timestamp, current_timestamp
+FROM (VALUES
+    ('PRE_CONSTRUCTION', 'NAT-01', 'RERA project registration',
+     'Real Estate (Regulation and Development) Act, 2016, Section 3. Applies where the land area exceeds 500 sq m, or there are more than 8 apartments across all phases. The promoter must register before advertising, marketing, booking, selling or offering the project for sale, and before accepting any advance or deposit. Evidence: certificate of registration and the RERA registration number. Validity: project length, extendable under Section 6. Source: RERA Act, 2016, Section 3(2)(a). Verification note: at least one state RERA authority reads the 500 sq m and 8 apartment thresholds as satisfied by either condition independently. Whether K-RERA or TNRERA have taken a formal position on that reading is unconfirmed.',
+     'CRITICAL',
+     'Register the project with the state RERA authority;Obtain the certificate of registration;Record the RERA registration number and issue date',
+     'State RERA authority'),
+
+    ('PRE_CONSTRUCTION', 'NAT-02', 'Environmental Clearance',
+     'EIA Notification, 2006 (S.O. 1533(E)), Item 8(a) / 8(b). Applies where built-up area is 20,000 sq m or more, or for township and area development of 50 ha or more or 150,000 sq m built-up or more. Prior clearance is required before any construction activity beyond securing the land. Evidence: Environmental Clearance letter, Form 1 or 1A, and the environmental management plan. Validity: as per the clearance conditions, with periodic compliance reports. Source: MoEFCC EIA Notification, 2006. Verification note: the 2025 Supreme Court judgment in Vanashakti v. Union of India and the related January 2025 amending notification changed the exemption position for certain building categories (educational institutions, industrial sheds, hostels) up to 150,000 sq m. The current exemption position should be reconfirmed against the MoEFCC notification before this threshold is relied on.',
+     'CRITICAL',
+     'Apply for prior Environmental Clearance;Submit Form 1 or 1A and the environmental management plan;Obtain the clearance letter before any construction activity;Submit the periodic compliance reports required by the clearance conditions',
+     'SEIAA (Category B) or MoEFCC (Category A)'),
+
+    ('PRE_CONSTRUCTION', 'NAT-03', 'CRZ clearance',
+     'Coastal Regulation Zone Notification, 2019. Applies where the site falls within a notified CRZ boundary; it is not a general requirement. Evidence: CRZ clearance letter. Validity: as per the clearance conditions. Conditions that continue after construction, such as sewage treatment or landscaping commitments, remain trackable after handover. Source: CRZ Notification, 2019, G.S.R. 37(E).',
+     'CRITICAL',
+     'Confirm whether the site falls within the notified CRZ boundary;Apply to the State Coastal Zone Management Authority;Obtain the CRZ clearance letter;Record the conditions attached to the clearance',
+     'State Coastal Zone Management Authority'),
+
+    ('PRE_CONSTRUCTION', 'NAT-04', 'Consent to Establish / Consent to Operate',
+     'Water (Prevention and Control of Pollution) Act, 1974; Air (Prevention and Control of Pollution) Act, 1981. Applicability turns on the State Pollution Control Board categorisation of the activity; the exact thresholds are to be confirmed per project. Consent to Establish is obtained before construction begins; compliance with its conditions is maintained through construction, and a Consent to Operate applies where the completed facility is itself a pollution-generating activity. Evidence: CTE or CTO certificate. Validity: the Consent to Operate is typically renewed periodically. Source: Water Act, 1974; Air Act, 1981. Verification note: the state boards apply their own red, orange, green and white categorisation to decide which construction activities need CTE or CTO and at what scale. That categorisation was not independently confirmed for construction activity and should be checked with the relevant board.',
+     'HIGH',
+     'Confirm the Pollution Control Board categorisation for the activity;Apply for Consent to Establish before construction begins;Obtain the Consent to Operate where the completed facility requires one;Maintain compliance with the consent conditions through construction',
+     'State Pollution Control Board'),
+
+    ('PRE_CONSTRUCTION', 'NAT-05', 'Groundwater extraction NOC',
+     'CGWA NOC Guidelines effective 1 June 2019, under the Environment (Protection) Act, 1986. Applies where the project extracts groundwater. Additional conditions apply where the site falls within a Coastal Regulation Zone. Evidence: CGWA NOC letter and the Water Conservation Fee receipt. Validity: as per the NOC conditions, with monitoring and reporting ongoing. Source: CGWA Guidelines, 2019.',
+     'HIGH',
+     'Apply to the Central Ground Water Authority for the NOC;Pay the Water Conservation Fee and retain the receipt;Obtain the NOC letter;Maintain the monitoring and reporting the NOC conditions require',
+     'Central Ground Water Authority'),
+
+    ('PRE_CONSTRUCTION', 'NAT-06', 'BOCW establishment registration',
+     'Building and Other Construction Workers (Regulation of Employment and Conditions of Service) Act, 1996, Section 7. Applies where 10 or more building workers are employed on any day. Registration must be in place before the covered construction work begins. Evidence: certificate of registration. Validity: ongoing while the threshold is met. Source: BOCW Act, 1996, Section 1(4), 7.',
+     'HIGH',
+     'Register the establishment under Section 7 of the BOCW Act before work begins;Obtain the certificate of registration;Maintain the registers required under the BOCW Central Rules, 1998',
+     'State Building and Other Construction Workers Welfare Board'),
+
+    ('ONGOING', 'NAT-07', 'BOCW welfare cess payment',
+     'Building and Other Construction Workers Welfare Cess Act, 1996, Section 3. Applies to covered building and construction work, at a cess of 1 percent of the cost of construction. Government and public sector work generally has the cess deducted at source from bills; private work requiring local authority approval generally has it collected in advance through the local authority; other private work is assessed and paid by the employer directly. Evidence: cess payment challan or receipt. Validity: payable within 30 days of completion or final assessment, whichever is earlier. Source: Cess Act, 1996, Section 3; notification S.O. 2899, 1996.',
+     'MEDIUM',
+     'Assess the cess at 1 percent of the cost of construction;Pay the cess through the applicable route for the work;Retain the payment challan or receipt',
+     'State Building and Other Construction Workers Welfare Board / local authority (collection)'),
+
+    ('ONGOING', 'NAT-08', 'Contract labour registration and licensing',
+     'Contract Labour (Regulation and Abolition) Act, 1970, Sections 7 and 12. Applies where 20 or more workmen are employed as contract labour. The principal employer registers the establishment under Section 7 and each contractor supplying such labour must hold a licence under Section 12. Evidence: certificate of registration and the contractor licence. Validity: the licence is generally renewed periodically. Source: Contract Labour Act, 1970, Sections 7, 12. Verification note: 20 workmen is the central threshold. Several states have amended it, and whether Kerala or Tamil Nadu has a state-specific amendment in force is unconfirmed and should be checked before the central threshold is applied.',
+     'MEDIUM',
+     'Register the establishment as principal employer under Section 7;Confirm each contractor holds a valid Section 12 licence;Retain the registration certificate and contractor licences',
+     'Registering Officer (principal employer registration); Licensing Officer (contractor licence)'),
+
+    ('POST_CONSTRUCTION', 'NAT-09', 'RERA completion / possession filing',
+     'Real Estate (Regulation and Development) Act, 2016, Sections 11 and 17. Applies where the project is RERA-registered. The promoter must apply for the completion or occupancy certificate as applicable, provide the required certification, and meet the possession and handover obligations set out in the Act and in the allotment agreements. Evidence: completion or occupancy certificate filed on the RERA portal, and possession records. Validity: as per the project registration terms. Source: RERA Act, 2016.',
+     'MEDIUM',
+     'File the completion or occupancy certificate on the RERA portal;Provide the certification the Act requires;Record the possession and handover documents',
+     'State RERA authority'),
+
+    ('ONGOING', 'NAT-10', 'Construction and demolition waste management',
+     'Construction and Demolition Waste Management Rules, 2016. Applies to generators of construction and demolition waste. The generator is responsible for segregating, storing and handing over such waste in accordance with the rules, and for submitting a waste management plan for larger projects as required by the local authority. Evidence: waste management plan for larger projects, and disposal records. Validity: ongoing through construction. Source: C and D Waste Management Rules, 2016.',
+     'MEDIUM',
+     'Segregate and store construction and demolition waste as the rules require;Submit a waste management plan where the local authority requires one;Retain the disposal records',
+     'Local authority / State Pollution Control Board'),
+
+    ('PRE_CONSTRUCTION', 'NAT-11', 'Explosives / blasting licence',
+     'Explosives Act, 1884. Applies only where blasting or the storage of explosives is actually planned as part of site preparation. Evidence: explosives licence. Validity: as per the licence terms. Source: Explosives Act, 1884. Verification note: the procedural steps and any state-level layer for obtaining a PESO licence for construction blasting were not independently confirmed.',
+     'HIGH',
+     'Confirm whether blasting or explosives storage is planned;Apply to the Petroleum and Explosives Safety Organisation for the licence;Obtain the licence before any blasting begins',
+     'Petroleum and Explosives Safety Organisation (PESO)'),
+
+    ('PRE_CONSTRUCTION', 'NAT-12', 'Airport height NOC',
+     'Aircraft Act, 1934 and Rules; Color Coded Zone Map procedure. Applies where the site falls within a notified funnel zone or Color Coded Zone Map area around a licensed airport, for any structure exceeding the permitted height. Evidence: height NOC letter. Validity: as per the NOC conditions. Source: AAI Color Coded Zone Map procedure. Verification note: the procedural and documentary requirements for obtaining the height NOC were not independently confirmed.',
+     'HIGH',
+     'Check the site against the Color Coded Zone Map for the nearest licensed airport;Apply to the Airports Authority of India for the height NOC;Obtain the NOC before constructing above the permitted height',
+     'Airports Authority of India / civil aviation authority')
+) AS r(phase, code, name, description, risk, resolution_options, authority)
+CROSS JOIN (VALUES
+    ('Kerala', 'RESIDENTIAL'),
+    ('Kerala', 'COMMERCIAL'),
+    ('Tamil Nadu', 'RESIDENTIAL'),
+    ('Tamil Nadu', 'COMMERCIAL')
+) AS j(state, project_type)
+ON CONFLICT (state, project_type, code) DO NOTHING;
+        ]]></sql>
+
+        <rollback>
+            <![CDATA[
+DELETE FROM compliance_rules
+ WHERE state IN ('Kerala', 'Tamil Nadu')
+   AND code IN ('NAT-01','NAT-02','NAT-03','NAT-04','NAT-05','NAT-06',
+                'NAT-07','NAT-08','NAT-09','NAT-10','NAT-11','NAT-12');
+            ]]>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="089-seed-kerala-compliance-rules" author="abhijith">
+        <comment>
+            The nine Kerala rules (KL-01 to KL-09).
+
+            KL-02, KL-04 and KL-05 restate obligations that also appear as national rules
+            (NAT-01 RERA registration, NAT-04 pollution control consent, NAT-06 BOCW
+            registration), naming the Kerala authority that administers them. Both are seeded
+            because the specification's own worked checklist shows a Kerala project carrying the
+            national and the state entry together. It is a real duplication and it is the
+            catalogue's to resolve, not this changelog's.
+        </comment>
+
+        <sql><![CDATA[
+INSERT INTO compliance_rules (state, project_type, phase, code, name, description,
+                              default_risk_level, resolution_options, authority,
+                              active, created_at, updated_at, effective_from)
+SELECT 'Kerala', j.project_type, r.phase, r.code, r.name, r.description,
+       r.risk, r.resolution_options, r.authority,
+       true, current_timestamp, current_timestamp, current_timestamp
+FROM (VALUES
+    ('PRE_CONSTRUCTION', 'KL-01', 'Building permit',
+     'Kerala Municipality Building Rules, 2019 / Kerala Panchayat Building Rules, 2019, according to whether the local authority is a Municipality or Corporation or a Panchayat. Applies to all construction requiring a building permit under KMBR or KPBR, consistent with the applicable master plan or zoning regulation. Evidence: sanctioned plan and permit order. Validity: extended validity under the 2025 amendment, with renewal provisions applying. Source: KMBR/KPBR, 2019, S.R.O. No. 828/2019; Kerala Municipality Building (Amendment) Rules, 2025.',
+     'CRITICAL',
+     'Submit plans to the local self government body;Obtain the sanctioned plan and permit order;Track the permit validity and apply for renewal before it lapses',
+     'Local Self Government Department; Municipal Corporation, Municipality, or Panchayat'),
+
+    ('PRE_CONSTRUCTION', 'KL-02', 'K-RERA project registration',
+     'Real Estate (Regulation and Development) Act, 2016, as implemented by the Kerala RERA Rules. Same threshold as NAT-01, for Kerala projects. Evidence: certificate of registration. Validity: project length, extendable. Source: K-RERA published registration certificates and rules.',
+     'CRITICAL',
+     'Register the project with K-RERA;Obtain the certificate of registration;Record the registration number and issue date',
+     'Kerala Real Estate Regulatory Authority (K-RERA)'),
+
+    ('PRE_CONSTRUCTION', 'KL-03', 'Fire NOC (initial / plan approval)',
+     'Kerala Fire Force Act, 1962. Applies to buildings meeting the height, occupancy or use thresholds under the Act, generally obtained as part of the building-plan approval process. Evidence: Site Clearance Certificate. Validity: the Certificate of Approval is valid one year from issue and requires annual renewal. The fire safety measures the NOC was conditioned on must be maintained through construction, ahead of the final inspection. Source: Kerala Fire Force Act, 1962; Kerala Fire and Rescue Services procedure.',
+     'HIGH',
+     'Submit the fire safety plan with the building plan application;Obtain the Site Clearance Certificate from Kerala Fire and Rescue Services;Maintain the fire safety measures the certificate was conditioned on',
+     'Kerala Department of Fire and Rescue Services'),
+
+    ('PRE_CONSTRUCTION', 'KL-04', 'State Pollution Control Board consent',
+     'Water Act, 1974; Air Act, 1981. Applicability turns on the Kerala State Pollution Control Board categorisation and is to be confirmed per project. Evidence: CTE or CTO certificate. Validity: periodic renewal. Source: KSPCB procedure. Verification note: the board applies its own red, orange, green and white categorisation to decide which construction activities need CTE or CTO and at what scale. That categorisation was not independently confirmed for construction activity and should be checked with KSPCB.',
+     'HIGH',
+     'Confirm the KSPCB categorisation for the activity;Apply for Consent to Establish;Obtain the Consent to Operate where required and track its renewal',
+     'Kerala State Pollution Control Board'),
+
+    ('PRE_CONSTRUCTION', 'KL-05', 'BOCW registration (Kerala)',
+     'Building and Other Construction Workers Act, 1996, as implemented in Kerala. Applies where 10 or more building workers are employed. Evidence: certificate of registration. Validity: ongoing while the threshold is met. Source: Kerala Building and Other Construction Workers Welfare Board. Verification note: Kerala has both this Board, implementing the central BOCW Act, and a separate Board under the Kerala Construction Workers Welfare Fund Act, 1989. How the two frameworks apply to a given establishment is unconfirmed and should be settled with the Kerala Labour Department.',
+     'HIGH',
+     'Register the establishment with the Kerala Building and Other Construction Workers Welfare Board;Obtain the certificate of registration;Confirm with the Labour Department whether the 1989 Fund Act Board also applies',
+     'Kerala Building and Other Construction Workers Welfare Board'),
+
+    ('POST_CONSTRUCTION', 'KL-06', 'Completion certificate / development certificate',
+     'Kerala Municipality Building Rules / Kerala Panchayat Building Rules, 2019, Rule 20. Applies to all permitted construction. Confirms the construction was carried out in accordance with the sanctioned plan. This is a distinct document from the occupancy certificate and is tracked separately. Evidence: completion report and development certificate. Validity: not applicable. Source: KMBR/KPBR, 2019, Rule 20.',
+     'CRITICAL',
+     'Submit the completion report to the local authority;Obtain the development certificate;Retain the certificate against the sanctioned plan',
+     'Local Self Government Department / local authority'),
+
+    ('POST_CONSTRUCTION', 'KL-07', 'Occupancy certificate',
+     'Kerala Municipality Building Rules / Kerala Panchayat Building Rules, 2019, Rule 19C. Applies to all buildings requiring occupancy certification, and is required before the building is put to use. This is a distinct document from the completion certificate and is tracked separately. Evidence: occupancy certificate. Validity: not applicable. Source: KMBR/KPBR, 2019, Rule 19C.',
+     'CRITICAL',
+     'Apply to the local authority for the occupancy certificate;Arrange the completion inspection;Obtain the certificate before the building is occupied',
+     'Local Self Government Department / local authority'),
+
+    ('POST_CONSTRUCTION', 'KL-08', 'Fire final Certificate of Approval',
+     'Kerala Fire Force Act, 1962. Applies where an initial fire NOC applied. A final inspection is required after construction is complete and before occupancy. Evidence: Certificate of Approval. Validity: valid one year from issue, with annual renewal. Source: Kerala Fire and Rescue Services procedure.',
+     'HIGH',
+     'Request the final fire inspection;Obtain the Certificate of Approval before occupancy;Record the expiry date and renew annually',
+     'Kerala Department of Fire and Rescue Services'),
+
+    ('POST_CONSTRUCTION', 'KL-09', 'Water and electricity connections',
+     'Kerala Water Authority and Kerala State Electricity Board statutory procedures. Applies to all occupied buildings requiring connections. These connections are generally conditional on the completion and occupancy certificates having been issued. Evidence: connection order and meter installation record. Validity: not applicable. Source: KWA/KSEB service procedures.',
+     'MEDIUM',
+     'Apply to the Kerala Water Authority for the water connection;Apply to KSEB for the electricity connection;Retain the connection orders and meter installation records',
+     'Kerala Water Authority; Kerala State Electricity Board')
+) AS r(phase, code, name, description, risk, resolution_options, authority)
+CROSS JOIN (VALUES ('RESIDENTIAL'), ('COMMERCIAL')) AS j(project_type)
+ON CONFLICT (state, project_type, code) DO NOTHING;
+        ]]></sql>
+
+        <rollback>
+            <![CDATA[
+DELETE FROM compliance_rules
+ WHERE state = 'Kerala'
+   AND code IN ('KL-01','KL-02','KL-03','KL-04','KL-05',
+                'KL-06','KL-07','KL-08','KL-09');
+            ]]>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="089-seed-tamil-nadu-compliance-rules" author="abhijith">
+        <comment>
+            The nine Tamil Nadu rules (TN-01 to TN-09).
+
+            TN-03 and TN-08 cite a state fire service framework without naming an Act or a year,
+            where the Kerala equivalents name the Kerala Fire Force Act, 1962. That gap is the
+            specification's and is carried across as written. Naming a statute here would be
+            inventing the citation.
+        </comment>
+
+        <sql><![CDATA[
+INSERT INTO compliance_rules (state, project_type, phase, code, name, description,
+                              default_risk_level, resolution_options, authority,
+                              active, created_at, updated_at, effective_from)
+SELECT 'Tamil Nadu', j.project_type, r.phase, r.code, r.name, r.description,
+       r.risk, r.resolution_options, r.authority,
+       true, current_timestamp, current_timestamp, current_timestamp
+FROM (VALUES
+    ('PRE_CONSTRUCTION', 'TN-01', 'Planning permission and building permit',
+     'Tamil Nadu Combined Development and Building Rules, 2019. Applies to all development or construction requiring permission under TNCDBR, administered through CMDA, the Directorate of Town and Country Planning, or the relevant local body depending on location. Evidence: planning permission and the sanctioned building plan. Validity: the permit period is extendable once by 3 years. Source: TNCDBR, 2019.',
+     'CRITICAL',
+     'Submit the application to CMDA, DTCP or the local body as applicable;Obtain the planning permission and sanctioned building plan;Track the permit period and apply for the extension before it lapses',
+     'CMDA (Chennai Metropolitan Area) / Directorate of Town and Country Planning / local body'),
+
+    ('PRE_CONSTRUCTION', 'TN-02', 'TNRERA project registration',
+     'Real Estate (Regulation and Development) Act, 2016; Tamil Nadu RERA Rules, 2017. Same threshold as NAT-01, for Tamil Nadu projects. Evidence: certificate of registration. Validity: project length, extendable under Section 6. Source: TNRERA; G.O. Ms. No. 112, 2017.',
+     'CRITICAL',
+     'Register the project with TNRERA;Obtain the certificate of registration;Record the registration number and issue date',
+     'Tamil Nadu Real Estate Regulatory Authority'),
+
+    ('PRE_CONSTRUCTION', 'TN-03', 'Fire NOC (initial)',
+     'State fire service framework, as administered by the Tamil Nadu Fire and Rescue Services, with the TNCDBR documentation requirement. Applies to buildings meeting the height or occupancy thresholds, with a documented procedure for multi-storeyed buildings of 18.3 m and above. Evidence: NOC letter and the approved fire safety plan. Validity: the renewal cycle is to be confirmed. Source: TNFRS published FAQ and procedure. Verification note: the specification does not name a Tamil Nadu fire service Act or year for this item, where its Kerala equivalent cites the Kerala Fire Force Act, 1962. The renewal period was not confirmed to the same precision as the Kerala one-year cycle and should be checked with TNFRS.',
+     'HIGH',
+     'Submit the fire safety plan with the planning permission application;Obtain the NOC from Tamil Nadu Fire and Rescue Services;Confirm the renewal cycle with TNFRS and record the expiry date',
+     'Tamil Nadu Fire and Rescue Services'),
+
+    ('PRE_CONSTRUCTION', 'TN-04', 'Pollution Control Board consent',
+     'Water Act, 1974; Air Act, 1981. Applicability turns on the Tamil Nadu Pollution Control Board categorisation and is to be confirmed per project. Evidence: CTE or CTO certificate. Validity: periodic renewal. Source: TNPCB procedure. Verification note: the board applies its own red, orange, green and white categorisation to decide which construction activities need CTE or CTO and at what scale. That categorisation was not independently confirmed for construction activity and should be checked with TNPCB.',
+     'HIGH',
+     'Confirm the TNPCB categorisation for the activity;Apply for Consent to Establish;Obtain the Consent to Operate where required and track its renewal',
+     'Tamil Nadu Pollution Control Board'),
+
+    ('PRE_CONSTRUCTION', 'TN-05', 'BOCW registration (Tamil Nadu)',
+     'Building and Other Construction Workers Act, 1996, as implemented in Tamil Nadu. Applies where 10 or more building workers are employed. Evidence: certificate of registration. Validity: ongoing while the threshold is met. Source: BOCW Act, 1996. Verification note: Tamil Nadu has both the central BOCW Act implementation and the older Tamil Nadu Construction Workers Welfare Board established in 1994 under the Tamil Nadu Manual Workers (Regulation of Employment and Conditions of Work) Act, 1982. Which registration applies to a given establishment, or whether both do, is unconfirmed and should be settled with the Tamil Nadu Labour Department.',
+     'HIGH',
+     'Register the establishment with the Tamil Nadu Building and Other Construction Workers Welfare Board;Obtain the certificate of registration;Confirm with the Labour Department whether the 1994 state welfare board also applies',
+     'Tamil Nadu Building and Other Construction Workers Welfare Board'),
+
+    ('POST_CONSTRUCTION', 'TN-06', 'Completion certificate',
+     'Tamil Nadu Combined Development and Building Rules, 2019. Applies to all permitted construction. Confirms the construction was carried out in accordance with the sanctioned plan. This is a distinct document from the occupancy certificate and is tracked separately. Evidence: completion certificate and the architect or licensed surveyor certification. Validity: not applicable. Source: TNCDBR, 2019.',
+     'CRITICAL',
+     'Obtain the architect or licensed surveyor certification;Apply to CMDA or the local body for the completion certificate;Retain the certificate against the sanctioned plan',
+     'CMDA / local body'),
+
+    ('POST_CONSTRUCTION', 'TN-07', 'Occupancy certificate',
+     'Tamil Nadu Combined Development and Building Rules, 2019. Applies to buildings requiring occupancy certification, and is required before the building is put to use. This is a distinct document from the completion certificate and is tracked separately. Evidence: occupancy certificate. Validity: not applicable. Source: TNCDBR, 2019.',
+     'CRITICAL',
+     'Apply to CMDA or the local body for the occupancy certificate;Arrange the completion inspection;Obtain the certificate before the building is occupied',
+     'CMDA / local body'),
+
+    ('POST_CONSTRUCTION', 'TN-08', 'Fire Licence (final)',
+     'State fire service framework, as administered by the Tamil Nadu Fire and Rescue Services. Applies to multi-storeyed buildings of 18.3 m and above, and other notified categories, after construction is complete and before occupancy. Evidence: Fire Licence. Validity: the renewal cycle is to be confirmed. Source: TNFRS published FAQ and procedure. Verification note: the specification does not name a Tamil Nadu fire service Act or year for this item. The renewal period was not confirmed to the same precision as the Kerala one-year cycle and should be checked with TNFRS.',
+     'HIGH',
+     'Request the final fire inspection;Obtain the Fire Licence before occupancy;Confirm the renewal cycle with TNFRS and record the expiry date',
+     'Tamil Nadu Fire and Rescue Services'),
+
+    ('POST_CONSTRUCTION', 'TN-09', 'Electricity and water/sewerage connections',
+     'TANGEDCO and the relevant water board statutory procedures. Applies to all occupied buildings requiring connections. These connections are generally conditional on the completion and occupancy certificates having been issued. Evidence: connection order and meter installation record. Validity: not applicable. Source: TANGEDCO/CMWSSB service procedures.',
+     'MEDIUM',
+     'Apply to TANGEDCO for the electricity connection;Apply to CMWSSB or the local body for the water and sewerage connection;Retain the connection orders and meter installation records',
+     'TANGEDCO; CMWSSB or local body (water/sewerage)')
+) AS r(phase, code, name, description, risk, resolution_options, authority)
+CROSS JOIN (VALUES ('RESIDENTIAL'), ('COMMERCIAL')) AS j(project_type)
+ON CONFLICT (state, project_type, code) DO NOTHING;
+        ]]></sql>
+
+        <rollback>
+            <![CDATA[
+DELETE FROM compliance_rules
+ WHERE state = 'Tamil Nadu'
+   AND code IN ('TN-01','TN-02','TN-03','TN-04','TN-05',
+                'TN-06','TN-07','TN-08','TN-09');
+            ]]>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
