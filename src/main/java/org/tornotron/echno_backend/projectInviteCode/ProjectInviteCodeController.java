@@ -1,10 +1,13 @@
 package org.tornotron.echno_backend.projectInviteCode;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -113,7 +116,14 @@ public class ProjectInviteCodeController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation or the code is invalid or expired"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the target user nor a role holder in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user with the given id"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "The attempt allowance is spent; Retry-After says when it refills")
+            // The schema is spelt out because this handler returns a ResponseEntity rather than a
+            // bare ProblemDetail, so it can carry Retry-After. Springdoc reads the advice's return
+            // type to fill in an undeclared body, and a ResponseEntity tells it nothing, so it
+            // falls back to the operation's own return type and documents the 429 as an
+            // OrganizationDto. It is a ProblemDetail like every other error on this API.
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429",
+                    description = "The attempt allowance is spent; Retry-After says when it refills",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     })
     public ResponseEntity<OrganizationDto> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto,
                                                               @PathVariable Long userId) {
