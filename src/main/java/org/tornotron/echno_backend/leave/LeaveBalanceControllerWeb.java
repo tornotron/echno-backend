@@ -97,8 +97,14 @@ public class LeaveBalanceControllerWeb {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     @Operation(
             summary = "Recalculate an employee's leave balances",
-            description = "Recomputes every policy balance held by the employee for the given year and "
-                    + "returns the refreshed list, defaulting to the current year when none is given."
+            description = "Rebuilds every policy balance held by the employee for the given year and "
+                    + "returns the result, defaulting to the current year when none is given. Unlike a "
+                    + "read, which recomputes only when a month has turned since the balance was last "
+                    + "touched, this recomputes unconditionally: used and pending days are rebuilt from the "
+                    + "leave requests, manual adjustments are folded back in from the ledger, and any "
+                    + "monthly accrual the balance is missing is posted. A monthly accrual already recorded "
+                    + "is taken as it stands, and the opening balance carried forward from the previous "
+                    + "year is not recomputed."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Balances recalculated"),
@@ -109,7 +115,7 @@ public class LeaveBalanceControllerWeb {
             @RequestParam Long employeeId,
             @RequestParam(required = false) Integer year) {
         int targetYear = year != null ? year : LocalDate.now().getYear();
-        return ResponseEntity.ok(balanceService.getAllBalancesForEmployee(employeeId, targetYear));
+        return ResponseEntity.ok(balanceService.recalculateBalances(employeeId, targetYear));
     }
 
     @PostMapping("/adjust")

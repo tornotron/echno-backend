@@ -207,6 +207,48 @@ public class LeaveBalanceService {
     }
 
     /**
+     * Forces a rebuild of every balance the employee holds under an applicable policy for a year.
+     *
+     * <p>The difference from {@link #getAllBalancesForEmployee} is the guard, not the work. That
+     * method recomputes a balance only when a month has turned since the row was last touched,
+     * which keeps a read cheap; this one recomputes unconditionally, because a caller reaching for
+     * a recalculation believes the stored figures are wrong and that is the case the guard skips.
+     *
+     * <p>What the rebuild reaches: {@code used} and {@code pending} are recomputed from the leave
+     * requests themselves, the manual adjustments are folded back in from the ledger, and any
+     * monthly accrual the balance is missing is posted. What it does not reach: an ACCRUAL
+     * transaction already written for a month is taken as it stands, so a policy quota edited
+     * mid-year or attendance backfilled afterwards leaves the months already accrued alone, and
+     * the opening balance carried forward from the previous year is not recomputed either.
+     *
+     * <p>Years before the employee joined return transient zero balances and persist nothing, the
+     * same way the read path treats them. Forcing a rebuild must not be the one route that creates
+     * rows for years the employee was not employed in.
+     *
+     * @param employeeId The employee's ID.
+     * @param year The calendar year of the balances.
+     * @return One rebuilt balance per applicable policy.
+     * @throws ResourceNotFoundException if the employee is not found in this organization.
+     */
+    @Transactional
+    public List<LeaveBalanceDto> recalculateBalances(Long employeeId, Integer year) {
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Employee with ID " + employeeId + " was not found in this organization"));
+
+        List<LeavePolicy> policies = policyRepository.findApplicablePolicies(
+                employee.getOrganization().getId(),
+                employee.getGender(),
+                calculateServiceMonths(employee));
+
+        return policies.stream()
+                .map(policy -> isBeforeJoiningYear(employee, year)
+                        ? leaveBalanceMapper.toDto(zeroBalance(employee, policy, year))
+                        : recalculateBalance(employeeId, policy.getId(), year))
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Applies a manual balance adjustment for the current year and records it in the ledger.
      *
      * <p>Locks the balance row so concurrent adjustments serialize. A positive day count increases
