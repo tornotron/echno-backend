@@ -36,8 +36,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * having been deleted rather than corrected, or by the controller having been emptied.
  *
  * <p>Scoped to the leave approval surface deliberately. {@code NotificationController} and
- * {@code LeaveCalendarController} in this same package still carry the phantom, and widening this
- * test is a change to endpoints it was not written for.
+ * {@code LeaveCalendarController} in this same package carried the same phantom and were repaired
+ * separately in #684; {@code NotificationAndCalendarEndpointAuthorityTest} is their ratchet.
  */
 class LeaveApprovalEndpointAuthorityTest {
 
