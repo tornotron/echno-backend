@@ -7182,6 +7182,8 @@
           },
           "maxUses": {
             "format": "int32",
+            "maximum": 1000,
+            "minimum": 1,
             "type": "integer"
           },
           "phone": {
@@ -7202,6 +7204,8 @@
           },
           "validityDays": {
             "format": "int32",
+            "maximum": 365,
+            "minimum": 1,
             "type": "integer"
           }
         },
@@ -56403,7 +56407,7 @@
     },
     "/api/v1/invitation/web/validate/userId/{userId}": {
       "post": {
-        "description": "Validates the supplied invite code and joins the user to the organization it grants access to.",
+        "description": "Validates the supplied invite code and joins the user to the organization it grants access to. Attempts are limited: one is charged before the code is looked up and given back when the code is accepted, so a successful redemption costs nothing and repeated wrong codes are answered with 429 and a Retry-After header.",
         "operationId": "validateInviteCode",
         "parameters": [
           {
@@ -56496,6 +56500,16 @@
               }
             },
             "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationDto"
+                }
+              }
+            },
+            "description": "The attempt allowance is spent; Retry-After says when it refills"
           },
           "500": {
             "content": {
