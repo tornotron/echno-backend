@@ -91,8 +91,12 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
         }
     }
 
-    private static final String RULE_PRE = "TN-BPA";        // pre-construction
-    private static final String RULE_POST = "TN-OCC-CERT";  // post-construction
+    // Two rules from the curated Tamil Nadu catalogue seeded by changelog 089. These were
+    // TN-BPA and TN-OCC-CERT, from the 037 placeholder set that 089 retires; the service only
+    // considers active rules, so pinning to a retired code leaves the stub's suggestions
+    // resolving to nothing and the test asserting against an empty run.
+    private static final String RULE_PRE = "TN-01";   // planning permission and building permit
+    private static final String RULE_POST = "TN-07";  // occupancy certificate
 
     @Autowired
     private ComplianceGenerationService service;
@@ -147,7 +151,7 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
                         new ComplianceSuggestion(RULE_PRE, true, "critical",
                                 List.of("Obtain the building plan approval"), "Required before work starts",
                                 "pre-construction"),
-                        new ComplianceSuggestion("TN-FIRE-NOC", false, null, null,
+                        new ComplianceSuggestion("TN-03", false, null, null,
                                 "Not required for this low-rise residential project", "pre-construction")
                 ));
 
