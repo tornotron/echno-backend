@@ -406,4 +406,7 @@
     <!-- v4.0 - Stock adjustments: name the document the correction answers, so a transfer variance can be closed and read as closed -->
     <include file="db/changelog/v4.0/090-add-stock-adjustment-source-document.xml"/>
 
+    <!-- v4.0 - Attendance: index the approval queue's predicate, which nothing queried before -->
+    <include file="db/changelog/v4.0/091-index-attendance-approval-queue.xml"/>
+
 </databaseChangeLog>

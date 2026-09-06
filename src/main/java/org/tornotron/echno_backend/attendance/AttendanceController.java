@@ -21,10 +21,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.attendance.dto.*;
 import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
+import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/attendance")
@@ -178,6 +180,51 @@ public class AttendanceController {
             @PathVariable Long id,
             @Valid @RequestBody AttendanceApprovalDto dto) {
         return ResponseEntity.ok(attendanceService.approveAttendance(id, dto));
+    }
+
+    // The queue is the caller's own and takes no parameters. Reading the approver from a query
+    // parameter under a guard that only asks for a role is the shape #683 took off the leave
+    // queue: the guard checks a role, the query reads a number the caller chose, and an
+    // administrator ends up able to read a colleague's queue while the approvers a chain is
+    // actually built from can read none of their own. The caller is resolved from the session in
+    // the service, so a caller that still sends approverId is served their own queue, a query
+    // parameter no handler declares being ignored.
+    @GetMapping("/pending-approvals")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(
+            summary = "List the attendance days waiting on you",
+            description = "Returns the attendance days held for a geofence decision that the signed-in "
+                    + "caller may decide: the days that name them as approver, and, for a holder of the "
+                    + "attendance record-management roles, every other held day in the tenant, which is "
+                    + "how the days no approver could be resolved for are reached. A caller's own days "
+                    + "are never in it, because nobody approves their own absence from site whatever "
+                    + "roles they hold. Newest day first, up to a fixed ceiling; the response carries "
+                    + "X-Total-Count with the true number waiting, and X-Result-Capped when there were "
+                    + "more than one response can hold."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Records waiting on the caller returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve")
+    })
+    public ResponseEntity<List<AttendanceResponseDto>> getPendingApprovals() {
+        return UnpagedResultCap.respond(
+                attendanceService.getPendingApprovals(0, UnpagedResultCap.MAX_ROWS));
+    }
+
+    @GetMapping("/pending-approvals/count")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(
+            summary = "Count the attendance days waiting on you",
+            description = "Returns how many attendance days are awaiting a decision from the signed-in "
+                    + "caller, for the badge a client draws on the menu. Counted over the same set the "
+                    + "listing serves."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Count returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to count")
+    })
+    public ResponseEntity<Map<String, Long>> getPendingApprovalCount() {
+        return ResponseEntity.ok(Map.of("count", attendanceService.getPendingApprovalCount()));
     }
 
     @PostMapping("/mark-absent")

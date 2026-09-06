@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.attendance;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.tornotron.echno_backend.attendance.enums.ApprovalStatus;
@@ -12,7 +13,15 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
+/**
+ * Attendance rows.
+ *
+ * <p>{@link JpaSpecificationExecutor} is here for the approval queue added in issue #692:
+ * {@code AttendanceApprovalQueueSpecifications} builds one predicate that both the listing and its
+ * count are read through, so the badge and the list it labels cannot drift apart.
+ */
+public interface AttendanceRepository extends JpaRepository<Attendance, Long>,
+        JpaSpecificationExecutor<Attendance> {
 
     Optional<Attendance> findByEmployeeIdAndAttendanceDateAndProjectId(
             Long employeeId, LocalDate attendanceDate, Long projectId);

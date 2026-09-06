@@ -2,7 +2,10 @@ package org.tornotron.echno_backend.attendance;
 
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import jakarta.validation.ValidationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -551,6 +554,77 @@ public class AttendanceService {
         }
 
         return attendanceMapper.toResponseDto(attendanceRepository.save(attendance));
+    }
+
+    /**
+     * One page of the attendance days waiting on the signed-in caller's decision.
+     *
+     * <p>The routing built in #681 named an approver and had nowhere to show them what they had
+     * been named on. The only two listings are a project on one required date and one employee
+     * over a range, so an approver with people on several sites had to guess a site and a day, and
+     * a day held three days ago was invisible to anyone not already looking for it. A decision
+     * routed to a person who cannot find it does not get made.
+     *
+     * <p>The caller comes from the session and never from a parameter. The leave queue took an
+     * {@code approverId} under a guard that only asked for a role, so an administrator read any
+     * colleague's queue while the line managers a chain is built from could read none of their
+     * own; #683 took the parameter off, and this pair is built that way from the start.
+     *
+     * <p>What is in it, and why it is the geofence exceptions rather than everything pending, is
+     * argued in {@link AttendanceApprovalQueueSpecifications}. In short: every record is born
+     * {@code PENDING} and stays there until somebody decides it, so pending is an ordinary
+     * record's resting state and a queue of all of them would be the whole table.
+     *
+     * @param pageNo Zero-based page number.
+     * @param pageSize Rows per page.
+     * @return The page of records, newest day first.
+     * @throws AccessDeniedException if the caller has no employee record in this organization, so
+     *     there is nobody for a queue to belong to.
+     */
+    @Transactional(readOnly = true)
+    public Page<AttendanceResponseDto> getPendingApprovals(int pageNo, int pageSize) {
+        return attendanceRepository
+                .findAll(queueWaitingOnCaller("read your attendance approval queue"),
+                        PageRequest.of(pageNo, pageSize, AttendanceApprovalQueueSpecifications.QUEUE_ORDER))
+                .map(attendanceMapper::toResponseDto);
+    }
+
+    /**
+     * How many attendance days are waiting on the caller, for the badge a client draws on the menu.
+     *
+     * <p>A real count query over the same predicate the listing uses, rather than the size of a
+     * page of it. A page total is not a count once the queue is longer than a page, and Spring
+     * skips the count query altogether when the first page comes back short, so a badge built from
+     * a page would be right only while it did not matter.
+     *
+     * @return The number of records waiting on the caller.
+     * @throws AccessDeniedException if the caller has no employee record in this organization.
+     */
+    @Transactional(readOnly = true)
+    public long getPendingApprovalCount() {
+        return attendanceRepository.count(queueWaitingOnCaller("count your attendance approval queue"));
+    }
+
+    /**
+     * The queue predicate for whoever is signed in, refusing a caller there is no queue for.
+     *
+     * <p>Both halves of the queue read the caller the same way, so the badge cannot be counted for
+     * one person and the list served for another.
+     *
+     * @param action What the caller was trying to do, named in the refusal.
+     * @return The specification matching the days waiting on the caller.
+     * @throws AccessDeniedException if the caller has no employee record in this organization.
+     */
+    private Specification<Attendance> queueWaitingOnCaller(String action) {
+        Employee caller = resolveCurrentEmployee();
+        if (caller == null) {
+            throw new AccessDeniedException(
+                    "You have no employee record in this organization, so there is no attendance "
+                            + "approval queue that is yours. Ask an administrator to add you to the "
+                            + "organization as an employee before you " + action + ".");
+        }
+        return AttendanceApprovalQueueSpecifications.waitingOn(
+                caller.getId(), attendanceSecurity.canManageRecords());
     }
 
     /**
