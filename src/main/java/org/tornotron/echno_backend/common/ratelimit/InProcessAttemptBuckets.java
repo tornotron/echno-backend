@@ -53,10 +53,4 @@ public class InProcessAttemptBuckets implements AttemptBuckets {
             return builder.build();
         });
     }
-
-    /** Visible for tests that need to observe how many keys are being tracked. */
-    long trackedKeys() {
-        buckets.cleanUp();
-        return buckets.estimatedSize();
-    }
 }
