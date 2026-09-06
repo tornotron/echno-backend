@@ -55,11 +55,11 @@ public class StockAdjustmentDto {
             + "answers none. SITE_TRANSFER means the adjustment closes the open variance a transfer "
             + "received short left behind, and the transfer it closes is sourceDocumentId. Always "
             + "set together with that field.",
-            example = "SITE_TRANSFER", nullable = true)
+            example = "SITE_TRANSFER")
     private StockAdjustmentSourceType sourceDocumentType;
 
     @Schema(description = "Id of the document named by sourceDocumentType, within that kind. Null "
-            + "wherever the type is null.", example = "31", nullable = true)
+            + "wherever the type is null.", example = "31")
     private Long sourceDocumentId;
 
     @Schema(description = "Justification for the adjustment.", example = "Quarterly physical count found a shortfall in River Sand at Main Site Store")

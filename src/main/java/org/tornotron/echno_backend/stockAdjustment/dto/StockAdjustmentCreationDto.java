@@ -58,11 +58,11 @@ public class StockAdjustmentCreationDto {
             + "rather than half-stored. The named document is looked up in the caller's "
             + "organization when the adjustment is written, so an id that names nothing there is "
             + "a 404 and not a dangling reference.",
-            example = "SITE_TRANSFER", nullable = true)
+            example = "SITE_TRANSFER")
     private StockAdjustmentSourceType sourceDocumentType;
 
     @Schema(description = "Id of the document named by sourceDocumentType. Required when that "
-            + "field is set, and refused when it is not.", example = "31", nullable = true)
+            + "field is set, and refused when it is not.", example = "31")
     private Long sourceDocumentId;
 
     @Schema(description = "Total monetary value of the adjustment across all line items. Summed from "
