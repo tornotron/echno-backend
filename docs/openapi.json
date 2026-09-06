@@ -35262,7 +35262,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
