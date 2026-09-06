@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.user.UserContextService;
 
+import java.util.Locale;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -99,6 +100,22 @@ class LeavePolicyUniqueCodeCheckTest {
         // check against a value the table never holds.
         assertThatThrownBy(() -> service.createPolicy(policy(TENANT, "sick")))
                 .isInstanceOf(DuplicateResourceException.class);
+    }
+
+    @Test
+    void theCasingTheCodeIsStoredInDoesNotDependOnTheJvmLocale() {
+        // Uppercasing without a Locale uses the JVM default. Under tr-TR "sick" uppercases to
+        // "SİCK" with a dotted capital I, which is not the "SICK" the tenant already holds, so
+        // the check passes and the row is written under a key no other environment would
+        // produce for the same input. See issue #719.
+        Locale original = Locale.getDefault();
+        Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+        try {
+            assertThatThrownBy(() -> service.createPolicy(policy(TENANT, "sick")))
+                    .isInstanceOf(DuplicateResourceException.class);
+        } finally {
+            Locale.setDefault(original);
+        }
     }
 
     private static LeavePolicyCreationDto policy(long organizationId, String leaveTypeCode) {
