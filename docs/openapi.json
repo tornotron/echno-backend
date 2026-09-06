@@ -25454,7 +25454,7 @@
     },
     "/api/v1/attendance/project/{projectId}": {
       "get": {
-        "description": "Returns a page of attendance records for a project on a given date, optionally filtered by status or a search term against the employee name, sorted by employee name.",
+        "description": "Returns a page of attendance records for a project on a given date, optionally filtered by status, by approval status, by whether the day is held for a geofence decision, or by a search term against the employee name, sorted by employee name. The two approval filters answer different questions: every record is created pending and stays there until somebody decides, so approvalStatus=PENDING is close to the whole day's roll, while requiresApproval=true is the small set of days actually waiting on a decision because a punch fell outside the site.",
         "operationId": "getByProject_1",
         "parameters": [
           {
@@ -25493,6 +25493,27 @@
                 "PENDING_REGULARIZATION"
               ],
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "approvalStatus",
+            "required": false,
+            "schema": {
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "requiresApproval",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           },
           {
@@ -26488,7 +26509,7 @@
     },
     "/api/v1/attendance/web/project/{projectId}": {
       "get": {
-        "description": "Returns a page of attendance records for a project on a given date, optionally filtered by status or a search term against the employee name, sorted by employee name.",
+        "description": "Returns a page of attendance records for a project on a given date, optionally filtered by status, by approval status, by whether the day is held for a geofence decision, or by a search term against the employee name, sorted by employee name. The two approval filters answer different questions: every record is created pending and stays there until somebody decides, so approvalStatus=PENDING is close to the whole day's roll, while requiresApproval=true is the small set of days actually waiting on a decision because a punch fell outside the site.",
         "operationId": "getByProject",
         "parameters": [
           {
@@ -26527,6 +26548,27 @@
                 "PENDING_REGULARIZATION"
               ],
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "approvalStatus",
+            "required": false,
+            "schema": {
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "requiresApproval",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           },
           {
