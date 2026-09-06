@@ -160,22 +160,25 @@ keycloak-initializer:
   url: ${KEYCLOAK_INITIALIZER_URL}
 
 
+# The bucket4j starter's own filter machinery, kept out. There is no filter block here and one
+# should not be added: a path-matched filter runs before authentication, so the only key it has
+# is a network address, and at this origin an address is not a client. The console reaches the
+# backend through its own server-side proxy, which opens the connection itself and forwards
+# three headers, none of them a client address, so every request from every signed-in person
+# arrives wearing the same one. The block that used to sit here, 20 requests a minute over
+# ^/api/.* keyed on the remote address, would therefore have refused the whole console rather
+# than limited anyone.
+#
+# Volumetric limiting lives at the edge, which is the only place a real client address exists;
+# echno-deployment tofu/envs/cloudflare carries the rules. Limiting by meaning lives in the
+# service, keyed on the authenticated principal and charged by outcome, as
+# InviteCodeRedemptionLimiter does for invite-code redemption (echno.invite-code below).
+#
+# This line stays because the starter's auto-configuration defaults to ON when the property is
+# absent, so deleting it would enable what it is here to keep out. PathMatchedRateLimitAbsenceTest
+# holds all of the above, including that default. See issue #706.
 bucket4j:
   enabled: false
-  filters:
-    - cache-name: rate-limit-buckets
-      url: ^/api/.*
-      http-status-code: TOO_MANY_REQUESTS
-      http-response-body: "{ \"error\": \"Rate limit exceeded. Try again later.\" }"
-      http-response-headers:
-        X-Rate-Limit-Remaining: "#{getAvailableTokens()}"
-      rate-limits:
-        - cache-key: "getRemoteAddr()"
-          bandwidths:
-            - capacity: 20
-              time: 1
-              unit: minutes
-              refill-speed: interval
 
 
 keycloak:
@@ -332,8 +335,11 @@ spring:
       pageable:
         max-page-size: 500
   cache:
-    cache-names:
-      - rate-limit-buckets
+    # No cache-names list: the only entry was rate-limit-buckets, which existed for the bucket4j
+    # filter block that is gone. Naming caches here fixes the set the manager will serve and
+    # refuses any other, so an empty list is both accurate and the friendlier default for the
+    # first @Cacheable this application acquires. The Caffeine spec still applies to whatever it
+    # creates, and RedisConfig mirrors it on the redis provider.
     caffeine:
       spec: maximumSize=100000,expireAfterAccess=3600s,recordStats
   batch:
