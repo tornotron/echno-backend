@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.tornotron.echno_backend.common.exception.TenantAccessDeniedException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantIsolationListenerRegistrar;
 import org.tornotron.echno_backend.common.multitenancy.UnscopedAccessGuard;
@@ -21,6 +22,7 @@ import org.tornotron.echno_backend.user.User;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Whether the Hibernate {@code orgFilter} reaches an entity joined explicitly in HQL, measured
@@ -34,9 +36,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * endpoint resolving a caller-named organization through it is exploitable or merely dead. That
  * question was raised in #698 and could not be settled by reading.
  *
- * <p>Either way the guard on such an endpoint has to establish entitlement itself, which is the
- * point {@code TenantIsolationIT.findById_onTheTenantRootItself_isNotCoveredByEitherMechanism}
- * makes for the primary-key load. This pins the join-shaped case beside it.
+ * <p>The measured answer is that the filter does not reach the join. What refuses the foreign
+ * organization is the fail-closed load listener, on the post-load of the joined {@code Employee}.
+ * So the lookup is not a silent cross-tenant read, and equally it is not scoped by the mechanism
+ * that looks like it should scope it. Either way the guard on such an endpoint has to establish
+ * entitlement itself, which is the point
+ * {@code TenantIsolationIT.findById_onTheTenantRootItself_isNotCoveredByEitherMechanism} makes for
+ * the primary-key load. This pins the join-shaped case beside it.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -96,18 +102,25 @@ class OrganizationLookupUnderTheOrgFilterIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void anotherOrganizationTheCallerIsAlsoEmployedByDoesNotResolveUnderTheFilter() {
-        // The measured answer to #698's open question. With the filter pinned to organization A,
-        // the joined Employee rows are narrowed to A, so no row satisfies the join for
-        // organization B even though the caller genuinely has an employment record there. The
-        // cross-organization duplicate path is therefore dead rather than exploitable: it
-        // resolves nothing and raises a not-found. That is what keeps the guard repair a
-        // correctness fix rather than a live-vulnerability fix, and it is also why moving the
-        // role check to the target cannot be the whole answer on its own.
+    void anotherOrganizationIsStoppedByTheLoadListenerRatherThanByTheFilter() {
+        // The measured answer to #698's open question, and it is not the one either candidate
+        // reading predicted. The org filter does NOT narrow an entity joined explicitly in HQL:
+        // the join still matches the caller's employment row in organization B, so the query is
+        // satisfiable and the row is loaded. What stops it is the other mechanism.
+        // TenantIsolationLoadListener runs on the post-load of that Employee, sees a
+        // tenant-scoped row from organization B under a request scoped to A, and refuses.
+        //
+        // Two consequences worth keeping. The lookup is not a silent cross-tenant read, so an
+        // endpoint resolving a caller-named organization through it fails loudly rather than
+        // succeeding quietly. And the filter cannot be relied on to scope a join, so the
+        // fail-closed listener is doing the work here on its own, with no defence behind it.
         TenantContext.setCurrentOrgId(orgAId);
         enableOrgFilterFor(orgAId);
 
-        assertThat(organizationRepository.findByIdAndUserEmail(orgBId, EMAIL)).isEmpty();
+        assertThatThrownBy(() -> organizationRepository.findByIdAndUserEmail(orgBId, EMAIL))
+                .isInstanceOf(TenantAccessDeniedException.class)
+                .hasMessageContaining("Employee")
+                .hasMessageContaining("belongs to organization " + orgBId);
     }
 
     @Test

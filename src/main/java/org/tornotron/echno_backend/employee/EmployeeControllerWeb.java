@@ -155,18 +155,27 @@ public class EmployeeControllerWeb {
     /**
      * Retrieves a single employee by their ID.
      *
+     * <p>The self branch is what makes this read at least as open as the {@code PATCH} beside it,
+     * which has always been {@code isSelfOrHasAnyOrgRole}. Without it a person could edit their
+     * own record and then be refused reading it back, and any screen that shows the record before
+     * offering to edit it failed on the read rather than the write. Same shape as the project
+     * reads repaired in {@code eec6c37}. Nothing else widens: a member holding no elevated role
+     * still cannot open a colleague's record, which carries salary, date of birth and address.
+     * See #710.
+     *
      * @param id The ID of the employee to retrieve.
      * @return A {@link ResponseEntity} containing the employee DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#id, 'system-admin', 'hr-admin', 'project-manager')")
     @Operation(
             summary = "Get an employee by id",
-            description = "Returns a single employee's full details."
+            description = "Returns a single employee's full details. Callable by the employee themselves "
+                    + "or by a system admin, HR admin or project manager."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee nor a system admin, HR admin or project manager"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<EmployeeDto> readAnEmployee(@PathVariable Long id) {
@@ -378,11 +387,27 @@ public class EmployeeControllerWeb {
         return ResponseEntity.status(HttpStatus.OK).body(employeeService.removeOrgRole(employeeId, role));
     }
 
+    /**
+     * The roles one colleague holds, readable by any member of the organization.
+     *
+     * <p>Membership is deliberate rather than left over. Knowing who the site manager or the HR
+     * admin is, is how a person finds who to route a request to, and a directory that hides it is
+     * worse than one that shows it. The answer crosses no tenant, since {@code Employee} carries
+     * the org filter, and grants nothing: reading a role is not holding it. What it does give away
+     * is the shape of the organization's permissions to anyone who walks employee ids, which is
+     * reconnaissance rather than access, and the ids are already enumerable through the lookup
+     * list. #710 raised it and it was closed as a decision on that reasoning. The residual
+     * question, whether the full role set per person is the right granularity or whether a
+     * "contactable roles" view would serve the directory better, is a product one and is not
+     * answered by narrowing this to an admin role.
+     */
     @GetMapping("/{employeeId}/roles")
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get an employee's org roles",
-            description = "Returns the set of organization roles held by the given employee."
+            description = "Returns the set of organization roles held by the given employee. Open to any "
+                    + "member of the organization, since knowing who holds which role is how work is "
+                    + "routed."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Roles returned"),

@@ -139,18 +139,31 @@ public class EmployeeController {
     /**
      * Retrieves a single employee by their ID.
      *
+     * <p>{@code employee:read} and {@code employee:admin}, which this asked for until now, are
+     * bare {@code resource:scope} authorities. {@code JwtAuthConverter} mints those in exactly one
+     * place, {@code extractPermissions}, which reads the {@code authorization} claim of an RPT, so
+     * each needs a Keycloak Authorization Services resource named {@code employee} carrying the
+     * matching scope. The only automated provisioner registers a scopeless Default Resource and a
+     * scopeless Default Permission, and a permission with no scopes yields no
+     * {@code resource:scope} authority at all; the multi-tenancy audit of 2026-08-18 confirmed
+     * zero scopes realm-wide against the live staging Keycloak. This endpoint therefore refused
+     * every caller from the day the annotation was written. Same phantom-guard mechanism as #684,
+     * and repaired the same way: the guard now says what the web twin's says, so the mobile client
+     * gets the surface the web one has rather than losing the endpoint. See #710.
+     *
      * @param id The ID of the employee to retrieve.
      * @return A {@link ResponseEntity} containing the employee DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
+    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#id, 'system-admin', 'hr-admin', 'project-manager')")
     @Operation(
             summary = "Get an employee by id",
-            description = "Returns a single employee including their personal details, roles and status."
+            description = "Returns a single employee including their personal details, roles and status. "
+                    + "Callable by the employee themselves or by a system admin, HR admin or project manager."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the employee read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee nor a system admin, HR admin or project manager"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<EmployeeDto> readAnEmployee(@PathVariable Long id) {

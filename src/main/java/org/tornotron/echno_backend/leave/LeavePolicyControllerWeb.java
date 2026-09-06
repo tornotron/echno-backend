@@ -166,16 +166,24 @@ public class LeavePolicyControllerWeb {
         return ResponseEntity.ok(new ApiResponse("Leave policy activated successfully"));
     }
 
+    /**
+     * Web twin of {@link LeavePolicyController#duplicatePolicy}, and gated the same way: the
+     * role is answered for both the caller's own organization and the target they named, because
+     * the target is a caller-supplied organization id and {@code Organization} is the tenant root
+     * that neither the org filter nor the load listener covers. See #698.
+     */
     @PostMapping("/duplicate")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
+            + " and @orgSecurity.hasAnyOrgRole(#targetOrganizationId, 'system-admin', 'hr-admin')")
     @Operation(
             summary = "Duplicate a leave policy into another organization",
             description = "Copies the policy's quota, accrual and eligibility rules into a new policy owned "
-                    + "by the target organization. Returns the newly created policy."
+                    + "by the target organization. Returns the newly created policy. The caller must hold "
+                    + "the system-admin or hr-admin role in their own organization and in the target."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Policy duplicated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant or in the target organization"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave policy or target organization with the given id")
     })
     public ResponseEntity<LeavePolicyDto> duplicatePolicy(

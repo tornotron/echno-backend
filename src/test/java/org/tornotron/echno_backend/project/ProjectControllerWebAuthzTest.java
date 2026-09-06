@@ -27,14 +27,17 @@ import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
  * Web-slice authorization tests for the read endpoints on ProjectControllerWeb.
- * They lock in the guard that a caller may read projects when they are either a
- * member of the current tenant OR hold an elevated org role (system-admin /
- * project-manager) for it. The role branch matters because the write endpoints on
- * this same controller gate on the role alone: without it a role-holder who is not
- * recorded as a member (for example the bootstrap admin) could create and edit
- * projects yet get 403 listing them. @orgSecurity is mocked so each branch is
- * exercised independently; if a read @PreAuthorize is ever narrowed back to
- * membership only, the role-without-membership test fails.
+ * They lock in the guard that a caller may read projects when they are a member of
+ * the current tenant.
+ *
+ * <p>These used to assert a second branch, added by {@code eec6c37}, that let a
+ * role-holder who is not recorded as a member read as well. That branch passed only
+ * because @orgSecurity is mocked here, which lets the two guards be set
+ * independently; no real request can be in that state, because TenantFilter resolves
+ * an organization from ORG_MEMBER_ authorities alone and both guards refuse a null
+ * organization. The invariant now lives where it can be measured rather than mocked,
+ * in TenantFilterTest.theRoleGuardCannotSucceedWhereTheMembershipGuardFails, and the
+ * branch it disproved is gone from the controller. See #709.
  */
 @WebMvcTest(ProjectControllerWeb.class)
 @Import({ProjectControllerWebAuthzTest.TestSecurityConfig.class, JsonPartBinder.class,
@@ -71,10 +74,10 @@ class ProjectControllerWebAuthzTest {
     }
 
     @Test
-    void readAllProjects_isOk_forARoleHolderThatIsNotRecordedAsAMember() throws Exception {
-        // The fix: an org system-admin / project-manager can read even without the
-        // ORG_MEMBER_ authority, matching how create/update/delete already gate.
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+    void readAllProjects_isOk_forAMemberWhoAlsoHoldsAnElevatedRole() throws Exception {
+        // The ordinary shape of an administrator's request: the role never arrives without the
+        // membership, so this is what the removed second clause was really describing.
+        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
         when(projectService.getAllProjects(anyInt(), anyInt())).thenReturn(Page.empty());
 
@@ -83,7 +86,7 @@ class ProjectControllerWebAuthzTest {
     }
 
     @Test
-    void readAllProjects_isForbidden_forACallerWithNeitherMembershipNorRole() throws Exception {
+    void readAllProjects_isForbidden_forACallerWithNoMembership() throws Exception {
         when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
 
