@@ -68613,8 +68613,19 @@
     },
     "/api/v1/leave-requests/organizationId/{organizationId}": {
       "get": {
-        "description": "Returns every leave request raised within the caller's current tenant.",
+        "description": "Returns every leave request raised within the given organization, which has to be the caller's own. Identical to the /web twin beside it, which takes the organization from the session instead.",
         "operationId": "getOrganizationRequests_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organizationId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -68657,7 +68668,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not entitled to the organization named, or lacks the required role in it"
           },
           "404": {
             "content": {
@@ -68710,7 +68721,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "List the current tenant's leave requests",
+        "summary": "List an organization's leave requests",
         "tags": [
           "Leave Requests"
         ]

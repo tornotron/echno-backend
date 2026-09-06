@@ -68,20 +68,33 @@ public class LeavePolicyService {
      */
     @Transactional
     public LeavePolicyDto createPolicy(LeavePolicyCreationDto dto) {
-        Organization organization = organizationRepository.findByIdAndUserEmail(TenantContext.getCurrentOrgId(), userContextService.getCurrentUserEmail())
+        Long organizationId = TenantContext.getCurrentOrgId();
+        Organization organization = organizationRepository.findByIdAndUserEmail(organizationId, userContextService.getCurrentUserEmail())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Organization with ID " + dto.getOrganizationId() + " was not found"));
+                        "Organization with ID " + organizationId + " was not found"));
 
-        if (policyRepository.existsByOrganizationIdAndLeaveTypeCode(
-                dto.getOrganizationId(), dto.getLeaveTypeCode())) {
+        // Both arguments are the values the row will actually carry, and neither used to be.
+        //
+        // The organization was taken from dto.organizationId, which is a caller-supplied field
+        // that decides nothing else here: the policy is written into the tenant regardless. Since
+        // LeavePolicy carries the orgFilter, any other value made the predicate unsatisfiable, so
+        // the rule was skipped rather than applied. The code was taken as it arrived while the
+        // row stores it uppercased, so a lower-case code was checked against a value the table
+        // never holds. Either way uk_leave_policy_org_type still refused the insert, and the
+        // caller was told only that some constraint failed instead of which code clashed.
+        //
+        // dto.organizationId stays in the payload: clients send it today and removing it is a
+        // contract change, not a repair. See issue #700.
+        String leaveTypeCode = dto.getLeaveTypeCode().toUpperCase();
+        if (policyRepository.existsByOrganizationIdAndLeaveTypeCode(organizationId, leaveTypeCode)) {
             throw new DuplicateResourceException(
-                    "Leave policy with code '" + dto.getLeaveTypeCode() +
+                    "Leave policy with code '" + leaveTypeCode +
                     "' already exists for this organization");
         }
 
         LeavePolicy policy = new LeavePolicy();
         policy.setOrganization(organization);
-        policy.setLeaveTypeCode(dto.getLeaveTypeCode().toUpperCase());
+        policy.setLeaveTypeCode(leaveTypeCode);
         policy.setLeaveTypeName(dto.getLeaveTypeName());
         policy.setDescription(dto.getDescription());
         policy.setAnnualQuota(dto.getAnnualQuota());
