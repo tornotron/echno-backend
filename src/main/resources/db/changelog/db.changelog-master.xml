@@ -397,4 +397,7 @@
     <!-- v4.0 - Attendance: let a clock event say the geofence was never evaluated, and record an out-of-fence punch -->
     <include file="db/changelog/v4.0/087-clock-event-geofence-evaluation.xml"/>
 
+    <!-- v4.0 - Issues: keep the priority the issue form has been submitting all along -->
+    <include file="db/changelog/v4.0/088-add-issue-priority.xml"/>
+
 </databaseChangeLog>

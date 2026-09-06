@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.issue.dto;
 
 import lombok.Data;
+import org.tornotron.echno_backend.issue.enums.IssuePriority;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
 
@@ -13,6 +14,7 @@ public class IssueSimpleDto {
     private String description;
     private IssueType type;
     private IssueStatus status;
+    private IssuePriority priority;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long createdById;

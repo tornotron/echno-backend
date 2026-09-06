@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="088-add-issue-priority" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="issue" columnName="priority"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Give an issue somewhere to keep its priority. The issue form has rendered a required
+            Priority select (low, medium, high, critical) and submitted the choice on both create
+            and edit, and the form already colours a badge by it and warns on critical, but the
+            backend had the field at no layer, so the value was dropped on the way in and the issue
+            came back with the select reset to its default. VARCHAR(50) matches how type and status
+            are stored on this table,
+            since it is a string enum like both of them. Nullable and with no default: every issue
+            raised before this column has no priority, and choosing one for those rows would state
+            something about them that nobody recorded.
+        </comment>
+
+        <addColumn tableName="issue">
+            <column name="priority" type="VARCHAR(50)"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

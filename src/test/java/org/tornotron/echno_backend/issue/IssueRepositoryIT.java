@@ -8,6 +8,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.issue.enums.IssuePriority;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
 import org.tornotron.echno_backend.organization.Organization;
@@ -88,6 +89,28 @@ class IssueRepositoryIT extends AbstractIntegrationTest {
                 .contains("First unfiltered", "Second unfiltered");
     }
 
+    @Test
+    void issue_keepsThePriorityItWasSavedWith() {
+        // The column and the enum mapping, against the real schema Liquibase builds: a priority
+        // that survives a flush and a reload is the half a mocked repository cannot show.
+        Organization org = persistOrganization("Org D");
+        Employee frank = persistEmployee(org, "Frank");
+        persistIssue(org, "Raised as critical", frank, frank, IssuePriority.critical);
+        persistIssue(org, "Raised with no priority", frank, frank, null);
+        em.flush();
+        em.clear();
+
+        Page<Issue> result = issueRepository.search(
+                null, "%raised as critical%", null, null, null, null, PageRequest.of(0, 10));
+        assertThat(result.getContent()).singleElement()
+                .extracting(Issue::getPriority).isEqualTo(IssuePriority.critical);
+
+        Page<Issue> unranked = issueRepository.search(
+                null, "%raised with no priority%", null, null, null, null, PageRequest.of(0, 10));
+        assertThat(unranked.getContent()).singleElement()
+                .extracting(Issue::getPriority).isNull();
+    }
+
     private Organization persistOrganization(String name) {
         Organization org = new Organization();
         org.setOrganizationName(name);
@@ -117,7 +140,13 @@ class IssueRepositoryIT extends AbstractIntegrationTest {
     }
 
     private void persistIssue(Organization org, String title, Employee createdBy, Employee assignedTo) {
+        persistIssue(org, title, createdBy, assignedTo, null);
+    }
+
+    private void persistIssue(Organization org, String title, Employee createdBy,
+                              Employee assignedTo, IssuePriority priority) {
         Issue issue = new Issue();
+        issue.setPriority(priority);
         issue.setTitle(title);
         issue.setDescription(title + " description");
         issue.setType(IssueType.safety);

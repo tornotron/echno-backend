@@ -25,6 +25,7 @@ import org.tornotron.echno_backend.issue.dto.IssueCreationDto;
 import org.tornotron.echno_backend.issue.dto.IssueDto;
 import org.tornotron.echno_backend.issue.dto.IssueSimpleDto;
 import org.tornotron.echno_backend.issue.dto.IssueStatsDto;
+import org.tornotron.echno_backend.issue.enums.IssuePriority;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
 import org.tornotron.echno_backend.task.Task;
@@ -52,15 +53,15 @@ public class IssueService {
      * <p>{@code attachments} is the client telling the difference between "no upload" and
      * "untouched": it sets {@code attachments: []} on every update, and the files themselves
      * travel as their own multipart part, so the key in the JSON part carries nothing to apply.
-     * {@code priority} is a field the client's form offers and the {@code Issue} entity has no
-     * column for.
+     * It is the only one left. {@code priority} was here for the same reason until the entity
+     * grew the column, and the update now applies it.
      *
      * <p>Everything else falls to the {@code default} branch and is logged, because a key nobody
      * declared is how the {@code issueType} bug stayed invisible: the update answered 200 and
-     * changed nothing. Naming the two known ones here is what keeps that warning worth reading.
-     * Both are on the list in echno-core#57, and this set shrinks as that list is worked down.
+     * changed nothing. Naming the known one here is what keeps that warning worth reading. It is
+     * on the list in echno-core#57, and this set shrinks as that list is worked down.
      */
-    private static final Set<String> DELIBERATELY_DROPPED_UPDATE_KEYS = Set.of("attachments", "priority");
+    private static final Set<String> DELIBERATELY_DROPPED_UPDATE_KEYS = Set.of("attachments");
 
     /**
      * The state an issue starts in, and the only one create accepts. It is what the web client's
@@ -132,6 +133,7 @@ public class IssueService {
         issue.setDescription(issueCreationDto.getDescription());
         issue.setType(parseIssueType(issueCreationDto.getType()));
         issue.setStatus(CREATION_STATUS);
+        issue.setPriority(issueCreationDto.getPriority());
         issue.setCreatedBy(creator);
         issue.setTask(task);
         issue.setOrganization(task.getOrganization());
@@ -238,6 +240,36 @@ public class IssueService {
         }
     }
 
+    /**
+     * Reads the {@code priority} key of a partial issue update.
+     *
+     * <p>Where {@link #parseIssueType} and {@link #parseIssueStatus} refuse a missing value,
+     * because their columns are not null, this one takes it as the caller clearing the field. That
+     * is what {@code assignedToId} already does, and what a nullable column with no default
+     * allows: an issue can stop being ranked without stopping being an issue.
+     *
+     * <p>The value comes out of the update map rather than a bound property, so it is taken as an
+     * {@code Object}. Anything that is neither absent nor a known member is a client error (400),
+     * not the class cast or {@code IllegalArgumentException} that would leave as a 500.
+     *
+     * @param value The raw map value: a priority name, or null to clear the priority.
+     * @return The parsed priority, or null.
+     * @throws InvalidRequestException if the value is not a known issue priority.
+     */
+    private static IssuePriority parseIssuePriority(Object value) {
+        if (value == null || (value instanceof String name && name.isBlank())) {
+            return null;
+        }
+        if (value instanceof String name) {
+            try {
+                return IssuePriority.valueOf(name);
+            } catch (IllegalArgumentException e) {
+                throw new InvalidRequestException("'" + name + "' is not a valid issue priority");
+            }
+        }
+        throw new InvalidRequestException("'" + value + "' is not a valid issue priority");
+    }
+
     /** Parses a required issue status; see {@link #parseIssueType}. */
     private static IssueStatus parseIssueStatus(String status) {
         if (status == null || status.isBlank()) {
@@ -304,6 +336,9 @@ public class IssueService {
                     break;
                 case "status":
                     issue.setStatus(parseIssueStatus((String) value));
+                    break;
+                case "priority":
+                    issue.setPriority(parseIssuePriority(value));
                     break;
                 case "assignedToId":
                     issue.setAssignedTo(resolveAssignee(value));

@@ -142,12 +142,12 @@ class IssuePartialUpdateKeysTest {
 
     @Test
     void update_acceptsTheKeysItHasNoFieldForRatherThanRefusingTheRequest() {
-        // echno-core puts attachments: [] in the JSON part of every issue update, and the form
-        // offers a priority the entity has no column for. Refusing an unrecognised key would turn
+        // echno-core puts attachments: [] in the JSON part of every issue update, and the files
+        // themselves travel as their own multipart part. Refusing an unrecognised key would turn
         // every update the deployed web app makes into a 400, so they are dropped and logged.
+        // The priority that used to sit on this list is applied now: see IssuePriorityTest.
         Map<String, Object> updates = new LinkedHashMap<>();
         updates.put("attachments", java.util.List.of());
-        updates.put("priority", "high");
         updates.put("somethingNobodyDeclared", "x");
         updates.put("type", "safety");
 

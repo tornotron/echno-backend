@@ -8,6 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.IssueComment.IssueComment;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.issue.enums.IssuePriority;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
 import org.tornotron.echno_backend.task.Task;
@@ -22,9 +23,9 @@ import java.util.List;
 /**
  * An issue raised on site, such as a defect, safety concern, or query.
  *
- * <p>Carries a type and status, the employee who raised it and the one it is assigned to,
- * and an optional link to a task. Comments and file attachments hang off the issue. Scoped
- * to one organization by the {@code orgFilter} tenant filter.
+ * <p>Carries a type, a status, an optional priority, the employee who raised it and the one it is
+ * assigned to, and an optional link to a task. Comments and file attachments hang off the issue.
+ * Scoped to one organization by the {@code orgFilter} tenant filter.
  */
 @Entity
 @Data
@@ -55,6 +56,16 @@ public class Issue implements TenantScopedEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private IssueStatus status;
+
+    /**
+     * How urgently the issue wants attention. Nullable, and with no default: every issue raised
+     * before the column existed has no priority, and picking one for those rows would state
+     * something about them that nobody recorded. An issue raised without one has none until
+     * somebody sets it.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "priority")
+    private IssuePriority priority;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
