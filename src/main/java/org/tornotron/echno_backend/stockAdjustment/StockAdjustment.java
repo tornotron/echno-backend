@@ -10,6 +10,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.stockAdjustment.enums.StockAdjustmentSourceType;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 
 import java.math.BigDecimal;
@@ -77,6 +78,37 @@ public class StockAdjustment implements TenantScopedEntity {
 
     @Column(name = "primary_reason")
     private String primaryReason;
+
+    /**
+     * The kind of document this adjustment was raised to answer, null when it answers none.
+     *
+     * <p>Stored as a name beside {@link #sourceDocumentId} rather than as a foreign key to one
+     * owner, the way {@code StatusTransition} and {@code Attachment} already are. The reasoning
+     * is theirs: a transfer variance is the first cause with a document behind it, a goods
+     * receipt and a consumption are the obvious next two, and a nullable foreign key per cause
+     * ends as a row of mutually exclusive columns with nothing enforcing that only one is set.
+     *
+     * <p>The difference from those two is that this is an enum rather than a free string. The set
+     * of causes is closed, so every value has a resolver that loads the named document within the
+     * caller's organization before the reference is written. What the database therefore does not
+     * constrain, the write path does.
+     *
+     * <p>A posted adjustment is a ledger fact and outlives the document that caused it, which is
+     * the same reason the status trail carries no foreign key: deleting the transfer must not
+     * erase the correction raised against it.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source_document_type", length = 40)
+    private StockAdjustmentSourceType sourceDocumentType;
+
+    /**
+     * The id of the document named by {@link #sourceDocumentType}, within its own kind. Not a
+     * foreign key, deliberately, and never null while a type is set: the two are written together
+     * or not at all, because a type with no id names nothing and an id with no type says nothing
+     * about what it points at.
+     */
+    @Column(name = "source_document_id")
+    private Long sourceDocumentId;
 
     @Column(name = "justification", columnDefinition = "TEXT")
     private String justification;
