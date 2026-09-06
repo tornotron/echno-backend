@@ -87,6 +87,7 @@ class AttendanceActorAuthorizationTest {
     @Mock private FileStorageService fileStorageService;
     @Mock private UserContextService userContextService;
     @Mock private AttendanceSecurityService attendanceSecurity;
+    @Mock private AttendanceGeofenceService geofenceService;
     @Mock private MovementRecordRepository movementRecordRepository;
     @Mock private MovementRecordMapper movementRecordMapper;
 
@@ -106,7 +107,7 @@ class AttendanceActorAuthorizationTest {
                 sequenceValidator, attendanceMapper, attachmentService, fileStorageService,
                 userContextService,
                 new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()),
-                attendanceSecurity);
+                attendanceSecurity, geofenceService);
     }
 
     private MovementRecordService movementRecordService() {

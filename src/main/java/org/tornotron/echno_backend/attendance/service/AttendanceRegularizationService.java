@@ -327,6 +327,13 @@ public class AttendanceRegularizationService {
      * missing, not to overwrite a real clock event, and skipping duplicates keeps the operation safe
      * to reach twice, for instance when a rejected request is resubmitted and then approved.
      *
+     * <p>The geofence fields are left unset, which is what the columns now mean by "not
+     * evaluated". A regularization supplies a punch that was never taken: its coordinates are what
+     * the employee says they were, remembered after the fact, and running them through the fence
+     * would produce a verdict about a recollection and store it in the same column as verdicts
+     * about measurements. The events written here used to carry a hard-coded "outside the fence,
+     * zero metres away", which claimed both at once.
+     *
      * <p>A correction let through under the break-glass role says so on every event it writes. The
      * request already records the requester and the approver side by side, but the clock event is
      * what a corrected day is read from, so a correction nobody independent agreed to says so where
@@ -365,8 +372,6 @@ public class AttendanceRegularizationService {
                     .projectName(attendance.getProjectName())
                     .isRegularized(true)
                     .regularizationReason("Self-regularized" + (selfApproved ? SELF_APPROVAL_NOTE : ""))
-                    .isWithinGeofence(false)
-                    .distanceFromProject(0.0)
                     .organization(org)
                     .build();
             attendance.getClockEvents().add(event);

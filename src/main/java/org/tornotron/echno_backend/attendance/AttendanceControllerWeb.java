@@ -154,8 +154,13 @@ public class AttendanceControllerWeb {
                 PageRequest.of(page, size, Sort.by("employeeName"))));
     }
 
+    // Tenant membership is all the annotation can check, because who may decide this record is a
+    // column on the record itself: a geofence exception names the employee's reporting manager,
+    // who is usually not one of the organization-wide record-management roles. Reading an approver
+    // id off the request would let a caller nominate themselves, so the real check runs in the
+    // service against the stored record, the way the check-in and clock-event guards already do.
     @PostMapping("/{id}/approve")
-    @PreAuthorize("@attendanceSecurity.canManageRecords()")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Approve or reject an attendance record",
             description = "Sets the approval status of an attendance record, with an optional remark, "
@@ -164,7 +169,7 @@ public class AttendanceControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Approval status updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "approvalStatus is missing or invalid"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither an attendance record manager nor the approver the record names, or is the employee whose own geofence exception it is"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No attendance record with the given id")
     })
     public ResponseEntity<AttendanceResponseDto> approve(

@@ -23,6 +23,10 @@ import java.util.List;
  * longitude, accuracy, distance from the project, geofence flag), which the attendance calculation
  * reads to derive worked hours. May be flagged {@code isRegularized} when created or corrected
  * through a regularization rather than a live punch.
+ *
+ * <p>The geofence fields are nullable together: either a verdict was reached, in which case
+ * {@code isWithinGeofence}, {@code distanceFromProject} and {@code geofenceRadiusMeters} are all
+ * set, or none of them are.
  */
 @Entity
 @Table(name = "clock_event")
@@ -75,13 +79,49 @@ public class ClockEvent implements TenantScopedEntity {
     @Column(name = "ip_address")
     private String ipAddress;
 
-    @Builder.Default
-    @Column(name = "is_within_geofence", nullable = false)
-    private Boolean isWithinGeofence = false;
+    /**
+     * Whether the punch fell inside the project's geofence, or null when no verdict was reached.
+     *
+     * <p>Null is a real state and the common one: a project with no coordinates, an organization
+     * with no radius, a punch with no location, and an event written by a regularization rather
+     * than taken on a device all leave it unevaluated. It carried a {@code false} default until
+     * the evaluation was wired up, which made "nobody looked" read as "outside the site".
+     */
+    @Column(name = "is_within_geofence")
+    private Boolean isWithinGeofence;
 
-    @Builder.Default
+    /** How far the punch was from the project's marker, in metres, or null when not measured. */
     @Column(name = "distance_from_project")
-    private Double distanceFromProject = 0.0;
+    private Double distanceFromProject;
+
+    /**
+     * The geofence radius the verdict was reached against, in metres, or null when not evaluated.
+     *
+     * <p>Stamped here rather than read back from the settings because both the radius and the
+     * project's coordinates can change afterwards, and a verdict has to stay readable against the
+     * numbers that produced it.
+     */
+    @Column(name = "geofence_radius_meters")
+    private Integer geofenceRadiusMeters;
+
+    /**
+     * Why the employee marked their own attendance from outside the fence, or null when they did
+     * not. Set only on the self-marking path, which is the only one that asks for it.
+     */
+    @Column(name = "geofence_exception_reason", length = 500)
+    private String geofenceExceptionReason;
+
+    /**
+     * The employee who submitted this punch, which is not always the employee it belongs to: a
+     * supervisor can record attendance for their team.
+     *
+     * <p>It is what makes the geofence fields readable. A punch entered for somebody else carries
+     * the submitting device's position, so it is left unevaluated, and without this column a reader
+     * could not tell that absent verdict from one caused by a project with no coordinates. Null
+     * only when the caller resolves to no employee record in this tenant.
+     */
+    @Column(name = "recorded_by_id")
+    private Long recordedById;
 
     @Column(name = "remarks")
     private String remarks;

@@ -1126,6 +1126,13 @@
             "format": "date-time",
             "type": "string"
           },
+          "geofenceExceptionReason": {
+            "description": "Why the employee is marking attendance from outside the project's geofence. Required only when they are marking their own attendance and the captured position falls outside the site boundary; the punch is accepted and the day is then held for their reporting manager to approve.",
+            "example": "Working from head office today for the client review",
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          },
           "gpsAccuracy": {
             "description": "GPS accuracy of the captured coordinates, in metres.",
             "example": 8.5,
@@ -1214,6 +1221,13 @@
               "EVENING_CLOCK_OUT"
             ],
             "example": "LUNCH_BREAK_START",
+            "type": "string"
+          },
+          "geofenceExceptionReason": {
+            "description": "Why the employee is marking attendance from outside the project's geofence. Required only when they are marking their own attendance and the captured position falls outside the site boundary; the punch is accepted and the day is then held for their reporting manager to approve.",
+            "example": "Working from head office today for the client review",
+            "maxLength": 500,
+            "minLength": 0,
             "type": "string"
           },
           "gpsAccuracy": {
@@ -1411,6 +1425,12 @@
             "example": "Ravi Kumar",
             "type": "string"
           },
+          "geofenceApproverId": {
+            "description": "Employee id of the person expected to decide the geofence exception: the employee's reporting manager, or a project manager assigned to the site. Null when neither could be resolved, in which case the attendance record managers decide as they do for every other record.",
+            "example": 42,
+            "format": "int64",
+            "type": "integer"
+          },
           "id": {
             "description": "Id of the attendance record.",
             "example": 781,
@@ -1485,6 +1505,11 @@
             "example": "Confirmed with site supervisor",
             "type": "string"
           },
+          "requiresGeofenceApproval": {
+            "description": "Whether this day contains a punch the employee marked themselves from outside the project's geofence, having given a reason. Such a record is held for a decision: it is still waiting while the approval status is PENDING.",
+            "example": false,
+            "type": "boolean"
+          },
           "shiftTiming": {
             "$ref": "#/components/schemas/ShiftTimingDto",
             "description": "Shift the employee was scheduled to work."
@@ -1553,7 +1578,7 @@
           },
           "geofenceRadiusMeters": {
             "description": "Radius in metres around the project within which a clock event is considered on site.",
-            "example": 200,
+            "example": 100,
             "format": "int32",
             "maximum": 5000,
             "minimum": 50,
@@ -1664,7 +1689,7 @@
           },
           "geofenceRadiusMeters": {
             "description": "Radius in metres around the project within which a clock event is considered on site.",
-            "example": 200,
+            "example": 100,
             "format": "int32",
             "type": "integer"
           },
@@ -1777,8 +1802,10 @@
           },
           "geofenceRadiusMeters": {
             "description": "Radius in metres around the project within which a clock event is considered on site.",
-            "example": 250,
+            "example": 100,
             "format": "int32",
+            "maximum": 5000,
+            "minimum": 50,
             "type": "integer"
           },
           "geolocationRequired": {
@@ -2832,7 +2859,7 @@
             "type": "string"
           },
           "distanceFromProject": {
-            "description": "Distance from the project site at the time of the event, in metres.",
+            "description": "Distance from the project site at the time of the event, in metres. Null when the geofence was not evaluated.",
             "example": 45.0,
             "format": "double",
             "type": "number"
@@ -2854,6 +2881,17 @@
             "example": "MORNING_CLOCK_IN",
             "type": "string"
           },
+          "geofenceExceptionReason": {
+            "description": "Why the employee marked their own attendance from outside the site boundary. Null when they did not.",
+            "example": "Working from head office today for the client review",
+            "type": "string"
+          },
+          "geofenceRadiusMeters": {
+            "description": "The geofence radius the verdict was reached against, in metres, as it stood at the time of the event. Null when the geofence was not evaluated.",
+            "example": 100,
+            "format": "int32",
+            "type": "integer"
+          },
           "gpsAccuracy": {
             "description": "GPS accuracy of the captured coordinates, in metres.",
             "example": 8.5,
@@ -2872,7 +2910,7 @@
             "type": "boolean"
           },
           "isWithinGeofence": {
-            "description": "Whether the event's coordinates fall within the project's geofence.",
+            "description": "Whether the event's coordinates fall within the project's geofence. Null when no verdict was reached, which is the case when the project has no coordinates, the event carries no position, or the event came from a regularization rather than a live punch. Null is not a violation and must not be shown as one.",
             "example": true,
             "type": "boolean"
           },
@@ -2903,6 +2941,12 @@
             "description": "Name of the project.",
             "example": "Asset Homes Kovilambakkam Phase 2",
             "type": "string"
+          },
+          "recordedById": {
+            "description": "Employee id of whoever submitted the punch. Differs from the employee the record belongs to when a supervisor marked attendance for their team, in which case the geofence is not evaluated because the position captured is the supervisor's.",
+            "example": 42,
+            "format": "int64",
+            "type": "integer"
           },
           "regularizationReason": {
             "description": "Reason given if this event was regularized.",
@@ -26525,7 +26569,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller is neither an attendance record manager nor the approver the record names, or is the employee whose own geofence exception it is"
           },
           "404": {
             "content": {
@@ -26872,7 +26916,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller is neither an attendance record manager nor the approver the record names, or is the employee whose own geofence exception it is"
           },
           "404": {
             "content": {

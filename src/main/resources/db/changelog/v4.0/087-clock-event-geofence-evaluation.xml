@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The order of the four changesets below is the point of this file, and it cannot be
+        rearranged.
+
+        clock_event.is_within_geofence has been NOT NULL with a false default since it was created,
+        and nothing ever computed a value for it: every row written since March 2026 carries a
+        false that means "nobody looked", written as a literal at the three places a clock event is
+        built. distance_from_project carries a 0.0 from the same literals, which reads as a
+        positive claim that the employee stood on the site marker.
+
+        Once the evaluation is wired up, a false will start meaning "measured, and outside the
+        fence". If real values were written before the column could hold a third state, the
+        placeholder rows would become indistinguishable from genuine violations, permanently: the
+        information needed to separate them exists only until the first real false lands.
+
+        So the column is widened first (087-01), the existing rows are moved to the unevaluated
+        state second (087-02), and only then do the new columns the evaluation writes appear
+        (087-03, 087-04).
+    -->
+
+    <changeSet id="087-01-clock-event-geofence-nullable" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="clock_event" columnName="is_within_geofence"/>
+        </preConditions>
+
+        <comment>
+            Give is_within_geofence a null state so "not evaluated" can be told apart from
+            "evaluated and outside the fence". A punch has no geofence verdict when the project
+            carries no coordinates, when the settings require no location, or when the event was
+            written by a regularization rather than taken on a device, and all three are ordinary.
+            The false default goes with the constraint: a default that is also a real verdict is
+            what made the placeholder rows unreadable in the first place.
+        </comment>
+
+        <dropDefaultValue tableName="clock_event" columnName="is_within_geofence" columnDataType="BOOLEAN"/>
+        <dropNotNullConstraint tableName="clock_event" columnName="is_within_geofence" columnDataType="BOOLEAN"/>
+    </changeSet>
+
+    <changeSet id="087-02-backfill-unevaluated-clock-events" author="echno">
+        <comment>
+            Move every existing row to the unevaluated state. None of them were evaluated: the two
+            values on them were literals, not measurements. Doing this before the evaluation ships
+            is what keeps the two kinds of false apart, because afterwards there is no way to tell
+            which rows were measured.
+
+            distance_from_project is set alongside it for the same reason and is the more
+            misleading of the two, since 0.0 asserts a measured position rather than an absent one.
+        </comment>
+
+        <update tableName="clock_event">
+            <column name="is_within_geofence" valueComputed="NULL"/>
+            <column name="distance_from_project" valueComputed="NULL"/>
+        </update>
+
+        <rollback>
+            <update tableName="clock_event">
+                <column name="is_within_geofence" valueBoolean="false"/>
+                <column name="distance_from_project" valueNumeric="0.0"/>
+            </update>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="087-03-add-clock-event-geofence-context" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="clock_event" columnName="geofence_radius_meters"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Stamp the radius the verdict was reached against. A project's coordinates and an
+            organization's radius can both be edited after the fact, so a distance recomputed later
+            is not necessarily the distance that applied at the time. Recording the radius next to
+            the measured distance makes the row explain itself: "240 m from a 100 m fence" stays
+            true whatever the settings say afterwards.
+        </comment>
+
+        <addColumn tableName="clock_event">
+            <column name="geofence_radius_meters" type="INT"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="087-04-add-geofence-exception-columns" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="clock_event" columnName="geofence_exception_reason"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            An employee marking their own attendance from outside the fence is not blocked. They
+            give a reason, the reason is stored on the punch that was outside, and the day's record
+            is held for a decision by their reporting manager.
+
+            recorded_by_id is who submitted the punch, which is not always whose day it is: a
+            supervisor can mark attendance for their team, and the coordinates on that request are
+            the supervisor's device, not the employee's. Those punches are therefore left
+            unevaluated rather than judged against a position that describes the wrong person, and
+            this column is what tells that absent verdict apart from one caused by a project with no
+            coordinates. It is also the only way to count how much attendance is entered this way,
+            which is the open question about what the mark-for-team path should require.
+
+            geofence_exception_reason is the reason, on the clock event because it belongs to the
+            punch it explains. requires_geofence_approval and geofence_approver_id are on the day's
+            attendance record because that is what gets approved: the flag is what separates a day
+            waiting on a geofence decision from every other pending day, and the approver id names
+            who is expected to make it. The id is nullable because not every employee has a
+            reporting manager and not every project has a manager assigned to it; a null there
+            means the existing record-management roles decide, which is who decides today.
+        </comment>
+
+        <addColumn tableName="clock_event">
+            <column name="geofence_exception_reason" type="VARCHAR(500)"/>
+            <column name="recorded_by_id" type="BIGINT"/>
+        </addColumn>
+
+        <addColumn tableName="attendance">
+            <column name="requires_geofence_approval" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="geofence_approver_id" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

@@ -335,6 +335,18 @@ public class GlobalExceptionHandler {
         return problem(HttpStatus.CONFLICT, "Invalid Attendance Sequence", ex.getMessage(), request);
     }
 
+    @ExceptionHandler(GeofenceExceptionReasonRequiredException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ProblemDetail handleGeofenceExceptionReasonRequiredException(
+            GeofenceExceptionReasonRequiredException ex, WebRequest request) {
+        logger.info("Attendance marked outside the geofence without a reason: {}", ex.getMessage());
+        ProblemDetail pd = problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                "Geofence Exception Reason Required", ex.getMessage(), request);
+        pd.setProperty("distanceMeters", ex.getDistanceMeters());
+        pd.setProperty("geofenceRadiusMeters", ex.getRadiusMeters());
+        return pd;
+    }
+
     @ExceptionHandler(InsufficientStockException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ProblemDetail handleInsufficientStockException(InsufficientStockException ex, WebRequest request) {
