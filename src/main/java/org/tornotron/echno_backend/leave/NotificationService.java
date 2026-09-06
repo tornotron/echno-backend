@@ -5,8 +5,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.security.access.AccessDeniedException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.NotificationDto;
@@ -25,14 +27,17 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final EmployeeRepository employeeRepository;
     private final NotificationMapper notificationMapper;
+    private final CurrentEmployeeService currentEmployeeService;
 
     public NotificationService(
             NotificationRepository notificationRepository,
             EmployeeRepository employeeRepository,
-            NotificationMapper notificationMapper) {
+            NotificationMapper notificationMapper,
+            CurrentEmployeeService currentEmployeeService) {
         this.notificationRepository = notificationRepository;
         this.employeeRepository = employeeRepository;
         this.notificationMapper = notificationMapper;
+        this.currentEmployeeService = currentEmployeeService;
     }
 
     @Transactional
@@ -151,38 +156,77 @@ public class NotificationService {
         notificationRepository.save(notification);
     }
 
+    /**
+     * The caller's own notifications, newest first.
+     *
+     * <p>The recipient used to be an {@code employeeId} the caller sent, under a guard that read
+     * nothing: the guard established that the caller held a role and the query answered about
+     * whoever the caller named, with nothing tying the two together. A notification is addressed to
+     * one person, so the inbox is the caller's own by definition and the recipient comes from the
+     * session.
+     */
     @Transactional(readOnly = true)
-    public Page<NotificationDto> getNotifications(Long employeeId, Pageable pageable) {
-        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(employeeId, pageable)
+    public Page<NotificationDto> getMyNotifications(Pageable pageable) {
+        Long recipientId = currentRecipientId("read your notifications");
+        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(recipientId, pageable)
                 .map(notificationMapper::toDto);
     }
 
+    /** The caller's own notifications that have not been marked read. */
     @Transactional(readOnly = true)
-    public List<NotificationDto> getUnreadNotifications(Long employeeId) {
-        return notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(employeeId)
+    public List<NotificationDto> getMyUnreadNotifications() {
+        Long recipientId = currentRecipientId("read your notifications");
+        return notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(recipientId)
                 .stream()
                 .map(notificationMapper::toDto)
                 .collect(Collectors.toList());
     }
 
+    /** How many of the caller's own notifications are unread, for the badge a client draws. */
     @Transactional(readOnly = true)
-    public long getUnreadCount(Long employeeId) {
-        return notificationRepository.countByRecipientIdAndIsReadFalse(employeeId);
+    public long getMyUnreadCount() {
+        return notificationRepository.countByRecipientIdAndIsReadFalse(
+                currentRecipientId("count your notifications"));
     }
 
+    /**
+     * Marks one of the caller's own notifications read.
+     *
+     * <p>This used to check nothing at all. It took a notification id, loaded the row by that id
+     * within the current tenant, and wrote {@code isRead} on whatever came back, so any caller who
+     * got past the guard marked any colleague's notification read by counting ids. It did not even
+     * have a recipient parameter to be wrong about, which is why a repaired guard alone would not
+     * have closed it: the check has to be made against the stored row.
+     *
+     * <p>Read state is personal, and the damage from marking someone else's notification read is
+     * that they never see it. The recipient on the row is the only person who may mark it.
+     */
     @Transactional
     public void markAsRead(Long notificationId) {
         Notification notification = notificationRepository.findByIdAndOrganization_Id(notificationId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Notification with ID " + notificationId + " was not found in this organization"));
 
+        Long callerId = currentRecipientId("mark a notification read");
+        if (notification.getRecipient() == null
+                || !callerId.equals(notification.getRecipient().getId())) {
+            throw new AccessDeniedException(
+                    "This notification is addressed to somebody else, so it is not yours to mark read.");
+        }
+
         notification.setIsRead(true);
         notification.setReadAt(LocalDateTime.now());
         notificationRepository.save(notification);
     }
 
+    /** Marks every unread notification addressed to the caller read, and says how many that was. */
     @Transactional
-    public int markAllAsRead(Long employeeId) {
-        return notificationRepository.markAllAsReadByRecipientId(employeeId, TenantContext.getCurrentOrgId());
+    public int markAllAsRead() {
+        return notificationRepository.markAllAsReadByRecipientId(
+                currentRecipientId("mark your notifications read"), TenantContext.getCurrentOrgId());
+    }
+
+    private Long currentRecipientId(String action) {
+        return currentEmployeeService.requireCurrentEmployee(action).getId();
     }
 }
