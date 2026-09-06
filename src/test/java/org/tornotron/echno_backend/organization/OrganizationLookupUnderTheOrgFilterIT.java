@@ -107,8 +107,9 @@ class OrganizationLookupUnderTheOrgFilterIT extends AbstractIntegrationTest {
         // reading predicted. The org filter does NOT narrow an entity joined explicitly in HQL:
         // the join still matches the caller's employment row in organization B, so the query is
         // satisfiable and the row is loaded. What stops it is the other mechanism.
-        // TenantIsolationLoadListener runs on the post-load of that Employee, sees a
-        // tenant-scoped row from organization B under a request scoped to A, and refuses.
+        // TenantIsolationLoadListener runs on the post-load of that row, which is an Employee,
+        // the only tenant-scoped entity this query touches, and refuses it under a request
+        // scoped to organization A.
         //
         // Two consequences worth keeping. The lookup is not a silent cross-tenant read, so an
         // endpoint resolving a caller-named organization through it fails loudly rather than
@@ -119,8 +120,8 @@ class OrganizationLookupUnderTheOrgFilterIT extends AbstractIntegrationTest {
 
         assertThatThrownBy(() -> organizationRepository.findByIdAndUserEmail(orgBId, EMAIL))
                 .isInstanceOf(TenantAccessDeniedException.class)
-                .hasMessageContaining("Employee")
-                .hasMessageContaining("belongs to organization " + orgBId);
+                .hasMessageContaining("Cross-tenant access denied")
+                .hasMessageContaining("the request is scoped to organization " + orgAId);
     }
 
     @Test
