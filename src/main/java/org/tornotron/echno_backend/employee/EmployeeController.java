@@ -51,24 +51,43 @@ public class EmployeeController {
     }
 
     /**
-     * Allows a user to join an organization as an employee.
+     * Adds a user to the caller's own organization as an employee.
+     *
+     * <p>This is an administrative action, not the onboarding route. A person with no membership
+     * yet joins by redeeming an invite code at
+     * {@code POST /api/v1/invitation/web/validate/userId/{userId}}, which is guarded by
+     * {@code @orgSecurity.isSelfUser} precisely because the redeemer has no tenant, and which
+     * reaches {@link EmployeeService#joinOrganization} in process rather than through this route.
+     * Nothing about onboarding passes through here, so binding the guard to an organization
+     * costs that flow nothing.
+     *
+     * <p>{@code employee:create} and {@code employee:admin} are Keycloak resource permissions
+     * carried on the RPT, and {@code docs/org-scoped-roles.md} calls them global: they say what
+     * the holder may do and nothing at all about where. On a route that names an organization in
+     * its path and then loads {@link org.tornotron.echno_backend.organization.Organization} by
+     * that id, "what" on its own is not an answer. The tenant root is the one entity neither
+     * ambient defence covers, so the id has to be checked here or not at all, which is what
+     * {@code isCurrentTenant} does.
      *
      * @param userId             The ID of the user joining.
-     * @param orgId              The ID of the organization to join.
+     * @param orgId              The organization named by the caller, which must be the one their
+     *                           session is scoped to.
      * @param employeeJoinOrgDto DTO containing additional employment details.
      * @return A {@link ResponseEntity} with the created employee's DTO and HTTP status 201 (Created).
      */
     @PostMapping("/joinOrganization/{userId}/{orgId}")
-    @PreAuthorize("hasAuthority('employee:create') or hasAuthority('employee:admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#orgId)"
+            + " and (hasAuthority('employee:create') or hasAuthority('employee:admin'))")
     @Operation(
             summary = "Add a user to an organization as an employee",
-            description = "Creates an employee record that links the given user to the given organization, "
-                    + "using the supplied employment details. Returns the created employee."
+            description = "Creates an employee record that links the given user to the organization "
+                    + "named in the path, which must be the organization the caller's session is "
+                    + "scoped to. Uses the supplied employment details. Returns the created employee."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Employee record created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The employment details failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the employee create or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the employee create or admin authority, or named an organization that is not the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user or organization with the given id")
     })
     public ResponseEntity<EmployeeDto> joinOrganization(@PathVariable Long userId, @PathVariable Long orgId, @Valid @RequestBody EmployeeJoinOrgDto employeeJoinOrgDto) {

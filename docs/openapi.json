@@ -33352,7 +33352,7 @@
     },
     "/api/v1/employee/joinOrganization/{userId}/{orgId}": {
       "post": {
-        "description": "Creates an employee record that links the given user to the given organization, using the supplied employment details. Returns the created employee.",
+        "description": "Creates an employee record that links the given user to the organization named in the path, which must be the organization the caller's session is scoped to. Uses the supplied employment details. Returns the created employee.",
         "operationId": "joinOrganization_1",
         "parameters": [
           {
@@ -33423,7 +33423,7 @@
                 }
               }
             },
-            "description": "Caller lacks the employee create or admin authority"
+            "description": "Caller lacks the employee create or admin authority, or named an organization that is not the current tenant"
           },
           "404": {
             "content": {
