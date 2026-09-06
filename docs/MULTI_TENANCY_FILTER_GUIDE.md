@@ -738,10 +738,21 @@ Recorded so they are not re-derived. Each was traced to the line above the looku
 | `LeavePolicyService.createPolicy` (#700) | uniqueness checked against `dto.organizationId` and the raw casing | checked against the tenant and the code as stored |
 | `AttachmentService.linkToEntity` (#700) | an `Organization` arm loading by a caller-supplied id, overwritten one line later | arm removed, and the repository with it |
 
-### Two traps worth keeping in mind
+### Three traps worth keeping in mind
 
 - **An empty result is not proof of a defence.** It can equally be an id that matches nothing.
   Check the entity for `orgFilter` rather than inferring from an empty list.
+- **A check on the request as received is not a check on the row that will be written.** Every
+  argument to a guard has to be the value the row will actually hold, and an organization id is
+  only the most obvious of them. `LeavePolicyService.createPolicy` is the worked example, and it
+  was wrong on both arguments at once for two unrelated reasons. The organization came from the
+  request body while the row went to the tenant. And the leave-type code was checked as it
+  arrived while the row stores it uppercased, so a lower-case code was compared against a value
+  the table never holds, and slipped the uniqueness rule from the caller's own organization with
+  no foreign id involved at all. The second one was found only because the first was being
+  repaired, and nothing about tenancy would have surfaced it: any normalisation applied on the
+  way in (case, trimming, a canonical form) opens the same gap wherever a guard runs before it.
+  So when a value is transformed between the request and the write, check the transformed one.
 - **Retiring a route or a path segment is a separate decision from repairing its guard.** The
   `echno-core` contract is hand-maintained with no code generation, so a route change breaks the
   web app at runtime rather than at compile time. Repair the guard now; retire the segment in a
