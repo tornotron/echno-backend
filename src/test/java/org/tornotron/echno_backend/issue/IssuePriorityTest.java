@@ -188,6 +188,22 @@ class IssuePriorityTest {
     }
 
     @Test
+    @DisplayName("partial update refuses a blank priority rather than treating it as a clear")
+    void partialUpdate_refusesABlankPriority() {
+        // An explicit null is the documented way to clear the field, and it is the only one. A
+        // blank string names no member, so letting it through would clear the priority on a
+        // payload the schema never described that way.
+        existing.setPriority(IssuePriority.high);
+
+        assertThatThrownBy(() -> service.partialUpdateAnIssue(Map.of("priority", "  "), 7L, null,
+                "ISSUE_ATTACHMENTS"))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("not a valid issue priority");
+
+        assertThat(existing.getPriority()).isEqualTo(IssuePriority.high);
+    }
+
+    @Test
     @DisplayName("partial update refuses a priority sent as something other than a name")
     void partialUpdate_refusesAPriorityThatIsNotAString() {
         // The value comes out of a map, so a number would be a class cast and a 500 if it were
