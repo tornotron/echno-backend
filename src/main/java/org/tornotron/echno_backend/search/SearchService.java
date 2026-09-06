@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Quick search across the records the navigation palette can jump to.
@@ -93,7 +94,7 @@ public class SearchService {
         if (trimmed.length() < MIN_TERM_LENGTH) {
             return null;
         }
-        String escaped = trimmed.toLowerCase()
+        String escaped = trimmed.toLowerCase(Locale.ROOT)
                 .replace("\\", "\\\\")
                 .replace("%", "\\%")
                 .replace("_", "\\_");

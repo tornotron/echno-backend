@@ -16,6 +16,7 @@ import org.tornotron.echno_backend.subcontract.dto.SubContractDto;
 import org.tornotron.echno_backend.subcontract.mapper.SubContractMapper;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * CRUD + list for subcontracts. The subcontract is a header plus a list of
@@ -180,7 +181,7 @@ public class SubContractService {
      * so no null bind lands inside a {@code ||}, which CockroachDB mistypes as bytes.
      */
     private static String searchPattern(String value) {
-        return (value == null || value.isBlank()) ? null : "%" + value.trim().toLowerCase() + "%";
+        return (value == null || value.isBlank()) ? null : "%" + value.trim().toLowerCase(Locale.ROOT) + "%";
     }
 
     private static String blankToNull(String value) {

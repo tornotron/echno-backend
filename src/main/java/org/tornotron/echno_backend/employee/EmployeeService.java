@@ -34,6 +34,7 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -245,7 +246,7 @@ public class EmployeeService {
     public Page<EmployeeLookupDto> lookupEmployees(String search, int limit) {
         int size = Math.min(Math.max(limit, 1), UnpagedResultCap.MAX_ROWS);
         Pageable pageable = PageRequest.of(0, size, Sort.by(Sort.Direction.ASC, "employeeName"));
-        String searchTerm = (search == null || search.isBlank()) ? null : "%" + search.trim().toLowerCase() + "%";
+        String searchTerm = (search == null || search.isBlank()) ? null : "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
         return employeeRepository.searchForLookup(searchTerm, pageable)
                 .map(employee -> new EmployeeLookupDto(
                         employee.getId(),
@@ -272,7 +273,7 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public Page<EmployeeDto> displayAllEmployees(int pageNo, int pageSize, String search, String status, String department) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "employeeName"));
-        String searchTerm = (search == null || search.isBlank()) ? null : "%" + search.trim().toLowerCase() + "%";
+        String searchTerm = (search == null || search.isBlank()) ? null : "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
         String departmentTerm = (department == null || department.isBlank()) ? null : department;
         EmployeeStatus statusTerm = (status == null || status.isBlank()) ? null : EmployeeStatus.valueOf(status);
         return employeeRepository.search(searchTerm, statusTerm, departmentTerm, pageable)

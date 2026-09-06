@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.common.dto;
 
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -46,10 +47,14 @@ public record AttachmentOwner(String entityType, Long entityId, UUID entityUuid)
      * first underscore, lower-cased. {@code INSPECTION_EVIDENCE} therefore lands under
      * {@code inspection/} with nothing in the storage layer needing to know it exists.
      *
+     * <p>Lower-cased under {@code Locale.ROOT}: this is half of an object-store key, so a
+     * host whose default locale folds differently would write files under a prefix no
+     * other host would look in.
+     *
      * @return The folder name
      */
     public String folder() {
-        return entityType.split("_", 2)[0].toLowerCase();
+        return entityType.split("_", 2)[0].toLowerCase(Locale.ROOT);
     }
 
     /** The key as it reads in a message to the caller. */

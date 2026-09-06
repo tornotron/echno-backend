@@ -16,6 +16,8 @@ import org.tornotron.echno_backend.expense.dto.ExpenseUpdateDto;
 import org.tornotron.echno_backend.expense.mapper.ExpenseMapper;
 import org.tornotron.echno_backend.organization.Organization;
 
+import java.util.Locale;
+
 
 /**
  * CRUD + list for expenses. The expense is a flat header scoped to the current tenant;
@@ -139,7 +141,7 @@ public class ExpenseService {
      * bind lands inside a {@code ||}, which CockroachDB mistypes as bytes.
      */
     private static String searchPattern(String value) {
-        return (value == null || value.isBlank()) ? null : "%" + value.trim().toLowerCase() + "%";
+        return (value == null || value.isBlank()) ? null : "%" + value.trim().toLowerCase(Locale.ROOT) + "%";
     }
 
     private static String blankToNull(String value) {

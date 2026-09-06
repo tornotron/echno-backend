@@ -40,6 +40,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
@@ -542,7 +543,7 @@ public class AttendanceService {
                                                                Pageable pageable) {
         String searchPattern = (search == null || search.isBlank())
                 ? null
-                : "%" + search.toLowerCase() + "%";
+                : "%" + search.toLowerCase(Locale.ROOT) + "%";
         return attendanceRepository
                 .findWithFilters(projectId, date, status, searchPattern, pageable)
                 .map(attendance -> attendanceMapper.toResponseDto(attendance)).getContent();
