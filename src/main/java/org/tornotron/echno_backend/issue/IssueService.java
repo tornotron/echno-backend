@@ -248,6 +248,10 @@ public class IssueService {
      * is what {@code assignedToId} already does, and what a nullable column with no default
      * allows: an issue can stop being ranked without stopping being an issue.
      *
+     * <p>Only an explicit null clears it, which is what the published schema says. A blank string
+     * is refused like any other value that names no member, so a client that sends {@code ""} is
+     * told so rather than quietly losing the field.
+     *
      * <p>The value comes out of the update map rather than a bound property, so it is taken as an
      * {@code Object}. Anything that is neither absent nor a known member is a client error (400),
      * not the class cast or {@code IllegalArgumentException} that would leave as a 500.
@@ -257,10 +261,10 @@ public class IssueService {
      * @throws InvalidRequestException if the value is not a known issue priority.
      */
     private static IssuePriority parseIssuePriority(Object value) {
-        if (value == null || (value instanceof String name && name.isBlank())) {
+        if (value == null) {
             return null;
         }
-        if (value instanceof String name) {
+        if (value instanceof String name && !name.isBlank()) {
             try {
                 return IssuePriority.valueOf(name);
             } catch (IllegalArgumentException e) {
