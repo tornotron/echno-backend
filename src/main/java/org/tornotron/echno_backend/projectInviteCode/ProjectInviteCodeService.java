@@ -9,6 +9,7 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.exception.TenantIdMissingException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -72,20 +73,36 @@ public class ProjectInviteCodeService {
     }
 
     /**
-     * Generates a new invite code for an organization.
+     * Generates a new invite code for the caller's organization.
      * The code is created with specified validity, usage limits, and default employee details.
+     *
+     * <p>The organization comes from the session and never from the caller. An invite code is a
+     * credential for whichever organization it is bound to, and {@code Organization} is the one
+     * entity tenant isolation cannot cover: as the tenant root it is not a
+     * {@code TenantScopedEntity}, so it carries no {@code orgFilter} and
+     * {@code TenantIsolationLoadListener} returns before looking at it. A caller-supplied id
+     * reaching {@code findById} here would therefore mint a working code into any organization
+     * in the deployment, which is what #687 was. Reading the same key the guard checked is what
+     * keeps the two from drifting apart.
      *
      * @param inviteCodeGenerationDto DTO containing the details for generating the invite code.
      * @return A DTO of the newly created invite code.
+     * @throws TenantIdMissingException if the request carries no organization.
      * @throws ResourceNotFoundException if the organization is not found.
      * @throws DatabaseOperationException if the invite code cannot be saved.
      */
     @Transactional
-    public ProjectInviteCodeDto generateInviteCode(InviteCodeGenerationDto inviteCodeGenerationDto,Long organizationId) {
+    public ProjectInviteCodeDto generateInviteCode(InviteCodeGenerationDto inviteCodeGenerationDto) {
+        Long organizationId = TenantContext.getCurrentOrgId();
+        if (organizationId == null) {
+            throw new TenantIdMissingException(
+                    "No organization in context. An invite code is minted into the caller's own organization.");
+        }
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + organizationId + " was not found"));
         if (inviteCodeGenerationDto.getManagerId() != null) {
-            if (!employeeRepository.existsByIdAndOrgRolesIn(inviteCodeGenerationDto.getManagerId(), OrgRole.getManagerRoles())) {
+            if (!employeeRepository.existsByIdAndOrganization_IdAndOrgRolesIn(
+                    inviteCodeGenerationDto.getManagerId(), organizationId, OrgRole.getManagerRoles())) {
                 throw new ResourceNotFoundException("Manager with ID " + inviteCodeGenerationDto.getManagerId() + " was not found with a manager role in this organization");
             }
         }
@@ -201,8 +218,25 @@ public class ProjectInviteCodeService {
         return projectInviteCodeMapper.toDto(updatedInviteCode);
     }
 
+    /**
+     * Lists the invite codes of the caller's organization.
+     *
+     * <p>Keyed on the session for the same reason as generation. The listing hands back the code
+     * values, so a caller-supplied key here decides who may read a credential; that the
+     * {@code orgFilter} on {@link ProjectInviteCode} would have turned a foreign key into an
+     * empty list is a property of the entity, not of this method, and it is not what should be
+     * carrying the decision.
+     *
+     * @return the organization's invite codes.
+     * @throws TenantIdMissingException if the request carries no organization.
+     */
     @Transactional(readOnly = true)
-    public List<ProjectInviteCodeDto> readAllProjectInviteCodes(Long organizationId) {
+    public List<ProjectInviteCodeDto> readAllProjectInviteCodes() {
+        Long organizationId = TenantContext.getCurrentOrgId();
+        if (organizationId == null) {
+            throw new TenantIdMissingException(
+                    "No organization in context. Invite codes are listed for the caller's own organization.");
+        }
         return inviteCodeRepository.findByOrganization_Id(organizationId)
                 .stream()
                 .map(projectInviteCodeMapper::toDto)

@@ -108,8 +108,20 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
     @Query("SELECT e FROM Employee e JOIN e.orgRoles r WHERE e.organization.id = :orgId AND r = :role")
     List<Employee> findByOrganizationIdAndOrgRole(Long orgId, OrgRole role);
 
-    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM Employee e JOIN e.orgRoles r WHERE e.id = :employeeId AND r IN :roles")
-    boolean existsByIdAndOrgRolesIn(@Param("employeeId") Long employeeId, @Param("roles") Set<OrgRole> roles);
+    /**
+     * Whether the employee holds one of the given roles <em>in the given organization</em>.
+     *
+     * <p>The organization predicate is written out rather than left to the {@code orgFilter}.
+     * The filter does cover this query, but a caller reading the method name has no way to
+     * know that, and the one call site refuses a manager with a message that claims an
+     * organization was checked. Saying it in the query makes the claim true wherever the
+     * method is used next, including anywhere the filter is bypassed or absent.
+     */
+    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM Employee e JOIN e.orgRoles r "
+            + "WHERE e.id = :employeeId AND e.organization.id = :organizationId AND r IN :roles")
+    boolean existsByIdAndOrganization_IdAndOrgRolesIn(@Param("employeeId") Long employeeId,
+                                                     @Param("organizationId") Long organizationId,
+                                                     @Param("roles") Set<OrgRole> roles);
 
     boolean existsByIdAndOrganization_Id(Long id, Long organizationId);
 

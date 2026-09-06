@@ -11,6 +11,7 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.exception.TenantIdMissingException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -28,6 +29,7 @@ import org.tornotron.echno_backend.projectInviteCode.mapper.ProjectInviteCodeMap
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -108,20 +110,20 @@ class ProjectInviteCodeServiceTest {
         when(organizationRepository.findById(ORG)).thenReturn(Optional.empty());
 
         assertThatExceptionOfType(ResourceNotFoundException.class)
-                .isThrownBy(() -> service.generateInviteCode(generationDto(), ORG));
+                .isThrownBy(() -> service.generateInviteCode(generationDto()));
         verify(inviteCodeRepository, never()).save(any());
     }
 
     @Test
     void generateInviteCode_managerWithoutManagerRole_throwsNotFound() {
         when(organizationRepository.findById(ORG)).thenReturn(Optional.of(organization()));
-        when(employeeRepository.existsByIdAndOrgRolesIn(eq(MANAGER_ID), any())).thenReturn(false);
+        when(employeeRepository.existsByIdAndOrganization_IdAndOrgRolesIn(eq(MANAGER_ID), eq(ORG), any())).thenReturn(false);
 
         InviteCodeGenerationDto dto = generationDto();
         dto.setManagerId(MANAGER_ID);
 
         assertThatExceptionOfType(ResourceNotFoundException.class)
-                .isThrownBy(() -> service.generateInviteCode(dto, ORG));
+                .isThrownBy(() -> service.generateInviteCode(dto));
         verify(inviteCodeRepository, never()).save(any());
     }
 
@@ -139,7 +141,7 @@ class ProjectInviteCodeServiceTest {
         dto.setMaxUses(4);
         dto.setValidityDays(10);
 
-        service.generateInviteCode(dto, ORG);
+        service.generateInviteCode(dto);
 
         ArgumentCaptor<ProjectInviteCode> captor = ArgumentCaptor.forClass(ProjectInviteCode.class);
         verify(inviteCodeRepository).save(captor.capture());
@@ -170,7 +172,7 @@ class ProjectInviteCodeServiceTest {
         InviteCodeGenerationDto dto = generationDto();
         dto.setShiftTimingId(shiftId);
 
-        service.generateInviteCode(dto, ORG);
+        service.generateInviteCode(dto);
 
         ArgumentCaptor<ProjectInviteCode> captor = ArgumentCaptor.forClass(ProjectInviteCode.class);
         verify(inviteCodeRepository).save(captor.capture());
@@ -189,7 +191,7 @@ class ProjectInviteCodeServiceTest {
         dto.setShiftTimingId(shiftId);
 
         assertThatExceptionOfType(ResourceNotFoundException.class)
-                .isThrownBy(() -> service.generateInviteCode(dto, ORG));
+                .isThrownBy(() -> service.generateInviteCode(dto));
         verify(inviteCodeRepository, never()).save(any());
     }
 
@@ -200,7 +202,7 @@ class ProjectInviteCodeServiceTest {
         when(inviteCodeRepository.save(any(ProjectInviteCode.class))).thenAnswer(inv -> inv.getArgument(0));
 
         assertThatExceptionOfType(DatabaseOperationException.class)
-                .isThrownBy(() -> service.generateInviteCode(generationDto(), ORG));
+                .isThrownBy(() -> service.generateInviteCode(generationDto()));
     }
 
     private ProjectInviteCode storedCode(boolean active, LocalDateTime expiry, int maxUses, int currentUses) {
@@ -337,7 +339,7 @@ class ProjectInviteCodeServiceTest {
     void generateInviteCode_checksManagerRolesSet() {
         when(organizationRepository.findById(ORG)).thenReturn(Optional.of(organization()));
         Set<OrgRole> managerRoles = OrgRole.getManagerRoles();
-        lenient().when(employeeRepository.existsByIdAndOrgRolesIn(MANAGER_ID, managerRoles)).thenReturn(true);
+        lenient().when(employeeRepository.existsByIdAndOrganization_IdAndOrgRolesIn(MANAGER_ID, ORG, managerRoles)).thenReturn(true);
         when(inviteCodeRepository.save(any(ProjectInviteCode.class))).thenAnswer(inv -> {
             ProjectInviteCode saved = inv.getArgument(0);
             saved.setId(INVITE_ID);
@@ -348,8 +350,76 @@ class ProjectInviteCodeServiceTest {
         InviteCodeGenerationDto dto = generationDto();
         dto.setManagerId(MANAGER_ID);
 
-        service.generateInviteCode(dto, ORG);
+        service.generateInviteCode(dto);
 
-        verify(employeeRepository).existsByIdAndOrgRolesIn(MANAGER_ID, managerRoles);
+        verify(employeeRepository).existsByIdAndOrganization_IdAndOrgRolesIn(MANAGER_ID, ORG, managerRoles);
+    }
+
+    // --- The organization an invite code is bound to comes from the session (#687) ---
+
+    @Test
+    void generateInviteCode_bindsTheCodeToTheSessionOrganization() {
+        // The method takes no organization argument at all, so there is no second key for a
+        // caller-supplied id to travel on. This asserts the one that remains is the session's.
+        when(organizationRepository.findById(ORG)).thenReturn(Optional.of(organization()));
+        when(inviteCodeRepository.save(any(ProjectInviteCode.class))).thenAnswer(inv -> {
+            ProjectInviteCode saved = inv.getArgument(0);
+            saved.setId(INVITE_ID);
+            return saved;
+        });
+        when(projectInviteCodeMapper.toDto(any())).thenReturn(new ProjectInviteCodeDto());
+
+        service.generateInviteCode(generationDto());
+
+        ArgumentCaptor<ProjectInviteCode> captor = ArgumentCaptor.forClass(ProjectInviteCode.class);
+        verify(inviteCodeRepository).save(captor.capture());
+        assertThat(captor.getValue().getOrganization().getId()).isEqualTo(ORG);
+        verify(organizationRepository).findById(ORG);
+    }
+
+    @Test
+    void generateInviteCode_withNoTenantInContext_mintsNothing() {
+        TenantContext.clear();
+
+        assertThatExceptionOfType(TenantIdMissingException.class)
+                .isThrownBy(() -> service.generateInviteCode(generationDto()));
+        verify(organizationRepository, never()).findById(any());
+        verify(inviteCodeRepository, never()).save(any());
+    }
+
+    @Test
+    void generateInviteCode_checksTheManagerWithinTheSessionOrganization() {
+        // The refusal message claims the manager was looked for in this organization. Before
+        // this it was looked for anywhere, and the claim rested on the Hibernate filter
+        // happening to be enabled rather than on the query.
+        when(organizationRepository.findById(ORG)).thenReturn(Optional.of(organization()));
+        when(employeeRepository.existsByIdAndOrganization_IdAndOrgRolesIn(
+                eq(MANAGER_ID), eq(ORG), any())).thenReturn(false);
+
+        InviteCodeGenerationDto dto = generationDto();
+        dto.setManagerId(MANAGER_ID);
+
+        assertThatExceptionOfType(ResourceNotFoundException.class)
+                .isThrownBy(() -> service.generateInviteCode(dto));
+        verify(employeeRepository).existsByIdAndOrganization_IdAndOrgRolesIn(
+                eq(MANAGER_ID), eq(ORG), any());
+    }
+
+    @Test
+    void readAllProjectInviteCodes_readsTheSessionOrganization() {
+        when(inviteCodeRepository.findByOrganization_Id(ORG)).thenReturn(List.of());
+
+        service.readAllProjectInviteCodes();
+
+        verify(inviteCodeRepository).findByOrganization_Id(ORG);
+    }
+
+    @Test
+    void readAllProjectInviteCodes_withNoTenantInContext_readsNothing() {
+        TenantContext.clear();
+
+        assertThatExceptionOfType(TenantIdMissingException.class)
+                .isThrownBy(() -> service.readAllProjectInviteCodes());
+        verify(inviteCodeRepository, never()).findByOrganization_Id(any());
     }
 }
