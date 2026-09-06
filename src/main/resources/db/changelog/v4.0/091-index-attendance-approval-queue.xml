@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="091-index-attendance-approval-queue" author="echno">
+        <comment>
+            The approval queue added in 692 asks a question nothing asked of this table before:
+            which days in this tenant are held for a geofence decision and still pending. Until now
+            requires_geofence_approval and geofence_approver_id were written when a punch fell
+            outside the fence and read back on the one record being decided, so neither was ever a
+            predicate over the table.
+
+            The queue is read on every visit to the approvals screen and again for the badge beside
+            it, over the one table that grows with every employee on every day on every project.
+            Without an index each read is a scan of the tenant's whole attendance history to find a
+            handful of held days, which stops being cheap exactly when a client has been using the
+            product long enough to have a history.
+
+            One composite rather than a column each, because the predicates are all equalities and
+            they always arrive together. organization_id leads it: the org filter is on every read
+            and is the most selective thing available. requires_geofence_approval and
+            approval_status follow, which is the whole predicate for a caller holding the
+            record-management roles, and geofence_approver_id sits last for the caller who is
+            named on the record rather than holding a role. A prefix of an index is usable on its
+            own, so the manager's three-column question is answered by the same index as the
+            approver's four-column one.
+
+            employee_id is deliberately not in it. It carries the "never your own record" rule,
+            which is an inequality and narrows nothing an index can help with.
+        </comment>
+
+        <createIndex tableName="attendance" indexName="idx_attendance_approval_queue">
+            <column name="organization_id"/>
+            <column name="requires_geofence_approval"/>
+            <column name="approval_status"/>
+            <column name="geofence_approver_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="attendance" indexName="idx_attendance_approval_queue"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
