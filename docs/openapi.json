@@ -35197,7 +35197,7 @@
     },
     "/api/v1/employee/web/{employeeId}/roles": {
       "get": {
-        "description": "Returns the set of organization roles held by the given employee.",
+        "description": "Returns the set of organization roles held by the given employee. Open to any member of the organization, since knowing who holds which role is how work is routed.",
         "operationId": "getOrgRoles",
         "parameters": [
           {
@@ -35685,7 +35685,7 @@
         ]
       },
       "get": {
-        "description": "Returns a single employee's full details.",
+        "description": "Returns a single employee's full details. Callable by the employee themselves or by a system admin, HR admin or project manager.",
         "operationId": "readAnEmployee_1",
         "parameters": [
           {
@@ -35737,7 +35737,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is neither the employee nor a system admin, HR admin or project manager"
           },
           "404": {
             "content": {
@@ -36030,7 +36030,7 @@
         ]
       },
       "get": {
-        "description": "Returns a single employee including their personal details, roles and status.",
+        "description": "Returns a single employee including their personal details, roles and status. Callable by the employee themselves or by a system admin, HR admin or project manager.",
         "operationId": "readAnEmployee",
         "parameters": [
           {
@@ -36082,7 +36082,7 @@
                 }
               }
             },
-            "description": "Caller lacks the employee read or admin authority"
+            "description": "Caller is neither the employee nor a system admin, HR admin or project manager"
           },
           "404": {
             "content": {
@@ -66974,7 +66974,7 @@
     },
     "/api/v1/leave-policies/web/duplicate": {
       "post": {
-        "description": "Copies the policy's quota, accrual and eligibility rules into a new policy owned by the target organization. Returns the newly created policy.",
+        "description": "Copies the policy's quota, accrual and eligibility rules into a new policy owned by the target organization. Returns the newly created policy. The caller must hold the system-admin or hr-admin role in their own organization and in the target.",
         "operationId": "duplicatePolicy_1",
         "parameters": [
           {
@@ -67035,7 +67035,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller lacks the required role in the current tenant or in the target organization"
           },
           "404": {
             "content": {
@@ -67906,7 +67906,7 @@
     },
     "/api/v1/leave-policies/{policyId}/duplicate": {
       "post": {
-        "description": "Copies the policy's quota, accrual and eligibility rules into a new policy owned by the target organization. Returns the newly created policy.",
+        "description": "Copies the policy's quota, accrual and eligibility rules into a new policy owned by the target organization. Returns the newly created policy. The caller must hold the system-admin or hr-admin role in their own organization and in the target.",
         "operationId": "duplicatePolicy",
         "parameters": [
           {
@@ -67967,7 +67967,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller lacks the required role in the current tenant or in the target organization"
           },
           "404": {
             "content": {
@@ -82846,7 +82846,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -83086,7 +83086,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -83225,7 +83225,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -83364,7 +83364,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -83588,7 +83588,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -83869,7 +83869,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -83985,7 +83985,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
