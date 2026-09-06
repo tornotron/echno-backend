@@ -364,6 +364,26 @@ public class LeaveApprovalService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Refuses the caller unless they take part in this request or hold a leave-administrator role.
+     *
+     * <p>The same rule as the approval trail, exposed because the request itself is on the same
+     * footing: an approver cannot decide on a request they cannot open, and the request detail
+     * screen is where the approve, reject and delegate buttons are. Reading it here rather than in
+     * a {@code @PreAuthorize} is the point, because the guard sees only the request id the caller
+     * sent and nothing about whose leave it is.
+     *
+     * @param request The stored request, already resolved in the current tenant.
+     * @throws AccessDeniedException if the caller is neither the employee the leave belongs to, nor
+     *     named anywhere in its approval chain, nor a system-admin or hr-admin.
+     */
+    @Transactional(readOnly = true)
+    public void requireMayReadRequest(LeaveRequest request) {
+        requireMayReadTrail(
+                request,
+                approvalRepository.findByLeaveRequestIdOrderByApprovalLevelAsc(request.getId()));
+    }
+
     private void requireMayReadTrail(LeaveRequest request, List<LeaveApproval> approvals) {
         if (orgSecurity.hasAnyOrgRoleForCurrentTenant(LEAVE_ADMIN_ROLES)) {
             return;
@@ -373,7 +393,7 @@ public class LeaveApprovalService {
         if (callerId == null) {
             throw new AccessDeniedException(
                     "You have no employee record in this organization, so you take no part in this "
-                            + "leave request and cannot read its approval trail.");
+                            + "leave request.");
         }
 
         if (request.getEmployee() != null && callerId.equals(request.getEmployee().getId())) {
@@ -388,7 +408,7 @@ public class LeaveApprovalService {
         }
 
         throw new AccessDeniedException(
-                "The approval trail of a leave request is readable by the employee it belongs to, "
+                "A leave request and its approval trail are readable by the employee it belongs to, "
                         + "the approvers in its chain, and the system-admin or hr-admin roles.");
     }
 
