@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.issue.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import org.tornotron.echno_backend.issue.enums.IssuePriority;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
 
@@ -36,6 +37,12 @@ public class IssueUpdateFieldsDto {
     @Schema(description = "Lifecycle status of the issue. Cannot be cleared: a null or blank value "
             + "is refused with a 400 rather than applied.")
     private IssueStatus status;
+
+    @Schema(nullable = true, description = "How urgently the issue wants attention. Send null to "
+            + "clear it, the way an issue is unassigned: no column constraint requires a value, "
+            + "and an issue can stop being ranked without stopping being an issue.",
+            example = "high")
+    private IssuePriority priority;
 
     @Schema(nullable = true, description = "Id of the employee the issue is assigned to. The employee must belong to "
             + "the caller's organization. Send null to unassign the issue.", example = "17")

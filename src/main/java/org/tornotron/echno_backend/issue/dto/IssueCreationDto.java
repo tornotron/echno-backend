@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import org.tornotron.echno_backend.issue.enums.IssuePriority;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 
 @Data
@@ -53,6 +54,18 @@ public class IssueCreationDto {
             + "every member the one move that endpoint exists to withhold.",
             example = "open", allowableValues = {"open"})
     private IssueStatus status;
+
+    /**
+     * How urgently the issue wants attention. Optional: an issue raised without one has none, and
+     * no starting value is invented for it. The web form defaults its select to {@code medium} and
+     * sends that, so in practice most issues arrive with a priority; one raised by a client that
+     * offers no such control simply has none.
+     */
+    @Schema(description = "How urgently the issue wants attention. Optional: an issue raised "
+            + "without one has none, and none is inferred. Change it later through "
+            + "PATCH /issues/{id}.",
+            example = "medium")
+    private IssuePriority priority;
 
     /**
      * The assignee. Optional, and the only person on this payload the caller names: an issue may

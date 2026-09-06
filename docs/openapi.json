@@ -7520,6 +7520,17 @@
             "minLength": 5,
             "type": "string"
           },
+          "priority": {
+            "description": "How urgently the issue wants attention. Optional: an issue raised without one has none, and none is inferred. Change it later through PATCH /issues/{id}.",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "example": "medium",
+            "type": "string"
+          },
           "status": {
             "description": "State the issue starts in. Optional, and open is the only value accepted, so leaving it out is the same as sending open. Every later state change goes through PATCH /issues/{id}, which only a system-admin or project-manager may call; being able to raise an issue that is already resolved or closed would hand every member the one move that endpoint exists to withhold.",
             "enum": [
@@ -7586,6 +7597,15 @@
               "$ref": "#/components/schemas/IssueCommentDto"
             },
             "type": "array"
+          },
+          "priority": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "type": "string"
           },
           "status": {
             "enum": [
@@ -7660,6 +7680,15 @@
             "format": "int64",
             "type": "integer"
           },
+          "priority": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "type": "string"
+          },
           "status": {
             "enum": [
               "open",
@@ -7730,6 +7759,20 @@
           "description": {
             "description": "Longer description of the issue.",
             "example": "Spacing measured at 220 mm against a specified 200 mm across grid C.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priority": {
+            "description": "How urgently the issue wants attention. Send null to clear it, the way an issue is unassigned: no column constraint requires a value, and an issue can stop being ranked without stopping being an issue.",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "example": "high",
             "type": [
               "string",
               "null"
