@@ -34659,7 +34659,7 @@
     },
     "/api/v1/employee/web/managerId/{managerId}/subordinates": {
       "get": {
-        "description": "Returns every employee who reports directly to the given manager.",
+        "description": "Returns every employee who reports directly to the given manager. Callable by that manager, or by a system or HR admin for anybody.",
         "operationId": "getDirectSubordinates",
         "parameters": [
           {
@@ -34714,7 +34714,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is neither the manager named nor a system or HR admin"
           },
           "404": {
             "content": {
@@ -34880,7 +34880,7 @@
     },
     "/api/v1/employee/web/managers/organizationId/{organizationId}": {
       "get": {
-        "description": "Returns every employee holding a manager organization role within the given organization.",
+        "description": "Returns every employee holding a manager organization role within the given organization, which has to be the caller's own. Identical to the list beside it, which takes the organization from the session instead.",
         "operationId": "getAllManagersForAnOrganization",
         "parameters": [
           {
@@ -34935,7 +34935,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not entitled to the organization named, or lacks the required role in it"
           },
           "404": {
             "content": {
@@ -66291,7 +66291,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
           },
           "404": {
             "content": {
@@ -66416,7 +66416,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not entitled to the organization named, or lacks the required role in it"
           },
           "404": {
             "content": {
@@ -67095,7 +67095,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
           },
           "404": {
             "content": {
