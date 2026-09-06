@@ -178,15 +178,25 @@ public class LeaveRequestService {
     /**
      * Retrieves a single leave request, resolving the handover employee's name when set.
      *
+     * <p>Readable by the employee the leave belongs to, everybody named in its approval chain, and
+     * the leave administrators. It was gated on the system-admin and hr-admin roles alone, which
+     * left the approver unable to open the request they are being asked to decide: this is the read
+     * the request detail screen is built on, and the approve, reject and delegate buttons live on
+     * that screen. Repairing the action without this would have repaired the endpoint that returns
+     * 403 and left the caller unable to reach the form, which is what happened in #666.
+     *
      * @param requestId The ID of the leave request.
      * @return The request.
      * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
+     * @throws AccessDeniedException if the caller takes no part in this request and holds neither
+     *     leave-administrator role.
      */
     @Transactional(readOnly = true)
     public LeaveRequestDto getRequest(Long requestId) {
         LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
+        approvalService.requireMayReadRequest(request);
         LeaveRequestDto dto = leaveRequestMapper.toDto(request);
         if (request.getHandoverToId() != null) {
             employeeRepository.findById(request.getHandoverToId())

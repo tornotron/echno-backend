@@ -66,15 +66,18 @@ public class LeaveRequestController {
     }
 
     @GetMapping("/requestId/{requestId}")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get a leave request by id",
-            description = "Returns a single leave request with its approval trail."
+            description = "Returns a single leave request with its approval trail. Readable by the "
+                    + "employee the leave belongs to, everybody named in its approval chain, and the "
+                    + "system-admin or hr-admin roles. This is the read the request detail screen is "
+                    + "built on, and the approve, reject and delegate actions live on that screen, so "
+                    + "an approver has to be able to make it."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Request found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or takes no part in this request and holds neither leave-administrator role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id")
     })
     public ResponseEntity<LeaveRequestDto> getRequest(@PathVariable Long requestId) {

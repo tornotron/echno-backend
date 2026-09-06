@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -205,6 +206,30 @@ class LeaveApprovalTrailAccessTest {
         assertThatThrownBy(() -> service().getApprovalChain(REQUEST_ID))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("no employee record");
+    }
+
+    @Test
+    void anApproverMayOpenTheRequestTheyAreBeingAskedToDecide() {
+        // The request read was gated on the system-admin and hr-admin roles alone, so the approver
+        // could not open the screen the approve, reject and delegate buttons live on. Repairing
+        // the action and leaving this is what #666 did.
+        theRequestExists();
+        signedInAs(LINE_MANAGER_ID);
+        holdingNoLeaveAdminRole();
+
+        assertThatCode(() -> service().requireMayReadRequest(requestPendingOnTheLineManager()))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void aColleagueWhoTakesNoPartInTheRequestMayNotOpenIt() {
+        theRequestExists();
+        signedInAs(BYSTANDER_ID);
+        holdingNoLeaveAdminRole();
+
+        assertThatThrownBy(() -> service().requireMayReadRequest(requestPendingOnTheLineManager()))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("readable by the employee it belongs to");
     }
 
     @Test

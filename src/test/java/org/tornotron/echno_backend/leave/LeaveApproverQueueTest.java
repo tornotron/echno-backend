@@ -21,6 +21,7 @@ import org.tornotron.echno_backend.organization.Organization;
 import java.util.List;
 import java.util.Optional;
 
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -133,6 +134,34 @@ class LeaveApproverQueueTest {
         assertThat(service().getRequestsByApprover()).isEmpty();
 
         verify(requestRepository).findDistinctByApproverParticipation(CALLER_EMPLOYEE_ID);
+    }
+
+    @Test
+    void readingOneRequestIsSettledAgainstTheRecordRatherThanTheRole() {
+        // The request read was gated on the system-admin and hr-admin roles alone, so an approver
+        // could not open the screen the approve, reject and delegate buttons live on. The rule is
+        // the approval trail's, and it belongs where the record is.
+        LeaveRequest request = new LeaveRequest();
+        request.setId(42L);
+        when(requestRepository.findByIdAndOrganization_Id(42L, ORG_ID)).thenReturn(Optional.of(request));
+
+        service().getRequest(42L);
+
+        verify(approvalService).requireMayReadRequest(request);
+    }
+
+    @Test
+    void aRefusalFromThatCheckStopsTheRead() {
+        LeaveRequest request = new LeaveRequest();
+        request.setId(42L);
+        when(requestRepository.findByIdAndOrganization_Id(42L, ORG_ID)).thenReturn(Optional.of(request));
+        org.mockito.Mockito.doThrow(new AccessDeniedException("not your request"))
+                .when(approvalService).requireMayReadRequest(request);
+
+        assertThatThrownBy(() -> service().getRequest(42L))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(leaveRequestMapper, never()).toDto(request);
     }
 
     @Test

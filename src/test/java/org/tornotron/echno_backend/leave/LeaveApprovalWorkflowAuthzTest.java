@@ -94,6 +94,7 @@ class LeaveApprovalWorkflowAuthzTest {
         when(requestService.getPendingApprovals()).thenReturn(List.of());
         when(requestService.getPendingApprovalCount()).thenReturn(0L);
         when(requestService.getRequestsByApprover()).thenReturn(List.of());
+        when(requestService.getRequest(anyLong())).thenReturn(new LeaveRequestDto());
     }
 
     /** A site manager: a member of the tenant, holding neither administrative leave role. */
@@ -119,7 +120,11 @@ class LeaveApprovalWorkflowAuthzTest {
             "/api/v1/leave-requests/pending-approvals/count",
             "/api/v1/leave-requests/web/pending-approvals",
             "/api/v1/leave-requests/web/pending-approvals/count",
-            "/api/v1/leave-requests/web/approver"
+            "/api/v1/leave-requests/web/approver",
+            // The request itself. An approver cannot decide on one they cannot open, and this is
+            // the read the detail screen is built on, where the three action buttons live.
+            "/api/v1/leave-requests/requestId/42",
+            "/api/v1/leave-requests/web/request?requestId=42"
     })
     void anApproverMayReadTheirQueueAndTheTrailOfARequest(String path) throws Exception {
         asAnApproverHoldingNoAdministrativeRole();
@@ -164,7 +169,9 @@ class LeaveApprovalWorkflowAuthzTest {
             "/api/v1/leave-approvals/requests/42/can-approve",
             "/api/v1/leave-approvals/web/chain?requestId=42",
             "/api/v1/leave-requests/pending-approvals",
-            "/api/v1/leave-requests/web/pending-approvals/count"
+            "/api/v1/leave-requests/web/pending-approvals/count",
+            "/api/v1/leave-requests/requestId/42",
+            "/api/v1/leave-requests/web/request?requestId=42"
     })
     void somebodyOutsideTheTenantIsStillRefused(String path) throws Exception {
         // Membership replaced a role gate that could not express the rule. It did not replace it
