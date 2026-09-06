@@ -18,7 +18,6 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
 import org.tornotron.echno_backend.issue.IssueRepository;
-import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.task.TaskRepository;
 import org.tornotron.echno_backend.user.UserRepository;
@@ -47,7 +46,6 @@ public class AttachmentService {
 
     private final AttachmentRepository attachmentRepository;
     private final FileStorageService fileStorageService;
-    private final OrganizationRepository organizationRepository;
     private final ProjectRepository projectRepository;
     private final TaskRepository taskRepository;
     private final IssueRepository issueRepository;
@@ -56,11 +54,10 @@ public class AttachmentService {
     private final TenantEntityHelper tenantEntityHelper;
     private final AttachmentMapper attachmentMapper;
 
-    public AttachmentService(AttachmentRepository attachmentRepository, FileStorageService fileStorageService, OrganizationRepository organizationRepository, ProjectRepository projectRepository, TaskRepository taskRepository, IssueRepository issueRepository, UserRepository userRepository, AttendanceRepository attendanceRepository, TenantEntityHelper tenantEntityHelper, AttachmentMapper attachmentMapper) {
+    public AttachmentService(AttachmentRepository attachmentRepository, FileStorageService fileStorageService, ProjectRepository projectRepository, TaskRepository taskRepository, IssueRepository issueRepository, UserRepository userRepository, AttendanceRepository attendanceRepository, TenantEntityHelper tenantEntityHelper, AttachmentMapper attachmentMapper) {
         this.attachmentMapper = attachmentMapper;
         this.attachmentRepository = attachmentRepository;
         this.fileStorageService = fileStorageService;
-        this.organizationRepository = organizationRepository;
         this.projectRepository = projectRepository;
         this.taskRepository = taskRepository;
         this.issueRepository = issueRepository;
@@ -333,10 +330,17 @@ public class AttachmentService {
      * Associates an attachment with its owning entity. Extracted so both the
      * streaming upload and the pre-signed upload paths record the association
      * the same way.
+     *
+     * <p>Every arm loads a {@code TenantScopedEntity}, so a caller-supplied id that belongs to
+     * another organization is refused at the load boundary by {@code TenantIsolationLoadListener}
+     * rather than quietly linked. There is deliberately no {@code organization} arm: the
+     * attachment's organization is written by the caller of this method, from the tenant, on the
+     * next line. The arm that used to be here loaded an {@code Organization} by the same
+     * caller-supplied id and had its result overwritten immediately, so it changed nothing and
+     * still had to be cleared as a suspect on every pass through this family. See issue #700.
      */
     private void linkToEntity(Attachment attachment, String folder, Long entityId) {
         switch (folder) {
-            case "organization" -> attachment.setOrganization(organizationRepository.findById(entityId).orElse(null));
             case "project", "projects" -> attachment.setProject(projectRepository.findById(entityId).orElse(null));
             case "task" -> attachment.setTask(taskRepository.findById(entityId).orElse(null));
             case "issue" -> attachment.setIssue(issueRepository.findById(entityId).orElse(null));

@@ -18,7 +18,6 @@ import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
 import org.tornotron.echno_backend.issue.IssueRepository;
 import org.tornotron.echno_backend.organization.Organization;
-import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.task.TaskRepository;
 import org.tornotron.echno_backend.user.UserRepository;
@@ -45,7 +44,6 @@ class AttachmentServiceTenancyTest {
 
     @Mock private AttachmentRepository attachmentRepository;
     @Mock private FileStorageService fileStorageService;
-    @Mock private OrganizationRepository organizationRepository;
     @Mock private ProjectRepository projectRepository;
     @Mock private TaskRepository taskRepository;
     @Mock private IssueRepository issueRepository;
@@ -59,7 +57,7 @@ class AttachmentServiceTenancyTest {
 
     @BeforeEach
     void setUp() {
-        service = new AttachmentService(attachmentRepository, fileStorageService, organizationRepository,
+        service = new AttachmentService(attachmentRepository, fileStorageService,
                 projectRepository, taskRepository, issueRepository, userRepository, attendanceRepository,
                 tenantEntityHelper, attachmentMapper);
     }

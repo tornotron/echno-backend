@@ -22,7 +22,8 @@ Data-level organization isolation using Hibernate filters that automatically app
 14. [Database Migrations](#database-migrations)
 15. [Entities Covered](#entities-covered)
 16. [Edge Cases](#edge-cases)
-17. [Troubleshooting](#troubleshooting)
+17. [Caller-Supplied Organization Ids: Already Checked](#caller-supplied-organization-ids-already-checked)
+18. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -682,6 +683,70 @@ User, Organization, Plan, Feature, PlanFeature, Subscription, SubscriptionItem, 
 | **Native SQL query** | Filter does NOT apply automatically. Add `AND organization_id = :orgId` manually |
 | **New entity without `@Filter` annotation** | Not filtered at all — visible to all orgs. Only add filter to org-scoped entities |
 | **Duplicate `@FilterDef` on entity** | **Application fails to start** with error: `Multiple '@FilterDef' annotations define a filter named 'orgFilter'`. Remove from entity — it should only exist in `package-info.java` |
+
+---
+
+## Caller-Supplied Organization Ids: Already Checked
+
+A handler that takes an organization id from the caller and looks something up with it is the
+shape worth auditing, because it can mean the caller chose which tenant's data was read. Most
+occurrences are not that. They are a redundant parameter beside a `TenantContext` read, or a
+parameter the entity's `orgFilter` renders inert.
+
+Telling the two apart is slow, and it is the same work every time. This section records the
+answers already arrived at, so a later pass can skip them and spend its time on what is new.
+Sources: issues #687, #691, #696, #697, #698, #699, #700, and the commits that closed them.
+
+### How to tell them apart, in order
+
+1. **Is the entity a `TenantScopedEntity`?** If it carries `orgFilter`, a foreign id yields an
+   empty result, and `TenantIsolationLoadListener` refuses a load by id outright. The parameter
+   then decides nothing, and the finding is tidiness rather than exposure.
+2. **Is it `Organization` itself?** The tenant root carries neither defence. A caller-supplied id
+   reaching an unfiltered `Organization` lookup is the dangerous form. `OrganizationService`
+   `batchUpdateOrganization` is the worked example: an explicit per-id `isMemberOrAdmin` loop,
+   with a comment saying why it has to be there.
+3. **Does the guard read the same id the service reads?** A guard on `TenantContext` beside a
+   service on `#organizationId` is a mismatch even when the filter neutralises it. The repair is
+   `@orgSecurity.isCurrentTenant(#organizationId)` alongside the role check, which makes the
+   segment binding instead of decorative.
+4. **Trace the whole workflow, not the call that refused.** A read gated a tier above the write
+   beside it strands the caller who is entitled to finish the job (#666).
+
+### Confirmed non-defects
+
+Recorded so they are not re-derived. Each was traced to the line above the lookup.
+
+| Site | Why it is fine |
+|------|----------------|
+| `AttendanceService` 227, 369, 618, 672 | reads `TenantContext.getCurrentOrgId()` on the line above; loads the caller's own tenant root |
+| `ShiftTimingService:37`, `AttendanceSettingsService:56` | same shape |
+| `MovementRecordService:92`, `AttendanceRegularizationService:99` | same shape |
+| `ProjectService:164`, `LeavePolicyService.createPolicy`, `TenantEntityHelper:20` | same shape |
+| `OrganizationController` 142, 200 | guard bound to the caller-supplied id (`isMember(#id)`, `hasAnyOrgRole(#id, ...)`); the correct pattern for the family |
+| `OrganizationWebController` 146, 169, 201 | same, including `hasOrgRole(#id,'system-admin')` |
+| `OrganizationService.batchUpdateOrganization:419` | explicit per-id `isMemberOrAdmin` loop, with the reason written down; the precedent to copy |
+| `EmployeeController:149` (`GET /employee/organization/{id}`) | binds `@orgSecurity.isMember(#id)`; the correctly-written member of the family |
+
+### Repaired, with the repair to copy
+
+| Site | What it was | What it became |
+|------|-------------|----------------|
+| `EmployeeControllerWeb` managers by organization | guard on `TenantContext`, service on `#organizationId` | `isCurrentTenant(#organizationId)` and the role check |
+| `LeavePolicyController` policies by organization (#691) | plus an existence check that read as a tenant check | same pair; the service now says why its `existsById` is not one |
+| `LeaveRequestController` requests by organization (#700) | segment published and bound to nothing at all | same pair; the segment now means what the contract says |
+| `LeavePolicyService.createPolicy` (#700) | uniqueness checked against `dto.organizationId` and the raw casing | checked against the tenant and the code as stored |
+| `AttachmentService.linkToEntity` (#700) | an `Organization` arm loading by a caller-supplied id, overwritten one line later | arm removed, and the repository with it |
+
+### Two traps worth keeping in mind
+
+- **An empty result is not proof of a defence.** It can equally be an id that matches nothing.
+  Check the entity for `orgFilter` rather than inferring from an empty list.
+- **Retiring a route or a path segment is a separate decision from repairing its guard.** The
+  `echno-core` contract is hand-maintained with no code generation, so a route change breaks the
+  web app at runtime rather than at compile time. Repair the guard now; retire the segment in a
+  deliberate release. As of #700, no client calls any of the three org-segmented routes above:
+  `echno-core` and `echno-web` both reach the `/web` twins, which take no segment.
 
 ---
 

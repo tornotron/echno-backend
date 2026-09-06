@@ -123,16 +123,27 @@ public class LeaveRequestController {
 
     @GetMapping("/organizationId/{organizationId}")
 //    @PreAuthorize("hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#organizationId) "
+            + "and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     @Operation(
-            summary = "List the current tenant's leave requests",
-            description = "Returns every leave request raised within the caller's current tenant."
+            summary = "List an organization's leave requests",
+            description = "Returns every leave request raised within the given organization, which has to "
+                    + "be the caller's own. Identical to the /web twin beside it, which takes the "
+                    + "organization from the session instead."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Requests returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not entitled to the organization named, or lacks the required role in it")
     })
-    public ResponseEntity<List<LeaveRequestDto>> getOrganizationRequests() {
+    // organizationId is bound for the guard rather than for the service. The published path
+    // promises the id decides what is returned, and nothing read it: the handler answered the
+    // caller's own tenant whatever was in the segment, so a caller who named another organization
+    // was handed their own requests as though the id had been honoured. Binding it makes the
+    // segment mean what the contract says by refusing anything but the tenant in force, after
+    // which the service's TenantContext read is the same organization. Whether the route should
+    // keep the segment at all is a contract decision; no client calls this route today, both
+    // reach the /web twin. See issue #700.
+    public ResponseEntity<List<LeaveRequestDto>> getOrganizationRequests(@PathVariable Long organizationId) {
         return ResponseEntity.ok(requestService.getRequestsByOrganization());
     }
 
