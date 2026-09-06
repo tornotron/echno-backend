@@ -26899,7 +26899,7 @@
         ]
       },
       "get": {
-        "description": "Returns a single attendance record including its clock events, movements, regularizations and approval state.",
+        "description": "Returns a single attendance record including its clock events, movements, regularizations and approval state. Readable by the employee it belongs to, by a holder of an attendance record-management role, or by the approver the record names.",
         "operationId": "getById_5",
         "parameters": [
           {
@@ -26951,7 +26951,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee the record belongs to, nor a holder of an attendance record-management role, nor the approver the record names"
           },
           "404": {
             "content": {
@@ -27246,7 +27246,7 @@
         ]
       },
       "get": {
-        "description": "Returns a single attendance record including its clock events, movements, regularizations and approval state.",
+        "description": "Returns a single attendance record including its clock events, movements, regularizations and approval state. Readable by the employee it belongs to, by a holder of an attendance record-management role, or by the approver the record names.",
         "operationId": "getById_4",
         "parameters": [
           {
@@ -27298,7 +27298,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee the record belongs to, nor a holder of an attendance record-management role, nor the approver the record names"
           },
           "404": {
             "content": {
@@ -62979,7 +62979,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
           },
           "404": {
             "content": {
@@ -63110,7 +63110,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
           },
           "404": {
             "content": {
@@ -63357,7 +63357,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
           },
           "404": {
             "content": {
@@ -63473,7 +63473,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
           },
           "404": {
             "content": {
@@ -63598,7 +63598,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
           },
           "404": {
             "content": {
@@ -63966,7 +63966,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
           },
           "404": {
             "content": {
@@ -64088,7 +64088,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
           },
           "404": {
             "content": {
@@ -64204,7 +64204,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
           },
           "404": {
             "content": {
@@ -76170,7 +76170,7 @@
     },
     "/api/v1/movement-records/attendance/{attendanceId}": {
       "get": {
-        "description": "Returns every movement logged against a given attendance record.",
+        "description": "Returns every movement logged against a given attendance record. Readable by whoever may read that attendance record.",
         "operationId": "getByAttendance_1",
         "parameters": [
           {
@@ -76225,7 +76225,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read the attendance record these movements belong to"
           },
           "404": {
             "content": {
@@ -76409,7 +76409,7 @@
     },
     "/api/v1/movement-records/web/attendance/{attendanceId}": {
       "get": {
-        "description": "Returns every movement logged against a given attendance record.",
+        "description": "Returns every movement logged against a given attendance record. Readable by whoever may read that attendance record.",
         "operationId": "getByAttendance",
         "parameters": [
           {
@@ -76464,7 +76464,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read the attendance record these movements belong to"
           },
           "404": {
             "content": {
@@ -76525,7 +76525,7 @@
     },
     "/api/v1/movement-records/web/{id}": {
       "get": {
-        "description": "Returns a single movement record including its verification state.",
+        "description": "Returns a single movement record including its verification state. Readable by whoever may read the attendance record it hangs off.",
         "operationId": "getById_3",
         "parameters": [
           {
@@ -76577,7 +76577,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read the attendance record this movement belongs to"
           },
           "404": {
             "content": {
@@ -76751,7 +76751,7 @@
     },
     "/api/v1/movement-records/{id}": {
       "get": {
-        "description": "Returns a single movement record including its verification state.",
+        "description": "Returns a single movement record including its verification state. Readable by whoever may read the attendance record it hangs off.",
         "operationId": "getById_2",
         "parameters": [
           {
@@ -76803,7 +76803,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read the attendance record this movement belongs to"
           },
           "404": {
             "content": {
