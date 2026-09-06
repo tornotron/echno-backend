@@ -300,14 +300,15 @@ public class EmployeeControllerWeb {
      * @return A {@link ResponseEntity} containing a list of employee DTOs who report to the manager and HTTP status 200 (OK).
      */
     @GetMapping("/managerId/{managerId}/subordinates")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#managerId, 'system-admin', 'hr-admin')")
     @Operation(
             summary = "List a manager's direct subordinates",
-            description = "Returns every employee who reports directly to the given manager."
+            description = "Returns every employee who reports directly to the given manager. Callable "
+                    + "by that manager, or by a system or HR admin for anybody."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subordinates returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the manager named nor a system or HR admin"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No manager with the given id")
     })
     public ResponseEntity<List<EmployeeDto>> getDirectSubordinates(@PathVariable Long managerId) {
@@ -329,14 +330,17 @@ public class EmployeeControllerWeb {
     }
 
     @GetMapping("/managers/organizationId/{organizationId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#organizationId) "
+            + "and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     @Operation(
             summary = "List managers for an organization",
-            description = "Returns every employee holding a manager organization role within the given organization."
+            description = "Returns every employee holding a manager organization role within the given "
+                    + "organization, which has to be the caller's own. Identical to the list beside it, "
+                    + "which takes the organization from the session instead."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Managers returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not entitled to the organization named, or lacks the required role in it"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<List<EmployeeDto>> getAllManagersForAnOrganization(@PathVariable Long organizationId) {

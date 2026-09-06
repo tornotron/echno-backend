@@ -88,7 +88,8 @@ public class LeavePolicyController {
     }
 
     @GetMapping("/organization/{organizationId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#organizationId) "
+            + "and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     @Operation(
             summary = "List an organization's leave policies",
             description = "Returns the leave policies configured for the organization. Active policies "
@@ -96,7 +97,7 @@ public class LeavePolicyController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Policies returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not entitled to the organization named, or lacks the required role in it"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<List<LeavePolicyDto>> getPoliciesByOrganization(
@@ -109,8 +110,7 @@ public class LeavePolicyController {
     }
 
     @GetMapping("/employee/{employeeId}")
-//    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')")
     @Operation(
             summary = "List policies applicable to an employee",
             description = "Returns the leave policies the employee is eligible for, filtered by their "
@@ -118,7 +118,7 @@ public class LeavePolicyController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Applicable policies returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<List<LeavePolicyDto>> getApplicablePoliciesForEmployee(
