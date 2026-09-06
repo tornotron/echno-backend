@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.stockAdjustment.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import org.tornotron.echno_backend.stockAdjustment.enums.StockAdjustmentSourceType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -49,6 +50,17 @@ public class StockAdjustmentDto {
 
     @Schema(description = "Primary reason category for the adjustment.", example = "PHYSICAL_COUNT_VARIANCE")
     private String primaryReason;
+
+    @Schema(description = "The kind of document this adjustment was raised to answer, null where it "
+            + "answers none. SITE_TRANSFER means the adjustment closes the open variance a transfer "
+            + "received short left behind, and the transfer it closes is sourceDocumentId. Always "
+            + "set together with that field.",
+            example = "SITE_TRANSFER", nullable = true)
+    private StockAdjustmentSourceType sourceDocumentType;
+
+    @Schema(description = "Id of the document named by sourceDocumentType, within that kind. Null "
+            + "wherever the type is null.", example = "31", nullable = true)
+    private Long sourceDocumentId;
 
     @Schema(description = "Justification for the adjustment.", example = "Quarterly physical count found a shortfall in River Sand at Main Site Store")
     private String justification;

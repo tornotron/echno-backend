@@ -16,6 +16,7 @@ import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentCreationDto;
 import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentDto;
 import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentRejectionRequest;
+import org.tornotron.echno_backend.stockAdjustment.enums.StockAdjustmentSourceType;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
@@ -90,6 +91,31 @@ public class StockAdjustmentControllerWeb {
     })
     public ResponseEntity<StockAdjustmentDto> readAStockAdjustment(@PathVariable Long id) {
         return new ResponseEntity<>(stockAdjustmentService.getById(id), HttpStatus.OK);
+    }
+
+    @GetMapping("/by-source-document")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(
+            summary = "List the stock adjustments raised to answer one document",
+            description = "Returns the adjustments naming the given source document, most recently "
+                    + "raised first, and an empty list where none do. This is the reverse of the "
+                    + "reference an adjustment carries: a site transfer received short shows an open "
+                    + "variance, and this is how the transfer finds out whether anybody has decided "
+                    + "what became of the difference, so the variance can read as closed rather than "
+                    + "staying open for ever. Anchored to one named document rather than a filter over "
+                    + "the whole list, and scoped to the caller's own organization."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustments naming the document returned, empty where none do"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "sourceDocumentType is not a known kind of document"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
+    })
+    public ResponseEntity<List<StockAdjustmentDto>> readStockAdjustmentsBySourceDocument(
+            @RequestParam StockAdjustmentSourceType sourceDocumentType,
+            @RequestParam Long sourceDocumentId) {
+        return new ResponseEntity<>(
+                stockAdjustmentService.getBySourceDocument(sourceDocumentType, sourceDocumentId),
+                HttpStatus.OK);
     }
 
     @PostMapping

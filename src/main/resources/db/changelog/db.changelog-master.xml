@@ -403,4 +403,7 @@
     <!-- v4.0 - Compliance: the curated Kerala and Tamil Nadu statutory catalogue, replacing the 037 placeholders -->
     <include file="db/changelog/v4.0/089-seed-compliance-rules-kl-tn.xml"/>
 
+    <!-- v4.0 - Stock adjustments: name the document the correction answers, so a transfer variance can be closed and read as closed -->
+    <include file="db/changelog/v4.0/090-add-stock-adjustment-source-document.xml"/>
+
 </databaseChangeLog>

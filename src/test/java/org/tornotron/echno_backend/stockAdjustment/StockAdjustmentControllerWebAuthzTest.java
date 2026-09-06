@@ -16,6 +16,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.stockAdjustment.enums.StockAdjustmentSourceType;
+
+import java.util.List;
 
 
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -76,6 +79,49 @@ class StockAdjustmentControllerWebAuthzTest {
 
         mockMvc.perform(get("/api/v1/stock-adjustments/web").with(jwt()))
                 .andExpect(status().isForbidden());
+    }
+
+    /**
+     * The reverse of the adjustment's own reference: a transfer left with an open variance asks
+     * whether anybody has closed it. Read by the same guard as the other reads, because the
+     * answer is a stock adjustment and any member may already read those. Pinned so a later
+     * tightening of the write guard cannot be applied here by analogy and leave whoever received
+     * the transfer unable to see the adjustment they are being sent to raise.
+     */
+    @Test
+    void readBySourceDocument_isOk_forAnyMember() throws Exception {
+        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(stockAdjustmentService.getBySourceDocument(StockAdjustmentSourceType.SITE_TRANSFER, 31L))
+                .thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/stock-adjustments/web/by-source-document")
+                        .param("sourceDocumentType", "SITE_TRANSFER")
+                        .param("sourceDocumentId", "31")
+                        .with(jwt()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void readBySourceDocument_isForbidden_forANonMember() throws Exception {
+        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+
+        mockMvc.perform(get("/api/v1/stock-adjustments/web/by-source-document")
+                        .param("sourceDocumentType", "SITE_TRANSFER")
+                        .param("sourceDocumentId", "31")
+                        .with(jwt()))
+                .andExpect(status().isForbidden());
+    }
+
+    /** A kind of document nobody can resolve is a bad request, not an empty result. */
+    @Test
+    void readBySourceDocument_refusesAnUnknownKindOfDocument() throws Exception {
+        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+
+        mockMvc.perform(get("/api/v1/stock-adjustments/web/by-source-document")
+                        .param("sourceDocumentType", "PURCHASE_ORDER")
+                        .param("sourceDocumentId", "31")
+                        .with(jwt()))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.stockAdjustment.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+import org.tornotron.echno_backend.stockAdjustment.enums.StockAdjustmentSourceType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -50,6 +51,19 @@ public class StockAdjustmentCreationDto {
 
     @Schema(description = "Primary reason category for the adjustment.", example = "PHYSICAL_COUNT_VARIANCE")
     private String primaryReason;
+
+    @Schema(description = "The kind of document this adjustment was raised to answer, where it "
+            + "answers one. Send it together with sourceDocumentId or leave both out: a type "
+            + "naming no document, or a document with nothing saying what kind it is, is refused "
+            + "rather than half-stored. The named document is looked up in the caller's "
+            + "organization when the adjustment is written, so an id that names nothing there is "
+            + "a 404 and not a dangling reference.",
+            example = "SITE_TRANSFER", nullable = true)
+    private StockAdjustmentSourceType sourceDocumentType;
+
+    @Schema(description = "Id of the document named by sourceDocumentType. Required when that "
+            + "field is set, and refused when it is not.", example = "31", nullable = true)
+    private Long sourceDocumentId;
 
     @Schema(description = "Total monetary value of the adjustment across all line items. Summed from "
             + "the line items, so any value sent here is ignored: it is arithmetic over figures the "
