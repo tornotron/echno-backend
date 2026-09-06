@@ -133,53 +133,54 @@ public class LeaveRequestControllerWeb {
     }
 
     @GetMapping("/approver")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
-            summary = "List requests routed to an approver",
-            description = "Returns the leave requests, across all statuses, that name the given employee "
-                    + "as an approver at any level of the approval chain."
+            summary = "List the requests you have been an approver on",
+            description = "Returns the leave requests, across all statuses, that name the signed-in caller "
+                    + "as an approver at any level of the approval chain. This is an approver's own record "
+                    + "of what they have handled. A caller that still sends approverId is served their own "
+                    + "list, because a query parameter no handler declares is ignored."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Requests returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
-            @ApiResponse(responseCode = "404", description = "No approver with the given id")
+            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it")
     })
-    public ResponseEntity<List<LeaveRequestDto>> getRequestsByApprover(
-            @RequestParam Long approverId) {
-        return ResponseEntity.ok(requestService.getRequestsByApprover(approverId));
+    public ResponseEntity<List<LeaveRequestDto>> getRequestsByApprover() {
+        return ResponseEntity.ok(requestService.getRequestsByApprover());
     }
 
     @GetMapping("/pending-approvals")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
-            summary = "List requests pending an approver's action",
-            description = "Returns the leave requests currently awaiting action from the given approver."
+            summary = "List the requests waiting on you",
+            description = "Returns the leave requests currently awaiting a decision from the signed-in "
+                    + "caller. The approver used to be a query parameter under a guard that only asked "
+                    + "for a role, so an administrator could read a colleague's queue while the managers "
+                    + "an approval chain is actually built from could not read their own; a caller that "
+                    + "still sends approverId is served their own queue, because a query parameter no "
+                    + "handler declares is ignored."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Pending requests returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
-            @ApiResponse(responseCode = "404", description = "No approver with the given id")
+            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve")
     })
-    public ResponseEntity<List<LeaveRequestDto>> getPendingApprovals(
-            @RequestParam Long approverId) {
-        return ResponseEntity.ok(requestService.getPendingApprovals(approverId));
+    public ResponseEntity<List<LeaveRequestDto>> getPendingApprovals() {
+        return ResponseEntity.ok(requestService.getPendingApprovals());
     }
 
     @GetMapping("/pending-approvals/count")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
-            summary = "Count requests pending an approver's action",
-            description = "Returns the number of leave requests currently awaiting action from the given "
-                    + "approver."
+            summary = "Count the requests waiting on you",
+            description = "Returns the number of leave requests currently awaiting a decision from the "
+                    + "signed-in caller, for the badge a client draws on the menu."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Count returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
-            @ApiResponse(responseCode = "404", description = "No approver with the given id")
+            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to count")
     })
-    public ResponseEntity<Map<String, Long>> getPendingApprovalCount(
-            @RequestParam Long approverId) {
-        long count = requestService.getPendingApprovalCount(approverId);
+    public ResponseEntity<Map<String, Long>> getPendingApprovalCount() {
+        long count = requestService.getPendingApprovalCount();
         return ResponseEntity.ok(Map.of("count", count));
     }
 

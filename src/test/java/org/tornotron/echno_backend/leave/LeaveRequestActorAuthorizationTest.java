@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -63,6 +64,7 @@ class LeaveRequestActorAuthorizationTest {
     @Mock private LeaveRequestValidator leaveRequestValidator;
     @Mock private LeaveRequestMapper leaveRequestMapper;
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private CurrentEmployeeService currentEmployeeService;
 
     @BeforeEach
     void setTenant() {
@@ -84,7 +86,8 @@ class LeaveRequestActorAuthorizationTest {
                 approvalService,
                 leaveRequestValidator,
                 leaveRequestMapper,
-                orgSecurity);
+                orgSecurity,
+                currentEmployeeService);
     }
 
     private Organization organization() {

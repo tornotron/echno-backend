@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.leave;
 
 import org.springframework.context.annotation.Lazy;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -9,6 +10,7 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
+import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveApprovalActionDto;
@@ -44,9 +46,13 @@ public class LeaveApprovalService {
     private final LeaveTransactionRepository transactionRepository;
     private final EmployeeRepository employeeRepository;
     private final CurrentEmployeeService currentEmployeeService;
+    private final OrganizationSecurityService orgSecurity;
     private final LeaveCalendarService calendarService;
     private final NotificationService notificationService;
     private final LeaveRequestMapper leaveRequestMapper;
+
+    /** The roles that may read any leave request's approval trail, chain membership aside. */
+    private static final String[] LEAVE_ADMIN_ROLES = {"system-admin", "hr-admin"};
 
     public LeaveApprovalService(
             LeaveApprovalRepository approvalRepository,
@@ -55,6 +61,7 @@ public class LeaveApprovalService {
             LeaveTransactionRepository transactionRepository,
             EmployeeRepository employeeRepository,
             CurrentEmployeeService currentEmployeeService,
+            OrganizationSecurityService orgSecurity,
             @Lazy LeaveCalendarService calendarService,
             @Lazy NotificationService notificationService,
             LeaveRequestMapper leaveRequestMapper) {
@@ -64,6 +71,7 @@ public class LeaveApprovalService {
         this.transactionRepository = transactionRepository;
         this.employeeRepository = employeeRepository;
         this.currentEmployeeService = currentEmployeeService;
+        this.orgSecurity = orgSecurity;
         this.calendarService = calendarService;
         this.notificationService = notificationService;
         this.leaveRequestMapper = leaveRequestMapper;
@@ -306,50 +314,107 @@ public class LeaveApprovalService {
     }
 
     /**
-     * Lists all approval records for a request, ordered by approval level.
+     * The trail of decisions on a request: who acted, at which level, with what comment and when.
      *
-     * @param requestId The ID of the leave request.
-     * @return The approval records in level order.
-     */
-    @Transactional(readOnly = true)
-    public List<LeaveApprovalDto> getApprovalHistory(Long requestId) {
-        return approvalRepository.findByLeaveRequestIdOrderByApprovalLevelAsc(requestId)
-                .stream()
-                .map(leaveRequestMapper::toApprovalDto)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Lists the approval records for a request after verifying the request exists in this organization.
+     * <p>This is the audit answer, so who may read it is settled against the record rather than
+     * against a role alone. An approver has to be able to read the trail to decide: the request
+     * arrives at them at level two knowing nothing about what level one said, and refusing them
+     * the trail is refusing them the decision. So the employee the leave belongs to, everybody
+     * named anywhere in its chain, and the leave administrators can read it, and nobody else can.
      *
      * @param requestId The ID of the leave request.
      * @return The approval records in level order.
      * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
+     * @throws AccessDeniedException if the caller takes no part in this request and holds neither
+     *     leave-administrator role.
+     */
+    @Transactional(readOnly = true)
+    public List<LeaveApprovalDto> getApprovalHistory(Long requestId) {
+        return readApprovalTrail(requestId);
+    }
+
+    /**
+     * The same trail, including the levels nobody has acted on yet.
+     *
+     * <p>Kept as a separate endpoint because the two answer different questions for a caller, and
+     * gated identically because they read the same rows.
+     *
+     * @param requestId The ID of the leave request.
+     * @return The approval records in level order.
+     * @throws ResourceNotFoundException if no request with the given ID exists in this organization.
+     * @throws AccessDeniedException if the caller takes no part in this request and holds neither
+     *     leave-administrator role.
      */
     @Transactional(readOnly = true)
     public List<LeaveApprovalDto> getApprovalChain(Long requestId) {
-        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
+        return readApprovalTrail(requestId);
+    }
+
+    private List<LeaveApprovalDto> readApprovalTrail(Long requestId) {
+        LeaveRequest request = requestRepository.findByIdAndOrganization_Id(requestId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
 
-        return approvalRepository.findByLeaveRequestIdOrderByApprovalLevelAsc(requestId)
-                .stream()
+        List<LeaveApproval> approvals = approvalRepository.findByLeaveRequestIdOrderByApprovalLevelAsc(requestId);
+
+        requireMayReadTrail(request, approvals);
+
+        return approvals.stream()
                 .map(leaveRequestMapper::toApprovalDto)
                 .collect(Collectors.toList());
     }
 
+    private void requireMayReadTrail(LeaveRequest request, List<LeaveApproval> approvals) {
+        if (orgSecurity.hasAnyOrgRoleForCurrentTenant(LEAVE_ADMIN_ROLES)) {
+            return;
+        }
+
+        Long callerId = currentEmployeeService.currentEmployee().map(Employee::getId).orElse(null);
+        if (callerId == null) {
+            throw new AccessDeniedException(
+                    "You have no employee record in this organization, so you take no part in this "
+                            + "leave request and cannot read its approval trail.");
+        }
+
+        if (request.getEmployee() != null && callerId.equals(request.getEmployee().getId())) {
+            return;
+        }
+
+        boolean namedInTheChain = approvals.stream().anyMatch(approval ->
+                (approval.getApprover() != null && callerId.equals(approval.getApprover().getId()))
+                        || callerId.equals(approval.getDelegatedFromId()));
+        if (namedInTheChain) {
+            return;
+        }
+
+        throw new AccessDeniedException(
+                "The approval trail of a leave request is readable by the employee it belongs to, "
+                        + "the approvers in its chain, and the system-admin or hr-admin roles.");
+    }
+
     /**
-     * Checks whether an employee is the current approver of a request that is pending approval.
+     * Whether the caller may act on this request right now.
+     *
+     * <p>This is the question a phone asks before it draws an approve button, so it answers for
+     * whoever is signed in. It used to take the employee to ask about as a query parameter, which
+     * is a different question than any caller has ever wanted answered and let one employee probe
+     * another's place in a chain. A caller that still sends {@code employeeId} is served the
+     * answer for themselves, because Spring drops a query parameter no handler declares.
      *
      * @param requestId The ID of the leave request.
-     * @param employeeId The ID of the employee to check.
-     * @return {@code true} if the employee may act on the request now; {@code false} otherwise.
+     * @return {@code true} if the caller is the current approver of a request that is pending
+     *     approval; {@code false} otherwise, including when the caller has no employee record here.
      */
     @Transactional(readOnly = true)
-    public boolean canApprove(Long requestId, Long employeeId) {
-        return requestRepository.findByIdAndOrganization_Id(requestId,TenantContext.getCurrentOrgId())
+    public boolean canApprove(Long requestId) {
+        Long callerId = currentEmployeeService.currentEmployee().map(Employee::getId).orElse(null);
+        if (callerId == null) {
+            return false;
+        }
+
+        return requestRepository.findByIdAndOrganization_Id(requestId, TenantContext.getCurrentOrgId())
                 .map(request -> request.getCurrentApprover() != null &&
-                               request.getCurrentApprover().getId().equals(employeeId) &&
+                               request.getCurrentApprover().getId().equals(callerId) &&
                                request.getStatus() == LeaveStatus.PENDING_APPROVAL)
                 .orElse(false);
     }

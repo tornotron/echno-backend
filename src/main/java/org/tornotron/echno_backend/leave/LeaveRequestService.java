@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.leave.mapper.LeaveRequestMapper;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -50,6 +51,7 @@ public class LeaveRequestService {
     private final LeaveRequestValidator leaveRequestValidator;
     private final LeaveRequestMapper leaveRequestMapper;
     private final OrganizationSecurityService orgSecurity;
+    private final CurrentEmployeeService currentEmployeeService;
 
     /** The roles that may raise or act on a leave request belonging to somebody else. */
     private static final String[] LEAVE_ADMIN_ROLES = {"system-admin", "hr-admin"};
@@ -63,7 +65,8 @@ public class LeaveRequestService {
             LeaveApprovalService approvalService,
             LeaveRequestValidator leaveRequestValidator,
             LeaveRequestMapper leaveRequestMapper,
-            OrganizationSecurityService orgSecurity) {
+            OrganizationSecurityService orgSecurity,
+            CurrentEmployeeService currentEmployeeService) {
         this.requestRepository = requestRepository;
         this.sequenceRepository = sequenceRepository;
         this.policyRepository = policyRepository;
@@ -73,6 +76,7 @@ public class LeaveRequestService {
         this.leaveRequestValidator = leaveRequestValidator;
         this.leaveRequestMapper = leaveRequestMapper;
         this.orgSecurity = orgSecurity;
+        this.currentEmployeeService = currentEmployeeService;
     }
 
     /**
@@ -233,43 +237,60 @@ public class LeaveRequestService {
     }
 
     /**
-     * Lists requests currently awaiting a decision from a given approver.
+     * The caller's own approval queue: the requests waiting on a decision from them right now.
      *
-     * @param approverId The approver's employee ID.
-     * @return The requests where this approver is the current, pending approver.
+     * <p>The approver used to be a query parameter under a guard that only asked whether the
+     * caller held the system-admin or hr-admin role, which is the same shape settled on the rest
+     * of this service: the guard checks a role, the query reads a number the caller chose, and
+     * nothing ties the two together. So an administrator read any colleague's queue by asking for
+     * it, while the people who actually hold these decisions, the managers an approval chain is
+     * built from, could not read their own at all. A queue is the caller's own by definition.
+     *
+     * @return The requests where the caller is the current, pending approver.
+     * @throws AccessDeniedException if the caller has no employee record here, so there is no
+     *     queue to serve.
      */
     @Transactional(readOnly = true)
-    public List<LeaveRequestDto> getPendingApprovals(Long approverId) {
-        return requestRepository.findByCurrentApproverIdAndStatus(approverId, LeaveStatus.PENDING_APPROVAL)
+    public List<LeaveRequestDto> getPendingApprovals() {
+        return requestRepository.findByCurrentApproverIdAndStatus(
+                        callerEmployeeId("read your approval queue"), LeaveStatus.PENDING_APPROVAL)
                 .stream()
                 .map(leaveRequestMapper::toDto)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Lists every request an approver has taken part in at any level, past or present.
+     * Every request the caller has taken part in at any level, past or present.
      *
-     * @param approverId The approver's employee ID.
-     * @return The distinct requests this approver participated in.
+     * <p>This is what an approver's own decision history is read from, and it took the approver as
+     * a parameter for the same reason and with the same consequence as the queue above.
+     *
+     * @return The distinct requests the caller participated in.
+     * @throws AccessDeniedException if the caller has no employee record here.
      */
     @Transactional(readOnly = true)
-    public List<LeaveRequestDto> getRequestsByApprover(Long approverId) {
-        return requestRepository.findDistinctByApproverParticipation(approverId)
+    public List<LeaveRequestDto> getRequestsByApprover() {
+        return requestRepository.findDistinctByApproverParticipation(
+                        callerEmployeeId("read the requests you have acted on"))
                 .stream()
                 .map(leaveRequestMapper::toDto)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Counts the requests currently awaiting a decision from a given approver.
+     * How many requests are waiting on the caller, for the badge a phone draws on the menu.
      *
-     * @param approverId The approver's employee ID.
-     * @return The number of requests pending this approver.
+     * @return The number of requests pending the caller's decision.
+     * @throws AccessDeniedException if the caller has no employee record here.
      */
     @Transactional(readOnly = true)
-    public long getPendingApprovalCount(Long approverId) {
+    public long getPendingApprovalCount() {
         return requestRepository.countByCurrentApproverIdAndStatus(
-                approverId, LeaveStatus.PENDING_APPROVAL);
+                callerEmployeeId("count your approval queue"), LeaveStatus.PENDING_APPROVAL);
+    }
+
+    private Long callerEmployeeId(String action) {
+        return currentEmployeeService.requireCurrentEmployee(action).getId();
     }
 
     /**
