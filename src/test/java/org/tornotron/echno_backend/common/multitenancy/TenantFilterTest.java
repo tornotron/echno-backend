@@ -219,6 +219,80 @@ class TenantFilterTest {
     }
 
     @Test
+    void anOrgRoleWithoutMembershipResolvesNoTenant() throws Exception {
+        // JwtAuthConverter mints ORG_MEMBER_{id} from the flat group "/org-{id}" and
+        // ORG_{id}_ROLE_{role} from the subgroup "/org-{id}/{role}", independently, so a
+        // user placed only in the subgroup arrives holding the role and not the membership.
+        // The filter resolves an organization from ORG_MEMBER_ authorities alone, so that
+        // caller gets no organization at all.
+        authenticateWith("ORG_7_ROLE_system-admin");
+
+        run("/api/v1/project/web");
+
+        assertThat(observed.orgId()).isNull();
+        assertThat(observed.unscopedReason()).contains("no organization membership");
+    }
+
+    @Test
+    void anOrgRoleWithoutMembershipIsRefusedWhenItNamesTheOrganization() throws Exception {
+        // The other half: naming the organization explicitly does not get the role-holder in
+        // either, because the header branch checks the same ORG_MEMBER_ authority.
+        authenticateWith("ORG_7_ROLE_system-admin");
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/project/web");
+        request.setRequestURI("/api/v1/project/web");
+        request.addHeader("X-Organization-Id", "7");
+        filter.doFilter(request, response, capturingChain());
+
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(observed).as("the chain is not reached").isNull();
+    }
+
+    @Test
+    void theRoleGuardCannotSucceedWhereTheMembershipGuardFails() throws Exception {
+        // The invariant behind #709. Both guards open on TenantContext.getCurrentOrgId(), and
+        // the filter only ever sets it after confirming ORG_MEMBER_{id}, so
+        // hasAnyOrgRoleForCurrentTenant implies isMemberOfCurrentTenant for every request that
+        // reaches a controller. A guard reading "member OR role" therefore decides on the
+        // membership clause alone; the role clause cannot change the answer. Run against the
+        // real OrganizationSecurityService inside the chain, as #640's test does, because the
+        // claim is about the two of them together rather than either one's internals.
+        OrganizationSecurityService orgSecurity = new OrganizationSecurityService(null, null);
+        authenticateWith("ORG_7_ROLE_system-admin");
+
+        boolean[] guards = new boolean[2];
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/project/web");
+        request.setRequestURI("/api/v1/project/web");
+        filter.doFilter(request, response, (req, res) -> {
+            guards[0] = orgSecurity.isMemberOfCurrentTenant();
+            guards[1] = orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin");
+        });
+
+        assertThat(guards[0]).as("isMemberOfCurrentTenant for a role-holder who is not a member").isFalse();
+        assertThat(guards[1]).as("hasAnyOrgRoleForCurrentTenant for the same caller").isFalse();
+    }
+
+    @Test
+    void aGlobalAdminBypassLeavesBothTenantGuardsRefusing() throws Exception {
+        // The bypass branch sets no organization id, so both guards keep refusing. Worth
+        // pinning next to the invariant above: it is the one caller for whom neither clause of
+        // a "member OR role" guard can ever be true, whatever the clauses say.
+        OrganizationSecurityService orgSecurity = new OrganizationSecurityService(null, null);
+        authenticateWith("organization:admin");
+
+        boolean[] guards = new boolean[2];
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/project/web");
+        request.setRequestURI("/api/v1/project/web");
+        filter.doFilter(request, response, (req, res) -> {
+            guards[0] = orgSecurity.isMemberOfCurrentTenant();
+            guards[1] = orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin");
+        });
+
+        assertThat(guards[0]).isFalse();
+        assertThat(guards[1]).isFalse();
+    }
+
+    @Test
     void everyScopeIsClearedOnTheWayOut() throws Exception {
         authenticateWith(ORG_MEMBER_7);
         run("/api/v1/user/web");
