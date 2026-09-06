@@ -64033,9 +64033,259 @@
         ]
       }
     },
+    "/api/v1/leave-calendar/count": {
+      "get": {
+        "description": "Returns the number of employees in the caller's organization who are on leave on the given date.",
+        "operationId": "getEmployeesOnLeaveCount_1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "format": "int64",
+                    "type": "integer"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Count returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the system-admin or hr-admin role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Count employees on leave for a day",
+        "tags": [
+          "Leave Calendar"
+        ]
+      }
+    },
+    "/api/v1/leave-calendar/department": {
+      "get": {
+        "description": "Returns every leave calendar entry for the named department within the caller's organization between startDate and endDate, inclusive.",
+        "operationId": "getDepartmentCalendar_1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "department",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LeaveCalendarDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Calendar entries returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the system-admin or hr-admin role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get a department's leave calendar",
+        "tags": [
+          "Leave Calendar"
+        ]
+      }
+    },
     "/api/v1/leave-calendar/employee/{employeeId}": {
       "get": {
-        "description": "Returns every leave calendar entry for the employee between startDate and endDate, inclusive.",
+        "description": "Returns every leave calendar entry for the employee between startDate and endDate, inclusive. Readable by that employee, and by the leave administrators.",
         "operationId": "getEmployeeCalendar_1",
         "parameters": [
           {
@@ -64108,7 +64358,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave read or admin authority"
+            "description": "Caller is neither the employee named nor a holder of the system-admin or hr-admin role"
           },
           "404": {
             "content": {
@@ -64118,7 +64368,7 @@
                 }
               }
             },
-            "description": "No employee with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -64167,422 +64417,11 @@
         ]
       }
     },
-    "/api/v1/leave-calendar/organization/{organizationId}": {
+    "/api/v1/leave-calendar/grouped": {
       "get": {
-        "description": "Returns every leave calendar entry for the organization between startDate and endDate, inclusive.",
-        "operationId": "getOrganizationCalendar_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "organizationId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "startDate",
-            "required": true,
-            "schema": {
-              "format": "date",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "endDate",
-            "required": true,
-            "schema": {
-              "format": "date",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/LeaveCalendarDto"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Calendar entries returned"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the leave read or admin authority"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No organization with the given id"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Get an organization's leave calendar",
-        "tags": [
-          "Leave Calendar"
-        ]
-      }
-    },
-    "/api/v1/leave-calendar/organization/{organizationId}/count": {
-      "get": {
-        "description": "Returns the number of employees in the organization who are on leave on the given date.",
-        "operationId": "getEmployeesOnLeaveCount_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "organizationId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "date",
-            "required": true,
-            "schema": {
-              "format": "date",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "additionalProperties": {
-                    "format": "int64",
-                    "type": "integer"
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Count returned"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the leave read or admin authority"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No organization with the given id"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Count employees on leave for a day",
-        "tags": [
-          "Leave Calendar"
-        ]
-      }
-    },
-    "/api/v1/leave-calendar/organization/{organizationId}/department": {
-      "get": {
-        "description": "Returns every leave calendar entry for the named department within the organization between startDate and endDate, inclusive.",
-        "operationId": "getDepartmentCalendar_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "organizationId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "department",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "startDate",
-            "required": true,
-            "schema": {
-              "format": "date",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "endDate",
-            "required": true,
-            "schema": {
-              "format": "date",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/LeaveCalendarDto"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Calendar entries returned"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the leave read or admin authority"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No organization with the given id"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Get a department's leave calendar",
-        "tags": [
-          "Leave Calendar"
-        ]
-      }
-    },
-    "/api/v1/leave-calendar/organization/{organizationId}/grouped": {
-      "get": {
-        "description": "Returns the organization's leave calendar entries between startDate and endDate, inclusive, keyed by date for a day-by-day view.",
+        "description": "Returns the caller's organization's leave calendar entries between startDate and endDate, inclusive, keyed by date for a day-by-day view.",
         "operationId": "getCalendarGroupedByDate_1",
         "parameters": [
-          {
-            "in": "path",
-            "name": "organizationId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
           {
             "in": "query",
             "name": "startDate",
@@ -64647,7 +64486,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave read or admin authority"
+            "description": "Caller lacks the system-admin or hr-admin role in the current tenant"
           },
           "404": {
             "content": {
@@ -64657,7 +64496,7 @@
                 }
               }
             },
-            "description": "No organization with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -64700,26 +64539,17 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Get an organization's leave calendar grouped by date",
+        "summary": "Get your organization's leave calendar grouped by date",
         "tags": [
           "Leave Calendar"
         ]
       }
     },
-    "/api/v1/leave-calendar/team": {
+    "/api/v1/leave-calendar/organization": {
       "get": {
-        "description": "Returns every leave calendar entry for the direct reports of the given manager between startDate and endDate, inclusive.",
-        "operationId": "getTeamCalendar_1",
+        "description": "Returns every leave calendar entry for the caller's organization between startDate and endDate, inclusive. The organization used to be a path segment the guard never read; it comes from the session now.",
+        "operationId": "getOrganizationCalendar_1",
         "parameters": [
-          {
-            "in": "query",
-            "name": "managerId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
           {
             "in": "query",
             "name": "startDate",
@@ -64781,7 +64611,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave read or admin authority"
+            "description": "Caller lacks the system-admin or hr-admin role in the current tenant"
           },
           "404": {
             "content": {
@@ -64791,7 +64621,7 @@
                 }
               }
             },
-            "description": "No manager with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -64834,7 +64664,132 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Get a manager's team leave calendar",
+        "summary": "Get your organization's leave calendar",
+        "tags": [
+          "Leave Calendar"
+        ]
+      }
+    },
+    "/api/v1/leave-calendar/team": {
+      "get": {
+        "description": "Returns every leave calendar entry for the signed-in caller's direct reports between startDate and endDate, inclusive. The manager used to be a query parameter under a guard that never read it, so an administrator read any manager's team and a manager could not read their own; a caller that still sends managerId is served their own team, because a query parameter no handler declares is ignored. A caller with no direct reports gets an empty list.",
+        "operationId": "getTeamCalendar_1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LeaveCalendarDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Calendar entries returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no team to serve"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get your team's leave calendar",
         "tags": [
           "Leave Calendar"
         ]
@@ -64842,18 +64797,9 @@
     },
     "/api/v1/leave-calendar/web/count": {
       "get": {
-        "description": "Returns the number of employees in the organization who are on leave on the given date.",
+        "description": "Returns the number of employees in the caller's organization who are on leave on the given date.",
         "operationId": "getEmployeesOnLeaveCount",
         "parameters": [
-          {
-            "in": "query",
-            "name": "organizationId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
           {
             "in": "query",
             "name": "date",
@@ -64917,7 +64863,7 @@
                 }
               }
             },
-            "description": "No organization with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -64968,18 +64914,9 @@
     },
     "/api/v1/leave-calendar/web/department": {
       "get": {
-        "description": "Returns every leave calendar entry for the named department within the organization between startDate and endDate, inclusive.",
+        "description": "Returns every leave calendar entry for the named department within the caller's organization between startDate and endDate, inclusive.",
         "operationId": "getDepartmentCalendar",
         "parameters": [
-          {
-            "in": "query",
-            "name": "organizationId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
           {
             "in": "query",
             "name": "department",
@@ -65059,7 +64996,7 @@
                 }
               }
             },
-            "description": "No organization with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -65110,7 +65047,7 @@
     },
     "/api/v1/leave-calendar/web/employee": {
       "get": {
-        "description": "Returns every leave calendar entry for the employee between startDate and endDate, inclusive.",
+        "description": "Returns every leave calendar entry for the employee between startDate and endDate, inclusive. Readable by that employee, and by the leave administrators.",
         "operationId": "getEmployeeCalendar",
         "parameters": [
           {
@@ -65183,7 +65120,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is neither the employee named nor a holder of the system-admin or hr-admin role"
           },
           "404": {
             "content": {
@@ -65244,18 +65181,9 @@
     },
     "/api/v1/leave-calendar/web/grouped": {
       "get": {
-        "description": "Returns the organization's leave calendar entries between startDate and endDate, inclusive, keyed by date for a day-by-day view.",
+        "description": "Returns the caller's organization's leave calendar entries between startDate and endDate, inclusive, keyed by date for a day-by-day view.",
         "operationId": "getCalendarGroupedByDate",
         "parameters": [
-          {
-            "in": "query",
-            "name": "organizationId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
           {
             "in": "query",
             "name": "startDate",
@@ -65330,7 +65258,7 @@
                 }
               }
             },
-            "description": "No organization with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -65373,7 +65301,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Get an organization's leave calendar grouped by date",
+        "summary": "Get your organization's leave calendar grouped by date",
         "tags": [
           "Leave Calendar (Web)"
         ]
@@ -65381,18 +65309,9 @@
     },
     "/api/v1/leave-calendar/web/organization": {
       "get": {
-        "description": "Returns every leave calendar entry for the organization between startDate and endDate, inclusive.",
+        "description": "Returns every leave calendar entry for the caller's organization between startDate and endDate, inclusive. The organization used to be a query parameter the guard never read; it comes from the session now, and a caller that still sends organizationId is served their own tenant.",
         "operationId": "getOrganizationCalendar",
         "parameters": [
-          {
-            "in": "query",
-            "name": "organizationId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
           {
             "in": "query",
             "name": "startDate",
@@ -65464,7 +65383,7 @@
                 }
               }
             },
-            "description": "No organization with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -65507,7 +65426,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Get an organization's leave calendar",
+        "summary": "Get your organization's leave calendar",
         "tags": [
           "Leave Calendar (Web)"
         ]
@@ -65515,18 +65434,9 @@
     },
     "/api/v1/leave-calendar/web/team": {
       "get": {
-        "description": "Returns every leave calendar entry for the direct reports of the given manager between startDate and endDate, inclusive.",
+        "description": "Returns every leave calendar entry for the signed-in caller's direct reports between startDate and endDate, inclusive. The manager used to be a query parameter under a guard that never read it, so an administrator read any manager's team and a manager could not read their own; a caller that still sends managerId is served their own team, because a query parameter no handler declares is ignored. A caller with no direct reports gets an empty list.",
         "operationId": "getTeamCalendar",
         "parameters": [
-          {
-            "in": "query",
-            "name": "managerId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
           {
             "in": "query",
             "name": "startDate",
@@ -65588,7 +65498,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no team to serve"
           },
           "404": {
             "content": {
@@ -65598,7 +65508,7 @@
                 }
               }
             },
-            "description": "No manager with the given id"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -65641,7 +65551,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Get a manager's team leave calendar",
+        "summary": "Get your team's leave calendar",
         "tags": [
           "Leave Calendar (Web)"
         ]
@@ -77994,18 +77904,9 @@
     },
     "/api/v1/notifications": {
       "get": {
-        "description": "Returns a page of notifications addressed to the given employee, newest first.",
+        "description": "Returns a page of the notifications addressed to the signed-in caller, newest first. The recipient used to be a query parameter under a guard that only asked for an authority nothing grants; a caller that still sends employeeId is served their own inbox, because a query parameter no handler declares is ignored.",
         "operationId": "getNotifications",
         "parameters": [
-          {
-            "in": "query",
-            "name": "employeeId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
           {
             "in": "query",
             "name": "pageable",
@@ -78054,7 +77955,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave read or admin authority"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve"
           },
           "404": {
             "content": {
@@ -78107,7 +78008,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "List an employee's notifications",
+        "summary": "List your notifications",
         "tags": [
           "Notifications"
         ]
@@ -78115,19 +78016,8 @@
     },
     "/api/v1/notifications/mark-all-read": {
       "post": {
-        "description": "Marks every unread notification addressed to the given employee as read and returns how many were updated.",
+        "description": "Marks every unread notification addressed to the signed-in caller as read and returns how many were updated.",
         "operationId": "markAllAsRead_1",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "employeeId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -78171,7 +78061,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave read or admin authority"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to update"
           },
           "404": {
             "content": {
@@ -78224,7 +78114,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Mark all of an employee's notifications as read",
+        "summary": "Mark all of your notifications as read",
         "tags": [
           "Notifications"
         ]
@@ -78232,19 +78122,8 @@
     },
     "/api/v1/notifications/unread": {
       "get": {
-        "description": "Returns every notification addressed to the given employee that has not yet been marked read.",
+        "description": "Returns every notification addressed to the signed-in caller that has not yet been marked read.",
         "operationId": "getUnreadNotifications_1",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "employeeId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -78287,7 +78166,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave read or admin authority"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve"
           },
           "404": {
             "content": {
@@ -78340,7 +78219,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "List an employee's unread notifications",
+        "summary": "List your unread notifications",
         "tags": [
           "Notifications"
         ]
@@ -78348,19 +78227,8 @@
     },
     "/api/v1/notifications/unread-count": {
       "get": {
-        "description": "Returns the number of notifications addressed to the given employee that have not yet been marked read.",
+        "description": "Returns the number of notifications addressed to the signed-in caller that have not yet been marked read, for the badge a client draws on the menu.",
         "operationId": "getUnreadCount_1",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "employeeId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -78404,7 +78272,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave read or admin authority"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to count"
           },
           "404": {
             "content": {
@@ -78457,7 +78325,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Count an employee's unread notifications",
+        "summary": "Count your unread notifications",
         "tags": [
           "Notifications"
         ]
@@ -78465,18 +78333,9 @@
     },
     "/api/v1/notifications/web": {
       "get": {
-        "description": "Returns a page of notifications addressed to the given employee, newest first.",
+        "description": "Returns a page of the notifications addressed to the signed-in caller, newest first. The recipient used to be a query parameter under a role gate that never read it; a caller that still sends employeeId is served their own inbox, because a query parameter no handler declares is ignored.",
         "operationId": "getNotifications_1",
         "parameters": [
-          {
-            "in": "query",
-            "name": "employeeId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
           {
             "in": "query",
             "name": "pageable",
@@ -78525,7 +78384,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve"
           },
           "404": {
             "content": {
@@ -78578,7 +78437,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "List an employee's notifications",
+        "summary": "List your notifications",
         "tags": [
           "Notifications (Web)"
         ]
@@ -78586,19 +78445,8 @@
     },
     "/api/v1/notifications/web/mark-all-read": {
       "post": {
-        "description": "Marks every unread notification addressed to the given employee as read and returns how many were updated.",
+        "description": "Marks every unread notification addressed to the signed-in caller as read and returns how many were updated.",
         "operationId": "markAllAsRead",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "employeeId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -78642,7 +78490,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to update"
           },
           "404": {
             "content": {
@@ -78695,7 +78543,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Mark all of an employee's notifications as read",
+        "summary": "Mark all of your notifications as read",
         "tags": [
           "Notifications (Web)"
         ]
@@ -78703,7 +78551,7 @@
     },
     "/api/v1/notifications/web/read": {
       "patch": {
-        "description": "Marks the given notification read and records the time it was read.",
+        "description": "Marks the given notification read and records the time it was read. Ownership is settled in NotificationService against the recipient stored on the row: this handler names no employee, so there is nothing here for a self-check to read. The recipient is the only person who may mark it, because the damage from marking somebody else's notification read is that they never see it.",
         "operationId": "markAsRead_1",
         "parameters": [
           {
@@ -78755,7 +78603,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "The notification is addressed to somebody else, or the caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -78765,7 +78613,7 @@
                 }
               }
             },
-            "description": "No notification with the given id"
+            "description": "No notification with the given id in this organization"
           },
           "409": {
             "content": {
@@ -78808,7 +78656,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Mark a notification as read",
+        "summary": "Mark one of your notifications as read",
         "tags": [
           "Notifications (Web)"
         ]
@@ -78816,19 +78664,8 @@
     },
     "/api/v1/notifications/web/unread": {
       "get": {
-        "description": "Returns every notification addressed to the given employee that has not yet been marked read.",
+        "description": "Returns every notification addressed to the signed-in caller that has not yet been marked read.",
         "operationId": "getUnreadNotifications",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "employeeId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -78871,7 +78708,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve"
           },
           "404": {
             "content": {
@@ -78924,7 +78761,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "List an employee's unread notifications",
+        "summary": "List your unread notifications",
         "tags": [
           "Notifications (Web)"
         ]
@@ -78932,19 +78769,8 @@
     },
     "/api/v1/notifications/web/unread-count": {
       "get": {
-        "description": "Returns the number of notifications addressed to the given employee that have not yet been marked read.",
+        "description": "Returns the number of notifications addressed to the signed-in caller that have not yet been marked read, for the badge the console draws on the menu.",
         "operationId": "getUnreadCount",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "employeeId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -78988,7 +78814,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to count"
           },
           "404": {
             "content": {
@@ -79041,7 +78867,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Count an employee's unread notifications",
+        "summary": "Count your unread notifications",
         "tags": [
           "Notifications (Web)"
         ]
@@ -79049,7 +78875,7 @@
     },
     "/api/v1/notifications/{notificationId}/read": {
       "patch": {
-        "description": "Marks the given notification read and records the time it was read.",
+        "description": "Marks the given notification read and records the time it was read. Ownership is settled in NotificationService against the recipient stored on the row: this handler names no employee, so there is nothing here for a self-check to read. The recipient is the only person who may mark it, because the damage from marking somebody else's notification read is that they never see it.",
         "operationId": "markAsRead",
         "parameters": [
           {
@@ -79101,7 +78927,7 @@
                 }
               }
             },
-            "description": "Caller lacks the leave read or admin authority"
+            "description": "The notification is addressed to somebody else, or the caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -79111,7 +78937,7 @@
                 }
               }
             },
-            "description": "No notification with the given id"
+            "description": "No notification with the given id in this organization"
           },
           "409": {
             "content": {
@@ -79154,7 +78980,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Mark a notification as read",
+        "summary": "Mark one of your notifications as read",
         "tags": [
           "Notifications"
         ]
@@ -108134,11 +107960,11 @@
       "name": "Leave Balances (Web)"
     },
     {
-      "description": "Day-by-day view of who is on leave, built from approved leave requests. Endpoints cover the whole organization, a single department, a single employee or a manager's team, over a given date range, plus a grouped-by-date view and a headcount for a single day. Access is gated by the leave read or admin authority.",
+      "description": "Day-by-day view of who is on leave, built from approved leave requests. Endpoints cover the caller's whole organization, a single department, a single employee or the caller's own team, over a given date range, plus a grouped-by-date view and a headcount for a single day. The organization is taken from the caller's session; the organization-wide views are gated to the system-admin or hr-admin role, an employee's own calendar to that employee or those roles, and the team view to the manager whose team it is.",
       "name": "Leave Calendar"
     },
     {
-      "description": "Web-console equivalent of the leave calendar endpoints, addressing the organization, department, employee or manager by query parameters instead of path segments. Covers the organization, department, employee, team, grouped-by-date and headcount views. All endpoints are gated to the system-admin or hr-admin role in the caller's tenant.",
+      "description": "Web-console equivalent of the leave calendar endpoints, addressing a department or employee by query parameters instead of path segments. Covers the organization, department, employee, team, grouped-by-date and headcount views. The organization is taken from the caller's session; the organization-wide views are gated to the system-admin or hr-admin role, an employee's own calendar to that employee or those roles, and the team view to the manager whose team it is.",
       "name": "Leave Calendar (Web)"
     },
     {
@@ -108190,11 +108016,11 @@
       "name": "Non-conformance reports"
     },
     {
-      "description": "In-app notifications raised by the leave workflow, such as a request being submitted, approved, rejected or delegated. Endpoints cover reading a page of notifications, listing or counting the unread ones, and marking one or all as read. Access is gated by the leave read or admin authority.",
+      "description": "The signed-in caller's own in-app notifications, raised by the leave workflow when a request is submitted, approved, rejected or delegated. Endpoints cover reading a page of them, listing or counting the unread ones, and marking one or all as read. An inbox is personal, so every endpoint answers about the caller and none takes an employee id; access is gated on membership of the caller's current tenant.",
       "name": "Notifications"
     },
     {
-      "description": "Web-console equivalent of the notification endpoints, addressing a notification by a notificationId query parameter instead of a path segment. Covers reading a page of notifications, listing or counting the unread ones, and marking one or all as read. All endpoints are gated to the system-admin or hr-admin role in the caller's tenant.",
+      "description": "Web-console equivalent of the notification endpoints, addressing a notification by a notificationId query parameter instead of a path segment. Covers reading a page of the caller's notifications, listing or counting the unread ones, and marking one or all as read. An inbox is personal, so every endpoint answers about the caller and none takes an employee id; access is gated on membership of the caller's current tenant.",
       "name": "Notifications (Web)"
     },
     {
