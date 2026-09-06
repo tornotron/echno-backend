@@ -183,17 +183,51 @@ public class LeavePolicyController {
         return ResponseEntity.ok(new ApiResponse("Leave policy activated successfully"));
     }
 
+    /**
+     * Copies a policy into another organization.
+     *
+     * <p>Two organizations are named by a call to this: the one the session is scoped to, which
+     * owns the source policy, and the target the copy is written into. The guard used to answer
+     * only for the first. The entitlement to the second came from
+     * {@code OrganizationRepository.findByIdAndUserEmail}, which establishes an {@code Employee}
+     * row in the target and nothing about what the caller may do there, so the guard read as
+     * though the role applied to the target when it did not. {@code Organization} is the tenant
+     * root, so it implements no {@code TenantScopedEntity} and neither the org filter nor the
+     * fail-closed load listener has anything to say about which one is resolved; a caller-named
+     * organization has to be answered for in the guard or nowhere.
+     *
+     * <p>{@code hasAnyOrgRole(#targetOrganizationId, ...)} is the half that does that. It reads
+     * the caller's authorities for the organization they named, rather than for the one their
+     * session happens to hold, which is all {@code hasAnyOrgRoleForCurrentTenant} can answer for.
+     * Both halves are required: the source policy is read out of the current tenant, so a role
+     * there is not made redundant by holding one in the target. See #698.
+     *
+     * <p>What the repaired guard does not fix, and what a reader should know before relying on
+     * this endpoint: it cannot currently succeed for any input.
+     * {@code OrganizationLookupUnderTheOrgFilterIT} measured the target lookup against a database
+     * and it raises {@code TenantAccessDeniedException} for a foreign organization, because the
+     * fail-closed load listener refuses the joined {@code Employee} row. Naming the current tenant
+     * instead reaches the duplicate-code check, which the source policy's own code satisfies, so
+     * that answers 409. Whether cross-organization duplication is a feature at all is a product
+     * decision; if it is, the target resolution and the duplicate-code check both need to be
+     * deliberate cross-tenant reads rather than accidental ones.
+     *
+     * @param policyId The ID of the source policy, read from the caller's own organization.
+     * @param targetOrganizationId The organization to copy into, in which the caller must hold
+     *                             the same role.
+     */
     @PostMapping("/{policyId}/duplicate")
-//    @PreAuthorize("hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
+            + " and @orgSecurity.hasAnyOrgRole(#targetOrganizationId, 'system-admin', 'hr-admin')")
     @Operation(
             summary = "Duplicate a leave policy into another organization",
             description = "Copies the policy's quota, accrual and eligibility rules into a new policy owned "
-                    + "by the target organization. Returns the newly created policy."
+                    + "by the target organization. Returns the newly created policy. The caller must hold "
+                    + "the system-admin or hr-admin role in their own organization and in the target."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Policy duplicated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant or in the target organization"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave policy or target organization with the given id")
     })
     public ResponseEntity<LeavePolicyDto> duplicatePolicy(
