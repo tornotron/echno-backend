@@ -16405,6 +16405,26 @@
             "format": "int64",
             "type": "integer"
           },
+          "sourceDocumentId": {
+            "description": "Id of the document named by sourceDocumentType. Required when that field is set, and refused when it is not.",
+            "example": 31,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "sourceDocumentType": {
+            "description": "The kind of document this adjustment was raised to answer, where it answers one. Send it together with sourceDocumentId or leave both out: a type naming no document, or a document with nothing saying what kind it is, is refused rather than half-stored. The named document is looked up in the caller's organization when the adjustment is written, so an id that names nothing there is a 404 and not a dangling reference.",
+            "enum": [
+              "SITE_TRANSFER"
+            ],
+            "example": "SITE_TRANSFER",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "status": {
             "description": "State of the adjustment document. Optional, and draft is the only value accepted, so leaving it out is the same as sending draft. A document reaches its posted state through POST /{id}/approve, which is what refuses an approval by whoever raised it and writes the stock-ledger entries; a document created or edited into that state would carry neither, and would read as approved with nobody on record as having approved it and no movement behind it.",
             "enum": [
@@ -16600,6 +16620,26 @@
             "description": "Reason given for rejecting the adjustment.",
             "example": "Variance not supported by the count sheet",
             "type": "string"
+          },
+          "sourceDocumentId": {
+            "description": "Id of the document named by sourceDocumentType, within that kind. Null wherever the type is null.",
+            "example": 31,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "sourceDocumentType": {
+            "description": "The kind of document this adjustment was raised to answer, null where it answers none. SITE_TRANSFER means the adjustment closes the open variance a transfer received short left behind, and the transfer it closes is sourceDocumentId. Always set together with that field.",
+            "enum": [
+              "SITE_TRANSFER"
+            ],
+            "example": "SITE_TRANSFER",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "description": "Status of the adjustment document.",
@@ -95630,6 +95670,133 @@
           }
         },
         "summary": "Create a stock adjustment",
+        "tags": [
+          "Stock Adjustments (Web)"
+        ]
+      }
+    },
+    "/api/v1/stock-adjustments/web/by-source-document": {
+      "get": {
+        "description": "Returns the adjustments naming the given source document, most recently raised first, and an empty list where none do. This is the reverse of the reference an adjustment carries: a site transfer received short shows an open variance, and this is how the transfer finds out whether anybody has decided what became of the difference, so the variance can read as closed rather than staying open for ever. Anchored to one named document rather than a filter over the whole list, and scoped to the caller's own organization.",
+        "operationId": "readStockAdjustmentsBySourceDocument",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "sourceDocumentType",
+            "required": true,
+            "schema": {
+              "enum": [
+                "SITE_TRANSFER"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sourceDocumentId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StockAdjustmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Stock adjustments naming the document returned, empty where none do"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "sourceDocumentType is not a known kind of document"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the stock adjustments raised to answer one document",
         "tags": [
           "Stock Adjustments (Web)"
         ]
