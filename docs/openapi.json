@@ -19272,7 +19272,11 @@
       "VendorBankAccountDto": {
         "properties": {
           "accountHolderName": {
-            "type": "string"
+            "description": "Name the account is held in, where it differs from the vendor's own name. Null where it was not recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "accountNumber": {
             "type": "string"
@@ -19288,10 +19292,18 @@
             "type": "integer"
           },
           "ifscCode": {
-            "type": "string"
+            "description": "IFSC code, which only an Indian domestic account has. Null on a foreign account, which carries a SWIFT code instead.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "swift": {
-            "type": "string"
+            "description": "SWIFT code, which only an account reachable internationally has. Null on a domestic account.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -19328,7 +19340,11 @@
       "VendorContactDto": {
         "properties": {
           "alternatePhone": {
-            "type": "string"
+            "description": "Second number for this contact. Null where only one was given.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "contactPerson": {
             "type": "string"
@@ -19435,7 +19451,11 @@
             "type": "array"
           },
           "city": {
-            "type": "string"
+            "description": "City. Optional on creation, so null where none was given.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "contacts": {
             "items": {
@@ -19444,7 +19464,11 @@
             "type": "array"
           },
           "country": {
-            "type": "string"
+            "description": "Country. Optional on creation, so null where none was given.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "goodsReceivedNotes": {
             "items": {
@@ -19457,7 +19481,11 @@
             "type": "integer"
           },
           "notes": {
-            "type": "string"
+            "description": "Free-text notes about the vendor. Null where none were written.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payables": {
             "items": {
@@ -19466,10 +19494,22 @@
             "type": "array"
           },
           "paymentTerms": {
-            "$ref": "#/components/schemas/VendorPaymentTermsDto"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VendorPaymentTermsDto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The vendor's single payment-terms record. Null until terms are set, and null again once they are deleted."
           },
           "pinCode": {
-            "type": "string"
+            "description": "Postal code. Optional on creation, so null where none was given.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "purchaseOrders": {
             "items": {
@@ -19478,7 +19518,11 @@
             "type": "array"
           },
           "state": {
-            "type": "string"
+            "description": "State. Optional on creation, so null where none was given.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "enum": [
@@ -19506,7 +19550,11 @@
             "type": "string"
           },
           "vendorAddress": {
-            "type": "string"
+            "description": "Street address. Optional on creation, so null where none was given.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "vendorEmail": {
             "type": "string"
@@ -19515,7 +19563,11 @@
             "type": "string"
           },
           "website": {
-            "type": "string"
+            "description": "Website. Optional on creation, so null where none was given.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -19541,11 +19593,19 @@
       "VendorPaymentTermsDto": {
         "properties": {
           "creditDays": {
+            "description": "Days allowed before payment falls due. Null where no period was agreed, leaving the due date to whatever the invoice states.",
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "creditLimit": {
-            "type": "number"
+            "description": "Ceiling on what may be outstanding with this vendor. Null where no limit was agreed, which is not the same as a limit of zero.",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "id": {
             "format": "int64",

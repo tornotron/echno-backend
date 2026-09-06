@@ -6,6 +6,15 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
+/**
+ * Purchase, payable and receipt totals for one vendor.
+ *
+ * <p>No field here admits null. The counts are {@code COUNT}, which is zero over no rows, and
+ * every money total is summed under a {@code COALESCE(..., 0)} in
+ * {@link org.tornotron.echno_backend.vendor.VendorSummaryService}, so a vendor with no purchase
+ * orders reports zero rather than the null a bare {@code SUM} would return. See
+ * {@code ReviewedResponseSchemas}.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
