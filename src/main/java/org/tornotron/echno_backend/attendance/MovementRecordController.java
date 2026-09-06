@@ -61,11 +61,12 @@ public class MovementRecordController {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get a movement record by id",
-            description = "Returns a single movement record including its verification state."
+            description = "Returns a single movement record including its verification state. "
+                    + "Readable by whoever may read the attendance record it hangs off."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Movement record found"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read the attendance record this movement belongs to"),
             @ApiResponse(responseCode = "404", description = "No movement record with the given id")
     })
     public ResponseEntity<MovementRecordDto> getById(@PathVariable Long id) {
@@ -76,11 +77,12 @@ public class MovementRecordController {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List movements for an attendance record",
-            description = "Returns every movement logged against a given attendance record."
+            description = "Returns every movement logged against a given attendance record. "
+                    + "Readable by whoever may read that attendance record."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Movement records returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read the attendance record these movements belong to"),
             @ApiResponse(responseCode = "404", description = "No attendance record with the given id")
     })
     public ResponseEntity<List<MovementRecordDto>> getByAttendance(@PathVariable Long attendanceId) {

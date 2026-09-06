@@ -30,7 +30,19 @@ public interface MovementRecordRepository extends JpaRepository<MovementRecord, 
     @Query("SELECT m FROM MovementRecord m WHERE m.id = :id AND m.organization.id = :orgId")
     Optional<MovementRecord> lockByIdAndOrganizationId(@Param("id") Long id, @Param("orgId") Long orgId);
 
-    List<MovementRecord> findByAttendanceIdOrderByStartTimeAsc(Long attendanceId);
+    /**
+     * The movements logged against one attendance record, earliest first.
+     *
+     * <p>The organization is a predicate here rather than left to the Hibernate {@code orgFilter}.
+     * The filter does cover {@link MovementRecord}, so this is defence in depth rather than a
+     * repair: it was the one read in this class that said nothing about the tenant it meant, and
+     * a query that only works because a session filter happens to be enabled is the shape the
+     * 2026-08-18 audit flagged as a trap for whoever calls it next.
+     */
+    @Query("SELECT m FROM MovementRecord m WHERE m.attendance.id = :attendanceId "
+            + "AND m.organization.id = :orgId ORDER BY m.startTime ASC")
+    List<MovementRecord> findByAttendanceIdAndOrganizationId(@Param("attendanceId") Long attendanceId,
+                                                             @Param("orgId") Long orgId);
 
     List<MovementRecord> findByEmployeeIdAndStartTimeBetween(Long employeeId,
                                                               LocalDateTime from,

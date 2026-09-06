@@ -103,11 +103,13 @@ public class AttendanceController {
     @Operation(
             summary = "Get an attendance record by id",
             description = "Returns a single attendance record including its clock events, movements, "
-                    + "regularizations and approval state."
+                    + "regularizations and approval state. Readable by the employee it belongs to, "
+                    + "by a holder of an attendance record-management role, or by the approver the "
+                    + "record names."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Attendance record found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee the record belongs to, nor a holder of an attendance record-management role, nor the approver the record names"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No attendance record with the given id")
     })
     public ResponseEntity<AttendanceResponseDto> getById(@PathVariable Long id) {

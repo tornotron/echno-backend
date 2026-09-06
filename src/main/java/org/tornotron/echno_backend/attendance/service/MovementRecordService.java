@@ -204,18 +204,70 @@ public class MovementRecordService {
         return movementRecordMapper.toDto(movementRecordRepository.save(record));
     }
 
+    /**
+     * Lists the movements logged against one attendance record.
+     *
+     * <p>The attendance record is resolved first and decides the answer. A movement trail is a
+     * sequence of an employee's positions and purposes through a work day, so the people who may
+     * read it are the people who may read the attendance it hangs off, and deriving it rather
+     * than restating it is what stops the two rules drifting apart later.
+     *
+     * @param attendanceId The attendance record whose movements are wanted.
+     * @return The movements, earliest first.
+     * @throws ResourceNotFoundException if no such attendance record exists in this organization.
+     * @throws AccessDeniedException if the caller may not read that record.
+     */
     @Transactional(readOnly = true)
     public List<MovementRecordDto> getMovementsByAttendance(Long attendanceId) {
-        return movementRecordRepository.findByAttendanceIdOrderByStartTimeAsc(attendanceId)
+        Long orgId = TenantContext.getCurrentOrgId();
+        Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(attendanceId, orgId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attendance record with ID " + attendanceId + " was not found"));
+        requireActorMayViewRecordsOf(attendance);
+
+        return movementRecordRepository.findByAttendanceIdAndOrganizationId(attendanceId, orgId)
                 .stream()
                 .map(movementRecordMapper::toDto)
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Reads one movement record.
+     *
+     * <p>Same policy, reached through the attendance the movement belongs to.
+     *
+     * @param id The movement record to read.
+     * @return The movement record.
+     * @throws ResourceNotFoundException if no such movement exists in this organization.
+     * @throws AccessDeniedException if the caller may not read the attendance it hangs off.
+     */
     @Transactional(readOnly = true)
     public MovementRecordDto getMovementById(Long id) {
         MovementRecord record = movementRecordRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Movement record with ID " + id + " was not found"));
+        requireActorMayViewRecordsOf(record.getAttendance());
         return movementRecordMapper.toDto(record);
+    }
+
+    /**
+     * Refuses the call unless the caller may read the given attendance record.
+     *
+     * <p>See {@link AttendanceSecurityService#canViewAttendanceRecord}: the employee themselves, a
+     * holder of an attendance record-management role, or the approver the record names. Both ids
+     * come off the stored attendance row, so the caller cannot nominate themselves by choosing an
+     * id on the request.
+     *
+     * @param attendance The attendance record the movements belong to.
+     * @throws AccessDeniedException if the caller may not read it.
+     */
+    private void requireActorMayViewRecordsOf(Attendance attendance) {
+        if (attendanceSecurity.canViewAttendanceRecord(
+                attendance.getEmployeeId(), attendance.getGeofenceApproverId())) {
+            return;
+        }
+        throw new AccessDeniedException(
+                "Movement records can only be read by the employee they belong to, by a holder of "
+                        + "an attendance record-management role, or by the approver the attendance "
+                        + "record names");
     }
 }

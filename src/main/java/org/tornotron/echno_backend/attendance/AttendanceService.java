@@ -459,15 +459,48 @@ public class AttendanceService {
     /**
      * Retrieves a single attendance record by its ID.
      *
+     * <p>Who may read it is settled here against the stored record rather than in the
+     * {@code @PreAuthorize} guard, the same way {@link #requireActorMayApprove} settles who may
+     * decide one. The id on the request names a record, so it identifies no person for an
+     * annotation to check; the employee and the designated approver are columns the record
+     * carries. The response is the same {@link AttendanceResponseDto} the employee-scoped listing
+     * beside it returns, down to the check-in coordinates and the attachment, so the two reads
+     * answer to the same policy.
+     *
      * @param id The ID of the attendance record.
      * @return The attendance record.
      * @throws ResourceNotFoundException if no record with the given ID exists in this organization.
+     * @throws AccessDeniedException if the caller may not read this employee's records.
      */
     @Transactional(readOnly = true)
     public AttendanceResponseDto getAttendanceById(Long id) {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance record with ID " + id + " was not found"));
+        requireActorMayViewRecord(attendance);
         return attendanceMapper.toResponseDto(attendance);
+    }
+
+    /**
+     * Refuses the call unless the caller may read this record.
+     *
+     * <p>The policy is {@link AttendanceSecurityService#canViewAttendanceRecord}: the employee
+     * themselves, a holder of an attendance record-management role, or the approver the record
+     * names. The last of those is why this cannot be an annotation, and it has to be here rather
+     * than left out, because a manager asked to decide a geofence exception has to be able to look
+     * at the record they are deciding.
+     *
+     * @param attendance The record being read, loaded from the database.
+     * @throws AccessDeniedException if the caller may not read it.
+     */
+    private void requireActorMayViewRecord(Attendance attendance) {
+        if (attendanceSecurity.canViewAttendanceRecord(
+                attendance.getEmployeeId(), attendance.getGeofenceApproverId())) {
+            return;
+        }
+        throw new AccessDeniedException(
+                "Attendance records can only be read by the employee they belong to, by a holder "
+                        + "of an attendance record-management role, or by the approver the record "
+                        + "names");
     }
 
     /**
