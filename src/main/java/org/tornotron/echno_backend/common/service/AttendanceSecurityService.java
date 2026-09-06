@@ -60,6 +60,29 @@ public class AttendanceSecurityService {
     }
 
     /**
+     * View one stored attendance record, and the movement trail hanging off it.
+     *
+     * <p>The people who may read an employee's attendance are settled by
+     * {@link #canViewEmployeeRecords}, plus the approver the record itself names. That addition is
+     * the same one {@link #canDecideApproval} makes and is there for the same reason: a geofence
+     * exception is decided by the employee's reporting manager, who is usually not a holder of any
+     * organization-wide role. Somebody asked to decide a record has to be able to look at it, and
+     * without this branch the deciding would have been allowed while the reading was refused.
+     *
+     * <p>Both ids are read off the stored record, never off the request. A record-level check is
+     * what the by-id reads need, because the id on the request names a record rather than a person
+     * and so says nothing about who is entitled to it.
+     *
+     * @param employeeId The employee the record belongs to.
+     * @param designatedApproverId The approver the record names, or null when none is.
+     * @return Whether the caller may read it.
+     */
+    public boolean canViewAttendanceRecord(Long employeeId, Long designatedApproverId) {
+        return canViewEmployeeRecords(employeeId)
+                || (designatedApproverId != null && orgSecurity.isSelfInCurrentTenant(designatedApproverId));
+    }
+
+    /**
      * Record or correct attendance for one employee: the employee themselves, or a manager / HR.
      *
      * <p>Same policy as {@link #canViewEmployeeRecords}, named separately because the write
