@@ -12,7 +12,9 @@ import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.exception.TenantIdMissingException;
+import org.tornotron.echno_backend.common.exception.TooManyAttemptsException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.common.ratelimit.InProcessAttemptBuckets;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.EmployeeService;
@@ -27,6 +29,7 @@ import org.tornotron.echno_backend.projectInviteCode.dto.InviteCodeValidationDto
 import org.tornotron.echno_backend.projectInviteCode.dto.ProjectInviteCodeDto;
 import org.tornotron.echno_backend.projectInviteCode.mapper.ProjectInviteCodeMapper;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -70,12 +73,22 @@ class ProjectInviteCodeServiceTest {
 
     private ProjectInviteCodeService service;
 
+    /**
+     * A real limiter over real in-process buckets rather than a mock, because what the redemption
+     * tests need to hold is that an attempt is actually spent and actually given back, and a mock
+     * of the limiter would only record that it was called.
+     */
+    private InviteCodeRedemptionLimiter redemptionLimiter;
+    private InviteCodeRedemptionProperties redemptionProperties;
+
     @BeforeEach
     void setUp() {
         TenantContext.setCurrentOrgId(ORG);
+        redemptionProperties = new InviteCodeRedemptionProperties();
+        redemptionLimiter = new InviteCodeRedemptionLimiter(new InProcessAttemptBuckets(), redemptionProperties);
         service = new ProjectInviteCodeService(inviteCodeRepository, employeeService, organizationRepository,
                 fileStorageService, employeeRepository, projectInviteCodeMapper, organizationMapper,
-                shiftTimingRepository);
+                shiftTimingRepository, redemptionLimiter);
     }
 
     @AfterEach
@@ -421,5 +434,114 @@ class ProjectInviteCodeServiceTest {
         assertThatExceptionOfType(TenantIdMissingException.class)
                 .isThrownBy(() -> service.readAllProjectInviteCodes());
         verify(inviteCodeRepository, never()).findByOrganization_Id(any());
+    }
+
+    /**
+     * Redemption resolves a bearer credential with no organization qualifier, and it cannot have
+     * one, because the person redeeming holds no membership yet. That leaves the number of values
+     * that may be offered as the only thing keeping the credential worth anything, so the count
+     * has to be bounded and the bound has to bite before the lookup.
+     */
+    @Test
+    void validateAndUse_pastTheAttemptAllowance_isRefusedWithoutLookingTheCodeUp() {
+        redemptionProperties.setAttemptsPerCaller(2);
+        when(inviteCodeRepository.findByCode(12345)).thenReturn(Optional.empty());
+
+        assertThatExceptionOfType(ResourceNotFoundException.class)
+                .isThrownBy(() -> service.validateAndUseInviteCode(validationDto(), USER_ID));
+        assertThatExceptionOfType(ResourceNotFoundException.class)
+                .isThrownBy(() -> service.validateAndUseInviteCode(validationDto(), USER_ID));
+
+        assertThatExceptionOfType(TooManyAttemptsException.class)
+                .isThrownBy(() -> service.validateAndUseInviteCode(validationDto(), USER_ID));
+
+        // Twice, not three times. The third attempt was refused before the repository was reached,
+        // which is what makes this a limit on attempts rather than on the answers to them.
+        verify(inviteCodeRepository, org.mockito.Mockito.times(2)).findByCode(12345);
+    }
+
+    /**
+     * A code that turns out to be good gives the attempt back, so the person redeeming the
+     * invitation they were actually sent never approaches the allowance.
+     */
+    @Test
+    void validateAndUse_acceptedCode_costsNoAttempt() {
+        redemptionProperties.setAttemptsPerCaller(1);
+        ProjectInviteCode code = storedCode(true, LocalDateTime.now().plusDays(5), 500, 0);
+        when(inviteCodeRepository.findByCode(12345)).thenReturn(Optional.of(code));
+        when(organizationMapper.toDto(any())).thenReturn(new OrganizationDto());
+
+        for (int i = 0; i < 5; i++) {
+            service.validateAndUseInviteCode(validationDto(), USER_ID);
+        }
+
+        verify(inviteCodeRepository, org.mockito.Mockito.times(5)).findByCode(12345);
+    }
+
+    /**
+     * Every way a code can be turned down spends the attempt. A refusal that cost nothing would be
+     * a free probe, and the useful probe is precisely the one that fails.
+     */
+    @Test
+    void validateAndUse_everyKindOfRefusal_spendsTheAttempt() {
+        redemptionProperties.setAttemptsPerCaller(3);
+        when(inviteCodeRepository.findByCode(12345))
+                .thenReturn(Optional.of(storedCode(true, LocalDateTime.now().minusDays(1), 5, 0)))
+                .thenReturn(Optional.of(storedCode(false, LocalDateTime.now().plusDays(5), 5, 0)))
+                .thenReturn(Optional.of(storedCode(true, LocalDateTime.now().plusDays(5), 2, 2)));
+
+        assertThatExceptionOfType(InvalidInviteCodeException.class)
+                .isThrownBy(() -> service.validateAndUseInviteCode(validationDto(), USER_ID));
+        assertThatExceptionOfType(InvalidInviteCodeException.class)
+                .isThrownBy(() -> service.validateAndUseInviteCode(validationDto(), USER_ID));
+        assertThatExceptionOfType(InvalidInviteCodeException.class)
+                .isThrownBy(() -> service.validateAndUseInviteCode(validationDto(), USER_ID));
+
+        assertThatExceptionOfType(TooManyAttemptsException.class)
+                .isThrownBy(() -> service.validateAndUseInviteCode(validationDto(), USER_ID));
+    }
+
+    /**
+     * The submitted code is five characters, which the request body's constraint enforces, but
+     * nothing said they were digits. A five-letter submission used to reach {@code Integer.parseInt}
+     * and answer 500, so a malformed code was met with a server error instead of a refusal.
+     */
+    @Test
+    void validateAndUse_aCodeThatIsNotANumber_isRefusedRatherThanFailing() {
+        InviteCodeValidationDto dto = new InviteCodeValidationDto();
+        dto.setCode("ABCDE");
+
+        assertThatExceptionOfType(InvalidInviteCodeException.class)
+                .isThrownBy(() -> service.validateAndUseInviteCode(dto, USER_ID));
+        verify(inviteCodeRepository, never()).findByCode(org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    /** A malformed code is still an attempt, or it would be the free probe the others are not. */
+    @Test
+    void validateAndUse_aCodeThatIsNotANumber_stillSpendsTheAttempt() {
+        redemptionProperties.setAttemptsPerCaller(1);
+        InviteCodeValidationDto dto = new InviteCodeValidationDto();
+        dto.setCode("ABCDE");
+
+        assertThatExceptionOfType(InvalidInviteCodeException.class)
+                .isThrownBy(() -> service.validateAndUseInviteCode(dto, USER_ID));
+        assertThatExceptionOfType(TooManyAttemptsException.class)
+                .isThrownBy(() -> service.validateAndUseInviteCode(dto, USER_ID));
+    }
+
+    /**
+     * Expiry and a use limit are separately already true of a code: {@code validityDays} defaults
+     * to five days and {@code maxUses} to one, so the shipped default is a single-use invitation
+     * that dies in under a week. Neither bounds how many values may be offered, which is what the
+     * attempt allowance is for, and pinning the defaults here is what keeps a later edit from
+     * quietly turning the default code into a permanent one.
+     */
+    @Test
+    void aGeneratedCodeIsSingleUseAndShortLivedByDefault() {
+        InviteCodeGenerationDto dto = new InviteCodeGenerationDto();
+
+        assertThat(dto.getMaxUses()).isEqualTo(1);
+        assertThat(dto.getValidityDays()).isEqualTo(5);
+        assertThat(Duration.ofDays(dto.getValidityDays())).isLessThanOrEqualTo(Duration.ofDays(7));
     }
 }

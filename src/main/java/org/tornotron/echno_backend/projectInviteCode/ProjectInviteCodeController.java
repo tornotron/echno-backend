@@ -104,13 +104,16 @@ public class ProjectInviteCodeController {
     @Operation(
             summary = "Validate and use an invite code",
             description = "Validates the supplied invite code and joins the user to the organization it "
-                    + "grants access to."
+                    + "grants access to. Attempts are limited: one is charged before the code is looked "
+                    + "up and given back when the code is accepted, so a successful redemption costs "
+                    + "nothing and repeated wrong codes are answered with 429 and a Retry-After header."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Invite code accepted and organization joined"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation or the code is invalid or expired"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the target user nor a role holder in the current tenant"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user with the given id")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user with the given id"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "The attempt allowance is spent; Retry-After says when it refills")
     })
     public ResponseEntity<OrganizationDto> validateInviteCode(@Valid @RequestBody InviteCodeValidationDto inviteCodeValidationDto,
                                                               @PathVariable Long userId) {

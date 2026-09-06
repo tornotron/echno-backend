@@ -2,8 +2,10 @@ package org.tornotron.echno_backend.common.exception;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.expression.Expression;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.authorization.ExpressionAuthorizationDecision;
 import org.springframework.validation.BindingResult;
@@ -13,6 +15,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.tornotron.echno_backend.indent.enums.IndentStatus;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -258,5 +261,40 @@ class GlobalExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
         assertThat(pd.getTitle()).isEqualTo("Report Generation Failed");
         assertThat(pd.getDetail()).contains("report/report");
+    }
+
+    /**
+     * A spent attempt allowance. The status is the one that means "later" and the wait travels in
+     * Retry-After, which is why this handler returns a ResponseEntity where the rest return a bare
+     * problem: a header is the one part of the answer the body cannot carry.
+     */
+    @Test
+    void tooManyAttempts_isA429CarryingRetryAfter() {
+        ResponseEntity<ProblemDetail> response = handler.handleTooManyAttempts(
+                new TooManyAttemptsException("Too many invite code attempts. Try again later.",
+                        Duration.ofMinutes(4)),
+                requestWithPath("uri=/api/v1/invitation/web/validate/userId/55"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(response.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isEqualTo("240");
+        ProblemDetail pd = response.getBody();
+        assertThat(pd).isNotNull();
+        assertThat(pd.getTitle()).isEqualTo("Too Many Requests");
+        assertThat(pd.getDetail()).isEqualTo("Too many invite code attempts. Try again later.");
+        assertThat(pd.getProperties()).containsEntry("message", "Too many invite code attempts. Try again later.");
+    }
+
+    /**
+     * Retry-After is whole seconds, so a wait under one second still asks for one. Rounded to zero
+     * it would invite the immediate retry the header exists to prevent.
+     */
+    @Test
+    void tooManyAttempts_neverAsksTheClientToRetryImmediately() {
+        ResponseEntity<ProblemDetail> response = handler.handleTooManyAttempts(
+                new TooManyAttemptsException("Too many invite code attempts. Try again later.",
+                        Duration.ofMillis(200)),
+                requestWithPath("uri=/api/v1/invitation/web/validate/userId/55"));
+
+        assertThat(response.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isEqualTo("1");
     }
 }

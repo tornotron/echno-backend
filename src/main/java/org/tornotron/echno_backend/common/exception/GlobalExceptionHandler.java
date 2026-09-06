@@ -6,8 +6,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.authorization.ExpressionAuthorizationDecision;
 import org.springframework.validation.FieldError;
@@ -255,6 +257,25 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleInvalidInviteCodeException(InvalidInviteCodeException ex, WebRequest request) {
         logger.error("Invalid Invite Code: ", ex);
         return problem(HttpStatus.BAD_REQUEST, "Invalid Invite Code", ex.getMessage(), request);
+    }
+
+    /**
+     * An operation whose attempt allowance is spent.
+     *
+     * <p>Returned as a {@link ResponseEntity} rather than a bare {@link ProblemDetail} so it can
+     * carry {@code Retry-After}, which is the one thing a well-behaved client needs and the one
+     * thing a wrong number in the body cannot supply. The detail is deliberately uninformative
+     * about how much allowance remains, since that would pace whoever provoked it; the header is
+     * not, because it says only when the refusal ends, which the client is entitled to know.
+     */
+    @ExceptionHandler(TooManyAttemptsException.class)
+    public ResponseEntity<ProblemDetail> handleTooManyAttempts(TooManyAttemptsException ex, WebRequest request) {
+        logger.warn("Attempt allowance exhausted: {}", ex.getMessage());
+        ProblemDetail body = problem(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", ex.getMessage(), request);
+        long retryAfterSeconds = Math.max(1, ex.getRetryAfter().toSeconds());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(retryAfterSeconds))
+                .body(body);
     }
 
     /**
