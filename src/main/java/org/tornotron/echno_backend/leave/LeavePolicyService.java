@@ -142,7 +142,15 @@ public class LeavePolicyService {
     /**
      * Lists the active policies for an organization, ordered by display order.
      *
-     * @param organizationId The organization's ID.
+     * <p>The organization has to be the caller's own, which the handler establishes with
+     * {@code @orgSecurity.isCurrentTenant}. That is worth saying here because the
+     * {@code existsById} below reads as though it were the tenant check and is not: it asks only
+     * whether the organization exists anywhere in the deployment, and {@code Organization} is the
+     * tenant root, so it carries neither the {@code orgFilter} nor the load listener's protection.
+     * What keeps the result inside the tenant is the guard, plus the filter on
+     * {@link LeavePolicy} itself.
+     *
+     * @param organizationId The organization's ID, which the guard has established is the caller's.
      * @return The active policies in display order.
      * @throws ResourceNotFoundException if the organization is not found.
      */
