@@ -62,18 +62,23 @@ class AttendanceServiceApprovalTest {
     @Mock private FileStorageService fileStorageService;
     @Mock private UserContextService userContextService;
     @Mock private AttendanceSecurityService attendanceSecurity;
+    @Mock private AttendanceGeofenceService geofenceService;
 
     private AttendanceService service;
 
     @BeforeEach
     void setUp() {
         TenantContext.setCurrentOrgId(ORG);
+        // These cases are about who the approval is attributed to, not who may give it. The
+        // authorization itself is covered in GeofenceApprovalAuthorizationTest.
+        org.mockito.Mockito.lenient().when(attendanceSecurity.canDecideApproval(any()))
+                .thenReturn(true);
         service = new AttendanceService(attendanceRepository, shiftTimingRepository, employeeRepository,
                 organizationRepository, projectRepository, settingsService, calculationService,
                 sequenceValidator, attendanceMapper, attachmentService, fileStorageService,
                 userContextService,
                 new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()),
-                attendanceSecurity);
+                attendanceSecurity, geofenceService);
     }
 
     @AfterEach

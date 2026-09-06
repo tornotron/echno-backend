@@ -62,6 +62,7 @@ class AttendancePayloadValidationTest {
     @Mock private FileStorageService fileStorageService;
     @Mock private UserContextService userContextService;
     @Mock private AttendanceSecurityService attendanceSecurity;
+    @Mock private AttendanceGeofenceService geofenceService;
 
     private AttendanceService service;
 
@@ -73,7 +74,7 @@ class AttendancePayloadValidationTest {
                 employeeRepository, organizationRepository, projectRepository, settingsService,
                 calculationService, sequenceValidator, attendanceMapper, attachmentService,
                 fileStorageService, userContextService, new PayloadValidator(validator),
-                attendanceSecurity);
+                attendanceSecurity, geofenceService);
         // Not the concern here: every payload test should fail on the payload, not on who is calling.
         lenient().when(attendanceSecurity.canRecordFor(org.mockito.ArgumentMatchers.any())).thenReturn(true);
     }

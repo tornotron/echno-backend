@@ -128,6 +128,29 @@ public class Attendance implements TenantScopedEntity {
     @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 
+    /**
+     * Whether this day is waiting on a decision about a punch taken outside the project's
+     * geofence.
+     *
+     * <p>Every record starts life with {@code approvalStatus} PENDING, so the status alone cannot
+     * say why a day needs a look. This flag is what separates a day held for a geofence exception
+     * from an ordinary one, and it is what an approver's queue filters on.
+     */
+    @Builder.Default
+    @Column(name = "requires_geofence_approval", nullable = false)
+    private Boolean requiresGeofenceApproval = false;
+
+    /**
+     * The employee expected to decide the geofence exception: the employee's reporting manager,
+     * or failing that a project manager assigned to the site being marked against.
+     *
+     * <p>Null when neither could be resolved, in which case the decision falls to the
+     * record-management roles that decide every other attendance record. Those roles can decide
+     * this one either way; the id widens who may approve, it does not narrow it.
+     */
+    @Column(name = "geofence_approver_id")
+    private Long geofenceApproverId;
+
     @Column(name = "remarks")
     private String remarks;
 

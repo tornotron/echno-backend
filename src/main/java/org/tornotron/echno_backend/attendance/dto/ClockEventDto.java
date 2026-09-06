@@ -48,11 +48,33 @@ public class ClockEventDto {
     @Schema(description = "Platform the event was recorded from.", example = "android")
     private String devicePlatform;
 
-    @Schema(description = "Whether the event's coordinates fall within the project's geofence.", example = "true")
+    @Schema(description = "Whether the event's coordinates fall within the project's geofence. "
+            + "Null when no verdict was reached, which is the case when the project has no "
+            + "coordinates, the event carries no position, or the event came from a regularization "
+            + "rather than a live punch. Null is not a violation and must not be shown as one.",
+            example = "true")
     private Boolean isWithinGeofence;
 
-    @Schema(description = "Distance from the project site at the time of the event, in metres.", example = "45.0")
+    @Schema(description = "Distance from the project site at the time of the event, in metres. "
+            + "Null when the geofence was not evaluated.", example = "45.0")
     private Double distanceFromProject;
+
+    @Schema(description = "The geofence radius the verdict was reached against, in metres, as it "
+            + "stood at the time of the event. Null when the geofence was not evaluated.",
+            example = "100")
+    private Integer geofenceRadiusMeters;
+
+    @Schema(description = "Why the employee marked their own attendance from outside the site "
+            + "boundary. Null when they did not.",
+            example = "Working from head office today for the client review")
+    private String geofenceExceptionReason;
+
+    @Schema(description = "Employee id of whoever submitted the punch. Differs from the employee "
+            + "the record belongs to when a supervisor marked attendance for their team, in which "
+            + "case the geofence is not evaluated because the position captured is the "
+            + "supervisor's.",
+            example = "42")
+    private Long recordedById;
 
     @Schema(description = "Optional remarks about the event.", example = "Reported directly to the second floor slab pour")
     private String remarks;

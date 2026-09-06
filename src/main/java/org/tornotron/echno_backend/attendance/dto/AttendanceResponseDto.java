@@ -94,6 +94,19 @@ public class AttendanceResponseDto {
     @Schema(description = "Timestamp the record was approved or rejected.", example = "2026-01-16T10:15:00")
     private LocalDateTime approvedAt;
 
+    @Schema(description = "Whether this day contains a punch the employee marked themselves from "
+            + "outside the project's geofence, having given a reason. Such a record is held for a "
+            + "decision: it is still waiting while the approval status is PENDING.",
+            example = "false")
+    private Boolean requiresGeofenceApproval;
+
+    @Schema(description = "Employee id of the person expected to decide the geofence exception: "
+            + "the employee's reporting manager, or a project manager assigned to the site. Null "
+            + "when neither could be resolved, in which case the attendance record managers decide "
+            + "as they do for every other record.",
+            example = "42")
+    private Long geofenceApproverId;
+
     @Schema(description = "Remarks attached to the record, for example an approval or rejection note.", example = "Confirmed with site supervisor")
     private String remarks;
 

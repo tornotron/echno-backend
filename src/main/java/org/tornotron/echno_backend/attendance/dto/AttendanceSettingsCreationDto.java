@@ -39,7 +39,7 @@ public class AttendanceSettingsCreationDto {
     @NotNull
     private Boolean geolocationRequired;
 
-    @Schema(description = "Radius in metres around the project within which a clock event is considered on site.", example = "200")
+    @Schema(description = "Radius in metres around the project within which a clock event is considered on site.", example = "100")
     @NotNull
     @Min(50) @Max(5000)
     private Integer geofenceRadiusMeters;

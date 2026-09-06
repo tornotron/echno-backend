@@ -15,9 +15,11 @@ import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
 import org.tornotron.echno_backend.attendance.enums.ClockEventType;
 import org.tornotron.echno_backend.attendance.mapper.AttendanceMapper;
 import org.tornotron.echno_backend.attendance.service.AttendanceCalculationService;
+import org.tornotron.echno_backend.attendance.service.AttendanceGeofenceService;
 import org.tornotron.echno_backend.attendance.service.AttendanceSettingsService;
 import org.tornotron.echno_backend.attendance.validator.ClockEventSequenceValidator;
 import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.common.exception.GeofenceExceptionReasonRequiredException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
@@ -43,7 +45,9 @@ import java.util.stream.Collectors;
  * <p>Check-in opens the day's record and its first clock event; later punches append to it. Each
  * change runs {@link AttendanceCalculationService} to recompute totals and status against the
  * shift. Enforces per-project photo and geolocation requirements from the effective settings, one
- * record per employee/date/project, and clock-event ordering. Uploaded photos are cleaned from
+ * record per employee/date/project, and clock-event ordering. Each punch is measured against the
+ * project's geofence, and a self-marked punch from outside it is recorded with the employee's
+ * reason and held for their reporting manager rather than refused. Uploaded photos are cleaned from
  * storage if the transaction rolls back. Also marks absence and leave days and builds monthly summaries.
  */
 @Service
@@ -68,6 +72,7 @@ public class AttendanceService {
     private final UserContextService userContextService;
     private final PayloadValidator payloadValidator;
     private final AttendanceSecurityService attendanceSecurity;
+    private final AttendanceGeofenceService geofenceService;
 
     public AttendanceService(AttendanceRepository attendanceRepository,
                              ShiftTimingRepository shiftTimingRepository,
@@ -82,7 +87,8 @@ public class AttendanceService {
                              FileStorageService fileStorageService,
                              UserContextService userContextService,
                              PayloadValidator payloadValidator,
-                             AttendanceSecurityService attendanceSecurity) {
+                             AttendanceSecurityService attendanceSecurity,
+                             AttendanceGeofenceService geofenceService) {
         this.attendanceRepository = attendanceRepository;
         this.shiftTimingRepository = shiftTimingRepository;
         this.employeeRepository = employeeRepository;
@@ -97,6 +103,80 @@ public class AttendanceService {
         this.userContextService = userContextService;
         this.payloadValidator = payloadValidator;
         this.attendanceSecurity = attendanceSecurity;
+        this.geofenceService = geofenceService;
+    }
+
+    /**
+     * Records who took the punch, measures it against the project's geofence when that measurement
+     * means anything, and holds the day for a decision when a self-marked punch fell outside the
+     * site.
+     *
+     * <p>Only a punch an employee took on their own account is measured. The coordinates on a
+     * request are the submitting device's, so on the mark-for-team path they are the supervisor's
+     * position, not the employee's. Deriving "this employee was inside the site" from where their
+     * supervisor was standing would put a claim about the wrong person into the same column as real
+     * measurements, which is the defect this whole evaluation exists to remove. A punch entered for
+     * somebody else is therefore left unevaluated, the state the column now has words for, and
+     * {@code recordedById} says why.
+     *
+     * <p>Whether a supervisor marking their team should also have to satisfy the site's location
+     * and photo rules is an open product question and is deliberately not answered here: the
+     * mark-for-team path keeps exactly the requirements it has today.
+     *
+     * <p>Being outside the fence never refuses the punch. The employee supplies a reason, the
+     * reason is stored on the punch it explains, and the day waits on their reporting manager. A
+     * site engineer at head office marks attendance and says why.
+     *
+     * @param event The clock event being written, stamped in place.
+     * @param attendance The day's record the event belongs to.
+     * @param employee The employee the day belongs to, used to name the approver.
+     * @param project The project being marked against, or null when it cannot be resolved.
+     * @param settings The effective attendance settings for that project.
+     * @param latitude The latitude on the request.
+     * @param longitude The longitude on the request.
+     * @param exceptionReason The reason given for marking from outside the fence, if any.
+     * @param selfMarked Whether the caller is the employee the day belongs to.
+     * @throws GeofenceExceptionReasonRequiredException if a self-marked punch fell outside the
+     *     fence and carried no reason.
+     */
+    private void applyGeofence(ClockEvent event,
+                               Attendance attendance,
+                               Employee employee,
+                               Project project,
+                               AttendanceSettings settings,
+                               Double latitude,
+                               Double longitude,
+                               String exceptionReason,
+                               boolean selfMarked) {
+        Employee recorder = resolveCurrentEmployee();
+        event.setRecordedById(recorder == null ? null : recorder.getId());
+
+        AttendanceGeofenceService.Evaluation evaluation = selfMarked
+                ? geofenceService.evaluate(project, settings, latitude, longitude)
+                : AttendanceGeofenceService.Evaluation.notEvaluated();
+        geofenceService.applyTo(event, evaluation);
+
+        if (!evaluation.isOutsideFence()) {
+            return;
+        }
+
+        if (exceptionReason == null || exceptionReason.isBlank()) {
+            throw new GeofenceExceptionReasonRequiredException(
+                    evaluation.distanceMeters(), evaluation.radiusMeters());
+        }
+
+        event.setGeofenceExceptionReason(exceptionReason.trim());
+        attendance.setRequiresGeofenceApproval(true);
+        if (attendance.getGeofenceApproverId() == null) {
+            attendance.setGeofenceApproverId(geofenceService.resolveApprover(employee, project));
+        }
+        // A day that had already been decided is decided again, because the exception is new
+        // information. The punch keeps its own reason and distance, so what happened is still on
+        // the record; what is cleared is the standing decision, which no longer stands.
+        attendance.setApprovalStatus(ApprovalStatus.PENDING);
+        attendance.setApprovedBy(null);
+        attendance.setApprovedById(null);
+        attendance.setApprovedAt(null);
     }
 
     /**
@@ -223,12 +303,14 @@ public class AttendanceService {
                 .devicePlatform(dto.getDevicePlatform())
                 .deviceId(dto.getDeviceId())
                 .ipAddress(dto.getIpAddress())
-                .isWithinGeofence(false)
-                .distanceFromProject(0.0)
                 .isRegularized(false)
                 .remarks(dto.getRemarks())
                 .organization(org)
                 .build();
+
+        applyGeofence(clockEvent, attendance, employee, project, settings,
+                dto.getLatitude(), dto.getLongitude(), dto.getGeofenceExceptionReason(),
+                attendanceSecurity.isSelfMarking(dto.getEmployeeId()));
 
         attendance.getClockEvents().add(clockEvent);
         calculationService.recalculate(attendance, shift);
@@ -329,12 +411,24 @@ public class AttendanceService {
                 .devicePlatform(dto.getDevicePlatform())
                 .deviceId(dto.getDeviceId())
                 .ipAddress(dto.getIpAddress())
-                .isWithinGeofence(false)
-                .distanceFromProject(0.0)
                 .isRegularized(false)
                 .remarks(dto.getRemarks())
                 .organization(org)
                 .build();
+
+        // Both are looked up only to evaluate the geofence, and both are optional to it: the
+        // project supplies the centre and the employee names the approver, and a missing one
+        // leaves the punch unevaluated rather than failing a punch that is otherwise valid.
+        Project project = projectRepository
+                .findByIdAndOrganization_Id(attendance.getProjectId(), orgId)
+                .orElse(null);
+        Employee employee = employeeRepository
+                .findByIdAndOrganizationId(attendance.getEmployeeId(), orgId)
+                .orElse(null);
+
+        applyGeofence(clockEvent, attendance, employee, project, settings,
+                dto.getLatitude(), dto.getLongitude(), dto.getGeofenceExceptionReason(),
+                attendanceSecurity.isSelfMarking(attendance.getEmployeeId()));
 
         attendance.getClockEvents().add(clockEvent);
 
@@ -431,11 +525,15 @@ public class AttendanceService {
      * @param dto The approval status and optional remarks.
      * @return The updated attendance record.
      * @throws ResourceNotFoundException if no record with the given ID exists in this organization.
+     * @throws AccessDeniedException if the caller is neither a record manager nor the approver the
+     *     record names, or is the employee whose geofence exception is being decided.
      */
     @Transactional
     public AttendanceResponseDto approveAttendance(Long attendanceId, AttendanceApprovalDto dto) {
         Attendance attendance = attendanceRepository.findByIdAndOrganization_Id(attendanceId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance record with ID " + attendanceId + " was not found"));
+
+        requireActorMayApprove(attendance);
 
         Employee approver = resolveCurrentEmployee();
 
@@ -453,6 +551,39 @@ public class AttendanceService {
         }
 
         return attendanceMapper.toResponseDto(attendanceRepository.save(attendance));
+    }
+
+    /**
+     * Refuses the call unless the caller may decide this record's approval.
+     *
+     * <p>The record-management roles decide every attendance record, as they did before, and the
+     * approver a geofence exception names is added to them. That addition is the reason the check
+     * lives here rather than in the {@code @PreAuthorize} guard, for the same reason
+     * {@link #requireActorMayRecordFor} does: the approver is a column on the stored record, which
+     * the annotation cannot see. Reading an approver id off the request instead would let any
+     * caller nominate themselves.
+     *
+     * <p>An employee never decides their own geofence exception, whatever roles they hold. The
+     * decision exists to have someone else vouch for the absence, and a self-approval is not that.
+     * This applies only to records flagged for a geofence decision; who may approve an ordinary
+     * record is unchanged.
+     *
+     * @param attendance The record being decided, read from the database.
+     * @throws AccessDeniedException if the caller may not decide it.
+     */
+    private void requireActorMayApprove(Attendance attendance) {
+        if (Boolean.TRUE.equals(attendance.getRequiresGeofenceApproval())
+                && attendanceSecurity.isSelfMarking(attendance.getEmployeeId())) {
+            throw new AccessDeniedException(
+                    "A geofence exception has to be approved by someone other than the employee it "
+                            + "belongs to");
+        }
+        if (attendanceSecurity.canDecideApproval(attendance.getGeofenceApproverId())) {
+            return;
+        }
+        throw new AccessDeniedException(
+                "Attendance can only be approved by an attendance record manager, or by the "
+                        + "approver the record names");
     }
 
     /**

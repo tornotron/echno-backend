@@ -114,7 +114,7 @@ public class AttendanceSettingsControllerWeb {
             @ApiResponse(responseCode = "404", description = "No attendance settings with the given id")
     })
     public ResponseEntity<AttendanceSettingsDto> update(@PathVariable Long id,
-                                                         @RequestBody AttendanceSettingsPatchDto dto) {
+                                                         @Valid @RequestBody AttendanceSettingsPatchDto dto) {
         return ResponseEntity.ok(settingsService.updateSettings(id, dto));
     }
 

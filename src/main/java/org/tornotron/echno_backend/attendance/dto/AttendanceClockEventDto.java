@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.OptBoolean;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -58,4 +59,12 @@ public class AttendanceClockEventDto {
 
     @Schema(description = "Optional remarks about the event.", example = "Left site briefly for a material delivery")
     private String remarks;
+
+    @Schema(description = "Why the employee is marking attendance from outside the project's "
+            + "geofence. Required only when they are marking their own attendance and the captured "
+            + "position falls outside the site boundary; the punch is accepted and the day is then "
+            + "held for their reporting manager to approve.",
+            example = "Working from head office today for the client review")
+    @Size(max = 500)
+    private String geofenceExceptionReason;
 }

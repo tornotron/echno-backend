@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.attendance.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -26,7 +28,9 @@ public class AttendanceSettingsPatchDto {
     @Schema(description = "Whether GPS coordinates are required on clock events.", example = "true")
     private Boolean geolocationRequired;
 
-    @Schema(description = "Radius in metres around the project within which a clock event is considered on site.", example = "250")
+    @Schema(description = "Radius in metres around the project within which a clock event is considered on site.", example = "100")
+    @Min(50)
+    @Max(5000)
     private Integer geofenceRadiusMeters;
 
     @Schema(description = "Whether movements away from the checked-in location must be logged.", example = "true")

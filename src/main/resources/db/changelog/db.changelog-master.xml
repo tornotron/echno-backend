@@ -394,4 +394,7 @@
     <!-- v4.0 - Site transfers: record what arrived, and make existing rows agree with the ledger -->
     <include file="db/changelog/v4.0/086-site-transfer-two-step-receipt.xml"/>
 
+    <!-- v4.0 - Attendance: let a clock event say the geofence was never evaluated, and record an out-of-fence punch -->
+    <include file="db/changelog/v4.0/087-clock-event-geofence-evaluation.xml"/>
+
 </databaseChangeLog>

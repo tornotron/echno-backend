@@ -39,7 +39,7 @@ public class AttendanceSettingsDto {
     @Schema(description = "Whether GPS coordinates are required on clock events.", example = "true")
     private Boolean geolocationRequired;
 
-    @Schema(description = "Radius in metres around the project within which a clock event is considered on site.", example = "200")
+    @Schema(description = "Radius in metres around the project within which a clock event is considered on site.", example = "100")
     private Integer geofenceRadiusMeters;
 
     @Schema(description = "Whether movements away from the checked-in location must be logged.", example = "true")

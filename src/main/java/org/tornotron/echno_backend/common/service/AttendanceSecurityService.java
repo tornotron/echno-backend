@@ -71,4 +71,42 @@ public class AttendanceSecurityService {
     public boolean canRecordFor(Long employeeId) {
         return orgSecurity.isSelfOrHasAnyOrgRole(employeeId, recordManagementRoles);
     }
+
+    /**
+     * Whether the caller is the employee whose attendance is being recorded, rather than someone
+     * recording it on their behalf.
+     *
+     * <p>{@link #canRecordFor} deliberately blurs the two, because both are allowed to write. The
+     * geofence rule needs them apart: a punch an employee takes on their own account is evaluated
+     * against the site they are marking against, and being outside it makes them explain
+     * themselves. A supervisor entering a team's attendance is sending their own device's position
+     * for somebody else's day, so the same demand would be asking the wrong person about the wrong
+     * location.
+     *
+     * @param employeeId The employee the record belongs to.
+     * @return Whether the caller is that employee.
+     */
+    public boolean isSelfMarking(Long employeeId) {
+        return orgSecurity.isSelfInCurrentTenant(employeeId);
+    }
+
+    /**
+     * Whether the caller may decide an attendance record's approval.
+     *
+     * <p>The record-management roles decide every attendance record and continue to. This adds the
+     * employee a geofence exception names as its approver, which is the reporting manager the
+     * decision is meant to rest with and who is often not a manager in the role sense: the role set
+     * is organization-wide, so gating on it alone would have sent every exception to HR and the
+     * project managers regardless of who the employee reports to.
+     *
+     * <p>The designated approver is read off the stored record, never off the request. Passing an
+     * id a caller supplied would let anyone nominate themselves.
+     *
+     * @param designatedApproverId The approver named on the record, or null when none is.
+     * @return Whether the caller may decide it.
+     */
+    public boolean canDecideApproval(Long designatedApproverId) {
+        return canManageRecords()
+                || (designatedApproverId != null && orgSecurity.isSelfInCurrentTenant(designatedApproverId));
+    }
 }
