@@ -39,17 +39,31 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long>,
 
     Page<Attendance> findByApprovalStatus(ApprovalStatus status, Pageable pageable);
 
+    /**
+     * The project's day, narrowed by any combination of the optional filters.
+     *
+     * <p>{@code approvalStatus} and {@code requiresGeofenceApproval} are two different questions
+     * and both are here because neither answers the other. Every record is created PENDING and
+     * nothing moves it until somebody decides, so the approval status on its own separates the
+     * decided days from the undecided ones and says nothing about which of the undecided ones
+     * anybody has to look at. The flag is what marks a day held for a punch outside the geofence,
+     * which is the small set. Asked together they are the site's outstanding work for that day.
+     */
     @Query("""
         SELECT a FROM Attendance a
         WHERE a.projectId = :projectId
           AND a.attendanceDate = :date
           AND (:status IS NULL OR a.status = :status)
+          AND (:approvalStatus IS NULL OR a.approvalStatus = :approvalStatus)
+          AND (:requiresApproval IS NULL OR a.requiresGeofenceApproval = :requiresApproval)
           AND (:search IS NULL OR LOWER(a.employeeName) LIKE :search)
         """)
     Page<Attendance> findWithFilters(
             @Param("projectId") Long projectId,
             @Param("date") LocalDate date,
             @Param("status") AttendanceStatus status,
+            @Param("approvalStatus") ApprovalStatus approvalStatus,
+            @Param("requiresApproval") Boolean requiresApproval,
             @Param("search") String search,
             Pageable pageable);
 
