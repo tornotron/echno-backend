@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
 import org.tornotron.echno_backend.common.dto.AttachmentDocumentMetadataDto;
+import org.tornotron.echno_backend.common.dto.AttachmentOwner;
 import org.tornotron.echno_backend.common.dto.PresignedUpload;
 import org.tornotron.echno_backend.common.dto.RegisterUploadRequest;
 import org.tornotron.echno_backend.common.dto.UploadRequest;
@@ -65,7 +66,8 @@ public class AttachmentControllerWeb {
     public ResponseEntity<List<AttachmentDto>> creatAttachment(@RequestParam(value = "attachments",required = true)List<MultipartFile> attachments,
                                                          @PathVariable String entityType,
                                                          @PathVariable Long entityId)  {
-        return ResponseEntity.status(HttpStatus.CREATED).body(attachmentService.uploadAttachments(attachments,entityType,entityId,entityType.split("_",2)[0].toLowerCase())
+        return ResponseEntity.status(HttpStatus.CREATED).body(attachmentService.uploadAttachments(attachments, entityType, entityId,
+                        AttachmentOwner.of(entityType, entityId).folder())
                 .stream()
                 .map(attachment -> {
                     AttachmentDto dto = new AttachmentDto();
@@ -105,7 +107,8 @@ public class AttachmentControllerWeb {
             @PathVariable String entityType,
             @PathVariable Long entityId) {
         return ResponseEntity.ok(attachmentService.presignUploads(
-                uploads, entityType, entityId, entityType.split("_", 2)[0].toLowerCase()));
+                uploads, entityType, entityId,
+                AttachmentOwner.of(entityType, entityId).folder()));
     }
 
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
@@ -127,7 +130,8 @@ public class AttachmentControllerWeb {
             @PathVariable Long entityId) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 attachmentService.registerUploads(
-                        uploads, entityType, entityId, entityType.split("_", 2)[0].toLowerCase())
+                        uploads, entityType, entityId,
+                        AttachmentOwner.of(entityType, entityId).folder())
                         .stream()
                         .map(attachment -> {
                             AttachmentDto dto = new AttachmentDto();

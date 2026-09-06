@@ -42,6 +42,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -309,7 +310,7 @@ public class ProjectService {
         if (value == null || value.isBlank()) {
             return null;
         }
-        String escaped = value.trim().toLowerCase()
+        String escaped = value.trim().toLowerCase(Locale.ROOT)
                 .replace("\\", "\\\\")
                 .replace("%", "\\%")
                 .replace("_", "\\_");

@@ -248,7 +248,7 @@ public class TaskService {
         if (value == null || value.isBlank()) {
             return null;
         }
-        String escaped = value.trim().toLowerCase()
+        String escaped = value.trim().toLowerCase(Locale.ROOT)
                 .replace("\\", "\\\\")
                 .replace("%", "\\%")
                 .replace("_", "\\_");

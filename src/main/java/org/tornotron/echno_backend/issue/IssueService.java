@@ -33,6 +33,7 @@ import org.tornotron.echno_backend.task.TaskRepository;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -184,7 +185,7 @@ public class IssueService {
      * so no null bind lands inside a {@code ||}, which CockroachDB mistypes as bytes.
      */
     private static String searchPattern(String value) {
-        return (value == null || value.isBlank()) ? null : "%" + value.trim().toLowerCase() + "%";
+        return (value == null || value.isBlank()) ? null : "%" + value.trim().toLowerCase(Locale.ROOT) + "%";
     }
 
     // Optional filter parsers: a blank value means "no filter".

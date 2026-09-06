@@ -21,6 +21,7 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -85,7 +86,12 @@ public class LeavePolicyService {
         //
         // dto.organizationId stays in the payload: clients send it today and removing it is a
         // contract change, not a repair. See issue #700.
-        String leaveTypeCode = dto.getLeaveTypeCode().toUpperCase();
+        // Locale.ROOT, because the casing the row is keyed by has to be a property of the
+        // value rather than of the JVM that received it. The default locale would make it
+        // the latter: under tr-TR a lower-case i uppercases to a dotted capital I, so the
+        // same code entered by the same person is stored under two different keys in two
+        // environments, and the uniqueness constraint is where that would surface. See #719.
+        String leaveTypeCode = dto.getLeaveTypeCode().toUpperCase(Locale.ROOT);
         if (policyRepository.existsByOrganizationIdAndLeaveTypeCode(organizationId, leaveTypeCode)) {
             throw new DuplicateResourceException(
                     "Leave policy with code '" + leaveTypeCode +
