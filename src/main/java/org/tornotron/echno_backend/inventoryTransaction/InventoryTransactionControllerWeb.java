@@ -26,11 +26,20 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 @RequestMapping("/api/v1/inventory-transactions/web")
 @Tag(
         name = "Inventory Transactions (Web)",
-        description = "Movements of material stock, such as receipts, issues and usage, together with "
-                + "derived stock levels by storage location or material. This is the web-console API, "
-                + "restricted to the system-admin role for the current tenant. Endpoints are read-only "
-                + "and cover fetching a transaction, browsing and filtering by material, project, type, "
-                + "date range, storage location or task, and reading current stock and task usage totals."
+        description = "Movements of material stock, such as receipts, issues and usage, together with derived stock "
+                + "levels by storage location or material. This is the web-console API for the current tenant, "
+                + "and every endpoint is read-only: fetching a transaction, browsing and filtering by material, "
+                + "project, type, date range, storage location or task, and reading current stock and task "
+                + "usage totals. Access is split by what a read is anchored to. A read that names a material, a "
+                + "storage location, a project or a task is open to the system-admin and project-manager roles, "
+                + "because a project manager raises and approves stock adjustments and approving one writes the "
+                + "ADJUST rows carrying the reason the stock moved; all four of those objects are already "
+                + "readable by a project manager, so a ledger read anchored to one of them shows the movements "
+                + "behind something the caller can already open. The four listings that name nothing and range "
+                + "over the whole organization stay with system-admin: the unpaginated and paginated listings "
+                + "of every transaction, the listing by transaction type and the listing by date range. Those "
+                + "are the movement report rather than the history behind a document, and no part of the "
+                + "stock-adjustment workflow reaches them."
 )
 public class InventoryTransactionControllerWeb {
     private final InventoryTransactionService inventoryTransactionService;
@@ -43,7 +52,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Get an inventory transaction by id",
             description = "Returns a single inventory transaction."
@@ -91,7 +100,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/material/{materialId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List inventory transactions for a material",
             description = "Returns the inventory transactions recorded for the given material."
@@ -106,7 +115,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/material/{materialId}/history")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Get a material's movement history (timeline, paged)",
             description = "Returns the material's stock movements as a timeline, oldest movement first, "
@@ -128,7 +137,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/project/{projectId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List inventory transactions for a project",
             description = "Returns the inventory transactions recorded for the given project."
@@ -178,7 +187,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/storage-location/{storageLocationId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List inventory transactions for a storage location",
             description = "Returns the inventory transactions recorded at the given storage location."
@@ -194,7 +203,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/storage-location/{storageLocationId}/material/{materialId}/project/{projectId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List inventory transactions for a location, material and project",
             description = "Returns the inventory transactions matching the given storage location, material and project."
@@ -213,7 +222,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/storage-location/{storageLocationId}/stock")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Get stock at a storage location",
             description = "Returns the current material stock levels at the given storage location."
@@ -229,7 +238,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/material/{materialId}/stock")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Get stock for a material",
             description = "Returns the current stock levels of the given material across storage locations."
@@ -245,7 +254,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/task/{taskId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "List inventory transactions for a task",
             description = "Returns the inventory transactions recorded for the given task."
@@ -260,7 +269,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/project/{projectId}/task-summary")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Get task material usage summary for a project",
             description = "Returns a per-task summary of material usage for the given project."
