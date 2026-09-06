@@ -22,7 +22,7 @@ import org.tornotron.echno_backend.user.User;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
  * Whether the Hibernate {@code orgFilter} reaches an entity joined explicitly in HQL, measured
@@ -101,26 +101,51 @@ class OrganizationLookupUnderTheOrgFilterIT extends AbstractIntegrationTest {
         assertThat(organizationRepository.findByIdAndUserEmail(orgAId, EMAIL)).isPresent();
     }
 
+    /**
+     * The foreign-organization lookup, asserted one property per test rather than as a chain.
+     *
+     * <p>The build reports a failure by its exception class and its line, with
+     * {@code exceptionFormat 'short'}, so a chained assertion that fails says only that one link
+     * broke and not which. Each property therefore gets its own method, and the list of failures
+     * is the readout: whether anything is thrown at all, whether it is the cross-tenant denial,
+     * which entity it names, and which organizations it names. Nothing is given up by splitting
+     * them; every assertion that was in the chain is still made.
+     */
     @Test
-    void anotherOrganizationIsStoppedByTheLoadListenerRatherThanByTheFilter() {
-        // The measured answer to #698's open question, and it is not the one either candidate
-        // reading predicted. The org filter does NOT narrow an entity joined explicitly in HQL:
-        // the join still matches the caller's employment row in organization B, so the query is
-        // satisfiable and the row is loaded. What stops it is the other mechanism.
-        // TenantIsolationLoadListener runs on the post-load of that row, which is an Employee,
-        // the only tenant-scoped entity this query touches, and refuses it under a request
-        // scoped to organization A.
-        //
-        // Two consequences worth keeping. The lookup is not a silent cross-tenant read, so an
-        // endpoint resolving a caller-named organization through it fails loudly rather than
-        // succeeding quietly. And the filter cannot be relied on to scope a join, so the
-        // fail-closed listener is doing the work here on its own, with no defence behind it.
+    void foreignOrganization_something_isThrown() {
         TenantContext.setCurrentOrgId(orgAId);
         enableOrgFilterFor(orgAId);
 
-        assertThatThrownBy(() -> organizationRepository.findByIdAndUserEmail(orgBId, EMAIL))
-                .isInstanceOf(TenantAccessDeniedException.class)
-                .hasMessageContaining("Cross-tenant access denied")
+        assertThat(catchThrowable(() -> organizationRepository.findByIdAndUserEmail(orgBId, EMAIL)))
+                .as("a lookup of an organization that is not the current tenant")
+                .isNotNull();
+    }
+
+    @Test
+    void foreignOrganization_theThrowableIsTheCrossTenantDenial() {
+        TenantContext.setCurrentOrgId(orgAId);
+        enableOrgFilterFor(orgAId);
+
+        assertThat(catchThrowable(() -> organizationRepository.findByIdAndUserEmail(orgBId, EMAIL)))
+                .isInstanceOf(TenantAccessDeniedException.class);
+    }
+
+    @Test
+    void foreignOrganization_theRefusalNamesTheJoinedEmployee() {
+        TenantContext.setCurrentOrgId(orgAId);
+        enableOrgFilterFor(orgAId);
+
+        assertThat(catchThrowable(() -> organizationRepository.findByIdAndUserEmail(orgBId, EMAIL)))
+                .hasMessageContaining("Cross-tenant access denied: Employee");
+    }
+
+    @Test
+    void foreignOrganization_theRefusalNamesBothOrganizations() {
+        TenantContext.setCurrentOrgId(orgAId);
+        enableOrgFilterFor(orgAId);
+
+        assertThat(catchThrowable(() -> organizationRepository.findByIdAndUserEmail(orgBId, EMAIL)))
+                .hasMessageContaining("belongs to organization " + orgBId)
                 .hasMessageContaining("the request is scoped to organization " + orgAId);
     }
 
