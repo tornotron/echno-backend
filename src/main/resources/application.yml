@@ -244,6 +244,29 @@ echno:
       # which can differ from the internal URL the backend dials, so list every URL
       # the same realm may present.
       accepted-issuers: ${ECHNO_JWT_ACCEPTED_ISSUERS:}
+  invite-code:
+    redemption:
+      # How many times a code may be offered before the caller has to wait. An attempt is charged
+      # before the code is looked up and given back when the code turns out to be good, so an
+      # ordinary redemption spends nothing and this is a budget for wrong codes.
+      #
+      # The redemption endpoint resolves a bearer credential with no organization qualifier, and
+      # none is possible, because the person redeeming holds no membership yet. What keeps the
+      # credential worth anything is that its value has to be known, and that only holds while the
+      # number of values that may be offered is bounded.
+      #
+      # Two allowances. The per-caller one is keyed on the authenticated principal, which is a far
+      # better key than the socket address: behind the tunnel and the reverse proxy that address is
+      # the proxy. The deployment-wide one is the ceiling that does not move when someone brings
+      # more accounts, and it is set well above any believable volume of genuine wrong codes,
+      # because whoever burns it delays everyone else until it refills. Either set to 0 disables
+      # that allowance.
+      #
+      # On a multi-replica deployment these are per replica unless echno.cache.provider is redis,
+      # which is what puts the counts in the shared store.
+      attempts-per-caller: ${ECHNO_INVITE_CODE_ATTEMPTS_PER_CALLER:10}
+      attempts-per-deployment: ${ECHNO_INVITE_CODE_ATTEMPTS_PER_DEPLOYMENT:500}
+      window: ${ECHNO_INVITE_CODE_ATTEMPT_WINDOW:1h}
   document-number:
     # Site transfer, purchase order, indent and GRN numbers carry the year they were issued in,
     # and the counter behind them resets with it. The year is read in this zone rather than the

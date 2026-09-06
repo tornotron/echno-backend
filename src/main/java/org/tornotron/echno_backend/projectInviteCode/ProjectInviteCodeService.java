@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.exception.TenantIdMissingException;
+import org.tornotron.echno_backend.common.exception.TooManyAttemptsException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -44,6 +45,7 @@ public class ProjectInviteCodeService {
     private final ProjectInviteCodeMapper projectInviteCodeMapper;
     private final org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper;
     private final ShiftTimingRepository shiftTimingRepository;
+    private final InviteCodeRedemptionLimiter redemptionLimiter;
 
     /**
      * Constructs a ProjectInviteCodeService with the necessary repositories and services.
@@ -51,8 +53,9 @@ public class ProjectInviteCodeService {
      * @param inviteCodeRepository   The repository for invite code data access.
      * @param employeeService        The service for employee-related operations.
      * @param organizationRepository The repository for organization data access.
+     * @param redemptionLimiter      Bounds how many codes may be offered for redemption.
      */
-    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository, FileStorageService fileStorageService, EmployeeRepository employeeRepository, ProjectInviteCodeMapper projectInviteCodeMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, ShiftTimingRepository shiftTimingRepository) {
+    public ProjectInviteCodeService(ProjectInviteCodeRepository inviteCodeRepository, EmployeeService employeeService, OrganizationRepository organizationRepository, FileStorageService fileStorageService, EmployeeRepository employeeRepository, ProjectInviteCodeMapper projectInviteCodeMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, ShiftTimingRepository shiftTimingRepository, InviteCodeRedemptionLimiter redemptionLimiter) {
         this.inviteCodeRepository = inviteCodeRepository;
         this.employeeService = employeeService;
         this.organizationRepository = organizationRepository;
@@ -61,6 +64,7 @@ public class ProjectInviteCodeService {
         this.projectInviteCodeMapper = projectInviteCodeMapper;
         this.organizationMapper = organizationMapper;
         this.shiftTimingRepository = shiftTimingRepository;
+        this.redemptionLimiter = redemptionLimiter;
     }
 
     /**
@@ -70,6 +74,27 @@ public class ProjectInviteCodeService {
      */
     public int generateSecureFiveDigitNumber() {
         return 10000 + secureRandom.nextInt(90000);
+    }
+
+    /**
+     * Reads the submitted code as the integer the column stores.
+     *
+     * <p>The submitted value is a string of exactly five characters, which the request body's own
+     * constraint enforces, but nothing said those characters were digits. Parsing it directly
+     * turned a five-letter submission into a {@code NumberFormatException} and a 500, so a
+     * malformed code was answered by a server error rather than by a refusal, and it was answered
+     * that way without the attempt being judged at all.
+     *
+     * @param code the submitted code
+     * @return the code as an integer
+     * @throws InvalidInviteCodeException if it is not one
+     */
+    private int parseCode(String code) {
+        try {
+            return Integer.parseInt(code);
+        } catch (NumberFormatException e) {
+            throw new InvalidInviteCodeException("Invite code '" + code + "' is not a valid code");
+        }
     }
 
     /**
@@ -146,14 +171,30 @@ public class ProjectInviteCodeService {
     /**
      * Validates an invite code and, if successful, adds the user to the associated organization as an employee.
      *
+     * <p>Every call costs one attempt from {@link InviteCodeRedemptionLimiter}, charged before the
+     * code is looked up and given back when the code turns out to be good. The reason it is
+     * charged rather than only counted on failure is written out on the limiter: this is the one
+     * endpoint where a bearer credential is resolved with no organization qualifier and none is
+     * possible, so the number of values that may be offered is the only thing keeping the credential
+     * worth anything. Charging first is what makes the ceiling apply to attempts rather than to
+     * whatever fraction of them has already finished failing.
+     *
+     * <p>The charge lives outside the transaction's effects on purpose. It is held in the attempt
+     * bucket rather than in the database, so a rejected code rolls the transaction back and leaves
+     * the attempt counted, which is the whole point.
+     *
      * @param inviteCodeValidationDto DTO containing the user ID and the invite code to validate.
      * @return A DTO of the organization the user has joined.
+     * @throws TooManyAttemptsException if the caller's or the deployment's attempt allowance is spent.
      * @throws ResourceNotFoundException if the invite code is not found.
-     * @throws InvalidInviteCodeException if the code is expired, inactive, or has reached its usage limit.
+     * @throws InvalidInviteCodeException if the code is malformed, expired, inactive, or has reached its usage limit.
      */
     @Transactional
     public OrganizationDto validateAndUseInviteCode(InviteCodeValidationDto inviteCodeValidationDto,Long userId) {
-        ProjectInviteCode inviteCode = inviteCodeRepository.findByCode(Integer.parseInt(inviteCodeValidationDto.getCode()))
+        String callerKey = redemptionLimiter.currentCallerKey();
+        redemptionLimiter.chargeAttempt(callerKey);
+
+        ProjectInviteCode inviteCode = inviteCodeRepository.findByCode(parseCode(inviteCodeValidationDto.getCode()))
                 .orElseThrow(() -> new ResourceNotFoundException("Invite code '" + inviteCodeValidationDto.getCode() + "' was not found"));
         if(inviteCode.getExpiryDate().isBefore(LocalDateTime.now())) {
             throw new InvalidInviteCodeException("Invite code '" + inviteCodeValidationDto.getCode() + "' expired on " + inviteCode.getExpiryDate());
@@ -164,6 +205,7 @@ public class ProjectInviteCodeService {
         if(inviteCode.getCurrentUses() >= inviteCode.getMaxUses()) {
             throw new InvalidInviteCodeException("Invite code '" + inviteCodeValidationDto.getCode() + "' has reached its maximum usage limit of " + inviteCode.getMaxUses());
         }
+        redemptionLimiter.refundAttempt(callerKey);
         inviteCodeRepository.save(inviteCode);
         Organization organization = inviteCode.getOrganization();
         Map<String,Object> employeeDetails = inviteCode.getEmployeeDetails();
