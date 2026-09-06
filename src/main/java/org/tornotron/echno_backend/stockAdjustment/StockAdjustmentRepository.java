@@ -5,7 +5,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.tornotron.echno_backend.stockAdjustment.enums.StockAdjustmentSourceType;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface StockAdjustmentRepository extends JpaRepository<StockAdjustment, Long> {
@@ -34,4 +36,14 @@ public interface StockAdjustmentRepository extends JpaRepository<StockAdjustment
     Optional<StockAdjustment> lockByIdAndOrganizationId(@Param("id") Long id, @Param("orgId") Long orgId);
 
     boolean existsByAdjustmentNumberAndOrganization_Id(String adjustmentNumber, Long organizationId);
+
+    /**
+     * The adjustments raised to answer one named document, newest first.
+     *
+     * <p>The organization is part of the query and not a filter applied around it. The source
+     * columns carry no foreign key, so the id in them is an id a caller supplied; matching on it
+     * alone would return whatever adjustment in any tenant happened to name the same number.
+     */
+    List<StockAdjustment> findBySourceDocumentTypeAndSourceDocumentIdAndOrganization_IdOrderByCreatedAtDesc(
+            StockAdjustmentSourceType sourceDocumentType, Long sourceDocumentId, Long organizationId);
 }

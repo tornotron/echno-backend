@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        A stock adjustment can now say which document it was raised to answer.
+
+        The immediate cause is the site transfer received short. 086 gave a transfer an inbound leg
+        of its own, which meant a transfer could arrive with less than was sent, and the difference
+        is left as an open variance rather than written off automatically, because a loss written
+        automatically is a stock correction nobody authorised. The document that decides what
+        became of the difference is a stock adjustment, and until now it had nowhere to say which
+        transfer it answered. So the correction and the transfer that caused it could not be read
+        from either end: the transfer's variance stayed open for ever, and the adjustment read as
+        an unexplained count variance.
+
+        Why a type and an id rather than a foreign key to site_transfer. A transfer variance is the
+        first cause with a document behind it and it will not be the last; a goods receipt and a
+        material consumption are the obvious next two. A nullable foreign key per cause ends as a
+        row of mutually exclusive columns with nothing enforcing that only one of them is set,
+        whereas one typed pair carries any of them. The table already has this shape twice:
+        status_transition and attachment are both keyed by an entity type and an id rather than by
+        a foreign key to one owner.
+
+        What the pair gives up is the database refusing an id that names nothing, so the write path
+        does that instead: the set of types is a Java enum, every value has a resolver that loads
+        the named document within the caller's organization, and a type with no resolver is
+        refused rather than stored. A type nothing has checked would be an id taken on trust across
+        a tenant boundary, which is the whole reason the set is closed.
+
+        What it gains, besides room for the next cause, is that a posted adjustment outlives the
+        document that caused it. That is the same reason the status trail carries no foreign key:
+        an adjustment is a ledger fact, and deleting the transfer must not take the record of the
+        correction raised against it with it.
+
+        Nothing is backfilled. No adjustment that already exists was raised against a named
+        document, and inventing a reference for one would be asserting a cause nobody recorded.
+    -->
+
+    <changeSet id="090-01-add-stock-adjustment-source-document-columns" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="stock_adjustment" columnName="source_document_type"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            The kind of document the adjustment answers, and which document of that kind.
+
+            Both nullable, and null on both is the ordinary case: most adjustments answer no
+            document at all, because somebody counted a location and the count disagreed with the
+            balance. The two are written together or not at all. A type with no id names nothing
+            and an id with no type says nothing about what it points at, so either half on its own
+            is refused by the write path rather than saved as a reference that cannot be followed.
+
+            source_document_type holds the enum name, at the width the other enum-name columns in
+            the schema use. source_document_id is an id within that kind and is deliberately not a
+            foreign key: see the note above the change set.
+        </comment>
+
+        <addColumn tableName="stock_adjustment">
+            <column name="source_document_type" type="VARCHAR(40)"/>
+            <column name="source_document_id" type="BIGINT"/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="stock_adjustment" columnName="source_document_type"/>
+            <dropColumn tableName="stock_adjustment" columnName="source_document_id"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="090-02-index-stock-adjustment-source-document" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="stock_adjustment" indexName="idx_stock_adjustment_source_document"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            The reverse of the reference is the read that matters most, so it gets the index.
+
+            A transfer whose receipt left a variance is looked at from its own screen, and what it
+            needs to know is whether an adjustment has closed the difference. That asks for every
+            adjustment naming this document, which without an index is a scan of every adjustment
+            in the tenant on a screen somebody opens whenever a delivery arrives short.
+
+            The organization leads the index because every read of these columns is organization
+            explicit. The id in source_document_id is one a caller supplied against a column
+            carrying no foreign key, so matching on it alone would reach across tenants; scoping
+            belongs in the query, and an index that leads with the organization is the one that
+            query can use.
+        </comment>
+
+        <createIndex tableName="stock_adjustment" indexName="idx_stock_adjustment_source_document">
+            <column name="organization_id"/>
+            <column name="source_document_type"/>
+            <column name="source_document_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="stock_adjustment" indexName="idx_stock_adjustment_source_document"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

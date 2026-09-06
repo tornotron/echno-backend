@@ -23,7 +23,11 @@ import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentCreationDto;
 import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentDto;
+import org.tornotron.echno_backend.siteTransfer.SiteTransfer;
+import org.tornotron.echno_backend.siteTransfer.SiteTransferRepository;
+import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferStatus;
 import org.tornotron.echno_backend.stockAdjustment.dto.StockAdjustmentLineItemCreationDto;
+import org.tornotron.echno_backend.stockAdjustment.enums.StockAdjustmentSourceType;
 import org.tornotron.echno_backend.stockAdjustment.mapper.StockAdjustmentMapper;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
@@ -99,6 +103,7 @@ public class StockAdjustmentService {
     private final UserContextService userContextService;
     private final SelfApprovalPolicy selfApprovalPolicy;
     private final UserNameDirectory userNameDirectory;
+    private final SiteTransferRepository siteTransferRepository;
 
     public StockAdjustmentService(StockAdjustmentRepository stockAdjustmentRepository,
                                   StockAdjustmentMapper stockAdjustmentMapper,
@@ -110,7 +115,8 @@ public class StockAdjustmentService {
                                   InventoryTransactionRepository inventoryTransactionRepository,
                                   UserContextService userContextService,
                                   SelfApprovalPolicy selfApprovalPolicy,
-                                  UserNameDirectory userNameDirectory) {
+                                  UserNameDirectory userNameDirectory,
+                                  SiteTransferRepository siteTransferRepository) {
         this.stockAdjustmentRepository = stockAdjustmentRepository;
         this.stockAdjustmentMapper = stockAdjustmentMapper;
         this.tenantEntityHelper = tenantEntityHelper;
@@ -122,6 +128,7 @@ public class StockAdjustmentService {
         this.userContextService = userContextService;
         this.selfApprovalPolicy = selfApprovalPolicy;
         this.userNameDirectory = userNameDirectory;
+        this.siteTransferRepository = siteTransferRepository;
     }
 
     /** Status a document carries once its movements are on the ledger. */
@@ -750,6 +757,121 @@ public class StockAdjustmentService {
 
         stockAdjustment.setLocation(resolveLocation(dto.getLocationId()));
         stockAdjustment.setProject(resolveProject(dto.getProjectId()));
+        applySourceDocument(stockAdjustment, dto);
+    }
+
+    /**
+     * Records the document this adjustment was raised to answer, having first established that it
+     * exists and belongs to the caller's organization.
+     *
+     * <p>The pair is written together or not at all. A type with no id names nothing, and an id
+     * with no type says nothing about what it points at; either half on its own would be stored
+     * as a reference that cannot be followed, which is worse than no reference, because a reader
+     * would believe there was one.
+     *
+     * <p><strong>The id is never taken on trust.</strong> The column holds no foreign key, so
+     * nothing in the database would stop a caller naming a document in somebody else's
+     * organization, and a later reader following the reference would be handed a row across a
+     * tenant boundary. So the id supplied by the caller is the id that is loaded, and it is
+     * loaded organization-scoped: what is checked and what is stored are the same lookup, not two
+     * lookups by different keys that can disagree.
+     */
+    private void applySourceDocument(StockAdjustment stockAdjustment, StockAdjustmentCreationDto dto) {
+        StockAdjustmentSourceType type = dto.getSourceDocumentType();
+        Long sourceId = dto.getSourceDocumentId();
+
+        if (type == null && sourceId == null) {
+            stockAdjustment.setSourceDocumentType(null);
+            stockAdjustment.setSourceDocumentId(null);
+            return;
+        }
+        if (type == null) {
+            throw new InvalidRequestException("The adjustment names source document " + sourceId
+                    + " without saying what kind of document it is. Send sourceDocumentType "
+                    + "alongside sourceDocumentId, or leave both out.");
+        }
+        if (sourceId == null) {
+            throw new InvalidRequestException("The adjustment says its source document is a "
+                    + type.name() + " without naming which one. Send sourceDocumentId alongside "
+                    + "sourceDocumentType, or leave both out.");
+        }
+
+        requireSourceDocumentExists(type, sourceId);
+        stockAdjustment.setSourceDocumentType(type);
+        stockAdjustment.setSourceDocumentId(sourceId);
+    }
+
+    /**
+     * Resolves the named source document in the caller's organization, refusing one that is not
+     * there or that cannot have caused an adjustment.
+     *
+     * <p>Every value of {@link StockAdjustmentSourceType} is answered here. A value that reached
+     * this method with no branch of its own would be an id written with nothing having checked
+     * it, so the fallthrough refuses rather than saving it, and adding a source type without its
+     * resolver fails loudly instead of quietly storing an unchecked reference.
+     */
+    private void requireSourceDocumentExists(StockAdjustmentSourceType type, Long sourceId) {
+        switch (type) {
+            case SITE_TRANSFER -> {
+                SiteTransfer transfer = siteTransferRepository
+                        .findByIdAndOrganization_Id(sourceId, TenantContext.getCurrentOrgId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Site transfer with ID "
+                                + sourceId + " was not found in this organization"));
+                requireTransferCouldHaveCausedAnAdjustment(transfer);
+            }
+            default -> throw new InvalidRequestException("Source document type " + type.name()
+                    + " has no resolver, so the document it names cannot be checked. An adjustment "
+                    + "may not reference a document nothing has verified exists.");
+        }
+    }
+
+    /**
+     * Refuses a reference to a cancelled transfer.
+     *
+     * <p>Cancelling is reachable only from {@code PENDING}, which is the state in which nothing
+     * has been received, and it returns the whole sent quantity to the sending site. So a
+     * cancelled transfer moved no stock on balance and left no variance for an adjustment to
+     * close. What its lines still show as in transit is history rather than a live shortage, and
+     * an adjustment claiming to answer it would be a correction attributed to a document that
+     * caused nothing.
+     *
+     * <p>An adjustment raised while the transfer was still open keeps its reference: this refuses
+     * writing the reference, not holding one. The stock the cancellation returned is on the
+     * ledger either way.
+     */
+    private void requireTransferCouldHaveCausedAnAdjustment(SiteTransfer transfer) {
+        if (transfer.getStatus() == SiteTransferStatus.CANCELLED) {
+            throw new InvalidRequestException("Site transfer with ID " + transfer.getId()
+                    + " was cancelled, which returned the whole sent quantity to the sending site, "
+                    + "so it left no variance for an adjustment to close.");
+        }
+    }
+
+    /**
+     * Reads the adjustments raised to answer one named document, most recently created first.
+     *
+     * <p>This is the reverse of the reference: a transfer whose receipt left a variance is read
+     * from its own screen, and what it needs to know is whether anybody has decided what became
+     * of the difference. Without this the variance stays amber for ever, because the transfer has
+     * no way to see the adjustment that closed it.
+     *
+     * <p>Scoped to the caller's organization, in the query rather than around it. The id comes
+     * from the caller and the column it matches is not a foreign key, so an unscoped lookup would
+     * hand back another tenant's adjustments to anyone who guessed a transfer id.
+     *
+     * @param type The kind of document to look for.
+     * @param sourceDocumentId The id of that document.
+     * @return The adjustments naming it, newest first, empty where none do.
+     */
+    @Transactional(readOnly = true)
+    public List<StockAdjustmentDto> getBySourceDocument(StockAdjustmentSourceType type, Long sourceDocumentId) {
+        List<StockAdjustment> adjustments = stockAdjustmentRepository
+                .findBySourceDocumentTypeAndSourceDocumentIdAndOrganization_IdOrderByCreatedAtDesc(
+                        type, sourceDocumentId, TenantContext.getCurrentOrgId());
+        UserNameLookup names = namesFor(adjustments);
+        return adjustments.stream()
+                .map(adjustment -> stockAdjustmentMapper.toDto(adjustment, names))
+                .toList();
     }
 
     /**

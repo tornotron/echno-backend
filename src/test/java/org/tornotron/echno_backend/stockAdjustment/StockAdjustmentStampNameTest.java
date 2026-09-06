@@ -23,6 +23,7 @@ import org.tornotron.echno_backend.stockAdjustment.mapper.StockAdjustmentMapperI
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.user.UserContextService;
 import org.tornotron.echno_backend.user.UserDisplayName;
+import org.tornotron.echno_backend.siteTransfer.SiteTransferRepository;
 import org.tornotron.echno_backend.user.UserNameDirectory;
 import org.tornotron.echno_backend.user.UserNameLookup;
 
@@ -69,6 +70,7 @@ class StockAdjustmentStampNameTest {
     @Mock private UserContextService userContextService;
     @Mock private OrganizationSecurityService orgSecurity;
     @Mock private UserNameDirectory userNameDirectory;
+    @Mock private SiteTransferRepository siteTransferRepository;
 
     private final StockAdjustmentMapper mapper = new StockAdjustmentMapperImpl();
 
@@ -80,7 +82,8 @@ class StockAdjustmentStampNameTest {
         service = new StockAdjustmentService(stockAdjustmentRepository, mapper,
                 tenantEntityHelper, materialRepository, storageLocationRepository, projectRepository,
                 inventoryService, inventoryTransactionRepository, userContextService,
-                new SelfApprovalPolicy(orgSecurity), userNameDirectory);
+                new SelfApprovalPolicy(orgSecurity), userNameDirectory,
+                siteTransferRepository);
     }
 
     @AfterEach
