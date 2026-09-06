@@ -19,6 +19,7 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.User;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -35,16 +36,17 @@ import static org.assertj.core.api.Assertions.catchThrowable;
  * endpoint resolving a caller-named organization through it is exploitable or merely dead. That
  * question was raised in #698 and could not be settled by reading.
  *
- * <p>The measured answer is that the filter does reach the join, so the query cannot resolve an
- * organization that is not the current tenant and answers empty. That makes the lookup a
- * not-found rather than a cross-tenant read, and it makes any endpoint built on it dead across
- * organizations rather than exploitable.
+ * <p>The measured answer is that it does not. The filter narrows a query root and a filtered
+ * collection; it leaves an entity joined explicitly in HQL alone. So the query resolves any
+ * organization the caller holds an {@code Employee} row in, whatever tenant the request is scoped
+ * to, and it does so silently: the joined {@code Employee} is never selected, so the fail-closed
+ * load listener gets no post-load to judge either. Neither mechanism scopes this query.
  *
- * <p>It does not make the guard on such an endpoint optional. This query establishes employment,
- * never a role, and the organization it is asked about still arrives from the caller.
- * {@code TenantIsolationIT.findById_onTheTenantRootItself_isNotCoveredByEitherMechanism} makes
- * the same point for the primary-key load, where nothing scopes the tenant root at all; this pins
- * the join-shaped case beside it.
+ * <p>An endpoint that resolves a caller-named organization through it therefore reads across a
+ * tenant and learns only that the caller is employed there, which is why such an endpoint has to
+ * establish entitlement in its own guard. That is the same conclusion
+ * {@code TenantIsolationIT.findById_onTheTenantRootItself_isNotCoveredByEitherMechanism} reaches
+ * for the primary-key load, by a different route; this pins the join-shaped case beside it.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -108,30 +110,42 @@ class OrganizationLookupUnderTheOrgFilterIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void anotherOrganizationTheCallerIsAlsoEmployedByDoesNotResolveUnderTheFilter() {
-        // The measured answer to #698's open question. The filter reaches the explicit
-        // JOIN o.employees e: with it pinned to organization A the joined Employee rows are
-        // narrowed to A, so nothing satisfies the join for organization B even though the caller
-        // genuinely holds an employment record there. The lookup resolves nothing and the caller
-        // gets the not-found the service raises.
+    void anotherOrganizationTheCallerIsAlsoEmployedByResolvesRightThroughTheFilter() {
+        // The measured answer to #698's open question, and it is the worse of the two.
         //
-        // Nothing is thrown on the way. The fail-closed load listener never sees a foreign row,
-        // because no foreign row is selected, so the filter is doing this on its own. That makes
-        // the cross-organization duplicate path dead rather than exploitable, which is the branch
-        // #698 named and could not settle by reading, and it is why the guard repair beside this
-        // is a correctness fix rather than the closing of a live hole.
+        // The filter does NOT reach an entity joined explicitly in HQL. Pinned to organization A
+        // it leaves JOIN o.employees e unnarrowed, the caller's employment row in organization B
+        // still satisfies the join, and the query hands back organization B. Nothing is thrown on
+        // the way: the joined Employee is never selected, so the fail-closed load listener gets no
+        // post-load to judge and never sees the row. Neither mechanism scopes this query.
         //
-        // Asserted as emptiness rather than as a refusal. An earlier form of this test read the
-        // outcome as a TenantAccessDeniedException and said so; splitting the assertion one
-        // property per test showed that no throwable is raised at all, so the refusal reading was
-        // wrong and the claim is corrected here rather than softened.
+        // So an endpoint that resolves a caller-named organization through findByIdAndUserEmail
+        // reads across a tenant, silently, and establishes only that the caller is employed there.
+        // That is why the guard on LeavePolicyController.duplicatePolicy has to answer for the
+        // target organization itself, and why doing so closes a live path rather than tidying a
+        // dead one.
+        //
+        // Read the assertions in this order deliberately: no throwable first, then the identity of
+        // what came back. Two earlier forms of this test asserted isEmpty() and were told that a
+        // TenantAccessDeniedException came out of the lookup, which read as the listener refusing
+        // the row. It was not. Organization is a Lombok @Data entity whose generated toString
+        // walks its lazy employees collection, so AssertJ building the failure description for a
+        // present Optional initialized that collection, loaded organization B's Employee rows
+        // under tenant A, and tripped the listener there. The exception came from the assertion's
+        // own error message and hid the result it was reporting on. Nothing here calls toString on
+        // the entity for that reason.
         TenantContext.setCurrentOrgId(orgAId);
         enableOrgFilterFor(orgAId);
 
         assertThat(catchThrowable(() -> organizationRepository.findByIdAndUserEmail(orgBId, EMAIL)))
-                .as("the lookup completes rather than being refused by the load listener")
+                .as("the lookup completes rather than being refused")
                 .isNull();
-        assertThat(organizationRepository.findByIdAndUserEmail(orgBId, EMAIL)).isEmpty();
+
+        Optional<Organization> resolved = organizationRepository.findByIdAndUserEmail(orgBId, EMAIL);
+        assertThat(resolved).as("a foreign organization resolves under an active tenant").isPresent();
+        assertThat(resolved.get().getId())
+                .as("and it is the foreign one, not the current tenant")
+                .isEqualTo(orgBId);
     }
 
     @Test

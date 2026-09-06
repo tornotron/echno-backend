@@ -202,16 +202,23 @@ public class LeavePolicyController {
      * Both halves are required: the source policy is read out of the current tenant, so a role
      * there is not made redundant by holding one in the target. See #698.
      *
-     * <p>What the repaired guard does not fix, and what a reader should know before relying on
-     * this endpoint: it cannot currently succeed for any input.
-     * {@code OrganizationLookupUnderTheOrgFilterIT} measured the target lookup against a database
-     * and the org filter reaches the {@code JOIN o.employees e} inside it, so a target that is not
-     * the current tenant resolves nothing and the method raises not-found. Naming the current
-     * tenant instead reaches the duplicate-code check, which the source policy's own leave-type
-     * code satisfies, so that answers 409. Whether cross-organization duplication is a feature at
-     * all is a product decision; if it is, the target resolution and the duplicate-code check both
-     * have to become deliberate cross-tenant reads rather than queries that quietly return
-     * nothing. Tracked separately.
+     * <p>The target really does resolve, which is what makes this repair load-bearing rather than
+     * tidy. {@code OrganizationLookupUnderTheOrgFilterIT} measured the lookup against a database:
+     * the org filter does not reach the {@code JOIN o.employees e} inside it, and the joined
+     * {@code Employee} is never selected, so the fail-closed load listener has no post-load to
+     * judge either. A foreign organization comes back silently, and the only thing established
+     * about it is that the caller has an employment row there.
+     *
+     * <p>What this guard does not fix, and what a reader should know before relying on the
+     * endpoint: the duplicate-code check at the next line asks
+     * {@code existsByOrganizationIdAndLeaveTypeCode} against {@code LeavePolicy}, which does carry
+     * the filter as a query root, so for any target other than the current tenant the predicate is
+     * unsatisfiable and the uniqueness rule is skipped on exactly the path that needs it. A real
+     * collision then reaches {@code uk_leave_policy_org_type} and surfaces as a 500 rather than a
+     * 409. Naming the current tenant instead makes that check match the source policy's own
+     * leave-type code, so it answers 409 always. Whether cross-organization duplication is a
+     * feature at all is a product decision; if it is, that check has to become a deliberate
+     * cross-tenant read. Tracked separately.
      *
      * @param policyId The ID of the source policy, read from the caller's own organization.
      * @param targetOrganizationId The organization to copy into, in which the caller must hold
