@@ -150,6 +150,89 @@ class TenantIsolationIT extends AbstractIntegrationTest {
         assertThat(organizationRepository.findById(orgBId)).isPresent();
     }
 
+    @Test
+    void aStrangerIsRefusedOnAReadThroughADerivedQuery() {
+        // The stranger case stated as such: a caller scoped to organization A has no membership
+        // of, no role in and no relationship at all to organization B. #717 removed 36 guards
+        // whose role clause was unreachable and left the tenant resolved from membership alone,
+        // so this is the boundary that has to keep holding for the removal to be safe.
+        //
+        // findById is covered above. This goes through a derived query instead, because the two
+        // reach the listener by different routes: the org filter never covers a primary-key
+        // load, and it is not enabled here either, so what refuses the row is the load listener
+        // on materialization in both cases and it is worth showing on a query as well.
+        TenantContext.setCurrentOrgId(orgAId);
+
+        assertThatThrownBy(() -> categoryRepository.findCategoryByName("Concrete"))
+                .isInstanceOf(TenantAccessDeniedException.class);
+    }
+
+    @Test
+    void aStrangerIsRefusedOnAWrite() {
+        // A write has to load before it can persist: saving a detached instance issues a select
+        // first, which is the load the listener sees. So the refusal arrives before any row is
+        // touched rather than after, which is what makes this a boundary rather than an audit.
+        Category detached = new Category();
+        detached.setId(categoryId);
+        detached.setName("Renamed by a stranger");
+
+        TenantContext.setCurrentOrgId(orgAId);
+
+        assertThatThrownBy(() -> categoryRepository.saveAndFlush(detached))
+                .isInstanceOf(TenantAccessDeniedException.class);
+    }
+
+    @Test
+    void theStrangersWriteLeavesTheRowUnchanged() {
+        // The other half of the write case, asserted separately: a refused write must not have
+        // landed. Read back under the owning tenant, and compare one property rather than the
+        // entity, because Organization is a Lombok @Data entity whose toString walks its lazy
+        // employees, so letting an assertion describe one raises an exception of its own from
+        // inside the failure message.
+        Category detached = new Category();
+        detached.setId(categoryId);
+        detached.setName("Renamed by a stranger");
+
+        TenantContext.setCurrentOrgId(orgAId);
+        assertThatThrownBy(() -> categoryRepository.saveAndFlush(detached))
+                .isInstanceOf(TenantAccessDeniedException.class);
+
+        entityManager.clear();
+        TenantContext.setCurrentOrgId(orgBId);
+
+        assertThat(categoryRepository.findById(categoryId).orElseThrow().getName())
+                .isEqualTo("Concrete");
+    }
+
+    @Test
+    void aStrangerIsRefusedThroughAnHqlJoin() {
+        // A join is the interesting shape, because the tenant condition sits on the joined side
+        // and a reader can convince themselves the join itself scopes the query. It does not:
+        // the org filter is not enabled here, so the query happily selects organization B's row
+        // and the refusal comes when the entity is materialized. Naming organization B in the
+        // where clause is the point, since that is what a caller who knows the id would write.
+        TenantContext.setCurrentOrgId(orgAId);
+
+        assertThatThrownBy(() -> entityManager.createQuery(
+                        "select c from Category c join c.organization o where o.id = :orgId", Category.class)
+                .setParameter("orgId", orgBId)
+                .getResultList())
+                .isInstanceOf(TenantAccessDeniedException.class);
+    }
+
+    @Test
+    void theOwningTenantStillPassesThroughTheSameHqlJoin() {
+        // The join is refused for the stranger and not for everyone: without this the test above
+        // would pass just as well against a query that was broken outright.
+        TenantContext.setCurrentOrgId(orgBId);
+
+        assertThat(entityManager.createQuery(
+                        "select c from Category c join c.organization o where o.id = :orgId", Category.class)
+                .setParameter("orgId", orgBId)
+                .getResultList())
+                .hasSize(1);
+    }
+
     private Organization persistOrganization(String name) {
         Organization org = new Organization();
         org.setOrganizationName(name);
