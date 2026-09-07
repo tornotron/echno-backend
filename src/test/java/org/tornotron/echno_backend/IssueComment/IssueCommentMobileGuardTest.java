@@ -6,6 +6,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -18,6 +19,7 @@ import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -121,9 +123,15 @@ class IssueCommentMobileGuardTest {
         verifyNoInteractions(issueCommentService);
     }
 
+    /**
+     * The listing calls {@code getContent()} on what the service returns, so the empty page has to
+     * be stubbed. An unstubbed mock answers null and the request would fail on that rather than on
+     * the guard, which is the assertion this test is making.
+     */
     @Test
     void list_asAMemberOfTheTenant_isAllowed() throws Exception {
         callerIsAPlainMember();
+        when(issueCommentService.getAllIssueComments(anyInt(), anyInt())).thenReturn(Page.empty());
 
         mockMvc.perform(get("/api/v1/issues/comments").with(jwt()))
                 .andExpect(status().isOk());

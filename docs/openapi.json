@@ -57080,7 +57080,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -57214,7 +57214,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -57324,7 +57324,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -59503,7 +59503,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
