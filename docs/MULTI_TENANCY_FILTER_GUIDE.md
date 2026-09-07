@@ -1,6 +1,8 @@
 # Multi-Tenancy via Hibernate @Filter — Implementation Guide
 
-Data-level organization isolation using Hibernate filters that automatically append `WHERE organization_id = :organizationId` to every query on tenant-scoped entities.
+Data-level organization isolation using Hibernate filters that append `WHERE organization_id = :organizationId` to a query whose **root** is a tenant-scoped entity, backed by a fail-closed check at the load boundary for the primary-key loads the filter never sees.
+
+Read [Explicit Joins](#explicit-joins-what-the-filter-does-not-reach) before assuming a query is covered. The filter reaches a query root and a filtered collection; an entity joined explicitly in HQL is scoped by neither mechanism, and that failure is silent.
 
 ---
 
@@ -23,7 +25,8 @@ Data-level organization isolation using Hibernate filters that automatically app
 15. [Entities Covered](#entities-covered)
 16. [Edge Cases](#edge-cases)
 17. [Caller-Supplied Organization Ids: Already Checked](#caller-supplied-organization-ids-already-checked)
-18. [Troubleshooting](#troubleshooting)
+18. [Explicit Joins: What the Filter Does Not Reach](#explicit-joins-what-the-filter-does-not-reach)
+19. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -761,6 +764,152 @@ Recorded so they are not re-derived. Each was traced to the line above the looku
 
 ---
 
+## Explicit Joins: What the Filter Does Not Reach
+
+The `orgFilter` narrows a query **root** and a filtered collection. It does not narrow an entity
+joined explicitly in HQL. `JOIN o.employees e` inside `OrganizationRepository.findByIdAndUserEmail`
+is the worked example: the query resolves any organization the caller holds an `Employee` row in,
+whatever tenant the request is scoped to.
+
+`TenantIsolationLoadListener` does not cover the gap and cannot. It runs on a post-load, and an
+entity that is only joined is never loaded, so there is no event for it to judge. Where both hold
+at once, nothing scopes that part of the query, and it fails silently rather than loudly. That is
+the difference from every other gap in this document: a filter that does not fire produces an empty
+result and a puzzled developer, while this produces a plausible answer about the wrong tenant.
+
+Measured against a database in `OrganizationLookupUnderTheOrgFilterIT`, not reasoned about. It had
+to be, because two readings of the same evidence came out wrong in opposite directions first: see
+the trap at the end of this section.
+
+### The three shapes, and which of them is safe
+
+|  | What it is | Scoped by |
+|---|---|---|
+| **Fetch join** | `LEFT JOIN FETCH u.employees` | The load listener. The rows are loaded, so a foreign one is refused. Fail-closed. |
+| **Association join off a tenant-scoped root** | `FROM CurrentStock cs JOIN cs.material m` | The root's filter, through the foreign key. The root is already in the tenant and the join walks out of it, so the join can narrow the result but not widen it past the tenant. |
+| **Entity join, or any join off an unfiltered root** | `FROM Material m LEFT JOIN CurrentStock cs ON ...`, `FROM Organization o JOIN o.employees e` | Nothing, unless the `ON` clause carries a tenant predicate itself. |
+
+The distinction in the third row is the one to hold on to. `JOIN cs.material m` reaches an
+association from an alias and inherits the root's scoping through the foreign key.
+`JOIN MaterialLocationThreshold t ON ...` names an entity outright and is tied to the root only by
+whatever the `ON` clause says, so rows from any organization can satisfy it. Both spell `JOIN`;
+only one of them is safe by construction.
+
+### The rule that enforces it
+
+`TenantScopedJoinTest` scans every `@Query` in the codebase and requires each explicit join to be
+clear by one of the three structural facts above, or registered in its `CROSS_TENANT_JOINS` map
+with a reason. It has the staleness check `UnboundedRepositoryReadTest` has, so the registry can
+only shrink. A native query is never narrowed at all, so one that joins is always registered.
+
+Reach for a structural fix before an entry: fetch the joined entity so the listener judges it, root
+the query on a tenant-scoped entity and reach the rest through associations, or put the tenant
+predicate in the `ON` clause. `LowStockRepository` does the third and is the pattern to copy:
+
+```java
+FROM Material m
+LEFT JOIN CurrentStock cs ON cs.material = m AND cs.organization.id = :organizationId
+```
+
+The join carries its own scoping, with the same parameter the filtered root is narrowed by, read
+from `TenantContext` at the service. A left join is what the query needs (a material with no stock
+row anywhere still has to appear) and an association join could not have expressed it, so the
+predicate is written out instead of being inherited.
+
+### The sweep: cleared, with why
+
+Issue #718, over all 151 `@Query` annotations in the repository. **41 explicit join clauses across
+25 of them**, counting `countQuery` beside `value`. Also checked and carrying no join at all: the
+five `Specification` classes, every use of the Criteria API, and the three
+`EntityManager.createQuery` calls in `VendorSummaryService`, which reach related rows through path
+expressions off a filtered root.
+
+**Two were genuinely exposed**, both already known: the pair on `OrganizationRepository`, one of
+which is cross-tenant on purpose. Nothing new was found. Everything else was clear on one of the
+three facts above. Recorded so a later pass does not re-derive it.
+
+| Site | Join | Why it is clear |
+|------|------|-----------------|
+| `UserRepository` `findUserWithEmployeesByKeycloakId`, `findUserWithAttachmentsByKeycloakId` | `LEFT JOIN FETCH u.employees` / `u.attachments` | Fetch joins. `User` is unfiltered, but the joined rows are loaded, so the listener refuses a foreign one. |
+| `SubscriptionRepository` `findActiveSubscriptionByUserId`, `PlanRepository` (four queries) | `LEFT JOIN FETCH` throughout | Fetch joins, and nothing in the billing catalogue is tenant-scoped in the first place. |
+| `SearchRepository` `findTasks`, `findIssues` | `LEFT JOIN t.project p`, `LEFT JOIN i.task t` | Roots `Task` and `Issue` are filtered; associations only. The projected `p.id` is the project of a row already in the tenant. |
+| `InventoryTransactionRepository` `findMovementHistoryByMaterial` | three `LEFT JOIN FETCH` | Fetch joins off a filtered root. |
+| `EmployeeRepository` (five queries) | `JOIN e.orgRoles r` | `OrgRole` is an enum element collection, not an entity, so there is no tenancy to lose. Root `Employee` is filtered. |
+| `ProjectRepository` `averageTaskProgressByProjectIds` | `LEFT JOIN p.tasks t` | Filtered root, association join. `AVG(t.progress)` averages the tasks of a project already in the tenant. |
+| `LeaveRequestRepository` `findDistinctByApproverParticipation` | `JOIN lr.approvals la` | Filtered root. The predicate on `la.approver.id` can only narrow the in-tenant result. |
+| `LeaveBalanceRepository` `findActiveBalancesByEmployeeAndYear`, `findByOrganizationIdAndYear` | `JOIN lb.leavePolicy lp`, `JOIN lb.employee e` | Filtered root, associations. The caller-supplied `:orgId` on the second can only narrow further. |
+| `LowStockRepository` `findLowStockForProject` | `JOIN cs.material m` | Filtered root `CurrentStock`, association join, and the tenant is named in the `WHERE` besides. |
+
+Registered rather than cleared, each a deliberate cross-tenant read:
+
+| Site | Why it is registered |
+|------|----------------------|
+| `OrganizationRepository.findAllByUserEmail` | The organization switcher. Listing every organization the signed-in user is employed by is the point, and narrowing it to the current tenant would leave the one they are already in. Keyed on the caller's own email, not on a caller-supplied id. |
+| `OrganizationRepository.findByIdAndUserEmail` | **A membership probe, and it must not be read as a tenant check.** It answers whether the caller has an `Employee` row in the organization they named, for any organization, and establishes nothing about what they may do there. Every caller has to answer for the target in its own guard. See #698. |
+| `LowStockRepository.findLowStockForOrganization`, `findLowStockAtStorageLocation` | Entity joins whose `ON` clauses carry the tenant predicate, as above. |
+| `ComplianceGenerationJobRepository.findSweepCandidates` | The nightly sweep's one scan, cross-tenant by necessity: its job is to find which tenants have work, so it runs before any tenant is known. Native, scalars only, never an entity, and the caller establishes a tenant per project before enqueueing. Declared `@WithoutTenant` at the call site. |
+
+### The second half of #718: a filtered root asked about another organization
+
+The join is one direction of the same blind spot. The other is a query root that **is** filtered,
+asked about an organization that is not the tenant. `LeavePolicyService.duplicatePolicy` called
+`existsByOrganizationIdAndLeaveTypeCode(targetOrganizationId, code)` against `LeavePolicy`, which
+carries `orgFilter` as a root. Hibernate adds `organization_id = <tenant>` beside the caller's
+`organization_id = <target>`, the two name different organizations, and the query matches nothing
+whatever the table holds. So the uniqueness rule was skipped on exactly the path that needs it, and
+a real collision reached `uk_leave_policy_org_type` and came back as a 500 instead of the 409 the
+method raises.
+
+Two things generalise from the repair:
+
+- **A check that cannot match is not a check that passed.** The filter turns a wrong argument into
+  a quiet success, so a predicate naming an organization other than the tenant is always worth a
+  second look at the entity it runs against.
+- **Naming the current tenant instead is not automatically the smaller repair.** Here it would have
+  made the check match the source policy's own code every time, so the endpoint would answer 409 to
+  every input. The question genuinely was about another organization, so it had to be asked in a
+  query the filter does not narrow.
+
+The repair is `countWithLeaveTypeCodeInOrganizationUnfiltered`: native, so nothing narrows it;
+carrying `organization_id = :organizationId` itself, so the tenant predicate is in the query rather
+than left to a filter that will not be applied; returning a count and never an entity, so nothing
+tenant-scoped is loaded and the listener has nothing to judge; and reached only after
+`@orgSecurity.hasAnyOrgRole(#targetOrganizationId, ...)` has established the caller's role in the
+target. `ComplianceGenerationJobRepository`'s dispatcher queries are written the same way for the
+same reason.
+
+Note what that leaves: a native query is uncovered by both mechanisms whether or not it joins, and
+`TenantScopedJoinTest` only takes the part that overlaps its own subject. The
+[Native SQL Queries](#native-sql-queries) section is the rule for the rest, and it is a convention
+rather than a check.
+
+### The trap that cost three CI cycles
+
+**An AssertJ failure description can raise the exception you are reading as the result.**
+`Organization` is a Lombok `@Data` entity whose generated `toString` walks its lazy `employees`
+collection. A test asserted that a foreign lookup came back empty and was told a
+`TenantAccessDeniedException` came out of it, which reads exactly like the listener refusing the row
+under test. It was not. Building the failure description for a *present* `Optional` initialised that
+collection, loaded the foreign organization's employees under the current tenant, and tripped the
+listener inside the error message. The assertion was raising the exception it was reporting on, and
+the first link of the chain, "anything is thrown at all", was already false.
+
+Two habits come out of it, and both apply to any assertion whose failure message could stringify a
+`@Data` entity with a lazy collection:
+
+- **Split assertion chains one property per test.** The build reports failures with
+  `exceptionFormat 'short'`, so a chained assertion names neither the broken link nor the value.
+- **Assert "nothing was thrown" before asserting what came back.** If the second one is what raises,
+  the first has already told you.
+
+A third, from the same family: **a guard test that mocks the guard proves nothing.** `@orgSecurity`
+is mocked in a web slice, so a `@PreAuthorize` test there exercises the mock. That is how a
+permanently dead clause shipped with a passing test. The same holds for the repository in a
+uniqueness check: a stub answers the question the filter would have refused to, so the test for
+this defect had to run against a real schema.
+
+---
+
 ## Troubleshooting
 
 ### "Multiple '@FilterDef' annotations define a filter named 'orgFilter'" error
@@ -817,7 +966,11 @@ public class MyEntity { ... }
 
 ### Filter not applying to custom repository methods
 
-**Check:** Custom queries using `@Query` with JPQL will be filtered. Native queries (`nativeQuery = true`) will NOT be filtered — add the condition manually.
+**Check:** A `@Query` written in JPQL has its **root** filtered, and that is all. An entity joined
+explicitly in it is not narrowed, and because it is never selected the load listener does not see it
+either: see [Explicit Joins](#explicit-joins-what-the-filter-does-not-reach), which is the shape to
+check for before concluding the filter covers a custom query. Native queries (`nativeQuery = true`)
+are not filtered at all — add the condition manually.
 
 ### Bypass not working
 
