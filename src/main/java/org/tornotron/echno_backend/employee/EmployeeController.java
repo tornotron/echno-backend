@@ -61,13 +61,19 @@ public class EmployeeController {
      * Nothing about onboarding passes through here, so binding the guard to an organization
      * costs that flow nothing.
      *
-     * <p>{@code employee:create} and {@code employee:admin} are Keycloak resource permissions
-     * carried on the RPT, and {@code docs/org-scoped-roles.md} calls them global: they say what
-     * the holder may do and nothing at all about where. On a route that names an organization in
+     * <p>The organization check has to be here or nowhere. The route names an organization in
      * its path and then loads {@link org.tornotron.echno_backend.organization.Organization} by
-     * that id, "what" on its own is not an answer. The tenant root is the one entity neither
-     * ambient defence covers, so the id has to be checked here or not at all, which is what
+     * that id, and the tenant root is the one entity neither ambient defence covers, which is what
      * {@code isCurrentTenant} does.
+     *
+     * <p>Beside it stood {@code employee:create} or {@code employee:admin}, ANDed on. Those are
+     * bare {@code resource:scope} authorities, minted only by
+     * {@code JwtAuthConverter.extractPermissions} from the {@code authorization} claim of an RPT,
+     * and the realm defines no authorization scopes, so neither is ever granted and the whole
+     * expression refused every caller. That is #734. The half saying who may add somebody to an
+     * organization is now the one the web twin has always used: a system admin or an HR admin of
+     * the tenant the session is scoped to. Both halves are still needed, because being scoped to
+     * an organization is not the same as being entitled to enrol people into it.
      *
      * @param userId             The ID of the user joining.
      * @param orgId              The organization named by the caller, which must be the one their
@@ -77,7 +83,7 @@ public class EmployeeController {
      */
     @PostMapping("/joinOrganization/{userId}/{orgId}")
     @PreAuthorize("@orgSecurity.isCurrentTenant(#orgId)"
-            + " and (hasAuthority('employee:create') or hasAuthority('employee:admin'))")
+            + " and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     @Operation(
             summary = "Add a user to an organization as an employee",
             description = "Creates an employee record that links the given user to the organization "
@@ -87,7 +93,7 @@ public class EmployeeController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Employee record created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The employment details failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the employee create or admin authority, or named an organization that is not the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant, or named an organization that is not it"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user or organization with the given id")
     })
     public ResponseEntity<EmployeeDto> joinOrganization(@PathVariable Long userId, @PathVariable Long orgId, @Valid @RequestBody EmployeeJoinOrgDto employeeJoinOrgDto) {

@@ -31,8 +31,8 @@ import org.tornotron.echno_backend.issue.dto.IssueUpdateFieldsDto;
         name = "Issues",
         description = "A problem or defect raised against a task, optionally with attachments and "
                 + "comments. Endpoints cover reading a single issue, creating one with attachments, "
-                + "partial updates and deletion. Access is gated by the issue authorities, with an "
-                + "admin authority that grants all operations."
+                + "partial updates and deletion. Access is gated by tenant membership, with update "
+                + "and delete restricted to a system admin or project manager."
 )
 public class IssueController {
 
@@ -56,14 +56,14 @@ public class IssueController {
 
 
     @GetMapping("{id}")
-    @PreAuthorize("hasAuthority('issue:read') or hasAuthority('issue:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get an issue by id",
             description = "Returns a single issue including its comments and attachments."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issue found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the issue read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No issue with the given id")
     })
     public ResponseEntity<IssueDto> readAnIssue(@PathVariable Long id) {
@@ -72,7 +72,7 @@ public class IssueController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('issue:create') or hasAuthority('issue:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Create an issue",
             description = "Creates an issue from a multipart request. The data part carries the issue "
@@ -82,7 +82,7 @@ public class IssueController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Issue created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid issue JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the issue create or admin authority, or has no employee record in the current tenant, so the record would name nobody")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody")
     })
     public ResponseEntity<IssueSimpleDto> createIssue(
             @Parameter(schema = @Schema(implementation = IssueCreationDto.class))
@@ -94,7 +94,7 @@ public class IssueController {
     }
 
     @PatchMapping(value = "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('issue:update') or hasAuthority('issue:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Partially update an issue",
             description = "Applies field updates from a multipart request. The data part carries the "
@@ -104,7 +104,7 @@ public class IssueController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issue updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the issue update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No issue with the given id")
     })
     public ResponseEntity<IssueSimpleDto> partialUpdateAnIssue(
@@ -119,14 +119,14 @@ public class IssueController {
     }
 
     @DeleteMapping("{id}")
-    @PreAuthorize("hasAuthority('issue:delete') or hasAuthority('issue:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Delete an issue",
             description = "Deletes the issue with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issue deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the issue delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No issue with the given id")
     })
     public ResponseEntity<ApiResponse> deleteAnIssue(@PathVariable Long id) {
