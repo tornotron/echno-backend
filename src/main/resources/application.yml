@@ -129,6 +129,31 @@ compliance:
     max-projects-per-run: ${COMPLIANCE_SWEEP_MAX_PROJECTS_PER_RUN:25}
 
 
+# The nightly reorder sweep. It tells the storekeepers on a project, or its project
+# managers if it has none, that a material has crossed its reorder level there. It
+# notifies and raises no procurement document.
+#
+# Off by default: turning it on puts notifications in real inboxes, and an alert
+# nobody asked for is muted once and useless afterwards.
+#
+# Half past three rather than two, which is when the compliance sweep runs. They do
+# not contend for anything expensive but they share a database and a scheduler pool.
+#
+# rearm-margin is how far above its level a material has to recover before a later dip
+# counts as a new crossing, as a fraction of the level. It is what stops a material
+# hovering on the boundary being reported every night. A level of zero needs no special
+# case: a fraction of zero is zero, so it rearms at anything above nothing.
+inventory:
+  reorder-sweep:
+    enabled: ${INVENTORY_REORDER_SWEEP_ENABLED:false}
+    cron: ${INVENTORY_REORDER_SWEEP_CRON:0 30 3 * * *}
+    zone: ${INVENTORY_REORDER_SWEEP_ZONE:UTC}
+    project-scan-limit: ${INVENTORY_REORDER_SWEEP_PROJECT_SCAN_LIMIT:2000}
+    materials-per-project: ${INVENTORY_REORDER_SWEEP_MATERIALS_PER_PROJECT:25}
+    max-notifications-per-run: ${INVENTORY_REORDER_SWEEP_MAX_NOTIFICATIONS_PER_RUN:200}
+    rearm-margin: ${INVENTORY_REORDER_SWEEP_REARM_MARGIN:0.10}
+
+
 # Chart-of-accounts auto numbering. level-steps is the gap between sibling codes
 # at each depth (0 = roots); root-blocks is the first code per account type.
 finance:

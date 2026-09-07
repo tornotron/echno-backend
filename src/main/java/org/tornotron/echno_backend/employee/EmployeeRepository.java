@@ -109,6 +109,31 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
     List<Employee> findByOrganizationIdAndOrgRole(Long orgId, OrgRole role);
 
     /**
+     * The holders of one organization role who are assigned to one project.
+     *
+     * <p>Org roles are held on the employee and are organization-wide, so "the storekeeper of
+     * project 12" is not a field anywhere: it is the intersection of the project's assignment
+     * list with the holders of the role. Nothing computed that intersection before this, and
+     * every caller that needs it needs the same one.
+     *
+     * <p>Both joins are association joins out of a root the {@code orgFilter} has already
+     * narrowed, so neither can widen the result past the tenant, and the organization predicate
+     * is written out anyway because a background caller runs with the filter established
+     * explicitly rather than by a request.
+     *
+     * @param orgId The organization the employee and the project both belong to.
+     * @param projectId The project they must be assigned to.
+     * @param role The organization role they must hold.
+     * @return The employees holding that role on that project, in no particular order. Empty
+     *         when nobody on the project holds it, which is a normal state and not an error.
+     */
+    @Query("SELECT DISTINCT e FROM Employee e JOIN e.orgRoles r JOIN e.projects p "
+            + "WHERE e.organization.id = :orgId AND p.id = :projectId AND r = :role")
+    List<Employee> findByProjectAndOrgRole(@Param("orgId") Long orgId,
+                                           @Param("projectId") Long projectId,
+                                           @Param("role") OrgRole role);
+
+    /**
      * Whether the employee holds one of the given roles <em>in the given organization</em>.
      *
      * <p>The organization predicate is written out rather than left to the {@code orgFilter}.

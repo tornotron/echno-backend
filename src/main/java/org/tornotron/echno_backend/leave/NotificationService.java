@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.leave.mapper.NotificationMapper;
 import org.tornotron.echno_backend.leave.enums.NotificationType;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -38,6 +39,63 @@ public class NotificationService {
         this.employeeRepository = employeeRepository;
         this.notificationMapper = notificationMapper;
         this.currentEmployeeService = currentEmployeeService;
+    }
+
+    /**
+     * Sends one composed notification to one employee.
+     *
+     * <p>The seam every non-leave sender goes through. The five methods below it are one method
+     * per leave event, each carrying a {@link LeaveRequest} in its signature, and there was no way
+     * for anything outside this package to raise a notification without a sixth being written for
+     * it here. This takes the message as data instead.
+     *
+     * <p>The organization is the recipient's own rather than anything the caller passes, which is
+     * what the five leave senders already do. A notification belongs to the tenant of the person
+     * reading it, and a caller that could set it independently could file a row into an
+     * organization the recipient cannot see, where it would be invisible to them and visible to
+     * everybody else.
+     *
+     * @param recipient Who is being told. Must be persisted and must have an organization.
+     * @param draft What they are being told.
+     * @return The saved notification.
+     */
+    @Transactional
+    public Notification deliver(Employee recipient, NotificationDraft draft) {
+        Notification notification = new Notification();
+        notification.setRecipient(recipient);
+        notification.setOrganization(recipient.getOrganization());
+        notification.setNotificationType(draft.type());
+        notification.setTitle(draft.title());
+        notification.setMessage(draft.message());
+        notification.setEntityType(draft.entityType());
+        notification.setEntityId(draft.entityId());
+        notification.setActionUrl(draft.actionUrl());
+        notification.setIsRead(false);
+        return notificationRepository.save(notification);
+    }
+
+    /**
+     * Sends the same composed notification to several employees, one row each.
+     *
+     * <p>A role-targeted notification is a fan-out and cannot be anything else here:
+     * {@code Notification.recipient} is a single employee foreign key, so there is no row that
+     * addresses a role and no row that addresses everybody. Saying so in one method keeps callers
+     * from each inventing their own loop, and keeps the wording of an event written once.
+     *
+     * <p>An empty recipient list saves nothing and is not an error. Deciding whether having
+     * nobody to tell is worth reporting belongs to the caller, which is the only party that knows
+     * what the silence means.
+     *
+     * @param recipients Who is being told. May be empty.
+     * @param draft What they are being told.
+     * @return The saved notifications, in the order the recipients were given.
+     */
+    @Transactional
+    public List<Notification> deliverToAll(Collection<Employee> recipients, NotificationDraft draft) {
+        if (recipients == null || recipients.isEmpty()) {
+            return List.of();
+        }
+        return recipients.stream().map(recipient -> deliver(recipient, draft)).toList();
     }
 
     @Transactional

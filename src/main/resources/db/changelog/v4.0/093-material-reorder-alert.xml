@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Where the reorder sweep remembers that it has already reported a material on a project.
+
+      A row means "reported, and not recovered since". Without it the sweep can only ask whether a
+      material is below its level, which is a standing fact rather than an event, and it would
+      re-send the same list every night until the recipient muted the category.
+
+      The unique constraint is doing two jobs. It is the key of the state, one latch per material
+      per project, and it is also the idempotency key: @Scheduled elects no leader, so on N
+      replicas the pass runs N times, and this is what makes the second replica's insert fail
+      rather than the recipient get told twice.
+    -->
+    <changeSet id="093-create-material-reorder-alert" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="material_reorder_alert"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="material_reorder_alert">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_material_reorder_alert"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="material_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <!-- The level the notification went out against, so a later change to it reads as a
+                 new event rather than as the same one continuing. -->
+            <column name="notified_level" type="DOUBLE">
+                <constraints nullable="false"/>
+            </column>
+            <!-- What the project held at that moment. Nothing reads it; it is here so somebody
+                 asking why a notification went out can see the number it went out for. -->
+            <column name="notified_quantity" type="DOUBLE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_count" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notified_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="material_reorder_alert"
+                             columnNames="organization_id, project_id, material_id"
+                             constraintName="uq_material_reorder_alert_scope"/>
+
+        <!-- The sweep reads every latch on one project at a time. -->
+        <createIndex tableName="material_reorder_alert"
+                     indexName="idx_material_reorder_alert_scope">
+            <column name="organization_id"/>
+            <column name="project_id"/>
+        </createIndex>
+
+        <!-- The per-run cap is counted from this column, across tenants, on every project. -->
+        <createIndex tableName="material_reorder_alert"
+                     indexName="idx_material_reorder_alert_notified_at">
+            <column name="notified_at"/>
+        </createIndex>
+
+        <!-- Cascading deletes rather than orphan latches. A latch has no meaning once the thing
+             it is about is gone, and it is state the application can rebuild on its next pass. -->
+        <addForeignKeyConstraint baseTableName="material_reorder_alert"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_material_reorder_alert_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="material_reorder_alert"
+                                 baseColumnNames="project_id"
+                                 constraintName="fk_material_reorder_alert_project"
+                                 referencedTableName="project"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="material_reorder_alert"
+                                 baseColumnNames="material_id"
+                                 constraintName="fk_material_reorder_alert_material"
+                                 referencedTableName="material"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <rollback>
+            <dropTable tableName="material_reorder_alert"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

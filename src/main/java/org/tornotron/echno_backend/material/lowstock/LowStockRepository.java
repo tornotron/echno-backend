@@ -7,6 +7,9 @@ import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 import org.tornotron.echno_backend.material.Material;
 
+import java.util.Collection;
+import java.util.List;
+
 /**
  * The reorder-level comparison, at each of the three scopes stock is held at.
  *
@@ -183,4 +186,70 @@ public interface LowStockRepository extends Repository<Material, Long> {
                                                     @Param("projectId") Long projectId,
                                                     @Param("storageLocationId") Long storageLocationId,
                                                     Pageable pageable);
+
+    /**
+     * Every project that holds a stock balance, in every organization.
+     *
+     * <p>The candidate list for the reorder sweep. It reads across tenants on purpose and returns
+     * two ids and nothing else: the pass establishes a tenant from the organization id before it
+     * reads anything belonging to that tenant, so the only thing crossing the boundary here is
+     * the pair of numbers saying where to look next.
+     *
+     * <p>Projects rather than organizations, because the project is the scope the sweep reports
+     * at. The organization total is the wrong question for this: on staging {@code TNT Steel}
+     * reads healthy at 60 against a level of 30 while holding 1, 18, 1, 7 and 1 unit at five
+     * separate sites, and a sweep on the organization total would find nothing wrong with any of
+     * them.
+     *
+     * <p>A project that has never held stock is not a candidate. Nothing can have crossed a
+     * threshold there, because there is no balance to cross it with, and the project-scope
+     * comparison would report the entire catalogue as absent from it.
+     *
+     * <p>Ordering is by organization then project, which is stable rather than rotating. A pass
+     * capped below the size of the estate would therefore always read the same prefix and never
+     * reach the tail. That is a real limit and the cap is set well above the current estate
+     * rather than worked around; if the estate outgrows it, the fix is to order on when each
+     * project's stock last moved, so the projects that can have crossed anything come first.
+     *
+     * @param pageable How much of the list to read. Pass it unsorted: the query orders itself.
+     * @return Distinct organization and project pairs, ordered.
+     */
+    @Query("""
+            SELECT DISTINCT new org.tornotron.echno_backend.material.lowstock.StockedProject(
+                       cs.organization.id, cs.project.id)
+            FROM CurrentStock cs
+            WHERE cs.organization IS NOT NULL AND cs.project IS NOT NULL
+            ORDER BY cs.organization.id ASC, cs.project.id ASC
+            """)
+    List<StockedProject> findProjectsHoldingStock(Pageable pageable);
+
+    /**
+     * The reorder level and project total for named materials on one project.
+     *
+     * <p>Asked about materials that were reported low earlier and are no longer in the low-stock
+     * answer, to decide whether they have recovered. The low-stock query cannot answer it, since
+     * the rows in question are the ones it has stopped returning.
+     *
+     * <p>The root is {@code Material} rather than {@code CurrentStock}, and the quantity is a
+     * correlated subquery rather than a join, so that a material whose stock rows on the project
+     * have all gone still comes back, with nothing on hand and its level intact. Rooting on the
+     * stock rows would drop it, and dropping it is indistinguishable from it having recovered.
+     *
+     * @param organizationId The tenant to read within.
+     * @param projectId The project to total at.
+     * @param materialIds The materials to report on. Never empty when called.
+     * @return One row per material that still exists in the catalogue, in no particular order.
+     */
+    @Query("""
+            SELECT new org.tornotron.echno_backend.material.lowstock.ProjectMaterialStock(
+                       m.id, m.reorderLevel,
+                       COALESCE((SELECT SUM(cs.currentQuantity) FROM CurrentStock cs
+                                 WHERE cs.material = m AND cs.project.id = :projectId
+                                   AND cs.organization.id = :organizationId), 0.0))
+            FROM Material m
+            WHERE m.organization.id = :organizationId AND m.id IN :materialIds
+            """)
+    List<ProjectMaterialStock> findProjectStockForMaterials(@Param("organizationId") Long organizationId,
+                                                            @Param("projectId") Long projectId,
+                                                            @Param("materialIds") Collection<Long> materialIds);
 }
