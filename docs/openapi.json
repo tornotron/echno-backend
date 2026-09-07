@@ -33829,7 +33829,7 @@
     },
     "/api/v1/employee": {
       "get": {
-        "description": "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result.",
+        "description": "Returns at most 500 rows of the caller's own organization. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result.",
         "operationId": "readAllEmployees",
         "responses": {
           "200": {
@@ -33873,7 +33873,7 @@
                 }
               }
             },
-            "description": "Caller lacks the employee read or admin authority"
+            "description": "Caller is not a system admin, HR admin or project manager in the current organization"
           },
           "404": {
             "content": {
@@ -34044,7 +34044,7 @@
     },
     "/api/v1/employee/batch": {
       "patch": {
-        "description": "Applies partial updates to several employees in one call. Each entry names an employee id and the map of fields to change on that employee.",
+        "description": "Applies partial updates to several employees of the caller's organization in one call. Each entry names an employee id and the map of fields to change on that employee.",
         "operationId": "batchUpdateEmployees",
         "requestBody": {
           "content": {
@@ -34098,7 +34098,7 @@
                 }
               }
             },
-            "description": "Caller lacks the employee update or admin authority"
+            "description": "Caller is not a system admin or HR admin in the current organization"
           },
           "404": {
             "content": {
@@ -34291,7 +34291,7 @@
     },
     "/api/v1/employee/organization/{id}": {
       "get": {
-        "description": "Returns the employees belonging to the given organization. A non-admin caller must be a member of that organization.",
+        "description": "Returns the employees belonging to the given organization, which must be the organization the caller's session is scoped to.",
         "operationId": "readEmployeesByOrganizationId",
         "parameters": [
           {
@@ -34346,7 +34346,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the organization and lacks the employee admin authority"
+            "description": "Caller named an organization that is not the current tenant, or is not a system admin, HR admin or project manager in it"
           },
           "404": {
             "content": {
@@ -36218,7 +36218,7 @@
     },
     "/api/v1/employee/{id}": {
       "delete": {
-        "description": "Deletes the employee with the given id.",
+        "description": "Deletes the employee with the given id from the caller's organization, and removes their membership of it in Keycloak.",
         "operationId": "deleteEmployee",
         "parameters": [
           {
@@ -36270,7 +36270,7 @@
                 }
               }
             },
-            "description": "Caller lacks the employee delete or admin authority"
+            "description": "Caller is not a system admin or HR admin in the current organization"
           },
           "404": {
             "content": {
@@ -36440,7 +36440,7 @@
         ]
       },
       "patch": {
-        "description": "Applies the supplied map of fields to the employee with the given id, changing only the fields present in the request.",
+        "description": "Applies the supplied map of fields to the employee with the given id, changing only the fields present in the request. Callable by the employee themselves or by a system admin or HR admin.",
         "operationId": "partialUpdateAnEmployee",
         "parameters": [
           {
@@ -36502,7 +36502,7 @@
                 }
               }
             },
-            "description": "Caller lacks the employee update or admin authority"
+            "description": "Caller is neither the employee nor a system admin or HR admin"
           },
           "404": {
             "content": {
