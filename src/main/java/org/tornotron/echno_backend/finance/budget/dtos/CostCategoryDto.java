@@ -13,7 +13,8 @@ public record CostCategoryDto(
         @Schema(description = "Cost category name, unique within the tenant.", example = "Materials")
         String name,
 
-        @Schema(description = "Optional short code for the head.", example = "MAT")
+        @Schema(description = "Optional short code for the head. Null where none was given.",
+                example = "MAT", nullable = true)
         String code,
 
         @Schema(description = "Ledger expense account this head maps to, or null.",

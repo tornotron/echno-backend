@@ -31,13 +31,16 @@ public record ConstructionInvoiceDto(
         @Schema(description = "Project the invoice is billed against.", example = "42")
         Long projectId,
 
-        @Schema(description = "Vendor being invoiced, if any.", example = "17")
+        @Schema(description = "Vendor being invoiced, if any. Null on an invoice raised against no vendor, such "
+                + "as a sales or service invoice.", example = "17", nullable = true)
         Long vendorId,
 
-        @Schema(description = "Matched purchase order, if any.", example = "108")
+        @Schema(description = "Matched purchase order, if any. Null where none is matched.",
+                example = "108", nullable = true)
         Long purchaseOrderId,
 
-        @Schema(description = "Matched goods receipt, if any.", example = "231")
+        @Schema(description = "Matched goods receipt, if any. Null where none is matched.",
+                example = "231", nullable = true)
         Long goodsReceiptId,
 
         @Schema(description = "Date the invoice was issued.", example = "2026-08-01")
@@ -46,7 +49,8 @@ public record ConstructionInvoiceDto(
         @Schema(description = "Date payment is due.", example = "2026-08-31")
         LocalDate dueDate,
 
-        @Schema(description = "Date the invoice was fully paid, once settled.", example = "2026-08-28")
+        @Schema(description = "Date the invoice was fully paid, once settled. Null until the invoice is settled "
+                + "in full.", example = "2026-08-28", nullable = true)
         LocalDate paymentDate,
 
         @Schema(description = "Sum of line amounts before tax and discount.", example = "67500.00")
@@ -67,25 +71,32 @@ public record ConstructionInvoiceDto(
         @Schema(description = "Outstanding balance still due.", example = "36275.00")
         BigDecimal balanceAmount,
 
-        @Schema(description = "Free-text payment terms.", example = "Net 30")
+        @Schema(description = "Free-text payment terms. Null where none were recorded.",
+                example = "Net 30", nullable = true)
         String paymentTerms,
 
-        @Schema(description = "Settlement method.", example = "BANK_TRANSFER")
+        @Schema(description = "Settlement method. Null where none was recorded.",
+                example = "BANK_TRANSFER", nullable = true)
         String paymentMethod,
 
-        @Schema(description = "Vendor GST registration number.", example = "29ABCDE1234F1Z5")
+        @Schema(description = "Vendor GST registration number. Null where none was recorded.",
+                example = "29ABCDE1234F1Z5", nullable = true)
         String gstNumber,
 
-        @Schema(description = "Tax treatment applied to the invoice.", example = "CGST_SGST")
+        @Schema(description = "Tax treatment applied to the invoice. Null where none was recorded.",
+                example = "CGST_SGST", nullable = true)
         String taxType,
 
-        @Schema(description = "Internal notes.", example = "Second progress claim for tower B")
+        @Schema(description = "Internal notes. Null where none were recorded.",
+                example = "Second progress claim for tower B", nullable = true)
         String notes,
 
-        @Schema(description = "Terms and conditions printed on the invoice.")
+        @Schema(description = "Terms and conditions printed on the invoice. Null where none were recorded.",
+                nullable = true)
         String termsAndConditions,
 
-        @Schema(description = "User id that submitted the invoice for approval.", example = "5")
+        @Schema(description = "User id that submitted the invoice for approval. Null until the invoice is "
+                + "submitted for approval.", example = "5", nullable = true)
         Long submittedBy,
 
         @Schema(description = "Name of the user that submitted the invoice, or their email where the "
@@ -94,10 +105,12 @@ public record ConstructionInvoiceDto(
                 example = "Anand Rajashekar", nullable = true)
         String submittedByName,
 
-        @Schema(description = "Timestamp the invoice was submitted.", example = "2026-08-02T09:15:00Z")
+        @Schema(description = "Timestamp the invoice was submitted. Null until the invoice is submitted for "
+                + "approval.", example = "2026-08-02T09:15:00Z", nullable = true)
         Instant submittedAt,
 
-        @Schema(description = "User id that approved the invoice.", example = "2")
+        @Schema(description = "User id that approved the invoice. Null until the invoice is approved.",
+                example = "2", nullable = true)
         Long approvedBy,
 
         @Schema(description = "Name of the user that approved the invoice, or their email where the "
@@ -106,10 +119,12 @@ public record ConstructionInvoiceDto(
                 example = "Aneesh Johny", nullable = true)
         String approvedByName,
 
-        @Schema(description = "Timestamp the invoice was approved.", example = "2026-08-03T11:40:00Z")
+        @Schema(description = "Timestamp the invoice was approved. Null until the invoice is approved.",
+                example = "2026-08-03T11:40:00Z", nullable = true)
         Instant approvedAt,
 
-        @Schema(description = "User id that recorded the most recent payment.", example = "5")
+        @Schema(description = "User id that recorded the most recent payment. Null until a payment is recorded "
+                + "against the invoice.", example = "5", nullable = true)
         Long paymentRecordedBy,
 
         @Schema(description = "Name of the user that recorded the most recent payment, or their email "
@@ -118,11 +133,13 @@ public record ConstructionInvoiceDto(
                 example = "Anand Rajashekar", nullable = true)
         String paymentRecordedByName,
 
-        @Schema(description = "Ledger journal entry posted when the invoice was approved.",
-                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10")
+        @Schema(description = "Ledger journal entry posted when the invoice was approved. Null until the "
+                + "invoice is approved and posted to the ledger.",
+                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10", nullable = true)
         UUID journalEntryId,
 
-        @Schema(description = "Reversal journal entry, present when the invoice was cancelled after posting.")
+        @Schema(description = "Reversal journal entry, present when the invoice was cancelled after posting. "
+                + "Null on an invoice that was never cancelled after posting.", nullable = true)
         UUID reversalJournalEntryId,
 
         @Schema(description = "AR invoice raised for this invoice on approval. Present on a sales or "

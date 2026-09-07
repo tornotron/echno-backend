@@ -23,7 +23,8 @@ public record AccountTreeDto(
         @Schema(description = "Whether the account is active and available for posting.", example = "true")
         boolean active,
 
-        @Schema(description = "Optional description of the account.", example = "Petty cash and bank balances")
+        @Schema(description = "Optional description of the account. Null where none was given.",
+                example = "Petty cash and bank balances", nullable = true)
         String description,
 
         @Schema(description = "Whether entries can be posted directly to this account. Only leaf accounts "

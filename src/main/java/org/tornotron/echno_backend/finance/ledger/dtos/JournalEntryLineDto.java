@@ -25,7 +25,8 @@ public record JournalEntryLineDto(
         @Schema(description = "Credit amount on this line. Zero when the line is a debit.", example = "0.00")
         BigDecimal credit,
 
-        @Schema(description = "Optional narration for the line.", example = "Payment received from customer")
+        @Schema(description = "Optional narration for the line. Null where none was recorded.",
+                example = "Payment received from customer", nullable = true)
         String narration,
 
         @Schema(description = "Order of the line within the entry, starting at zero.", example = "0")

@@ -17,25 +17,33 @@ public record CustomerDto(
         @Schema(description = "Customer name.", example = "Asset Homes Pvt Ltd")
         String name,
 
-        @Schema(description = "GST identification number.", example = "29ABCDE1234F1Z5")
+        @Schema(description = "GST identification number. Null where the customer is not registered, or the "
+                + "number was not recorded.", example = "29ABCDE1234F1Z5", nullable = true)
         String gstin,
 
-        @Schema(description = "Permanent account number.", example = "ABCDE1234F")
+        @Schema(description = "Permanent account number. Null where none was recorded.",
+                example = "ABCDE1234F", nullable = true)
         String pan,
 
-        @Schema(description = "Contact email address.", example = "accounts@assethomes.example")
+        @Schema(description = "Contact email address. Null where none was recorded.",
+                example = "accounts@assethomes.example", nullable = true)
         String email,
 
-        @Schema(description = "Contact phone number.", example = "+91 98765 43210")
+        @Schema(description = "Contact phone number. Null where none was recorded.",
+                example = "+91 98765 43210", nullable = true)
         String phone,
 
-        @Schema(description = "Billing address.")
+        @Schema(description = "Billing address. Null where no part of the address is set: every address column "
+                + "on the customer is nullable, and Hibernate leaves an embedded value null when all of its "
+                + "columns are.", nullable = true)
         AddressDto billingAddress,
 
-        @Schema(description = "Credit limit extended to the customer.", example = "500000.00")
+        @Schema(description = "Credit limit extended to the customer. Null where no credit limit was agreed; a "
+                + "zero there would mean a limit of zero.", example = "500000.00", nullable = true)
         BigDecimal creditLimit,
 
-        @Schema(description = "Default payment terms in days.", example = "30")
+        @Schema(description = "Default payment terms in days. Null where no default terms were agreed.",
+                example = "30", nullable = true)
         Integer paymentTermsDays,
 
         @Schema(description = "Whether the customer is active.", example = "true")

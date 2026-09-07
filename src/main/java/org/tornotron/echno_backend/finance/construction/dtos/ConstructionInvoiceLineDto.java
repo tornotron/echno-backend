@@ -40,20 +40,23 @@ public record ConstructionInvoiceLineDto(
         @Schema(description = "Line total after tax and discount.", example = "79100.00")
         BigDecimal total,
 
-        @Schema(description = "Inventory item the line draws from, if any.", example = "512")
+        @Schema(description = "Inventory item the line draws from, if any. Null where none is set.",
+                example = "512", nullable = true)
         Long inventoryItemId,
 
-        @Schema(description = "Asset the line relates to, if any.", example = "88")
+        @Schema(description = "Asset the line relates to, if any. Null where none is set.",
+                example = "88", nullable = true)
         Long assetId,
 
-        @Schema(description = "Task the line is charged against, if any.", example = "1204")
+        @Schema(description = "Task the line is charged against, if any. Null where none is set.",
+                example = "1204", nullable = true)
         Long taskId,
 
-        @Schema(description = "Budget head (cost category) this line is charged against, if any.",
-                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10")
+        @Schema(description = "Budget head (cost category) this line is charged against, if any. Null where the "
+                + "line carries no budget head.", example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10", nullable = true)
         UUID costCategoryId,
 
-        @Schema(description = "Name of the budget head this line is charged against, if any.",
-                example = "Materials")
+        @Schema(description = "Name of the budget head this line is charged against, if any. Null where the "
+                + "line carries no budget head.", example = "Materials", nullable = true)
         String costCategoryName
 ) {}

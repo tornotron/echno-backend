@@ -38,15 +38,16 @@ public record PaymentDto(
         @Schema(description = "Receiving bank account number.", example = "50100123456789")
         String bankAccountNumber,
 
-        @Schema(description = "External reference for the payment, such as a UTR or cheque number.",
-                example = "UTR2026081012345")
+        @Schema(description = "External reference for the payment, such as a UTR or cheque number. Null where "
+                + "none was recorded.", example = "UTR2026081012345", nullable = true)
         String externalReference,
 
-        @Schema(description = "Ledger journal entry posted for the receipt.",
-                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10")
+        @Schema(description = "Ledger journal entry posted for the receipt. Null until the receipt is posted to "
+                + "the ledger.", example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10", nullable = true)
         UUID journalEntryId,
 
-        @Schema(description = "Internal notes.", example = "Part payment against August invoices")
+        @Schema(description = "Internal notes. Null where none were recorded.",
+                example = "Part payment against August invoices", nullable = true)
         String notes,
 
         @Schema(description = "How the payment amount was allocated across invoices.")
