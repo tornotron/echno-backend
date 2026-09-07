@@ -108963,7 +108963,7 @@
       "name": "Goods Received Notes"
     },
     {
-      "description": "Goods received notes (GRNs) record materials received against a vendor, capturing the delivery and its line items. This is the web-console API, gated by organization role for the current tenant rather than by flat authorities. Recording a receipt and reading one are open to the system-admin and store-keeper roles, because booking a delivery in is the store's own work and used to require administering the whole organization. Endpoints cover creating, browsing, filtering by vendor or date range, and updating GRNs.",
+      "description": "Goods received notes (GRNs) record materials received against a vendor, capturing the delivery and its line items. This is the web-console API, gated by organization role for the current tenant rather than by flat authorities. Recording a receipt and reading one are open to the system-admin and store-keeper roles, because booking a delivery in is the store's own work and used to require administering the whole organization. Reading is open to the project-manager role as well, which already sees the same receipt in the stock ledger. Endpoints cover creating, browsing, filtering by vendor or date range, and updating GRNs.",
       "name": "Goods Received Notes (Web)"
     },
     {
@@ -109079,7 +109079,7 @@
       "name": "Material Consumptions"
     },
     {
-      "description": "Web-console counterpart of the material consumptions API, gated by organization role for the current tenant. Recording an issue and looking issues up are open to the system-admin and store-keeper roles: handing material out over the counter is the store's own work. Covers the same recording and lookup operations as the standard material consumption endpoints, for use from the admin web console rather than the mobile app.",
+      "description": "Web-console counterpart of the material consumptions API, gated by organization role for the current tenant. Recording an issue is open to the system-admin and store-keeper roles: handing material out over the counter is the store's own work. Looking issues up is open to those two and to the project-manager role, which already sees the same consumption in the stock ledger. Covers the same recording and lookup operations as the standard material consumption endpoints, for use from the admin web console rather than the mobile app.",
       "name": "Material Consumptions (Web)"
     },
     {
@@ -109163,7 +109163,7 @@
       "name": "Purchase Order Items (Web)"
     },
     {
-      "description": "Purchase orders raised against a vendor, optionally converted from an indent. A purchase order carries line items, a status lifecycle from draft through fully received or cancelled, and the totals used for payables. Raising and changing an order is restricted to the system-admin role for the current tenant. Reading one is also open to store-keeper, which is what a goods receipt is booked against: the receiving end has to see what was ordered without being able to alter the order.",
+      "description": "Purchase orders raised against a vendor, optionally converted from an indent. A purchase order carries line items, a status lifecycle from draft through fully received or cancelled, and the totals used for payables. Raising and changing an order is restricted to the system-admin role for the current tenant. Reading one is also open to store-keeper, which is what a goods receipt is booked against, and to project-manager, which already sees what that receipt booked in the stock ledger. Neither can alter the order.",
       "name": "Purchase Orders"
     },
     {
@@ -109191,7 +109191,7 @@
       "name": "Site Transfers"
     },
     {
-      "description": "Web-app view of site transfers: the same movement of materials between two projects and their storage locations as the mobile-facing site-transfer endpoints, gated by organization role for the caller's current tenant. Raising a transfer, confirming what the receiving site took delivery of, and cancelling one that never arrived are open to the system-admin and store-keeper roles, since both ends of a transfer are worked by a store. Creating a transfer checks that the sending location holds enough stock before the items are recorded.",
+      "description": "Web-app view of site transfers: the same movement of materials between two projects and their storage locations as the mobile-facing site-transfer endpoints, gated by organization role for the caller's current tenant. Raising a transfer, confirming what the receiving site took delivery of, and cancelling one that never arrived are open to the system-admin and store-keeper roles, since both ends of a transfer are worked by a store. Reading a transfer is open to the project-manager role as well, which already sees the movement in the stock ledger and raises the adjustment that settles a receipt variance. Creating a transfer checks that the sending location holds enough stock before the items are recorded.",
       "name": "Site Transfers (Web)"
     },
     {
