@@ -184,6 +184,13 @@ public class EmployeeControllerWeb {
     /**
      * Partially updates an existing employee.
      *
+     * <p><b>The guard decides the record, not the field.</b> A caller holding neither role reaches
+     * this endpoint only through the self clause, and the map they may send is narrowed to what is
+     * genuinely theirs by {@link EmployeePatchFieldScope}, which runs in the service and therefore
+     * covers this endpoint, its mobile twin and the batch alike. Naming a field outside that set is
+     * refused with a 403 rather than dropped. See #735 for why the answer is the field list and
+     * not the guard.
+     *
      * @param updates A map of fields to update.
      * @param id      The ID of the employee to update.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
@@ -193,12 +200,15 @@ public class EmployeeControllerWeb {
     @Operation(
             summary = "Partially update an employee",
             description = "Applies the given field updates to the employee with the given id. Callable "
-                    + "by the employee themselves or by a system or HR admin."
+                    + "by the employee themselves or by a system or HR admin. An employee editing "
+                    + "their own record may change employeeName, phoneNumber, emailAddress and "
+                    + "dateOfBirth; the remaining fields are set by a system admin or an HR admin, "
+                    + "and naming one of them without those roles is refused."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the updated fields failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee nor a system or HR admin"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee nor a system or HR admin, or is the employee and named a field only those roles may set"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<ApiResponse> partialUpdateAnEmployee(

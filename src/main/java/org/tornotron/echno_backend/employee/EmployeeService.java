@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.service.KeycloakGroupService;
+import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeLookupDto;
@@ -57,6 +58,7 @@ public class EmployeeService {
     private final EmployeeMapper employeeMapper;
     private final EmployeeHierarchyService employeeHierarchyService;
     private final ShiftTimingRepository shiftTimingRepository;
+    private final OrganizationSecurityService orgSecurity;
 
     /**
      * Constructs an EmployeeService with the necessary repositories.
@@ -66,8 +68,11 @@ public class EmployeeService {
      * @param userRepository         The repository for user data access.
      * @param keycloakGroupService   The service for managing Keycloak groups.
      * @param employeeHierarchyService The service owning the reporting hierarchy.
+     * @param orgSecurity            Answers which org-scoped roles the caller holds, the same bean
+     *                               the guards on these endpoints ask. Used by the partial update
+     *                               to decide the field scope; see {@link EmployeePatchFieldScope}.
      */
-    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, KeycloakGroupService keycloakGroupService, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, KeycloakGroupService keycloakGroupService, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, OrganizationSecurityService orgSecurity) {
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
@@ -75,6 +80,7 @@ public class EmployeeService {
         this.employeeMapper = employeeMapper;
         this.employeeHierarchyService = employeeHierarchyService;
         this.shiftTimingRepository = shiftTimingRepository;
+        this.orgSecurity = orgSecurity;
     }
 
     /**
@@ -327,7 +333,19 @@ public class EmployeeService {
         employeeRepository.save(employee);
     }
 
+    /**
+     * Applies a partial update to an already-loaded employee.
+     *
+     * <p>Every route into this map ends here: both single-record twins and the batch endpoint. That
+     * is why the field scope is enforced at the top of this method rather than at a controller. See
+     * {@link EmployeePatchFieldScope} for the split and for why it is keyed on the caller's role
+     * rather than on whose record this is.
+     */
     private void partialUpdateAnEmployee(Map<String, Object> updates, Employee employee) {
+        EmployeePatchFieldScope.refuseFieldsTheCallerMayNotSet(
+                updates.keySet(),
+                orgSecurity.hasAnyOrgRoleForCurrentTenant(EmployeePatchFieldScope.PERSONNEL_ROLES));
+
         updates.forEach((key, value) -> {
             switch (key) {
                 case "employeeId":
