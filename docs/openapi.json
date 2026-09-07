@@ -1357,7 +1357,7 @@
         "description": "A single day's attendance record for an employee, with its clock events, movements, regularizations and approval state.",
         "properties": {
           "afternoonSessionMinutes": {
-            "description": "Minutes worked in the afternoon session, after the lunch break. Null whenever the day's totals have not been computed.",
+            "description": "Minutes worked in the afternoon session, after the lunch break. Null on the same terms as totalWorkMinutes.",
             "example": 255,
             "format": "int32",
             "type": [
@@ -1408,7 +1408,7 @@
             "type": "string"
           },
           "breakDurationMinutes": {
-            "description": "Total minutes spent on breaks during the day. Null whenever the day's totals have not been computed; a computed zero means no break was punched.",
+            "description": "Total minutes spent on breaks during the day. Zero when no break was punched. Null on the same terms as totalWorkMinutes.",
             "example": 60,
             "format": "int32",
             "type": [
@@ -1491,7 +1491,7 @@
             ]
           },
           "morningSessionMinutes": {
-            "description": "Minutes worked in the morning session, before the lunch break. Null whenever the day's totals have not been computed.",
+            "description": "Minutes worked in the morning session, before the lunch break. Null on the same terms as totalWorkMinutes.",
             "example": 225,
             "format": "int32",
             "type": [
@@ -1507,7 +1507,7 @@
             "type": "array"
           },
           "overtimeMinutes": {
-            "description": "Minutes worked beyond the shift's overtime threshold. Null whenever the day's totals have not been computed, which is different from a computed zero meaning no overtime was earned.",
+            "description": "Minutes worked beyond the shift's overtime threshold. Zero when no overtime was earned. Null on the same terms as totalWorkMinutes.",
             "example": 30,
             "format": "int32",
             "type": [
@@ -1575,7 +1575,7 @@
             "type": "string"
           },
           "totalWorkMinutes": {
-            "description": "Total minutes worked across all sessions. Null until the day is computed, which never happens on a record with no shift or one raised by marking someone absent or on leave. Null means nothing was calculated and must not be read as zero minutes worked.",
+            "description": "Total minutes worked across all sessions. Zero on a day nobody worked, including one raised by marking someone absent or on leave. Null only on a record written before absences began storing a zero here; those rows were left as they are, so a client reading history still has to allow for it.",
             "example": 480,
             "format": "int32",
             "type": [
@@ -2999,13 +2999,6 @@
               "null"
             ]
           },
-          "photoUrl": {
-            "description": "Always null. The mapper ignores this field and the clock event has no photo of its own; photos taken with a punch are returned in attachments instead, each with its own signed download URL.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "projectId": {
             "description": "Id of the project the event was recorded against.",
             "example": 12,
@@ -3037,23 +3030,6 @@
           "remarks": {
             "description": "Optional remarks about the event. Null where none were given, and always null on an event written by a regularization.",
             "example": "Reported directly to the second floor slab pour",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "verifiedAt": {
-            "description": "When the event was verified. Null on the same terms as verifiedBy, and the two are written together if anything ever writes them.",
-            "example": "2026-01-16T11:00:00",
-            "format": "date-time",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "verifiedBy": {
-            "description": "Who verified the event. The column exists but no code path in the application writes it, so it is null on every event this server records.",
-            "example": "Anand Rajashekar",
             "type": [
               "string",
               "null"
@@ -6094,7 +6070,7 @@
             "type": "boolean"
           },
           "projectId": {
-            "description": "Project the goods were received for. The column permits null and rows exist without it, although the entity declares the association non-optional.",
+            "description": "Project the goods were received for. The column permits null. Every route the application offers requires a project, so a null here names a row that did not come through one, such as a database migrated from before the column existed.",
             "example": 42,
             "format": "int64",
             "type": [
@@ -13460,7 +13436,7 @@
             "type": "string"
           },
           "projectId": {
-            "description": "Id of the project the amount is charged to. The column permits null and rows exist without it, although the entity declares the association non-optional.",
+            "description": "Id of the project the amount is charged to. The column permits null. Every route the application offers requires a project, so a null here names a row that did not come through one, such as a database migrated from before the column existed.",
             "format": "int64",
             "type": [
               "integer",
@@ -14983,7 +14959,7 @@
             "type": "string"
           },
           "projectId": {
-            "description": "Id of the project the materials are for. The column permits null and rows exist without it, although the entity declares the association non-optional.",
+            "description": "Id of the project the materials are for. The column permits null. Every route the application offers requires a project, so a null here names a row that did not come through one, such as a database migrated from before the column existed.",
             "example": 3,
             "format": "int64",
             "type": [
