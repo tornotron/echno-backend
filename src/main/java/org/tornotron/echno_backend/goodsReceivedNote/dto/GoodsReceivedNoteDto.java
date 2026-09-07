@@ -58,9 +58,10 @@ public class GoodsReceivedNoteDto {
             nullable = true)
     private Double invoiceAmount;
 
-    @Schema(description = "Project the goods were received for. The column permits null and rows "
-            + "exist without it, although the entity declares the association non-optional.",
-            example = "42", nullable = true)
+    @Schema(description = "Project the goods were received for. The column permits null. Every "
+            + "route the application offers requires a project, so a null here names a row that "
+            + "did not come through one, such as a database migrated from before the column "
+            + "existed.", example = "42", nullable = true)
     private Long projectId;
 
     @Schema(description = "Project name. Null whenever projectId is, and also on a project that "

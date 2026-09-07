@@ -54,30 +54,29 @@ public class AttendanceResponseDto {
             + "rather than null on a day with no punches.")
     private List<ClockEventDto> clockEvents;
 
-    @Schema(description = "Total minutes worked across all sessions. Null until the day is "
-            + "computed, which never happens on a record with no shift or one raised by marking "
-            + "someone absent or on leave. Null means nothing was calculated and must not be read "
-            + "as zero minutes worked.", example = "480", nullable = true)
+    @Schema(description = "Total minutes worked across all sessions. Zero on a day nobody "
+            + "worked, including one raised by marking someone absent or on leave. Null only on "
+            + "a record written before absences began storing a zero here; those rows were left "
+            + "as they are, so a client reading history still has to allow for it.",
+            example = "480", nullable = true)
     private Integer totalWorkMinutes;
 
     @Schema(description = "Minutes worked in the morning session, before the lunch break. Null "
-            + "whenever the day's totals have not been computed.", example = "225",
-            nullable = true)
+            + "on the same terms as totalWorkMinutes.", example = "225", nullable = true)
     private Integer morningSessionMinutes;
 
     @Schema(description = "Minutes worked in the afternoon session, after the lunch break. Null "
-            + "whenever the day's totals have not been computed.", example = "255",
-            nullable = true)
+            + "on the same terms as totalWorkMinutes.", example = "255", nullable = true)
     private Integer afternoonSessionMinutes;
 
-    @Schema(description = "Minutes worked beyond the shift's overtime threshold. Null whenever "
-            + "the day's totals have not been computed, which is different from a computed zero "
-            + "meaning no overtime was earned.", example = "30", nullable = true)
+    @Schema(description = "Minutes worked beyond the shift's overtime threshold. Zero when no "
+            + "overtime was earned. Null on the same terms as totalWorkMinutes.",
+            example = "30", nullable = true)
     private Integer overtimeMinutes;
 
-    @Schema(description = "Total minutes spent on breaks during the day. Null whenever the day's "
-            + "totals have not been computed; a computed zero means no break was punched.",
-            example = "60", nullable = true)
+    @Schema(description = "Total minutes spent on breaks during the day. Zero when no break was "
+            + "punched. Null on the same terms as totalWorkMinutes.", example = "60",
+            nullable = true)
     private Integer breakDurationMinutes;
 
     @Schema(description = "Whether the employee clocked in after the shift's grace period.", example = "false")

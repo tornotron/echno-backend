@@ -68,6 +68,7 @@ public class AttendanceRegularization implements TenantScopedEntity {
     @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private RegularizationStatus status = RegularizationStatus.PENDING;

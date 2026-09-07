@@ -126,11 +126,6 @@ public class ClockEvent implements TenantScopedEntity {
     @Column(name = "remarks")
     private String remarks;
 
-    @Column(name = "verified_by")
-    private String verifiedBy;
-
-    @Column(name = "verified_at")
-    private LocalDateTime verifiedAt;
 
     @Builder.Default
     @Column(name = "is_regularized", nullable = false)

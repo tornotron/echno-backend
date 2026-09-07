@@ -38,9 +38,10 @@ public class PurchaseOrderDto {
             example = "IND-2026-0015", nullable = true)
     private String indentNumber;
 
-    @Schema(description = "Id of the project the materials are for. The column permits null and "
-            + "rows exist without it, although the entity declares the association non-optional.",
-            example = "3", nullable = true)
+    @Schema(description = "Id of the project the materials are for. The column permits null. "
+            + "Every route the application offers requires a project, so a null here names a row "
+            + "that did not come through one, such as a database migrated from before the column "
+            + "existed.", example = "3", nullable = true)
     private Long projectId;
 
     @Schema(description = "Name of the project. Null whenever projectId is, and also on a project "

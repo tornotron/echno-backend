@@ -145,13 +145,16 @@ final class ReviewedResponseSchemas {
      *       that replaces an empty list with null on purpose.
      *   <li>{@code projectId} and {@code projectName} are nullable on all three schemas, and this
      *       is the trap the vendor pass warned about. {@code Payable}, {@code PurchaseOrder} and
-     *       {@code GoodsReceivedNote} each declare
+     *       {@code GoodsReceivedNote} each declared
      *       {@code @JoinColumn(name = "project_id", nullable = false)} while the Liquibase column
      *       is nullable in every case, and no {@code addNotNullConstraint} anywhere in the
      *       changelog names a {@code project_id}. {@code ddl-auto} is {@code validate}, which
-     *       does not compare nullability, so nothing reports it. The changelog wins.
-     *       {@code projectName} is nullable twice over, since {@code project.project_name} is
-     *       itself a nullable column.
+     *       does not compare nullability, so nothing reported it. The changelog won, and #728
+     *       dropped the three annotations to match rather than tightening the columns, which
+     *       would need a null sweep of every deployed database first;
+     *       {@code ProjectJoinColumnMatchesTheChangelogTest} now reads the expectation out of the
+     *       changeset. {@code projectName} is nullable twice over, since
+     *       {@code project.project_name} is itself a nullable column.
      *   <li>A flattened name is null exactly when its foreign key is: {@code vendorName},
      *       {@code grnNumber}, {@code indentNumber}, {@code purchaseOrderNumber},
      *       {@code storageLocationName} and {@code materialName} all map through an association
@@ -181,19 +184,23 @@ final class ReviewedResponseSchemas {
      *       rows to null precisely so that a placeholder {@code false} could not be read as a
      *       measured verdict. {@code distanceFromProject} and {@code geofenceRadiusMeters} are
      *       written from the same evaluation, so the three are null together or set together.
-     *   <li>The five session-minute fields are nullable for a reason that is neither the column
-     *       nor the mapper. {@code Attendance} is a {@code @Builder} class and those five fields
-     *       carry an inline {@code = 0} with no {@code @Builder.Default}, so Lombok discards the
-     *       initialiser and the builder writes null. Nothing then fills them until
-     *       {@code AttendanceCalculationService.recalculate} runs, which never happens on a
-     *       record raised by marking someone absent or on leave, or on one with no shift. Null
-     *       there means the day was not computed, which is not zero minutes worked.
-     *   <li>{@code photoUrl}, {@code verifiedBy} and {@code verifiedAt} on
-     *       {@code ClockEventDto} are null on every response ever served. The mapper declares
-     *       {@code @Mapping(target = "photoUrl", ignore = true)} and nothing in {@code src/main}
-     *       writes the other two on a clock event. They are recorded as nullable and their
-     *       descriptions say plainly that they are not populated, rather than implying a flow
-     *       that does not exist.
+     *   <li>The five session-minute fields stay nullable, but no longer for the reason the
+     *       original pass gave. {@code Attendance} is a {@code @Builder} class and the five
+     *       carried an inline {@code = 0} with no {@code @Builder.Default}, so Lombok discarded
+     *       the initialiser and the builder wrote null on the one path that never recalculates:
+     *       marking someone absent or on leave, which also leaves the record without a shift and
+     *       so beyond the reach of every later {@code recalculate} call, all of which are guarded
+     *       on the shift. #728 added the annotation, so those records now store the zero the
+     *       declaration always intended, and match a computed day on which nobody punched. The
+     *       properties remain nullable because the rows written before that are still in the
+     *       table and were not rewritten.
+     *   <li>{@code photoUrl}, {@code verifiedBy} and {@code verifiedAt} were null on every
+     *       response the server had ever produced, and #728 took them off
+     *       {@code ClockEventDto} rather than leave the contract promising them.
+     *       {@code photoUrl} was the leftover half of a finished migration to
+     *       {@code Attachment}, and the punch photos it named are returned in
+     *       {@code attachments}; the other two were the unstarted half of a per-punch
+     *       verification that {@code MovementRecord} has and a clock event never grew.
      *   <li>The collections ({@code clockEvents}, {@code regularizations}, {@code movements},
      *       {@code attachments}) are non-null because the entity initialises each and marks it
      *       {@code @Builder.Default}. They are routinely empty, which is a normal state.
@@ -297,10 +304,10 @@ final class ReviewedResponseSchemas {
                                 "approvalStatus", "requiresGeofenceApproval")),
                 new ReviewedSchema(
                         ClockEventDto.class,
-                        Set.of("latitude", "longitude", "gpsAccuracy", "photoUrl",
+                        Set.of("latitude", "longitude", "gpsAccuracy",
                                 "devicePlatform", "isWithinGeofence", "distanceFromProject",
                                 "geofenceRadiusMeters", "geofenceExceptionReason", "recordedById",
-                                "remarks", "verifiedBy", "verifiedAt", "regularizationReason"),
+                                "remarks", "regularizationReason"),
                         Set.of("id", "eventType", "eventTimestamp", "projectId", "projectName",
                                 "isRegularized", "attachments")));
     }

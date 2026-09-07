@@ -87,8 +87,18 @@ public class GoodsReceivedNote implements TenantScopedEntity {
     @OneToMany(mappedBy = "goodsReceivedNote")
     private List<Payable> payables = new ArrayList<>();
 
+    /**
+     * The project the record is charged to.
+     *
+     * <p>Declared nullable because {@code goods_received_note.project_id} is. Every creation path requires
+     * it, through a {@code @NotNull} on the request and a lookup that throws when the project is
+     * not found, and no update can clear it, so the application does not write one without a
+     * project. The column itself was never constrained, and a database migrated from before the
+     * column existed was not backfilled, so a null row remains possible and the contract says so.
+     * Tightening the column would need a null sweep across every deployed database first.
+     */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "project_id", nullable = false)
+    @JoinColumn(name = "project_id")
     private Project project;
 
     @ManyToOne(fetch = FetchType.LAZY)
