@@ -409,4 +409,7 @@
     <!-- v4.0 - Attendance: index the approval queue's predicate, which nothing queried before -->
     <include file="db/changelog/v4.0/091-index-attendance-approval-queue.xml"/>
 
+    <!-- v4.0 - Issue comments: let an author correct their own comment, and say on the record that they did -->
+    <include file="db/changelog/v4.0/092-issue-comment-edited-marker.xml"/>
+
 </databaseChangeLog>

@@ -38,4 +38,22 @@ public class IssueComment implements TenantScopedEntity {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    /**
+     * Whether the author has changed the text since posting it.
+     *
+     * <p>Set only by {@code IssueCommentService.updateIssueComment}, never by
+     * {@code @UpdateTimestamp} or a JPA auditing listener. Those fire on every save, including the
+     * one that creates the row, so a comment would be born marked edited. Issues are the QA trail
+     * and this flag is read as a statement about the record, so it has to mean what it says.
+     *
+     * <p>Two columns rather than a null check on one, matching {@code ChatMessage}, which has
+     * carried {@code isEdited} and {@code editedAt} together since the chat module was built.
+     */
+    @Column(name = "is_edited", nullable = false)
+    private boolean edited = false;
+
+    /** When the author last changed the text, or null if they never have. */
+    @Column(name = "edited_at")
+    private LocalDateTime editedAt;
 }
