@@ -34239,7 +34239,7 @@
                 }
               }
             },
-            "description": "Caller lacks the employee create or admin authority, or named an organization that is not the current tenant"
+            "description": "Caller lacks the required role in the current tenant, or named an organization that is not it"
           },
           "404": {
             "content": {
@@ -57080,7 +57080,7 @@
                 }
               }
             },
-            "description": "Caller lacks the issue create or admin authority, or has no employee record in the current tenant, so the record would name nobody"
+            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -57214,7 +57214,7 @@
                 }
               }
             },
-            "description": "Caller lacks the issue-comment read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -57324,7 +57324,7 @@
                 }
               }
             },
-            "description": "Caller lacks the issue-comment create or admin authority, or has no employee record in the current tenant, so the record would name nobody"
+            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -58142,7 +58142,7 @@
                 }
               }
             },
-            "description": "Caller lacks the issue-comment delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -59392,7 +59392,7 @@
                 }
               }
             },
-            "description": "Caller lacks the issue delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -59503,7 +59503,7 @@
                 }
               }
             },
-            "description": "Caller lacks the issue read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -59644,7 +59644,7 @@
                 }
               }
             },
-            "description": "Caller lacks the issue update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -108995,7 +108995,7 @@
       "name": "Inventory Transactions (Web)"
     },
     {
-      "description": "A comment left on an issue, carrying the comment text, its author and a timestamp. Endpoints cover creation, paginated listing and deletion, gated by the issue-comment authorities, with an admin authority that grants all operations.",
+      "description": "A comment left on an issue, carrying the comment text, its author and a timestamp. Endpoints cover creation, paginated listing and deletion, gated by tenant membership, with deletion restricted to a system admin or project manager.",
       "name": "Issue Comments"
     },
     {
@@ -109007,7 +109007,7 @@
       "name": "Issues"
     },
     {
-      "description": "A problem or defect raised against a task, optionally with attachments and comments. Endpoints cover reading a single issue, creating one with attachments, partial updates and deletion. Access is gated by the issue authorities, with an admin authority that grants all operations.",
+      "description": "A problem or defect raised against a task, optionally with attachments and comments. Endpoints cover reading a single issue, creating one with attachments, partial updates and deletion. Access is gated by tenant membership, with update and delete restricted to a system admin or project manager.",
       "name": "Issues"
     },
     {
