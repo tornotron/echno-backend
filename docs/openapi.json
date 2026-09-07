@@ -5175,7 +5175,8 @@
                 "PROJECT_MANAGER",
                 "QA_ENGINEER",
                 "SAFETY_OFFICER",
-                "SITE_ENGINEER"
+                "SITE_ENGINEER",
+                "STORE_KEEPER"
               ],
               "type": "string"
             },
@@ -11361,7 +11362,8 @@
               "PROJECT_MANAGER",
               "QA_ENGINEER",
               "SAFETY_OFFICER",
-              "SITE_ENGINEER"
+              "SITE_ENGINEER",
+              "STORE_KEEPER"
             ],
             "type": "string"
           }
@@ -35552,7 +35554,8 @@
                       "PROJECT_MANAGER",
                       "QA_ENGINEER",
                       "SAFETY_OFFICER",
-                      "SITE_ENGINEER"
+                      "SITE_ENGINEER",
+                      "STORE_KEEPER"
                     ],
                     "type": "string"
                   },
@@ -35797,7 +35800,8 @@
                 "PROJECT_MANAGER",
                 "QA_ENGINEER",
                 "SAFETY_OFFICER",
-                "SITE_ENGINEER"
+                "SITE_ENGINEER",
+                "STORE_KEEPER"
               ],
               "type": "string"
             }
@@ -108982,7 +108986,7 @@
       "name": "Goods Received Notes"
     },
     {
-      "description": "Goods received notes (GRNs) record materials received against a vendor, capturing the delivery and its line items. This is the web-console API, restricted to the system-admin role for the current tenant rather than flat authorities. Endpoints cover creating, browsing, filtering by vendor or date range, and updating GRNs.",
+      "description": "Goods received notes (GRNs) record materials received against a vendor, capturing the delivery and its line items. This is the web-console API, gated by organization role for the current tenant rather than by flat authorities. Recording a receipt and reading one are open to the system-admin and store-keeper roles, because booking a delivery in is the store's own work and used to require administering the whole organization. Endpoints cover creating, browsing, filtering by vendor or date range, and updating GRNs.",
       "name": "Goods Received Notes (Web)"
     },
     {
@@ -109010,7 +109014,7 @@
       "name": "Inventory Transactions"
     },
     {
-      "description": "Movements of material stock, such as receipts, issues and usage, together with derived stock levels by storage location or material. This is the web-console API for the current tenant, and every endpoint is read-only: fetching a transaction, browsing and filtering by material, project, type, date range, storage location or task, and reading current stock and task usage totals. Access is split by what a read is anchored to. A read that names a material, a storage location, a project or a task is open to the system-admin and project-manager roles, because a project manager raises and approves stock adjustments and approving one writes the ADJUST rows carrying the reason the stock moved; all four of those objects are already readable by a project manager, so a ledger read anchored to one of them shows the movements behind something the caller can already open. The four listings that name nothing and range over the whole organization stay with system-admin: the unpaginated and paginated listings of every transaction, the listing by transaction type and the listing by date range. Those are the movement report rather than the history behind a document, and no part of the stock-adjustment workflow reaches them.",
+      "description": "Movements of material stock, such as receipts, issues and usage, together with derived stock levels by storage location or material. This is the web-console API for the current tenant, and every endpoint is read-only: fetching a transaction, browsing and filtering by material, project, type, date range, storage location or task, and reading current stock and task usage totals. Access is split by what a read is anchored to. A read that names a material, a storage location, a project or a task is open to the system-admin and project-manager roles, because a project manager raises and approves stock adjustments and approving one writes the ADJUST rows carrying the reason the stock moved; all four of those objects are already readable by a project manager, so a ledger read anchored to one of them shows the movements behind something the caller can already open. The four listings that name nothing and range over the whole organization stay closed to a project manager: the unpaginated and paginated listings of every transaction, the listing by transaction type and the listing by date range. Those are the movement report rather than the history behind a document, and no part of the stock-adjustment workflow reaches them. The store-keeper role reads all of it, anchored or not, because this ledger is the record of the receipts, issues and transfers a storekeeper posts and answering for it means being able to read it back.",
       "name": "Inventory Transactions (Web)"
     },
     {
@@ -109098,7 +109102,7 @@
       "name": "Material Consumptions"
     },
     {
-      "description": "Web-console counterpart of the material consumptions API, restricted to the system-admin role for the current tenant. Covers the same recording and lookup operations as the standard material consumption endpoints, for use from the admin web console rather than the mobile app.",
+      "description": "Web-console counterpart of the material consumptions API, gated by organization role for the current tenant. Recording an issue and looking issues up are open to the system-admin and store-keeper roles: handing material out over the counter is the store's own work. Covers the same recording and lookup operations as the standard material consumption endpoints, for use from the admin web console rather than the mobile app.",
       "name": "Material Consumptions (Web)"
     },
     {
@@ -109106,7 +109110,7 @@
       "name": "Materials"
     },
     {
-      "description": "Web-console counterpart of the materials API, gated by organization role for the current tenant. Covers the same create, browse, search, update, stock lookup and delete operations as the standard materials endpoints, for use from the admin web console rather than the mobile app. Reads, including the stock lookup, are open to the system-admin and project-manager roles, because a project manager raises and approves stock adjustments and those are documents about a material's balance. Changing the catalogue, its thresholds included, stays with system-admin.",
+      "description": "Web-console counterpart of the materials API, gated by organization role for the current tenant. Covers the same create, browse, search, update, stock lookup and delete operations as the standard materials endpoints, for use from the admin web console rather than the mobile app. Reads, including the stock lookup, are open to the system-admin, project-manager and store-keeper roles, because a project manager raises and approves stock adjustments and those are documents about a material's balance, and a storekeeper cannot name a material on a receipt, an issue or a count without reading the catalogue first. Changing the catalogue, its thresholds included, stays with system-admin.",
       "name": "Materials (Web)"
     },
     {
@@ -109174,7 +109178,7 @@
       "name": "Projects"
     },
     {
-      "description": "Line items belonging to a purchase order: the material, ordered and received quantities, unit price and totals. Items can be created independently of the parent order create call and looked up by purchase order or by material. Access is restricted to the system-admin role for the current tenant.",
+      "description": "Line items belonging to a purchase order: the material, ordered and received quantities, unit price and totals. Items can be created independently of the parent order create call and looked up by purchase order or by material. Writing an item is restricted to the system-admin role for the current tenant. Reading one is also open to store-keeper, who needs the ordered quantities to check a delivery against them.",
       "name": "Purchase Order Items"
     },
     {
@@ -109182,7 +109186,7 @@
       "name": "Purchase Order Items (Web)"
     },
     {
-      "description": "Purchase orders raised against a vendor, optionally converted from an indent. A purchase order carries line items, a status lifecycle from draft through fully received or cancelled, and the totals used for payables. Access is restricted to the system-admin role for the current tenant.",
+      "description": "Purchase orders raised against a vendor, optionally converted from an indent. A purchase order carries line items, a status lifecycle from draft through fully received or cancelled, and the totals used for payables. Raising and changing an order is restricted to the system-admin role for the current tenant. Reading one is also open to store-keeper, which is what a goods receipt is booked against: the receiving end has to see what was ordered without being able to alter the order.",
       "name": "Purchase Orders"
     },
     {
@@ -109210,11 +109214,11 @@
       "name": "Site Transfers"
     },
     {
-      "description": "Web-app view of site transfers: the same movement of materials between two projects and their storage locations as the mobile-facing site-transfer endpoints, restricted to the system-admin role for the caller's current tenant. Creating a transfer checks that the sending location holds enough stock before the items are recorded.",
+      "description": "Web-app view of site transfers: the same movement of materials between two projects and their storage locations as the mobile-facing site-transfer endpoints, gated by organization role for the caller's current tenant. Raising a transfer, confirming what the receiving site took delivery of, and cancelling one that never arrived are open to the system-admin and store-keeper roles, since both ends of a transfer are worked by a store. Creating a transfer checks that the sending location holds enough stock before the items are recorded.",
       "name": "Site Transfers (Web)"
     },
     {
-      "description": "Documents that correct the recorded on-hand quantity of materials at a storage location against a physical count, capturing the variance, its reason and justification per line item. This is the controlled way to set or correct a stock balance: approving a document posts its lines to the inventory ledger and moves the balance, so the resulting figure stays explainable. Endpoints cover creating, updating, browsing, approving, rejecting and deleting stock adjustment documents for the caller's current tenant. A draft is either approved, which posts it, or rejected with a stated reason, which posts nothing and keeps the refused correction on the record; both decisions freeze the document. Read endpoints require tenant membership; write and decision endpoints require the system-admin or project-manager role, and approval additionally has to come from someone other than whoever raised the document.",
+      "description": "Documents that correct the recorded on-hand quantity of materials at a storage location against a physical count, capturing the variance, its reason and justification per line item. This is the controlled way to set or correct a stock balance: approving a document posts its lines to the inventory ledger and moves the balance, so the resulting figure stays explainable. Endpoints cover creating, updating, browsing, approving, rejecting and deleting stock adjustment documents for the caller's current tenant. A draft is either approved, which posts it, or rejected with a stated reason, which posts nothing and keeps the refused correction on the record; both decisions freeze the document. Read endpoints require tenant membership. Raising and editing a draft is open to the system-admin, project-manager and store-keeper roles, because taking the count is the store's own work. Approving, rejecting and deleting stay with system-admin and project-manager: an approval posts the balance and is the second pair of eyes on somebody else's count, which is also why it has to come from someone other than whoever raised the document.",
       "name": "Stock Adjustments (Web)"
     },
     {
@@ -109222,7 +109226,7 @@
       "name": "Storage Locations"
     },
     {
-      "description": "Web-console counterpart of the storage location API, gated by organization role instead of a flat authority. Covers the same create, read and lookup operations as the mobile API plus partial update and delete, which the mobile API does not expose. Reads are open to the system-admin and project-manager roles in the caller's current tenant, because a project manager raises and approves stock adjustments and cannot pick a location to count without them. Creating, editing and deleting a location stays with system-admin.",
+      "description": "Web-console counterpart of the storage location API, gated by organization role instead of a flat authority. Covers the same create, read and lookup operations as the mobile API plus partial update and delete, which the mobile API does not expose. Reads are open to the system-admin, project-manager and store-keeper roles in the caller's current tenant, because a project manager raises and approves stock adjustments and cannot pick a location to count without them, and every stores document names the location the material came from or went to. Creating, editing and deleting a location stays with system-admin.",
       "name": "Storage Locations (Web)"
     },
     {
@@ -109250,7 +109254,7 @@
       "name": "Vendors"
     },
     {
-      "description": "Web-console counterpart of the vendors API, restricted to the system-admin role for the current tenant instead of the flat vendor authorities used by the mobile variant. Covers the same create, browse, search, update, delete and summary operations for vendors and their contacts, tax identifiers, bank accounts and payment terms, for use from the admin web console.",
+      "description": "Web-console counterpart of the vendors API, gated by organization role for the current tenant instead of by the flat vendor authorities used by the mobile variant. Naming a vendor and reaching its contacts are open to the system-admin and store-keeper roles, because a delivery has to say who brought it; the vendor summary, tax identifiers, bank accounts and payment terms are commercial rather than stores information and stay with system-admin, as do all vendor writes. Covers create, browse, search, update, delete and summary operations for vendors and their contacts, tax identifiers, bank accounts and payment terms, for use from the admin web console.",
       "name": "Vendors (Web)"
     },
     {
