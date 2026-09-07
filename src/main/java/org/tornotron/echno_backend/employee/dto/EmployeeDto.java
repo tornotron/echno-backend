@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.employee.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import org.tornotron.echno_backend.attendance.dto.ShiftTimingDto;
@@ -112,4 +113,14 @@ public class EmployeeDto {
 
     @Schema(description = "Files attached to the employee record.")
     private List<AttachmentDto> attachments;
+
+    /**
+     * The Keycloak subject of the user this employee record belongs to. Never published: it is
+     * an internal identifier, and it is here so the record can say whose it is without a second
+     * query. Kept out of the document by {@code @JsonIgnore} and out of the schema by
+     * {@code @Schema(hidden = true)}.
+     */
+    @JsonIgnore
+    @Schema(hidden = true)
+    private String userKeycloakId;
 }
