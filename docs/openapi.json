@@ -11327,7 +11327,8 @@
               "LEAVE_CANCELLED",
               "LEAVE_BALANCE_LOW",
               "LEAVE_REMINDER",
-              "APPROVAL_DELEGATED"
+              "APPROVAL_DELEGATED",
+              "MATERIAL_LOW_STOCK"
             ],
             "example": "LEAVE_PENDING_APPROVAL",
             "type": "string"
