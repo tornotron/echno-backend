@@ -94,6 +94,21 @@ class EmployeeMobileGuardTest {
     @MockitoBean
     private RPTCache rptCache;
 
+    /**
+     * Every persona below stubs the exact role list each endpoint asks for, rather than answering
+     * true to any list at all.
+     *
+     * <p>Stubbing {@code hasAnyOrgRoleForCurrentTenant(any(String[].class))} as true would make
+     * these tests pass whatever roles the guards named: a listing that dropped
+     * {@code project-manager}, or a delete that quietly admitted it, would look identical from
+     * here. The role list is the substance of this repair, so it is the thing the mock has to be
+     * particular about. The broad stub is kept, returning false, so an endpoint asking for a list
+     * no persona grants is refused rather than falling through to a Mockito default that happens
+     * to agree.
+     */
+    private static final String[] DIRECTORY_ROLES = {"system-admin", "hr-admin", "project-manager"};
+    private static final String[] ADMIN_ROLES = {"system-admin", "hr-admin"};
+
     /** Nobody: no org role anywhere, not the employee in question, no organization entitlement. */
     private void callerHoldsNoRole() {
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
@@ -101,12 +116,35 @@ class EmployeeMobileGuardTest {
         when(orgSecurity.isCurrentTenant(anyLong())).thenReturn(false);
     }
 
-    /** An HR admin of the organization the session is scoped to, holding no Keycloak authority. */
+    /**
+     * An HR admin of the organization the session is scoped to, holding no Keycloak authority.
+     * Satisfies both role lists, and the self-or-admin check on any employee.
+     */
     private void callerIsAnHrAdminOf(long orgId) {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(anyLong(), any(String[].class))).thenReturn(true);
-        when(orgSecurity.isCurrentTenant(anyLong())).thenReturn(false);
+        callerHoldsNoRole();
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(DIRECTORY_ROLES)).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(ADMIN_ROLES)).thenReturn(true);
+        when(orgSecurity.isSelfOrHasAnyOrgRole(anyLong(), eq("system-admin"), eq("hr-admin"))).thenReturn(true);
         when(orgSecurity.isCurrentTenant(eq(orgId))).thenReturn(true);
+    }
+
+    /**
+     * A project manager. Reads the directory and writes nothing, which is the difference between
+     * the two role lists and the reason the listings and the writes are not gated alike.
+     */
+    private void callerIsAProjectManagerOf(long orgId) {
+        callerHoldsNoRole();
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(DIRECTORY_ROLES)).thenReturn(true);
+        when(orgSecurity.isCurrentTenant(eq(orgId))).thenReturn(true);
+    }
+
+    /**
+     * The employee whose record it is, holding no role at all. Only the single-record PATCH admits
+     * them, through its self clause.
+     */
+    private void callerIsTheEmployeeThemselves(long employeeId) {
+        callerHoldsNoRole();
+        when(orgSecurity.isSelfOrHasAnyOrgRole(eq(employeeId), eq("system-admin"), eq("hr-admin"))).thenReturn(true);
     }
 
     private void listingsAnswer() {
@@ -136,6 +174,20 @@ class EmployeeMobileGuardTest {
     @Test
     void theListing_answersARoleHolderWhoHoldsNoAuthorityAtAll() throws Exception {
         callerIsAnHrAdminOf(OWN_ORG);
+        listingsAnswer();
+
+        mockMvc.perform(get("/api/v1/employee").with(jwt()))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * A project manager reads the directory. This is the case that makes the listing's role list
+     * load-bearing: drop {@code project-manager} from it and only this fails, while every other
+     * case in the file still passes.
+     */
+    @Test
+    void theListing_answersAProjectManager() throws Exception {
+        callerIsAProjectManagerOf(OWN_ORG);
         listingsAnswer();
 
         mockMvc.perform(get("/api/v1/employee").with(jwt()))
@@ -200,7 +252,7 @@ class EmployeeMobileGuardTest {
     }
 
     @Test
-    void theUpdate_answersTheEmployeeThemselvesOrAnAdmin() throws Exception {
+    void theUpdate_answersAnAdminOfTheCurrentOrganization() throws Exception {
         callerIsAnHrAdminOf(OWN_ORG);
 
         mockMvc.perform(patch("/api/v1/employee/" + EMPLOYEE)
@@ -208,6 +260,36 @@ class EmployeeMobileGuardTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(PATCH_BODY))
                 .andExpect(status().isOk());
+    }
+
+    /**
+     * The self clause, which is the whole reason this endpoint is not gated like the batch beside
+     * it: a person maintaining their own record from the phone holds no role at all. Lose the self
+     * clause and only this case fails.
+     */
+    @Test
+    void theUpdate_answersTheEmployeeThemselvesWithNoRole() throws Exception {
+        callerIsTheEmployeeThemselves(EMPLOYEE);
+
+        mockMvc.perform(patch("/api/v1/employee/" + EMPLOYEE)
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(PATCH_BODY))
+                .andExpect(status().isOk());
+    }
+
+    /** Somebody else's record, from a caller who is nobody's admin. */
+    @Test
+    void theUpdate_isRefusedOnAColleaguesRecord() throws Exception {
+        callerIsTheEmployeeThemselves(EMPLOYEE);
+
+        mockMvc.perform(patch("/api/v1/employee/" + (EMPLOYEE + 1))
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(PATCH_BODY))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(employeeService);
     }
 
     // ---- PATCH /batch : maintaining a set ----------------------------------------------
@@ -242,6 +324,20 @@ class EmployeeMobileGuardTest {
                 .andExpect(status().isOk());
     }
 
+    /** Bulk personnel maintenance is administration, not something a project manager does. */
+    @Test
+    void theBatchUpdate_isRefusedToAProjectManager() throws Exception {
+        callerIsAProjectManagerOf(OWN_ORG);
+
+        mockMvc.perform(patch("/api/v1/employee/batch")
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(BATCH_BODY))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(employeeService);
+    }
+
     // ---- DELETE /{id} : ending a membership ---------------------------------------------
 
     @Test
@@ -262,6 +358,22 @@ class EmployeeMobileGuardTest {
 
         mockMvc.perform(delete("/api/v1/employee/" + EMPLOYEE).with(jwt()))
                 .andExpect(status().isOk());
+    }
+
+    /**
+     * A project manager reads the directory and does not end memberships. This pair with
+     * {@code theBatchUpdate_isRefusedToAProjectManager} is what keeps the two role lists apart: if
+     * the writes were widened to the directory's three roles, both of these would fail and nothing
+     * else would.
+     */
+    @Test
+    void theDelete_isRefusedToAProjectManager() throws Exception {
+        callerIsAProjectManagerOf(OWN_ORG);
+
+        mockMvc.perform(delete("/api/v1/employee/" + EMPLOYEE).with(jwt()))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(employeeService);
     }
 
     @TestConfiguration
