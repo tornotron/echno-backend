@@ -67055,7 +67055,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "The target organization already holds a policy with that leave-type code"
           },
           "422": {
             "content": {
@@ -67987,7 +67987,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "The target organization already holds a policy with that leave-type code"
           },
           "422": {
             "content": {

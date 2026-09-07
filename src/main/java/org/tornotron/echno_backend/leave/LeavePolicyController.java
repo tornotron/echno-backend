@@ -209,16 +209,15 @@ public class LeavePolicyController {
      * judge either. A foreign organization comes back silently, and the only thing established
      * about it is that the caller has an employment row there.
      *
-     * <p>What this guard does not fix, and what a reader should know before relying on the
-     * endpoint: the duplicate-code check at the next line asks
-     * {@code existsByOrganizationIdAndLeaveTypeCode} against {@code LeavePolicy}, which does carry
-     * the filter as a query root, so for any target other than the current tenant the predicate is
-     * unsatisfiable and the uniqueness rule is skipped on exactly the path that needs it. A real
-     * collision then reaches {@code uk_leave_policy_org_type} and surfaces as a 500 rather than a
-     * 409. Naming the current tenant instead makes that check match the source policy's own
-     * leave-type code, so it answers 409 always. Whether cross-organization duplication is a
-     * feature at all is a product decision; if it is, that check has to become a deliberate
-     * cross-tenant read. Tracked separately.
+     * <p>The duplicate-code check behind it had the same blind spot from the other side, and is
+     * repaired under #718. It asked {@code existsByOrganizationIdAndLeaveTypeCode} against
+     * {@code LeavePolicy}, which does carry the filter as a query root, so for any target other
+     * than the current tenant the predicate was unsatisfiable and the uniqueness rule was skipped
+     * on exactly the path that needs it; a real collision reached {@code uk_leave_policy_org_type}
+     * and surfaced as a 500 rather than a 409. It now asks
+     * {@code countWithLeaveTypeCodeInOrganizationUnfiltered}, which is native and so is not
+     * narrowed, returns a count rather than a row, and is reached only after this guard has
+     * established the caller's role in the target.
      *
      * @param policyId The ID of the source policy, read from the caller's own organization.
      * @param targetOrganizationId The organization to copy into, in which the caller must hold
@@ -236,7 +235,8 @@ public class LeavePolicyController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Policy duplicated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant or in the target organization"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave policy or target organization with the given id")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave policy or target organization with the given id"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The target organization already holds a policy with that leave-type code")
     })
     public ResponseEntity<LeavePolicyDto> duplicatePolicy(
             @PathVariable Long policyId,
