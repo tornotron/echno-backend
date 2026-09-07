@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="092-issue-comment-edited-marker" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="issue_comments" columnName="is_edited"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Give an issue comment somewhere to record that it was changed after it was posted.
+            A comment can be posted and deleted and that is all, so a typo is fixed today by
+            deleting and reposting, which moves the comment to the bottom of the thread and
+            restamps its time. Issues are the QA trail, so the edit cannot be silent either: a
+            comment that changes with no trace is a worse record than one that cannot change.
+            Two columns rather than one, matching chat_message, which has carried exactly this
+            pair since 051: is_edited answers the question a reader asks and edited_at answers
+            when, and a boolean the reader can trust is cheaper to render than a null check on a
+            timestamp. NOT NULL with a false default on the flag, because every comment written
+            before this changeset was demonstrably not edited and false states that correctly.
+            Nullable with no default on the timestamp, because there is no moment to record for
+            those rows and picking one would assert something nobody observed.
+        </comment>
+
+        <addColumn tableName="issue_comments">
+            <column name="is_edited" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="edited_at" type="TIMESTAMP"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>
