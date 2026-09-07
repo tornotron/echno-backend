@@ -248,7 +248,7 @@ public class KeycloakInitializer {
         // Ensure admin-only MFA (conditional TOTP) is codified even if realm exists
         ensureAdminMfa();
         // Repair any org role held without membership of the organization that role names
-        ensureOrgRoleHoldersAreMembers();
+        reportOrgRoleHoldersWithoutMembership();
         // Ensure service account roles are assigned even if realm exists
         assignServiceAccountRoles();
         // Ensure authorization setup (JS policy, resource, permission) exists
@@ -892,7 +892,7 @@ public class KeycloakInitializer {
     /** Page size for a group's member listing, matching the subgroup walk above. */
     private static final int GROUP_MEMBER_PAGE = 1000;
 
-    private void ensureOrgRoleHoldersAreMembers() {
+    private void reportOrgRoleHoldersWithoutMembership() {
         try {
             List<GroupRepresentation> orgGroups = admin.realm(REALM_ID).groups().groups().stream()
                     .filter(group -> group.getName() != null && group.getName().startsWith("org-"))
@@ -904,7 +904,7 @@ public class KeycloakInitializer {
 
             int repaired = 0;
             for (GroupRepresentation orgGroup : orgGroups) {
-                repaired += ensureRoleHoldersAreMembersOf(orgGroup);
+                repaired += reportRoleHoldersWithoutMembershipIn(orgGroup);
             }
             if (repaired == 0) {
                 log.info("Every org role holder is a member of the organization their role names");
@@ -917,7 +917,7 @@ public class KeycloakInitializer {
     }
 
     /** @return how many users were added to this organization's parent group. */
-    private int ensureRoleHoldersAreMembersOf(GroupRepresentation orgGroup) {
+    private int reportRoleHoldersWithoutMembershipIn(GroupRepresentation orgGroup) {
         List<GroupRepresentation> roleSubgroups =
                 admin.realm(REALM_ID).groups().group(orgGroup.getId()).getSubGroups(0, 1000, false);
         if (roleSubgroups == null || roleSubgroups.isEmpty()) {
@@ -981,7 +981,7 @@ public class KeycloakInitializer {
         assignServiceAccountRoles();
         ensureAuthorizationSetup();
         ensureAdminMfa();
-        ensureOrgRoleHoldersAreMembers();
+        reportOrgRoleHoldersWithoutMembership();
         ensureCompositeJobRoles();
         ensureDevClient();
     }
