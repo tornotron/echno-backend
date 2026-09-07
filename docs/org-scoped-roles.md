@@ -430,6 +430,16 @@ You can combine them in `@PreAuthorize` using `or` and `and`:
 
 This reads as: "Allow if the user is a system-admin of THIS org, OR has global employee:read permission AND is a member of this org, OR is a global employee admin."
 
+> **Layer 1 does not work in this realm, and new guards should not use it.** A bare
+> `resource:scope` authority such as `employee:read` is minted in exactly one place,
+> `JwtAuthConverter.extractPermissions`, which reads the `authorization` claim of an RPT.
+> The realm defines no authorization scopes: `ensureDefaultResource` registers a Default
+> Resource and never calls `setScopes`, and a permission carrying no scopes yields no
+> authority. So `hasAuthority('thing:action')` is satisfied by nobody. ORed with nothing
+> else it refuses every caller; ANDed onto a working check it refuses every caller too.
+> Guard on layer 2 or layer 3 instead. Issues #641, #684, #710, #716 and #734 are the
+> repairs; #734 carries the inventory of what is still standing.
+
 ---
 
 ## What Happens in the JWT Token
