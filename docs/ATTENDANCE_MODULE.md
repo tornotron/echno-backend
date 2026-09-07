@@ -131,15 +131,14 @@ Multi-tenancy is enforced via a Hibernate `orgFilter` that automatically scopes 
 | `longitude` | Double | GPS longitude (optional) |
 | `gpsAccuracy` | Double | GPS accuracy in meters |
 | `altitude` | Double | GPS altitude |
-| `photoUrl` | String | Photo taken at clock event |
 | `devicePlatform` | String | "android" / "ios" / "web" |
 | `deviceId` | String | Device identifier |
 | `ipAddress` | String | Client IP address |
 | `isWithinGeofence` | Boolean | Whether location is within project geofence |
 | `distanceFromProject` | Double | Distance from project location in meters |
-| `verifiedBy` | String | Supervisor who verified this event |
 | `isRegularized` | Boolean | Whether this event was added via regularization |
 | `regularizationReason` | String | Reason for regularization |
+| `attachments` | List&lt;Attachment&gt; | Photos taken with the punch, each returned with a signed download URL |
 
 ---
 
@@ -556,7 +555,6 @@ Record any subsequent clock event (lunch out, lunch in, clock-out) on an existin
   "longitude": 77.5946,
   "gpsAccuracy": 5.0,
   "altitude": 920.0,
-  "photoUrl": null,
   "devicePlatform": "android",
   "deviceId": "device-uuid-123",
   "ipAddress": "192.168.1.10",
