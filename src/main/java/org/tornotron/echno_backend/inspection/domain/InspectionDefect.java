@@ -64,7 +64,7 @@ public class InspectionDefect {
     private LocalDate targetDate;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", length = 20)
+    @Column(name = "status", length = 20, nullable = false)
     private DefectStatus status = DefectStatus.OPEN;
 
     @Column(name = "resolved_date")

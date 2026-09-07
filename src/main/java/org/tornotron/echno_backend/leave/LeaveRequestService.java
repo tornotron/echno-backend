@@ -198,8 +198,17 @@ public class LeaveRequestService {
                         "Leave request with ID " + requestId + " was not found in this organization"));
         approvalService.requireMayReadRequest(request);
         LeaveRequestDto dto = leaveRequestMapper.toDto(request);
+        // Scoped, like every other employee lookup in this service. handoverToId is a plain
+        // scalar that no write path checks against the tenant, so it can name an employee of
+        // another organization; findById asks for that row by primary key, which is the one
+        // access Hibernate's orgFilter never narrows. What stopped it being a leak is
+        // TenantIsolationLoadListener, which denies the foreign row at the load boundary, and
+        // the cost of leaning on that is that the denial is an exception: the whole request
+        // detail read fails rather than the one name going unresolved. Asking the scoped
+        // question instead answers empty, which is what an unresolvable name should look like.
+        // See issue #741.
         if (request.getHandoverToId() != null) {
-            employeeRepository.findById(request.getHandoverToId())
+            employeeRepository.findByIdAndOrganizationId(request.getHandoverToId(), TenantContext.getCurrentOrgId())
                     .ifPresent(emp -> dto.setHandoverToName(emp.getEmployeeName()));
         }
         return dto;

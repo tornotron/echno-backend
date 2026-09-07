@@ -329,7 +329,14 @@ final class ReviewedResponseSchemas {
      *       {@code delegatedFromName} and {@code createdByName} are structurally always null, and
      *       {@code handoverToName} is resolved on the single-request read alone. They are
      *       classified as nullable because that is what the server sends, and filed as defects on
-     *       #741 because it is not what the code means.
+     *       #741 because it is not what the code means. #741 repaired the part of that which is
+     *       an isolation defect, the unscoped {@code findById} behind {@code handoverToName}, and
+     *       left the three names unpopulated: {@code delegatedFromId}, {@code createdById} and
+     *       {@code handoverToId} are all published beside them and the description of each name
+     *       already directs the client to resolve from the id, so filling them in is a feature
+     *       across fourteen read paths and one nested list, and dropping them from a
+     *       hand-maintained contract breaks web at runtime. Both directions are decisions for the
+     *       contract owners rather than repairs, and the classification stands either way.
      *   <li>{@code currentApproverId}, {@code currentApproverName}, {@code currentApprovalLevel}
      *       and {@code maxApprovalLevel} are cleared or never written by the workflow rather than
      *       by a constraint: the first two are nulled on approve, reject, cancel and withdraw,

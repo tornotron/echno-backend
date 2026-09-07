@@ -23,6 +23,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -107,20 +108,31 @@ public class LeavePolicyService {
         policy.setAccrualRatePerMonth(dto.getAccrualRatePerMonth());
         policy.setCarryForwardLimit(dto.getCarryForwardLimit());
         policy.setCarryForwardExpiryMonths(dto.getCarryForwardExpiryMonths());
-        policy.setMinDaysPerRequest(dto.getMinDaysPerRequest());
         policy.setMaxDaysPerRequest(dto.getMaxDaysPerRequest());
-        policy.setAdvanceNoticeDays(dto.getAdvanceNoticeDays());
-        policy.setRequiresAttachment(dto.getRequiresAttachment());
         policy.setAttachmentRequiredAfterDays(dto.getAttachmentRequiredAfterDays());
-        policy.setApplicableGenders(dto.getApplicableGenders());
-        policy.setMinServiceMonths(dto.getMinServiceMonths());
-        policy.setAllowHalfDay(dto.getAllowHalfDay());
-        policy.setIsPaid(dto.getIsPaid());
         policy.setIsActive(true);
-        policy.setDisplayOrder(dto.getDisplayOrder());
-        if (dto.getMultiLevelApprovalEnabled() != null) {
-            policy.setMultiLevelApprovalEnabled(dto.getMultiLevelApprovalEnabled());
-        }
+
+        // Only the fields the entity leaves to the caller are set unconditionally above. The nine
+        // below carry a declared default, and setting those from an absent payload value is what
+        // this repair is: the setter ran whatever arrived, so a request that omitted the field
+        // overwrote the initialiser with null and Hibernate wrote NULL into a column whose default
+        // then never applied either. multiLevelApprovalEnabled already had this guard, spelled out
+        // as an if; the other eight did not.
+        //
+        // Nothing complained, because LeaveRequestValidator is null-safe by construction. A null
+        // allowHalfDay makes Boolean.TRUE.equals(...) false, so a policy created to allow half days
+        // refuses them; null minDaysPerRequest and null advanceNoticeDays make the != null guards
+        // skip their checks outright, so the limits the policy was created with are not enforced.
+        // The policy reads as configured in the UI and behaves as if it were not. See issue #741.
+        applyIfPresent(dto.getMinDaysPerRequest(), policy::setMinDaysPerRequest);
+        applyIfPresent(dto.getAdvanceNoticeDays(), policy::setAdvanceNoticeDays);
+        applyIfPresent(dto.getRequiresAttachment(), policy::setRequiresAttachment);
+        applyIfPresent(dto.getApplicableGenders(), policy::setApplicableGenders);
+        applyIfPresent(dto.getMinServiceMonths(), policy::setMinServiceMonths);
+        applyIfPresent(dto.getAllowHalfDay(), policy::setAllowHalfDay);
+        applyIfPresent(dto.getIsPaid(), policy::setIsPaid);
+        applyIfPresent(dto.getDisplayOrder(), policy::setDisplayOrder);
+        applyIfPresent(dto.getMultiLevelApprovalEnabled(), policy::setMultiLevelApprovalEnabled);
 
         LeavePolicy saved = policyRepository.save(policy);
         return leavePolicyMapper.toDto(saved);
@@ -396,20 +408,46 @@ public class LeavePolicyService {
         duplicate.setAccrualRatePerMonth(source.getAccrualRatePerMonth());
         duplicate.setCarryForwardLimit(source.getCarryForwardLimit());
         duplicate.setCarryForwardExpiryMonths(source.getCarryForwardExpiryMonths());
-        duplicate.setMinDaysPerRequest(source.getMinDaysPerRequest());
         duplicate.setMaxDaysPerRequest(source.getMaxDaysPerRequest());
-        duplicate.setAdvanceNoticeDays(source.getAdvanceNoticeDays());
-        duplicate.setRequiresAttachment(source.getRequiresAttachment());
         duplicate.setAttachmentRequiredAfterDays(source.getAttachmentRequiredAfterDays());
-        duplicate.setApplicableGenders(source.getApplicableGenders());
-        duplicate.setMinServiceMonths(source.getMinServiceMonths());
-        duplicate.setAllowHalfDay(source.getAllowHalfDay());
-        duplicate.setIsPaid(source.getIsPaid());
         duplicate.setIsActive(true);
-        duplicate.setDisplayOrder(source.getDisplayOrder());
-        duplicate.setMultiLevelApprovalEnabled(source.getMultiLevelApprovalEnabled());
+
+        // The same guard, for a different reason. A policy written before the repair above can
+        // hold null in a field that has a declared default, and copying that null forward spreads
+        // a state the policy was never configured into: the copy would refuse half days and skip
+        // the limit checks exactly as the original does. Falling back to the initialiser makes the
+        // duplicate differ from its source only where the source is already broken, which is the
+        // direction worth choosing.
+        applyIfPresent(source.getMinDaysPerRequest(), duplicate::setMinDaysPerRequest);
+        applyIfPresent(source.getAdvanceNoticeDays(), duplicate::setAdvanceNoticeDays);
+        applyIfPresent(source.getRequiresAttachment(), duplicate::setRequiresAttachment);
+        applyIfPresent(source.getApplicableGenders(), duplicate::setApplicableGenders);
+        applyIfPresent(source.getMinServiceMonths(), duplicate::setMinServiceMonths);
+        applyIfPresent(source.getAllowHalfDay(), duplicate::setAllowHalfDay);
+        applyIfPresent(source.getIsPaid(), duplicate::setIsPaid);
+        applyIfPresent(source.getDisplayOrder(), duplicate::setDisplayOrder);
+        applyIfPresent(source.getMultiLevelApprovalEnabled(), duplicate::setMultiLevelApprovalEnabled);
 
         LeavePolicy saved = policyRepository.save(duplicate);
         return leavePolicyMapper.toDto(saved);
+    }
+
+    /**
+     * Runs the setter only when a value was supplied, leaving the entity's own initialiser in
+     * place when it was not.
+     *
+     * <p>A plain setter cannot express the difference between "the caller chose null" and "the
+     * caller said nothing", and for a field with a declared default the two mean opposite things.
+     * Every column this is used on is nullable in the schema, so nothing rejects the null and the
+     * mistake surfaces later as behaviour instead of as an error.
+     *
+     * @param value The supplied value, or null when the field was not supplied.
+     * @param setter The setter to run when the value is present.
+     * @param <T> The field's type.
+     */
+    private static <T> void applyIfPresent(T value, Consumer<T> setter) {
+        if (value != null) {
+            setter.accept(value);
+        }
     }
 }

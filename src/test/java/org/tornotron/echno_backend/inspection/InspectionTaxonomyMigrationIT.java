@@ -77,6 +77,9 @@ class InspectionTaxonomyMigrationIT extends AbstractIntegrationTest {
     @PersistenceContext
     private EntityManager entityManager;
 
+    /** Lazily created by {@link #organizationId()}, and rolled back with the test. */
+    private Long organizationId;
+
     @BeforeAll
     static void readChangelog() throws Exception {
         statements = new HashMap<>();
@@ -235,15 +238,40 @@ class InspectionTaxonomyMigrationIT extends AbstractIntegrationTest {
     private UUID insertLegacyInspection(InspectionType type) {
         UUID id = UUID.randomUUID();
         entityManager.createNativeQuery(
-                        "INSERT INTO inspections (id, inspection_number, title, type, scheduled_date) "
-                                + "VALUES (CAST(:id AS UUID), :number, :title, :type, :scheduledDate)")
+                        "INSERT INTO inspections (id, inspection_number, title, type, scheduled_date, "
+                                + "organization_id) "
+                                + "VALUES (CAST(:id AS UUID), :number, :title, :type, :scheduledDate, "
+                                + ":organizationId)")
                 .setParameter("id", id.toString())
                 .setParameter("number", "INSP-" + id.toString().substring(0, 8))
                 .setParameter("title", "Legacy " + type.getValue())
                 .setParameter("type", type.name())
                 .setParameter("scheduledDate", LocalDate.of(2026, 8, 20))
+                .setParameter("organizationId", organizationId())
                 .executeUpdate();
         return id;
+    }
+
+    /**
+     * The organization these legacy rows are seeded into, created once per test.
+     *
+     * <p>The seed used to leave organization_id out, which the column allowed until 094
+     * constrained it. What is being exercised here is the taxonomy backfill, and the tenant the
+     * rows sit in makes no difference to it, so any organization will do as long as there is one.
+     */
+    private Long organizationId() {
+        if (organizationId == null) {
+            organizationId = ((Number) entityManager.createNativeQuery(
+                            "INSERT INTO organization (organization_name, organization_address, "
+                                    + "organization_email, organization_phone) "
+                                    + "VALUES (:name, :address, :email, :phone) RETURNING id")
+                    .setParameter("name", "Taxonomy migration " + UUID.randomUUID())
+                    .setParameter("address", "Chennai")
+                    .setParameter("email", "qa@example.test")
+                    .setParameter("phone", "9847012345")
+                    .getSingleResult()).longValue();
+        }
+        return organizationId;
     }
 
     /**
