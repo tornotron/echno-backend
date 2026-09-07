@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.common.security;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +39,7 @@ import org.tornotron.echno_backend.task.TaskService;
 
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
@@ -48,20 +50,36 @@ import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
- * Locks in read/write guard symmetry across the controllers that carried the asymmetry fixed
- * for projects in #399: their reads gated on tenant membership alone while their writes gated
- * on the system-admin or project-manager org role. A caller holding that role without a
- * recorded ORG_MEMBER_ authority, the bootstrap admin being the known example, could therefore
- * write these resources but got 403 reading them.
+ * Locks in the read guards across the nine controllers that carried the asymmetry fixed for
+ * projects in #399: their reads gated on tenant membership while their writes gated on the
+ * system-admin or project-manager org role.
  *
- * <p>Every read below must accept either branch, membership or the elevated role. The
- * role-without-membership case is the one that was broken; if any of these read guards is
- * narrowed back to membership alone, that parameterized case fails for the offending path.
+ * <p><b>The role-without-membership case this class used to assert has been removed, because it
+ * asserted an outcome for a state the real beans cannot produce.</b> It stubbed
+ * {@code isMemberOfCurrentTenant()} false and {@code hasAnyOrgRoleForCurrentTenant(...)} true.
+ * The real {@code OrganizationSecurityService} answers both from
+ * {@code TenantContext.getCurrentOrgId()} and refuses a null one, and {@code TenantFilter} sets
+ * that only after confirming an {@code ORG_MEMBER_} authority, so a non-member has no
+ * organization in force and the role check returns false as well. The pair could never occur, and
+ * the test passed on the stub rather than on anything the application does. It is the same
+ * mistake as {@code eec6c37}, which shipped a guard clause that decided nothing with a green
+ * test over it, and #709 and #717 then spent two issues establishing that the clause was dead.
+ *
+ * <p>{@code TenantFilterTest.theRoleGuardCannotSucceedWhereTheMembershipGuardFails} is where that
+ * claim belongs, and it is made there against the real {@code OrganizationSecurityService} inside
+ * the real filter chain. The split it depended on is now prevented outright, in
+ * {@code KeycloakGroupService} and {@code KeycloakInitializer}, and pinned by
+ * {@code KeycloakOrgMembershipInvariantIT} against a real Keycloak.
+ *
+ * <p>So that the mistake is harder to repeat here than to catch by review,
+ * {@link #stubTenantGuards} refuses the impossible pair rather than stubbing it. Mocking
+ * {@code @orgSecurity} is still the right call for a slice, since it exercises the guard
+ * expression without building JWT authorities; what was wrong was stubbing a combination the
+ * bean cannot return, and that is now a test failure at the point of stubbing.
  *
  * <p>Deliberately one @WebMvcTest over all nine controllers rather than nine separate slices.
- * Spring caches a context per distinct slice and the test JVM is capped at 1024m, so nine new
- * contexts would be a real cost; this adds exactly one. @orgSecurity is mocked so each branch
- * is exercised without building JWT authorities.
+ * Spring caches a context per distinct slice and the test JVM is capped, so nine new contexts
+ * would be a real cost; this adds exactly one.
  */
 @WebMvcTest({
         AssetControllerWeb.class,
@@ -133,10 +151,9 @@ class ReadWriteGuardSymmetryTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("widenedReadEndpoints")
-    void read_isOk_forARoleHolderThatIsNotRecordedAsAMember(String path) throws Exception {
-        // The case broken before this change: writes were allowed, reads were 403.
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+    void read_isOk_forAMemberWithoutAnElevatedRole(String path) throws Exception {
+        // A plain member of the tenant reads these, which is what the guards decide on.
+        stubTenantGuards(true, false);
 
         mockMvc.perform(get(path).with(jwt()))
                 .andExpect(status().isOk());
@@ -144,10 +161,11 @@ class ReadWriteGuardSymmetryTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("widenedReadEndpoints")
-    void read_isOk_forAMemberWithoutAnElevatedRole(String path) throws Exception {
-        // The widening must not cost plain members their existing access.
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+    void read_isOk_forAMemberHoldingAnElevatedRole(String path) throws Exception {
+        // An admin reads them as well, by being a member. Worth stating separately: it is the
+        // case the removed test was reaching for, and it is satisfied without the role deciding
+        // anything, because a role holder is a member.
+        stubTenantGuards(true, true);
 
         mockMvc.perform(get(path).with(jwt()))
                 .andExpect(status().isOk());
@@ -156,13 +174,45 @@ class ReadWriteGuardSymmetryTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("widenedReadEndpoints")
     void read_isForbidden_forACallerWithNeitherMembershipNorRole(String path) throws Exception {
-        // Both branches are tenant-scoped, so an outsider is still refused. This is what keeps
-        // the widening from becoming "any authenticated caller may read".
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        // A caller with no relationship to the tenant is refused. The guards are tenant-scoped,
+        // so this is what keeps them from reading "any authenticated caller may read".
+        stubTenantGuards(false, false);
 
         mockMvc.perform(get(path).with(jwt()))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void stubbingARoleWithoutMembershipIsRefusedAsAStateTheBeansCannotProduce() {
+        // The guard on the helper, tested so it cannot quietly stop guarding. Without it, the
+        // one stub combination that proves nothing is also the easiest one to write.
+        assertThatThrownBy(() -> stubTenantGuards(false, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cannot hold an org role");
+    }
+
+    /**
+     * Stubs the two tenant guards together, refusing the pair the real beans cannot return.
+     *
+     * <p>{@code hasAnyOrgRoleForCurrentTenant} implies {@code isMemberOfCurrentTenant}: both read
+     * {@code TenantContext.getCurrentOrgId()} and refuse a null one, and the tenant is only
+     * resolved for a member. A test that stubs a role without membership is asserting behaviour
+     * for a request that cannot reach a controller, so it passes whatever the guard says.
+     *
+     * @param member whether the caller is a member of the tenant in force
+     * @param role   whether the caller holds one of the elevated roles in it
+     */
+    private void stubTenantGuards(boolean member, boolean role) {
+        if (role && !member) {
+            throw new IllegalArgumentException(
+                    "A caller cannot hold an org role for the current tenant without being a member "
+                            + "of it: both checks read TenantContext.getCurrentOrgId(), and TenantFilter "
+                            + "sets it only after confirming an ORG_MEMBER_ authority. Stubbing this pair "
+                            + "asserts an outcome for a request that cannot reach a controller. See "
+                            + "TenantFilterTest.theRoleGuardCannotSucceedWhereTheMembershipGuardFails.");
+        }
+        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(member);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(role);
     }
 
     @TestConfiguration
