@@ -379,7 +379,7 @@ final class ReviewedResponseSchemas {
                                 "geofenceRadiusMeters", "geofenceExceptionReason", "recordedById",
                                 "remarks", "regularizationReason"),
                         Set.of("id", "eventType", "eventTimestamp", "projectId", "projectName",
-                                "isRegularized", "attachments"))),
+                                "isRegularized", "attachments")),
                 new ReviewedSchema(
                         AccountDto.class,
                         Set.of("description", "parentId"),
