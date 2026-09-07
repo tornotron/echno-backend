@@ -924,20 +924,14 @@ public class KeycloakInitializer {
             return 0;
         }
 
-        Set<String> members = new HashSet<>();
-        List<UserRepresentation> parentMembers =
-                admin.realm(REALM_ID).groups().group(orgGroup.getId()).members(0, GROUP_MEMBER_PAGE);
-        if (parentMembers != null) {
-            parentMembers.stream().map(UserRepresentation::getId).filter(java.util.Objects::nonNull).forEach(members::add);
-        }
+        // Every member, not the first page of them. A truncated parent listing would make the
+        // reconcile treat existing members as repairs: harmless in effect, since joinGroup is
+        // idempotent, but it would report work that was not needed and hide work that was.
+        Set<String> members = new HashSet<>(allMembersOf(orgGroup.getId()));
 
         int repaired = 0;
         for (GroupRepresentation roleSubgroup : roleSubgroups) {
-            List<UserRepresentation> roleHolders =
-                    admin.realm(REALM_ID).groups().group(roleSubgroup.getId()).members(0, GROUP_MEMBER_PAGE);
-            if (roleHolders == null) {
-                continue;
-            }
+            List<UserRepresentation> roleHolders = allMemberRepresentationsOf(roleSubgroup.getId());
             for (UserRepresentation roleHolder : roleHolders) {
                 if (roleHolder.getId() == null || !members.add(roleHolder.getId())) {
                     continue;
@@ -949,6 +943,32 @@ public class KeycloakInitializer {
             }
         }
         return repaired;
+    }
+
+    /** Every member of a group, paged, since a group listing returns one page at a time. */
+    private List<UserRepresentation> allMemberRepresentationsOf(String groupId) {
+        List<UserRepresentation> all = new ArrayList<>();
+        int first = 0;
+        while (true) {
+            List<UserRepresentation> page =
+                    admin.realm(REALM_ID).groups().group(groupId).members(first, GROUP_MEMBER_PAGE);
+            if (page == null || page.isEmpty()) {
+                return all;
+            }
+            all.addAll(page);
+            if (page.size() < GROUP_MEMBER_PAGE) {
+                return all;
+            }
+            first += page.size();
+        }
+    }
+
+    /** The ids of every member of a group. */
+    private Set<String> allMembersOf(String groupId) {
+        return allMemberRepresentationsOf(groupId).stream()
+                .map(UserRepresentation::getId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     /**
