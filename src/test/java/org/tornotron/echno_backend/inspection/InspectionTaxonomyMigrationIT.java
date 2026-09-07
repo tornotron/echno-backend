@@ -160,7 +160,11 @@ class InspectionTaxonomyMigrationIT extends AbstractIntegrationTest {
         UUID spaced = insertLegacyDefect(inspectionId, 2, "'MINOR'", "'In Progress'");
         UUID underscored = insertLegacyDefect(inspectionId, 3, "'minor'", "'IN_PROGRESS'");
         UUID blank = insertLegacyDefect(inspectionId, 4, "'   '", "'  '");
-        UUID unset = insertLegacyDefect(inspectionId, 5, "NULL", "NULL");
+        // The status half of this row used to be seeded as a literal NULL, which 094 now refuses:
+        // the column carries NOT NULL and a DEFAULT of OPEN. Writing DEFAULT keeps the case the
+        // row was here for, a defect stored without anyone stating a status, and takes it through
+        // the path that produces one today.
+        UUID unset = insertLegacyDefect(inspectionId, 5, "NULL", "DEFAULT");
 
         run(BLANK_DEFECT_FIELDS);
         assertThat(unmappedCount(PROMOTE_SEVERITY)).isZero();
