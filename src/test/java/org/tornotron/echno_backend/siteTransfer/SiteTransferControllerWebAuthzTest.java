@@ -58,7 +58,7 @@ class SiteTransferControllerWebAuthzTest {
 
     @Test
     void readAll_isOk_forASystemAdmin() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(true);
         when(siteTransferService.getAllSiteTransfers(anyInt(), anyInt())).thenReturn(Page.empty());
 
         mockMvc.perform(get("/api/v1/site-transfers/web").with(jwt()))
@@ -67,8 +67,10 @@ class SiteTransferControllerWebAuthzTest {
 
     @Test
     void readAll_isForbidden_forAProjectManagerWhoIsNotASystemAdmin() throws Exception {
-        // Only 'project-manager' holds here; the guard demands 'system-admin', so the
-        // controller's exact-role check must reject this caller.
+        // Only 'project-manager' holds here. The guard asks for 'system-admin' or 'store-keeper',
+        // so the controller's exact-role check must reject this caller. Site transfers move stock
+        // between two sites and are worked by the stores at each end; a project manager reads the
+        // balances they land on and does not post the movement.
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("project-manager")).thenReturn(true);
 
         mockMvc.perform(get("/api/v1/site-transfers/web").with(jwt()))
@@ -77,7 +79,7 @@ class SiteTransferControllerWebAuthzTest {
 
     @Test
     void readAll_isForbidden_forACallerWithNoElevatedRole() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/site-transfers/web").with(jwt()))
                 .andExpect(status().isForbidden());
@@ -90,7 +92,7 @@ class SiteTransferControllerWebAuthzTest {
      */
     @Test
     void receive_isForbidden_forACallerWithNoElevatedRole() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(false);
 
         mockMvc.perform(post("/api/v1/site-transfers/web/51/receive").with(jwt()).with(csrf())
                         .contentType(APPLICATION_JSON)
@@ -101,7 +103,7 @@ class SiteTransferControllerWebAuthzTest {
     /** Cancelling returns stock to the sending project, so it is gated the same way. */
     @Test
     void cancel_isForbidden_forACallerWithNoElevatedRole() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(false);
 
         mockMvc.perform(post("/api/v1/site-transfers/web/51/cancel").with(jwt()).with(csrf())
                         .contentType(APPLICATION_JSON)

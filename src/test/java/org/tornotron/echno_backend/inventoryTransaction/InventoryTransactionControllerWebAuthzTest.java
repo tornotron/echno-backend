@@ -47,9 +47,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>The four listings that name nothing and range over the whole organization stay with
  * system-admin. That line is about which screen the ledger belongs to rather than about
  * confidentiality: a caller who may list every material may walk the anchored reads and
- * reassemble the same rows. It is drawn so that the movement report stays an admin surface
- * until somebody decides it should not, which is the question #650 asks of the whole Resources
- * domain.
+ * reassemble the same rows. It is drawn so that the movement report is not a project manager's
+ * screen. The store-keeper role added for #650 reads all of it, anchored or not, because this
+ * ledger is the record of the receipts, issues and transfers a storekeeper posts, and answering
+ * for it means being able to read it back.
  */
 @WebMvcTest(InventoryTransactionControllerWeb.class)
 @Import(InventoryTransactionControllerWebAuthzTest.TestSecurityConfig.class)
@@ -101,14 +102,14 @@ class InventoryTransactionControllerWebAuthzTest {
 
     /** A caller holding project-manager and not system-admin. */
     private void asProjectManager() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
     }
 
-    /** A caller holding system-admin, which satisfies both spellings of the guard. */
+    /** A caller holding system-admin, which satisfies every spelling of the guard. */
     private void asSystemAdmin() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
     }
 
     private void stubReads() {
@@ -206,8 +207,8 @@ class InventoryTransactionControllerWebAuthzTest {
     @Test
     void aMemberHoldingNeitherRoleIsStillRefusedTheAnchoredRead() throws Exception {
         when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/inventory-transactions/web/material/7/history").with(jwt()))
                 .andExpect(status().isForbidden());

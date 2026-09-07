@@ -41,8 +41,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * manager may raise and approve those documents. A location list they cannot read leaves the
  * balance lookup they can now reach with nothing to be scoped by.
  *
- * <p>Whether a storekeeper should be able to create a location without also being able to delete
- * a project is the role question in #650, and this does not answer it: the writes are untouched.
+ * <p>#650 answered the other half of that question. A storekeeper reads the location list, because
+ * every stores document names the shelf the material came from or went to, and does not create,
+ * edit or delete one: defining the store is a different decision from working in it. The writes
+ * here are untouched.
  */
 @WebMvcTest(StorageLocationControllerWeb.class)
 @Import(StorageLocationControllerWebAuthzTest.TestSecurityConfig.class)
@@ -69,7 +71,7 @@ class StorageLocationControllerWebAuthzTest {
     /** A caller holding project-manager and not system-admin. */
     private void asProjectManager() {
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
     }
 
     private void stubReads() {
@@ -100,7 +102,7 @@ class StorageLocationControllerWebAuthzTest {
     void aMemberHoldingNeitherRoleIsStillRefusedTheRead() throws Exception {
         when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/storage-locations/web/project/4").with(jwt()))
                 .andExpect(status().isForbidden());

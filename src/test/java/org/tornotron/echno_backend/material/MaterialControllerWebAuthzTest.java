@@ -52,10 +52,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * list and search are on the same footing, because the form has to name the material before it can
  * ask for its balance.
  *
+ * <p>The reads are also what the storekeeper role introduced for #650 reads: a receipt, an issue
+ * and a count each name a material before anything else can be typed, so the store cannot be given
+ * the write while the catalogue lookup behind the form stays shut.
+ *
  * <p>The write half is the ratchet. Creating a material, editing it, deleting it, or moving its
- * reorder thresholds are catalogue decisions rather than count decisions, and they stay with
- * system-admin until the role question in #650 is settled. If a later change widened them along
- * with the reads, {@code aProjectManagerMayNot*} fails.
+ * reorder thresholds are catalogue decisions rather than count decisions, and #650 left them with
+ * system-admin: deciding what materials exist is a different job from recording what arrived. If a
+ * later change widened them along with the reads, {@code aProjectManagerMayNot*} fails.
  *
  * <p>{@code @orgSecurity} is mocked so each branch is exercised on its own: the project-manager
  * tests deliberately answer false to the system-admin-only expression and true to the pair, which
@@ -95,7 +99,7 @@ class MaterialControllerWebAuthzTest {
     /** A caller holding project-manager and not system-admin. */
     private void asProjectManager() {
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
     }
 
     private void stubReads() {
@@ -145,11 +149,11 @@ class MaterialControllerWebAuthzTest {
             "/api/v1/materials/web/1/stock?projectId=4&storageLocationId=7"
     })
     void aMemberHoldingNeitherRoleIsStillRefusedTheRead(String path) throws Exception {
-        // Widening the read to project-manager is not widening it to everybody. The Resources
-        // domain has no role between member and system-admin (#650) and this does not invent one.
+        // Widening the read to project-manager and store-keeper is not widening it to everybody.
+        // The tier below both of those is still plain membership, and it reads nothing here.
         when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(false);
 
         mockMvc.perform(get(path).with(jwt()))
                 .andExpect(status().isForbidden());
@@ -195,7 +199,7 @@ class MaterialControllerWebAuthzTest {
     @Test
     void aSystemAdminStillReadsTheBalance() throws Exception {
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
         stubReads();
 
         mockMvc.perform(get("/api/v1/materials/web/1/stock?projectId=4&storageLocationId=7").with(jwt()))
