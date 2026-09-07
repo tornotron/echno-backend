@@ -108,10 +108,28 @@ public class KeycloakGroupService {
         }
     }
 
+    /**
+     * Removes a user from an organization: every role subgroup first, then the parent group.
+     *
+     * <p>The role subgroups have to go too, and that is the whole point of this method rather
+     * than an incidental tidy-up. Keycloak records membership of {@code /org-5} and of
+     * {@code /org-5/system-admin} as two independent rows, so leaving the parent leaves the
+     * subgroup untouched. A user offboarded that way keeps the {@code ORG_5_ROLE_system-admin}
+     * authority and loses only {@code ORG_MEMBER_5}, which is the one state the whole authority
+     * model has no answer for: {@code TenantFilter} resolves a tenant from the membership
+     * authority, so the leftover role decides nothing today, and it would decide everything the
+     * moment anything started reading a role as entitlement on its own.
+     *
+     * <p>Roles are cleared before membership so that a failure part-way through leaves the
+     * weaker state rather than the stronger one. Subgroups are found by path rather than from
+     * {@link OrgRole}, so a subgroup created by hand in Keycloak is removed as well.
+     */
     public void removeUserFromOrganization(String userId, String organizationId) {
         Keycloak keycloak = getKeycloakAdminClient();
 
         try {
+            removeAllOrgRoleSubgroupMemberships(keycloak, userId, organizationId);
+
             String groupId = findOrgGroupId(keycloak, organizationId);
             if (groupId == null) {
                 log.warn("Cannot remove user from organization: organization group 'org-{}' not found in Keycloak", organizationId);
@@ -121,6 +139,26 @@ public class KeycloakGroupService {
             log.info("Removed user {} from organization group 'org-{}'", userId, organizationId);
         } finally {
             keycloak.close();
+        }
+    }
+
+    /**
+     * Takes the user out of every role subgroup beneath {@code org-{organizationId}}.
+     *
+     * <p>Reads the user's own group list and filters it by path, so it covers roles that are no
+     * longer in {@link OrgRole} and subgroups an operator added by hand, neither of which a loop
+     * over the enum would reach.
+     */
+    private void removeAllOrgRoleSubgroupMemberships(Keycloak keycloak, String userId, String organizationId) {
+        String subgroupPathPrefix = "/org-" + organizationId + "/";
+
+        List<GroupRepresentation> roleSubgroups = keycloak.realm(realm).users().get(userId).groups().stream()
+                .filter(group -> group.getPath() != null && group.getPath().startsWith(subgroupPathPrefix))
+                .toList();
+
+        for (GroupRepresentation subgroup : roleSubgroups) {
+            keycloak.realm(realm).users().get(userId).leaveGroup(subgroup.getId());
+            log.info("Removed user {} from role subgroup '{}'", userId, subgroup.getPath());
         }
     }
 
@@ -172,9 +210,18 @@ public class KeycloakGroupService {
      * After this, the user's next JWT will include "/org-5/system-admin" in the
      * groups claim, which JwtAuthConverter converts to authority "ORG_5_ROLE_system-admin".
      *
-     * NOTE: The user must ALSO be a member of the org (via addUserToOrganization).
-     * Role assignment and membership are separate: a user can be a member without
-     * any role, but should not have a role without being a member.
+     * Parent membership is granted here as well, so the "should not" below is enforced rather
+     * than merely documented. A user can be a member with no role; a user with a role is always
+     * a member. That direction is what the rest of the authority model is built on:
+     * {@code TenantFilter} resolves the tenant from {@code ORG_MEMBER_{id}} alone, so a role
+     * held without membership resolves nothing and the holder is refused everywhere, including
+     * on the endpoints their role names. Granting both together is what keeps that a statement
+     * about a state that cannot arise instead of one about a state nobody has hit yet.
+     * {@code joinGroup} is idempotent, so this costs one call on a user who is already a member.
+     *
+     * <p>Role assignment and membership remain separate operations: this adds membership, it
+     * does not make {@link #addUserToOrganization} redundant, and removing a role still leaves
+     * membership alone.
      *
      * A subgroup that does not exist yet is created here rather than refused. The
      * subgroups are created from OrgRole when an organization is created, so an
@@ -195,6 +242,8 @@ public class KeycloakGroupService {
 
             String subgroupId = ensureRoleSubgroup(keycloak, orgGroupId, organizationId, role);
 
+            // Membership before the role, so a failure between the two leaves the weaker state.
+            keycloak.realm(realm).users().get(userId).joinGroup(orgGroupId);
             keycloak.realm(realm).users().get(userId).joinGroup(subgroupId);
             log.info("Assigned role '{}' to user {} in organization {}", role.getGroupName(), userId, organizationId);
 

@@ -247,6 +247,8 @@ public class KeycloakInitializer {
         syncRealmSecuritySettings();
         // Ensure admin-only MFA (conditional TOTP) is codified even if realm exists
         ensureAdminMfa();
+        // Repair any org role held without membership of the organization that role names
+        ensureOrgRoleHoldersAreMembers();
         // Ensure service account roles are assigned even if realm exists
         assignServiceAccountRoles();
         // Ensure authorization setup (JS policy, resource, permission) exists
@@ -865,6 +867,91 @@ public class KeycloakInitializer {
     }
 
     /**
+     * Adds the parent organization membership to anyone who holds a role subgroup beneath an
+     * {@code org-*} group without it, on every startup.
+     *
+     * <p>Keycloak stores membership of {@code /org-5} and of {@code /org-5/system-admin} as two
+     * independent rows, so the two can come apart. {@code JwtAuthConverter} then mints
+     * {@code ORG_5_ROLE_system-admin} with no {@code ORG_MEMBER_5} beside it, and
+     * {@code TenantFilter} resolves a tenant from the membership authority alone: the holder is
+     * refused on every endpoint, including the ones their role names. The application no longer
+     * produces that state, since {@code KeycloakGroupService} grants membership with the role and
+     * clears the role subgroups with the membership. This is the other half, for a realm that
+     * already holds it, which the QA seed can carry in because it replays a captured export
+     * verbatim.
+     *
+     * <p>Deliberately one-directional and minimal: it adds the membership the role already
+     * implies and never grants, removes or alters a role, a credential or an account. Membership
+     * is the weaker of the two, so adding it can only widen a caller's access to an organization
+     * they were already recorded as an administrator of. Where a role turns out to be the thing
+     * that should not be there, the fix is to remove the role, which is a decision for whoever
+     * owns the organization rather than for a startup reconcile.
+     *
+     * <p>Guarded like the rest of the reconcile: a failure logs and never aborts startup.
+     */
+    /** Page size for a group's member listing, matching the subgroup walk above. */
+    private static final int GROUP_MEMBER_PAGE = 1000;
+
+    private void ensureOrgRoleHoldersAreMembers() {
+        try {
+            List<GroupRepresentation> orgGroups = admin.realm(REALM_ID).groups().groups().stream()
+                    .filter(group -> group.getName() != null && group.getName().startsWith("org-"))
+                    .toList();
+            if (orgGroups.isEmpty()) {
+                log.info("No 'org-*' groups found yet; no role memberships to reconcile");
+                return;
+            }
+
+            int repaired = 0;
+            for (GroupRepresentation orgGroup : orgGroups) {
+                repaired += ensureRoleHoldersAreMembersOf(orgGroup);
+            }
+            if (repaired == 0) {
+                log.info("Every org role holder is a member of the organization their role names");
+            } else {
+                log.warn("Added the missing organization membership for {} org role holder(s)", repaired);
+            }
+        } catch (Exception e) {
+            log.error("Failed to reconcile org role holders against organization membership: {}", e.getMessage());
+        }
+    }
+
+    /** @return how many users were added to this organization's parent group. */
+    private int ensureRoleHoldersAreMembersOf(GroupRepresentation orgGroup) {
+        List<GroupRepresentation> roleSubgroups =
+                admin.realm(REALM_ID).groups().group(orgGroup.getId()).getSubGroups(0, 1000, false);
+        if (roleSubgroups == null || roleSubgroups.isEmpty()) {
+            return 0;
+        }
+
+        Set<String> members = new HashSet<>();
+        List<UserRepresentation> parentMembers =
+                admin.realm(REALM_ID).groups().group(orgGroup.getId()).members(0, GROUP_MEMBER_PAGE);
+        if (parentMembers != null) {
+            parentMembers.stream().map(UserRepresentation::getId).filter(java.util.Objects::nonNull).forEach(members::add);
+        }
+
+        int repaired = 0;
+        for (GroupRepresentation roleSubgroup : roleSubgroups) {
+            List<UserRepresentation> roleHolders =
+                    admin.realm(REALM_ID).groups().group(roleSubgroup.getId()).members(0, GROUP_MEMBER_PAGE);
+            if (roleHolders == null) {
+                continue;
+            }
+            for (UserRepresentation roleHolder : roleHolders) {
+                if (roleHolder.getId() == null || !members.add(roleHolder.getId())) {
+                    continue;
+                }
+                admin.realm(REALM_ID).users().get(roleHolder.getId()).joinGroup(orgGroup.getId());
+                repaired++;
+                log.warn("User '{}' held '{}' without membership of '{}'; membership added",
+                        roleHolder.getUsername(), roleSubgroup.getPath(), orgGroup.getPath());
+            }
+        }
+        return repaired;
+    }
+
+    /**
      * The fresh-realm content pipeline, run through {@link #admin}. Realm creation itself is handled
      * separately in {@link #bootstrapWithMaster} because it is the one step that needs the master
      * credential.
@@ -874,6 +961,7 @@ public class KeycloakInitializer {
         assignServiceAccountRoles();
         ensureAuthorizationSetup();
         ensureAdminMfa();
+        ensureOrgRoleHoldersAreMembers();
         ensureCompositeJobRoles();
         ensureDevClient();
     }

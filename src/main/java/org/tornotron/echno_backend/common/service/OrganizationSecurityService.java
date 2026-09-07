@@ -229,6 +229,28 @@ public class OrganizationSecurityService {
         return isMember(orgId);
     }
 
+    /**
+     * Whether the caller holds one of these roles in the organization this request is scoped to.
+     *
+     * <p><b>This implies {@link #isMemberOfCurrentTenant()}, so do not write the two with
+     * {@code or}.</b> Both open on {@code TenantContext.getCurrentOrgId()} and refuse a null one,
+     * and {@code TenantFilter} sets it only after confirming an {@code ORG_MEMBER_{id}} authority,
+     * on both the header branch and the inference branch. A role-holder who is not a member
+     * therefore arrives with no organization in force and fails both clauses, so
+     * {@code "member or role"} decides on membership alone and reads as a two-part guard while
+     * behaving as a one-part one. That is what #709 found and #717 swept out of ten more
+     * controllers; anyone restoring the clause as a fix will be restoring the same illusion.
+     *
+     * <p>The split it was written for, a user in {@code /org-5/system-admin} but not
+     * {@code /org-5}, is now prevented rather than tolerated: {@code KeycloakGroupService} grants
+     * parent membership with any role and clears the role subgroups with the membership, and
+     * {@code KeycloakInitializer} repairs a realm that already holds the split on startup. Use
+     * this where the role is what decides, and {@link #isMemberOfCurrentTenant()} where mere
+     * membership is enough. Combining them with {@code and} is meaningful; with {@code or} it is
+     * not.
+     *
+     * @param roles one or more role names, matching the Keycloak subgroup names
+     */
     public boolean hasAnyOrgRoleForCurrentTenant(String... roles) {
         Long orgId = TenantContext.getCurrentOrgId();
         if (orgId == null) {

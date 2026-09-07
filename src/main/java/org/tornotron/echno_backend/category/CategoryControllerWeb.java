@@ -75,7 +75,7 @@ public class CategoryControllerWeb {
      * @return A {@link ResponseEntity} containing the list of category DTOs and HTTP status 200 (OK).
      */
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List categories",
             description = "Returns a single page of work categories. The pageNo and pageSize parameters "
@@ -99,7 +99,7 @@ public class CategoryControllerWeb {
      * @return A {@link ResponseEntity} containing the category DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get a category by id",
             description = "Returns a single work category."

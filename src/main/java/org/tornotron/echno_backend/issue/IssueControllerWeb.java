@@ -51,7 +51,7 @@ public class IssueControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List all issues",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -66,7 +66,7 @@ public class IssueControllerWeb {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List issues, paginated and filtered",
             description = "Returns a single page of issues, optionally filtered by project, a free-text "
@@ -90,7 +90,7 @@ public class IssueControllerWeb {
     }
 
     @GetMapping("/stats")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get issue counts",
             description = "Returns the total matching issue count and a per-status breakdown, computed "
@@ -109,7 +109,7 @@ public class IssueControllerWeb {
     }
 
     @GetMapping("/project/{projectId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List issues for a project",
             description = "Returns every issue raised against tasks belonging to the given project."
@@ -124,7 +124,7 @@ public class IssueControllerWeb {
     }
 
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get an issue by id",
             description = "Returns a single issue including its comments and attachments."
@@ -187,7 +187,7 @@ public class IssueControllerWeb {
     }
 
     @GetMapping("/taskId/{taskId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List issues for a task",
             description = "Returns every issue raised against the given task."

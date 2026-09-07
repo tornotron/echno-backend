@@ -39,7 +39,7 @@ public class ReceiptControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List all receipts",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -54,7 +54,7 @@ public class ReceiptControllerWeb {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List receipts, paginated and filterable",
             description = "Returns a single page of receipts. Supports a free-text search over the receipt "
@@ -72,7 +72,7 @@ public class ReceiptControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get a receipt by id",
             description = "Returns a single receipt with its payer, tax breakdown and optional links."
