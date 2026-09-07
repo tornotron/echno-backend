@@ -111,9 +111,15 @@ class ProcurementDocumentReadAuthzTest {
     @MockitoBean
     private RPTCache rptCache;
 
-    /** The caller holds project-manager and nothing else, which is the role under test. */
+    /**
+     * The caller holds project-manager and nothing else, which is the role under test. The stub
+     * names all three roles the read guards now carry, store-keeper included, because the guard
+     * asks in a single call and an argument list that does not match it leaves the mock answering
+     * false. The write guards are deliberately left unstubbed, so the refusals below are the
+     * mock's default rather than an assertion the stub arranged.
+     */
     private void aProjectManager() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager"))
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper", "project-manager"))
                 .thenReturn(true);
     }
 

@@ -27,12 +27,20 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Web-slice authorization test for SiteTransferControllerWeb. Every endpoint on this
- * controller gates on the single system-admin role, so the reads are more tightly
- * restricted than on the inventory-document controllers (which let any member read).
- * The stubs use exact role arguments: the system-admin test proves admittance, and the
- * project-manager test proves that role alone is refused, which locks in the exact role
- * name the guard requires. @orgSecurity is mocked.
+ * Web-slice authorization test for SiteTransferControllerWeb. Reads admit the system-admin
+ * and project-manager roles; everything that moves stock admits system-admin alone.
+ *
+ * <p>The project-manager case used to assert a refusal on the listing, and it is now an
+ * admittance: #680 opened the five procurement document reads so the role that already
+ * reads every movement through the inventory ledger can open the documents those movements
+ * came from, and #695 is the case that made it concrete, a project manager raising the stock
+ * adjustment that settles a transfer receipt variance while being refused the transfer it
+ * names. The refusal that remains is the one that always mattered here: receiving posts stock
+ * into a project and cancelling takes it back out.
+ *
+ * <p>The stubs use exact role arguments, so what is pinned is the role list each guard asks
+ * for rather than any role at all. @orgSecurity is mocked. The wider read/write split across
+ * all five documents is in ProcurementDocumentGuardSplitTest.
  */
 @WebMvcTest(SiteTransferControllerWeb.class)
 @Import(SiteTransferControllerWebAuthzTest.TestSecurityConfig.class)
@@ -56,30 +64,36 @@ class SiteTransferControllerWebAuthzTest {
     @MockitoBean
     private RPTCache rptCache;
 
+    /**
+     * The exact-argument stub is what carries this test. The guard asks for all three roles in a
+     * single call, so this matches only a guard that names exactly {@code system-admin},
+     * {@code store-keeper} and {@code project-manager}: a stub of a narrower call would not match,
+     * and the read would answer 403. The mock cannot say which of the three the caller holds, which
+     * is why the refusal below is stubbed on the same call returning false. That the read admits
+     * {@code project-manager} in particular is asserted by
+     * {@code ProcurementDocumentGuardSplitTest#everyDocumentReadAdmitsTheProjectManager}, which
+     * reads the annotation rather than the mock.
+     */
     @Test
-    void readAll_isOk_forASystemAdmin() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(true);
+    void readAll_isOk_forAnAdmittedRole() throws Exception {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper", "project-manager"))
+                .thenReturn(true);
         when(siteTransferService.getAllSiteTransfers(anyInt(), anyInt())).thenReturn(Page.empty());
 
         mockMvc.perform(get("/api/v1/site-transfers/web").with(jwt()))
                 .andExpect(status().isOk());
     }
 
-    @Test
-    void readAll_isForbidden_forAProjectManagerWhoIsNotASystemAdmin() throws Exception {
-        // Only 'project-manager' holds here. The guard asks for 'system-admin' or 'store-keeper',
-        // so the controller's exact-role check must reject this caller. Site transfers move stock
-        // between two sites and are worked by the stores at each end; a project manager reads the
-        // balances they land on and does not post the movement.
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("project-manager")).thenReturn(true);
-
-        mockMvc.perform(get("/api/v1/site-transfers/web").with(jwt()))
-                .andExpect(status().isForbidden());
-    }
-
+    /**
+     * The refusal a project manager used to get from this read was removed with #695: a project
+     * manager raises the stock adjustment that settles a receipt variance and now reads the
+     * transfer that adjustment names. What stays asserted here is that a caller holding none of
+     * the three admitted roles is refused.
+     */
     @Test
     void readAll_isForbidden_forACallerWithNoElevatedRole() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper", "project-manager"))
+                .thenReturn(false);
 
         mockMvc.perform(get("/api/v1/site-transfers/web").with(jwt()))
                 .andExpect(status().isForbidden());

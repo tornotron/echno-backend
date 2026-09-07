@@ -73,15 +73,23 @@ class GoodsReceivedNoteControllerWebAuthzTest {
     @MockitoBean
     private RPTCache rptCache;
 
-    /** A caller holding store-keeper and no other org role. */
+    /**
+     * A caller holding store-keeper and no other org role. The reads on this controller now admit
+     * project-manager as well, so the guard behind them asks for three roles in one call and needs
+     * its own stub; the writes still ask for two.
+     */
     private void asStoreKeeper() {
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper", "project-manager"))
+                .thenReturn(true);
     }
 
     /** A caller who is a member of the tenant and holds no org role at all. */
     private void asPlainMember() {
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper", "project-manager"))
+                .thenReturn(false);
     }
 
     private void stubReads() {
