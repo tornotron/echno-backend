@@ -28,8 +28,10 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
         name = "Purchase Orders",
         description = "Purchase orders raised against a vendor, optionally converted from an indent. A "
                 + "purchase order carries line items, a status lifecycle from draft through fully "
-                + "received or cancelled, and the totals used for payables. Access is restricted to the "
-                + "system-admin role for the current tenant."
+                + "received or cancelled, and the totals used for payables. Raising and changing an order "
+                + "is restricted to the system-admin role for the current tenant. Reading one is also open "
+                + "to store-keeper, which is what a goods receipt is booked against: the receiving end has "
+                + "to see what was ordered without being able to alter the order."
 )
 public class PurchaseOrderController {
 
@@ -56,7 +58,7 @@ public class PurchaseOrderController {
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @GetMapping("/{id}")
     @Operation(
             summary = "Get a purchase order by id",
@@ -72,7 +74,7 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrder);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @GetMapping
     @Operation(
             summary = "List all purchase orders",
@@ -87,7 +89,7 @@ public class PurchaseOrderController {
                 purchaseOrderService.getAllPurchaseOrders(0, UnpagedResultCap.MAX_ROWS));
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @GetMapping("/all")
     @Operation(
             summary = "List purchase orders, paginated",
@@ -105,7 +107,7 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrders);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @GetMapping("/vendor/{vendorId}")
     @Operation(
             summary = "List purchase orders for a vendor",
@@ -121,7 +123,7 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrders);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @GetMapping("/indent/{indentId}")
     @Operation(
             summary = "List purchase orders for an indent",
@@ -136,7 +138,7 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrders);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @GetMapping("/status/{status}")
     @Operation(
             summary = "List purchase orders by status",

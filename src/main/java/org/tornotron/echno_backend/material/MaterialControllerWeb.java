@@ -37,9 +37,11 @@ import java.util.List;
                 + "current tenant. Covers the same create, browse, search, update, stock lookup and "
                 + "delete operations as the standard materials endpoints, for use from the admin web "
                 + "console rather than the mobile app. Reads, including the stock lookup, are open to "
-                + "the system-admin and project-manager roles, because a project manager raises and "
-                + "approves stock adjustments and those are documents about a material's balance. "
-                + "Changing the catalogue, its thresholds included, stays with system-admin."
+                + "the system-admin, project-manager and store-keeper roles, because a project manager "
+                + "raises and approves stock adjustments and those are documents about a material's "
+                + "balance, and a storekeeper cannot name a material on a receipt, an issue or a count "
+                + "without reading the catalogue first. Changing the catalogue, its thresholds included, "
+                + "stays with system-admin."
 )
 public class MaterialControllerWeb {
 
@@ -78,7 +80,7 @@ public class MaterialControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Get a material by id",
             description = "Returns a single material with its creator and current aggregate stock value."
@@ -94,7 +96,7 @@ public class MaterialControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List all materials",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -108,7 +110,7 @@ public class MaterialControllerWeb {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List materials, paginated",
             description = "Returns a single page of materials. The pageNo and pageSize parameters "
@@ -126,7 +128,7 @@ public class MaterialControllerWeb {
     }
 
     @GetMapping("/low-stock")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List materials at or below their reorder level",
             description = "Returns a page of the materials whose stock has reached the reorder level "
@@ -156,7 +158,7 @@ public class MaterialControllerWeb {
     }
 
     @GetMapping("/summary")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Total the catalogue and the value of the stock on hand",
             description = "Returns the figures a materials dashboard strip is built from, totalled "
@@ -183,7 +185,7 @@ public class MaterialControllerWeb {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Search materials by name",
             description = "Returns materials whose name matches the given search term, such as \"Cement\" "
@@ -199,7 +201,7 @@ public class MaterialControllerWeb {
     }
 
     @GetMapping("/{id}/stock")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Get a material with its current stock",
             description = "Returns a material along with its current stock. When projectId and "
@@ -266,7 +268,7 @@ public class MaterialControllerWeb {
     }
 
     @GetMapping("/{materialId}/location-thresholds")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List a material's per-location threshold overrides",
             description = "Returns every storage-location override of the material's planning thresholds. "

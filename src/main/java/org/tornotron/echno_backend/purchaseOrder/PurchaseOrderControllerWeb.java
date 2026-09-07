@@ -58,7 +58,7 @@ public class PurchaseOrderControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Get a purchase order by id",
             description = "Returns a single purchase order including its vendor, indent link, items and totals."
@@ -81,7 +81,7 @@ public class PurchaseOrderControllerWeb {
      * @return A {@link ResponseEntity} containing a page of trail entries and HTTP status 200 (OK).
      */
     @GetMapping("/{id}/status-history")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Read a purchase order's status trail",
             description = "Returns a page of the order's status entries, newest first: what it moved "
@@ -107,7 +107,7 @@ public class PurchaseOrderControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List all purchase orders",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -122,7 +122,7 @@ public class PurchaseOrderControllerWeb {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List purchase orders, paginated",
             description = "Returns a single page of purchase orders. The pageNo and pageSize parameters "
@@ -140,7 +140,7 @@ public class PurchaseOrderControllerWeb {
     }
 
     @GetMapping("/vendor/{vendorId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List purchase orders for a vendor",
             description = "Returns every purchase order raised against the given vendor, for example every "
@@ -156,7 +156,7 @@ public class PurchaseOrderControllerWeb {
     }
 
     @GetMapping("/indent/{indentId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List purchase orders for an indent",
             description = "Returns every purchase order that was raised from the given material indent."
@@ -171,7 +171,7 @@ public class PurchaseOrderControllerWeb {
     }
 
     @GetMapping("/status/{status}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List purchase orders by status",
             description = "Returns every purchase order currently in the given lifecycle status, such as "

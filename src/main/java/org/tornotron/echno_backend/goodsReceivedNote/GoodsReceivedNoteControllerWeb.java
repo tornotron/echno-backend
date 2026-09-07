@@ -27,9 +27,12 @@ import java.util.List;
 @Tag(
         name = "Goods Received Notes (Web)",
         description = "Goods received notes (GRNs) record materials received against a vendor, capturing "
-                + "the delivery and its line items. This is the web-console API, restricted to the "
-                + "system-admin role for the current tenant rather than flat authorities. Endpoints "
-                + "cover creating, browsing, filtering by vendor or date range, and updating GRNs."
+                + "the delivery and its line items. This is the web-console API, gated by organization "
+                + "role for the current tenant rather than by flat authorities. Recording a receipt and "
+                + "reading one are open to the system-admin and store-keeper roles, because booking a "
+                + "delivery in is the store\'s own work and used to require administering the whole "
+                + "organization. Endpoints cover creating, browsing, filtering by vendor or date range, "
+                + "and updating GRNs."
 )
 public class GoodsReceivedNoteControllerWeb {
 
@@ -40,7 +43,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Create a goods received note",
             description = "Creates a GRN recording materials received against a vendor with its line items. "
@@ -60,7 +63,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Get a goods received note by id",
             description = "Returns a single GRN."
@@ -76,7 +79,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List goods received notes",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -90,7 +93,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List goods received notes (paged)",
             description = "Returns a single page of GRNs controlled by the pageNo and pageSize parameters."
@@ -107,7 +110,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @GetMapping("/vendor/{vendorId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List goods received notes for a vendor",
             description = "Returns the GRNs recorded against the given vendor."
@@ -122,7 +125,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @PatchMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Update a goods received note",
             description = "Applies an update to the GRN identified in the request body."
@@ -139,7 +142,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @GetMapping("/date-range")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List goods received notes by date range",
             description = "Returns the GRNs recorded between the given start and end date-times."

@@ -57,7 +57,7 @@ public class IndentControllerWeb {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List indents, paginated",
             description = "Returns a single page of indents. The pageNo and pageSize parameters control paging."
@@ -88,7 +88,7 @@ public class IndentControllerWeb {
      * @return A {@link ResponseEntity} containing the page of indent summaries.
      */
     @GetMapping("/summary")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List indents as summaries, paginated",
             description = "Returns a single page of indents without their item lines, each "
@@ -108,7 +108,7 @@ public class IndentControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List all indents",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -122,7 +122,7 @@ public class IndentControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Get an indent by id",
             description = "Returns a single indent, including its creator, project and requested items."
@@ -176,7 +176,7 @@ public class IndentControllerWeb {
     // ==================== IndentItem Endpoints ====================
 
     @GetMapping("/{indentId}/items")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List items on an indent",
             description = "Returns every requested item on the given indent."

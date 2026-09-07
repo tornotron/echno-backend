@@ -28,8 +28,9 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
         name = "Purchase Order Items",
         description = "Line items belonging to a purchase order: the material, ordered and received "
                 + "quantities, unit price and totals. Items can be created independently of the parent "
-                + "order create call and looked up by purchase order or by material. Access is restricted "
-                + "to the system-admin role for the current tenant."
+                + "order create call and looked up by purchase order or by material. Writing an item is "
+                + "restricted to the system-admin role for the current tenant. Reading one is also open to "
+                + "store-keeper, who needs the ordered quantities to check a delivery against them."
 )
 public class PurchaseOrderItemController {
 
@@ -57,7 +58,7 @@ public class PurchaseOrderItemController {
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @GetMapping("/{id}")
     @Operation(
             summary = "Get a purchase order item by id",
@@ -73,7 +74,7 @@ public class PurchaseOrderItemController {
         return ResponseEntity.ok(item);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @GetMapping
     @Operation(
             summary = "List all purchase order items",
@@ -100,7 +101,7 @@ public class PurchaseOrderItemController {
      * @return A {@link ResponseEntity} containing the page of purchase order items.
      */
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List purchase order items, paginated",
             description = "Returns a single page of purchase order items with the paging metadata included. "
@@ -115,7 +116,7 @@ public class PurchaseOrderItemController {
         return ResponseEntity.ok(purchaseOrderItemService.getPurchaseOrderItemsPaginated(pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @GetMapping("/purchase-order/{purchaseOrderId}")
     @Operation(
             summary = "List items for a purchase order",
@@ -132,7 +133,7 @@ public class PurchaseOrderItemController {
         return ResponseEntity.ok(items);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @GetMapping("/material/{materialId}")
     @Operation(
             summary = "List items for a material",

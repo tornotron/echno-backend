@@ -24,7 +24,8 @@ org-5/                      ← This is a folder (Keycloak group) for the organi
     ├── project-manager
     ├── qa-engineer
     ├── safety-officer
-    └── site-engineer
+    ├── site-engineer
+    └── store-keeper
 ```
 
 - When a user **joins an organization**, they are placed inside the `org-5` folder.
@@ -57,7 +58,8 @@ org-5/
     ├── project-manager
     ├── qa-engineer
     ├── safety-officer
-    └── site-engineer
+    ├── site-engineer
+    └── store-keeper
 ```
 
 **File:** `KeycloakGroupService.java` → `createOrganizationGroup()` and `createDefaultRoleSubgroups()`
@@ -178,6 +180,7 @@ PROJECT_MANAGER("project-manager") // Can manage projects within the org
 QA_ENGINEER("qa-engineer")         // Quality inspections, checklists, quality NCRs
 SAFETY_OFFICER("safety-officer")   // Safety inspections and safety NCRs
 SITE_ENGINEER("site-engineer")     // Reads inspections, reports corrective action
+STORE_KEEPER("store-keeper")       // Runs the store: receipts, issues, transfers, counts
 ```
 
 The three inspection roles sit here rather than among the realm occupation roles because this is the
@@ -188,11 +191,57 @@ for assignment, not an authority.
 The enum also carries a second, smaller idea. `getManagerRoles()` names the four that count as
 manager standing (`SYSTEM_ADMIN`, `ORG_MANAGER`, `HR_ADMIN`, `PROJECT_MANAGER`), and that set decides
 who may be named the manager on a project invite code and who appears in the manager listings. The
-inspection roles are deliberately outside it: a QA engineer signs off quality, not headcount.
+inspection roles and `STORE_KEEPER` are deliberately outside it: a QA engineer signs off quality,
+not headcount, and running a store is not managing people either.
 
 That set is also the whole of what `ORG_MANAGER` does. No `@PreAuthorize` anywhere names
 `'org-manager'`, and the web role picker does not offer it, so it can only be granted through the
 API. It is not inert, though, and removing it would silently narrow `MANAGER_ROLES`.
+
+#### What `store-keeper` grants
+
+The Resources domain used to have nothing between plain organization membership and `system-admin`,
+so letting somebody book a delivery meant making them an administrator of the whole organization.
+`store-keeper` is the tier in between, and it is scoped to the work rather than to the domain: it
+grants the storekeeper's own documents and the reads those forms need, and nothing else.
+
+Writes it grants, nine endpoints in all:
+
+| Document | Endpoints |
+| --- | --- |
+| Goods received note | `POST /grns/web`, `PATCH /grns/web` |
+| Material issue | `POST /material-consumptions/web` |
+| Site transfer | `POST /site-transfers/web`, `POST /site-transfers/web/{id}/receive`, `POST /site-transfers/web/{id}/cancel`, `PATCH /site-transfers/web/{id}/status` |
+| Stock adjustment | `POST /stock-adjustments/web`, `PUT /stock-adjustments/web/{id}` |
+
+The site-transfer status route is on that list as a signpost rather than as an authority: it refuses
+every payload it is handed and answers by naming the receive and cancel routes, which is a more
+useful reply than a 403 to somebody who holds both of those.
+
+Reads it grants: the material catalogue and its stock figures, storage locations, the inventory
+ledger, goods received notes, site transfers, material issues, indents and indent items, purchase
+orders and their lines, and vendor identity and contacts. The reads are there because the forms
+cannot be filled in without them, which is the failure mode this role exists to close: an endpoint
+opened for a write while the lookup behind its form stays shut is the same 403 one screen earlier.
+
+What it does not grant, and why:
+
+- **No approval or rejection of a stock adjustment.** Approving is what posts the balance, and it is
+  meant to be the second pair of eyes on a count somebody else took. `SelfApprovalPolicy` already
+  refuses a caller approving the document they raised, but a role holding both halves would let two
+  storekeepers wave each other's counts through, which is the same control gone. Approval stays with
+  `system-admin` and `project-manager`.
+- **No deletions anywhere**, including of a stock adjustment or a goods received note.
+- **No catalogue, storage-location, vendor, purchase-order or indent writes.** Deciding what
+  materials exist, who supplies them and what has been ordered is not the same job as recording what
+  arrived.
+- **No vendor financial reads.** The vendor summary, bank accounts, tax identifiers and payment terms
+  are outside it; the storekeeper gets the vendor's name and contacts, which is what a delivery
+  needs.
+
+Two of these endpoints resolve the caller to an employee record: confirming and cancelling a site
+transfer both read who did it from the session rather than the payload. A `store-keeper` account with
+no employee row in the organization is refused there, with the role held.
 
 **When would you change this file?**
 - When you want to add a new role (e.g., `FINANCE_ADMIN("finance-admin")`)

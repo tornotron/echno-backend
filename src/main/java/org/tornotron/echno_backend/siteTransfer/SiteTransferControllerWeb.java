@@ -30,9 +30,12 @@ import java.util.List;
 @Tag(
         name = "Site Transfers (Web)",
         description = "Web-app view of site transfers: the same movement of materials between two projects "
-                + "and their storage locations as the mobile-facing site-transfer endpoints, restricted to "
-                + "the system-admin role for the caller's current tenant. Creating a transfer checks that "
-                + "the sending location holds enough stock before the items are recorded."
+                + "and their storage locations as the mobile-facing site-transfer endpoints, gated by "
+                + "organization role for the caller's current tenant. Raising a transfer, confirming what "
+                + "the receiving site took delivery of, and cancelling one that never arrived are open to "
+                + "the system-admin and store-keeper roles, since both ends of a transfer are worked by a "
+                + "store. Creating a transfer checks that the sending location holds enough stock before "
+                + "the items are recorded."
 )
 public class SiteTransferControllerWeb {
 
@@ -43,7 +46,7 @@ public class SiteTransferControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Create a site transfer",
             description = "Creates a site transfer moving materials from a sending project, and optionally a "
@@ -64,7 +67,7 @@ public class SiteTransferControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Get a site transfer by id",
             description = "Returns a single site transfer including its sending and receiving projects, "
@@ -81,7 +84,7 @@ public class SiteTransferControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List all site transfers",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -96,7 +99,7 @@ public class SiteTransferControllerWeb {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List site transfers, paginated",
             description = "Returns a single page of site transfers ordered by issue date, most recent first. "
@@ -114,7 +117,7 @@ public class SiteTransferControllerWeb {
     }
 
     @GetMapping("/status/{status}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List site transfers by status",
             description = "Returns every site transfer currently in the given status, for example PENDING, "
@@ -130,7 +133,7 @@ public class SiteTransferControllerWeb {
     }
 
     @GetMapping("/sending-project/{projectId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List site transfers sent from a project",
             description = "Returns every site transfer whose sending project is the given project id."
@@ -145,7 +148,7 @@ public class SiteTransferControllerWeb {
     }
 
     @GetMapping("/receiving-project/{projectId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List site transfers received by a project",
             description = "Returns every site transfer whose receiving project is the given project id."
@@ -160,7 +163,7 @@ public class SiteTransferControllerWeb {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Deprecated
     @Operation(
             deprecated = true,
@@ -187,7 +190,7 @@ public class SiteTransferControllerWeb {
     }
 
     @PostMapping("/{id}/receive")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Record what the receiving site took delivery of",
             description = "Posts the stock that actually arrived at the receiving project and "
@@ -219,7 +222,7 @@ public class SiteTransferControllerWeb {
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Cancel a transfer that never arrived",
             description = "Abandons a PENDING transfer and returns the whole sent quantity to the "
@@ -244,7 +247,7 @@ public class SiteTransferControllerWeb {
     }
 
     @GetMapping("/{id}/status-history")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Read a site transfer's status trail",
             description = "Returns a page of the transfer's status entries, newest first: what it "
