@@ -42,12 +42,23 @@ jobs:
       # drifted, so the file cannot quietly stop describing the backend. Its own
       # step, and its own forked JVM, because it boots a web context that does not
       # belong in the main suite's 1 GB heap. See OpenApiSnapshotTest.
+      #
+      # Runs whether or not `Test` passed. A run whose document is stale is by
+      # definition a run where something changed, which is often a run where a test
+      # is red too, and gating this step on the suite made the document unobtainable
+      # in exactly those runs. The two checks report independently now: a red suite
+      # no longer hides a contract drift, and a drift no longer hides a red suite.
       - name: OpenAPI document up to date
+        if: ${{ !cancelled() }}
         run: ./gradlew --no-daemon openApiSnapshot
 
-      # Uploaded on failure so a drift can be diffed without rerunning anything.
+      # OpenApiSnapshotTest writes build/openapi.json before it compares, so this is
+      # the canonical document either way: the drift to diff when the step fails, and
+      # a current copy of the contract when it passes. Published on every run because
+      # regenerating it locally needs a container runtime, and the fallback of taking
+      # it from a build was worth nothing while it existed only on failures.
       - name: Upload the served OpenAPI document
-        if: failure()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openapi-served
