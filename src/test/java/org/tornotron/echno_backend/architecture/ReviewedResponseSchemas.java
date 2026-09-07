@@ -1,5 +1,13 @@
 package org.tornotron.echno_backend.architecture;
 
+import org.tornotron.echno_backend.attendance.dto.AttendanceResponseDto;
+import org.tornotron.echno_backend.attendance.dto.ClockEventDto;
+import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteDto;
+import org.tornotron.echno_backend.payable.dto.PayableDto;
+import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderDto;
+import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderItemDto;
+import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemResponseDto;
+import org.tornotron.echno_backend.receipt.dto.ReceiptDto;
 import org.tornotron.echno_backend.vendor.dto.VendorBankAccountDto;
 import org.tornotron.echno_backend.vendor.dto.VendorContactDto;
 import org.tornotron.echno_backend.vendor.dto.VendorDto;
@@ -112,6 +120,98 @@ final class ReviewedResponseSchemas {
      *       {@code COALESCE(..., 0)}, so none of them can come back null.
      * </ul>
      *
+     * <p><b>The procurement chain: purchase order, goods received note, payable.</b> These are
+     * the three schemas {@code VendorDto} already publishes as collections, so vendor's pass
+     * declared the lists non-null while saying nothing about what is inside them. Every one of
+     * them carries money, which is where a wrong answer costs something: a client writing
+     * {@code ?? 0} on an amount turns "nobody recorded this" into a figure someone will act on.
+     *
+     * <ul>
+     *   <li>{@code PayableDto.amountDue} is the one property here that is non-null for a reason
+     *       that is not a constraint, and it is the {@code VendorSummaryDto} shape: it has no
+     *       column at all, and {@code Payable.getAmountDue()} coalesces both operands to
+     *       {@code ZERO} before subtracting. Where a nullable column does exist, the column wins
+     *       even when the application writes the value on every path. That is the line taken for
+     *       {@code PurchaseOrderDto.totalAmount} (seeded at zero on creation, recomputed from a
+     *       coalesced {@code SUM}) and for {@code totalPrice} on both line schemas (computed on
+     *       every write with a missing unit price read as zero): all three are recorded nullable,
+     *       with the computation named in the description, because nothing in the contract can
+     *       promise a row was written through the application. The same line makes
+     *       {@code PayableDto.createdAt} nullable. In each of these a zero means "no figure was
+     *       agreed" rather than "the amount is nothing", which the descriptions say.
+     *   <li>{@code items} on {@code PurchaseOrderDto} and {@code GoodsReceivedNoteDto} is
+     *       nullable because of the mapper, not the schema. Both entity collections are
+     *       initialised and can never be null, and both mappers carry an {@code @AfterMapping}
+     *       that replaces an empty list with null on purpose.
+     *   <li>{@code projectId} and {@code projectName} are nullable on all three schemas, and this
+     *       is the trap the vendor pass warned about. {@code Payable}, {@code PurchaseOrder} and
+     *       {@code GoodsReceivedNote} each declare
+     *       {@code @JoinColumn(name = "project_id", nullable = false)} while the Liquibase column
+     *       is nullable in every case, and no {@code addNotNullConstraint} anywhere in the
+     *       changelog names a {@code project_id}. {@code ddl-auto} is {@code validate}, which
+     *       does not compare nullability, so nothing reports it. The changelog wins.
+     *       {@code projectName} is nullable twice over, since {@code project.project_name} is
+     *       itself a nullable column.
+     *   <li>A flattened name is null exactly when its foreign key is: {@code vendorName},
+     *       {@code grnNumber}, {@code indentNumber}, {@code purchaseOrderNumber},
+     *       {@code storageLocationName} and {@code materialName} all map through an association
+     *       whose own name column is {@code NOT NULL}.
+     *   <li>{@code PayableDto.createdAt} is nullable where the same field on
+     *       {@code PurchaseOrderDto} and {@code ReceiptDto} is not. Its column permits null while
+     *       theirs do not; {@code @CreationTimestamp} fills it on every insert the application
+     *       makes, but the contract cannot promise how a row reached the table. Making
+     *       {@code payable.created_at} {@code NOT NULL} would move it to the non-null half.
+     *   <li>{@code GoodsReceivedNoteDto.overReceiptAcknowledged} is a primitive {@code boolean} on
+     *       the DTO, so Jackson could not emit null for it whatever the source held. The
+     *       {@code NOT NULL} column agrees rather than causes it.
+     * </ul>
+     *
+     * <p><b>Attendance.</b> Picked because a wrong answer here has already cost something: a
+     * client wrote {@code ?? false} against {@code ClockEventDto.isWithinGeofence} on the
+     * strength of the document saying nothing, which turns "the geofence was never evaluated"
+     * into "the worker was outside the site".
+     *
+     * <ul>
+     *   <li>{@code isWithinGeofence} is a boxed {@code Boolean} with three states, and null is
+     *       the ordinary one: {@code AttendanceService.applyGeofence} evaluates only a
+     *       self-marked punch, so every punch a supervisor records for a team member is
+     *       unevaluated, as is one with no position, one on a project with no coordinates, and
+     *       every event written by a regularization. Changeset {@code 087-01} dropped the old
+     *       {@code NOT NULL} and {@code false} default and {@code 087-02} backfilled the existing
+     *       rows to null precisely so that a placeholder {@code false} could not be read as a
+     *       measured verdict. {@code distanceFromProject} and {@code geofenceRadiusMeters} are
+     *       written from the same evaluation, so the three are null together or set together.
+     *   <li>The five session-minute fields are nullable for a reason that is neither the column
+     *       nor the mapper. {@code Attendance} is a {@code @Builder} class and those five fields
+     *       carry an inline {@code = 0} with no {@code @Builder.Default}, so Lombok discards the
+     *       initialiser and the builder writes null. Nothing then fills them until
+     *       {@code AttendanceCalculationService.recalculate} runs, which never happens on a
+     *       record raised by marking someone absent or on leave, or on one with no shift. Null
+     *       there means the day was not computed, which is not zero minutes worked.
+     *   <li>{@code photoUrl}, {@code verifiedBy} and {@code verifiedAt} on
+     *       {@code ClockEventDto} are null on every response ever served. The mapper declares
+     *       {@code @Mapping(target = "photoUrl", ignore = true)} and nothing in {@code src/main}
+     *       writes the other two on a clock event. They are recorded as nullable and their
+     *       descriptions say plainly that they are not populated, rather than implying a flow
+     *       that does not exist.
+     *   <li>The collections ({@code clockEvents}, {@code regularizations}, {@code movements},
+     *       {@code attachments}) are non-null because the entity initialises each and marks it
+     *       {@code @Builder.Default}. They are routinely empty, which is a normal state.
+     *   <li>{@code createdAt} and {@code updatedAt} are nullable on the same reading as
+     *       {@code PayableDto.createdAt}: both columns permit null and only Hibernate's timestamp
+     *       callbacks fill them.
+     * </ul>
+     *
+     * <p><b>Receipts.</b> Money received, and the schema where silence was worth the least: 21 of
+     * its 25 properties admit null. Two reasons compound. Almost every column on {@code receipts}
+     * is nullable, including {@code amount}; and {@code ReceiptService.applyFields} runs on
+     * create and update alike and assigns every editable scalar unconditionally, so an update
+     * that omits a field clears it rather than leaving it alone ({@code currency} is the one
+     * exception, guarded against a null). The five id columns ({@code issuedBy},
+     * {@code projectId}, {@code paymentId}, {@code invoiceId}, {@code customerId}) carry no
+     * foreign key at all, so a value there may name a row that no longer exists, which the
+     * descriptions say.
+     *
      * @return The reviewed schemas.
      */
     static List<ReviewedSchema> schemas() {
@@ -145,6 +245,63 @@ final class ReviewedResponseSchemas {
                         Set.of("vendorId", "vendorName", "purchaseOrderCount",
                                 "totalPurchaseOrderValue", "totalAmountRecorded",
                                 "totalAmountPaid", "outstandingAmount", "grnCount",
-                                "totalInvoiceAmount")));
+                                "totalInvoiceAmount")),
+                new ReviewedSchema(
+                        PurchaseOrderDto.class,
+                        Set.of("indentId", "indentNumber", "projectId", "projectName",
+                                "createdBy", "expectedDeliveryDate", "remarks", "items",
+                                "totalAmount"),
+                        Set.of("id", "poNumber", "vendorId", "vendorName", "status",
+                                "createdAt")),
+                new ReviewedSchema(
+                        PurchaseOrderItemDto.class,
+                        Set.of("indentItemId", "unitPrice", "totalPrice", "remarks"),
+                        Set.of("id", "materialId", "materialName", "orderedQuantity",
+                                "receivedQuantity")),
+                new ReviewedSchema(
+                        PurchaseOrderItemResponseDto.class,
+                        Set.of("indentItemId", "unitPrice", "totalPrice", "remarks"),
+                        Set.of("id", "purchaseOrderId", "poNumber", "materialId", "materialName",
+                                "orderedQuantity", "receivedQuantity")),
+                new ReviewedSchema(
+                        GoodsReceivedNoteDto.class,
+                        Set.of("receivedBy", "vendorId", "vendorName", "purchaseOrderId",
+                                "purchaseOrderNumber", "deliveryChallanNumber", "invoiceNumber",
+                                "invoiceAmount", "projectId", "projectName", "storageLocationId",
+                                "storageLocationName", "items"),
+                        Set.of("id", "grnNumber", "receivedOn", "overReceiptAcknowledged")),
+                new ReviewedSchema(
+                        PayableDto.class,
+                        Set.of("contractType", "amountRecorded", "amountPaid", "vendorId",
+                                "vendorName", "goodsReceivedNoteId", "grnNumber", "projectId",
+                                "projectName", "createdBy", "createdAt"),
+                        Set.of("id", "payableNumber", "contractorName", "amountDue")),
+                new ReviewedSchema(
+                        ReceiptDto.class,
+                        Set.of("type", "status", "amount", "currency", "receiptDate",
+                                "paymentMethod", "transactionId", "referenceNumber",
+                                "receivedFrom", "receivedFromAddress", "taxAmount", "taxRate",
+                                "taxType", "description", "notes", "issuedBy", "projectId",
+                                "paymentId", "invoiceId", "customerId", "organizationId"),
+                        Set.of("id", "receiptNumber", "createdAt", "updatedAt")),
+                new ReviewedSchema(
+                        AttendanceResponseDto.class,
+                        Set.of("shiftTiming", "totalWorkMinutes", "morningSessionMinutes",
+                                "afternoonSessionMinutes", "overtimeMinutes",
+                                "breakDurationMinutes", "leaveId", "leaveType", "approvedBy",
+                                "approvedById", "approvedAt", "geofenceApproverId", "remarks",
+                                "createdAt", "updatedAt"),
+                        Set.of("id", "employeeId", "employeeName", "attendanceDate", "projectId",
+                                "projectName", "status", "clockEvents", "isLateArrival",
+                                "isEarlyCheckout", "isOvertime", "regularizations", "movements",
+                                "approvalStatus", "requiresGeofenceApproval")),
+                new ReviewedSchema(
+                        ClockEventDto.class,
+                        Set.of("latitude", "longitude", "gpsAccuracy", "photoUrl",
+                                "devicePlatform", "isWithinGeofence", "distanceFromProject",
+                                "geofenceRadiusMeters", "geofenceExceptionReason", "recordedById",
+                                "remarks", "verifiedBy", "verifiedAt", "regularizationReason"),
+                        Set.of("id", "eventType", "eventTimestamp", "projectId", "projectName",
+                                "isRegularized", "attachments")));
     }
 }
