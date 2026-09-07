@@ -43,15 +43,19 @@ public class ShiftTiming implements TenantScopedEntity {
     @Column(name = "lunch_break_end", nullable = false)
     private LocalTime lunchBreakEnd;
 
+    @Builder.Default
     @Column(name = "grace_period_minutes", nullable = false)
     private Integer gracePeriodMinutes = 15;
 
+    @Builder.Default
     @Column(name = "minimum_work_hours", nullable = false, precision = 4, scale = 2)
     private BigDecimal minimumWorkHours = BigDecimal.valueOf(8.0);
 
+    @Builder.Default
     @Column(name = "half_day_work_hours", nullable = false, precision = 4, scale = 2)
     private BigDecimal halfDayWorkHours = BigDecimal.valueOf(4.0);
 
+    @Builder.Default
     @Column(name = "overtime_threshold", nullable = false, precision = 4, scale = 2)
     private BigDecimal overtimeThreshold = BigDecimal.valueOf(9.0);
 

@@ -48,11 +48,6 @@ public class ClockEventDto {
             example = "8.5", nullable = true)
     private Double gpsAccuracy;
 
-    @Schema(description = "Always null. The mapper ignores this field and the clock event has "
-            + "no photo of its own; photos taken with a punch are returned in attachments "
-            + "instead, each with its own signed download URL.", nullable = true)
-    private String photoUrl;
-
     @Schema(description = "Id of the project the event was recorded against.", example = "12")
     private Long projectId;
 
@@ -99,16 +94,6 @@ public class ClockEventDto {
             + "always null on an event written by a regularization.",
             example = "Reported directly to the second floor slab pour", nullable = true)
     private String remarks;
-
-    @Schema(description = "Who verified the event. The column exists but no code path in the "
-            + "application writes it, so it is null on every event this server records.",
-            example = "Anand Rajashekar", nullable = true)
-    private String verifiedBy;
-
-    @Schema(description = "When the event was verified. Null on the same terms as verifiedBy, "
-            + "and the two are written together if anything ever writes them.",
-            example = "2026-01-16T11:00:00", nullable = true)
-    private LocalDateTime verifiedAt;
 
     @Schema(description = "Whether this event was added through a regularization request rather than recorded live.", example = "false")
     private Boolean isRegularized;

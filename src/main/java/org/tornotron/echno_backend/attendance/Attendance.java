@@ -73,18 +73,23 @@ public class Attendance implements TenantScopedEntity {
     @OrderBy("eventTimestamp ASC")
     private List<ClockEvent> clockEvents = new ArrayList<>();
 
+    @Builder.Default
     @Column(name = "total_work_minutes")
     private Integer totalWorkMinutes = 0;
 
+    @Builder.Default
     @Column(name = "morning_session_minutes")
     private Integer morningSessionMinutes = 0;
 
+    @Builder.Default
     @Column(name = "afternoon_session_minutes")
     private Integer afternoonSessionMinutes = 0;
 
+    @Builder.Default
     @Column(name = "overtime_minutes")
     private Integer overtimeMinutes = 0;
 
+    @Builder.Default
     @Column(name = "break_duration_minutes")
     private Integer breakDurationMinutes = 0;
 
@@ -115,6 +120,7 @@ public class Attendance implements TenantScopedEntity {
     @OrderBy("startTime ASC")
     private List<MovementRecord> movements = new ArrayList<>();
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "approval_status", nullable = false)
     private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
@@ -166,6 +172,7 @@ public class Attendance implements TenantScopedEntity {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Builder.Default
     @OneToMany(mappedBy = "attendance")
     private List<Attachment> attachments = new ArrayList<>();
 

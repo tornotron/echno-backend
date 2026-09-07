@@ -188,14 +188,11 @@ class AttendanceMapperConversionTest {
         assertThat(dto.getIsWithinGeofence()).isTrue();
         assertThat(dto.getDistanceFromProject()).isEqualTo(12.0);
         assertThat(dto.getRemarks()).isEqualTo("on time");
-        assertThat(dto.getVerifiedBy()).isEqualTo("Supervisor");
-        assertThat(dto.getVerifiedAt()).isEqualTo(LocalDateTime.of(2026, 3, 4, 10, 0));
         assertThat(dto.getIsRegularized()).isFalse();
         assertThat(dto.getRegularizationReason()).isNull();
 
-        // The entity has no photo URL of its own; the photos are the attachments.
-        assertThat(dto.getPhotoUrl()).isNull();
-
+        // The photos taken with the punch are the attachments; the DTO has no photo URL of its
+        // own, and no verification stamp, because nothing ever wrote either (echno-backend#728).
         assertThat(dto.getAttachments()).hasSize(1);
         assertThat(dto.getAttachments().get(0).getId()).isEqualTo(88L);
         assertThat(dto.getAttachments().get(0).getUrl()).isEqualTo(SIGNED_URL);
@@ -496,8 +493,6 @@ class AttendanceMapperConversionTest {
         event.setIsWithinGeofence(true);
         event.setDistanceFromProject(12.0);
         event.setRemarks("on time");
-        event.setVerifiedBy("Supervisor");
-        event.setVerifiedAt(LocalDateTime.of(2026, 3, 4, 10, 0));
         event.setIsRegularized(false);
         event.setAttachments(List.of(attachment()));
         return event;
