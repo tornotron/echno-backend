@@ -367,8 +367,21 @@ public class LeavePolicyService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Target organization with ID " + targetOrganizationId + " was not found"));
 
-        if (policyRepository.existsByOrganizationIdAndLeaveTypeCode(
-                targetOrganizationId, source.getLeaveTypeCode())) {
+        // Asked without the filter, because the filter is what made the old form unanswerable.
+        //
+        // This used to call existsByOrganizationIdAndLeaveTypeCode, which runs against LeavePolicy
+        // as a query root and therefore carries orgFilter. For any target other than the current
+        // tenant the filter's predicate and the argument named two different organizations, so the
+        // query matched nothing whatever the table held and the uniqueness rule was skipped on the
+        // one path that needs it. A real collision then reached uk_leave_policy_org_type and came
+        // back as a 500 rather than the 409 written here.
+        //
+        // Naming the current tenant instead is not the repair, though it looks like the smaller
+        // one: the check would then match the source policy's own code every time and the endpoint
+        // would answer 409 to every input. The question genuinely is about another organization,
+        // so it has to be asked in a query the filter does not narrow. See #718.
+        if (policyRepository.countWithLeaveTypeCodeInOrganizationUnfiltered(
+                targetOrganizationId, source.getLeaveTypeCode()) > 0) {
             throw new DuplicateResourceException(
                     "Leave policy with code '" + source.getLeaveTypeCode() +
                     "' already exists in target organization");

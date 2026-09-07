@@ -171,6 +171,30 @@ class LeavePolicyDuplicateAcrossOrganizationsIT extends AbstractIntegrationTest 
     }
 
     @Test
+    void theUnfilteredProbeAnswersForTheTargetWhileTheTenantIsSomewhereElse() {
+        // The mechanism the refusal rests on. Native, so nothing narrows it, and it carries the
+        // organization predicate itself rather than leaving it to a filter that names the tenant.
+        TenantContext.setCurrentOrgId(sourceOrgId);
+        enableOrgFilterFor(sourceOrgId);
+
+        assertThat(policyRepository.countWithLeaveTypeCodeInOrganizationUnfiltered(targetOrgId, CODE))
+                .as("the target's own row is visible to a query the filter does not narrow")
+                .isEqualTo(1L);
+    }
+
+    @Test
+    void theUnfilteredProbeStillDistinguishesOneOrganizationFromAnother() {
+        // Unfiltered is not unscoped. The predicate is in the query, so an organization that does
+        // not hold the code answers zero rather than the count of everyone who does.
+        TenantContext.setCurrentOrgId(sourceOrgId);
+        enableOrgFilterFor(sourceOrgId);
+
+        assertThat(policyRepository.countWithLeaveTypeCodeInOrganizationUnfiltered(targetOrgId, "CASUAL"))
+                .as("a code no organization holds is not found in one that holds a different code")
+                .isZero();
+    }
+
+    @Test
     void aCodeTheTargetDoesNotHoldStillDuplicates() {
         // The other half of the rule: refusing everything would be as wrong as refusing nothing,
         // and naming the current tenant as the target is what would produce that.

@@ -184,7 +184,8 @@ public class LeavePolicyControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Policy duplicated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant or in the target organization"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave policy or target organization with the given id")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave policy or target organization with the given id"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The target organization already holds a policy with that leave-type code")
     })
     public ResponseEntity<LeavePolicyDto> duplicatePolicy(
             @RequestParam Long policyId,
