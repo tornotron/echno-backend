@@ -5404,7 +5404,7 @@
         "type": "object"
       },
       "EmployeeUpdateFieldsDto": {
-        "description": "Fields a partial employee update may change. Every field is optional and an absent field is left untouched. A field this schema declares nullable is cleared by sending an explicit null; a field it does not declare nullable refuses a null with a 400 rather than clearing. Keys not listed here are ignored.",
+        "description": "Fields a partial employee update may change. Every field is optional and an absent field is left untouched. A field this schema declares nullable is cleared by sending an explicit null; a field it does not declare nullable refuses a null with a 400 rather than clearing. Keys not listed here are ignored. Not every field is open to every caller: an employee editing their own record may change employeeName, phoneNumber, emailAddress and dateOfBirth, while employeeId, status, designation, department, joiningDate, salary, shiftTimingId and managerId are set by a system admin or an HR admin. Naming one of those without either role is refused with a 403 and no part of the update is applied.",
         "properties": {
           "dateOfBirth": {
             "description": "Date of birth.",
@@ -36129,7 +36129,7 @@
         ]
       },
       "patch": {
-        "description": "Applies the given field updates to the employee with the given id. Callable by the employee themselves or by a system or HR admin.",
+        "description": "Applies the given field updates to the employee with the given id. Callable by the employee themselves or by a system or HR admin. An employee editing their own record may change employeeName, phoneNumber, emailAddress and dateOfBirth; the remaining fields are set by a system admin or an HR admin, and naming one of them without those roles is refused.",
         "operationId": "partialUpdateAnEmployee_1",
         "parameters": [
           {
@@ -36191,7 +36191,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee nor a system or HR admin"
+            "description": "Caller is neither the employee nor a system or HR admin, or is the employee and named a field only those roles may set"
           },
           "404": {
             "content": {
@@ -36474,7 +36474,7 @@
         ]
       },
       "patch": {
-        "description": "Applies the supplied map of fields to the employee with the given id, changing only the fields present in the request. Callable by the employee themselves or by a system admin or HR admin.",
+        "description": "Applies the supplied map of fields to the employee with the given id, changing only the fields present in the request. Callable by the employee themselves or by a system admin or HR admin. An employee editing their own record may change employeeName, phoneNumber, emailAddress and dateOfBirth; the remaining fields are set by a system admin or an HR admin, and naming one of them without those roles is refused.",
         "operationId": "partialUpdateAnEmployee",
         "parameters": [
           {
@@ -36536,7 +36536,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee nor a system admin or HR admin"
+            "description": "Caller is neither the employee nor a system admin or HR admin, or is the employee and named a field only those roles may set"
           },
           "404": {
             "content": {
