@@ -247,7 +247,7 @@ public class KeycloakInitializer {
         syncRealmSecuritySettings();
         // Ensure admin-only MFA (conditional TOTP) is codified even if realm exists
         ensureAdminMfa();
-        // Repair any org role held without membership of the organization that role names
+        // Report any org role held without membership of the organization that role names
         reportOrgRoleHoldersWithoutMembership();
         // Ensure service account roles are assigned even if realm exists
         assignServiceAccountRoles();
@@ -866,57 +866,86 @@ public class KeycloakInitializer {
         }
     }
 
+    /** Page size for a group's member listing, matching the subgroup walk above. */
+    private static final int GROUP_MEMBER_PAGE = 1000;
+
     /**
-     * Adds the parent organization membership to anyone who holds a role subgroup beneath an
-     * {@code org-*} group without it, on every startup.
+     * Reports, and deliberately does not repair, anyone holding a role subgroup beneath an
+     * {@code org-*} group without membership of that group.
      *
      * <p>Keycloak stores membership of {@code /org-5} and of {@code /org-5/system-admin} as two
      * independent rows, so the two can come apart. {@code JwtAuthConverter} then mints
      * {@code ORG_5_ROLE_system-admin} with no {@code ORG_MEMBER_5} beside it, and
-     * {@code TenantFilter} resolves a tenant from the membership authority alone: the holder is
-     * refused on every endpoint, including the ones their role names. The application no longer
-     * produces that state, since {@code KeycloakGroupService} grants membership with the role and
-     * clears the role subgroups with the membership. This is the other half, for a realm that
-     * already holds it, which the QA seed can carry in because it replays a captured export
-     * verbatim.
+     * {@code TenantFilter} resolves a tenant from the membership authority alone, so the holder is
+     * refused everywhere, including on the endpoints their role names. The application no longer
+     * produces the split, since {@code KeycloakGroupService} grants membership with a role and
+     * clears the role subgroups with the membership. This is about a realm that already holds it,
+     * which the QA seed can carry in because it replays a captured export verbatim.
      *
-     * <p>Deliberately one-directional and minimal: it adds the membership the role already
-     * implies and never grants, removes or alters a role, a credential or an account. Membership
-     * is the weaker of the two, so adding it can only widen a caller's access to an organization
-     * they were already recorded as an administrator of. Where a role turns out to be the thing
-     * that should not be there, the fix is to remove the role, which is a decision for whoever
-     * owns the organization rather than for a startup reconcile.
+     * <h4>Why it reports instead of repairing</h4>
+     *
+     * <p>Two different situations produce byte-identical Keycloak state, and they need opposite
+     * repairs:
+     *
+     * <ul>
+     *   <li>a role holder who was never given membership, who needs the <b>membership added</b>;
+     *   <li>an <b>offboarded employee whose role was never cleared</b>, who needs the <b>role
+     *       removed</b>. Before the fix in {@code KeycloakGroupService},
+     *       {@code EmployeeService.deleteAnEmployee} left the parent group and stopped, so this is
+     *       what every historical offboarding produced.
+     * </ul>
+     *
+     * <p>The second is the larger population, because the first is not reachable through the
+     * application at all: {@code assignOrgRole} resolves the employee against the tenant before
+     * granting, and {@code joinOrganization} writes the employee row and the group membership in
+     * one transaction. An earlier version of this method added the membership, which would have
+     * handed every offboarded administrator their organization back on the next startup.
+     *
+     * <p>Nothing on the Keycloak side separates the two: offboarding hard-deletes the employee row,
+     * leaves the Keycloak account enabled, and records nothing. The application database does
+     * separate them, and it is still not safe to read here: the QA seed imports the realm before it
+     * restores the database ({@code roles/seed/tasks/main.yml} runs {@code keycloak.yml} then
+     * {@code db.yml}), so a backend starting between the two halves sees a fully seeded realm and an
+     * empty database, and would read every seeded role holder as offboarded.
+     *
+     * <p>So this refuses to choose. Each case is logged at WARN with both readings and both
+     * repairs, and a human resolves it. Silence here means the realm is clean, not that a decision
+     * was made quietly.
      *
      * <p>Guarded like the rest of the reconcile: a failure logs and never aborts startup.
      */
-    /** Page size for a group's member listing, matching the subgroup walk above. */
-    private static final int GROUP_MEMBER_PAGE = 1000;
-
     private void reportOrgRoleHoldersWithoutMembership() {
         try {
             List<GroupRepresentation> orgGroups = admin.realm(REALM_ID).groups().groups().stream()
                     .filter(group -> group.getName() != null && group.getName().startsWith("org-"))
                     .toList();
             if (orgGroups.isEmpty()) {
-                log.info("No 'org-*' groups found yet; no role memberships to reconcile");
+                log.info("No 'org-*' groups found yet; no org role memberships to check");
                 return;
             }
 
-            int repaired = 0;
+            int found = 0;
             for (GroupRepresentation orgGroup : orgGroups) {
-                repaired += reportRoleHoldersWithoutMembershipIn(orgGroup);
+                found += reportRoleHoldersWithoutMembershipIn(orgGroup);
             }
-            if (repaired == 0) {
+            if (found == 0) {
                 log.info("Every org role holder is a member of the organization their role names");
             } else {
-                log.warn("Added the missing organization membership for {} org role holder(s)", repaired);
+                log.warn("{} org role holder(s) are not members of the organization their role names. "
+                                + "Nothing was changed: the two situations that produce this need opposite "
+                                + "repairs and cannot be told apart from here. Resolve each of the cases "
+                                + "logged above by hand.", found);
             }
         } catch (Exception e) {
-            log.error("Failed to reconcile org role holders against organization membership: {}", e.getMessage());
+            log.error("Failed to check org role holders against organization membership: {}", e.getMessage());
         }
     }
 
-    /** @return how many users were added to this organization's parent group. */
+    /**
+     * Logs every role holder in this organization who is not a member of it, and changes nothing.
+     *
+     * @return how many were found
+     */
     private int reportRoleHoldersWithoutMembershipIn(GroupRepresentation orgGroup) {
         List<GroupRepresentation> roleSubgroups =
                 admin.realm(REALM_ID).groups().group(orgGroup.getId()).getSubGroups(0, 1000, false);
@@ -924,25 +953,30 @@ public class KeycloakInitializer {
             return 0;
         }
 
-        // Every member, not the first page of them. A truncated parent listing would make the
-        // reconcile treat existing members as repairs: harmless in effect, since joinGroup is
-        // idempotent, but it would report work that was not needed and hide work that was.
-        Set<String> members = new HashSet<>(allMembersOf(orgGroup.getId()));
+        // Every member, not the first page of them. A truncated parent listing would report
+        // existing members as splits, which is the one way a report-only check can still do harm:
+        // by sending someone to remove a role that was never stale.
+        Set<String> members = allMembersOf(orgGroup.getId());
 
-        int repaired = 0;
+        // Counted per user, reported per role. Someone holding two stale roles is one person to
+        // decide about, and both roles have to be named or half of the removal gets missed.
+        Set<String> holders = new HashSet<>();
         for (GroupRepresentation roleSubgroup : roleSubgroups) {
-            List<UserRepresentation> roleHolders = allMemberRepresentationsOf(roleSubgroup.getId());
-            for (UserRepresentation roleHolder : roleHolders) {
-                if (roleHolder.getId() == null || !members.add(roleHolder.getId())) {
+            for (UserRepresentation roleHolder : allMemberRepresentationsOf(roleSubgroup.getId())) {
+                if (roleHolder.getId() == null || members.contains(roleHolder.getId())) {
                     continue;
                 }
-                admin.realm(REALM_ID).users().get(roleHolder.getId()).joinGroup(orgGroup.getId());
-                repaired++;
-                log.warn("User '{}' held '{}' without membership of '{}'; membership added",
-                        roleHolder.getUsername(), roleSubgroup.getPath(), orgGroup.getPath());
+                holders.add(roleHolder.getId());
+                log.warn("User '{}' (id {}) holds '{}' but is not a member of '{}'. Nothing was "
+                                + "changed. Either they were never given membership, in which case add "
+                                + "them to '{}', or they were offboarded and the role outlived them, in "
+                                + "which case remove them from '{}'. Their employee record decides "
+                                + "which, and it cannot be read safely from here.",
+                        roleHolder.getUsername(), roleHolder.getId(), roleSubgroup.getPath(),
+                        orgGroup.getPath(), orgGroup.getPath(), roleSubgroup.getPath());
             }
         }
-        return repaired;
+        return holders.size();
     }
 
     /** Every member of a group, paged, since a group listing returns one page at a time. */
