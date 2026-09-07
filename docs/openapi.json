@@ -7619,6 +7619,13 @@
             "format": "date-time",
             "type": "string"
           },
+          "edited": {
+            "type": "boolean"
+          },
+          "editedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
           "id": {
             "format": "int64",
             "type": "integer"
@@ -7639,11 +7646,34 @@
             "format": "date-time",
             "type": "string"
           },
+          "edited": {
+            "type": "boolean"
+          },
+          "editedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
           "id": {
             "format": "int64",
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "IssueCommentUpdateDto": {
+        "description": "Payload to change the text of a comment. Only the comment's own author may send it, and the comment is marked edited once they do.",
+        "properties": {
+          "comment": {
+            "description": "The corrected comment text.",
+            "example": "Rebar spacing on the east face still needs checking, west face is signed off.",
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "comment"
+        ],
         "type": "object"
       },
       "IssueCreationDto": {
@@ -57951,6 +57981,127 @@
           }
         },
         "summary": "Get an issue comment by id",
+        "tags": [
+          "Issue Comments"
+        ]
+      },
+      "patch": {
+        "description": "Changes the text of the caller's own comment and marks it edited, with the time of the edit. Only the comment's author may do this: a system admin or project manager may delete a comment but not rewrite it.",
+        "operationId": "updateIssueComment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueCommentUpdateDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueCommentDto"
+                }
+              }
+            },
+            "description": "Comment updated"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The comment is blank or longer than 500 characters"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant, or is not the comment's author"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No comment with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Edit an issue comment",
         "tags": [
           "Issue Comments"
         ]
@@ -108863,11 +109014,11 @@
       "name": "Inventory Transactions (Web)"
     },
     {
-      "description": "Web-client twin of the issue comment endpoints. Adds a single-comment read and a lookup of every comment on an issue, alongside the same create, paginated listing and delete operations as the base API. Access is gated by tenant membership, with delete restricted to a system admin or project manager.",
+      "description": "A comment left on an issue, carrying the comment text, its author and a timestamp. Endpoints cover creation, paginated listing and deletion, gated by the issue-comment authorities, with an admin authority that grants all operations.",
       "name": "Issue Comments"
     },
     {
-      "description": "A comment left on an issue, carrying the comment text, its author and a timestamp. Endpoints cover creation, paginated listing and deletion, gated by the issue-comment authorities, with an admin authority that grants all operations.",
+      "description": "Web-client twin of the issue comment endpoints. Adds a single-comment read and a lookup of every comment on an issue, alongside the same create, paginated listing and delete operations as the base API. Access is gated by tenant membership. An edit is restricted to the comment's own author, and a delete to a system admin or project manager.",
       "name": "Issue Comments"
     },
     {
