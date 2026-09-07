@@ -103,7 +103,7 @@ public class OrganizationSecurityService {
             return false;
         }
         // This authority format matches what JwtAuthConverter produces from "/org-{id}/{role}"
-        String requiredAuthority = "ORG_" + organizationId + "_ROLE_" + role;
+        String requiredAuthority = OrgRoleAuthority.of(organizationId, role);
         boolean result = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals(requiredAuthority));
         log.debug("Org role check for org {} role '{}': {}", organizationId, role, result);
@@ -128,7 +128,7 @@ public class OrganizationSecurityService {
 
         Collection<? extends GrantedAuthority> authorities = auth.getAuthorities();
         boolean result = Arrays.stream(roles)
-                .map(role -> "ORG_" + organizationId + "_ROLE_" + role)
+                .map(role -> OrgRoleAuthority.of(organizationId, role))
                 .anyMatch(required -> authorities.stream()
                         .anyMatch(a -> a.getAuthority().equals(required)));
 
