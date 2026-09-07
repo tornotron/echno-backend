@@ -46,14 +46,17 @@ public record InvoiceDto(
         @Schema(description = "Outstanding balance still due.", example = "39000.00")
         BigDecimal balanceDue,
 
-        @Schema(description = "Ledger journal entry posted when the invoice was issued.",
-                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10")
+        @Schema(description = "Ledger journal entry posted when the invoice was issued. Null until the invoice "
+                + "is issued and posted to the ledger.",
+                example = "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10", nullable = true)
         UUID journalEntryId,
 
-        @Schema(description = "Reversal journal entry, present when the invoice was cancelled after issue.")
+        @Schema(description = "Reversal journal entry, present when the invoice was cancelled after issue. Null "
+                + "on an invoice that was never cancelled after issue.", nullable = true)
         UUID reversalJournalEntryId,
 
-        @Schema(description = "Internal notes.", example = "First milestone billing")
+        @Schema(description = "Internal notes. Null where none were recorded.",
+                example = "First milestone billing", nullable = true)
         String notes,
 
         @Schema(description = "Invoice line items.")

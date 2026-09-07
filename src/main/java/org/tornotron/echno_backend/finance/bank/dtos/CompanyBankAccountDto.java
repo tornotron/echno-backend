@@ -14,9 +14,11 @@ public record CompanyBankAccountDto(
         String accountNumber,
         @Schema(description = "Name on the account.", example = "Fereydon Pvt Ltd")
         String accountHolderName,
-        @Schema(description = "IFSC code of the branch.", example = "HDFC0001234")
+        @Schema(description = "IFSC code of the branch. Null on an account held abroad, where the SWIFT code "
+                + "stands in.", example = "HDFC0001234", nullable = true)
         String ifscCode,
-        @Schema(description = "SWIFT code, for international transfers.", example = "HDFCINBB")
+        @Schema(description = "SWIFT code, for international transfers. Null on a domestic account, where the "
+                + "IFSC code stands in.", example = "HDFCINBB", nullable = true)
         String swiftCode,
         @Schema(description = "Whether this is the default account for new transactions.", example = "true")
         boolean isDefault,

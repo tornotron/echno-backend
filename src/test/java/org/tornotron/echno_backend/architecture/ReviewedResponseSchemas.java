@@ -2,6 +2,25 @@ package org.tornotron.echno_backend.architecture;
 
 import org.tornotron.echno_backend.attendance.dto.AttendanceResponseDto;
 import org.tornotron.echno_backend.attendance.dto.ClockEventDto;
+import org.tornotron.echno_backend.finance.bank.dtos.CompanyBankAccountDto;
+import org.tornotron.echno_backend.finance.budget.dtos.BudgetAllocationDto;
+import org.tornotron.echno_backend.finance.budget.dtos.CostCategoryDto;
+import org.tornotron.echno_backend.finance.budget.dtos.ProjectCostControlDto;
+import org.tornotron.echno_backend.finance.budget.dtos.ProjectCostControlLineDto;
+import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceDto;
+import org.tornotron.echno_backend.finance.construction.dtos.ConstructionInvoiceLineDto;
+import org.tornotron.echno_backend.finance.construction.dtos.ConstructionPaymentDto;
+import org.tornotron.echno_backend.finance.invoice.dtos.InvoiceDto;
+import org.tornotron.echno_backend.finance.invoice.dtos.InvoiceLineDto;
+import org.tornotron.echno_backend.finance.ledger.dtos.AccountDto;
+import org.tornotron.echno_backend.finance.ledger.dtos.AccountTreeDto;
+import org.tornotron.echno_backend.finance.ledger.dtos.AddressDto;
+import org.tornotron.echno_backend.finance.ledger.dtos.CustomerDto;
+import org.tornotron.echno_backend.finance.ledger.dtos.JournalEntryDto;
+import org.tornotron.echno_backend.finance.ledger.dtos.JournalEntryLineDto;
+import org.tornotron.echno_backend.finance.payment.dtos.PaymentDto;
+import org.tornotron.echno_backend.finance.posting.dtos.PostingAccountMappingDto;
+import org.tornotron.echno_backend.finance.settings.dtos.FinanceSettingsDto;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteDto;
 import org.tornotron.echno_backend.payable.dto.PayableDto;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderDto;
@@ -219,6 +238,57 @@ final class ReviewedResponseSchemas {
      * foreign key at all, so a value there may name a row that no longer exists, which the
      * descriptions say.
      *
+     * <p><b>Finance.</b> The largest untouched block, and the one where a wrong answer is most
+     * expensive: the chart of accounts, the ledger, customer invoicing and receipts, construction
+     * invoices and payment vouchers, budget heads and the project cost-control view. Twenty
+     * schemas, 218 properties, 85 of them nullable.
+     *
+     * <ul>
+     *   <li>The entities agree with the changelog throughout, so there is no finding here of the
+     *       kind the procurement chain produced. Every straight-through property was read off the
+     *       Liquibase column, and no {@code @Column} or {@code @JoinColumn} in the module
+     *       contradicts one.
+     *   <li>The money on a construction invoice is non-null where the money on a purchase order
+     *       was not, which reads as an inconsistency and is not one. {@code subtotal},
+     *       {@code taxAmount}, {@code discountAmount}, {@code totalAmount}, {@code paidAmount}
+     *       and {@code balanceAmount} sit on {@code NOT NULL} columns, so the constraint carries
+     *       the claim and the code that writes them does not have to.
+     *   <li>{@code InvoiceDto.balanceDue} is the computed-with-no-column case, the third instance
+     *       of the {@code VendorSummaryDto} and {@code PayableDto.amountDue} shape:
+     *       {@code Invoice.balanceDue()} subtracts one {@code NOT NULL} column from another, so
+     *       nothing in it can produce a null.
+     *   <li>{@code ProjectCostControlDto} and its lines are computed end to end and read no
+     *       column directly. Every figure passes through {@code MoneyUtils.normalize}, which
+     *       turns a null into zero; the head name falls back to {@code (unknown)} and the totals
+     *       row is labelled. Only {@code costCategoryId} admits null, and only on that totals
+     *       row, which is what its null means.
+     *   <li>{@code PostingAccountMappingDto} is non-null throughout because
+     *       {@code PostingAccountResolver.resolveWithSource} either returns an account or throws
+     *       {@code AccountNotFoundException}. A role with no mapping falls back to the configured
+     *       default code, and a default code that resolves to nothing is an error rather than a
+     *       null account.
+     *   <li>{@code CustomerDto.billingAddress} is nullable for a reason that is neither a column
+     *       nor a mapper. {@code Address} is an {@code @Embedded} value whose seven columns are
+     *       all nullable, and Hibernate leaves the embedded object null when every one of them
+     *       is, whatever the field initialiser on {@code Customer} says. Its own seven properties
+     *       are then nullable for the ordinary reason, which makes {@code AddressDto} the one
+     *       schema here with nothing at all in its non-null half.
+     *   <li>A flattened name is null exactly when its foreign key is, as in procurement.
+     *       {@code ledgerAccountCode}, {@code ledgerAccountName}, {@code customerName},
+     *       {@code accountCode} and {@code accountName} on a journal line, {@code bankName} and
+     *       {@code bankAccountNumber} on a payment, and {@code revenueAccountCode} all reach a
+     *       {@code NOT NULL} column through a {@code NOT NULL} join, so every one of them is
+     *       non-null. {@code costCategoryName} on a construction invoice line is the mirror
+     *       image: its join column is nullable, so the name is too.
+     *   <li>{@code ConstructionPaymentDto} admits null on 22 of its 31 properties, which is the
+     *       schema's shape rather than an omission. One voucher names a payee of one kind out of
+     *       five and carries a column for each of them, records bank details only where a bank
+     *       was used, and stamps a verifier only once verified.
+     *   <li>{@code JournalEntryDto.createdBy} is nullable where {@code createdAt} on the same
+     *       schema is not. The two auditing columns disagree in the changelog:
+     *       {@code created_at} is {@code NOT NULL} and {@code created_by} is not.
+     * </ul>
+     *
      * @return The reviewed schemas.
      */
     static List<ReviewedSchema> schemas() {
@@ -309,6 +379,116 @@ final class ReviewedResponseSchemas {
                                 "geofenceRadiusMeters", "geofenceExceptionReason", "recordedById",
                                 "remarks", "regularizationReason"),
                         Set.of("id", "eventType", "eventTimestamp", "projectId", "projectName",
-                                "isRegularized", "attachments")));
+                                "isRegularized", "attachments"))),
+                new ReviewedSchema(
+                        AccountDto.class,
+                        Set.of("description", "parentId"),
+                        Set.of("id", "code", "name", "type", "active")),
+                new ReviewedSchema(
+                        AccountTreeDto.class,
+                        Set.of("description"),
+                        Set.of("id", "code", "name", "type", "active", "postable", "children")),
+                new ReviewedSchema(
+                        AddressDto.class,
+                        Set.of("city", "country", "line1", "line2", "postalCode", "state",
+                                "stateCode"),
+                        Set.of()),
+                new ReviewedSchema(
+                        CustomerDto.class,
+                        Set.of("billingAddress", "creditLimit", "email", "gstin", "pan",
+                                "paymentTermsDays", "phone"),
+                        Set.of("id", "code", "name", "active")),
+                new ReviewedSchema(
+                        JournalEntryDto.class,
+                        Set.of("createdBy", "reference", "reversedByEntryId", "reversesEntryId",
+                                "sourceId", "sourceType"),
+                        Set.of("id", "entryNumber", "entryDate", "description", "status", "lines",
+                                "createdAt")),
+                new ReviewedSchema(
+                        JournalEntryLineDto.class,
+                        Set.of("narration"),
+                        Set.of("id", "accountId", "accountCode", "accountName", "debit", "credit",
+                                "lineOrder")),
+                new ReviewedSchema(
+                        InvoiceDto.class,
+                        Set.of("journalEntryId", "notes", "reversalJournalEntryId"),
+                        Set.of("id", "invoiceNumber", "customerId", "customerName", "invoiceDate",
+                                "dueDate", "status", "subtotal", "taxTotal", "total", "amountPaid",
+                                "balanceDue", "lines")),
+                new ReviewedSchema(
+                        InvoiceLineDto.class,
+                        Set.of(),
+                        Set.of("id", "description", "quantity", "unitPrice", "lineSubtotal",
+                                "taxRate", "taxAmount", "lineTotal", "revenueAccountId",
+                                "revenueAccountCode")),
+                new ReviewedSchema(
+                        PaymentDto.class,
+                        Set.of("externalReference", "journalEntryId", "notes"),
+                        Set.of("id", "paymentNumber", "customerId", "customerName", "paymentDate",
+                                "amount", "companyBankAccountId", "bankName", "bankAccountNumber",
+                                "allocations")),
+                new ReviewedSchema(
+                        PaymentDto.AllocationDto.class,
+                        Set.of(),
+                        Set.of("id", "invoiceId", "invoiceNumber", "allocatedAmount")),
+                new ReviewedSchema(
+                        CompanyBankAccountDto.class,
+                        Set.of("ifscCode", "swiftCode"),
+                        Set.of("id", "bankName", "accountNumber", "accountHolderName", "isDefault",
+                                "active", "ledgerAccountId", "ledgerAccountCode", "ledgerAccountName")),
+                new ReviewedSchema(
+                        ConstructionInvoiceDto.class,
+                        Set.of("approvedAt", "approvedBy", "approvedByName", "arInvoiceId",
+                                "goodsReceiptId", "gstNumber", "journalEntryId", "notes",
+                                "paymentDate", "paymentMethod", "paymentRecordedBy",
+                                "paymentRecordedByName", "paymentTerms", "purchaseOrderId",
+                                "reversalJournalEntryId", "submittedAt", "submittedBy",
+                                "submittedByName", "taxType", "termsAndConditions", "vendorId"),
+                        Set.of("id", "invoiceNumber", "type", "status", "paymentStatus",
+                                "projectId", "issueDate", "dueDate", "subtotal", "taxAmount",
+                                "discountAmount", "totalAmount", "paidAmount", "balanceAmount",
+                                "lines")),
+                new ReviewedSchema(
+                        ConstructionInvoiceLineDto.class,
+                        Set.of("assetId", "costCategoryId", "costCategoryName", "inventoryItemId",
+                                "taskId"),
+                        Set.of("id", "description", "quantity", "unit", "unitPrice", "taxRate",
+                                "taxAmount", "discountRate", "discountAmount", "subtotal", "total")),
+                new ReviewedSchema(
+                        ConstructionPaymentDto.class,
+                        Set.of("accountNumber", "bankName", "cancellationReason", "description",
+                                "employeeId", "ifscCode", "invoiceId", "labourId", "notes",
+                                "payeeDetails", "payeeName", "payeeType", "purchaseOrderId",
+                                "raisedBy", "raisedByName", "referenceNumber", "subContractId",
+                                "transactionId", "vendorId", "verifiedAt", "verifiedBy",
+                                "verifiedByName"),
+                        Set.of("id", "paymentNumber", "type", "status", "method", "projectId",
+                                "amount", "currency", "paymentDate")),
+                new ReviewedSchema(
+                        CostCategoryDto.class,
+                        Set.of("code", "expenseAccountCode", "expenseAccountId"),
+                        Set.of("id", "name", "active")),
+                new ReviewedSchema(
+                        BudgetAllocationDto.class,
+                        Set.of(),
+                        Set.of("id", "projectId", "costCategoryId", "costCategoryName",
+                                "allocatedAmount")),
+                new ReviewedSchema(
+                        ProjectCostControlDto.class,
+                        Set.of(),
+                        Set.of("projectId", "categories", "totals")),
+                new ReviewedSchema(
+                        ProjectCostControlLineDto.class,
+                        Set.of("costCategoryId"),
+                        Set.of("costCategoryName", "allocated", "committed", "spent", "remaining",
+                                "overBudget")),
+                new ReviewedSchema(
+                        PostingAccountMappingDto.class,
+                        Set.of(),
+                        Set.of("role", "source", "accountId", "accountCode", "accountName")),
+                new ReviewedSchema(
+                        FinanceSettingsDto.class,
+                        Set.of("approvalThreshold"),
+                        Set.of()));
     }
 }

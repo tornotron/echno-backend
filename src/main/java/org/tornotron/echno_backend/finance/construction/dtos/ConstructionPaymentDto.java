@@ -29,35 +29,43 @@ public record ConstructionPaymentDto(
         @Schema(description = "Method used to settle the payment.", example = "BANK_TRANSFER")
         ConstructionPaymentMethod method,
 
-        @Schema(description = "Category of party being paid.", example = "VENDOR")
+        @Schema(description = "Category of party being paid. Null on a voucher that records no payee category; "
+                + "the column is nullable and nothing writes a default.", example = "VENDOR", nullable = true)
         ConstructionPayeeType payeeType,
 
         @Schema(description = "Project the payment is charged to.", example = "42")
         Long projectId,
 
-        @Schema(description = "Construction invoice this payment settles, if any.",
-                example = "3f2504e0-4f89-41d3-9a0c-0305e82c3301")
+        @Schema(description = "Construction invoice this payment settles, if any. Null where none is matched.",
+                example = "3f2504e0-4f89-41d3-9a0c-0305e82c3301", nullable = true)
         UUID invoiceId,
 
-        @Schema(description = "Purchase order the payment relates to, if any.", example = "108")
+        @Schema(description = "Purchase order the payment relates to, if any. Null where none is matched.",
+                example = "108", nullable = true)
         Long purchaseOrderId,
 
-        @Schema(description = "Vendor being paid, when the payee is a vendor.", example = "17")
+        @Schema(description = "Vendor being paid, when the payee is a vendor. Null on any other payee type.",
+                example = "17", nullable = true)
         Long vendorId,
 
-        @Schema(description = "Employee being paid, when the payee is an employee.", example = "5")
+        @Schema(description = "Employee being paid, when the payee is an employee. Null on any other payee "
+                + "type.", example = "5", nullable = true)
         Long employeeId,
 
-        @Schema(description = "Subcontract the payment relates to, when the payee is a subcontractor.", example = "23")
+        @Schema(description = "Subcontract the payment relates to, when the payee is a subcontractor. Null on "
+                + "any other payee type.", example = "23", nullable = true)
         Long subContractId,
 
-        @Schema(description = "Labour record being paid, when the payee is labour.", example = "61")
+        @Schema(description = "Labour record being paid, when the payee is labour. Null on any other payee "
+                + "type.", example = "61", nullable = true)
         Long labourId,
 
-        @Schema(description = "Name of the party being paid.", example = "Sundar Building Materials")
+        @Schema(description = "Name of the party being paid. Null where none was recorded.",
+                example = "Sundar Building Materials", nullable = true)
         String payeeName,
 
-        @Schema(description = "Free-text payee details.", example = "Contact: Ravi, GST 29ABCDE1234F1Z5")
+        @Schema(description = "Free-text payee details. Null where none were recorded.",
+                example = "Contact: Ravi, GST 29ABCDE1234F1Z5", nullable = true)
         String payeeDetails,
 
         @Schema(description = "Amount paid.", example = "40000.00")
@@ -69,19 +77,24 @@ public record ConstructionPaymentDto(
         @Schema(description = "Date the payment was made.", example = "2026-08-05")
         LocalDate paymentDate,
 
-        @Schema(description = "Bank or gateway transaction id.", example = "TXN20260805123456")
+        @Schema(description = "Bank or gateway transaction id. Null on a payment settled without one, such as "
+                + "one made in cash.", example = "TXN20260805123456", nullable = true)
         String transactionId,
 
-        @Schema(description = "Cheque or reference number for the payment.", example = "CHQ-000123")
+        @Schema(description = "Cheque or reference number for the payment. Null on a payment settled without "
+                + "one, such as one made in cash.", example = "CHQ-000123", nullable = true)
         String referenceNumber,
 
-        @Schema(description = "Bank the payment was drawn on.", example = "HDFC Bank")
+        @Schema(description = "Bank the payment was drawn on. Null on a payment that was not drawn on a bank.",
+                example = "HDFC Bank", nullable = true)
         String bankName,
 
-        @Schema(description = "Bank account number used for the payment.", example = "50100123456789")
+        @Schema(description = "Bank account number used for the payment. Null on a payment that was not drawn "
+                + "on a bank.", example = "50100123456789", nullable = true)
         String accountNumber,
 
-        @Schema(description = "IFSC code of the paying bank branch.", example = "HDFC0001234")
+        @Schema(description = "IFSC code of the paying bank branch. Null on a payment that was not drawn on a "
+                + "bank.", example = "HDFC0001234", nullable = true)
         String ifscCode,
 
         @Schema(description = "User id that raised the voucher, taken from the session that created "
@@ -93,8 +106,8 @@ public record ConstructionPaymentDto(
                 example = "Hrishi", nullable = true)
         String raisedByName,
 
-        @Schema(description = "User id that verified the voucher, taken from the session that "
-                + "verified it.", example = "2")
+        @Schema(description = "User id that verified the voucher, taken from the session that verified it. Null "
+                + "until the voucher is verified.", example = "2", nullable = true)
         Long verifiedBy,
 
         @Schema(description = "Name of the user that verified the voucher, or their email where the "
@@ -103,17 +116,20 @@ public record ConstructionPaymentDto(
                 example = "Aneesh Johny", nullable = true)
         String verifiedByName,
 
-        @Schema(description = "Timestamp the voucher was verified.", example = "2026-08-06T10:20:00Z")
+        @Schema(description = "Timestamp the voucher was verified. Null until the voucher is verified.",
+                example = "2026-08-06T10:20:00Z", nullable = true)
         Instant verifiedAt,
 
-        @Schema(description = "Why the voucher was voided, recorded by the cancel action. Null on a "
-                + "voucher that has not been cancelled.",
-                example = "Duplicate of CPMT-000118, raised twice for the same invoice")
+        @Schema(description = "Why the voucher was voided, recorded by the cancel action. Null on a voucher "
+                + "that has not been cancelled.",
+                example = "Duplicate of CPMT-000118, raised twice for the same invoice", nullable = true)
         String cancellationReason,
 
-        @Schema(description = "Description of what the payment covers.", example = "Payment for cement supply, batch 2")
+        @Schema(description = "Description of what the payment covers. Null where none was recorded.",
+                example = "Payment for cement supply, batch 2", nullable = true)
         String description,
 
-        @Schema(description = "Internal notes.", example = "Approved by site engineer")
+        @Schema(description = "Internal notes. Null where none were recorded.",
+                example = "Approved by site engineer", nullable = true)
         String notes
 ) {}

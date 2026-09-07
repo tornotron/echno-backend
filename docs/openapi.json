@@ -15,9 +15,12 @@
             "type": "string"
           },
           "description": {
-            "description": "Optional description of the account.",
+            "description": "Optional description of the account. Null where none was given.",
             "example": "Petty cash and bank balances",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "description": "Unique account id.",
@@ -96,9 +99,12 @@
             "type": "string"
           },
           "description": {
-            "description": "Optional description of the account.",
+            "description": "Optional description of the account. Null where none was given.",
             "example": "Petty cash and bank balances",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "description": "Unique account id.",
@@ -135,53 +141,74 @@
         "description": "A postal address, used for customer billing.",
         "properties": {
           "city": {
-            "description": "City.",
+            "description": "City. Null where the customer's address does not carry it.",
             "example": "Chennai",
             "maxLength": 100,
             "minLength": 0,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "country": {
-            "description": "ISO 3166-1 alpha-2 country code.",
+            "description": "ISO 3166-1 alpha-2 country code. Null where the customer's address does not carry it.",
             "example": "IN",
             "maxLength": 2,
             "minLength": 0,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "line1": {
-            "description": "First address line.",
+            "description": "First address line. Null where the customer's address does not carry it.",
             "example": 12,
             "maxLength": 200,
             "minLength": 0,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "line2": {
-            "description": "Second address line.",
+            "description": "Second address line. Null where the customer's address does not carry it.",
             "example": "Suite 400",
             "maxLength": 200,
             "minLength": 0,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "postalCode": {
-            "description": "Postal or PIN code.",
+            "description": "Postal or PIN code. Null where the customer's address does not carry it.",
             "example": 600001,
             "maxLength": 20,
             "minLength": 0,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "state": {
-            "description": "State or province.",
+            "description": "State or province. Null where the customer's address does not carry it.",
             "example": "Tamil Nadu",
             "maxLength": 100,
             "minLength": 0,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "stateCode": {
-            "description": "GST state code.",
+            "description": "GST state code. Null where the customer's address does not carry it.",
             "example": 33,
             "maxLength": 2,
             "minLength": 0,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -3093,9 +3120,12 @@
             "type": "string"
           },
           "ifscCode": {
-            "description": "IFSC code of the branch.",
+            "description": "IFSC code of the branch. Null on an account held abroad, where the SWIFT code stands in.",
             "example": "HDFC0001234",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "isDefault": {
             "description": "Whether this is the default account for new transactions.",
@@ -3119,9 +3149,12 @@
             "type": "string"
           },
           "swiftCode": {
-            "description": "SWIFT code, for international transfers.",
+            "description": "SWIFT code, for international transfers. Null on a domestic account, where the IFSC code stands in.",
             "example": "HDFCINBB",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -3208,16 +3241,22 @@
         "description": "A construction invoice with its computed totals, lifecycle status and line items.",
         "properties": {
           "approvedAt": {
-            "description": "Timestamp the invoice was approved.",
+            "description": "Timestamp the invoice was approved. Null until the invoice is approved.",
             "example": "2026-08-03T11:40:00Z",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "approvedBy": {
-            "description": "User id that approved the invoice.",
+            "description": "User id that approved the invoice. Null until the invoice is approved.",
             "example": 2,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "approvedByName": {
             "description": "Name of the user that approved the invoice, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the invoice was never approved.",
@@ -3253,15 +3292,21 @@
             "type": "string"
           },
           "goodsReceiptId": {
-            "description": "Matched goods receipt, if any.",
+            "description": "Matched goods receipt, if any. Null where none is matched.",
             "example": 231,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "gstNumber": {
-            "description": "Vendor GST registration number.",
+            "description": "Vendor GST registration number. Null where none was recorded.",
             "example": "29ABCDE1234F1Z5",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "description": "Unique invoice id.",
@@ -3281,10 +3326,13 @@
             "type": "string"
           },
           "journalEntryId": {
-            "description": "Ledger journal entry posted when the invoice was approved.",
+            "description": "Ledger journal entry posted when the invoice was approved. Null until the invoice is approved and posted to the ledger.",
             "example": "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "lines": {
             "description": "Invoice line items.",
@@ -3294,9 +3342,12 @@
             "type": "array"
           },
           "notes": {
-            "description": "Internal notes.",
+            "description": "Internal notes. Null where none were recorded.",
             "example": "Second progress claim for tower B",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "paidAmount": {
             "description": "Amount paid so far.",
@@ -3304,21 +3355,30 @@
             "type": "number"
           },
           "paymentDate": {
-            "description": "Date the invoice was fully paid, once settled.",
+            "description": "Date the invoice was fully paid, once settled. Null until the invoice is settled in full.",
             "example": "2026-08-28",
             "format": "date",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "paymentMethod": {
-            "description": "Settlement method.",
+            "description": "Settlement method. Null where none was recorded.",
             "example": "BANK_TRANSFER",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "paymentRecordedBy": {
-            "description": "User id that recorded the most recent payment.",
+            "description": "User id that recorded the most recent payment. Null until a payment is recorded against the invoice.",
             "example": 5,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "paymentRecordedByName": {
             "description": "Name of the user that recorded the most recent payment, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when no payment has been recorded.",
@@ -3341,9 +3401,12 @@
             "type": "string"
           },
           "paymentTerms": {
-            "description": "Free-text payment terms.",
+            "description": "Free-text payment terms. Null where none were recorded.",
             "example": "Net 30",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectId": {
             "description": "Project the invoice is billed against.",
@@ -3352,15 +3415,21 @@
             "type": "integer"
           },
           "purchaseOrderId": {
-            "description": "Matched purchase order, if any.",
+            "description": "Matched purchase order, if any. Null where none is matched.",
             "example": 108,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "reversalJournalEntryId": {
-            "description": "Reversal journal entry, present when the invoice was cancelled after posting.",
+            "description": "Reversal journal entry, present when the invoice was cancelled after posting. Null on an invoice that was never cancelled after posting.",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "description": "Lifecycle status of the invoice.",
@@ -3379,16 +3448,22 @@
             "type": "string"
           },
           "submittedAt": {
-            "description": "Timestamp the invoice was submitted.",
+            "description": "Timestamp the invoice was submitted. Null until the invoice is submitted for approval.",
             "example": "2026-08-02T09:15:00Z",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "submittedBy": {
-            "description": "User id that submitted the invoice for approval.",
+            "description": "User id that submitted the invoice for approval. Null until the invoice is submitted for approval.",
             "example": 5,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "submittedByName": {
             "description": "Name of the user that submitted the invoice, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the invoice was never submitted.",
@@ -3409,13 +3484,19 @@
             "type": "number"
           },
           "taxType": {
-            "description": "Tax treatment applied to the invoice.",
+            "description": "Tax treatment applied to the invoice. Null where none was recorded.",
             "example": "CGST_SGST",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "termsAndConditions": {
-            "description": "Terms and conditions printed on the invoice.",
-            "type": "string"
+            "description": "Terms and conditions printed on the invoice. Null where none were recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "totalAmount": {
             "description": "Invoice grand total after tax and discount.",
@@ -3434,10 +3515,13 @@
             "type": "string"
           },
           "vendorId": {
-            "description": "Vendor being invoiced, if any.",
+            "description": "Vendor being invoiced, if any. Null on an invoice raised against no vendor, such as a sales or service invoice.",
             "example": 17,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -3446,21 +3530,30 @@
         "description": "A single line on a construction invoice with its computed tax, discount and totals.",
         "properties": {
           "assetId": {
-            "description": "Asset the line relates to, if any.",
+            "description": "Asset the line relates to, if any. Null where none is set.",
             "example": 88,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "costCategoryId": {
-            "description": "Budget head (cost category) this line is charged against, if any.",
+            "description": "Budget head (cost category) this line is charged against, if any. Null where the line carries no budget head.",
             "example": "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "costCategoryName": {
-            "description": "Name of the budget head this line is charged against, if any.",
+            "description": "Name of the budget head this line is charged against, if any. Null where the line carries no budget head.",
             "example": "Materials",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "description": {
             "description": "What the line is billing for.",
@@ -3484,10 +3577,13 @@
             "type": "string"
           },
           "inventoryItemId": {
-            "description": "Inventory item the line draws from, if any.",
+            "description": "Inventory item the line draws from, if any. Null where none is set.",
             "example": 512,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "quantity": {
             "description": "Quantity billed.",
@@ -3500,10 +3596,13 @@
             "type": "number"
           },
           "taskId": {
-            "description": "Task the line is charged against, if any.",
+            "description": "Task the line is charged against, if any. Null where none is set.",
             "example": 1204,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "taxAmount": {
             "description": "Tax charged on the line.",
@@ -3613,9 +3712,12 @@
         "description": "A construction payment voucher recording money paid out to a vendor, subcontractor, labour or employee on a project, with its method, payee and verification details.",
         "properties": {
           "accountNumber": {
-            "description": "Bank account number used for the payment.",
+            "description": "Bank account number used for the payment. Null on a payment that was not drawn on a bank.",
             "example": 50100123456789,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "amount": {
             "description": "Amount paid.",
@@ -3623,14 +3725,20 @@
             "type": "number"
           },
           "bankName": {
-            "description": "Bank the payment was drawn on.",
+            "description": "Bank the payment was drawn on. Null on a payment that was not drawn on a bank.",
             "example": "HDFC Bank",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "cancellationReason": {
             "description": "Why the voucher was voided, recorded by the cancel action. Null on a voucher that has not been cancelled.",
             "example": "Duplicate of CPMT-000118, raised twice for the same invoice",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "currency": {
             "description": "Currency code.",
@@ -3638,15 +3746,21 @@
             "type": "string"
           },
           "description": {
-            "description": "Description of what the payment covers.",
+            "description": "Description of what the payment covers. Null where none was recorded.",
             "example": "Payment for cement supply, batch 2",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "employeeId": {
-            "description": "Employee being paid, when the payee is an employee.",
+            "description": "Employee being paid, when the payee is an employee. Null on any other payee type.",
             "example": 5,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "id": {
             "description": "Unique payment voucher id.",
@@ -3655,21 +3769,30 @@
             "type": "string"
           },
           "ifscCode": {
-            "description": "IFSC code of the paying bank branch.",
+            "description": "IFSC code of the paying bank branch. Null on a payment that was not drawn on a bank.",
             "example": "HDFC0001234",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "invoiceId": {
-            "description": "Construction invoice this payment settles, if any.",
+            "description": "Construction invoice this payment settles, if any. Null where none is matched.",
             "example": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "labourId": {
-            "description": "Labour record being paid, when the payee is labour.",
+            "description": "Labour record being paid, when the payee is labour. Null on any other payee type.",
             "example": 61,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "method": {
             "description": "Method used to settle the payment.",
@@ -3688,22 +3811,31 @@
             "type": "string"
           },
           "notes": {
-            "description": "Internal notes.",
+            "description": "Internal notes. Null where none were recorded.",
             "example": "Approved by site engineer",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payeeDetails": {
-            "description": "Free-text payee details.",
+            "description": "Free-text payee details. Null where none were recorded.",
             "example": "Contact: Ravi, GST 29ABCDE1234F1Z5",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payeeName": {
-            "description": "Name of the party being paid.",
+            "description": "Name of the party being paid. Null where none was recorded.",
             "example": "Sundar Building Materials",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payeeType": {
-            "description": "Category of party being paid.",
+            "description": "Category of party being paid. Null on a voucher that records no payee category; the column is nullable and nothing writes a default.",
             "enum": [
               "EMPLOYEE",
               "VENDOR",
@@ -3719,7 +3851,10 @@
               "OTHER"
             ],
             "example": "VENDOR",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "paymentDate": {
             "description": "Date the payment was made.",
@@ -3739,10 +3874,13 @@
             "type": "integer"
           },
           "purchaseOrderId": {
-            "description": "Purchase order the payment relates to, if any.",
+            "description": "Purchase order the payment relates to, if any. Null where none is matched.",
             "example": 108,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "raisedBy": {
             "description": "User id that raised the voucher, taken from the session that created it. Null on vouchers raised before the voucher recorded this.",
@@ -3762,9 +3900,12 @@
             ]
           },
           "referenceNumber": {
-            "description": "Cheque or reference number for the payment.",
+            "description": "Cheque or reference number for the payment. Null on a payment settled without one, such as one made in cash.",
             "example": "CHQ-000123",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "description": "Lifecycle status of the voucher.",
@@ -3780,15 +3921,21 @@
             "type": "string"
           },
           "subContractId": {
-            "description": "Subcontract the payment relates to, when the payee is a subcontractor.",
+            "description": "Subcontract the payment relates to, when the payee is a subcontractor. Null on any other payee type.",
             "example": 23,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "transactionId": {
-            "description": "Bank or gateway transaction id.",
+            "description": "Bank or gateway transaction id. Null on a payment settled without one, such as one made in cash.",
             "example": "TXN20260805123456",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "type": {
             "description": "Kind of payment.",
@@ -3804,22 +3951,31 @@
             "type": "string"
           },
           "vendorId": {
-            "description": "Vendor being paid, when the payee is a vendor.",
+            "description": "Vendor being paid, when the payee is a vendor. Null on any other payee type.",
             "example": 17,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "verifiedAt": {
-            "description": "Timestamp the voucher was verified.",
+            "description": "Timestamp the voucher was verified. Null until the voucher is verified.",
             "example": "2026-08-06T10:20:00Z",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "verifiedBy": {
-            "description": "User id that verified the voucher, taken from the session that verified it.",
+            "description": "User id that verified the voucher, taken from the session that verified it. Null until the voucher is verified.",
             "example": 2,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "verifiedByName": {
             "description": "Name of the user that verified the voucher, or their email where the account carries no name. Reads \"User #<id>\" when the account has since been deleted; null only when the voucher was never verified.",
@@ -3890,9 +4046,12 @@
             "type": "boolean"
           },
           "code": {
-            "description": "Optional short code for the head.",
+            "description": "Optional short code for the head. Null where none was given.",
             "example": "MAT",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "expenseAccountCode": {
             "description": "Code of the mapped expense account, or null.",
@@ -4738,8 +4897,15 @@
             "type": "boolean"
           },
           "billingAddress": {
-            "$ref": "#/components/schemas/AddressDto",
-            "description": "Billing address."
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AddressDto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Billing address. Null where no part of the address is set: every address column on the customer is nullable, and Hibernate leaves an embedded value null when all of its columns are."
           },
           "code": {
             "description": "Customer code, unique within the tenant.",
@@ -4747,19 +4913,28 @@
             "type": "string"
           },
           "creditLimit": {
-            "description": "Credit limit extended to the customer.",
+            "description": "Credit limit extended to the customer. Null where no credit limit was agreed; a zero there would mean a limit of zero.",
             "example": 500000.0,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "email": {
-            "description": "Contact email address.",
+            "description": "Contact email address. Null where none was recorded.",
             "example": "accounts@assethomes.example",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "gstin": {
-            "description": "GST identification number.",
+            "description": "GST identification number. Null where the customer is not registered, or the number was not recorded.",
             "example": "29ABCDE1234F1Z5",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "description": "Unique customer id.",
@@ -4773,20 +4948,29 @@
             "type": "string"
           },
           "pan": {
-            "description": "Permanent account number.",
+            "description": "Permanent account number. Null where none was recorded.",
             "example": "ABCDE1234F",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "paymentTermsDays": {
-            "description": "Default payment terms in days.",
+            "description": "Default payment terms in days. Null where no default terms were agreed.",
             "example": 30,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "phone": {
-            "description": "Contact phone number.",
+            "description": "Contact phone number. Null where none was recorded.",
             "example": "+91 98765 43210",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -7405,10 +7589,13 @@
             "type": "string"
           },
           "journalEntryId": {
-            "description": "Ledger journal entry posted when the invoice was issued.",
+            "description": "Ledger journal entry posted when the invoice was issued. Null until the invoice is issued and posted to the ledger.",
             "example": "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "lines": {
             "description": "Invoice line items.",
@@ -7418,14 +7605,20 @@
             "type": "array"
           },
           "notes": {
-            "description": "Internal notes.",
+            "description": "Internal notes. Null where none were recorded.",
             "example": "First milestone billing",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "reversalJournalEntryId": {
-            "description": "Reversal journal entry, present when the invoice was cancelled after issue.",
+            "description": "Reversal journal entry, present when the invoice was cancelled after issue. Null on an invoice that was never cancelled after issue.",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "description": "Lifecycle status of the invoice.",
@@ -7974,9 +8167,12 @@
             "type": "string"
           },
           "createdBy": {
-            "description": "User that created the entry.",
+            "description": "User that created the entry. Null where the auditing stamp was not recorded; the column is nullable.",
             "example": "abin",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "description": {
             "description": "Description of the entry.",
@@ -8008,32 +8204,47 @@
             "type": "array"
           },
           "reference": {
-            "description": "Free-text reference, such as a document number.",
+            "description": "Free-text reference, such as a document number. Null where none was recorded.",
             "example": "CINV-2026-0042",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "reversedByEntryId": {
-            "description": "Id of the entry that reversed this entry, present once it has been reversed.",
+            "description": "Id of the entry that reversed this entry, present once it has been reversed. Null until the entry is reversed.",
             "example": "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "reversesEntryId": {
-            "description": "Id of the entry this entry reverses, present when it is itself a reversal.",
+            "description": "Id of the entry this entry reverses, present when it is itself a reversal. Null on an entry that reverses nothing.",
             "example": "1c2f3d44-5a6e-4b7b-8f9a-0c1d2e3f4a5b",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "sourceId": {
-            "description": "Id of the source document that generated the entry, if any.",
+            "description": "Id of the source document that generated the entry, if any. Null on an entry posted by hand rather than from a document.",
             "example": "7a1e9b2f-1c44-4e2b-9f0a-2c8d5e6f7a10",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "sourceType": {
-            "description": "Type of the source document that generated the entry, if any.",
+            "description": "Type of the source document that generated the entry, if any. Null on an entry posted by hand rather than from a document.",
             "example": "CONSTRUCTION_INVOICE",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "description": "Status of the entry.",
@@ -8090,9 +8301,12 @@
             "type": "integer"
           },
           "narration": {
-            "description": "Optional narration for the line.",
+            "description": "Optional narration for the line. Null where none was recorded.",
             "example": "Payment received from customer",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -13512,9 +13726,12 @@
             "type": "string"
           },
           "externalReference": {
-            "description": "External reference for the payment, such as a UTR or cheque number.",
+            "description": "External reference for the payment, such as a UTR or cheque number. Null where none was recorded.",
             "example": "UTR2026081012345",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "description": "Unique payment id.",
@@ -13523,15 +13740,21 @@
             "type": "string"
           },
           "journalEntryId": {
-            "description": "Ledger journal entry posted for the receipt.",
+            "description": "Ledger journal entry posted for the receipt. Null until the receipt is posted to the ledger.",
             "example": "9b2f1c44-7a1e-4e2b-9f0a-2c8d5e6f7a10",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "notes": {
-            "description": "Internal notes.",
+            "description": "Internal notes. Null where none were recorded.",
             "example": "Part payment against August invoices",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "paymentDate": {
             "description": "Date the payment was received.",
