@@ -16,11 +16,9 @@ import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
-import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeLookupDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
-import org.tornotron.echno_backend.employee.dto.EmployeePatchDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeUpdateFieldsDto;
 import org.tornotron.echno_backend.employee.dto.OrgRoleAssignmentDto;
 
@@ -37,6 +35,23 @@ import java.util.Set;
                 + "assignment, subordinate and manager lookups, and org-role assignment, alongside the "
                 + "same read, update and delete operations as the base employee API."
 )
+/**
+ * Web-client twin of {@link EmployeeController}.
+ *
+ * <p>There is deliberately no direct create here. An employee is a person's membership of an
+ * organization, so the record needs a user to hang off, and the route that supplies one is
+ * {@code joinOrganization} below. A person with no membership yet reaches it by redeeming an
+ * invite code at {@code POST /api/v1/invitation/web/validate/userId/{userId}}, guarded by
+ * {@code isSelfUser} because the redeemer has no tenant to check them against; an administrator
+ * adding somebody who already has an account uses {@code joinOrganization} directly.
+ *
+ * <p>A commented-out {@code @PostMapping createEmployee} sat here until #675 and is gone. It was
+ * never routed, so {@code POST /api/v1/employee/web} answered 401 to an anonymous caller exactly
+ * as a real path would, and echno-core published a client method against it on that evidence. A
+ * block of commented-out mappings is a suggestion the compiler cannot check and a client reader
+ * cannot distinguish from a plan, which is how it misled. If a direct create is wanted, it needs a
+ * design that says what it does about the Keycloak user rather than an uncommenting.
+ */
 public class EmployeeControllerWeb {
 
     private final EmployeeService employeeService;
@@ -77,23 +92,6 @@ public class EmployeeControllerWeb {
         return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.joinOrganization(userId, orgId, employeeJoinOrgDto));
     }
 
-//    /**
-//     * Creates a new employee.
-//     *
-//     * @param employeeCreationDto DTO containing the details for the new employee.
-//     * @return A {@link ResponseEntity} with the created employee's DTO and HTTP status 201 (Created).
-//     */
-//    @PostMapping
-//    @PreAuthorize("hasAuthority('employee:create') or hasAuthority('employee:admin')")
-//    public ResponseEntity<EmployeeDto> createEmployee(@Valid @RequestBody EmployeeCreationDto employeeCreationDto) {
-//        return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.addEmployee(employeeCreationDto));
-//    }
-
-    /**
-     * Retrieves a list of all employees.
-     *
-     * @return A {@link ResponseEntity} containing the list of employee DTOs and HTTP status 200 (OK).
-     */
     /**
      * Minimal, non-sensitive employee list for populating pickers. Readable by any
      * tenant member; the full employee reads below are restricted to management roles.
@@ -183,19 +181,6 @@ public class EmployeeControllerWeb {
         return ResponseEntity.status(HttpStatus.OK).body(employee);
     }
 
-
-//    /**
-//     * Retrieves all employees belonging to a specific organization.
-//     *
-//     * @param id The ID of the organization.
-//     * @return A {@link ResponseEntity} containing a list of employee DTOs for the specified organization and HTTP status 200 (OK).
-//     */
-//    @GetMapping("/organization/{id}")
-//    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
-//    public ResponseEntity<List<EmployeeDto>> readEmployeesByOrganizationId(@PathVariable Long id) {
-//        return ResponseEntity.status(HttpStatus.OK).body(employeeService.displayEmployeesByOrganization(id));
-//    }
-
     /**
      * Partially updates an existing employee.
      *
@@ -224,18 +209,6 @@ public class EmployeeControllerWeb {
         employeeService.partialUpdateAnEmployee(updates,id);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Employee with id: "+id+" updated"));
     }
-
-//    /**
-//     * Updates multiple employees in a batch.
-//     *
-//     * @param updates A list of DTOs containing the updates for each employee.
-//     * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
-//     */
-//    @PatchMapping("/batch")
-//    public ResponseEntity<ApiResponse> batchUpdateEmployees(@Valid @RequestBody List<EmployeePatchDto> updates) {
-//        employeeService.batchUpdateEmployees(updates);
-//        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("Batch update successful"));
-//    }
 
     /**
      * Deletes an employee by their ID.

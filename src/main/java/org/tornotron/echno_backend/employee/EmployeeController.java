@@ -97,6 +97,35 @@ public class EmployeeController {
     /**
      * Creates a new employee.
      *
+     * <p><b>Proposed for removal under #675 and #716; deliberately left refusing until that is
+     * decided, and not to be repaired by analogy with the guards around it.</b> The other guards
+     * on this controller named an authority the realm cannot issue and were repaired, because each
+     * had work behind it that somebody needs. This one has neither a caller nor a working body:
+     *
+     * <ul>
+     *   <li>Nothing calls it. echno-core publishes no direct employee create and pins that with a
+     *       regression test; echno-web has no create call site and no create form, only the
+     *       invitation flow; the Flutter client's one employee call is
+     *       {@code GET /employee/organization/{id}}. The route is reachable through the web BFF's
+     *       catch-all proxy, so this is an absence of callers rather than an absence of reach.
+     *   <li>It cannot succeed. {@code addEmployee} never sets {@code user}, and
+     *       {@code Employee.user} is a {@code nullable = false} join column, so the save ends in a
+     *       constraint violation whatever the caller sends.
+     *   <li>It discards what it demands. {@code EmployeeObjectMapper} writes neither
+     *       {@code designation} nor {@code department}, both {@code @NotBlank} on
+     *       {@link EmployeeCreationDto}, along with {@code joiningDate}, {@code employeeId} and
+     *       {@code salary}. That is the defect {@code status} was removed from the payload for.
+     *   <li>It picks the tenant out of the body. {@code addEmployee} resolves the organization by
+     *       {@code organizationName}, and {@code Organization} is the tenant root, so no ambient
+     *       defence narrows that lookup to the caller's own. Repairing the guard alone would turn
+     *       a route nobody can reach into a cross-tenant write.
+     * </ul>
+     *
+     * <p>An administrator adding somebody who has never signed in is a real gap, and the answer to
+     * it is a designed route that says what it does about the Keycloak user, not this one. The
+     * route that works today is {@link #joinOrganization}, reached by an invite code redeemed at
+     * {@code POST /api/v1/invitation/web/validate/userId/{userId}}.
+     *
      * @param employeeCreationDto DTO containing the details for the new employee.
      * @return A {@link ResponseEntity} with the created employee's DTO and HTTP status 201 (Created).
      */
@@ -119,17 +148,28 @@ public class EmployeeController {
     /**
      * Retrieves a list of all employees.
      *
+     * <p>The employee directory. {@code EmployeeDto} carries salary, date of birth, address and
+     * phone number, so this is the personnel record rather than a picker feed, and the roles that
+     * read it are the ones the web twin's listings already name: {@code system-admin},
+     * {@code hr-admin} and {@code project-manager}. A member who only needs to pick a colleague
+     * out of a list has {@code GET /api/v1/employee/web/lookup}, which any member may read
+     * because it exposes none of that.
+     *
+     * <p>{@code employee:read} and {@code employee:admin}, which this asked for until now, cannot
+     * be issued: see {@link #readAnEmployee} for the mechanism. Repaired to what the web twin
+     * says rather than deleted, per #716.
+     *
      * @return A {@link ResponseEntity} containing the list of employee DTOs and HTTP status 200 (OK).
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('employee:read') or hasAuthority('employee:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     @Operation(
             summary = "List all employees",
-            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
+            description = "Returns at most 500 rows of the caller's own organization. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employees returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the employee read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a system admin, HR admin or project manager in the current organization")
     })
     public ResponseEntity<List<EmployeeDto>> readAllEmployees() {
         return UnpagedResultCap.respond(employeeService.displayAllEmployees(
@@ -175,19 +215,31 @@ public class EmployeeController {
     /**
      * Retrieves all employees belonging to a specific organization.
      *
-     * @param id The ID of the organization.
+     * <p>The same directory as {@link #readAllEmployees}, reached by naming the organization
+     * rather than leaving it to the session, so it takes the same three roles. The organization
+     * clause changes though, and not as a substitution. The old guard paired the phantom
+     * authority with {@code isMember(#id)}, which establishes that the caller belongs to the
+     * organization they named and leaves the organization the request is scoped to unexamined; a
+     * caller who belongs to two organizations could therefore read the other one's directory
+     * while their session was scoped here. {@code isCurrentTenant} is the check for that, and it
+     * has to be made here because {@code Organization} is the tenant root: it implements no
+     * {@code TenantScopedEntity}, so {@code TenantIsolationLoadListener} returns on its first
+     * line for it and a caller-supplied organization id carries no ambient protection.
+     *
+     * @param id The ID of the organization, which must be the one the caller's session is scoped to.
      * @return A {@link ResponseEntity} containing a list of employee DTOs for the specified organization and HTTP status 200 (OK).
      */
     @GetMapping("/organization/{id}")
-    @PreAuthorize("(hasAuthority('employee:read') and @orgSecurity.isMember(#id)) or hasAuthority('employee:admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#id)"
+            + " and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     @Operation(
             summary = "List employees in an organization",
-            description = "Returns the employees belonging to the given organization. A non-admin caller "
-                    + "must be a member of that organization."
+            description = "Returns the employees belonging to the given organization, which must be the "
+                    + "organization the caller's session is scoped to."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employees returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the organization and lacks the employee admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller named an organization that is not the current tenant, or is not a system admin, HR admin or project manager in it"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<List<EmployeeDto>> readEmployeesByOrganizationId(@PathVariable Long id) {
@@ -197,21 +249,33 @@ public class EmployeeController {
     /**
      * Partially updates an existing employee.
      *
+     * <p>Gated exactly as the web twin's PATCH is, so a person may maintain their own record from
+     * the phone and {@code system-admin} or {@code hr-admin} may maintain anyone's. Keeping the
+     * two twins identical also keeps this endpoint level with the {@link #readAnEmployee} beside
+     * it, which #710 set to the same expression: a guard that let someone edit a record they
+     * could not then read back is the asymmetry that issue was about.
+     *
+     * <p>The service loads the employee with
+     * {@code findByIdAndOrganizationId(id, TenantContext.getCurrentOrgId())}, the same id the
+     * guard resolves and the same organization, so the guard and the write cannot land on
+     * different rows.
+     *
      * @param updates A map of fields to update.
      * @param id      The ID of the employee to update.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("{id}")
-    @PreAuthorize("hasAuthority('employee:update') or hasAuthority('employee:admin')")
+    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#id, 'system-admin', 'hr-admin')")
     @Operation(
             summary = "Partially update an employee",
             description = "Applies the supplied map of fields to the employee with the given id, "
-                    + "changing only the fields present in the request."
+                    + "changing only the fields present in the request. Callable by the employee "
+                    + "themselves or by a system admin or HR admin."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the supplied fields is not valid"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the employee update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee nor a system admin or HR admin"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<ApiResponse> partialUpdateAnEmployee(
@@ -226,20 +290,38 @@ public class EmployeeController {
     /**
      * Updates multiple employees in a batch.
      *
+     * <p>Personnel maintenance across a set of people at once: moving a crew to a new department
+     * at handover, closing out a set of records at the end of a contract. That is the work
+     * {@code system-admin} and {@code hr-admin} do, and it is the pair the single-record PATCH
+     * already admits.
+     *
+     * <p>The self clause the single-record PATCH carries has no counterpart here and is not
+     * simply omitted for convenience. The ids arrive inside the request body rather than on the
+     * path, so there is nothing for {@code #id} to bind to, and a person maintaining their own
+     * record has the single-record route to do it on. A guard that cannot name what it is
+     * guarding is the shape to avoid, so the roles decide and nothing pretends to check the ids.
+     *
+     * <p>What does check them is underneath: {@code batchUpdateEmployees} reads the employees
+     * inside a {@code @Transactional} method, so the {@code orgFilter} is on and
+     * {@code TenantIsolationLoadListener} runs on every row it materialises. An id belonging to
+     * another organization is either filtered out of the read or refused at load, so a
+     * {@code hr-admin} of one tenant cannot reach into another by listing its ids.
+     *
      * @param updates A list of DTOs containing the updates for each employee.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("/batch")
-    @PreAuthorize("hasAuthority('employee:update') or hasAuthority('employee:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     @Operation(
             summary = "Batch update employees",
-            description = "Applies partial updates to several employees in one call. Each entry names an "
-                    + "employee id and the map of fields to change on that employee."
+            description = "Applies partial updates to several employees of the caller's organization in "
+                    + "one call. Each entry names an employee id and the map of fields to change on that "
+                    + "employee."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Batch update applied"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the update entries failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the employee update or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a system admin or HR admin in the current organization")
     })
     public ResponseEntity<ApiResponse> batchUpdateEmployees(@Valid @RequestBody List<EmployeePatchDto> updates) {
         employeeService.batchUpdateEmployees(updates);
@@ -249,18 +331,30 @@ public class EmployeeController {
     /**
      * Deletes an employee by their ID.
      *
+     * <p>Removing a person from the organization, which also takes their Keycloak group
+     * membership away and so ends their access. That is administration rather than anything a
+     * manager does day to day, and the web twin already reserves it to {@code system-admin} and
+     * {@code hr-admin}. There is deliberately no self clause: nobody deletes their own
+     * membership from the phone.
+     *
+     * <p>The guard names no id, so there is no id for it to disagree with the service about.
+     * {@code deleteAnEmployee} finds the row with
+     * {@code findByIdAndOrganizationId(id, TenantContext.getCurrentOrgId())} and a foreign id
+     * simply does not resolve.
+     *
      * @param id The ID of the employee to delete.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("hasAuthority('employee:delete') or hasAuthority('employee:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     @Operation(
             summary = "Delete an employee",
-            description = "Deletes the employee with the given id."
+            description = "Deletes the employee with the given id from the caller's organization, and "
+                    + "removes their membership of it in Keycloak."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the employee delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a system admin or HR admin in the current organization"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<ApiResponse> deleteEmployee(@PathVariable Long id) {
