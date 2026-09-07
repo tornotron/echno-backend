@@ -5223,7 +5223,7 @@
             "type": "string"
           },
           "salary": {
-            "description": "Salary of the employee.",
+            "description": "Salary of the employee. Written only for a caller who administers personnel in this tenant (system-admin or hr-admin) and on the caller's own record; absent from the response otherwise.",
             "example": 65000.0,
             "format": "double",
             "type": "number"
