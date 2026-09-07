@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Two schema repairs the #645 nullability pass found in the inspection module.
+
+      The first is a default that writes a row the application cannot read. 027 created
+      inspection_defects.status with DEFAULT 'open', which is the @JsonValue spelling;
+      @Enumerated(STRING) persists and reads the constant name, OPEN. 054-05 uppercased the
+      rows that existed and left the DEFAULT alone, so every insert since that omits the
+      column has written a row that throws IllegalArgumentException the moment its parent
+      inspection is loaded. The column is also the one status in the module with no NOT NULL,
+      while the entity initialises it and no code path means it to be absent.
+
+      The second is inspections.organization_id, left nullable in 025 while ncrs,
+      checklist_templates and inspection_defect_annotations all declare it NOT NULL. A null
+      there is not a benign gap: orgFilter's predicate is unsatisfiable for a null row and
+      TenantIsolationLoadListener denies one outright, so the inspection is unreachable and
+      undeletable through the tenant-scoped API while its NCRs and annotations keep pointing
+      at a real organization.
+
+      Both constraints are added only after the rows are made to satisfy them, and each
+      tightening halts rather than proceeding if a row it cannot repair is still there.
+    -->
+
+    <changeSet id="094-01-normalise-defect-status" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="inspection_defects"/>
+        </preConditions>
+
+        <comment>
+            Bring every status onto the constant name before the column is constrained. The
+            first statement gives absent and whitespace-only values the OPEN the entity has
+            always applied; the second repeats 054-05's promotion, because the DEFAULT the
+            next changeset replaces has been writing fresh lower-case rows ever since 054 ran.
+            Both are guarded on the value they change, so the pair is idempotent.
+        </comment>
+
+        <sql>
+            UPDATE inspection_defects SET status = 'OPEN'
+            WHERE status IS NULL OR trim(status) = ''
+        </sql>
+
+        <sql>
+            UPDATE inspection_defects
+            SET status = upper(replace(replace(trim(status), '-', '_'), ' ', '_'))
+            WHERE upper(replace(replace(trim(status), '-', '_'), ' ', '_'))
+                  IN ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'VERIFIED')
+              AND status &lt;&gt; upper(replace(replace(trim(status), '-', '_'), ' ', '_'))
+        </sql>
+    </changeSet>
+
+    <changeSet id="094-02-correct-defect-status-default" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="inspection_defects" columnName="status"/>
+        </preConditions>
+
+        <comment>
+            The repair proper: the DEFAULT now spells the value the enum reads back. Written as
+            the constant name rather than as the wire form, because what the column stores is
+            decided by @Enumerated(STRING) and not by the JSON contract.
+        </comment>
+
+        <addDefaultValue tableName="inspection_defects"
+                         columnName="status"
+                         columnDataType="VARCHAR(20)"
+                         defaultValue="OPEN"/>
+    </changeSet>
+
+    <changeSet id="094-03-defect-status-not-null" author="abhijith">
+        <preConditions onFail="HALT">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM inspection_defects
+                WHERE status IS NULL
+                   OR status NOT IN ('OPEN', 'IN_PROGRESS', 'RESOLVED', 'VERIFIED')
+            </sqlCheck>
+        </preConditions>
+
+        <comment>
+            Constrain the column now that every row satisfies it, matching inspections.status,
+            inspection_check_items.status and ncrs.status. The precondition halts on a value
+            outside DefectStatus rather than guessing a bucket for it, the same way 054-04 and
+            054-05 do; a halt here means a row was written by something that is not this
+            application and wants looking at before the constraint goes on.
+        </comment>
+
+        <addNotNullConstraint tableName="inspection_defects"
+                              columnName="status"
+                              columnDataType="VARCHAR(20)"/>
+    </changeSet>
+
+    <changeSet id="094-04-backfill-inspection-organization" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="inspections" columnName="organization_id"/>
+        </preConditions>
+
+        <comment>
+            Take the organization from the inspection's own project, which is the value the
+            create path would have written. project_id is a plain scalar on Inspection rather
+            than a relation, so the join is spelled out here. Rows whose project is itself gone
+            or unscoped are left alone and are caught by the next changeset.
+        </comment>
+
+        <sql>
+            UPDATE inspections i
+            SET organization_id = p.organization_id
+            FROM project p
+            WHERE i.project_id = p.id
+              AND i.organization_id IS NULL
+              AND p.organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <changeSet id="094-05-inspection-organization-not-null" author="abhijith">
+        <preConditions onFail="HALT">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM inspections WHERE organization_id IS NULL
+            </sqlCheck>
+        </preConditions>
+
+        <comment>
+            Bring the column into line with ncrs, checklist_templates and
+            inspection_defect_annotations. The precondition halts rather than deleting what the
+            backfill could not place: an inspection with no recoverable organization is already
+            invisible to the API, so it can only be resolved by someone who can say which tenant
+            it belonged to, and a migration that silently removed it would destroy the evidence
+            needed to answer that.
+        </comment>
+
+        <addNotNullConstraint tableName="inspections"
+                              columnName="organization_id"
+                              columnDataType="BIGINT"/>
+    </changeSet>
+
+</databaseChangeLog>

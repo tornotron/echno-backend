@@ -128,7 +128,7 @@ public class DefectPhotoAnnotation implements TenantScopedEntity {
     private Long createdById;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id")
+    @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
     @CreationTimestamp

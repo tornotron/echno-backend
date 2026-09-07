@@ -415,4 +415,7 @@
     <!-- v4.0 - Inventory: remember that a material was reported low, so the sweep reports a crossing rather than a standing fact -->
     <include file="db/changelog/v4.0/093-material-reorder-alert.xml"/>
 
+    <!-- v4.0 - Inspection: spell the defect status default the way the enum reads it, and stop an inspection losing its tenant -->
+    <include file="db/changelog/v4.0/094-repair-inspection-nullability.xml"/>
+
 </databaseChangeLog>

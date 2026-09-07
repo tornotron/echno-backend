@@ -133,7 +133,7 @@ public class Ncr implements TenantScopedEntity {
     private LocalDateTime closedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id")
+    @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
     @CreationTimestamp

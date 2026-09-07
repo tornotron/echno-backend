@@ -70,7 +70,7 @@ public class ChecklistTemplate implements TenantScopedEntity {
     private int version = 1;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organization_id")
+    @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
     @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true,
