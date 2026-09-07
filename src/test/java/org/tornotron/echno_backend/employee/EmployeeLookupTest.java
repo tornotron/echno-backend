@@ -38,7 +38,7 @@ class EmployeeLookupTest {
     private EmployeeRepository employeeRepository;
 
     private EmployeeService service() {
-        return new EmployeeService(employeeRepository, null, null, null, null, null, null);
+        return new EmployeeService(employeeRepository, null, null, null, null, null, null, null);
     }
 
     private Pageable capturePageable() {

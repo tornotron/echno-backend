@@ -21,7 +21,11 @@ import java.time.LocalDateTime;
         + "Every field is optional and an absent field is left untouched. A field this schema "
         + "declares nullable is cleared by sending an explicit null; a field it does not declare "
         + "nullable refuses a null with a 400 rather than clearing. Keys not listed here are "
-        + "ignored.")
+        + "ignored. Not every field is open to every caller: an employee editing their own record "
+        + "may change employeeName, phoneNumber, emailAddress and dateOfBirth, while employeeId, "
+        + "status, designation, department, joiningDate, salary, shiftTimingId and managerId are "
+        + "set by a system admin or an HR admin. Naming one of those without either role is "
+        + "refused with a 403 and no part of the update is applied.")
 @Data
 public class EmployeeUpdateFieldsDto {
 
