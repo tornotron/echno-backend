@@ -71,7 +71,7 @@ public class LeaveTransactionDto {
 
     @Schema(nullable = true, description = "Name of the employee who created the transaction. Always null "
             + "on this response: the mapper leaves the field unset and nothing else fills it in, so resolve "
-            + "the name from createdById.", example = "Anand Rajan")
+            + "the name from createdById.")
     private String createdByName;
 
     @Schema(description = "Time the transaction was recorded.", example = "2026-09-14T09:30:00")

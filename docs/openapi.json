@@ -9122,7 +9122,6 @@
           },
           "delegatedFromName": {
             "description": "Name of the approver this action was delegated from. Always null on this response: the mapper leaves the field unset and nothing else fills it in, so resolve the name from delegatedFromId.",
-            "example": "Suresh Pillai",
             "type": [
               "string",
               "null"
@@ -10362,7 +10361,6 @@
           },
           "createdByName": {
             "description": "Name of the employee who created the transaction. Always null on this response: the mapper leaves the field unset and nothing else fills it in, so resolve the name from createdById.",
-            "example": "Anand Rajan",
             "type": [
               "string",
               "null"

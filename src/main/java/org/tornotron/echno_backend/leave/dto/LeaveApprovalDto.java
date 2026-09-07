@@ -42,7 +42,7 @@ public class LeaveApprovalDto {
 
     @Schema(nullable = true, description = "Name of the approver this action was delegated from. Always null "
             + "on this response: the mapper leaves the field unset and nothing else fills it in, so resolve the "
-            + "name from delegatedFromId.", example = "Suresh Pillai")
+            + "name from delegatedFromId.")
     private String delegatedFromName;
 
     @Schema(nullable = true, description = "Time the action was taken. Null while the approval is still "
