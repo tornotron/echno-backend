@@ -1,8 +1,11 @@
 package org.tornotron.echno_backend.employee.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.tornotron.echno_backend.attendance.dto.ShiftTimingDto;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.enums.OrgRole;
@@ -16,6 +19,11 @@ import java.util.Set;
 @Schema(description = "Full view of an employee, covering personal details, employment, reporting line, "
         + "roles and status.")
 @Data
+// Both read the fields rather than the accessors, because getSalary() below answers for the
+// caller on the current thread. Left on the getters, a test comparing two records would call it,
+// and two records with different pay would be equal to a caller who may see neither.
+@ToString(doNotUseGetters = true)
+@EqualsAndHashCode(doNotUseGetters = true)
 public class EmployeeDto {
     @Schema(description = "Unique employee id.", example = "7")
     private Long id;
@@ -59,7 +67,9 @@ public class EmployeeDto {
     @Schema(description = "Blood group of the employee.", example = "O+")
     private String bloodGroup;
 
-    @Schema(description = "Salary of the employee.", example = "65000.0")
+    @Schema(description = "Salary of the employee. Written only for a caller who administers "
+            + "personnel in this tenant (system-admin or hr-admin) and on the caller's own record; "
+            + "absent from the response otherwise.", example = "65000.0")
     private Double salary;
 
     @Schema(description = "Id of this employee's reporting manager.", example = "5")
@@ -123,4 +133,26 @@ public class EmployeeDto {
     @JsonIgnore
     @Schema(hidden = true)
     private String userKeycloakId;
+
+    /**
+     * The salary, for a caller entitled to it, and nothing at all for a caller who is not. See
+     * {@link EmployeeSalaryVisibility} for who is entitled and why.
+     *
+     * <p>The decision sits on the accessor rather than on an endpoint deliberately. This record is
+     * returned from both employee controllers and is nested inside eleven other response types
+     * (project, task, material, purchase order, goods received note, indent, site transfer,
+     * material consumption, inventory transaction, payable, WBS element), each guarded for its own
+     * resource and none of them for personnel data. A guard, a view or a second DTO would have to
+     * be remembered at every one of those call sites and at the next one somebody adds. An
+     * accessor cannot be forgotten: a new endpoint returning this type inherits the decision by
+     * returning the type.
+     *
+     * <p>Withheld means absent rather than null, so the field reads the same as any other optional
+     * one. {@code echno-core} parses it as a nullish number, so an absent salary needs no client
+     * change.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public Double getSalary() {
+        return EmployeeSalaryVisibility.visibleTo(userKeycloakId) ? salary : null;
+    }
 }
