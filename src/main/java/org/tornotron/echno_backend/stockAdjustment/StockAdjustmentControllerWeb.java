@@ -35,9 +35,12 @@ import java.util.List;
                 + "current tenant. A draft is either approved, which posts it, or rejected with a "
                 + "stated reason, which posts nothing and keeps the refused correction on the "
                 + "record; both decisions freeze the document. "
-                + "Read endpoints require tenant membership; write and decision endpoints require the "
-                + "system-admin or project-manager role, and approval additionally has to come from "
-                + "someone other than whoever raised the document."
+                + "Read endpoints require tenant membership. Raising and editing a draft is open to the "
+                + "system-admin, project-manager and store-keeper roles, because taking the count is the "
+                + "store's own work. Approving, rejecting and deleting stay with system-admin and "
+                + "project-manager: an approval posts the balance and is the second pair of eyes on "
+                + "somebody else's count, which is also why it has to come from someone other than "
+                + "whoever raised the document."
 )
 public class StockAdjustmentControllerWeb {
 
@@ -119,7 +122,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Create a stock adjustment",
             description = "Records a stock adjustment document capturing the counted and system quantities, "
@@ -139,7 +142,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Update a stock adjustment",
             description = "Replaces the header fields and line items of an existing stock adjustment with "

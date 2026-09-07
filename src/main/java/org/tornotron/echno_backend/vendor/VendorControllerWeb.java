@@ -23,11 +23,14 @@ import java.util.List;
 @Validated
 @Tag(
         name = "Vendors (Web)",
-        description = "Web-console counterpart of the vendors API, restricted to the system-admin role "
-                + "for the current tenant instead of the flat vendor authorities used by the mobile "
-                + "variant. Covers the same create, browse, search, update, delete and summary "
-                + "operations for vendors and their contacts, tax identifiers, bank accounts and "
-                + "payment terms, for use from the admin web console."
+        description = "Web-console counterpart of the vendors API, gated by organization role for the "
+                + "current tenant instead of by the flat vendor authorities used by the mobile variant. "
+                + "Naming a vendor and reaching its contacts are open to the system-admin and store-keeper "
+                + "roles, because a delivery has to say who brought it; the vendor summary, tax "
+                + "identifiers, bank accounts and payment terms are commercial rather than stores "
+                + "information and stay with system-admin, as do all vendor writes. Covers create, "
+                + "browse, search, update, delete and summary operations for vendors and their contacts, "
+                + "tax identifiers, bank accounts and payment terms, for use from the admin web console."
 )
 public class VendorControllerWeb {
 
@@ -58,7 +61,7 @@ public class VendorControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Get a vendor by id",
             description = "Returns a single vendor."
@@ -74,7 +77,7 @@ public class VendorControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List vendors",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -88,7 +91,7 @@ public class VendorControllerWeb {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List vendors (paged)",
             description = "Returns a single page of vendors controlled by the pageNo and pageSize parameters."
@@ -105,7 +108,7 @@ public class VendorControllerWeb {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Search vendors by name",
             description = "Returns vendors whose name matches the given search term."
@@ -175,7 +178,7 @@ public class VendorControllerWeb {
     // ==================== Contact Endpoints ====================
 
     @GetMapping("/{vendorId}/contacts")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List vendor contacts",
             description = "Returns the contacts recorded for the given vendor."

@@ -27,10 +27,12 @@ import java.util.List;
 @Validated
 @Tag(
         name = "Material Consumptions (Web)",
-        description = "Web-console counterpart of the material consumptions API, restricted to the "
-                + "system-admin role for the current tenant. Covers the same recording and lookup "
-                + "operations as the standard material consumption endpoints, for use from the admin "
-                + "web console rather than the mobile app."
+        description = "Web-console counterpart of the material consumptions API, gated by organization "
+                + "role for the current tenant. Recording an issue and looking issues up are open to the "
+                + "system-admin and store-keeper roles: handing material out over the counter is the "
+                + "store\'s own work. Covers the same recording and lookup operations as the standard "
+                + "material consumption endpoints, for use from the admin web console rather than the "
+                + "mobile app."
 )
 public class MaterialConsumptionControllerWeb {
 
@@ -41,7 +43,7 @@ public class MaterialConsumptionControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Record a material consumption",
             description = "Records material consumed against a project, and optionally a storage "
@@ -62,7 +64,7 @@ public class MaterialConsumptionControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Get a material consumption by id",
             description = "Returns a single material consumption record with its material, project, "
@@ -79,7 +81,7 @@ public class MaterialConsumptionControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List all material consumptions",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -94,7 +96,7 @@ public class MaterialConsumptionControllerWeb {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List material consumptions, paginated",
             description = "Returns a single page of material consumption records. The pageNo and "
@@ -112,7 +114,7 @@ public class MaterialConsumptionControllerWeb {
     }
 
     @GetMapping("/material/{materialId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List consumptions for a material",
             description = "Returns every consumption record for the given material, such as all draws "
@@ -129,7 +131,7 @@ public class MaterialConsumptionControllerWeb {
     }
 
     @GetMapping("/type/{consumptionType}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List consumptions by type",
             description = "Returns every consumption record of the given consumption type, such as "
@@ -145,7 +147,7 @@ public class MaterialConsumptionControllerWeb {
     }
 
     @GetMapping("/date-range")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List consumptions in a date range",
             description = "Returns every consumption record whose consumption date falls between "
@@ -165,7 +167,7 @@ public class MaterialConsumptionControllerWeb {
     }
 
     @GetMapping("/task/{taskId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List consumptions for a task",
             description = "Returns every consumption record linked to the given task."

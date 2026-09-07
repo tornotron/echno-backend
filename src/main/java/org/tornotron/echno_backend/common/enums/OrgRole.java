@@ -35,7 +35,24 @@ public enum OrgRole {
     // manager on a project invite code.
     QA_ENGINEER("qa-engineer"),
     SAFETY_OFFICER("safety-officer"),
-    SITE_ENGINEER("site-engineer");
+    SITE_ENGINEER("site-engineer"),
+    // The stores function. Before this role the Resources domain had nothing between plain
+    // organization membership and system-admin, so booking a delivery meant handing the person
+    // on the store counter the authority to delete projects and edit anybody's employee record.
+    // What it grants is the storekeeper's own work and the reads those forms need: goods
+    // receipts, material issues, site transfers out and in, and the count corrections that
+    // reconcile a shelf to the ledger, plus read access to the catalogue, storage locations,
+    // stock ledger, indents, purchase orders and vendor identity that filling those forms
+    // requires. What it does not grant is the second pair of eyes on any of it: no approval or
+    // rejection of a stock adjustment, no deletions, and no catalogue, vendor or purchase-order
+    // writes. A storekeeper who both counts and approves their own correction is the shape
+    // SelfApprovalPolicy exists to refuse, and a role that could do both halves would defeat it
+    // one request earlier than the policy is consulted.
+    //
+    // Deliberately not a manager role, for the same reason the three inspection roles are not:
+    // getManagerRoles decides who may be named the manager on a project invite code and who
+    // appears in the manager listings, and running a store is not managing headcount.
+    STORE_KEEPER("store-keeper");
 
     private final String groupName;
 
