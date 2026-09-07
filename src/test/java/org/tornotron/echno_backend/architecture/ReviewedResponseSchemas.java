@@ -22,6 +22,23 @@ import org.tornotron.echno_backend.finance.payment.dtos.PaymentDto;
 import org.tornotron.echno_backend.finance.posting.dtos.PostingAccountMappingDto;
 import org.tornotron.echno_backend.finance.settings.dtos.FinanceSettingsDto;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteDto;
+import org.tornotron.echno_backend.inspection.dtos.ChecklistTemplateDto;
+import org.tornotron.echno_backend.inspection.dtos.ChecklistTemplateItemDto;
+import org.tornotron.echno_backend.inspection.dtos.DefectPhotoAnnotationDto;
+import org.tornotron.echno_backend.inspection.dtos.InspectionCheckItemDto;
+import org.tornotron.echno_backend.inspection.dtos.InspectionDefectDto;
+import org.tornotron.echno_backend.inspection.dtos.InspectionDto;
+import org.tornotron.echno_backend.inspection.dtos.NcrDto;
+import org.tornotron.echno_backend.inspection.dtos.StarterChecklistTemplateDto;
+import org.tornotron.echno_backend.leave.dto.LeaveApprovalDto;
+import org.tornotron.echno_backend.leave.dto.LeaveBalanceDto;
+import org.tornotron.echno_backend.leave.dto.LeaveBalanceSummaryDto;
+import org.tornotron.echno_backend.leave.dto.LeaveCalendarDto;
+import org.tornotron.echno_backend.leave.dto.LeavePolicyDto;
+import org.tornotron.echno_backend.leave.dto.LeavePolicySimpleDto;
+import org.tornotron.echno_backend.leave.dto.LeaveRequestDto;
+import org.tornotron.echno_backend.leave.dto.LeaveTransactionDto;
+import org.tornotron.echno_backend.leave.dto.NotificationDto;
 import org.tornotron.echno_backend.payable.dto.PayableDto;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderDto;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderItemDto;
@@ -289,6 +306,83 @@ final class ReviewedResponseSchemas {
      *       {@code created_at} is {@code NOT NULL} and {@code created_by} is not.
      * </ul>
      *
+     * <p><b>Leave.</b> The seven leave tables are created across {@code v1.2} and {@code v1.3} and
+     * consolidated in the {@code v4.0} baseline. Both paths were read, because a column that is
+     * nullable on one install and not on the other would make the answer depend on how the
+     * database was built; they agree, and every {@code @Column} and {@code @JoinColumn} in the
+     * module matches its changeset. {@code multi_level_approval_enabled} arrives later, in
+     * {@code v4.0/039}, as {@code NOT NULL DEFAULT true}, so it is non-null on every install path.
+     *
+     * <ul>
+     *   <li>{@code LeavePolicyDto} is nullable on 14 of its 24 properties, which is the schema's
+     *       shape rather than an omission. A policy carries one column for each rule an
+     *       organization may choose not to set, and most organizations set few of them.
+     *   <li>{@code LeaveBalanceDto.available} and {@code bookable} are the
+     *       {@code VendorSummaryDto} shape again: {@code @Transient} getters over
+     *       {@code LeaveDays.round} arithmetic on columns that are all {@code NOT NULL}, with no
+     *       column of their own.
+     *   <li>{@code LeaveBalanceSummaryDto} has nothing in its nullable half. It is assembled
+     *       field by field in {@code LeaveBalanceService.getBalanceSummary}, the totals are
+     *       {@code LeaveDays.round} over a stream sum, and the controller defaults {@code year}
+     *       to the current year when the request omits it.
+     *   <li>Three names are null because the mapper ignores them and no service fills them in:
+     *       {@code delegatedFromName} and {@code createdByName} are structurally always null, and
+     *       {@code handoverToName} is resolved on the single-request read alone. They are
+     *       classified as nullable because that is what the server sends, and filed as defects on
+     *       #741 because it is not what the code means.
+     *   <li>{@code currentApproverId}, {@code currentApproverName}, {@code currentApprovalLevel}
+     *       and {@code maxApprovalLevel} are cleared or never written by the workflow rather than
+     *       by a constraint: the first two are nulled on approve, reject, cancel and withdraw,
+     *       and the levels are written only when the approval chain is built at submission.
+     *   <li>{@code carryForwardFromPrevious} and {@code LeaveTransactionDto.description} are the
+     *       standing line held again: the application writes both on every path, the column
+     *       permits null, so they stay nullable with the writing named in the description.
+     *   <li>The module contains no {@code @Builder}, {@code @Embedded} or {@code @Embeddable}, so
+     *       neither the attendance trap nor the {@code CustomerDto.billingAddress} one has an
+     *       analogue here. It does have a setter-shaped equivalent, on #741:
+     *       {@code createPolicy} calls every setter unconditionally, so an explicit null in the
+     *       payload overwrites the entity's own initialiser.
+     * </ul>
+     *
+     * <p><b>Inspection.</b> Two things shape this module and neither is visible from the entity
+     * alone: an inspection row has two producers, a person and the compliance generator, and a
+     * migration relaxed the schema for the second of them.
+     *
+     * <ul>
+     *   <li>{@code scheduledDate} and {@code inspectorId} are nullable even though
+     *       {@code CreateInspectionRequest} and {@code UpdateInspectionRequest} both declare them
+     *       {@code @NotNull}. {@code 035-relax-inspection-not-null-for-ai-rows} dropped the
+     *       constraint precisely so {@code ComplianceGenerationService} can write a row without
+     *       either. The constraint lives on the payload rather than on the row, so no API caller
+     *       can omit them and rows exist that do.
+     *   <li>{@code compliancePhase}, {@code riskLevel}, {@code resolutionOptions},
+     *       {@code complianceRuleRef} and {@code aiRationale} are written only by that same
+     *       service, so they are null on every manually created inspection. The first two also
+     *       fall back to the rule's own default, which can itself be null.
+     *   <li>{@code InspectionCheckItemDto.deviation} is a computation that returns null:
+     *       {@code MeasurementDeviation.of} yields nothing unless the measurement and the
+     *       expected value both parse as numbers in the same unit.
+     *   <li>{@code raisedById}, {@code verifiedById}, {@code closedById} and
+     *       {@code DefectPhotoAnnotationDto.createdById} come from {@code currentEmployeeId()},
+     *       which returns null when the signed-in user has no employee row in the current
+     *       organization. This is the {@code PostingAccountMappingDto} resolver shape with the
+     *       opposite ending: it returns null where the posting resolver throws.
+     *   <li>{@code InspectionDefectDto.severity} is nullable because of a migration rather than a
+     *       design: {@code 054-03} cleared blank values to null rather than guessing a bucket.
+     *   <li>{@code priority} on both check-item schemas and {@code InspectionDefectDto.status}
+     *       are the standing line again. The service substitutes {@code medium} and {@code OPEN}
+     *       on every call site, the columns permit null, so they stay nullable with the
+     *       substitution named.
+     *   <li>Nothing in the module is non-null by aggregate: there is no {@code COALESCE} and no
+     *       normalizer. The seven collection properties are Hibernate-managed collections
+     *       initialised on the entity and copied across by MapStruct, and the four counts are
+     *       primitive {@code int} over {@code NOT NULL} columns.
+     *   <li>Three entities declare a bare {@code @JoinColumn} over a {@code NOT NULL}
+     *       {@code organization_id}. That is the safe direction of the disagreement the
+     *       procurement pass found, so it breaks nothing today; it is on #741 because
+     *       {@code validate} catches neither direction.
+     * </ul>
+     *
      * @return The reviewed schemas.
      */
     static List<ReviewedSchema> schemas() {
@@ -489,6 +583,114 @@ final class ReviewedResponseSchemas {
                 new ReviewedSchema(
                         FinanceSettingsDto.class,
                         Set.of("approvalThreshold"),
-                        Set.of()));
+                        Set.of()),
+                new ReviewedSchema(
+                        LeaveApprovalDto.class,
+                        Set.of("actionAt", "approverDesignation", "comments", "delegatedFromId",
+                                "delegatedFromName"),
+                        Set.of("action", "approvalLevel", "approverId", "approverName", "createdAt",
+                                "id", "leaveRequestId")),
+                new ReviewedSchema(
+                        LeaveBalanceDto.class,
+                        Set.of("carryForwardExpiryDate", "carryForwardFromPrevious",
+                                "lastCalculatedAt"),
+                        Set.of("accrued", "available", "bookable", "employeeId", "employeeName",
+                                "id", "leavePolicy", "openingBalance", "pending", "used", "year")),
+                new ReviewedSchema(
+                        LeaveBalanceSummaryDto.class,
+                        Set.of(),
+                        Set.of("balances", "employeeId", "employeeName", "totalAvailable",
+                                "totalPending", "totalUsed", "year")),
+                new ReviewedSchema(
+                        LeaveCalendarDto.class,
+                        Set.of("department"),
+                        Set.of("dayType", "employeeId", "employeeName", "id", "leaveDate",
+                                "leaveRequestId", "leaveTypeCode", "leaveTypeName",
+                                "organizationId")),
+                new ReviewedSchema(
+                        LeavePolicyDto.class,
+                        Set.of("accrualRatePerMonth", "advanceNoticeDays", "allowHalfDay",
+                                "applicableGenders", "attachmentRequiredAfterDays",
+                                "carryForwardExpiryMonths", "carryForwardLimit", "description",
+                                "displayOrder", "isPaid", "maxDaysPerRequest", "minDaysPerRequest",
+                                "minServiceMonths", "requiresAttachment"),
+                        Set.of("annualQuota", "createdAt", "id", "isActive", "leaveTypeCode",
+                                "leaveTypeName", "multiLevelApprovalEnabled", "organizationId",
+                                "organizationName", "updatedAt")),
+                new ReviewedSchema(
+                        LeavePolicySimpleDto.class,
+                        Set.of("allowHalfDay", "isPaid"),
+                        Set.of("annualQuota", "id", "leaveTypeCode", "leaveTypeName")),
+                new ReviewedSchema(
+                        LeaveRequestDto.class,
+                        Set.of("cancellationReason", "cancelledAt", "contactDuringLeave",
+                                "currentApprovalLevel", "currentApproverId", "currentApproverName",
+                                "department", "endHalfDayType", "handoverNotes", "handoverToId",
+                                "handoverToName", "maxApprovalLevel", "startHalfDayType"),
+                        Set.of("approvals", "createdAt", "employeeId", "employeeName", "endDate",
+                                "id", "leavePolicy", "organizationId", "reason", "requestNumber",
+                                "startDate", "status", "totalDays", "updatedAt")),
+                new ReviewedSchema(
+                        LeaveTransactionDto.class,
+                        Set.of("createdById", "createdByName", "description", "leaveRequestId",
+                                "referenceMonth", "referenceYear", "requestNumber"),
+                        Set.of("balanceAfter", "balanceBefore", "createdAt", "days", "employeeId",
+                                "employeeName", "id", "leaveBalanceId", "leaveTypeName",
+                                "transactionDate", "transactionType")),
+                new ReviewedSchema(
+                        NotificationDto.class,
+                        Set.of("actionUrl", "entityId", "entityType", "readAt"),
+                        Set.of("createdAt", "id", "isRead", "message", "notificationType",
+                                "recipientId", "title")),
+                new ReviewedSchema(
+                        InspectionDto.class,
+                        Set.of("actualEndTime", "actualStartTime", "aiRationale", "areaInspected",
+                                "clientRepresentative", "compliancePhase", "complianceRuleRef",
+                                "contractorId", "drawingReference", "duration", "inspectorId",
+                                "location", "projectId", "resolutionOptions", "result", "riskLevel",
+                                "scheduledDate", "scheduledTime", "temperature", "trade",
+                                "weatherConditions"),
+                        Set.of("attendees", "category", "checkItems", "createdAt", "defects",
+                                "defectsFound", "failedCheckPoints", "id", "inspectionNumber",
+                                "origin", "passedCheckPoints", "status", "title",
+                                "totalCheckPoints", "type", "updatedAt")),
+                new ReviewedSchema(
+                        InspectionCheckItemDto.class,
+                        Set.of("acceptanceCriterion", "bimElementGuid", "deviation",
+                                "expectedValue", "measurement", "priority", "remarks",
+                                "specification", "tolerance"),
+                        Set.of("category", "checkPoint", "id", "photos", "photosRequired", "status")),
+                new ReviewedSchema(
+                        InspectionDefectDto.class,
+                        Set.of("category", "location", "resolvedDate", "responsibleParty",
+                                "severity", "status", "targetDate"),
+                        Set.of("correctiveAction", "description", "id", "photos")),
+                new ReviewedSchema(
+                        NcrDto.class,
+                        Set.of("closedAt", "closedById", "correctiveActionCompletedAt",
+                                "correctiveActionRemarks", "defectId", "raisedById", "severity",
+                                "siteEngineerId", "targetDate", "verificationRemarks", "verifiedAt",
+                                "verifiedById"),
+                        Set.of("createdAt", "description", "id", "inspectionId", "ncrNumber",
+                                "status", "title", "type", "updatedAt")),
+                new ReviewedSchema(
+                        DefectPhotoAnnotationDto.class,
+                        Set.of("createdById", "label"),
+                        Set.of("id", "inspectionId", "lineOrder", "photo", "shape", "x1", "x2",
+                                "y1", "y2")),
+                new ReviewedSchema(
+                        ChecklistTemplateDto.class,
+                        Set.of("description"),
+                        Set.of("active", "createdAt", "id", "items", "name", "trade", "updatedAt",
+                                "version")),
+                new ReviewedSchema(
+                        ChecklistTemplateItemDto.class,
+                        Set.of("acceptanceCriterion", "expectedValue", "priority", "specification",
+                                "tolerance"),
+                        Set.of("category", "checkPoint", "id", "lineOrder", "photosRequired")),
+                new ReviewedSchema(
+                        StarterChecklistTemplateDto.class,
+                        Set.of("description"),
+                        Set.of("id", "items", "name", "trade")));
     }
 }

@@ -19,9 +19,13 @@ public class LeavePolicySimpleDto {
     @Schema(description = "Total days granted per year under this policy.", example = "12.0")
     private Double annualQuota;
 
-    @Schema(description = "Whether requests under this policy can be for half a day.", example = "true")
+    @Schema(nullable = true, description = "Whether requests under this policy can be for half a day. "
+            + "Defaults to true when the create payload omits the field, and is null where the payload set "
+            + "it to null, which the column allows.", example = "true")
     private Boolean allowHalfDay;
 
-    @Schema(description = "Whether leave taken under this policy is paid.", example = "true")
+    @Schema(nullable = true, description = "Whether leave taken under this policy is paid. Defaults to true "
+            + "on a create payload that omits the field. The column is nullable, so an explicit null is "
+            + "stored and returned.", example = "true")
     private Boolean isPaid;
 }

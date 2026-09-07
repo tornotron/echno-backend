@@ -42,12 +42,17 @@ public class LeaveBalanceDto {
     @Schema(description = "Days that can still be booked, respecting per-request limits.", example = "6.5")
     private Double bookable;
 
-    @Schema(description = "Days carried forward from the previous year.", example = "1.5")
+    @Schema(nullable = true, description = "Days carried forward from the previous year. Written as zero on "
+            + "every balance the application creates, but the column permits null, so a row loaded outside the "
+            + "application can carry none.", example = "1.5")
     private Double carryForwardFromPrevious;
 
-    @Schema(description = "Date the carried-forward days expire, if the policy sets one.", example = "2026-03-31")
+    @Schema(nullable = true, description = "Date the carried-forward days expire. Null where the policy sets "
+            + "no carry-forward expiry, and where nothing was carried forward.", example = "2026-03-31")
     private LocalDate carryForwardExpiryDate;
 
-    @Schema(description = "Time this balance was last recalculated.", example = "2026-08-20T02:00:00")
+    @Schema(nullable = true, description = "Time this balance was last recalculated. Null until the accrual "
+            + "service first runs against the balance, and on the transient zero balance returned for a year "
+            + "before the employee joined.", example = "2026-08-20T02:00:00")
     private LocalDateTime lastCalculatedAt;
 }

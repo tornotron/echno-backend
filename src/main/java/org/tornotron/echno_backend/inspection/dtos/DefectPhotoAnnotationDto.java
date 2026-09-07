@@ -17,7 +17,12 @@ public record DefectPhotoAnnotationDto(
         BigDecimal y1,
         BigDecimal x2,
         BigDecimal y2,
+        @Schema(description = "Caption printed against the mark. Null where the mark was drawn "
+                + "without one.", nullable = true)
         String label,
         int lineOrder,
+        @Schema(description = "Employee who drew the mark, resolved from the signed-in user's "
+                + "employee record in the current organization. Null where that user has no "
+                + "employee record.", nullable = true)
         Long createdById
 ) {}

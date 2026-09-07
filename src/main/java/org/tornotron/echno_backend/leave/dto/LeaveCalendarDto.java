@@ -21,7 +21,8 @@ public class LeaveCalendarDto {
     @Schema(description = "Name of the employee on leave.", example = "Ravi Kumar")
     private String employeeName;
 
-    @Schema(description = "Department of the employee on leave.", example = "Civil")
+    @Schema(nullable = true, description = "Department of the employee on leave. Copied from the employee "
+            + "record when the entry is written, and null where that record carries no department.", example = "Civil")
     private String department;
 
     @Schema(description = "Id of the leave request this entry comes from.", example = "241")

@@ -12,6 +12,8 @@ public record StarterChecklistTemplateDto(
         UUID id,
         InspectionTrade trade,
         String name,
+        @Schema(description = "What the starter checklist covers. Null where the shipped seed row "
+                + "carried none.", nullable = true)
         String description,
         List<ChecklistTemplateItemDto> items
 ) {}
