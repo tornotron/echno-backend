@@ -2575,7 +2575,11 @@
             "type": "string"
           },
           "description": {
-            "type": "string"
+            "description": "What the template covers. Null where none was recorded, including on a template adopted from a starter checklist that carried none.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "format": "uuid",
@@ -2626,7 +2630,11 @@
         "description": "A check point within a checklist template, as returned by the API.",
         "properties": {
           "acceptanceCriterion": {
-            "type": "string"
+            "description": "What makes the check point pass. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "category": {
             "type": "string"
@@ -2635,7 +2643,11 @@
             "type": "string"
           },
           "expectedValue": {
-            "type": "string"
+            "description": "Target value the check point is measured against. Null on qualitative check points.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "format": "uuid",
@@ -2649,13 +2661,25 @@
             "type": "boolean"
           },
           "priority": {
-            "type": "string"
+            "description": "Priority of the check point. The service substitutes \"medium\" wherever a payload or a starter checklist omits it, but the column permits null, so a row loaded outside the application can carry none.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "specification": {
-            "type": "string"
+            "description": "Reference specification for the check point. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "tolerance": {
-            "type": "string"
+            "description": "Permitted band around the expected value. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -4979,8 +5003,12 @@
         "description": "A mark drawn over one defect photo. Coordinates are fractions of the image width and height, so the mark holds its place at any rendered size.",
         "properties": {
           "createdById": {
+            "description": "Employee who drew the mark, resolved from the signed-in user's employee record in the current organization. Null where that user has no employee record.",
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "id": {
             "format": "uuid",
@@ -4991,7 +5019,11 @@
             "type": "string"
           },
           "label": {
-            "type": "string"
+            "description": "Caption printed against the mark. Null where the mark was drawn without one.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "lineOrder": {
             "format": "int32",
@@ -6773,10 +6805,18 @@
         "description": "A checklist item within an inspection, as returned by the API.",
         "properties": {
           "acceptanceCriterion": {
-            "type": "string"
+            "description": "What makes the check point pass, copied from the checklist template when the inspection was created. Null where the template carried none.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "bimElementGuid": {
-            "type": "string"
+            "description": "IFC GlobalId of the BIM element the check point was carried out against. Copied from the payload, which no client fills in until the BIM viewer lands, so it is null on every row today.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "category": {
             "type": "string"
@@ -6785,17 +6825,29 @@
             "type": "string"
           },
           "deviation": {
-            "type": "number"
+            "description": "Measured value minus the expected one, computed server-side on every save. Null wherever the two do not both parse as a number in the same unit, which is the normal case for a qualitative check point.",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "expectedValue": {
-            "type": "string"
+            "description": "Value expected per specification. Null on check points with no numeric target.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "format": "uuid",
             "type": "string"
           },
           "measurement": {
-            "type": "string"
+            "description": "Measured value recorded on site. Null until a measurement is taken, and on qualitative check points that carry none.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "photos": {
             "items": {
@@ -6807,13 +6859,25 @@
             "type": "boolean"
           },
           "priority": {
-            "type": "string"
+            "description": "Priority of the check point. The service substitutes \"medium\" wherever a payload omits it, but the column permits null, so a row loaded outside the application can carry none.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "remarks": {
-            "type": "string"
+            "description": "Free-text remarks recorded against the check point. Null where none were recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "specification": {
-            "type": "string"
+            "description": "Reference specification for the check point. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "enum": [
@@ -6825,7 +6889,11 @@
             "type": "string"
           },
           "tolerance": {
-            "type": "string"
+            "description": "Permitted band around the expected value, copied from the checklist template. Null where the template carried none.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -6940,7 +7008,11 @@
         "description": "A defect identified during an inspection, as returned by the API.",
         "properties": {
           "category": {
-            "type": "string"
+            "description": "Grouping the defect belongs to. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "correctiveAction": {
             "type": "string"
@@ -6953,7 +7025,11 @@
             "type": "string"
           },
           "location": {
-            "type": "string"
+            "description": "Where on site the defect was found. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "photos": {
             "items": {
@@ -6962,32 +7038,52 @@
             "type": "array"
           },
           "resolvedDate": {
+            "description": "Date the defect was resolved. Null until it is.",
             "format": "date",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "responsibleParty": {
-            "type": "string"
+            "description": "Who is accountable for putting the defect right. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "severity": {
+            "description": "How serious the defect is. Null where none was recorded: the migration that promoted the free-text column to the enum cleared blank values to null rather than guessing a severity.",
             "enum": [
               "critical",
               "major",
               "minor"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
+            "description": "Where the defect stands. The service substitutes OPEN wherever a payload omits it, but the column permits null, so a row loaded outside the application can carry none.",
             "enum": [
               "open",
               "in-progress",
               "resolved",
               "verified"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "targetDate": {
+            "description": "Date the corrective action is due. Null where none was agreed.",
             "format": "date",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -7083,18 +7179,34 @@
         "description": "An inspection as returned by the API, including its checklist items, defects and summary counts.",
         "properties": {
           "actualEndTime": {
+            "description": "When the inspection actually finished. Null until it is carried out.",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "actualStartTime": {
+            "description": "When the inspection actually started. Null until it is carried out.",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "aiRationale": {
-            "type": "string"
+            "description": "The model's reasoning for suggesting this compliance inspection. Written only by the compliance generation service, so null on every manually created inspection.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "areaInspected": {
-            "type": "string"
+            "description": "Specific area inspected within the location. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "attendees": {
             "items": {
@@ -7118,22 +7230,38 @@
             "type": "array"
           },
           "clientRepresentative": {
-            "type": "string"
+            "description": "Name of the client's representative present at the inspection. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "compliancePhase": {
+            "description": "Project phase the compliance rule applies to. Written only by the compliance generation service, so null on every manually created inspection.",
             "enum": [
               "pre-construction",
               "ongoing",
               "post-construction"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "complianceRuleRef": {
-            "type": "string"
+            "description": "Code of the compliance rule that produced this inspection. Written only by the compliance generation service, so null on every manually created inspection.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "contractorId": {
+            "description": "Contractor whose work is being inspected. Null where the inspection is not against a contractor's work.",
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "createdAt": {
             "format": "date-time",
@@ -7150,11 +7278,19 @@
             "type": "integer"
           },
           "drawingReference": {
-            "type": "string"
+            "description": "Drawing the inspection was carried out against. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "duration": {
+            "description": "Duration of the inspection in minutes, stored as sent on the payload and never derived from the start and end times. Null where the payload carried none.",
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "failedCheckPoints": {
             "format": "int32",
@@ -7168,11 +7304,19 @@
             "type": "string"
           },
           "inspectorId": {
+            "description": "Employee performing the inspection. Every payload the API accepts requires one, but AI-generated compliance inspections are written by the generation service without an inspector, so those carry none until a project manager assigns one.",
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "location": {
-            "type": "string"
+            "description": "Site or building location of the inspection. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "origin": {
             "enum": [
@@ -7186,36 +7330,60 @@
             "type": "integer"
           },
           "projectId": {
+            "description": "Project the inspection is against. The column permits null and the create payload does not require the field, so an inspection can be recorded without a project.",
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "resolutionOptions": {
-            "type": "string"
+            "description": "Newline-separated ways of satisfying the compliance rule, taken from the model's suggestion and falling back to the rule's own. Written only by the compliance generation service, so null on every manually created inspection, and null again where the rule itself lists none.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "result": {
+            "description": "Overall outcome of the inspection. Null until the inspection is concluded and a result is recorded against it.",
             "enum": [
               "passed",
               "failed",
               "passed-with-remarks",
               "pending"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "riskLevel": {
+            "description": "Risk the compliance rule carries, taken from the model's suggestion and falling back to the rule's own default. Written only by the compliance generation service, so null on every manually created inspection, and null again where the rule itself carries no default.",
             "enum": [
               "low",
               "medium",
               "high",
               "critical"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "scheduledDate": {
+            "description": "Date the inspection is scheduled for. Every payload the API accepts requires one, but AI-generated compliance inspections are written by the generation service without a schedule, so those carry none until a project manager fills it in.",
             "format": "date",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "scheduledTime": {
-            "type": "string"
+            "description": "Scheduled time of day. Null where only a date was given.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "enum": [
@@ -7231,7 +7399,11 @@
             "type": "string"
           },
           "temperature": {
-            "type": "string"
+            "description": "Ambient temperature at the time of the inspection. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "title": {
             "type": "string"
@@ -7241,6 +7413,7 @@
             "type": "integer"
           },
           "trade": {
+            "description": "QA/QC stage or trade the inspection covers. Null on safety and compliance inspections, which carry no trade, and null on a QA/QC inspection whose payload omitted it.",
             "enum": [
               "pre-construction-documentation",
               "shuttering-formwork",
@@ -7259,7 +7432,10 @@
               "dimensional-check",
               "progress-check"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "type": {
             "enum": [
@@ -7280,7 +7456,11 @@
             "type": "string"
           },
           "weatherConditions": {
-            "type": "string"
+            "description": "Weather at the time of the inspection. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -8884,10 +9064,13 @@
             "type": "string"
           },
           "actionAt": {
-            "description": "Time the action was taken.",
+            "description": "Time the action was taken. Null while the approval is still pending, since the column is written only when the approver acts.",
             "example": "2026-08-31T10:05:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "approvalLevel": {
             "description": "Approval level this action was taken at.",
@@ -8896,9 +9079,12 @@
             "type": "integer"
           },
           "approverDesignation": {
-            "description": "Job title of the employee who took the action.",
+            "description": "Job title of the employee who took the action. Null where the employee record carries no designation, which the employee table permits.",
             "example": "Site Manager",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "approverId": {
             "description": "Id of the employee who took the action.",
@@ -8912,9 +9098,12 @@
             "type": "string"
           },
           "comments": {
-            "description": "Comments on the action.",
+            "description": "Comments on the action. Null where the approver recorded none, and on the pending rows written when the approval chain is built, which carry no comment yet.",
             "example": "Approved, please plan handover before you leave",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "createdAt": {
             "description": "Time this approval record was created.",
@@ -8923,15 +9112,21 @@
             "type": "string"
           },
           "delegatedFromId": {
-            "description": "Id of the approver this action was delegated from, if any.",
+            "description": "Id of the approver this action was delegated from. Null unless the action reached this approver by delegation.",
             "example": 3,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "delegatedFromName": {
-            "description": "Name of the approver this action was delegated from, if any.",
+            "description": "Name of the approver this action was delegated from. Always null on this response: the mapper leaves the field unset and nothing else fills it in, so resolve the name from delegatedFromId.",
             "example": "Suresh Pillai",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "description": "Id of the approval record.",
@@ -9014,16 +9209,22 @@
             "type": "number"
           },
           "carryForwardExpiryDate": {
-            "description": "Date the carried-forward days expire, if the policy sets one.",
+            "description": "Date the carried-forward days expire. Null where the policy sets no carry-forward expiry, and where nothing was carried forward.",
             "example": "2026-03-31",
             "format": "date",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "carryForwardFromPrevious": {
-            "description": "Days carried forward from the previous year.",
+            "description": "Days carried forward from the previous year. Written as zero on every balance the application creates, but the column permits null, so a row loaded outside the application can carry none.",
             "example": 1.5,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "employeeId": {
             "description": "Id of the employee this balance belongs to.",
@@ -9043,10 +9244,13 @@
             "type": "integer"
           },
           "lastCalculatedAt": {
-            "description": "Time this balance was last recalculated.",
+            "description": "Time this balance was last recalculated. Null until the accrual service first runs against the balance, and on the transient zero balance returned for a year before the employee joined.",
             "example": "2026-08-20T02:00:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "leavePolicy": {
             "$ref": "#/components/schemas/LeavePolicySimpleDto",
@@ -9141,9 +9345,12 @@
             "type": "string"
           },
           "department": {
-            "description": "Department of the employee on leave.",
+            "description": "Department of the employee on leave. Copied from the employee record when the entry is written, and null where that record carries no department.",
             "example": "Civil",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "employeeId": {
             "description": "Id of the employee on leave.",
@@ -9375,21 +9582,30 @@
         "description": "A leave policy with its quota, accrual and eligibility rules.",
         "properties": {
           "accrualRatePerMonth": {
-            "description": "Days accrued per completed month, for policies that accrue monthly.",
+            "description": "Days accrued per completed month. Null for policies that grant the full quota upfront instead of accruing monthly.",
             "example": 1.0,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "advanceNoticeDays": {
-            "description": "Minimum number of days' notice required before the leave starts.",
+            "description": "Minimum number of days' notice required before the leave starts. Defaults to 0 on a create payload that omits the field; a null sent explicitly is stored as null, because the column permits it.",
             "example": 2,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "allowHalfDay": {
-            "description": "Whether requests under this policy can be for half a day.",
+            "description": "Whether requests under this policy can be for half a day. Defaults to true when the create payload omits the field, and is null where the payload set it to null, which the column allows.",
             "example": true,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "annualQuota": {
             "description": "Total days granted per year under this policy.",
@@ -9398,27 +9614,39 @@
             "type": "number"
           },
           "applicableGenders": {
-            "description": "Genders this policy applies to.",
+            "description": "Genders this policy applies to. Defaults to ALL for a create payload that omits the field. The column is nullable, so a policy created with an explicit null carries none.",
             "example": "ALL",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "attachmentRequiredAfterDays": {
-            "description": "Number of consecutive days after which an attachment becomes required.",
+            "description": "Number of consecutive days after which an attachment becomes required. Null where the policy sets no such threshold.",
             "example": 3,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "carryForwardExpiryMonths": {
-            "description": "Number of months into the next year before carried-forward days expire.",
+            "description": "Number of months into the next year before carried-forward days expire. Null where carried-forward days do not expire, and on any policy that allows no carry forward at all.",
             "example": 3,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "carryForwardLimit": {
-            "description": "Maximum days that can be carried forward into the next year.",
+            "description": "Maximum days that can be carried forward into the next year. Null where the policy allows no carry forward.",
             "example": 5.0,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "createdAt": {
             "description": "Time the policy was created.",
@@ -9427,15 +9655,21 @@
             "type": "string"
           },
           "description": {
-            "description": "Description of the leave type and when it applies.",
+            "description": "Description of the leave type and when it applies. Null where the policy was created without one.",
             "example": "Short-notice leave for personal matters, not carried forward beyond the configured limit",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "displayOrder": {
-            "description": "Order this policy is shown in, relative to the organization's other policies.",
+            "description": "Order this policy is shown in, relative to the organization's other policies. Defaults to 0 when the create payload omits the field; the nullable column keeps an explicit null.",
             "example": 1,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "id": {
             "description": "Id of the policy.",
@@ -9449,9 +9683,12 @@
             "type": "boolean"
           },
           "isPaid": {
-            "description": "Whether leave taken under this policy is paid.",
+            "description": "Whether leave taken under this policy is paid. Defaults to true on a create payload that omits the field. The column is nullable, so an explicit null is stored and returned.",
             "example": true,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "leaveTypeCode": {
             "description": "Short code identifying the leave type.",
@@ -9464,22 +9701,31 @@
             "type": "string"
           },
           "maxDaysPerRequest": {
-            "description": "Largest number of days that can be requested at once.",
+            "description": "Largest number of days that can be requested at once. Null where the policy sets no per-request ceiling.",
             "example": 15.0,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "minDaysPerRequest": {
-            "description": "Smallest number of days that can be requested at once.",
+            "description": "Smallest number of days that can be requested at once. The create payload defaults it to 0.5 when the field is omitted, but the column is nullable and a null sent explicitly is written through.",
             "example": 0.5,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "minServiceMonths": {
-            "description": "Minimum months of service before an employee becomes eligible.",
+            "description": "Minimum months of service before an employee becomes eligible. Defaults to 0 when the create payload omits the field; the column is nullable, so an explicit null survives to the response.",
             "example": 6,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "multiLevelApprovalEnabled": {
             "description": "Whether leave requests under this policy go through the full multi-level approval chain (the employee's management line). When false, a single approval by the direct approver finalizes the request.",
@@ -9498,9 +9744,12 @@
             "type": "string"
           },
           "requiresAttachment": {
-            "description": "Whether a supporting attachment is required for requests under this policy.",
+            "description": "Whether a supporting attachment is required for requests under this policy. Defaults to false when the field is absent from the create payload, and stays null if the payload sends null, since the column is nullable.",
             "example": false,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "updatedAt": {
             "description": "Time the policy was last updated.",
@@ -9515,9 +9764,12 @@
         "description": "Condensed view of a leave policy, used when embedding it inside a request or balance record.",
         "properties": {
           "allowHalfDay": {
-            "description": "Whether requests under this policy can be for half a day.",
+            "description": "Whether requests under this policy can be for half a day. Defaults to true when the create payload omits the field, and is null where the payload set it to null, which the column allows.",
             "example": true,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "annualQuota": {
             "description": "Total days granted per year under this policy.",
@@ -9532,9 +9784,12 @@
             "type": "integer"
           },
           "isPaid": {
-            "description": "Whether leave taken under this policy is paid.",
+            "description": "Whether leave taken under this policy is paid. Defaults to true on a create payload that omits the field. The column is nullable, so an explicit null is stored and returned.",
             "example": true,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "leaveTypeCode": {
             "description": "Short code identifying the leave type.",
@@ -9799,20 +10054,29 @@
             "type": "array"
           },
           "cancellationReason": {
-            "description": "Reason the request was cancelled, if it was.",
+            "description": "Reason the request was cancelled. Null until the request is cancelled, and on a cancellation recorded without a reason.",
             "example": "Wedding postponed to next month",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "cancelledAt": {
-            "description": "Time the request was cancelled, if it was.",
+            "description": "Time the request was cancelled. Null until the request is cancelled.",
             "example": "2026-09-10T11:20:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "contactDuringLeave": {
-            "description": "Contact number or address reachable during the leave.",
+            "description": "Contact number or address reachable during the leave. Null where the requester supplied none.",
             "example": 9847012345,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "createdAt": {
             "description": "Time the request was created.",
@@ -9821,26 +10085,38 @@
             "type": "string"
           },
           "currentApprovalLevel": {
-            "description": "The approval level currently pending action.",
+            "description": "The approval level currently pending action. Set when the approval chain is built at submission, so it is null on a draft and on a request that was finalized immediately because no approver could be resolved for the employee.",
             "example": 1,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "currentApproverId": {
-            "description": "Id of the employee who must act next in the approval chain.",
+            "description": "Id of the employee who must act next in the approval chain. Never set on a draft, and cleared once the request reaches a final state (approved, rejected, cancelled or withdrawn).",
             "example": 5,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "currentApproverName": {
-            "description": "Name of the employee who must act next in the approval chain.",
+            "description": "Name of the employee who must act next in the approval chain. Null whenever currentApproverId is, since it is read from that employee.",
             "example": "Anitha Menon",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "department": {
-            "description": "Department of the employee who raised the request.",
+            "description": "Department of the employee who raised the request. Read from the employee record, which the employee table permits to carry no department.",
             "example": "Civil",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "employeeId": {
             "description": "Id of the employee who raised the request.",
@@ -9860,30 +10136,42 @@
             "type": "string"
           },
           "endHalfDayType": {
-            "description": "Whether the end date is a full day or a half day.",
+            "description": "Whether the end date is a full day or a half day. Null where the requester did not mark the last day as a half day; the column is written only when they did.",
             "enum": [
               "FULL_DAY",
               "FIRST_HALF",
               "SECOND_HALF"
             ],
             "example": "SECOND_HALF",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "handoverNotes": {
-            "description": "Notes for the person receiving the handover.",
+            "description": "Notes for the person receiving the handover. Null where none were written.",
             "example": "Site inspection at Asset Homes Chennai is due on 2026-09-15, please coordinate with the QA team",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "handoverToId": {
-            "description": "Id of the employee handling handover during the leave, if any.",
+            "description": "Id of the employee handling handover during the leave. Null where no handover was arranged.",
             "example": 12,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "handoverToName": {
-            "description": "Name of the employee handling handover during the leave, if any.",
+            "description": "Name of the employee handling handover during the leave. Filled in only by the single-request read; every list response, and every response returned by a create, update or approval action, leaves it null even when handoverToId is set.",
             "example": "Deepak Nair",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "description": "Id of the leave request.",
@@ -9896,10 +10184,13 @@
             "description": "Leave policy the request is raised under."
           },
           "maxApprovalLevel": {
-            "description": "The highest approval level configured for this request.",
+            "description": "The highest approval level configured for this request. Written alongside currentApprovalLevel when the chain is built, and null wherever that one is.",
             "example": 2,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "organizationId": {
             "description": "Id of the organization the employee belongs to.",
@@ -9924,14 +10215,17 @@
             "type": "string"
           },
           "startHalfDayType": {
-            "description": "Whether the start date is a full day or a half day.",
+            "description": "Whether the start date is a full day or a half day. Null where the requester did not mark the first day as a half day; the column is written only when they did.",
             "enum": [
               "FULL_DAY",
               "FIRST_HALF",
               "SECOND_HALF"
             ],
             "example": "FULL_DAY",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "description": "Current status of the request.",
@@ -10058,15 +10352,21 @@
             "type": "string"
           },
           "createdById": {
-            "description": "Id of the employee who created the transaction, for manual adjustments.",
+            "description": "Id of the employee who created the transaction. Written only on a manual adjustment, so it is null on the accrual and approval-deduction rows the system posts itself.",
             "example": 2,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "createdByName": {
-            "description": "Name of the employee who created the transaction, for manual adjustments.",
+            "description": "Name of the employee who created the transaction. Always null on this response: the mapper leaves the field unset and nothing else fills it in, so resolve the name from createdById.",
             "example": "Anand Rajan",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "days": {
             "description": "Signed number of days moved by this transaction.",
@@ -10075,9 +10375,12 @@
             "type": "number"
           },
           "description": {
-            "description": "Description of the transaction.",
+            "description": "Description of the transaction. Written on every path the application takes (accrual, approval deduction and manual adjustment), but the column permits null, so a row loaded outside the application can carry none.",
             "example": "Deduction for leave request LR-2026-0241",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "employeeId": {
             "description": "Id of the employee this transaction belongs to.",
@@ -10103,10 +10406,13 @@
             "type": "integer"
           },
           "leaveRequestId": {
-            "description": "Id of the leave request this transaction is linked to, if any.",
+            "description": "Id of the leave request this transaction is linked to. Null for transactions with no originating request, such as a monthly accrual or a manual adjustment.",
             "example": 241,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "leaveTypeName": {
             "description": "Name of the leave type the balance is tracked under.",
@@ -10114,21 +10420,30 @@
             "type": "string"
           },
           "referenceMonth": {
-            "description": "Month the transaction is attributed to, for accrual transactions.",
+            "description": "Month the transaction is attributed to. Written only by the accrual service, so it is null on deductions and manual adjustments.",
             "example": 9,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "referenceYear": {
-            "description": "Year the transaction is attributed to.",
+            "description": "Year the transaction is attributed to. Written only by the accrual service, so it is null on deductions and manual adjustments.",
             "example": 2026,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "requestNumber": {
-            "description": "Request number of the linked leave request, if any.",
+            "description": "Request number of the linked leave request. Null whenever leaveRequestId is, since it is read from that request.",
             "example": "LR-2026-0241",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "transactionDate": {
             "description": "Date the transaction is effective.",
@@ -11357,27 +11672,47 @@
         "description": "A non-conformance report as returned by the API, with its assignment and closure trail.",
         "properties": {
           "closedAt": {
+            "description": "When the report was closed. Null until it is closed, and cleared again when a closed report is reopened.",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "closedById": {
+            "description": "Employee who closed the report. Null until the report is closed, cleared again when a closed report is reopened, and null where the closing user has no employee record in the current organization.",
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "correctiveActionCompletedAt": {
+            "description": "When the corrective action was marked complete. Null until it is.",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "correctiveActionRemarks": {
-            "type": "string"
+            "description": "What was done to correct the non-conformance. Null until the corrective action is marked complete.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "createdAt": {
             "format": "date-time",
             "type": "string"
           },
           "defectId": {
+            "description": "Inspection defect the report was raised from. Null where the report was raised against the inspection as a whole rather than one defect.",
             "format": "uuid",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "description": {
             "type": "string"
@@ -11394,20 +11729,32 @@
             "type": "string"
           },
           "raisedById": {
+            "description": "Employee who raised the report, resolved from the signed-in user's employee record in the current organization. Null where that user has no employee record.",
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "severity": {
+            "description": "How serious the non-conformance is. Null where none was recorded when the report was raised.",
             "enum": [
               "critical",
               "major",
               "minor"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "siteEngineerId": {
+            "description": "Site engineer the report is assigned to. Null until the report is assigned.",
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "status": {
             "enum": [
@@ -11422,8 +11769,12 @@
             "type": "string"
           },
           "targetDate": {
+            "description": "Date the corrective action is due. Null until one is set, which normally happens when the report is assigned.",
             "format": "date",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "title": {
             "type": "string"
@@ -11440,15 +11791,27 @@
             "type": "string"
           },
           "verificationRemarks": {
-            "type": "string"
+            "description": "Remarks recorded at re-inspection. Null until the report is verified, rejected or reopened.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "verifiedAt": {
+            "description": "When the corrective work was accepted or refused on re-inspection. Null until re-inspection.",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "verifiedById": {
+            "description": "Employee who accepted or refused the corrective work on re-inspection. Null until re-inspection, and null again where the verifying user has no employee record in the current organization.",
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -11470,9 +11833,12 @@
         "description": "An in-app notification raised by an event in the leave workflow.",
         "properties": {
           "actionUrl": {
-            "description": "URL the client should navigate to when the notification is opened.",
+            "description": "URL the client should navigate to when the notification is opened. Null where the sender supplied none, leaving the notification with nothing to open.",
             "example": "/leave-requests/241",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "createdAt": {
             "description": "Time the notification was created.",
@@ -11481,15 +11847,21 @@
             "type": "string"
           },
           "entityId": {
-            "description": "Id of the entity this notification refers to.",
+            "description": "Id of the entity this notification refers to. Null whenever entityType is, since the two are set together.",
             "example": 241,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "entityType": {
-            "description": "Type of the entity this notification refers to.",
+            "description": "Type of the entity this notification refers to. The leave senders always set it, but a notification raised through the generic delivery seam carries whatever the sender put in the draft, which may be nothing.",
             "example": "LEAVE_REQUEST",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "description": "Id of the notification.",
@@ -11524,10 +11896,13 @@
             "type": "string"
           },
           "readAt": {
-            "description": "Time the notification was read, if it has been.",
+            "description": "Time the notification was read. Null until it is marked read.",
             "example": "2026-08-31T09:10:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "recipientId": {
             "description": "Id of the employee the notification is addressed to.",
@@ -16779,7 +17154,11 @@
         "description": "A product-supplied starter checklist for one trade, which an organization adopts to create its own editable template.",
         "properties": {
           "description": {
-            "type": "string"
+            "description": "What the starter checklist covers. Null where the shipped seed row carried none.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "format": "uuid",

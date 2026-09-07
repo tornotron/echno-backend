@@ -12,6 +12,9 @@ public record ChecklistTemplateDto(
         UUID id,
         InspectionTrade trade,
         String name,
+        @Schema(description = "What the template covers. Null where none was recorded, including "
+                + "on a template adopted from a starter checklist that carried none.",
+                nullable = true)
         String description,
         boolean active,
         int version,
