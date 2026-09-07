@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationSer
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -49,10 +50,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * service does not stand in for a guard either, because {@code Employee} is filtered, so it
  * evaluates within the caller's own tenant and cannot see a row in another one.
  *
- * <p>The caller modelled here holds {@code employee:create} and is a member of
- * {@link #OWN_ORG}. {@code @orgSecurity} is mocked so the tenant branch is exercised without
- * building JWT group claims; the authority is real, granted on the token, because that half of
- * the expression is what has to keep working.
+ * <p>The authority half was the other half of the problem, and it is gone. {@code employee:create}
+ * and {@code employee:admin} are bare {@code resource:scope} authorities, minted only by
+ * {@code JwtAuthConverter.extractPermissions} from the {@code authorization} claim of an RPT, and
+ * the realm defines no authorization scopes, so neither is ever granted. ANDed onto a working
+ * tenant check it refused every caller, which is what #734 records. The half that says who may add
+ * somebody to an organization is now the web twin's: a system admin or an HR admin of the tenant
+ * the session is scoped to.
+ *
+ * <p>{@code @orgSecurity} is mocked so both branches are exercised without building JWT group
+ * claims, and the role list is stubbed exactly rather than through {@code any(String[].class)}, so
+ * a guard that widened to every member would fail here rather than pass.
  */
 @WebMvcTest(EmployeeController.class)
 @Import(EmployeeMobileJoinGuardTest.TestSecurityConfig.class)
@@ -84,16 +92,27 @@ class EmployeeMobileJoinGuardTest {
     @MockitoBean
     private RPTCache rptCache;
 
+    /** The pair the web twin's joinOrganization names. */
+    private static final String[] JOIN_ROLES = {"system-admin", "hr-admin"};
+
     @BeforeEach
     void callerIsEntitledToTheirOwnOrganizationOnly() {
         when(orgSecurity.isCurrentTenant(OWN_ORG)).thenReturn(true);
         when(orgSecurity.isCurrentTenant(FOREIGN_ORG)).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+    }
+
+    /** An HR admin of the tenant the session is scoped to. */
+    private void callerIsAnHrAdmin() {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(JOIN_ROLES)).thenReturn(true);
     }
 
     @Test
     void join_intoAnotherOrganization_isForbiddenAndNeverReachesTheService() throws Exception {
+        callerIsAnHrAdmin();
+
         mockMvc.perform(post("/api/v1/employee/joinOrganization/" + USER_ID + "/" + FOREIGN_ORG)
-                        .with(jwt().authorities(new SimpleGrantedAuthority("employee:create")))
+                        .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_BODY))
                 .andExpect(status().isForbidden());
@@ -104,9 +123,25 @@ class EmployeeMobileJoinGuardTest {
     }
 
     @Test
-    void join_holdingTheGlobalAdminAuthorityIntoAnotherOrganization_isAlsoForbidden() throws Exception {
-        mockMvc.perform(post("/api/v1/employee/joinOrganization/" + USER_ID + "/" + FOREIGN_ORG)
-                        .with(jwt().authorities(new SimpleGrantedAuthority("employee:admin")))
+    void join_intoTheCallersOwnOrganization_isAllowed() throws Exception {
+        callerIsAnHrAdmin();
+
+        mockMvc.perform(post("/api/v1/employee/joinOrganization/" + USER_ID + "/" + OWN_ORG)
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_BODY))
+                .andExpect(status().isCreated());
+    }
+
+    /**
+     * The role half of the expression still has to be satisfied on its own. Being scoped to the
+     * organization is not a substitute for holding the role, or every member of an organization
+     * could add employees to it.
+     */
+    @Test
+    void join_intoTheCallersOwnOrganizationWithoutTheRole_isForbidden() throws Exception {
+        mockMvc.perform(post("/api/v1/employee/joinOrganization/" + USER_ID + "/" + OWN_ORG)
+                        .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_BODY))
                 .andExpect(status().isForbidden());
@@ -114,24 +149,14 @@ class EmployeeMobileJoinGuardTest {
         verifyNoInteractions(employeeService);
     }
 
-    @Test
-    void join_intoTheCallersOwnOrganization_isStillAllowed() throws Exception {
-        mockMvc.perform(post("/api/v1/employee/joinOrganization/" + USER_ID + "/" + OWN_ORG)
-                        .with(jwt().authorities(new SimpleGrantedAuthority("employee:create")))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_BODY))
-                .andExpect(status().isCreated());
-    }
-
     /**
-     * The authority half of the expression still has to be satisfied on its own. Being scoped to
-     * the organization is not a substitute for holding the permission, or every member of an
-     * organization could add employees to it.
+     * The authority the guard used to name is not kept as an alternative branch. It cannot be
+     * obtained in production, so a caller holding it in a test proves nothing about the endpoint.
      */
     @Test
-    void join_intoTheCallersOwnOrganizationWithoutTheAuthority_isForbidden() throws Exception {
+    void join_holdingOnlyTheOldAuthority_isForbidden() throws Exception {
         mockMvc.perform(post("/api/v1/employee/joinOrganization/" + USER_ID + "/" + OWN_ORG)
-                        .with(jwt())
+                        .with(jwt().authorities(new SimpleGrantedAuthority("employee:admin")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_BODY))
                 .andExpect(status().isForbidden());
