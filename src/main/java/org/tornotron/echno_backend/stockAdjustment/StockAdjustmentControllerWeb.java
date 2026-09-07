@@ -48,7 +48,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List all stock adjustments",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -62,7 +62,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List stock adjustments, paginated",
             description = "Returns a single page of stock adjustments ordered by creation time, most recent "
@@ -78,7 +78,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get a stock adjustment by id",
             description = "Returns a single stock adjustment document, including its header fields and line "
@@ -94,7 +94,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @GetMapping("/by-source-document")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List the stock adjustments raised to answer one document",
             description = "Returns the adjustments naming the given source document, most recently "

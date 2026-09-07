@@ -45,7 +45,7 @@ public class AssetControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List all assets",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -59,7 +59,7 @@ public class AssetControllerWeb {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List assets, paginated",
             description = "Returns a page of assets for the caller's current tenant organization. The "
@@ -75,7 +75,7 @@ public class AssetControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get an asset by id",
             description = "Returns a single asset, including its resolved vendor and storage location."
@@ -143,7 +143,7 @@ public class AssetControllerWeb {
     }
 
     @GetMapping("/{id}/movements")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Read an asset's movement ledger",
             description = "Returns a page of the asset's movement entries, newest first: what moved, "
@@ -160,7 +160,7 @@ public class AssetControllerWeb {
     }
 
     @GetMapping("/{id}/placement-history")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Read how long an asset spent in each place",
             description = "Turns consecutive ledger entries into the stretches of time the asset "
@@ -181,7 +181,7 @@ public class AssetControllerWeb {
     }
 
     @GetMapping("/{id}/documents")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List an asset's documents",
             description = "Returns the files filed against the asset: purchase invoice, warranty, "
@@ -201,7 +201,7 @@ public class AssetControllerWeb {
     }
 
     @GetMapping("/documents/expiring")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List asset documents that are about to expire",
             description = "Returns every asset document in the organization whose expiry falls on or "

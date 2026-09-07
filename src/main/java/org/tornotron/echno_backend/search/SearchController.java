@@ -52,7 +52,7 @@ public class SearchController {
      * @return The matching hits, grouped by kind and ranked within each.
      */
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Search projects, tasks and issues",
             description = "Returns records of any of the three kinds whose name contains the term, "

@@ -104,7 +104,7 @@ public class TaskControllerWeb {
      * @return A {@link ResponseEntity} containing the task DTOs and the count headers.
      */
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List tasks",
             description = "Returns the current tenant's tasks as a bare array, capped at "
@@ -134,7 +134,7 @@ public class TaskControllerWeb {
      * @return A {@link ResponseEntity} containing the page of task DTOs.
      */
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List tasks, paginated and filtered",
             description = "Returns a single page of tasks with the paging metadata included, "
@@ -153,7 +153,7 @@ public class TaskControllerWeb {
     }
 
     @GetMapping("/projectId/{projectId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List tasks for a project",
             description = "Returns every task belonging to the given project."
@@ -174,7 +174,7 @@ public class TaskControllerWeb {
      * @return A {@link ResponseEntity} containing the task DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get a task by id",
             description = "Returns a single task including its creator, assignees, category, issues and "

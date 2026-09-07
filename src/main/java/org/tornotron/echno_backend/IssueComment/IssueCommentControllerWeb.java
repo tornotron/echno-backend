@@ -55,7 +55,7 @@ public class IssueCommentControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List issue comments",
             description = "Returns a single page of issue comments. The pageNo and pageSize parameters "
@@ -71,7 +71,7 @@ public class IssueCommentControllerWeb {
     }
 
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get an issue comment by id",
             description = "Returns a single issue comment."
@@ -86,7 +86,7 @@ public class IssueCommentControllerWeb {
     }
 
     @GetMapping("/issueId/{issueId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant() or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List comments for an issue",
             description = "Returns every comment left on the given issue."
