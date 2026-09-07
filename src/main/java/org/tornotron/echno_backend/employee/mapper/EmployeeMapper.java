@@ -36,5 +36,6 @@ public interface EmployeeMapper {
     @Mapping(source = "user.createdAt", target = "createdAt")
     @Mapping(source = "user.updatedAt", target = "updatedAt")
     @Mapping(source = "user.attachments", target = "attachments")
+    @Mapping(source = "user.keycloakId", target = "userKeycloakId")
     EmployeeDto toDto(Employee employee);
 }
