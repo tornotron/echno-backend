@@ -65,9 +65,14 @@ class PhantomAuthorityCensusTest {
     /**
      * A bare {@code resource:scope} authority. The colon is what distinguishes it from a realm
      * role, which carries no scope and is granted by an ordinary role claim.
+     *
+     * <p>Both halves are deliberately anything-but-a-quote-or-colon rather than a character class.
+     * {@code extractPermissions} concatenates the resource name and the scope straight out of the
+     * token without validating either, so a guard naming {@code employee:read_all} would be just
+     * as unsatisfiable and a tighter pattern would walk past it.
      */
     private static final Pattern PHANTOM_AUTHORITY =
-            Pattern.compile("hasAuthority\\('[A-Za-z][A-Za-z0-9-]*:[A-Za-z][A-Za-z0-9-]*'\\)");
+            Pattern.compile("hasAuthority\\('[^':]+:[^':]+'\\)");
 
     private static final List<Class<? extends Annotation>> MAPPINGS = List.of(
             RequestMapping.class, GetMapping.class, PostMapping.class,
