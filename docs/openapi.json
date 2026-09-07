@@ -1357,10 +1357,13 @@
         "description": "A single day's attendance record for an employee, with its clock events, movements, regularizations and approval state.",
         "properties": {
           "afternoonSessionMinutes": {
-            "description": "Minutes worked in the afternoon session, after the lunch break.",
+            "description": "Minutes worked in the afternoon session, after the lunch break. Null whenever the day's totals have not been computed.",
             "example": 255,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "approvalStatus": {
             "description": "Approval status of the record.",
@@ -1373,21 +1376,30 @@
             "type": "string"
           },
           "approvedAt": {
-            "description": "Timestamp the record was approved or rejected.",
+            "description": "Timestamp the record was approved or rejected. Null until a decision is made, and cleared again when a later out-of-fence punch reopens a decided day.",
             "example": "2026-01-16T10:15:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "approvedBy": {
-            "description": "Name of the employee who approved or rejected the record.",
+            "description": "Name of the employee who approved or rejected the record. Null until a decision is made, and null again when a later out-of-fence punch reopens a day that had already been decided. Reads as system where the decision came from a job with no signed-in user.",
             "example": "Anand Rajashekar",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "approvedById": {
-            "description": "Employee id of the person who approved or rejected the record, for filtering by approver.",
+            "description": "Employee id of the person who approved or rejected the record, for filtering by approver. Null before any decision, and also after a decision made with no signed-in user, where approvedBy reads as system. Absent here does not mean unapproved: read approvalStatus for that.",
             "example": 42,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "attendanceDate": {
             "description": "Calendar date the record covers.",
@@ -1396,23 +1408,29 @@
             "type": "string"
           },
           "breakDurationMinutes": {
-            "description": "Total minutes spent on breaks during the day.",
+            "description": "Total minutes spent on breaks during the day. Null whenever the day's totals have not been computed; a computed zero means no break was punched.",
             "example": 60,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "clockEvents": {
-            "description": "Clock events recorded for the day, in chronological order.",
+            "description": "Clock events recorded for the day, in chronological order. Empty rather than null on a day with no punches.",
             "items": {
               "$ref": "#/components/schemas/ClockEventDto"
             },
             "type": "array"
           },
           "createdAt": {
-            "description": "Timestamp the record was created.",
+            "description": "Timestamp the record was created. Populated on every insert the application makes, but the column permits null, so a row loaded outside the application can carry none.",
             "example": "2026-01-15T09:02:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "employeeId": {
             "description": "Id of the employee.",
@@ -1429,7 +1447,10 @@
             "description": "Employee id of the person expected to decide the geofence exception: the employee's reporting manager, or a project manager assigned to the site. Null when neither could be resolved, in which case the attendance record managers decide as they do for every other record.",
             "example": 42,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "id": {
             "description": "Id of the attendance record.",
@@ -1453,34 +1474,46 @@
             "type": "boolean"
           },
           "leaveId": {
-            "description": "Id of the leave request this record was generated from, if the day is on leave.",
+            "description": "Id of the leave request this record was generated from. Null on any day not taken as leave.",
             "example": 9,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "leaveType": {
-            "description": "Type of leave applied on this date, if any.",
+            "description": "Type of leave applied on this date. Null on any day not taken as leave, and set together with leaveId.",
             "example": "CASUAL",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "morningSessionMinutes": {
-            "description": "Minutes worked in the morning session, before the lunch break.",
+            "description": "Minutes worked in the morning session, before the lunch break. Null whenever the day's totals have not been computed.",
             "example": 225,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "movements": {
-            "description": "Movements logged against this record.",
+            "description": "Movements logged against this record. Empty rather than null where none were logged.",
             "items": {
               "$ref": "#/components/schemas/MovementRecordDto"
             },
             "type": "array"
           },
           "overtimeMinutes": {
-            "description": "Minutes worked beyond the shift's overtime threshold.",
+            "description": "Minutes worked beyond the shift's overtime threshold. Null whenever the day's totals have not been computed, which is different from a computed zero meaning no overtime was earned.",
             "example": 30,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "projectId": {
             "description": "Id of the project the employee was assigned to on this date.",
@@ -1494,16 +1527,19 @@
             "type": "string"
           },
           "regularizations": {
-            "description": "Regularization requests filed against this record.",
+            "description": "Regularization requests filed against this record. Empty rather than null where none were filed.",
             "items": {
               "$ref": "#/components/schemas/AttendanceRegularizationDto"
             },
             "type": "array"
           },
           "remarks": {
-            "description": "Remarks attached to the record, for example an approval or rejection note.",
+            "description": "Remarks attached to the record, for example an approval or rejection note. Null where nobody wrote one.",
             "example": "Confirmed with site supervisor",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "requiresGeofenceApproval": {
             "description": "Whether this day contains a punch the employee marked themselves from outside the project's geofence, having given a reason. Such a record is held for a decision: it is still waiting while the approval status is PENDING.",
@@ -1511,8 +1547,15 @@
             "type": "boolean"
           },
           "shiftTiming": {
-            "$ref": "#/components/schemas/ShiftTimingDto",
-            "description": "Shift the employee was scheduled to work."
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShiftTimingDto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Shift the employee was scheduled to work. Null on a record raised by marking someone absent or on leave, which carries no shift. A null shift also means the day's minutes are never computed."
           },
           "status": {
             "description": "Computed attendance status for the day.",
@@ -1532,16 +1575,22 @@
             "type": "string"
           },
           "totalWorkMinutes": {
-            "description": "Total minutes worked across all sessions.",
+            "description": "Total minutes worked across all sessions. Null until the day is computed, which never happens on a record with no shift or one raised by marking someone absent or on leave. Null means nothing was calculated and must not be read as zero minutes worked.",
             "example": 480,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "updatedAt": {
-            "description": "Timestamp the record was last updated.",
+            "description": "Timestamp the record was last updated. Populated on insert as well as update, but the column permits null on the same terms as createdAt.",
             "example": "2026-01-15T18:05:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -2847,22 +2896,28 @@
         "description": "A single clock event within an attendance record.",
         "properties": {
           "attachments": {
-            "description": "Attachments supporting the event, for example a check-in photo.",
+            "description": "Attachments supporting the event, for example a check-in photo. Empty rather than null where no photo was supplied.",
             "items": {
               "$ref": "#/components/schemas/AttachmentDto"
             },
             "type": "array"
           },
           "devicePlatform": {
-            "description": "Platform the event was recorded from.",
+            "description": "Platform the event was recorded from. Null where the client sent none, and always null on an event written by a regularization.",
             "example": "android",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "distanceFromProject": {
-            "description": "Distance from the project site at the time of the event, in metres. Null when the geofence was not evaluated.",
+            "description": "Distance from the project site at the time of the event, in metres. Null when the geofence was not evaluated, which is exactly when isWithinGeofence is null. A null is an absent measurement; a zero asserts the punch was taken on the marker.",
             "example": 45.0,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "eventTimestamp": {
             "description": "Timestamp of the event.",
@@ -2884,19 +2939,28 @@
           "geofenceExceptionReason": {
             "description": "Why the employee marked their own attendance from outside the site boundary. Null when they did not.",
             "example": "Working from head office today for the client review",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "geofenceRadiusMeters": {
             "description": "The geofence radius the verdict was reached against, in metres, as it stood at the time of the event. Null when the geofence was not evaluated.",
             "example": 100,
             "format": "int32",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "gpsAccuracy": {
-            "description": "GPS accuracy of the captured coordinates, in metres.",
+            "description": "GPS accuracy of the captured coordinates, in metres. Null where the device sent none, and always null on an event written by a regularization.",
             "example": 8.5,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "id": {
             "description": "Id of the clock event.",
@@ -2912,24 +2976,35 @@
           "isWithinGeofence": {
             "description": "Whether the event's coordinates fall within the project's geofence. Null when no verdict was reached, which is the case when the project has no coordinates, the event carries no position, or the event came from a regularization rather than a live punch. Null is not a violation and must not be shown as one.",
             "example": true,
-            "type": "boolean"
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "latitude": {
-            "description": "Latitude captured for the event.",
+            "description": "Latitude captured for the event. Null where the project does not require a location, and null on an event written by a regularization, which records a punch that was never taken on a device.",
             "example": 13.0827,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "longitude": {
-            "description": "Longitude captured for the event.",
+            "description": "Longitude captured for the event. Null under the same conditions as latitude, and the two are always absent or present together.",
             "example": 80.2707,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "photoUrl": {
-            "description": "URL of the photo captured with the event, if any.",
-            "example": "https://storage.echno.xyz/clock-events/3301-in.jpg",
-            "type": "string"
+            "description": "Always null. The mapper ignores this field and the clock event has no photo of its own; photos taken with a punch are returned in attachments instead, each with its own signed download URL.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectId": {
             "description": "Id of the project the event was recorded against.",
@@ -2943,31 +3018,46 @@
             "type": "string"
           },
           "recordedById": {
-            "description": "Employee id of whoever submitted the punch. Differs from the employee the record belongs to when a supervisor marked attendance for their team, in which case the geofence is not evaluated because the position captured is the supervisor's.",
+            "description": "Employee id of whoever submitted the punch. Differs from the employee the record belongs to when a supervisor marked attendance for their team, in which case the geofence is not evaluated because the position captured is the supervisor's. Null when the caller resolves to no employee in this organization, and on an event written by a regularization.",
             "example": 42,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "regularizationReason": {
-            "description": "Reason given if this event was regularized.",
+            "description": "Reason given if this event was regularized. Null on every punch taken live on a device.",
             "example": "Phone battery died before evening clock-out",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "remarks": {
-            "description": "Optional remarks about the event.",
+            "description": "Optional remarks about the event. Null where none were given, and always null on an event written by a regularization.",
             "example": "Reported directly to the second floor slab pour",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "verifiedAt": {
-            "description": "Timestamp the event was verified.",
+            "description": "When the event was verified. Null on the same terms as verifiedBy, and the two are written together if anything ever writes them.",
             "example": "2026-01-16T11:00:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "verifiedBy": {
-            "description": "Name or id of the person who verified the event, if regularized.",
+            "description": "Who verified the event. The column exists but no code path in the application writes it, so it is null on every event this server records.",
             "example": "Anand Rajashekar",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -5952,9 +6042,12 @@
         "description": "A goods received note with its vendor, project, storage location and received line items.",
         "properties": {
           "deliveryChallanNumber": {
-            "description": "Vendor delivery challan number.",
+            "description": "Vendor delivery challan number. Null where none was recorded.",
             "example": "DC-88213",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "grnNumber": {
             "description": "Goods received note number.",
@@ -5968,22 +6061,31 @@
             "type": "integer"
           },
           "invoiceAmount": {
-            "description": "Vendor invoice amount for the receipt, if supplied.",
+            "description": "Vendor invoice amount for the receipt. Null where no invoice was supplied, which is not the same as an invoice for zero.",
             "example": 41475.0,
             "format": "double",
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "invoiceNumber": {
-            "description": "Vendor invoice number for the receipt, if supplied.",
+            "description": "Vendor invoice number for the receipt. Null where none was supplied.",
             "example": "INV-5567",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "items": {
-            "description": "Received line items.",
+            "description": "Received line items. Null rather than an empty array when the receipt has no lines: the mapper clears an empty list deliberately.",
             "items": {
               "$ref": "#/components/schemas/GrnItemDto"
             },
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "overReceiptAcknowledged": {
             "description": "True when this receipt took a material past the quantity its purchase order asked for and the excess was acknowledged on the payload.",
@@ -5991,30 +6093,49 @@
             "type": "boolean"
           },
           "projectId": {
-            "description": "Project the goods were received for.",
+            "description": "Project the goods were received for. The column permits null and rows exist without it, although the entity declares the association non-optional.",
             "example": 42,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "projectName": {
-            "description": "Project name.",
+            "description": "Project name. Null whenever projectId is, and also on a project that has no name recorded.",
             "example": "Tower B fit-out",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "purchaseOrderId": {
-            "description": "Purchase order the receipt is matched against, if any.",
+            "description": "Purchase order the receipt is matched against. Null on a receipt booked without one.",
             "example": 108,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "purchaseOrderNumber": {
-            "description": "Purchase order number, if matched.",
+            "description": "Purchase order number. Null whenever purchaseOrderId is.",
             "example": "PO-2026-0311",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "receivedBy": {
-            "$ref": "#/components/schemas/EmployeeDto",
-            "description": "Employee who received the goods."
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmployeeDto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Employee who received the goods. Null where the receipt was not attributed to one."
           },
           "receivedOn": {
             "description": "When the goods were received.",
@@ -6023,26 +6144,38 @@
             "type": "string"
           },
           "storageLocationId": {
-            "description": "Storage location the received quantities were booked into.",
+            "description": "Storage location the received quantities were booked into. Null where the receipt was not booked into one.",
             "example": 7,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "storageLocationName": {
-            "description": "Storage location name.",
+            "description": "Storage location name. Null whenever storageLocationId is.",
             "example": "Site A main store",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "vendorId": {
-            "description": "Vendor the goods were received from.",
+            "description": "Vendor the goods were received from. Null on a receipt booked without one, for example an internal transfer.",
             "example": 17,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "vendorName": {
-            "description": "Vendor name.",
+            "description": "Vendor name. Null whenever vendorId is.",
             "example": "Ambuja Cements Ltd",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -13221,12 +13354,21 @@
             "type": "number"
           },
           "amountPaid": {
-            "type": "number"
+            "description": "Amount settled against this payable so far. Null where no payment has been recorded, which is not the same as a payment of zero.",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "amountRecorded": {
-            "type": "number"
+            "description": "Amount billed against this payable. Null where nothing has been recorded yet, which is not the same as an amount of zero.",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "contractType": {
+            "description": "How the work was contracted. Optional on creation, so null where the caller did not classify it.",
             "enum": [
               "MATERIAL_SUPPLY",
               "LABOR_CONTRACT",
@@ -13236,24 +13378,47 @@
               "CONSULTANT",
               "OTHER"
             ],
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "contractorName": {
             "type": "string"
           },
           "createdAt": {
+            "description": "When the payable was recorded. Populated on every insert the application makes, but the column permits null, unlike the equivalent on purchase orders and receipts, so a row loaded outside the application can carry none.",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "createdBy": {
-            "$ref": "#/components/schemas/EmployeeDto"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmployeeDto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Employee who raised the payable. Null on rows created before the author was recorded, and on any row whose author was not resolved."
           },
           "goodsReceivedNoteId": {
+            "description": "Id of the goods received note this payable was raised from. Null on a payable entered directly rather than from a goods received note.",
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "grnNumber": {
-            "type": "string"
+            "description": "Number of that goods received note. Null whenever goodsReceivedNoteId is.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "format": "int64",
@@ -13263,18 +13428,34 @@
             "type": "string"
           },
           "projectId": {
+            "description": "Id of the project the amount is charged to. The column permits null and rows exist without it, although the entity declares the association non-optional.",
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "projectName": {
-            "type": "string"
+            "description": "Name of the project. Null whenever projectId is, and also on a project that has no name recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "vendorId": {
+            "description": "Id of the vendor the amount is owed to. Null on a payable raised against a contractor who is not a registered vendor.",
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "vendorName": {
-            "type": "string"
+            "description": "Name of the vendor. Null whenever vendorId is.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -14712,14 +14893,24 @@
             "type": "string"
           },
           "createdBy": {
-            "$ref": "#/components/schemas/EmployeeDto",
-            "description": "Employee who raised the purchase order."
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmployeeDto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Employee who raised the purchase order. Null on rows created before the author was recorded, and on any row whose author was not resolved."
           },
           "expectedDeliveryDate": {
-            "description": "Date the vendor is expected to deliver by.",
+            "description": "Date the vendor is expected to deliver by. Null where none was agreed.",
             "example": "2026-02-10T00:00:00",
             "format": "date-time",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "description": "Purchase order id.",
@@ -14728,22 +14919,31 @@
             "type": "integer"
           },
           "indentId": {
-            "description": "Id of the indent this order was converted from, if any.",
+            "description": "Id of the indent this order was converted from. Null on an order raised directly rather than from an indent.",
             "example": 7,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "indentNumber": {
-            "description": "Number of the source indent, if any.",
+            "description": "Number of the source indent. Null whenever indentId is.",
             "example": "IND-2026-0015",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "items": {
-            "description": "Line items on the order.",
+            "description": "Line items on the order. Null rather than an empty array when the order has no lines: the mapper clears an empty list deliberately.",
             "items": {
               "$ref": "#/components/schemas/PurchaseOrderItemDto"
             },
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "poNumber": {
             "description": "Purchase order number.",
@@ -14751,20 +14951,29 @@
             "type": "string"
           },
           "projectId": {
-            "description": "Id of the project the materials are for.",
+            "description": "Id of the project the materials are for. The column permits null and rows exist without it, although the entity declares the association non-optional.",
             "example": 3,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "projectName": {
-            "description": "Name of the project.",
+            "description": "Name of the project. Null whenever projectId is, and also on a project that has no name recorded.",
             "example": "Asset Homes Perumbavoor Phase 2",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "remarks": {
-            "description": "Free-text remarks on the order.",
+            "description": "Free-text remarks on the order. Null where none were written.",
             "example": "Deliver to Perumbavoor site, second gate",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "description": "Current lifecycle status of the purchase order.",
@@ -14780,9 +14989,12 @@
             "type": "string"
           },
           "totalAmount": {
-            "description": "Total value of the purchase order in INR.",
+            "description": "Total value of the purchase order in INR, summed from the line totals. The server writes it on every path, seeding zero at creation and treating a sum over no lines as zero, so a zero means no priced lines rather than an order worth nothing. The column still permits null, so a row written outside the application can carry none.",
             "example": 485000.0,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "vendorId": {
             "description": "Id of the vendor the order is raised against.",
@@ -14860,10 +15072,13 @@
             "type": "integer"
           },
           "indentItemId": {
-            "description": "Id of the source indent item this line was converted from, if any.",
+            "description": "Id of the source indent item this line was converted from. Null on a line entered directly rather than from an indent.",
             "example": 31,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "materialId": {
             "description": "Id of the material being ordered.",
@@ -14890,19 +15105,28 @@
             "type": "integer"
           },
           "remarks": {
-            "description": "Free-text remarks on this line item.",
+            "description": "Free-text remarks on this line item. Null where none were written.",
             "example": "IS 1786 grade, mill test certificate required",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "totalPrice": {
-            "description": "Total price for this line in INR.",
+            "description": "Total price for this line in INR. The server computes it on every write, treating a missing unit price as zero, so a zero means no price was agreed rather than a line that costs nothing. The column still permits null, so a row written outside the application can carry none.",
             "example": 31250.0,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "unitPrice": {
-            "description": "Unit price in INR.",
+            "description": "Unit price in INR. Null where no price was agreed when the line was raised, which is not the same as a price of zero.",
             "example": 62.5,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           }
         },
         "required": [
@@ -14921,10 +15145,13 @@
             "type": "integer"
           },
           "indentItemId": {
-            "description": "Id of the source indent item this line was converted from, if any.",
+            "description": "Id of the source indent item this line was converted from. Null on a line entered directly rather than from an indent.",
             "example": 31,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "materialId": {
             "description": "Id of the material being ordered.",
@@ -14961,19 +15188,28 @@
             "type": "integer"
           },
           "remarks": {
-            "description": "Free-text remarks on this line item.",
+            "description": "Free-text remarks on this line item. Null where none were written.",
             "example": "IS 1786 grade, mill test certificate required",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "totalPrice": {
-            "description": "Total price for this line in INR.",
+            "description": "Total price for this line in INR. The server computes it on every write, treating a missing unit price as zero, so a zero means no price was agreed rather than a line that costs nothing. The column still permits null, so a row written outside the application can carry none.",
             "example": 31250.0,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "unitPrice": {
-            "description": "Unit price in INR.",
+            "description": "Unit price in INR. Null where no price was agreed when the line was raised, which is not the same as a price of zero.",
             "example": 62.5,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -15193,9 +15429,12 @@
         "description": "A receipt with its amount, payer details, tax breakdown and optional links to project and finance rows.",
         "properties": {
           "amount": {
-            "description": "Amount received in the given currency.",
+            "description": "Amount received in the given currency. Required by the create and update endpoints, so a null belongs to a row written outside them.",
             "example": 45000.0,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "createdAt": {
             "description": "Timestamp the receipt was created.",
@@ -15204,20 +15443,29 @@
             "type": "string"
           },
           "currency": {
-            "description": "Currency code for the amount.",
+            "description": "Currency code for the amount. New receipts default to INR when the request omits one, so null appears only on rows stored without a currency.",
             "example": "INR",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "customerId": {
-            "description": "Id of the customer the amount was received from.",
+            "description": "Id of the customer the amount was received from. Null where the payer was recorded by name only. The column carries no foreign key, so a value may name a customer that no longer exists.",
             "example": 12,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "description": {
-            "description": "What the amount was received for.",
+            "description": "What the amount was received for. Null where nothing was written.",
             "example": "Advance against Block C interior work",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "description": "Receipt id.",
@@ -15226,50 +15474,74 @@
             "type": "integer"
           },
           "invoiceId": {
-            "description": "Id of the invoice this receipt settles.",
+            "description": "Id of the invoice this receipt settles. Null where the money was received against no invoice. The column carries no foreign key, so a value may name an invoice that no longer exists.",
             "example": 44,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "issuedBy": {
-            "description": "Id of the employee who issued the receipt.",
+            "description": "Id of the employee who issued the receipt. Null where it was not captured. The column carries no foreign key, so a value may name an employee that no longer exists.",
             "example": 9,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "notes": {
-            "description": "Free-text notes.",
+            "description": "Free-text notes. Null where nothing was written.",
             "example": "Received at site office against acknowledgement 118",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "organizationId": {
-            "description": "Id of the owning organization.",
+            "description": "Id of the owning organization. Set on every receipt the application creates, so a null belongs to a row written outside it.",
             "example": 1,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "paymentId": {
-            "description": "Id of the payment this receipt records.",
+            "description": "Id of the payment this receipt records. Null where the receipt stands alone. The column carries no foreign key, so a value may name a payment that no longer exists.",
             "example": 51,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "paymentMethod": {
-            "description": "How the amount was received.",
+            "description": "How the amount was received. Null where none was recorded.",
             "example": "Bank Transfer",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "projectId": {
-            "description": "Id of the project this receipt belongs to.",
+            "description": "Id of the project this receipt belongs to. Null for money received against no project. The column carries no foreign key, so a value may name a project that no longer exists.",
             "example": 3,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "receiptDate": {
-            "description": "Date the amount was received.",
+            "description": "Date the amount was received. Null where none was given, including after an update that omitted the field.",
             "example": "2026-08-20",
             "format": "date",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "receiptNumber": {
             "description": "Generated receipt number.",
@@ -15277,49 +15549,76 @@
             "type": "string"
           },
           "receivedFrom": {
-            "description": "Name of the person or company the amount was received from.",
+            "description": "Name of the person or company the amount was received from. Required by the create and update endpoints, so a null belongs to a row written outside them.",
             "example": "Asset Homes Pvt Ltd",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "receivedFromAddress": {
-            "description": "Address of the payer.",
+            "description": "Address of the payer. Null where none was recorded.",
             "example": 12,
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "referenceNumber": {
-            "description": "Cheque or internal reference number.",
+            "description": "Cheque or internal reference number. Null where none was recorded.",
             "example": "CHQ-000231",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
-            "description": "Lifecycle status of the receipt.",
+            "description": "Lifecycle status, as free text the client interprets. Null where none was sent, including after an update that omitted the field, which clears it.",
             "example": "issued",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "taxAmount": {
-            "description": "Tax amount included in the receipt.",
+            "description": "Tax amount included in the receipt. Null where the receipt carries no tax breakdown, which leaves the tax unknown rather than zero.",
             "example": 8100.0,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "taxRate": {
-            "description": "Tax rate applied, as a percentage.",
+            "description": "Tax rate applied, as a percentage. Null where the receipt carries no tax breakdown.",
             "example": 18.0,
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "taxType": {
-            "description": "Type of tax applied.",
+            "description": "Type of tax applied. Null where the receipt carries no tax breakdown.",
             "example": "GST",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "transactionId": {
-            "description": "External transaction reference from the bank or gateway.",
+            "description": "External transaction reference from the bank or gateway. Null for money taken outside any such system, such as cash at the site office.",
             "example": "TXN-8842190",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "type": {
-            "description": "Kind of receipt.",
+            "description": "Kind of receipt, as free text the client interprets. Null where none was sent, including after an update that omitted the field, which clears it.",
             "example": "payment",
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "updatedAt": {
             "description": "Timestamp the receipt was last updated.",

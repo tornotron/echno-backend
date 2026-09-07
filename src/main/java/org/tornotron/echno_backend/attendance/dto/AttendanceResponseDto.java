@@ -12,6 +12,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * A day's attendance record as it is served. A field without {@code nullable = true} is one the
+ * schema, the mapper or the entity behind it establishes as always present; see
+ * {@code ReviewedResponseSchemas} for which is which.
+ */
 @Schema(description = "A single day's attendance record for an employee, with its clock events, movements, regularizations and approval state.")
 @Data
 @Builder
@@ -40,25 +45,39 @@ public class AttendanceResponseDto {
     @Schema(description = "Computed attendance status for the day.", example = "PRESENT")
     private AttendanceStatus status;
 
-    @Schema(description = "Shift the employee was scheduled to work.")
+    @Schema(description = "Shift the employee was scheduled to work. Null on a record raised by "
+            + "marking someone absent or on leave, which carries no shift. A null shift also "
+            + "means the day's minutes are never computed.", nullable = true)
     private ShiftTimingDto shiftTiming;
 
-    @Schema(description = "Clock events recorded for the day, in chronological order.")
+    @Schema(description = "Clock events recorded for the day, in chronological order. Empty "
+            + "rather than null on a day with no punches.")
     private List<ClockEventDto> clockEvents;
 
-    @Schema(description = "Total minutes worked across all sessions.", example = "480")
+    @Schema(description = "Total minutes worked across all sessions. Null until the day is "
+            + "computed, which never happens on a record with no shift or one raised by marking "
+            + "someone absent or on leave. Null means nothing was calculated and must not be read "
+            + "as zero minutes worked.", example = "480", nullable = true)
     private Integer totalWorkMinutes;
 
-    @Schema(description = "Minutes worked in the morning session, before the lunch break.", example = "225")
+    @Schema(description = "Minutes worked in the morning session, before the lunch break. Null "
+            + "whenever the day's totals have not been computed.", example = "225",
+            nullable = true)
     private Integer morningSessionMinutes;
 
-    @Schema(description = "Minutes worked in the afternoon session, after the lunch break.", example = "255")
+    @Schema(description = "Minutes worked in the afternoon session, after the lunch break. Null "
+            + "whenever the day's totals have not been computed.", example = "255",
+            nullable = true)
     private Integer afternoonSessionMinutes;
 
-    @Schema(description = "Minutes worked beyond the shift's overtime threshold.", example = "30")
+    @Schema(description = "Minutes worked beyond the shift's overtime threshold. Null whenever "
+            + "the day's totals have not been computed, which is different from a computed zero "
+            + "meaning no overtime was earned.", example = "30", nullable = true)
     private Integer overtimeMinutes;
 
-    @Schema(description = "Total minutes spent on breaks during the day.", example = "60")
+    @Schema(description = "Total minutes spent on breaks during the day. Null whenever the day's "
+            + "totals have not been computed; a computed zero means no break was punched.",
+            example = "60", nullable = true)
     private Integer breakDurationMinutes;
 
     @Schema(description = "Whether the employee clocked in after the shift's grace period.", example = "false")
@@ -70,28 +89,40 @@ public class AttendanceResponseDto {
     @Schema(description = "Whether the employee worked beyond the overtime threshold.", example = "false")
     private Boolean isOvertime;
 
-    @Schema(description = "Id of the leave request this record was generated from, if the day is on leave.", example = "9")
+    @Schema(description = "Id of the leave request this record was generated from. Null on any "
+            + "day not taken as leave.", example = "9", nullable = true)
     private Long leaveId;
 
-    @Schema(description = "Type of leave applied on this date, if any.", example = "CASUAL")
+    @Schema(description = "Type of leave applied on this date. Null on any day not taken as "
+            + "leave, and set together with leaveId.", example = "CASUAL", nullable = true)
     private String leaveType;
 
-    @Schema(description = "Regularization requests filed against this record.")
+    @Schema(description = "Regularization requests filed against this record. Empty rather than "
+            + "null where none were filed.")
     private List<AttendanceRegularizationDto> regularizations;
 
-    @Schema(description = "Movements logged against this record.")
+    @Schema(description = "Movements logged against this record. Empty rather than null where "
+            + "none were logged.")
     private List<MovementRecordDto> movements;
 
     @Schema(description = "Approval status of the record.", example = "APPROVED")
     private ApprovalStatus approvalStatus;
 
-    @Schema(description = "Name of the employee who approved or rejected the record.", example = "Anand Rajashekar")
+    @Schema(description = "Name of the employee who approved or rejected the record. Null until a "
+            + "decision is made, and null again when a later out-of-fence punch reopens a day "
+            + "that had already been decided. Reads as system where the decision came from a job "
+            + "with no signed-in user.", example = "Anand Rajashekar", nullable = true)
     private String approvedBy;
 
-    @Schema(description = "Employee id of the person who approved or rejected the record, for filtering by approver.", example = "42")
+    @Schema(description = "Employee id of the person who approved or rejected the record, for "
+            + "filtering by approver. Null before any decision, and also after a decision made "
+            + "with no signed-in user, where approvedBy reads as system. Absent here does not "
+            + "mean unapproved: read approvalStatus for that.", example = "42", nullable = true)
     private Long approvedById;
 
-    @Schema(description = "Timestamp the record was approved or rejected.", example = "2026-01-16T10:15:00")
+    @Schema(description = "Timestamp the record was approved or rejected. Null until a decision "
+            + "is made, and cleared again when a later out-of-fence punch reopens a decided day.",
+            example = "2026-01-16T10:15:00", nullable = true)
     private LocalDateTime approvedAt;
 
     @Schema(description = "Whether this day contains a punch the employee marked themselves from "
@@ -104,15 +135,21 @@ public class AttendanceResponseDto {
             + "the employee's reporting manager, or a project manager assigned to the site. Null "
             + "when neither could be resolved, in which case the attendance record managers decide "
             + "as they do for every other record.",
-            example = "42")
+            example = "42", nullable = true)
     private Long geofenceApproverId;
 
-    @Schema(description = "Remarks attached to the record, for example an approval or rejection note.", example = "Confirmed with site supervisor")
+    @Schema(description = "Remarks attached to the record, for example an approval or rejection "
+            + "note. Null where nobody wrote one.", example = "Confirmed with site supervisor",
+            nullable = true)
     private String remarks;
 
-    @Schema(description = "Timestamp the record was created.", example = "2026-01-15T09:02:00")
+    @Schema(description = "Timestamp the record was created. Populated on every insert the "
+            + "application makes, but the column permits null, so a row loaded outside the "
+            + "application can carry none.", example = "2026-01-15T09:02:00", nullable = true)
     private LocalDateTime createdAt;
 
-    @Schema(description = "Timestamp the record was last updated.", example = "2026-01-15T18:05:00")
+    @Schema(description = "Timestamp the record was last updated. Populated on insert as well as "
+            + "update, but the column permits null on the same terms as createdAt.",
+            example = "2026-01-15T18:05:00", nullable = true)
     private LocalDateTime updatedAt;
 }
