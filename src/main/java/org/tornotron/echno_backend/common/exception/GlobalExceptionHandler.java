@@ -375,6 +375,13 @@ public class GlobalExceptionHandler {
         return problem(HttpStatus.CONFLICT, "Insufficient Stock", ex.getMessage(), request);
     }
 
+    @ExceptionHandler(UnprocessableRequestException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ProblemDetail handleUnprocessableRequestException(UnprocessableRequestException ex, WebRequest request) {
+        logger.info("Unprocessable request: {}", ex.getMessage());
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, "Unprocessable Request", ex.getMessage(), request);
+    }
+
     @ExceptionHandler(InvalidRequestException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ProblemDetail handleInvalidRequestException(InvalidRequestException ex, WebRequest request) {

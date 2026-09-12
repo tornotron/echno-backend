@@ -4,11 +4,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Creates or fully replaces an organization's checklist template for a trade. The
@@ -18,9 +17,12 @@ import java.util.List;
  */
 @Schema(description = "Payload to define or replace a checklist template for one trade.")
 public record ChecklistTemplateRequest(
-        @Schema(description = "Trade the checklist covers. One template per trade per organization.",
-                example = "reinforcement")
-        @NotNull InspectionTrade trade,
+        @Schema(description = "Slug of the trade the checklist covers. One template per trade per organization. "
+                + "Either this or tradeId is required.", example = "reinforcement")
+        String trade,
+        @Schema(description = "Id of the organization's trade row. Takes precedence over trade when both are sent.",
+                nullable = true)
+        UUID tradeId,
         @Schema(description = "Name of the checklist.", example = "Reinforcement inspection checklist")
         @NotBlank @Size(max = 200) String name,
         @Schema(description = "What the checklist covers and when it is used.",

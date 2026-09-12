@@ -5,7 +5,6 @@ import org.tornotron.echno_backend.common.module.GlobalReferenceData;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,13 +23,14 @@ import java.util.UUID;
  * of the starter does not reach into any org's template, and an org's edits are
  * never pushed back here.
  *
- * <p>One starter per trade, enforced by the unique constraint on {@code trade}.
+ * <p>One starter per trade, enforced by the unique constraint on {@code trade_code}, which
+ * is a catalogue code: adopting a starter resolves it to the adopting org's own trade row.
  */
 @GlobalReferenceData("Seeded starter checklists shipped with the product; every organization copies from the same catalogue and none owns a row")
 @Entity
 @Table(name = "starter_checklist_templates",
         uniqueConstraints = @UniqueConstraint(name = "uk_starter_checklist_template_trade",
-                columnNames = {"trade"}),
+                columnNames = {"trade_code"}),
         indexes = @Index(name = "idx_starter_checklist_template_active", columnList = "active"))
 @Getter @Setter
 @NoArgsConstructor
@@ -40,9 +40,8 @@ public class StarterChecklistTemplate {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "trade", nullable = false, length = 50)
-    private InspectionTrade trade;
+    @Column(name = "trade_code", nullable = false, length = 50)
+    private String tradeCode;
 
     @Column(nullable = false, length = 200)
     private String name;

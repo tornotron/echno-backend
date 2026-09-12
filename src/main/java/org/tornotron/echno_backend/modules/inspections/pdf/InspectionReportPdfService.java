@@ -107,7 +107,8 @@ public class InspectionReportPdfService {
         ctx.setVariable("inspectionNumber", ReportText.orDash(inspection.inspectionNumber()));
         ctx.setVariable("title", ReportText.orDash(inspection.title()));
         ctx.setVariable("categoryLabel", ReportText.humanise(inspection.category()));
-        ctx.setVariable("tradeLabel", ReportText.humanise(inspection.trade()));
+        ctx.setVariable("tradeLabel", inspection.tradeName() != null ? inspection.tradeName()
+                : ReportText.humanise(inspection.trade() == null ? null : inspection.trade().replace('-', '_')));
         ctx.setVariable("typeLabel", ReportText.humanise(inspection.type()));
         ctx.setVariable("statusLabel", ReportText.humanise(inspection.status()));
         ctx.setVariable("resultLabel", ReportText.humanise(inspection.result()));

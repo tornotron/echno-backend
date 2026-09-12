@@ -24,7 +24,6 @@ import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.modules.inspections.InspectionCategory;
 import org.tornotron.echno_backend.modules.inspections.InspectionResult;
 import org.tornotron.echno_backend.modules.inspections.InspectionStatus;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
 import org.tornotron.echno_backend.modules.inspections.InspectionType;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateInspectionRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.DefectPhotoAnnotationDto;
@@ -109,10 +108,11 @@ public class InspectionControllerWeb {
                                     @RequestParam(required = false) InspectionStatus status,
                                     @RequestParam(required = false) InspectionType type,
                                     @RequestParam(required = false) InspectionCategory category,
-                                    @RequestParam(required = false) InspectionTrade trade,
+                                    @RequestParam(required = false) String trade,
+                                    @RequestParam(required = false) UUID tradeId,
                                     @RequestParam(required = false) InspectionResult result,
                                     Pageable pageable) {
-        return service.findAll(projectId, status, type, category, trade, result, pageable);
+        return service.findAll(projectId, status, type, category, trade, tradeId, result, pageable);
     }
 
     @PutMapping("/{id}")

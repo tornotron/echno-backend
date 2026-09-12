@@ -2595,24 +2595,20 @@
             "type": "string"
           },
           "trade": {
-            "enum": [
-              "pre-construction-documentation",
-              "shuttering-formwork",
-              "reinforcement",
-              "rcc",
-              "masonry",
-              "plastering",
-              "waterproofing",
-              "flooring",
-              "fabrication",
-              "aluminium-upvc",
-              "electrical-fixtures",
-              "plumbing-fixtures",
-              "sanitary-fixtures",
-              "finishing",
-              "dimensional-check",
-              "progress-check"
-            ],
+            "description": "Slug of the trade: the same string the enum always put on the wire for the sixteen shipped trades, or the code of an org-defined trade.",
+            "example": "reinforcement",
+            "type": "string"
+          },
+          "tradeGroup": {
+            "description": "Group code of the trade.",
+            "type": "string"
+          },
+          "tradeId": {
+            "description": "Id of the organization's trade row.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "tradeName": {
             "type": "string"
           },
           "updatedAt": {
@@ -2777,33 +2773,22 @@
             "type": "string"
           },
           "trade": {
-            "description": "Trade the checklist covers. One template per trade per organization.",
-            "enum": [
-              "pre-construction-documentation",
-              "shuttering-formwork",
-              "reinforcement",
-              "rcc",
-              "masonry",
-              "plastering",
-              "waterproofing",
-              "flooring",
-              "fabrication",
-              "aluminium-upvc",
-              "electrical-fixtures",
-              "plumbing-fixtures",
-              "sanitary-fixtures",
-              "finishing",
-              "dimensional-check",
-              "progress-check"
-            ],
+            "description": "Slug of the trade the checklist covers. One template per trade per organization. Either this or tradeId is required.",
             "example": "reinforcement",
             "type": "string"
+          },
+          "tradeId": {
+            "description": "Id of the organization's trade row. Takes precedence over trade when both are sent.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
           "items",
-          "name",
-          "trade"
+          "name"
         ],
         "type": "object"
       },
@@ -4753,27 +4738,17 @@
             "type": "string"
           },
           "trade": {
-            "description": "QA/QC stage or trade the inspection covers. Left unset for safety and compliance inspections.",
-            "enum": [
-              "pre-construction-documentation",
-              "shuttering-formwork",
-              "reinforcement",
-              "rcc",
-              "masonry",
-              "plastering",
-              "waterproofing",
-              "flooring",
-              "fabrication",
-              "aluminium-upvc",
-              "electrical-fixtures",
-              "plumbing-fixtures",
-              "sanitary-fixtures",
-              "finishing",
-              "dimensional-check",
-              "progress-check"
-            ],
+            "description": "QA/QC stage or trade the inspection covers, as its slug. Left unset for safety and compliance inspections. Resolved against the organization's trades; tradeId may be sent instead.",
             "example": "reinforcement",
             "type": "string"
+          },
+          "tradeId": {
+            "description": "Id of the organization's trade row. Takes precedence over trade when both are sent.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "type": {
             "description": "Category of inspection.",
@@ -4973,6 +4948,45 @@
         "required": [
           "code",
           "level",
+          "name"
+        ],
+        "type": "object"
+      },
+      "CreateTradeRequest": {
+        "description": "Payload to define an organization's own inspection trade.",
+        "properties": {
+          "code": {
+            "description": "Slug: lowercase letters, digits and hyphens. Unique within the organization.",
+            "example": "precast-erection",
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "[a-z0-9]+(-[a-z0-9]+)*",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "groupCode": {
+            "description": "Group heading. Any string; the seeded groups are structural, masonry, finishes, openings, mep, fire and general.",
+            "example": "structural",
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sortOrder": {
+            "description": "Position in pickers. Defaults to after every seeded trade.",
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "groupCode",
           "name"
         ],
         "type": "object"
@@ -7478,25 +7492,29 @@
             "type": "integer"
           },
           "trade": {
-            "description": "QA/QC stage or trade the inspection covers. Null on safety and compliance inspections, which carry no trade, and null on a QA/QC inspection whose payload omitted it.",
-            "enum": [
-              "pre-construction-documentation",
-              "shuttering-formwork",
-              "reinforcement",
-              "rcc",
-              "masonry",
-              "plastering",
-              "waterproofing",
-              "flooring",
-              "fabrication",
-              "aluminium-upvc",
-              "electrical-fixtures",
-              "plumbing-fixtures",
-              "sanitary-fixtures",
-              "finishing",
-              "dimensional-check",
-              "progress-check"
-            ],
+            "description": "QA/QC stage or trade the inspection covers, as its slug. Null on safety and compliance inspections, which carry no trade, and null on a QA/QC inspection whose payload omitted it.",
+            "example": "reinforcement",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tradeGroup": {
+            "description": "Group code of the trade.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tradeId": {
+            "description": "Id of the organization's trade row.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tradeName": {
             "type": [
               "string",
               "null"
@@ -12146,6 +12164,50 @@
         "required": [
           "role"
         ],
+        "type": "object"
+      },
+      "OrgTradeDto": {
+        "description": "An inspection trade as the organization has it: a catalogue copy or an org-defined trade.",
+        "properties": {
+          "active": {
+            "description": "Inactive trades disappear from pickers and stay valid on the rows that reference them.",
+            "type": "boolean"
+          },
+          "catalogueCode": {
+            "description": "Catalogue code the row was copied from; null for an org-defined trade.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "code": {
+            "description": "Slug unique within the organization. Fixed once created.",
+            "example": "reinforcement",
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupCode": {
+            "description": "Group heading the trade is listed under.",
+            "example": "structural",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
         "type": "object"
       },
       "OrganizationCreationDto": {
@@ -17647,24 +17709,8 @@
             "type": "string"
           },
           "trade": {
-            "enum": [
-              "pre-construction-documentation",
-              "shuttering-formwork",
-              "reinforcement",
-              "rcc",
-              "masonry",
-              "plastering",
-              "waterproofing",
-              "flooring",
-              "fabrication",
-              "aluminium-upvc",
-              "electrical-fixtures",
-              "plumbing-fixtures",
-              "sanitary-fixtures",
-              "finishing",
-              "dimensional-check",
-              "progress-check"
-            ],
+            "description": "Catalogue code of the trade the starter is for.",
+            "example": "reinforcement",
             "type": "string"
           }
         },
@@ -19582,6 +19628,38 @@
         },
         "type": "object"
       },
+      "TradeCatalogueDto": {
+        "description": "One trade of the product-shipped catalogue. Read only; organizations work against their own copy.",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "code": {
+            "description": "Stable slug, the same string the trade has always carried on the wire.",
+            "example": "reinforcement",
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupCode": {
+            "description": "Group the trade sits under: structural, masonry, finishes, openings, mep, fire or general.",
+            "example": "structural",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "TrialBalanceReport": {
         "description": "Trial balance as of a given date: every account with its debit and credit totals.",
         "properties": {
@@ -20322,27 +20400,17 @@
             "type": "string"
           },
           "trade": {
-            "description": "QA/QC stage or trade the inspection covers. Left unset for safety and compliance inspections.",
-            "enum": [
-              "pre-construction-documentation",
-              "shuttering-formwork",
-              "reinforcement",
-              "rcc",
-              "masonry",
-              "plastering",
-              "waterproofing",
-              "flooring",
-              "fabrication",
-              "aluminium-upvc",
-              "electrical-fixtures",
-              "plumbing-fixtures",
-              "sanitary-fixtures",
-              "finishing",
-              "dimensional-check",
-              "progress-check"
-            ],
+            "description": "QA/QC stage or trade the inspection covers, as its slug. Left unset for safety and compliance inspections. Resolved against the organization's trades; tradeId may be sent instead.",
             "example": "reinforcement",
             "type": "string"
+          },
+          "tradeId": {
+            "description": "Id of the organization's trade row. Takes precedence over trade when both are sent.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "type": {
             "description": "Category of inspection.",
@@ -20403,6 +20471,33 @@
           "levelIndex": {
             "format": "int32",
             "type": "integer"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "sortOrder": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateTradeRequest": {
+        "description": "Fields of a trade that may change after creation. Omitted fields are left as they are; the code never changes.",
+        "properties": {
+          "active": {
+            "description": "False retires the trade from pickers without touching the rows that reference it.",
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "groupCode": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
           },
           "name": {
             "maxLength": 200,
@@ -23989,7 +24084,7 @@
     "/api/v1/attendance-regularizations/web": {
       "get": {
         "description": "Returns a paged list of regularization requests in the current tenant, in any status. The optional status, approver and requester parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nThe approver and the rejecter are recorded in the same pair of columns, so approvedById on its own means \"requests this person decided\". Pair it with status to separate the two: approvedById with status=APPROVED is what that person approved, and with status=REJECTED what they rejected.\n\nBoth ids are employee ids. A request decided by a caller who has no employee record in this tenant carries no approver id and is not matched by any approvedById.",
-        "operationId": "list_12",
+        "operationId": "list_13",
         "parameters": [
           {
             "in": "query",
@@ -24943,7 +25038,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_14",
+        "operationId": "create_15",
         "requestBody": {
           "content": {
             "application/json": {
@@ -25373,7 +25468,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_15",
+        "operationId": "create_16",
         "requestBody": {
           "content": {
             "application/json": {
@@ -25804,7 +25899,7 @@
       },
       "patch": {
         "description": "Applies a partial update to an attendance settings profile. Only the fields present in the request body are changed.",
-        "operationId": "update_12",
+        "operationId": "update_13",
         "parameters": [
           {
             "in": "path",
@@ -26031,7 +26126,7 @@
       },
       "patch": {
         "description": "Applies a partial update to an attendance settings profile. Only the fields present in the request body are changed.",
-        "operationId": "update_11",
+        "operationId": "update_12",
         "parameters": [
           {
             "in": "path",
@@ -34235,31 +34330,22 @@
     "/api/v1/checklist-templates/web": {
       "get": {
         "description": "Returns a page of the organization's templates. The trade and active parameters are optional filters; omitting both returns every template, subject to paging.",
-        "operationId": "list_8",
+        "operationId": "list_9",
         "parameters": [
           {
             "in": "query",
             "name": "trade",
             "required": false,
             "schema": {
-              "enum": [
-                "pre-construction-documentation",
-                "shuttering-formwork",
-                "reinforcement",
-                "rcc",
-                "masonry",
-                "plastering",
-                "waterproofing",
-                "flooring",
-                "fabrication",
-                "aluminium-upvc",
-                "electrical-fixtures",
-                "plumbing-fixtures",
-                "sanitary-fixtures",
-                "finishing",
-                "dimensional-check",
-                "progress-check"
-              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tradeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
               "type": "string"
             }
           },
@@ -34379,7 +34465,7 @@
       },
       "post": {
         "description": "Creates the organization's checklist for a trade, with its check points. There is one template per trade per organization.",
-        "operationId": "create_13",
+        "operationId": "create_14",
         "requestBody": {
           "content": {
             "application/json": {
@@ -34603,24 +34689,6 @@
             "name": "trade",
             "required": true,
             "schema": {
-              "enum": [
-                "pre-construction-documentation",
-                "shuttering-formwork",
-                "reinforcement",
-                "rcc",
-                "masonry",
-                "plastering",
-                "waterproofing",
-                "flooring",
-                "fabrication",
-                "aluminium-upvc",
-                "electrical-fixtures",
-                "plumbing-fixtures",
-                "sanitary-fixtures",
-                "finishing",
-                "dimensional-check",
-                "progress-check"
-              ],
               "type": "string"
             }
           }
@@ -38403,7 +38471,7 @@
     "/api/v1/finance/accounts/web": {
       "get": {
         "description": "Returns the flat list of accounts in the current tenant. By default only active accounts are returned; set activeOnly to false to include deactivated accounts.",
-        "operationId": "list_7",
+        "operationId": "list_8",
         "parameters": [
           {
             "in": "query",
@@ -38517,7 +38585,7 @@
       },
       "post": {
         "description": "Creates a new account in the chart. When a parent is given, the account type is inherited from the parent; a root account must declare its own type. When the code is left blank it is generated from the parent and existing sibling accounts.",
-        "operationId": "create_12",
+        "operationId": "create_13",
         "requestBody": {
           "content": {
             "application/json": {
@@ -39522,7 +39590,7 @@
     "/api/v1/finance/company-bank-accounts/web": {
       "get": {
         "description": "Returns the organization's bank accounts. By default only active accounts are returned; set activeOnly to false to include deactivated accounts as well.",
-        "operationId": "list_6",
+        "operationId": "list_7",
         "parameters": [
           {
             "in": "query",
@@ -39636,7 +39704,7 @@
       },
       "post": {
         "description": "Registers a new company bank account, linked to an existing ledger account for reconciliation.",
-        "operationId": "create_11",
+        "operationId": "create_12",
         "requestBody": {
           "content": {
             "application/json": {
@@ -39974,7 +40042,7 @@
     "/api/v1/finance/construction-invoices/web": {
       "get": {
         "description": "Returns a paged list of invoices in the current tenant. The optional project, vendor, status and type parameters narrow the result; omitting a parameter leaves that dimension unfiltered.",
-        "operationId": "list_5",
+        "operationId": "list_6",
         "parameters": [
           {
             "in": "query",
@@ -40135,7 +40203,7 @@
       },
       "post": {
         "description": "Creates a draft invoice from the supplied header and line items. Line-level subtotal, tax, discount and total amounts are computed server side from the quantity, unit price and percentage rates on each line.",
-        "operationId": "create_10",
+        "operationId": "create_11",
         "requestBody": {
           "content": {
             "application/json": {
@@ -41065,7 +41133,7 @@
     "/api/v1/finance/construction-payments/web": {
       "get": {
         "description": "Returns a paged list of payment vouchers in the current tenant. The optional project, vendor, status, type, payee type, employee, verifier and raiser parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nNarrow here rather than in the client. A filter applied to the rows one page came back in narrows that page and not the register, so it answers a different question from the one it appears to, and an empty result then reads as a complete answer.\n\nThe three person parameters carry ids from two different sequences and are not interchangeable. employeeId is the payee on a salary or advance voucher and is an employee id; verifiedBy and raisedBy are platform user ids, the same ids the response returns beside verifiedByName and raisedByName.",
-        "operationId": "list_4",
+        "operationId": "list_5",
         "parameters": [
           {
             "in": "query",
@@ -41293,7 +41361,7 @@
       },
       "post": {
         "description": "Creates a payment voucher in pending status. The payment number is generated server side from the CPMT sequence. The status cannot be set on creation.",
-        "operationId": "create_9",
+        "operationId": "create_10",
         "requestBody": {
           "content": {
             "application/json": {
@@ -41875,7 +41943,7 @@
     "/api/v1/finance/cost-categories/web": {
       "get": {
         "description": "Returns the budget heads in the current tenant. By default only active heads are returned; set activeOnly to false to include deactivated ones.",
-        "operationId": "list_3",
+        "operationId": "list_4",
         "parameters": [
           {
             "in": "query",
@@ -41989,7 +42057,7 @@
       },
       "post": {
         "description": "Creates a budget head. The name must be unique within the tenant; an optional expense account maps the head to the chart of accounts for reporting.",
-        "operationId": "create_8",
+        "operationId": "create_9",
         "requestBody": {
           "content": {
             "application/json": {
@@ -42665,7 +42733,7 @@
       },
       "post": {
         "description": "Creates a new customer from the supplied details. The customer code must be unique within the tenant.",
-        "operationId": "create_7",
+        "operationId": "create_8",
         "requestBody": {
           "content": {
             "application/json": {
@@ -42777,7 +42845,7 @@
     "/api/v1/finance/customers/web/all": {
       "get": {
         "description": "Returns a page of customers in the current tenant. The optional name parameter filters by customer name; omitting it returns all customers, subject to paging.",
-        "operationId": "list_11",
+        "operationId": "list_12",
         "parameters": [
           {
             "in": "query",
@@ -43129,7 +43197,7 @@
     "/api/v1/finance/invoices/web": {
       "get": {
         "description": "Returns a page of customer invoices in the current tenant, newest invoice date first. The optional customer, status and openOnly parameters narrow the result and combine with AND; omitting a parameter leaves that dimension unfiltered. Use pageNo and pageSize to page through the results.",
-        "operationId": "list_2",
+        "operationId": "list_3",
         "parameters": [
           {
             "description": "Restrict to invoices billed to this customer.",
@@ -44593,7 +44661,7 @@
     "/api/v1/finance/posting-accounts/web": {
       "get": {
         "description": "Returns all six posting roles with the account each currently resolves to for the tenant, flagged as coming from an explicit mapping (MAPPED) or the configured default (DEFAULT).",
-        "operationId": "list_10",
+        "operationId": "list_11",
         "responses": {
           "200": {
             "content": {
@@ -44946,7 +45014,7 @@
     "/api/v1/finance/projects/{projectId}/budget/web": {
       "get": {
         "description": "Returns the set of budget-head allocations that make up the project's budget.",
-        "operationId": "list_9",
+        "operationId": "list_10",
         "parameters": [
           {
             "in": "path",
@@ -52464,24 +52532,15 @@
             "name": "trade",
             "required": false,
             "schema": {
-              "enum": [
-                "pre-construction-documentation",
-                "shuttering-formwork",
-                "reinforcement",
-                "rcc",
-                "masonry",
-                "plastering",
-                "waterproofing",
-                "flooring",
-                "fabrication",
-                "aluminium-upvc",
-                "electrical-fixtures",
-                "plumbing-fixtures",
-                "sanitary-fixtures",
-                "finishing",
-                "dimensional-check",
-                "progress-check"
-              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tradeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
               "type": "string"
             }
           },
@@ -53348,6 +53407,460 @@
         "summary": "Search the inspection event log",
         "tags": [
           "Inspection history"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/trades": {
+      "get": {
+        "description": "Active trades by default, in sort order then name. Pass includeInactive=true to see retired ones too.",
+        "operationId": "list_2",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "includeInactive",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrgTradeDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The organization's trades"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the organization's trades",
+        "tags": [
+          "Inspection trades"
+        ]
+      },
+      "post": {
+        "description": "Adds an organization-defined trade. It appears in pickers at once and can back a checklist template.",
+        "operationId": "create_7",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTradeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgTradeDto"
+                }
+              }
+            },
+            "description": "Trade created"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Validation failed on the request body"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The organization already has a trade with that code"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Define a trade",
+        "tags": [
+          "Inspection trades"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/trades/catalogue": {
+      "get": {
+        "description": "The global catalogue every organization's list is copied from. Read only.",
+        "operationId": "catalogue",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TradeCatalogueDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The catalogue"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the shipped trade catalogue",
+        "tags": [
+          "Inspection trades"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/trades/{id}": {
+      "patch": {
+        "description": "The code is immutable, including on catalogue copies. Deactivating hides the trade from pickers and leaves existing references valid.",
+        "operationId": "update_11",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTradeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgTradeDto"
+                }
+              }
+            },
+            "description": "Trade updated"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Validation failed on the request body"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No trade with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Rename, regroup, reorder or deactivate a trade",
+        "tags": [
+          "Inspection trades"
         ]
       }
     },
@@ -111728,6 +112241,10 @@
     {
       "description": "The append-only audit log of the inspection module: who did what, to which inspection, check point, defect, non-conformance report or reinspection, when, and the before and after of each change. Every timeline is oldest first and tenant scoped. Events are written by the server as the change happens and cannot be edited or removed.",
       "name": "Inspection history"
+    },
+    {
+      "description": "The trades an organization inspects against: the seeded catalogue copied into the tenant on first use, plus any trade the organization defines itself. Managing the list is the same authority as defining checklists. Trades are deactivated, never deleted, so history keeps its reference.",
+      "name": "Inspection trades"
     },
     {
       "description": "Site inspections carried out against a project, covering routine, safety and compliance types. An inspection tracks its checklist items, defects, result and status. All endpoints are tenant scoped. Reading is open to the project manager, QA engineer, safety officer and site engineer; scheduling and recording an inspection is not open to the site engineer, who acts on the non-conformances an inspection raises rather than carrying it out.",

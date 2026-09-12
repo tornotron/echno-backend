@@ -656,7 +656,7 @@ final class ReviewedResponseSchemas {
                                 "contractorId", "drawingReference", "duration", "inspectorId",
                                 "location", "projectId", "resolutionOptions", "result", "riskLevel",
                                 "scheduledDate", "scheduledTime", "temperature", "trade",
-                                "weatherConditions"),
+                                "tradeGroup", "tradeId", "tradeName", "weatherConditions"),
                         Set.of("attendees", "category", "checkItems", "createdAt", "defects",
                                 "defectsFound", "failedCheckPoints", "id", "inspectionNumber",
                                 "origin", "passedCheckPoints", "status", "title",
@@ -688,8 +688,8 @@ final class ReviewedResponseSchemas {
                 new ReviewedSchema(
                         ChecklistTemplateDto.class,
                         Set.of("description"),
-                        Set.of("active", "createdAt", "id", "items", "name", "trade", "updatedAt",
-                                "version")),
+                        Set.of("active", "createdAt", "id", "items", "name", "trade", "tradeGroup",
+                                "tradeId", "tradeName", "updatedAt", "version")),
                 new ReviewedSchema(
                         ChecklistTemplateItemDto.class,
                         Set.of("acceptanceCriterion", "expectedValue", "priority", "specification",

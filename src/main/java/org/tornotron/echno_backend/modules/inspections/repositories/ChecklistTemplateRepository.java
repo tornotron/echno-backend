@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
+import org.tornotron.echno_backend.modules.inspections.domain.OrgTrade;
 import org.tornotron.echno_backend.modules.inspections.domain.ChecklistTemplate;
 
 import java.util.Optional;
@@ -30,8 +30,8 @@ public interface ChecklistTemplateRepository
      * {@code orgFilter} restricts this to the calling tenant, and the unique
      * constraint on (organization, trade) makes at most one row match.
      */
-    Optional<ChecklistTemplate> findByTradeAndActiveTrue(InspectionTrade trade);
+    Optional<ChecklistTemplate> findByTradeRefAndActiveTrue(OrgTrade trade);
 
     /** Guard for the one-template-per-trade rule, checked before an insert. */
-    boolean existsByTrade(InspectionTrade trade);
+    boolean existsByTradeRef(OrgTrade trade);
 }

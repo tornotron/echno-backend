@@ -43,7 +43,8 @@ import java.util.UUID;
                 @Index(name = "idx_insp_category", columnList = "category"),
                 @Index(name = "idx_insp_result", columnList = "result"),
                 @Index(name = "idx_insp_scheduled_date", columnList = "scheduled_date"),
-                @Index(name = "idx_insp_inspector", columnList = "inspector_id")
+                @Index(name = "idx_insp_inspector", columnList = "inspector_id"),
+                @Index(name = "idx_insp_trade_id", columnList = "trade_id")
         })
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Getter @Setter
@@ -73,8 +74,15 @@ public class Inspection implements TenantScopedEntity {
 
     // The QA/QC stage or trade. Null on safety and compliance inspections.
     @Enumerated(EnumType.STRING)
+    // Compatibility shim kept in step with tradeRef; null for an org-defined trade.
+    @Deprecated
     @Column(name = "trade", length = 50)
     private InspectionTrade trade;
+
+    // The org's own trade row. Null on safety and compliance inspections.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "trade_id")
+    private OrgTrade tradeRef;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)

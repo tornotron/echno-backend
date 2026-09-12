@@ -2,7 +2,7 @@ package org.tornotron.echno_backend.modules.inspections.repositories;
 
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
+import java.util.UUID;
 import org.tornotron.echno_backend.modules.inspections.domain.ChecklistTemplate;
 
 import java.util.ArrayList;
@@ -18,11 +18,14 @@ public final class ChecklistTemplateSpecifications {
 
     private ChecklistTemplateSpecifications() {}
 
-    public static Specification<ChecklistTemplate> withFilters(InspectionTrade trade, Boolean active) {
+    public static Specification<ChecklistTemplate> withFilters(String trade, UUID tradeId, Boolean active) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (trade != null) {
-                predicates.add(cb.equal(root.get("trade"), trade));
+                predicates.add(cb.equal(root.get("tradeRef").get("code"), trade.trim().toLowerCase()));
+            }
+            if (tradeId != null) {
+                predicates.add(cb.equal(root.get("tradeRef").get("id"), tradeId));
             }
             if (active != null) {
                 predicates.add(cb.equal(root.get("active"), active));

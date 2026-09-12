@@ -14,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
 import org.tornotron.echno_backend.modules.inspections.dtos.ChecklistTemplateDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.ChecklistTemplateRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.StarterChecklistTemplateDto;
@@ -86,10 +85,11 @@ public class ChecklistTemplateControllerWeb {
             @ApiResponse(responseCode = "200", description = "Page of matching templates"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public Page<ChecklistTemplateDto> list(@RequestParam(required = false) InspectionTrade trade,
+    public Page<ChecklistTemplateDto> list(@RequestParam(required = false) String trade,
+                                           @RequestParam(required = false) UUID tradeId,
                                            @RequestParam(required = false) Boolean active,
                                            Pageable pageable) {
-        return service.findAll(trade, active, pageable);
+        return service.findAll(trade, tradeId, active, pageable);
     }
 
     @PutMapping("/{id}")
@@ -143,7 +143,7 @@ public class ChecklistTemplateControllerWeb {
             @ApiResponse(responseCode = "404", description = "No starter checklist is available for that trade"),
             @ApiResponse(responseCode = "409", description = "The tenant already has a template for that trade")
     })
-    public ResponseEntity<ChecklistTemplateDto> adoptStarter(@PathVariable InspectionTrade trade) {
+    public ResponseEntity<ChecklistTemplateDto> adoptStarter(@PathVariable String trade) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.adoptStarter(trade));
     }
 }

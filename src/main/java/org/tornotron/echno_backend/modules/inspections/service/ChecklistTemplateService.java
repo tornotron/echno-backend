@@ -11,7 +11,7 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.modules.inspections.CheckItemStatus;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
+import org.tornotron.echno_backend.modules.inspections.domain.OrgTrade;
 import org.tornotron.echno_backend.modules.inspections.domain.ChecklistTemplate;
 import org.tornotron.echno_backend.modules.inspections.domain.ChecklistTemplateItem;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionCheckItem;
@@ -27,6 +27,7 @@ import org.tornotron.echno_backend.modules.inspections.repositories.ChecklistTem
 import org.tornotron.echno_backend.modules.inspections.repositories.StarterChecklistTemplateRepository;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -49,6 +50,7 @@ public class ChecklistTemplateService {
     private final StarterChecklistTemplateRepository starterRepo;
     private final ChecklistTemplateMapper mapper;
     private final TenantEntityHelper tenantEntityHelper;
+    private final TradeService tradeService;
 
     @Transactional(readOnly = true)
     public ChecklistTemplateDto findById(UUID id) {
@@ -56,8 +58,8 @@ public class ChecklistTemplateService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ChecklistTemplateDto> findAll(InspectionTrade trade, Boolean active, Pageable pageable) {
-        return templateRepo.findAll(ChecklistTemplateSpecifications.withFilters(trade, active), pageable)
+    public Page<ChecklistTemplateDto> findAll(String trade, UUID tradeId, Boolean active, Pageable pageable) {
+        return templateRepo.findAll(ChecklistTemplateSpecifications.withFilters(trade, tradeId, active), pageable)
                 .map(mapper::toDto);
     }
 
@@ -71,15 +73,16 @@ public class ChecklistTemplateService {
      */
     @Transactional
     public ChecklistTemplateDto create(ChecklistTemplateRequest req) {
-        requireTradeIsFree(req.trade());
+        OrgTrade trade = requireTrade(req.trade(), req.tradeId());
+        requireTradeIsFree(trade);
 
         ChecklistTemplate template = new ChecklistTemplate();
-        template.setTrade(req.trade());
+        setTrade(template, trade);
         template.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
         apply(template, req);
 
         ChecklistTemplate saved = templateRepo.saveAndFlush(template);
-        log.info("Created checklist template {} for trade {}", saved.getId(), saved.getTrade());
+        log.info("Created checklist template {} for trade {}", saved.getId(), trade.getCode());
         return mapper.toDto(saved);
     }
 
@@ -98,11 +101,14 @@ public class ChecklistTemplateService {
     @Transactional
     public ChecklistTemplateDto update(UUID id, ChecklistTemplateRequest req) {
         ChecklistTemplate template = require(id);
-        if (req.trade() != null && req.trade() != template.getTrade()) {
-            throw new InvalidRequestException(
-                    "Checklist template " + id + " covers trade " + template.getTrade().getValue()
-                            + " and cannot be moved to " + req.trade().getValue()
-                            + ". The trade is fixed when the template is created.");
+        if (req.trade() != null || req.tradeId() != null) {
+            OrgTrade requested = tradeService.resolve(req.trade(), req.tradeId());
+            if (!Objects.equals(requested.getId(), template.getTradeRef().getId())) {
+                throw new InvalidRequestException(
+                        "Checklist template " + id + " covers trade " + template.getTradeRef().getCode()
+                                + " and cannot be moved to " + requested.getCode()
+                                + ". The trade is fixed when the template is created.");
+            }
         }
 
         template.getItems().clear();
@@ -120,7 +126,7 @@ public class ChecklistTemplateService {
      */
     @Transactional(readOnly = true)
     public List<StarterChecklistTemplateDto> findStarters() {
-        return starterRepo.findByActiveTrueOrderByTradeAsc().stream()
+        return starterRepo.findByActiveTrueOrderByTradeCodeAsc().stream()
                 .map(mapper::toStarterDto)
                 .toList();
     }
@@ -133,15 +139,16 @@ public class ChecklistTemplateService {
      * @throws DuplicateResourceException if the tenant already has a template for it.
      */
     @Transactional
-    public ChecklistTemplateDto adoptStarter(InspectionTrade trade) {
+    public ChecklistTemplateDto adoptStarter(String tradeCode) {
+        StarterChecklistTemplate starter = starterRepo.findByTradeCodeAndActiveTrue(
+                        tradeCode == null ? "" : tradeCode.trim().toLowerCase())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No starter checklist is available for trade " + tradeCode));
+        OrgTrade trade = tradeService.resolve(starter.getTradeCode(), null);
         requireTradeIsFree(trade);
 
-        StarterChecklistTemplate starter = starterRepo.findByTradeAndActiveTrue(trade)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "No starter checklist is available for trade " + trade.getValue()));
-
         ChecklistTemplate template = new ChecklistTemplate();
-        template.setTrade(starter.getTrade());
+        setTrade(template, trade);
         template.setName(starter.getName());
         template.setDescription(starter.getDescription());
         template.setActive(true);
@@ -160,7 +167,7 @@ public class ChecklistTemplateService {
         }
 
         ChecklistTemplate saved = templateRepo.saveAndFlush(template);
-        log.info("Adopted starter checklist for trade {} as template {}", trade, saved.getId());
+        log.info("Adopted starter checklist for trade {} as template {}", trade.getCode(), saved.getId());
         return mapper.toDto(saved);
     }
 
@@ -179,11 +186,11 @@ public class ChecklistTemplateService {
      *         outcome, not an error: an inspection may be run without a template.
      */
     @Transactional(readOnly = true)
-    public List<InspectionCheckItem> instantiateFor(InspectionTrade trade) {
+    public List<InspectionCheckItem> instantiateFor(OrgTrade trade) {
         if (trade == null) {
             return List.of();
         }
-        return templateRepo.findByTradeAndActiveTrue(trade)
+        return templateRepo.findByTradeRefAndActiveTrue(trade)
                 .map(template -> template.getItems().stream()
                         .map(ChecklistTemplateService::toCheckItem)
                         .toList())
@@ -210,11 +217,25 @@ public class ChecklistTemplateService {
                         "Checklist template with ID " + id + " was not found"));
     }
 
-    private void requireTradeIsFree(InspectionTrade trade) {
-        if (templateRepo.existsByTrade(trade)) {
+    private OrgTrade requireTrade(String slug, UUID tradeId) {
+        if (tradeId == null && (slug == null || slug.isBlank())) {
+            throw new InvalidRequestException("A checklist template needs a trade: send trade or tradeId.");
+        }
+        return tradeService.resolve(slug, tradeId);
+    }
+
+    /** Sets the org trade row and keeps the legacy enum column in step for the shim. */
+    @SuppressWarnings("deprecation")
+    private static void setTrade(ChecklistTemplate template, OrgTrade trade) {
+        template.setTradeRef(trade);
+        template.setTrade(trade.legacyTrade());
+    }
+
+    private void requireTradeIsFree(OrgTrade trade) {
+        if (templateRepo.existsByTradeRef(trade)) {
             throw new DuplicateResourceException(
                     "This organization already has a checklist template for trade "
-                            + trade.getValue() + ". Edit that template instead of defining a second one.");
+                            + trade.getCode() + ". Edit that template instead of defining a second one.");
         }
     }
 

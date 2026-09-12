@@ -2,7 +2,6 @@ package org.tornotron.echno_backend.modules.inspections.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
 import org.tornotron.echno_backend.modules.inspections.domain.StarterChecklistTemplate;
 
 import java.util.List;
@@ -19,7 +18,7 @@ public interface StarterChecklistTemplateRepository
      * {@link InspectionTrade}, and the enum has sixteen members. It is global
      * reference data shipped by a Liquibase seed, so no tenant can grow it.
      */
-    List<StarterChecklistTemplate> findByActiveTrueOrderByTradeAsc();
+    List<StarterChecklistTemplate> findByActiveTrueOrderByTradeCodeAsc();
 
-    Optional<StarterChecklistTemplate> findByTradeAndActiveTrue(InspectionTrade trade);
+    Optional<StarterChecklistTemplate> findByTradeCodeAndActiveTrue(String tradeCode);
 }

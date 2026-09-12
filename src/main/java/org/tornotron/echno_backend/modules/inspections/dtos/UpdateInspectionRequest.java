@@ -9,12 +9,12 @@ import jakarta.validation.constraints.Size;
 import org.tornotron.echno_backend.modules.inspections.InspectionCategory;
 import org.tornotron.echno_backend.modules.inspections.InspectionResult;
 import org.tornotron.echno_backend.modules.inspections.InspectionStatus;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
 import org.tornotron.echno_backend.modules.inspections.InspectionType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Full replacement of an inspection, apart from the project it is against, which
@@ -31,8 +31,10 @@ public record UpdateInspectionRequest(
         @NotNull InspectionType type,
         @Schema(description = "Top-level grouping the inspection belongs to. Derived from the type when omitted.", example = "qa-qc")
         InspectionCategory category,
-        @Schema(description = "QA/QC stage or trade the inspection covers. Left unset for safety and compliance inspections.", example = "reinforcement")
-        InspectionTrade trade,
+        @Schema(description = "QA/QC stage or trade the inspection covers, as its slug. Left unset for safety and compliance inspections. Resolved against the organization's trades; tradeId may be sent instead.", example = "reinforcement")
+        String trade,
+        @Schema(description = "Id of the organization's trade row. Takes precedence over trade when both are sent.", nullable = true)
+        UUID tradeId,
         @Schema(description = "Current lifecycle status of the inspection.", example = "COMPLETED")
         @NotNull InspectionStatus status,
         @Schema(description = "Overall result once the inspection is concluded.", example = "PASSED")

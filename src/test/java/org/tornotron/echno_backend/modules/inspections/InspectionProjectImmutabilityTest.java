@@ -64,6 +64,9 @@ class InspectionProjectImmutabilityTest {
     @Mock
     private InspectionEventRecorder events;
 
+    @Mock
+    private org.tornotron.echno_backend.modules.inspections.service.TradeService tradeService;
+
     @InjectMocks
     private InspectionService service;
 
@@ -137,7 +140,7 @@ class InspectionProjectImmutabilityTest {
                 "Site check",
                 InspectionType.QUALITY,
                 InspectionCategory.QA_QC,
-                InspectionTrade.RCC,
+                "rcc", null,
                 InspectionStatus.COMPLETED,
                 InspectionResult.PASSED,
                 projectId,

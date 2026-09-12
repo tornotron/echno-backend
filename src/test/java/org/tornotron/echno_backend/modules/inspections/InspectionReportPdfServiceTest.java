@@ -203,7 +203,7 @@ class InspectionReportPdfServiceTest {
 
         return new InspectionDto(INSPECTION_ID, "INSP-2026-0001", "Slab pour, level 4",
                 InspectionType.QUALITY, InspectionCategory.QA_QC,
-                InspectionTrade.REINFORCEMENT, InspectionStatus.COMPLETED,
+                "reinforcement", null, "Reinforcement", "structural", InspectionStatus.COMPLETED,
                 InspectionResult.FAILED, 42L, "Block A", "Level 4 slab", "SD-104-R3",
                 LocalDate.of(2026, 8, 20), "09:00",
                 LocalDateTime.of(2026, 8, 20, 9, 5), LocalDateTime.of(2026, 8, 20, 11, 40),

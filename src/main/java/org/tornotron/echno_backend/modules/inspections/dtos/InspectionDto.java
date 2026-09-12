@@ -7,7 +7,6 @@ import org.tornotron.echno_backend.modules.inspections.InspectionCategory;
 import org.tornotron.echno_backend.modules.inspections.InspectionOrigin;
 import org.tornotron.echno_backend.modules.inspections.InspectionResult;
 import org.tornotron.echno_backend.modules.inspections.InspectionStatus;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
 import org.tornotron.echno_backend.modules.inspections.InspectionType;
 
 import java.time.LocalDate;
@@ -22,10 +21,14 @@ public record InspectionDto(
         String title,
         InspectionType type,
         InspectionCategory category,
-        @Schema(description = "QA/QC stage or trade the inspection covers. Null on safety and "
+        @Schema(description = "QA/QC stage or trade the inspection covers, as its slug. Null on safety and "
                 + "compliance inspections, which carry no trade, and null on a QA/QC inspection "
-                + "whose payload omitted it.", nullable = true)
-        InspectionTrade trade,
+                + "whose payload omitted it.", nullable = true, example = "reinforcement")
+        String trade,
+        @Schema(description = "Id of the organization's trade row.", nullable = true)
+        UUID tradeId,
+        @Schema(nullable = true) String tradeName,
+        @Schema(description = "Group code of the trade.", nullable = true) String tradeGroup,
         InspectionStatus status,
         @Schema(description = "Overall outcome of the inspection. Null until the inspection is "
                 + "concluded and a result is recorded against it.", nullable = true)
