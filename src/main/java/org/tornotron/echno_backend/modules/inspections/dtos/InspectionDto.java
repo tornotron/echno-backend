@@ -125,26 +125,26 @@ public record InspectionDto(
     /** The same record with its check items and defects replaced, for filling in their breadcrumbs. */
     public InspectionDto withChildren(List<InspectionCheckItemDto> items, List<InspectionDefectDto> defectList) {
         return new InspectionDto(
-                id, inspectionNumber, title, type, category, trade, status, result, projectId, location,
-                areaInspected, drawingReference, scheduledDate, scheduledTime,
-                actualStartTime, actualEndTime, duration, inspectorId, contractorId,
-                clientRepresentative, attendees, weatherConditions, temperature,
-                totalCheckPoints, passedCheckPoints, failedCheckPoints, defectsFound,
-                origin, compliancePhase, riskLevel, resolutionOptions,
-                complianceRuleRef, aiRationale, items, defectList, createdAt,
-                updatedAt, spatialNodeId, spatialPath);
+                id, inspectionNumber, title, type, category, trade, tradeId, tradeName, tradeGroup,
+                status, result, projectId, location, areaInspected, drawingReference,
+                scheduledDate, scheduledTime, actualStartTime, actualEndTime, duration,
+                inspectorId, contractorId, clientRepresentative, attendees,
+                weatherConditions, temperature, totalCheckPoints, passedCheckPoints,
+                failedCheckPoints, defectsFound, origin, compliancePhase, riskLevel,
+                resolutionOptions, complianceRuleRef, aiRationale, items, defectList,
+                createdAt, updatedAt, spatialNodeId, spatialPath);
     }
 
     /** The same record with the breadcrumb filled in; the mapper leaves it empty. */
     public InspectionDto withSpatialPath(List<SpatialPathSegment> path) {
         return new InspectionDto(
-                id, inspectionNumber, title, type, category, trade, status, result, projectId, location,
-                areaInspected, drawingReference, scheduledDate, scheduledTime,
-                actualStartTime, actualEndTime, duration, inspectorId, contractorId,
-                clientRepresentative, attendees, weatherConditions, temperature,
-                totalCheckPoints, passedCheckPoints, failedCheckPoints, defectsFound,
-                origin, compliancePhase, riskLevel, resolutionOptions,
-                complianceRuleRef, aiRationale, checkItems, defects, createdAt,
-                updatedAt, spatialNodeId, path);
+                id, inspectionNumber, title, type, category, trade, tradeId, tradeName, tradeGroup,
+                status, result, projectId, location, areaInspected, drawingReference,
+                scheduledDate, scheduledTime, actualStartTime, actualEndTime, duration,
+                inspectorId, contractorId, clientRepresentative, attendees,
+                weatherConditions, temperature, totalCheckPoints, passedCheckPoints,
+                failedCheckPoints, defectsFound, origin, compliancePhase, riskLevel,
+                resolutionOptions, complianceRuleRef, aiRationale, checkItems, defects,
+                createdAt, updatedAt, spatialNodeId, path);
     }
 }
