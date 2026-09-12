@@ -17,6 +17,7 @@ public interface InspectionMapper {
     @Mapping(target = "tradeId", source = "tradeRef.id")
     @Mapping(target = "tradeName", source = "tradeRef.name")
     @Mapping(target = "tradeGroup", source = "tradeRef.groupCode")
+    @Mapping(target = "spatialPath", expression = "java(java.util.List.of())")
     InspectionDto toDto(Inspection inspection);
 
     /** The slug on the wire: the org row's code, or the enum's value while a row is missing. */
@@ -28,7 +29,9 @@ public interface InspectionMapper {
         return legacy == null ? null : legacy.getValue();
     }
 
+    @Mapping(target = "spatialPath", expression = "java(java.util.List.of())")
     InspectionCheckItemDto toCheckItemDto(InspectionCheckItem item);
 
+    @Mapping(target = "spatialPath", expression = "java(java.util.List.of())")
     InspectionDefectDto toDefectDto(InspectionDefect defect);
 }

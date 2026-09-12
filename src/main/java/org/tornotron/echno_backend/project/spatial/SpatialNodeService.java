@@ -20,13 +20,16 @@ import org.tornotron.echno_backend.project.spatial.dto.UpdateSpatialNodeRequest;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -83,6 +86,34 @@ public class SpatialNodeService {
             return List.of();
         }
         return repository.findByIdScoped(nodeId).map(this::pathSegments).orElse(List.of());
+    }
+
+    /**
+     * Breadcrumbs for many nodes in two queries: the nodes, then every ancestor they name.
+     * A node that is not visible is left out of the result.
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, List<SpatialPathSegment>> pathsOf(Collection<UUID> nodeIds) {
+        List<UUID> wanted = nodeIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (wanted.isEmpty()) {
+            return new HashMap<>();
+        }
+        List<SpatialNode> nodes = repository.findAllScoped(wanted);
+        Set<UUID> ancestorIds = new HashSet<>();
+        for (SpatialNode n : nodes) {
+            ancestorIds.addAll(idsOnPath(n));
+        }
+        Map<UUID, SpatialNode> byId = new HashMap<>();
+        if (!ancestorIds.isEmpty()) {
+            for (SpatialNode n : repository.findAllScoped(new ArrayList<>(ancestorIds))) {
+                byId.put(n.getId(), n);
+            }
+        }
+        Map<UUID, List<SpatialPathSegment>> result = new HashMap<>();
+        for (SpatialNode n : nodes) {
+            result.put(n.getId(), segmentsFrom(idsOnPath(n), byId));
+        }
+        return result;
     }
 
     /** The path prefix that selects the node and its whole subtree, when the node is visible. */
@@ -396,14 +427,22 @@ public class SpatialNodeService {
     }
 
     private List<SpatialPathSegment> pathSegments(SpatialNode node) {
-        List<UUID> ids = Arrays.stream(node.getPath().split("/"))
-                .filter(s -> !s.isBlank())
-                .map(UUID::fromString)
-                .toList();
+        List<UUID> ids = idsOnPath(node);
         Map<UUID, SpatialNode> byId = new HashMap<>();
         for (SpatialNode n : repository.findAllScoped(ids)) {
             byId.put(n.getId(), n);
         }
+        return segmentsFrom(ids, byId);
+    }
+
+    private static List<UUID> idsOnPath(SpatialNode node) {
+        return Arrays.stream(node.getPath().split("/"))
+                .filter(s -> !s.isBlank())
+                .map(UUID::fromString)
+                .toList();
+    }
+
+    private static List<SpatialPathSegment> segmentsFrom(List<UUID> ids, Map<UUID, SpatialNode> byId) {
         List<SpatialPathSegment> segments = new ArrayList<>(ids.size());
         for (UUID id : ids) {
             SpatialNode n = byId.get(id);

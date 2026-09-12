@@ -40,6 +40,7 @@ import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRec
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventService;
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -62,7 +63,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({InspectionService.class, InspectionMapperImpl.class,
+@Import({InspectionService.class, SpatialNodeService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         TradeService.class, TradeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,

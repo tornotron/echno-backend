@@ -23,6 +23,8 @@ import org.tornotron.echno_backend.modules.inspections.domain.InspectionDefect;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateInspectionRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionCheckItemRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDefectRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.InspectionCheckItemDto;
+import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDefectDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.UpdateInspectionRequest;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventChanges;
@@ -30,9 +32,14 @@ import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRec
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSubject;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventType;
 import org.tornotron.echno_backend.modules.inspections.mapper.InspectionMapper;
+import org.tornotron.echno_backend.project.spatial.SpatialLevel;
+import org.tornotron.echno_backend.project.spatial.SpatialNode;
+import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionSpecifications;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.tornotron.echno_backend.modules.inspections.DefectSeverity;
 import java.util.Map;
@@ -73,12 +80,13 @@ public class InspectionService {
     private final TradeService tradeService;
     private final DefectAnnotationService defectAnnotationService;
     private final InspectionEventRecorder events;
+    private final SpatialNodeService spatialNodeService;
 
     @Transactional(readOnly = true)
     public InspectionDto findById(UUID id) {
-        return mapper.toDto(inspectionRepo.findByIdScoped(id)
+        return withSpatialPaths(mapper.toDto(inspectionRepo.findByIdScoped(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Inspection with ID " + id + " was not found")));
+                        "Inspection with ID " + id + " was not found"))));
     }
 
     @Transactional(readOnly = true)
@@ -90,11 +98,32 @@ public class InspectionService {
                                        UUID tradeId,
                                        InspectionResult result,
                                        Pageable pageable) {
+        return findAll(projectId, status, type, category, trade, tradeId, result, null, pageable);
+    }
+
+    /**
+     * As above with the site-structure filter: {@code spatialNodeId} matches inspections on
+     * that node and on every node under it. A node the caller cannot see (another tenant or
+     * an unknown id) matches nothing rather than everything.
+     */
+    @Transactional(readOnly = true)
+    public Page<InspectionDto> findAll(Long projectId,
+                                       InspectionStatus status,
+                                       InspectionType type,
+                                       InspectionCategory category,
+                                       String trade,
+                                       UUID tradeId,
+                                       InspectionResult result,
+                                       UUID spatialNodeId,
+                                       Pageable pageable) {
+        String prefix = spatialNodeId == null ? null
+                : spatialNodeService.subtreePathPrefix(spatialNodeId).orElse(InspectionSpecifications.NO_MATCH);
         return inspectionRepo.findAll(
                         InspectionSpecifications.withFilters(projectId, status, type, category,
-                                trade, tradeId, result),
+                                trade, tradeId, result, prefix),
                         pageable)
-                .map(mapper::toDto);
+                .map(mapper::toDto)
+                .map(this::withSpatialPaths);
     }
 
     @Transactional
@@ -110,6 +139,7 @@ public class InspectionService {
         inspection.setLocation(req.location());
         inspection.setAreaInspected(req.areaInspected());
         inspection.setDrawingReference(req.drawingReference());
+        inspection.setSpatialNodeId(resolveSpatialNode(req.projectId(), req.spatialNodeId(), null));
         inspection.setScheduledDate(req.scheduledDate());
         inspection.setScheduledTime(req.scheduledTime());
         inspection.setActualStartTime(req.actualStartTime());
@@ -129,7 +159,7 @@ public class InspectionService {
         Inspection saved = inspectionRepo.saveAndFlush(inspection);
         recordCreation(saved);
         log.info("Created inspection {}", saved.getInspectionNumber());
-        return mapper.toDto(saved);
+        return withSpatialPaths(mapper.toDto(saved));
     }
 
     /**
@@ -165,6 +195,8 @@ public class InspectionService {
         inspection.setLocation(req.location());
         inspection.setAreaInspected(req.areaInspected());
         inspection.setDrawingReference(req.drawingReference());
+        inspection.setSpatialNodeId(resolveSpatialNode(inspection.getProjectId(), req.spatialNodeId(),
+                inspection.getSpatialNodeId()));
         inspection.setScheduledDate(req.scheduledDate());
         inspection.setScheduledTime(req.scheduledTime());
         inspection.setActualStartTime(req.actualStartTime());
@@ -185,7 +217,7 @@ public class InspectionService {
         defectAnnotationService.removeOrphaned(saved);
         recordUpdate(before, saved);
         log.info("Updated inspection {}", saved.getInspectionNumber());
-        return mapper.toDto(saved);
+        return withSpatialPaths(mapper.toDto(saved));
     }
 
     /**
@@ -456,6 +488,7 @@ public class InspectionService {
                 item.setTolerance(cr.tolerance());
                 item.setDeviation(MeasurementDeviation.of(cr.measurement(), cr.expectedValue()));
                 item.setBimElementGuid(cr.bimElementGuid());
+                item.setSpatialNodeId(resolveChildSpatialNode(inspection, cr.spatialNodeId(), "check point"));
                 item.setPriority(cr.priority() != null ? cr.priority() : "medium");
                 inspection.addCheckItem(item);
 
@@ -475,6 +508,7 @@ public class InspectionService {
                 defect.setDescription(dr.description());
                 defect.setSeverity(dr.severity());
                 defect.setLocation(dr.location());
+                defect.setSpatialNodeId(resolveChildSpatialNode(inspection, dr.spatialNodeId(), "defect"));
                 replaceAll(defect.getPhotos(), dr.photos());
                 defect.setCorrectiveAction(dr.correctiveAction());
                 defect.setResponsibleParty(dr.responsibleParty());
@@ -490,6 +524,70 @@ public class InspectionService {
         inspection.setPassedCheckPoints(passed);
         inspection.setFailedCheckPoints(failed);
         inspection.setDefectsFound(defectCount);
+    }
+
+    /**
+     * The site-structure node an inspection may point at: any level, in the inspection's
+     * project, not archived. A reference the inspection already holds is kept as it is even
+     * if the node was archived since, so an old inspection stays editable; only a new or
+     * changed reference is checked. Null clears the reference and leaves the free text as
+     * the only location.
+     */
+    private UUID resolveSpatialNode(Long projectId, UUID requested, UUID current) {
+        if (requested == null || requested.equals(current)) {
+            return requested;
+        }
+        if (projectId == null) {
+            throw new InvalidRequestException("A spatial node needs the inspection to be against a project");
+        }
+        return spatialNodeService.requireUsableNode(projectId, requested).getId();
+    }
+
+    /**
+     * A defect or check point should sit on a zone or an element. A coarser node is accepted
+     * with a warning rather than refused, so a site with a building-only tree is not blocked.
+     */
+    private UUID resolveChildSpatialNode(Inspection inspection, UUID requested, String what) {
+        if (requested == null) {
+            return null;
+        }
+        if (inspection.getProjectId() == null) {
+            throw new InvalidRequestException("A spatial node on a " + what + " needs the inspection to be against a project");
+        }
+        SpatialNode node = spatialNodeService.requireUsableNode(inspection.getProjectId(), requested);
+        if (node.getLevel().depth() < SpatialLevel.ZONE.depth()) {
+            log.warn("Inspection {} {} placed on {} {} rather than a zone or element",
+                    inspection.getInspectionNumber(), what, node.getLevel(), node.getCode());
+        }
+        return node.getId();
+    }
+
+    /** Fills the breadcrumbs on an inspection and its children from one batch lookup. */
+    private InspectionDto withSpatialPaths(InspectionDto dto) {
+        if (dto == null) {
+            return null;
+        }
+        List<InspectionCheckItemDto> checkItems = dto.checkItems() == null ? List.of() : dto.checkItems();
+        List<InspectionDefectDto> defectDtos = dto.defects() == null ? List.of() : dto.defects();
+        List<UUID> ids = new ArrayList<>();
+        ids.add(dto.spatialNodeId());
+        checkItems.forEach(c -> ids.add(c.spatialNodeId()));
+        defectDtos.forEach(d -> ids.add(d.spatialNodeId()));
+        Map<UUID, List<SpatialPathSegment>> paths = spatialNodeService.pathsOf(ids);
+        List<InspectionCheckItemDto> items = checkItems.stream()
+                .map(c -> c.withSpatialPath(pathFor(paths, c.spatialNodeId())))
+                .toList();
+        List<InspectionDefectDto> defects = defectDtos.stream()
+                .map(d -> d.withSpatialPath(pathFor(paths, d.spatialNodeId())))
+                .toList();
+        return dto.withChildren(items, defects).withSpatialPath(pathFor(paths, dto.spatialNodeId()));
+    }
+
+    private static List<SpatialPathSegment> pathFor(Map<UUID, List<SpatialPathSegment>> paths, UUID nodeId) {
+        if (nodeId == null) {
+            return List.of();
+        }
+        return paths.getOrDefault(nodeId, List.of());
     }
 
     /**

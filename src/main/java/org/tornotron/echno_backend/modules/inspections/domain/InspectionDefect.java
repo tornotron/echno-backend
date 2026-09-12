@@ -48,6 +48,10 @@ public class InspectionDefect {
     @Column(length = 300)
     private String location;
 
+    // Site structure reference; the free-text location stays as the fallback.
+    @Column(name = "spatial_node_id")
+    private UUID spatialNodeId;
+
     @ElementCollection
     @CollectionTable(name = "inspection_defect_photos",
             joinColumns = @JoinColumn(name = "defect_id"))

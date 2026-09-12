@@ -106,6 +106,12 @@ public class Inspection implements TenantScopedEntity {
     @Column(name = "drawing_reference", length = 200)
     private String drawingReference;
 
+    // Reference into the project's site structure (core project_spatial_node). Null on every
+    // row written before the hierarchy existed; the three free-text columns above stay as the
+    // fallback and read as a location note when a node is also set.
+    @Column(name = "spatial_node_id")
+    private UUID spatialNodeId;
+
     // Nullable: AI-generated compliance rows are created without a schedule, which
     // a project manager fills in when the compliance is planned.
     @Column(name = "scheduled_date")

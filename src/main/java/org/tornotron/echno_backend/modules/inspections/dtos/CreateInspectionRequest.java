@@ -66,5 +66,9 @@ public record CreateInspectionRequest(
         @Schema(description = "Checklist items covered by the inspection.")
         @Valid List<InspectionCheckItemRequest> checkItems,
         @Schema(description = "Defects identified during the inspection.")
-        @Valid List<InspectionDefectRequest> defects
+        @Valid List<InspectionDefectRequest> defects,
+        @Schema(description = "Site structure node the inspection covers, any level of the project's "
+                + "tree. Null keeps the free-text location, areaInspected and drawingReference as "
+                + "the only place; with a node set they read as a location note.", nullable = true)
+        UUID spatialNodeId
 ) {}

@@ -189,7 +189,7 @@ class InspectionReportPdfServiceTest {
                     "Rebar spacing at grid C4", "IS 456", CheckItemStatus.FAILED,
                     "Spacing exceeded", true, List.of(PHOTO), "163", "150",
                     "150 mm centre to centre", "+/- 10 mm", new BigDecimal("13.0000"),
-                    null, "high"));
+                    null, "high", null, List.of()));
         }
 
         List<InspectionDefectDto> found = new ArrayList<>();
@@ -198,7 +198,7 @@ class InspectionReportPdfServiceTest {
                     "Honeycombing on column C4 at ground level", DefectSeverity.MAJOR,
                     "Column C4, ground floor", List.of(PHOTO),
                     "Chip out and re-pour the affected section", "ABC Contractors",
-                    LocalDate.of(2026, 9, 12), DefectStatus.OPEN, null));
+                    LocalDate.of(2026, 9, 12), DefectStatus.OPEN, null, null, List.of()));
         }
 
         return new InspectionDto(INSPECTION_ID, "INSP-2026-0001", "Slab pour, level 4",
@@ -212,6 +212,6 @@ class InspectionReportPdfServiceTest {
                 checkPoints, 0, checkPoints, defects,
                 InspectionOrigin.MANUAL, null, null, null, null, null,
                 items, found,
-                LocalDateTime.of(2026, 8, 20, 9, 0), LocalDateTime.of(2026, 8, 20, 12, 0));
+                LocalDateTime.of(2026, 8, 20, 9, 0), LocalDateTime.of(2026, 8, 20, 12, 0), null, List.of());
     }
 }

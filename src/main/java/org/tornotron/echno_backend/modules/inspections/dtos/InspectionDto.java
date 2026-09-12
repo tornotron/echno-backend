@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.modules.inspections.InspectionType;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 import java.util.UUID;
 
 @Schema(description = "An inspection as returned by the API, including its checklist items, defects and summary counts.")
@@ -112,5 +113,38 @@ public record InspectionDto(
         List<InspectionCheckItemDto> checkItems,
         List<InspectionDefectDto> defects,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
-) {}
+        LocalDateTime updatedAt,
+        @Schema(description = "Site structure node the inspection covers, or null where only the free-text "
+                + "location was recorded.", nullable = true)
+        UUID spatialNodeId,
+        @Schema(description = "Ordered ancestors from the building down to spatialNodeId, for a "
+                + "breadcrumb with no second call. Empty when spatialNodeId is null.")
+        List<SpatialPathSegment> spatialPath
+) {
+
+    /** The same record with its check items and defects replaced, for filling in their breadcrumbs. */
+    public InspectionDto withChildren(List<InspectionCheckItemDto> items, List<InspectionDefectDto> defectList) {
+        return new InspectionDto(
+                id, inspectionNumber, title, type, category, trade, status, result, projectId, location,
+                areaInspected, drawingReference, scheduledDate, scheduledTime,
+                actualStartTime, actualEndTime, duration, inspectorId, contractorId,
+                clientRepresentative, attendees, weatherConditions, temperature,
+                totalCheckPoints, passedCheckPoints, failedCheckPoints, defectsFound,
+                origin, compliancePhase, riskLevel, resolutionOptions,
+                complianceRuleRef, aiRationale, items, defectList, createdAt,
+                updatedAt, spatialNodeId, spatialPath);
+    }
+
+    /** The same record with the breadcrumb filled in; the mapper leaves it empty. */
+    public InspectionDto withSpatialPath(List<SpatialPathSegment> path) {
+        return new InspectionDto(
+                id, inspectionNumber, title, type, category, trade, status, result, projectId, location,
+                areaInspected, drawingReference, scheduledDate, scheduledTime,
+                actualStartTime, actualEndTime, duration, inspectorId, contractorId,
+                clientRepresentative, attendees, weatherConditions, temperature,
+                totalCheckPoints, passedCheckPoints, failedCheckPoints, defectsFound,
+                origin, compliancePhase, riskLevel, resolutionOptions,
+                complianceRuleRef, aiRationale, checkItems, defects, createdAt,
+                updatedAt, spatialNodeId, path);
+    }
+}

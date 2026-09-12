@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 import org.tornotron.echno_backend.modules.inspections.CheckItemStatus;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Check-point payload shared by the create and update requests. The inspection's
@@ -43,5 +44,7 @@ public record InspectionCheckItemRequest(
                 + "inspection was carried out against a model.", example = "1kTvXnbbzCWw8lcMd1dR4o")
         @Size(max = 100) String bimElementGuid,
         @Schema(description = "Priority of this check point.", example = "high")
-        @Size(max = 20) String priority
+        @Size(max = 20) String priority,
+        @Schema(description = "Site structure node the check point covers, a zone or element of the inspection's project. Null keeps the check point unplaced.", nullable = true)
+        UUID spatialNodeId
 ) {}

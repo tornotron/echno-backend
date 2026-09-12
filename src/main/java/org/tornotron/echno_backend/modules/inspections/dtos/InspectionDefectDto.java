@@ -6,6 +6,7 @@ import org.tornotron.echno_backend.modules.inspections.DefectStatus;
 
 import java.time.LocalDate;
 import java.util.List;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 import java.util.UUID;
 
 @Schema(description = "A defect identified during an inspection, as returned by the API.")
@@ -35,5 +36,19 @@ public record InspectionDefectDto(
                 + "application can carry none.", nullable = true)
         DefectStatus status,
         @Schema(description = "Date the defect was resolved. Null until it is.", nullable = true)
-        LocalDate resolvedDate
-) {}
+        LocalDate resolvedDate,
+        @Schema(description = "Site structure node the defect sits on, or null where only the free-text "
+                + "location was recorded.", nullable = true)
+        UUID spatialNodeId,
+        @Schema(description = "Ordered ancestors from the building down to spatialNodeId, for a "
+                + "breadcrumb with no second call. Empty when spatialNodeId is null.")
+        List<SpatialPathSegment> spatialPath
+) {
+
+    /** The same record with the breadcrumb filled in; the mapper leaves it empty. */
+    public InspectionDefectDto withSpatialPath(List<SpatialPathSegment> path) {
+        return new InspectionDefectDto(
+                id, category, description, severity, location, photos, correctiveAction,
+                responsibleParty, targetDate, status, resolvedDate, spatialNodeId, path);
+    }
+}

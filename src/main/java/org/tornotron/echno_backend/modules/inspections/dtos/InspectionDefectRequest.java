@@ -8,6 +8,7 @@ import org.tornotron.echno_backend.modules.inspections.DefectStatus;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Defect payload shared by the create and update requests. The number of defects
@@ -34,5 +35,7 @@ public record InspectionDefectRequest(
         @Schema(description = "Current resolution status of the defect. Defaults to open when omitted.", example = "open")
         DefectStatus status,
         @Schema(description = "Date the defect was actually resolved, if closed.", example = "null")
-        LocalDate resolvedDate
+        LocalDate resolvedDate,
+        @Schema(description = "Site structure node the defect sits on, a zone or element of the inspection's project. Null keeps the free-text location as the only place.", nullable = true)
+        UUID spatialNodeId
 ) {}
