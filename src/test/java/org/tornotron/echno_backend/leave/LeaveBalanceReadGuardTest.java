@@ -39,9 +39,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code isSelfOrHasAnyOrgRole}, is the one {@code LeaveRequestController} already uses for the
  * request these balances are spent by.
  *
- * <p>{@code @orgSecurity} is mocked so the branches are exercised without building JWT group
- * claims. The service is mocked and its return value is irrelevant; what matters is whether the
- * request reaches it.
+ * <p>For #745 the three balance reads moved again, from {@code isSelfOrHasAnyOrgRole} to
+ * {@code @leaveSecurity.canViewEmployeeBalances}, which adds the approve grant: the employee's
+ * management line and the current approver of one of their pending requests. After #685 a line
+ * manager could approve a request and not read the balance it draws on. The ledger, recalculate
+ * and adjust did not move, and the tests at the bottom say so.
+ *
+ * <p>{@code @orgSecurity} and {@code @leaveSecurity} are mocked so the branches are exercised
+ * without building JWT group claims; {@code LeaveSecurityServiceTest} carries the real policy. The
+ * service is mocked and its return value is irrelevant; what matters is whether the request
+ * reaches it.
  */
 @WebMvcTest({LeaveBalanceController.class, LeaveBalanceControllerWeb.class})
 @Import(LeaveBalanceReadGuardTest.TestSecurityConfig.class)
@@ -59,6 +66,10 @@ class LeaveBalanceReadGuardTest {
     // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
+
+    // Named to match the @leaveSecurity bean the balance reads reference.
+    @MockitoBean(name = "leaveSecurity")
+    private LeaveSecurityService leaveSecurity;
 
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
     // because .with(jwt(...)) sets the authentication directly.
@@ -79,6 +90,8 @@ class LeaveBalanceReadGuardTest {
         when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
         when(orgSecurity.isSelfOrHasAnyOrgRole(SELF, "system-admin", "hr-admin")).thenReturn(true);
         when(orgSecurity.isSelfOrHasAnyOrgRole(COLLEAGUE, "system-admin", "hr-admin")).thenReturn(false);
+        when(leaveSecurity.canViewEmployeeBalances(SELF)).thenReturn(true);
+        when(leaveSecurity.canViewEmployeeBalances(COLLEAGUE)).thenReturn(false);
     }
 
     /** An hr-admin: the role branch answers for anybody, before the change and after it. */
@@ -86,6 +99,19 @@ class LeaveBalanceReadGuardTest {
         when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin")).thenReturn(true);
         when(orgSecurity.isSelfOrHasAnyOrgRole(COLLEAGUE, "system-admin", "hr-admin")).thenReturn(true);
+        when(leaveSecurity.canViewEmployeeBalances(COLLEAGUE)).thenReturn(true);
+    }
+
+    /**
+     * The colleague's line manager: no organization-wide role, not the colleague, and the person
+     * the colleague's leave request is routed to. Before #745 the self-or-role expression answered
+     * false for this caller on every balance read, so the approver was refused the figure.
+     */
+    private void callerIsTheColleaguesLineManager() {
+        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin")).thenReturn(false);
+        when(orgSecurity.isSelfOrHasAnyOrgRole(COLLEAGUE, "system-admin", "hr-admin")).thenReturn(false);
+        when(leaveSecurity.canViewEmployeeBalances(COLLEAGUE)).thenReturn(true);
     }
 
     @Test
@@ -149,6 +175,65 @@ class LeaveBalanceReadGuardTest {
 
         mockMvc.perform(get("/api/v1/leave-balances/employee/" + COLLEAGUE).with(jwt()))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void theLineManagerCanReadTheBalanceTheyApproveAgainst() throws Exception {
+        callerIsTheColleaguesLineManager();
+
+        mockMvc.perform(get("/api/v1/leave-balances/employee/" + COLLEAGUE).with(jwt()))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/leave-balances/employee/" + COLLEAGUE + "/summary").with(jwt()))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/leave-balances/employee/" + COLLEAGUE + "/policy/3").with(jwt()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void theLineManagerCanReadItOnTheWebTwinToo() throws Exception {
+        callerIsTheColleaguesLineManager();
+
+        mockMvc.perform(get("/api/v1/leave-balances/web")
+                        .param("employeeId", String.valueOf(COLLEAGUE)).with(jwt()))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/leave-balances/web/summary")
+                        .param("employeeId", String.valueOf(COLLEAGUE)).with(jwt()))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/leave-balances/web/specific")
+                        .param("employeeId", String.valueOf(COLLEAGUE)).param("policyId", "3").with(jwt()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void theLineManagerStillCannotReadTheLedgerOrAdjustTheBalance() throws Exception {
+        // A decision needs the figure. The audit of how it got there, and the power to change it,
+        // stay with the employee and the administrators.
+        callerIsTheColleaguesLineManager();
+
+        mockMvc.perform(get("/api/v1/leave-balances/employee/" + COLLEAGUE + "/transactions").with(jwt()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/leave-balances/web/transactions")
+                        .param("employeeId", String.valueOf(COLLEAGUE)).with(jwt()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/leave-balances/employee/" + COLLEAGUE + "/recalculate").with(jwt()))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(balanceService);
+    }
+
+    @Test
+    void aColleaguesBalanceIsStillRefusedToABystander() throws Exception {
+        // The policy bean answers false for anybody outside the chain, and the guard has to obey
+        // it: the widening is to the approvers, not to the organization.
+        callerIsAnOrdinaryEmployee();
+
+        mockMvc.perform(get("/api/v1/leave-balances/employee/" + COLLEAGUE).with(jwt()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/leave-balances/web")
+                        .param("employeeId", String.valueOf(COLLEAGUE)).with(jwt()))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(balanceService);
     }
 
     @Test

@@ -41,4 +41,17 @@ public interface LeaveApprovalRepository extends JpaRepository<LeaveApproval, Lo
            "WHERE la.approver.id = :approverId " +
            "AND la.action = 'PENDING'")
     long countPendingByApproverId(@Param("approverId") Long approverId);
+
+    /**
+     * Whether this approver currently holds a pending approval on one of the employee's leave
+     * requests that is itself still pending. Covers the delegate, who is named on the approval row
+     * and in no management line.
+     */
+    @Query("SELECT COUNT(la) > 0 FROM LeaveApproval la " +
+           "WHERE la.leaveRequest.employee.id = :employeeId " +
+           "AND la.approver.id = :approverId " +
+           "AND la.action = 'PENDING' " +
+           "AND la.leaveRequest.status = 'PENDING_APPROVAL'")
+    boolean existsPendingApprovalForEmployeeByApprover(@Param("employeeId") Long employeeId,
+                                                       @Param("approverId") Long approverId);
 }
