@@ -2220,6 +2220,67 @@
         },
         "type": "object"
       },
+      "BimHierarchyConfirmResult": {
+        "properties": {
+          "confirmedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "elementsLinked": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "elementsSkipped": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "nodesCreated": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "nodesMatched": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "BimHierarchyProposalDto": {
+        "description": "A proposed site structure from an IFC's spatial containment, pending confirmation.",
+        "properties": {
+          "buildings": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedBuilding"
+            },
+            "type": "array"
+          },
+          "confirmation": {
+            "$ref": "#/components/schemas/BimHierarchyConfirmResult",
+            "description": "What the last confirmation did, or null."
+          },
+          "confirmedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "counts": {
+            "additionalProperties": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "description": "buildings, floors, zones, elements proposed; matched; unplaced (no storey).",
+            "type": "object"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "versionId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "BimImportJobDto": {
         "description": "A worker job for one model version.",
         "properties": {
@@ -3604,6 +3665,23 @@
               "failed"
             ],
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ConfirmBimHierarchyRequest": {
+        "description": "Confirms the proposal. By default every proposed node is created or matched.",
+        "properties": {
+          "elementGlobalIds": {
+            "description": "Confirm only these element GlobalIds; null or empty for all.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "includeElements": {
+            "description": "False to confirm buildings, floors and zones only and leave elements for later.",
+            "type": "boolean"
           }
         },
         "type": "object"
@@ -16840,6 +16918,113 @@
               "string",
               "null"
             ]
+          }
+        },
+        "type": "object"
+      },
+      "ProposedBuilding": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "floors": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedFloor"
+            },
+            "type": "array"
+          },
+          "globalId": {
+            "type": "string"
+          },
+          "matchedNodeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ProposedElement": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "elementType": {
+            "type": "string"
+          },
+          "globalId": {
+            "type": "string"
+          },
+          "ifcType": {
+            "type": "string"
+          },
+          "matchedNodeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ProposedFloor": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "elevation": {
+            "format": "double",
+            "type": "number"
+          },
+          "globalId": {
+            "type": "string"
+          },
+          "levelIndex": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "matchedNodeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedZone"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "ProposedZone": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "defaultZone": {
+            "type": "boolean"
+          },
+          "elements": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedElement"
+            },
+            "type": "array"
+          },
+          "globalId": {
+            "type": "string"
+          },
+          "matchedNodeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
           }
         },
         "type": "object"
@@ -34621,6 +34806,378 @@
           }
         },
         "summary": "Get one version of a model",
+        "tags": [
+          "BIM Models"
+        ]
+      }
+    },
+    "/api/v1/bim/models/{modelId}/versions/{versionId}/hierarchy/confirm": {
+      "post": {
+        "description": "Creates the buildings, floors, zones and elements that have no node yet, matches the ones that do by GlobalId, and links each element row to its node. Idempotent: confirming again matches everything the first run created.",
+        "operationId": "confirmHierarchy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmBimHierarchyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BimHierarchyProposalDto"
+                }
+              }
+            },
+            "description": "The proposal with the confirmation result and refreshed matches"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such version, or no proposal to confirm"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Confirm the proposal into the project's site structure",
+        "tags": [
+          "BIM Models"
+        ]
+      }
+    },
+    "/api/v1/bim/models/{modelId}/versions/{versionId}/hierarchy/proposal": {
+      "get": {
+        "description": "Building > Floor > Zone > Element from IfcBuilding, IfcBuildingStorey and IfcSpace, with the construction elements under each. Entries carrying matchedNodeId already have a spatial node with that GlobalId. Nothing exists in the site structure until confirmed.",
+        "operationId": "getHierarchyProposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BimHierarchyProposalDto"
+                }
+              }
+            },
+            "description": "The proposal"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such version, or its import has not produced a proposal yet"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "The site structure proposed from this version's IFC containment",
+        "tags": [
+          "BIM Models"
+        ]
+      },
+      "post": {
+        "operationId": "regenerateHierarchyProposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BimHierarchyProposalDto"
+                }
+              }
+            },
+            "description": "The rebuilt proposal"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The version is not READY"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such model or version in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Rebuild the proposal from the stored structure, picking up nodes created since",
         "tags": [
           "BIM Models"
         ]
