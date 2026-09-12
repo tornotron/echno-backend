@@ -14,6 +14,9 @@ import org.tornotron.echno_backend.modules.inspections.compliance.ai.OpenAiCompa
 import org.tornotron.echno_backend.modules.inspections.compliance.domain.ComplianceRule;
 import org.tornotron.echno_backend.modules.inspections.compliance.repository.ComplianceRuleRepository;
 import org.tornotron.echno_backend.modules.inspections.ComplianceRiskLevel;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventActorType;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventType;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDto;
 import org.tornotron.echno_backend.modules.inspections.mapper.InspectionMapper;
@@ -31,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -65,6 +69,7 @@ class ComplianceGenerationConcurrencyTest {
     private EntryNumberGenerator numberGen;
     private TenantEntityHelper tenantEntityHelper;
     private InspectionMapper inspectionMapper;
+    private InspectionEventRecorder events;
     private ComplianceGenerationService service;
 
     @BeforeEach
@@ -76,6 +81,7 @@ class ComplianceGenerationConcurrencyTest {
         numberGen = mock(EntryNumberGenerator.class);
         tenantEntityHelper = mock(TenantEntityHelper.class);
         inspectionMapper = mock(InspectionMapper.class);
+        events = mock(InspectionEventRecorder.class);
 
         // Backoff at zero so the restarts cost the build no wall-clock time.
         TransactionRetryTemplate retryTemplate = new TransactionRetryTemplate(
@@ -83,7 +89,7 @@ class ComplianceGenerationConcurrencyTest {
 
         service = new ComplianceGenerationService(
                 projectRepository, ruleRepository, complianceAiService, inspectionRepository,
-                numberGen, tenantEntityHelper, inspectionMapper, retryTemplate);
+                numberGen, tenantEntityHelper, inspectionMapper, retryTemplate, events);
 
         Project project = new Project();
         project.setProjectName("Race Test");
@@ -165,6 +171,9 @@ class ComplianceGenerationConcurrencyTest {
 
         verify(inspectionRepository, times(1)).save(any(Inspection.class));
         verify(inspectionMapper, times(1)).toDto(saved);
+        // the generator signs its own work: one event per inspection, by the model, in the same unit of work
+        verify(events, times(1)).recordAs(any(), eq(InspectionEventType.INSPECTION_GENERATED),
+                eq(InspectionEventActorType.AI), eq("compliance-generator"), isNull(), any(), any());
     }
 
     /**

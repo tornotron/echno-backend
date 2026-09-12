@@ -20,6 +20,11 @@ import org.tornotron.echno_backend.modules.inspections.InspectionOrigin;
 import org.tornotron.echno_backend.modules.inspections.InspectionStatus;
 import org.tornotron.echno_backend.modules.inspections.InspectionType;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventActorType;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventChanges;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSubject;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventType;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDto;
 import org.tornotron.echno_backend.modules.inspections.mapper.InspectionMapper;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
@@ -113,6 +118,9 @@ public class ComplianceGenerationService {
 
     private static final String DOC_TYPE = "INSP";
 
+    /** The actor id the event log shows for inspections this generator creates. */
+    static final String GENERATOR_ACTOR = "compliance-generator";
+
     private final ProjectRepository projectRepository;
     private final ComplianceRuleRepository ruleRepository;
     private final OpenAiCompatibleComplianceService complianceAiService;
@@ -121,6 +129,7 @@ public class ComplianceGenerationService {
     private final TenantEntityHelper tenantEntityHelper;
     private final InspectionMapper inspectionMapper;
     private final TransactionRetryTemplate retryTemplate;
+    private final InspectionEventRecorder events;
 
     /**
      * What the read phase hands to the phases after it. The entities are detached once the
@@ -354,6 +363,17 @@ public class ComplianceGenerationService {
             inspection.setOrganization(organization);
 
             Inspection saved = inspectionRepository.save(inspection);
+            events.recordAs(InspectionEventSubject.inspection(saved),
+                    InspectionEventType.INSPECTION_GENERATED, InspectionEventActorType.AI,
+                    GENERATOR_ACTOR, null,
+                    InspectionEventChanges.none()
+                            .field("status", null, saved.getStatus())
+                            .field("origin", null, saved.getOrigin())
+                            .field("complianceRuleRef", null, saved.getComplianceRuleRef())
+                            .field("compliancePhase", null, saved.getCompliancePhase())
+                            .field("riskLevel", null, saved.getRiskLevel())
+                            .after(),
+                    saved.getAiRationale());
             created.add(inspectionMapper.toDto(saved));
         }
 

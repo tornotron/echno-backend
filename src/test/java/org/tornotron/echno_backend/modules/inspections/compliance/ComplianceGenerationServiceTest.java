@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.inspections.compliance;
 
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,6 +64,9 @@ class ComplianceGenerationServiceTest {
     private InspectionMapper inspectionMapper;
     @Mock
     private TransactionRetryTemplate retryTemplate;
+
+    @Mock
+    private InspectionEventRecorder events;
 
     @InjectMocks
     private ComplianceGenerationService service;

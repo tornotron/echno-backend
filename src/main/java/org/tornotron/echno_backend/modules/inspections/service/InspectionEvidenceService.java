@@ -15,12 +15,17 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.modules.inspections.InspectionEvidence;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSubject;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventType;
 import org.tornotron.echno_backend.modules.inspections.InspectionStatus;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.UUID;
 
@@ -79,6 +84,7 @@ public class InspectionEvidenceService {
     private final InspectionRepository inspectionRepo;
     private final AttachmentService attachmentService;
     private final AttachmentMapper attachmentMapper;
+    private final InspectionEventRecorder events;
 
     /**
      * The evidence filed against one inspection, oldest first, each with a short-lived download
@@ -111,6 +117,7 @@ public class InspectionEvidenceService {
                 .stream()
                 .map(attachmentMapper::toDto)
                 .toList();
+        recordAttached(inspection, stored);
         log.info("Filed {} pieces of evidence against inspection {}",
                 stored.size(), inspection.getInspectionNumber());
         return stored;
@@ -147,6 +154,7 @@ public class InspectionEvidenceService {
                 .stream()
                 .map(attachmentMapper::toDto)
                 .toList();
+        recordAttached(inspection, stored);
         log.info("Registered {} pieces of evidence against inspection {}",
                 stored.size(), inspection.getInspectionNumber());
         return stored;
@@ -166,6 +174,8 @@ public class InspectionEvidenceService {
         Inspection inspection = requireInspection(inspectionId);
         requireNoVerdictYet(inspection);
         attachmentService.deleteAttachmentOf(InspectionEvidence.ownerOf(inspectionId), attachmentId);
+        events.record(InspectionEventSubject.inspection(inspection), InspectionEventType.EVIDENCE_REMOVED,
+                Map.of("attachmentId", attachmentId), null, null);
         log.info("Removed evidence {} from inspection {}", attachmentId, inspection.getInspectionNumber());
     }
 
@@ -175,6 +185,17 @@ public class InspectionEvidenceService {
      * @param inspection The inspection the file is filed against.
      * @throws InvalidRequestException if it is passed, passed with remarks, or failed.
      */
+    private void recordAttached(Inspection inspection, List<AttachmentDto> stored) {
+        if (stored.isEmpty()) {
+            return;
+        }
+        Map<String, Object> after = new LinkedHashMap<>();
+        after.put("attachmentIds", stored.stream().map(AttachmentDto::getId).toList());
+        after.put("fileNames", stored.stream().map(AttachmentDto::getFileName).toList());
+        events.record(InspectionEventSubject.inspection(inspection), InspectionEventType.EVIDENCE_ATTACHED,
+                null, after, null);
+    }
+
     private static void requireNoVerdictYet(Inspection inspection) {
         if (!VERDICT_REACHED.contains(inspection.getStatus())) {
             return;

@@ -35,6 +35,10 @@ public interface InspectionRepository
     /** Organization-explicit existence check, for reads that must not lean on the session filter. */
     boolean existsByIdAndOrganization_Id(UUID id, Long organizationId);
 
+    /** The project an inspection belongs to, without loading its check points and defects. */
+    @Query("SELECT i.projectId FROM Inspection i WHERE i.id = :id")
+    Optional<Long> findProjectIdByIdScoped(@Param("id") UUID id);
+
     /**
      * Dedupe guard for AI compliance generation: true when a compliance inspection
      * for this project already references the given rule in this organization. The

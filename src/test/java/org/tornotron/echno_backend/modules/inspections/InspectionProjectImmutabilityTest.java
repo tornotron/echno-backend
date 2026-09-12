@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.inspections;
 
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -59,6 +60,9 @@ class InspectionProjectImmutabilityTest {
     // Mocked away here: this test is about the project comparison, not the sweep.
     @Mock
     private DefectAnnotationService defectAnnotationService;
+
+    @Mock
+    private InspectionEventRecorder events;
 
     @InjectMocks
     private InspectionService service;

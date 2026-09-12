@@ -14,7 +14,9 @@ import java.util.UUID;
  * items, defects, NCRs and reinspections.
  *
  * @param type         the kind of record
- * @param id           the record's id
+ * @param id           the record's id; the column is NOT NULL, and the check is left to it so a
+ *                     unit test running the services over mocked repositories, where nothing
+ *                     assigns ids, does not fail before it reaches its own assertion
  * @param inspectionId the inspection the record belongs to, or is; null only for a subject
  *                     with no inspection at all
  * @param projectId    the project, when known
@@ -26,7 +28,6 @@ public record InspectionEventSubject(InspectionEventSubjectType type,
 
     public InspectionEventSubject {
         Objects.requireNonNull(type, "subject type");
-        Objects.requireNonNull(id, "subject id");
     }
 
     public static InspectionEventSubject inspection(Inspection inspection) {

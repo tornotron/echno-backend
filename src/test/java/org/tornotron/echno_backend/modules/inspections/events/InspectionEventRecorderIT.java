@@ -58,7 +58,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * The event log against a real CockroachDB: an event carries its actor and its before and
+ * Creating an inspection through the service already writes {@code inspection.created}, so
+ * every timeline here starts with that row and the assertions count from there.
+ *
+ * <p>The event log against a real CockroachDB: an event carries its actor and its before and
  * after, lives and dies with the transaction that made the change, is invisible to another
  * tenant, and cannot be rewritten once committed.
  *
@@ -166,8 +169,8 @@ class InspectionEventRecorderIT extends AbstractIntegrationTest {
 
         Page<InspectionEventDto> timeline = events.inspectionTimeline(inspection.getId(), PageRequest.of(0, 10));
 
-        assertThat(timeline.getTotalElements()).isEqualTo(1);
-        InspectionEventDto event = timeline.getContent().getFirst();
+        assertThat(timeline.getTotalElements()).isEqualTo(2);
+        InspectionEventDto event = timeline.getContent().getLast();
         assertThat(event.eventType()).isEqualTo("inspection.status.changed");
         assertThat(event.subjectType()).isEqualTo(InspectionEventSubjectType.INSPECTION);
         assertThat(event.subjectId()).isEqualTo(inspection.getId());
@@ -191,7 +194,7 @@ class InspectionEventRecorderIT extends AbstractIntegrationTest {
         entityManager.clear();
 
         InspectionEventDto event = events.inspectionTimeline(inspection.getId(), PageRequest.of(0, 10))
-                .getContent().getFirst();
+                .getContent().getLast();
         assertThat(event.actorType()).isEqualTo(InspectionEventActorType.SYSTEM);
         assertThat(event.actorId()).isNull();
         assertThat(event.before()).isNull();
@@ -208,7 +211,7 @@ class InspectionEventRecorderIT extends AbstractIntegrationTest {
         entityManager.clear();
 
         InspectionEventDto event = events.inspectionTimeline(inspection.getId(), PageRequest.of(0, 10))
-                .getContent().getFirst();
+                .getContent().getLast();
         assertThat(event.actorType()).isEqualTo(InspectionEventActorType.AI);
         assertThat(event.actorId()).isEqualTo("compliance-generator");
     }
@@ -216,6 +219,7 @@ class InspectionEventRecorderIT extends AbstractIntegrationTest {
     @Test
     void timeline_isOldestFirstAndIncludesEveryChildOfTheInspection() {
         Inspection inspection = scheduledInspection();
+        pause();
         UUID itemId = UUID.randomUUID();
         InspectionEventSubject item = new InspectionEventSubject(
                 InspectionEventSubjectType.CHECK_ITEM, itemId, inspection.getId(), projectId);
@@ -236,8 +240,9 @@ class InspectionEventRecorderIT extends AbstractIntegrationTest {
                 .inspectionTimeline(inspection.getId(), PageRequest.of(0, 10)).getContent();
 
         assertThat(timeline).extracting(InspectionEventDto::eventType).containsExactly(
-                "inspection.created", "check_item.result.recorded", "inspection.status.changed");
-        assertThat(timeline.get(1).subjectId()).isEqualTo(itemId);
+                "inspection.created", "inspection.created", "check_item.result.recorded",
+                "inspection.status.changed");
+        assertThat(timeline.get(2).subjectId()).isEqualTo(itemId);
     }
 
     @Test
@@ -254,11 +259,11 @@ class InspectionEventRecorderIT extends AbstractIntegrationTest {
         entityManager.clear();
 
         assertThat(events.search(projectId, null, null, null, null, null, PageRequest.of(0, 10))
-                .getTotalElements()).isEqualTo(2);
+                .getTotalElements()).isEqualTo(3);
         assertThat(events.search(projectId, InspectionEventSubjectType.DEFECT, null, null, null, null,
                 PageRequest.of(0, 10)).getTotalElements()).isEqualTo(1);
         assertThat(events.search(projectId, null, "inspection.created", null, null, null,
-                PageRequest.of(0, 10)).getTotalElements()).isEqualTo(1);
+                PageRequest.of(0, 10)).getTotalElements()).isEqualTo(2);
         assertThat(events.search(projectId, null, null, "cam-7", null, null,
                 PageRequest.of(0, 10)).getTotalElements()).isEqualTo(1);
         assertThat(events.search(projectId, null, null, null, LocalDateTime.now().plusDays(1), null,
@@ -284,7 +289,7 @@ class InspectionEventRecorderIT extends AbstractIntegrationTest {
 
         TenantContext.setCurrentOrgId(orgAId);
         assertThat(events.search(projectId, null, null, null, null, null, PageRequest.of(0, 10))
-                .getTotalElements()).isEqualTo(1);
+                .getTotalElements()).isEqualTo(2);
     }
 
     @Test

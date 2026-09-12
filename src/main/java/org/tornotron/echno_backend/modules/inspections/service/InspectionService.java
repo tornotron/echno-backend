@@ -25,11 +25,20 @@ import org.tornotron.echno_backend.modules.inspections.dtos.InspectionCheckItemR
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDefectRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.UpdateInspectionRequest;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventChanges;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSubject;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventType;
 import org.tornotron.echno_backend.modules.inspections.mapper.InspectionMapper;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionSpecifications;
 
 import java.util.List;
+import org.tornotron.echno_backend.modules.inspections.DefectSeverity;
+import java.util.Map;
+import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -62,6 +71,7 @@ public class InspectionService {
     private final TenantEntityHelper tenantEntityHelper;
     private final ChecklistTemplateService checklistTemplateService;
     private final DefectAnnotationService defectAnnotationService;
+    private final InspectionEventRecorder events;
 
     @Transactional(readOnly = true)
     public InspectionDto findById(UUID id) {
@@ -115,6 +125,7 @@ public class InspectionService {
         instantiateTemplateIfEmpty(inspection);
 
         Inspection saved = inspectionRepo.saveAndFlush(inspection);
+        recordCreation(saved);
         log.info("Created inspection {}", saved.getInspectionNumber());
         return mapper.toDto(saved);
     }
@@ -141,6 +152,7 @@ public class InspectionService {
                         "Inspection with ID " + id + " was not found"));
 
         requireSameProject(inspection, req.projectId());
+        InspectionSnapshot before = InspectionSnapshot.of(inspection);
 
         inspection.setTitle(req.title());
         inspection.setType(req.type());
@@ -169,6 +181,7 @@ public class InspectionService {
 
         Inspection saved = inspectionRepo.saveAndFlush(inspection);
         defectAnnotationService.removeOrphaned(saved);
+        recordUpdate(before, saved);
         log.info("Updated inspection {}", saved.getInspectionNumber());
         return mapper.toDto(saved);
     }
@@ -191,6 +204,188 @@ public class InspectionService {
      * @param target     The status the request asks for.
      * @throws InvalidRequestException if the move is not part of the lifecycle.
      */
+    private void recordCreation(Inspection saved) {
+        InspectionEventSubject subject = InspectionEventSubject.inspection(saved);
+        events.record(subject, InspectionEventType.INSPECTION_CREATED, null,
+                InspectionEventChanges.none()
+                        .field("inspectionNumber", null, saved.getInspectionNumber())
+                        .field("title", null, saved.getTitle())
+                        .field("type", null, saved.getType())
+                        .field("category", null, saved.getCategory())
+                        .field("trade", null, saved.getTrade())
+                        .field("status", null, saved.getStatus())
+                        .field("projectId", null, saved.getProjectId())
+                        .field("inspectorId", null, saved.getInspectorId())
+                        .field("scheduledDate", null, saved.getScheduledDate())
+                        .after(),
+                null);
+        for (InspectionCheckItem item : saved.getCheckItems()) {
+            if (item.getStatus() != CheckItemStatus.PENDING) {
+                events.record(InspectionEventSubject.checkItem(item),
+                        InspectionEventType.CHECK_ITEM_RESULT_RECORDED, null,
+                        checkItemResult(item).after(), item.getCheckPoint());
+            }
+        }
+        for (InspectionDefect defect : saved.getDefects()) {
+            events.record(InspectionEventSubject.defect(defect), InspectionEventType.DEFECT_CREATED,
+                    null, defectFields(null, defect).after(), defect.getDescription());
+        }
+    }
+
+    /**
+     * Turns the difference between the inspection as loaded and as saved into events: one for
+     * the status when it moved (cancellation named as such), one for the result, one for the
+     * rest of the header, and one per check point or defect that changed.
+     *
+     * <p>Check points and defects are replaced wholesale on update, so they are paired by
+     * position: the row that was at line {@code n} before against the one at line {@code n}
+     * after. The event's subject is the new row, which is the one a reader can open.
+     */
+    private void recordUpdate(InspectionSnapshot before, Inspection saved) {
+        InspectionEventSubject subject = InspectionEventSubject.inspection(saved);
+        if (before.status() != saved.getStatus()) {
+            String type = saved.getStatus() == InspectionStatus.CANCELLED
+                    ? InspectionEventType.INSPECTION_CANCELLED
+                    : InspectionEventType.INSPECTION_STATUS_CHANGED;
+            events.record(subject, type,
+                    Map.of("status", InspectionEventChanges.json(before.status())),
+                    Map.of("status", InspectionEventChanges.json(saved.getStatus())), null);
+        }
+        if (before.result() != saved.getResult()) {
+            InspectionEventChanges result = InspectionEventChanges.none()
+                    .field("result", before.result(), saved.getResult());
+            events.record(subject, InspectionEventType.INSPECTION_RESULT_RECORDED,
+                    result.before(), result.after(), null);
+        }
+        InspectionEventChanges header = InspectionEventChanges.none()
+                .field("title", before.title(), saved.getTitle())
+                .field("type", before.type(), saved.getType())
+                .field("category", before.category(), saved.getCategory())
+                .field("trade", before.trade(), saved.getTrade())
+                .field("location", before.location(), saved.getLocation())
+                .field("areaInspected", before.areaInspected(), saved.getAreaInspected())
+                .field("drawingReference", before.drawingReference(), saved.getDrawingReference())
+                .field("scheduledDate", before.scheduledDate(), saved.getScheduledDate())
+                .field("scheduledTime", before.scheduledTime(), saved.getScheduledTime())
+                .field("actualStartTime", before.actualStartTime(), saved.getActualStartTime())
+                .field("actualEndTime", before.actualEndTime(), saved.getActualEndTime())
+                .field("inspectorId", before.inspectorId(), saved.getInspectorId())
+                .field("contractorId", before.contractorId(), saved.getContractorId());
+        if (!header.isEmpty()) {
+            events.record(subject, InspectionEventType.INSPECTION_UPDATED,
+                    header.before(), header.after(), null);
+        }
+
+        List<InspectionCheckItem> items = saved.getCheckItems();
+        for (int i = 0; i < items.size(); i++) {
+            InspectionCheckItem item = items.get(i);
+            CheckItemSnapshot old = i < before.checkItems().size() ? before.checkItems().get(i) : null;
+            if (old == null) {
+                if (item.getStatus() != CheckItemStatus.PENDING) {
+                    events.record(InspectionEventSubject.checkItem(item),
+                            InspectionEventType.CHECK_ITEM_RESULT_RECORDED, null,
+                            checkItemResult(item).after(), item.getCheckPoint());
+                }
+                continue;
+            }
+            InspectionEventChanges result = InspectionEventChanges.none()
+                    .field("status", old.status(), item.getStatus())
+                    .field("measurement", old.measurement(), item.getMeasurement())
+                    .field("deviation", old.deviation(), item.getDeviation());
+            if (!result.isEmpty()) {
+                events.record(InspectionEventSubject.checkItem(item),
+                        InspectionEventType.CHECK_ITEM_RESULT_RECORDED,
+                        result.before(), result.after(), item.getCheckPoint());
+            }
+            InspectionEventChanges remarks = InspectionEventChanges.none()
+                    .field("remarks", old.remarks(), item.getRemarks());
+            if (!remarks.isEmpty()) {
+                events.record(InspectionEventSubject.checkItem(item),
+                        InspectionEventType.CHECK_ITEM_REMARKS_RECORDED,
+                        remarks.before(), remarks.after(), item.getCheckPoint());
+            }
+        }
+
+        List<InspectionDefect> defects = saved.getDefects();
+        for (int i = 0; i < defects.size(); i++) {
+            InspectionDefect defect = defects.get(i);
+            DefectSnapshot old = i < before.defects().size() ? before.defects().get(i) : null;
+            if (old == null) {
+                events.record(InspectionEventSubject.defect(defect), InspectionEventType.DEFECT_CREATED,
+                        null, defectFields(null, defect).after(), defect.getDescription());
+                continue;
+            }
+            if (old.status() != defect.getStatus()) {
+                InspectionEventChanges status = InspectionEventChanges.none()
+                        .field("status", old.status(), defect.getStatus())
+                        .field("resolvedDate", old.resolvedDate(), defect.getResolvedDate());
+                events.record(InspectionEventSubject.defect(defect),
+                        InspectionEventType.DEFECT_STATUS_CHANGED,
+                        status.before(), status.after(), defect.getDescription());
+            }
+            InspectionEventChanges fields = defectFields(old, defect);
+            if (!fields.isEmpty()) {
+                events.record(InspectionEventSubject.defect(defect), InspectionEventType.DEFECT_UPDATED,
+                        fields.before(), fields.after(), defect.getDescription());
+            }
+        }
+    }
+
+    private static InspectionEventChanges checkItemResult(InspectionCheckItem item) {
+        return InspectionEventChanges.none()
+                .field("status", null, item.getStatus())
+                .field("measurement", null, item.getMeasurement())
+                .field("deviation", null, item.getDeviation());
+    }
+
+    /** The defect's descriptive fields; with {@code old} null, every one is a creation value. */
+    private static InspectionEventChanges defectFields(DefectSnapshot old, InspectionDefect defect) {
+        return InspectionEventChanges.none()
+                .field("category", old == null ? null : old.category(), defect.getCategory())
+                .field("description", old == null ? null : old.description(), defect.getDescription())
+                .field("severity", old == null ? null : old.severity(), defect.getSeverity())
+                .field("location", old == null ? null : old.location(), defect.getLocation())
+                .field("correctiveAction", old == null ? null : old.correctiveAction(), defect.getCorrectiveAction())
+                .field("responsibleParty", old == null ? null : old.responsibleParty(), defect.getResponsibleParty())
+                .field("targetDate", old == null ? null : old.targetDate(), defect.getTargetDate())
+                .field("status", old == null ? null : old.status(), old == null ? defect.getStatus() : old.status());
+    }
+
+    /** The inspection as loaded, held apart from the entity the update then rewrites in place. */
+    private record InspectionSnapshot(String title, InspectionType type, InspectionCategory category,
+                                      InspectionTrade trade, InspectionStatus status, InspectionResult result,
+                                      String location, String areaInspected, String drawingReference,
+                                      LocalDate scheduledDate, String scheduledTime,
+                                      LocalDateTime actualStartTime, LocalDateTime actualEndTime,
+                                      Long inspectorId, Long contractorId,
+                                      List<CheckItemSnapshot> checkItems, List<DefectSnapshot> defects) {
+        static InspectionSnapshot of(Inspection i) {
+            return new InspectionSnapshot(i.getTitle(), i.getType(), i.getCategory(), i.getTrade(),
+                    i.getStatus(), i.getResult(), i.getLocation(), i.getAreaInspected(),
+                    i.getDrawingReference(), i.getScheduledDate(), i.getScheduledTime(),
+                    i.getActualStartTime(), i.getActualEndTime(), i.getInspectorId(), i.getContractorId(),
+                    i.getCheckItems().stream().map(CheckItemSnapshot::of).toList(),
+                    i.getDefects().stream().map(DefectSnapshot::of).toList());
+        }
+    }
+
+    private record CheckItemSnapshot(CheckItemStatus status, String remarks, String measurement,
+                                     BigDecimal deviation) {
+        static CheckItemSnapshot of(InspectionCheckItem c) {
+            return new CheckItemSnapshot(c.getStatus(), c.getRemarks(), c.getMeasurement(), c.getDeviation());
+        }
+    }
+
+    private record DefectSnapshot(String category, String description, DefectSeverity severity,
+                                  String location, String correctiveAction, String responsibleParty,
+                                  LocalDate targetDate, DefectStatus status, LocalDate resolvedDate) {
+        static DefectSnapshot of(InspectionDefect d) {
+            return new DefectSnapshot(d.getCategory(), d.getDescription(), d.getSeverity(), d.getLocation(),
+                    d.getCorrectiveAction(), d.getResponsibleParty(), d.getTargetDate(), d.getStatus(),
+                    d.getResolvedDate());
+        }
+    }
+
     private static void transitionTo(Inspection inspection, InspectionStatus target) {
         InspectionStatus current = inspection.getStatus();
         if (!current.canTransitionTo(target)) {

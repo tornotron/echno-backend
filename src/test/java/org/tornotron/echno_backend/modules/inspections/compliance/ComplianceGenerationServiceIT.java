@@ -50,6 +50,8 @@ import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.project.enums.ProjectType;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
+import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicReference;
@@ -77,6 +79,7 @@ import static org.mockito.Mockito.when;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ComplianceGenerationService.class, InspectionMapperImpl.class,
+        InspectionEventRecorder.class, UserContextService.class,
         TenantEntityHelper.class, EntryNumberGenerator.class, TransactionalWorkRunner.class,
         TransactionRetryTemplate.class, ComplianceGenerationServiceIT.RetryMetrics.class})
 class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
@@ -175,6 +178,9 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
                     .executeUpdate();
             entityManager.createNativeQuery(
                             "DELETE FROM compliance_generation_jobs WHERE organization_id = :org")
+                    .setParameter("org", orgAId).executeUpdate();
+            entityManager.createNativeQuery(
+                            "DELETE FROM inspection_events WHERE organization_id = :org")
                     .setParameter("org", orgAId).executeUpdate();
             entityManager.createNativeQuery(
                             "DELETE FROM inspections WHERE organization_id = :org")
