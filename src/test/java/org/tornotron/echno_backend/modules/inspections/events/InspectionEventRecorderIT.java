@@ -46,6 +46,7 @@ import org.tornotron.echno_backend.modules.inspections.service.InspectionService
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserContextService;
@@ -74,7 +75,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({InspectionService.class, InspectionMapperImpl.class,
+@Import({InspectionService.class, SpatialNodeService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         TradeService.class, TradeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
@@ -347,7 +348,7 @@ class InspectionEventRecorderIT extends AbstractIntegrationTest {
                 "Slab check", InspectionType.QUALITY, null, null, null, projectId,
                 "Block A", null, null, LocalDate.of(2026, 9, 12), null,
                 null, null, null, 100L, null, null, null, null, null,
-                null, null));
+                null, null, null));
         return inspectionRepo.findByIdScoped(dto.id()).orElseThrow();
     }
 
