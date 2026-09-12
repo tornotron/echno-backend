@@ -42,13 +42,16 @@ public record InspectionDefectDto(
         UUID spatialNodeId,
         @Schema(description = "Ordered ancestors from the building down to spatialNodeId, for a "
                 + "breadcrumb with no second call. Empty when spatialNodeId is null.")
-        List<SpatialPathSegment> spatialPath
+        List<SpatialPathSegment> spatialPath,
+        @Schema(description = "Observation the defect was raised from. Null on defects recorded "
+                + "before observations existed.", nullable = true)
+        UUID observationId
 ) {
 
     /** The same record with the breadcrumb filled in; the mapper leaves it empty. */
     public InspectionDefectDto withSpatialPath(List<SpatialPathSegment> path) {
         return new InspectionDefectDto(
                 id, category, description, severity, location, photos, correctiveAction,
-                responsibleParty, targetDate, status, resolvedDate, spatialNodeId, path);
+                responsibleParty, targetDate, status, resolvedDate, spatialNodeId, path, observationId);
     }
 }

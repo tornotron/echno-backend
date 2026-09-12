@@ -76,4 +76,9 @@ public class InspectionDefect {
 
     @Column(name = "line_order", nullable = false)
     private int lineOrder;
+
+    // The observation this defect was raised from, so the chain reads from the outcome back
+    // to the finding. Null on every row written before observations existed.
+    @Column(name = "observation_id")
+    private UUID observationId;
 }

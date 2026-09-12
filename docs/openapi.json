@@ -2279,6 +2279,39 @@
         },
         "type": "object"
       },
+      "Changes": {
+        "description": "Fields the reviewer changed. Only the ones set are compared to the proposal.",
+        "properties": {
+          "category": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 4000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "major",
+              "minor"
+            ],
+            "type": "string"
+          },
+          "spatialNodeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ChatEntityMentionDto": {
         "description": "A reference to a task, issue or project mentioned in a message.",
         "properties": {
@@ -4996,6 +5029,83 @@
         ],
         "type": "object"
       },
+      "CreateObservationRequest": {
+        "description": "A finding recorded by the signed-in inspector. The creator's act is the decision: the observation is created accepted, with the caller as reporter and reviewer.",
+        "properties": {
+          "category": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 4000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "evidenceAttachmentIds": {
+            "description": "Ids of attachments already in the Echno store to cite as evidence; each becomes an {attachmentId} entry in evidenceRefs.",
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "inspectionId": {
+            "description": "Inspection to file it under, when there is one.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "locationNote": {
+            "maxLength": 300,
+            "minLength": 0,
+            "type": "string"
+          },
+          "observedAt": {
+            "description": "When it was seen. Defaults to now.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "spatialNodeId": {
+            "description": "Site structure node. Optional; locationNote is the free-text fallback.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "suggestedSeverity": {
+            "enum": [
+              "critical",
+              "major",
+              "minor"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId",
+          "title"
+        ],
+        "type": "object"
+      },
       "CreateSpatialNodeRequest": {
         "description": "Adds a node under a parent of the level above it; a building has no parent.",
         "properties": {
@@ -7269,6 +7379,14 @@
           },
           "location": {
             "description": "Where on site the defect was found. Null where none was recorded.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observationId": {
+            "description": "Observation the defect was raised from. Null on defects recorded before observations existed.",
+            "format": "uuid",
             "type": [
               "string",
               "null"
@@ -12157,6 +12275,14 @@
           "ncrNumber": {
             "type": "string"
           },
+          "observationId": {
+            "description": "Observation behind the non-conformance: the defect's when raised from a defect, otherwise its own. Null on reports raised before observations existed.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "raisedById": {
             "description": "Employee who raised the report, resolved from the signed-in user's employee record in the current organization. Null where that user has no employee record.",
             "format": "int64",
@@ -12342,6 +12468,222 @@
           "title": {
             "description": "Short title of the notification.",
             "example": "Leave request pending your approval",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ObservationDto": {
+        "description": "A finding on site as recorded by a person, a model or a device, with its review decision and the record it produced.",
+        "properties": {
+          "captureRef": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "description": "Model confidence in [0, 1]. Null for a human observation or a model that gives none.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidenceRefs": {
+            "description": "Pointers to evidence, in the producer's own shape.",
+            "items": {
+              "additionalProperties": {
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "externalRef": {
+            "description": "The producer's own id for the finding; unique per organisation.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "inspectionId": {
+            "description": "Inspection the observation belongs to. Null for a finding recorded before any inspection existed for it.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "locationNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "missionRef": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "modelName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "modelVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "outcomeKind": {
+            "enum": [
+              "none",
+              "check-item",
+              "defect",
+              "inspection",
+              "ncr"
+            ],
+            "type": "string"
+          },
+          "outcomeRef": {
+            "description": "Id of the check item, defect, NCR or inspection the observation produced, according to outcomeKind. Null for NONE.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reportedById": {
+            "description": "Employee who saw it, for a human observation.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "reviewChanges": {
+            "description": "One entry per field the reviewer changed: field, before, after. Set only on a MODIFIED observation.",
+            "items": {
+              "additionalProperties": {
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "reviewNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reviewStatus": {
+            "enum": [
+              "pending",
+              "accepted",
+              "rejected",
+              "modified"
+            ],
+            "type": "string"
+          },
+          "reviewedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reviewedById": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "source": {
+            "enum": [
+              "human",
+              "ai",
+              "drone",
+              "robot",
+              "fixed-camera"
+            ],
+            "type": "string"
+          },
+          "sourceDeviceId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spatialNodeId": {
+            "description": "Site structure node, or null where only the free-text location was given.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spatialPath": {
+            "description": "Ordered ancestors down to spatialNodeId. Empty when spatialNodeId is null.",
+            "items": {
+              "$ref": "#/components/schemas/SpatialPathSegment"
+            },
+            "type": "array"
+          },
+          "suggestedSeverity": {
+            "enum": [
+              "critical",
+              "major",
+              "minor"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
             "type": "string"
           }
         },
@@ -12660,6 +13002,49 @@
             ]
           }
         },
+        "type": "object"
+      },
+      "Outcome": {
+        "description": "The outcome to link. kind decides which of the other fields are read: CHECK_ITEM reads checkItemId and status; DEFECT reads defectId (attach) or defect (create, needs the observation on an inspection); INSPECTION reads inspectionId.",
+        "properties": {
+          "checkItemId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "defect": {
+            "$ref": "#/components/schemas/InspectionDefectRequest"
+          },
+          "defectId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "inspectionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "none",
+              "check-item",
+              "defect",
+              "inspection",
+              "ncr"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "failed",
+              "not-applicable",
+              "pending"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
         "type": "object"
       },
       "PageAssetDto": {
@@ -13771,6 +14156,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/NotificationDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageObservationDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/ObservationDto"
             },
             "type": "array"
           },
@@ -17225,6 +17656,54 @@
         },
         "required": [
           "reason"
+        ],
+        "type": "object"
+      },
+      "ReviewObservationRequest": {
+        "description": "The human decision on a pending observation. One decision per observation; a second one is refused with 409.",
+        "properties": {
+          "changes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Changes"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The reviewer's edits, for MODIFY. The proposal columns are left as the producer wrote them; the edits are stored as a diff."
+          },
+          "decision": {
+            "enum": [
+              "accept",
+              "reject",
+              "modify"
+            ],
+            "type": "string"
+          },
+          "note": {
+            "description": "Reviewer's note. Required on REJECT.",
+            "maxLength": 4000,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Outcome"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the observation becomes. Ignored on REJECT."
+          }
+        },
+        "required": [
+          "decision"
         ],
         "type": "object"
       },
@@ -24507,7 +24986,7 @@
     "/api/v1/attendance-regularizations/web": {
       "get": {
         "description": "Returns a paged list of regularization requests in the current tenant, in any status. The optional status, approver and requester parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nThe approver and the rejecter are recorded in the same pair of columns, so approvedById on its own means \"requests this person decided\". Pair it with status to separate the two: approvedById with status=APPROVED is what that person approved, and with status=REJECTED what they rejected.\n\nBoth ids are employee ids. A request decided by a caller who has no employee record in this tenant carries no approver id and is not matched by any approvedById.",
-        "operationId": "list_14",
+        "operationId": "list_15",
         "parameters": [
           {
             "in": "query",
@@ -25461,7 +25940,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_16",
+        "operationId": "create_17",
         "requestBody": {
           "content": {
             "application/json": {
@@ -25891,7 +26370,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_17",
+        "operationId": "create_18",
         "requestBody": {
           "content": {
             "application/json": {
@@ -34753,7 +35232,7 @@
     "/api/v1/checklist-templates/web": {
       "get": {
         "description": "Returns a page of the organization's templates. The trade and active parameters are optional filters; omitting both returns every template, subject to paging.",
-        "operationId": "list_10",
+        "operationId": "list_11",
         "parameters": [
           {
             "in": "query",
@@ -34888,7 +35367,7 @@
       },
       "post": {
         "description": "Creates the organization's checklist for a trade, with its check points. There is one template per trade per organization.",
-        "operationId": "create_15",
+        "operationId": "create_16",
         "requestBody": {
           "content": {
             "application/json": {
@@ -39026,7 +39505,7 @@
     "/api/v1/finance/accounts/web": {
       "get": {
         "description": "Returns the flat list of accounts in the current tenant. By default only active accounts are returned; set activeOnly to false to include deactivated accounts.",
-        "operationId": "list_9",
+        "operationId": "list_10",
         "parameters": [
           {
             "in": "query",
@@ -39140,7 +39619,7 @@
       },
       "post": {
         "description": "Creates a new account in the chart. When a parent is given, the account type is inherited from the parent; a root account must declare its own type. When the code is left blank it is generated from the parent and existing sibling accounts.",
-        "operationId": "create_14",
+        "operationId": "create_15",
         "requestBody": {
           "content": {
             "application/json": {
@@ -40145,7 +40624,7 @@
     "/api/v1/finance/company-bank-accounts/web": {
       "get": {
         "description": "Returns the organization's bank accounts. By default only active accounts are returned; set activeOnly to false to include deactivated accounts as well.",
-        "operationId": "list_8",
+        "operationId": "list_9",
         "parameters": [
           {
             "in": "query",
@@ -40259,7 +40738,7 @@
       },
       "post": {
         "description": "Registers a new company bank account, linked to an existing ledger account for reconciliation.",
-        "operationId": "create_13",
+        "operationId": "create_14",
         "requestBody": {
           "content": {
             "application/json": {
@@ -40597,7 +41076,7 @@
     "/api/v1/finance/construction-invoices/web": {
       "get": {
         "description": "Returns a paged list of invoices in the current tenant. The optional project, vendor, status and type parameters narrow the result; omitting a parameter leaves that dimension unfiltered.",
-        "operationId": "list_7",
+        "operationId": "list_8",
         "parameters": [
           {
             "in": "query",
@@ -40758,7 +41237,7 @@
       },
       "post": {
         "description": "Creates a draft invoice from the supplied header and line items. Line-level subtotal, tax, discount and total amounts are computed server side from the quantity, unit price and percentage rates on each line.",
-        "operationId": "create_12",
+        "operationId": "create_13",
         "requestBody": {
           "content": {
             "application/json": {
@@ -41688,7 +42167,7 @@
     "/api/v1/finance/construction-payments/web": {
       "get": {
         "description": "Returns a paged list of payment vouchers in the current tenant. The optional project, vendor, status, type, payee type, employee, verifier and raiser parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nNarrow here rather than in the client. A filter applied to the rows one page came back in narrows that page and not the register, so it answers a different question from the one it appears to, and an empty result then reads as a complete answer.\n\nThe three person parameters carry ids from two different sequences and are not interchangeable. employeeId is the payee on a salary or advance voucher and is an employee id; verifiedBy and raisedBy are platform user ids, the same ids the response returns beside verifiedByName and raisedByName.",
-        "operationId": "list_6",
+        "operationId": "list_7",
         "parameters": [
           {
             "in": "query",
@@ -41916,7 +42395,7 @@
       },
       "post": {
         "description": "Creates a payment voucher in pending status. The payment number is generated server side from the CPMT sequence. The status cannot be set on creation.",
-        "operationId": "create_11",
+        "operationId": "create_12",
         "requestBody": {
           "content": {
             "application/json": {
@@ -42498,7 +42977,7 @@
     "/api/v1/finance/cost-categories/web": {
       "get": {
         "description": "Returns the budget heads in the current tenant. By default only active heads are returned; set activeOnly to false to include deactivated ones.",
-        "operationId": "list_5",
+        "operationId": "list_6",
         "parameters": [
           {
             "in": "query",
@@ -42612,7 +43091,7 @@
       },
       "post": {
         "description": "Creates a budget head. The name must be unique within the tenant; an optional expense account maps the head to the chart of accounts for reporting.",
-        "operationId": "create_10",
+        "operationId": "create_11",
         "requestBody": {
           "content": {
             "application/json": {
@@ -43288,7 +43767,7 @@
       },
       "post": {
         "description": "Creates a new customer from the supplied details. The customer code must be unique within the tenant.",
-        "operationId": "create_9",
+        "operationId": "create_10",
         "requestBody": {
           "content": {
             "application/json": {
@@ -43400,7 +43879,7 @@
     "/api/v1/finance/customers/web/all": {
       "get": {
         "description": "Returns a page of customers in the current tenant. The optional name parameter filters by customer name; omitting it returns all customers, subject to paging.",
-        "operationId": "list_13",
+        "operationId": "list_14",
         "parameters": [
           {
             "in": "query",
@@ -43752,7 +44231,7 @@
     "/api/v1/finance/invoices/web": {
       "get": {
         "description": "Returns a page of customer invoices in the current tenant, newest invoice date first. The optional customer, status and openOnly parameters narrow the result and combine with AND; omitting a parameter leaves that dimension unfiltered. Use pageNo and pageSize to page through the results.",
-        "operationId": "list_4",
+        "operationId": "list_5",
         "parameters": [
           {
             "description": "Restrict to invoices billed to this customer.",
@@ -45216,7 +45695,7 @@
     "/api/v1/finance/posting-accounts/web": {
       "get": {
         "description": "Returns all six posting roles with the account each currently resolves to for the tenant, flagged as coming from an explicit mapping (MAPPED) or the configured default (DEFAULT).",
-        "operationId": "list_12",
+        "operationId": "list_13",
         "responses": {
           "200": {
             "content": {
@@ -45569,7 +46048,7 @@
     "/api/v1/finance/projects/{projectId}/budget/web": {
       "get": {
         "description": "Returns the set of budget-head allocations that make up the project's budget.",
-        "operationId": "list_11",
+        "operationId": "list_12",
         "parameters": [
           {
             "in": "path",
@@ -53929,7 +54408,7 @@
     "/api/v1/inspections/web/element-types": {
       "get": {
         "description": "Active types by default, in sort order then name. Pass includeInactive=true to see retired ones too.",
-        "operationId": "list_3",
+        "operationId": "list_4",
         "parameters": [
           {
             "in": "query",
@@ -54043,7 +54522,7 @@
       },
       "post": {
         "description": "Adds an organization-defined element type. It appears in pickers at once.",
-        "operationId": "create_8",
+        "operationId": "create_9",
         "requestBody": {
           "content": {
             "application/json": {
@@ -54548,6 +55027,910 @@
         "summary": "Search the inspection event log",
         "tags": [
           "Inspection history"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/observations": {
+      "get": {
+        "description": "Paged, filtered by project, review status, source, inspection, site structure subtree and observed-at window. The pending queue is reviewStatus=pending.",
+        "operationId": "list_3",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reviewStatus",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pending",
+                "accepted",
+                "rejected",
+                "modified"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "enum": [
+                "human",
+                "ai",
+                "drone",
+                "robot",
+                "fixed-camera"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "inspectionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "spatialNodeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageable",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageObservationDto"
+                }
+              }
+            },
+            "description": "Page of observations returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List observations",
+        "tags": [
+          "Observations"
+        ]
+      },
+      "post": {
+        "description": "Records a finding by the signed-in inspector. Created accepted, with the caller as reporter and reviewer; a supervisor may still reject it later.",
+        "operationId": "create_8",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateObservationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservationDto"
+                }
+              }
+            },
+            "description": "Observation recorded"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Validation failed on the request body"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No inspection or spatial node with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Record an observation",
+        "tags": [
+          "Observations"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/observations/{id}": {
+      "get": {
+        "operationId": "read",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservationDto"
+                }
+              }
+            },
+            "description": "Observation returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No observation with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Read an observation",
+        "tags": [
+          "Observations"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/observations/{id}/evidence": {
+      "get": {
+        "operationId": "readEvidence_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Evidence returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No observation with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List an observation's evidence",
+        "tags": [
+          "Observations"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/observations/{id}/evidence/presign": {
+      "post": {
+        "description": "Step one of the direct-to-storage path, as for inspection evidence.",
+        "operationId": "presignEvidence_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/UploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresignedUpload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Presigned upload URLs returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A file was declared twice, or is already attached"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No observation with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Presign evidence uploads for an observation",
+        "tags": [
+          "Observations"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/observations/{id}/evidence/register": {
+      "post": {
+        "description": "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage.",
+        "operationId": "registerEvidence_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/RegisterUploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Evidence registered"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A referenced object is missing from storage"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No observation with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Register presigned evidence uploads for an observation",
+        "tags": [
+          "Observations"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/observations/{id}/review": {
+      "post": {
+        "description": "Accept, modify or reject. Accept and modify link the outcome: mark a check item, create or attach a defect, or confirm an inspection. Modify stores the reviewer's edits as a diff and leaves the proposal as the producer wrote it. Reject needs a note. One decision per observation.",
+        "operationId": "review",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewObservationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservationDto"
+                }
+              }
+            },
+            "description": "Decision recorded"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Reject without a note, modify without changes, or an incomplete outcome"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No observation, check item, defect or inspection with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The observation has already been reviewed"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Decide on a pending observation",
+        "tags": [
+          "Observations"
         ]
       }
     },
@@ -113993,6 +115376,10 @@
     {
       "description": "Web-console equivalent of the notification endpoints, addressing a notification by a notificationId query parameter instead of a path segment. Covers reading a page of the caller's notifications, listing or counting the unread ones, and marking one or all as read. An inbox is personal, so every endpoint answers about the caller and none takes an employee id; access is gated on membership of the caller's current tenant.",
       "name": "Notifications (Web)"
+    },
+    {
+      "description": "Findings on site, from a person, a model or a device, each with a persistent id from the moment it is recorded. A human observation is accepted on creation; a machine one waits in the pending queue for a reviewer to accept, modify or reject it and link what it became: a check-item result, a defect, or an inspection. Tenant scoped.",
+      "name": "Observations"
     },
     {
       "description": "Tenant-scoped organization access for the current user: creating an organization, listing and reading the organizations the caller is a member of, and updating or deleting an organization the caller administers. Companies such as Asset Homes are represented as an organization.",

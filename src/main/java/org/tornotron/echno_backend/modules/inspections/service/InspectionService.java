@@ -81,6 +81,7 @@ public class InspectionService {
     private final DefectAnnotationService defectAnnotationService;
     private final InspectionEventRecorder events;
     private final SpatialNodeService spatialNodeService;
+    private final ObservationService observations;
 
     @Transactional(readOnly = true)
     public InspectionDto findById(UUID id) {
@@ -158,6 +159,7 @@ public class InspectionService {
 
         Inspection saved = inspectionRepo.saveAndFlush(inspection);
         recordCreation(saved);
+        observations.recordImplicit(saved);
         log.info("Created inspection {}", saved.getInspectionNumber());
         return withSpatialPaths(mapper.toDto(saved));
     }
@@ -209,6 +211,11 @@ public class InspectionService {
         inspection.setWeatherConditions(req.weatherConditions());
         inspection.setTemperature(req.temperature());
 
+        List<UUID> oldItemIds = inspection.getCheckItems().stream().map(InspectionCheckItem::getId).toList();
+        List<UUID> oldDefectIds = inspection.getDefects().stream().map(InspectionDefect::getId).toList();
+        List<UUID> oldDefectObservationIds = new ArrayList<>();
+        inspection.getDefects().forEach(d -> oldDefectObservationIds.add(d.getObservationId()));
+
         inspection.getCheckItems().clear();
         inspection.getDefects().clear();
         applyChildrenAndCounts(inspection, req.checkItems(), req.defects());
@@ -216,6 +223,7 @@ public class InspectionService {
         Inspection saved = inspectionRepo.saveAndFlush(inspection);
         defectAnnotationService.removeOrphaned(saved);
         recordUpdate(before, saved);
+        observations.carryOver(oldItemIds, oldDefectIds, oldDefectObservationIds, saved);
         log.info("Updated inspection {}", saved.getInspectionNumber());
         return withSpatialPaths(mapper.toDto(saved));
     }

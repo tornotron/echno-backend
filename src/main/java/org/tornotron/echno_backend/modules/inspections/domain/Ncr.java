@@ -132,6 +132,11 @@ public class Ncr implements TenantScopedEntity {
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
 
+    // The observation behind the non-conformance: inherited from the defect when raised from
+    // one, otherwise its own. Null on rows written before observations existed.
+    @Column(name = "observation_id")
+    private UUID observationId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;

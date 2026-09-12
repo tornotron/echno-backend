@@ -60,5 +60,9 @@ public record NcrDto(
                 + "again when a closed report is reopened.", nullable = true)
         LocalDateTime closedAt,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        @Schema(description = "Observation behind the non-conformance: the defect's when raised from a "
+                + "defect, otherwise its own. Null on reports raised before observations existed.",
+                nullable = true)
+        UUID observationId
 ) {}

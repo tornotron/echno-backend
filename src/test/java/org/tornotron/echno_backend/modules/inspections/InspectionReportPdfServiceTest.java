@@ -198,7 +198,7 @@ class InspectionReportPdfServiceTest {
                     "Honeycombing on column C4 at ground level", DefectSeverity.MAJOR,
                     "Column C4, ground floor", List.of(PHOTO),
                     "Chip out and re-pour the affected section", "ABC Contractors",
-                    LocalDate.of(2026, 9, 12), DefectStatus.OPEN, null, null, List.of()));
+                    LocalDate.of(2026, 9, 12), DefectStatus.OPEN, null, null, List.of(), null));
         }
 
         return new InspectionDto(INSPECTION_ID, "INSP-2026-0001", "Slab pour, level 4",

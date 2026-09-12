@@ -61,6 +61,8 @@ import org.tornotron.echno_backend.modules.inspections.service.ChecklistTemplate
 import org.tornotron.echno_backend.modules.inspections.service.DefectAnnotationService;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
+import org.tornotron.echno_backend.modules.inspections.mapper.ObservationMapperImpl;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
@@ -92,6 +94,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Import({InspectionService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
+        ObservationService.class, ObservationMapperImpl.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         TradeService.class, TradeMapperImpl.class,
         ElementTypeService.class, ElementTypeMapperImpl.class,
@@ -176,6 +179,7 @@ class ReinspectionServiceIT extends AbstractIntegrationTest {
                     + "(SELECT id FROM inspections WHERE organization_id IN (:a,:b))");
             deleteForOrgs("DELETE FROM inspection_check_items WHERE inspection_id IN "
                     + "(SELECT id FROM inspections WHERE organization_id IN (:a,:b))");
+            deleteForOrgs("DELETE FROM inspection_observations WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM inspections WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM inspection_trades WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM org_element_types WHERE organization_id IN (:a,:b)");

@@ -70,6 +70,7 @@ public class InspectionSecurityService {
     private final String[] correctiveActionRoles;
     private final String[] qualitySignOffRoles;
     private final String[] safetySignOffRoles;
+    private final String[] observationReviewRoles;
 
     public InspectionSecurityService(
             OrganizationSecurityService orgSecurity,
@@ -91,7 +92,10 @@ public class InspectionSecurityService {
             @Value("${echno.security.inspection.quality-signoff-roles:system-admin,qa-engineer}")
             String[] qualitySignOffRoles,
             @Value("${echno.security.inspection.safety-signoff-roles:system-admin,safety-officer}")
-            String[] safetySignOffRoles) {
+            String[] safetySignOffRoles,
+            @Value("${echno.security.inspection.observation-review-roles:"
+                    + "system-admin,project-manager,qa-engineer,safety-officer}")
+            String[] observationReviewRoles) {
         this.orgSecurity = orgSecurity;
         this.ncrRepo = ncrRepo;
         this.reinspectionRepo = reinspectionRepo;
@@ -102,6 +106,7 @@ public class InspectionSecurityService {
         this.correctiveActionRoles = correctiveActionRoles;
         this.qualitySignOffRoles = qualitySignOffRoles;
         this.safetySignOffRoles = safetySignOffRoles;
+        this.observationReviewRoles = observationReviewRoles;
     }
 
     /** Read inspections, checklist templates and non-conformance reports. */
@@ -112,6 +117,16 @@ public class InspectionSecurityService {
     /** Schedule an inspection and record what it found. */
     public boolean canManageInspections() {
         return orgSecurity.hasAnyOrgRoleForCurrentTenant(manageRoles);
+    }
+
+    /**
+     * Decide on a pending observation: accept, modify or reject what a device, a model or a
+     * colleague proposed. {@code echno.security.inspection.observation-review-roles}, default
+     * the same four jobs that record an inspection, since the decision is the same authority
+     * as recording the finding by hand.
+     */
+    public boolean canReviewObservations() {
+        return orgSecurity.hasAnyOrgRoleForCurrentTenant(observationReviewRoles);
     }
 
     /** Define the criteria work is judged against. */

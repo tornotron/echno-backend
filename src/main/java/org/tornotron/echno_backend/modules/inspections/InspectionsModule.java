@@ -37,7 +37,9 @@ public class InspectionsModule implements EchnoModule {
             "inspections.ncr.raise",
             "inspections.ncr.corrective-action",
             "inspections.ncr.sign-off",
-            "inspections.compliance.generate");
+            "inspections.compliance.generate",
+            "inspections.observations.review",
+            "inspections.observations.intake");
 
     static final List<NavDescriptor> NAV = List.of(
             new NavDescriptor("Inspections", NAV_SECTION, ROUTE_ROOT, "clipboard-check", List.of()),

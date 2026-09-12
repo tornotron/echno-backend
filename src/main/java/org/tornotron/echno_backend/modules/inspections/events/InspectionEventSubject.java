@@ -4,6 +4,7 @@ import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionCheckItem;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionDefect;
 import org.tornotron.echno_backend.modules.inspections.domain.Ncr;
+import org.tornotron.echno_backend.modules.inspections.domain.Observation;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -51,6 +52,12 @@ public record InspectionEventSubject(InspectionEventSubjectType type,
     public static InspectionEventSubject ncr(Ncr ncr, Long projectId) {
         return new InspectionEventSubject(InspectionEventSubjectType.NCR,
                 ncr.getId(), ncr.getInspectionId(), projectId);
+    }
+
+    /** An observation may sit on no inspection at all; the project is always known. */
+    public static InspectionEventSubject observation(Observation observation) {
+        return new InspectionEventSubject(InspectionEventSubjectType.OBSERVATION,
+                observation.getId(), observation.getInspectionId(), observation.getProjectId());
     }
 
     public static InspectionEventSubject reinspection(UUID reinspectionId, UUID originalInspectionId,
