@@ -56,6 +56,7 @@ class OrganizationServiceEntitlementTest {
     @Mock private OrganizationOnboardingSeeder onboardingSeeder;
 
     private static final Long CREATOR_USER_ID = 7L;
+    private static final Long CURRENT_ORG_ID = 11L;
     private static final Long NEW_ORG_ID = 42L;
     private static final Long CREATOR_EMPLOYEE_ID = 5L;
     private static final String CREATE_ORGANIZATION = "CREATE_ORGANIZATION";
@@ -101,6 +102,7 @@ class OrganizationServiceEntitlementTest {
         User creator = mock(User.class);
         when(creator.getId()).thenReturn(CREATOR_USER_ID);
         when(userContextService.getCurrentUser()).thenReturn(creator);
+        TenantContext.setCurrentOrgId(CURRENT_ORG_ID);
         return creator;
     }
 
@@ -129,7 +131,7 @@ class OrganizationServiceEntitlementTest {
 
         service().addOrganization(creationDto(), null);
 
-        verify(subscriptionService).recordUsage(CREATOR_USER_ID, CREATE_ORGANIZATION, 1L);
+        verify(subscriptionService).recordUsage(CURRENT_ORG_ID, CREATOR_USER_ID, CREATE_ORGANIZATION, 1L);
     }
 
     @Test
@@ -137,7 +139,7 @@ class OrganizationServiceEntitlementTest {
         creator();
         when(repository.existsByCreatorId(CREATOR_USER_ID.intValue())).thenReturn(true);
         when(repository.existsByOrganizationEmail(any())).thenReturn(false);
-        when(subscriptionService.checkFeatureAccess(CREATOR_USER_ID, CREATE_ORGANIZATION))
+        when(subscriptionService.checkFeatureAccess(CURRENT_ORG_ID, CREATE_ORGANIZATION))
                 .thenReturn(FeatureAccessResultDto.noSubscription());
 
         assertThatExceptionOfType(SubscriptionAccessDeniedException.class)
@@ -168,7 +170,7 @@ class OrganizationServiceEntitlementTest {
         creator();
         when(repository.existsByCreatorId(CREATOR_USER_ID.intValue())).thenReturn(true);
         when(repository.existsByOrganizationEmail(any())).thenReturn(false);
-        when(subscriptionService.checkFeatureAccess(CREATOR_USER_ID, CREATE_ORGANIZATION))
+        when(subscriptionService.checkFeatureAccess(CURRENT_ORG_ID, CREATE_ORGANIZATION))
                 .thenReturn(FeatureAccessResultDto.quotaExceeded(3L, 3L));
 
         assertThatExceptionOfType(SubscriptionAccessDeniedException.class)
@@ -191,7 +193,7 @@ class OrganizationServiceEntitlementTest {
         creator();
         when(repository.existsByCreatorId(CREATOR_USER_ID.intValue())).thenReturn(true);
         when(repository.existsByOrganizationEmail(any())).thenReturn(false);
-        when(subscriptionService.checkFeatureAccess(CREATOR_USER_ID, CREATE_ORGANIZATION))
+        when(subscriptionService.checkFeatureAccess(CURRENT_ORG_ID, CREATE_ORGANIZATION))
                 .thenReturn(FeatureAccessResultDto.quotaExceeded(1L, 1L));
 
         assertThatExceptionOfType(SubscriptionAccessDeniedException.class)
@@ -204,14 +206,14 @@ class OrganizationServiceEntitlementTest {
     void aSecondOrganizationIsCreatedWhenThePlanCoversIt() {
         creator();
         when(repository.existsByCreatorId(CREATOR_USER_ID.intValue())).thenReturn(true);
-        when(subscriptionService.checkFeatureAccess(CREATOR_USER_ID, CREATE_ORGANIZATION))
+        when(subscriptionService.checkFeatureAccess(CURRENT_ORG_ID, CREATE_ORGANIZATION))
                 .thenReturn(FeatureAccessResultDto.allowed());
         stubSuccessfulCreation();
 
         service().addOrganization(creationDto(), null);
 
         verify(repository).save(any(Organization.class));
-        verify(subscriptionService).recordUsage(CREATOR_USER_ID, CREATE_ORGANIZATION, 1L);
+        verify(subscriptionService).recordUsage(CURRENT_ORG_ID, CREATOR_USER_ID, CREATE_ORGANIZATION, 1L);
     }
 
     @Test

@@ -13,24 +13,32 @@ import java.util.Optional;
 
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
 
+    /**
+     * The organization's subscription that grants access right now: one in an active status
+     * whose current period has not ended. The period check is what stops a row that nothing
+     * ever transitioned out of TRIALING from reading as live months after it lapsed.
+     */
     @Query("SELECT s FROM Subscription s " +
            "LEFT JOIN FETCH s.plan p " +
            "LEFT JOIN FETCH p.planFeatures pf " +
            "LEFT JOIN FETCH pf.feature " +
-           "WHERE s.userId = :userId AND s.status IN :activeStatuses")
-    Optional<Subscription> findActiveSubscriptionByUserId(
-            @Param("userId")Long userId,
-            @Param("activeStatuses")List<SubscriptionStatus> activeStatuses
+           "WHERE s.organizationId = :organizationId AND s.status IN :activeStatuses " +
+           "AND s.currentPeriodEnd > :now")
+    Optional<Subscription> findActiveSubscription(
+            @Param("organizationId") Long organizationId,
+            @Param("activeStatuses") List<SubscriptionStatus> activeStatuses,
+            @Param("now") Instant now
             );
 
-    default Optional<Subscription> findActiveSubscriptionByUserId(Long userId) {
-        return findActiveSubscriptionByUserId(userId,
-                Arrays.asList(SubscriptionStatus.ACTIVE,SubscriptionStatus.TRIALING));
+    default Optional<Subscription> findActiveSubscription(Long organizationId) {
+        return findActiveSubscription(organizationId,
+                Arrays.asList(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING),
+                Instant.now());
     }
 
     @Query("SELECT s FROM Subscription s WHERE s.currentPeriodEnd < :now " +
            "AND s.status IN ('ACTIVE', 'TRIALING', 'PAST_DUE')")
     List<Subscription> findExpiredSubscriptions(@Param("now")Instant now);
 
-    List<Subscription> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<Subscription> findByOrganizationIdOrderByCreatedAtDesc(Long organizationId);
 }

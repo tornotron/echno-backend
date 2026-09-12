@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- The real changesets under test, applied on top of pre-rekey.xml. -->
+    <include file="db/changelog/v4.0/095-rekey-subscription-organization.xml"/>
+    <include file="db/changelog/v4.0/096-seed-module-inspections-feature.xml"/>
+
+</databaseChangeLog>

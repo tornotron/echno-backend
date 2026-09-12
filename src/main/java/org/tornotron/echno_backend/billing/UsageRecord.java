@@ -10,10 +10,10 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "usage_record", indexes = {
-        @Index(name = "idx_usage_user_feature", columnList = "userId,featureId"),
+        @Index(name = "idx_usage_organization_feature", columnList = "organizationId,featureId"),
         @Index(name = "idx_usage_subscription", columnList = "subscriptionId"),
         @Index(name = "idx_usage_period", columnList = "periodStart,periodEnd"),
-        @Index(name = "idx_usage_feature_period", columnList = "featureId,periodStart,userId")
+        @Index(name = "idx_usage_feature_period", columnList = "featureId,periodStart,organizationId")
 })
 @Data
 @NoArgsConstructor
@@ -26,6 +26,9 @@ public class UsageRecord {
     private Long id;
 
     @Column(nullable = false)
+    private Long organizationId;
+
+    /** The user who consumed the feature. Informational; quota sums are per organization. */
     private Long userId;
 
     @Column(nullable = false)

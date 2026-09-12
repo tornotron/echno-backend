@@ -32,11 +32,16 @@ import java.util.Optional;
 /**
  * Subscription lifecycle and feature-access checks for the SaaS billing model.
  *
- * <p>Resolves a user's active subscription (cached per user), decides whether a user may use
- * a feature given their plan and any per-feature quota, and records metered usage. Quota
- * windows are computed per {@link QuotaPeriod} (hourly through annual, plus an all-time
- * bucket). Creating, changing, and canceling a subscription each evict the user's cache
- * entry so the next access re-reads the current state.
+ * <p>Resolves an organization's active subscription (cached per organization), decides
+ * whether the organization may use a feature given its plan and any per-feature quota, and
+ * records metered usage. Quota windows are computed per {@link QuotaPeriod} (hourly through
+ * annual, plus an all-time bucket). Creating, changing, and canceling a subscription each
+ * evict the organization's cache entry so the next access re-reads the current state.
+ *
+ * <p>Everything here is keyed on the organization. A plan is a tier an organization buys, so
+ * the entitlement question is always "does this organization hold it", whoever is asking. The
+ * user id that some methods take is recorded on the row as who bought or consumed something and
+ * never decides anything.
  *
  * <p>Entities never leave this class, and never reach the cache either. Every method that a
  * caller can reach returns a DTO built while the persistence context is still open, because
@@ -57,30 +62,31 @@ public class SubscriptionService {
     private final SubscriptionCache subscriptionCache;
 
     /**
-     * Returns the user's active subscription as a DTO.
+     * Returns the organization's active subscription as a DTO.
      *
-     * @param userId The ID of the user whose subscription to resolve.
-     * @return The active subscription, or empty if the user has none.
+     * @param organizationId The ID of the organization whose subscription to resolve.
+     * @return The active subscription, or empty if the organization has none.
      */
     @Transactional(readOnly = true)
-    public Optional<SubscriptionDto> getActiveSubscription(Long userId) {
-        return loadActiveSubscription(userId).map(BillingMapper::toSubscriptionDto);
+    public Optional<SubscriptionDto> getActiveSubscription(Long organizationId) {
+        return loadActiveSubscription(organizationId).map(BillingMapper::toSubscriptionDto);
     }
 
     /**
-     * Returns every subscription the user has ever held, most recently created first.
+     * Returns every subscription the organization has ever held, most recently created first.
      *
-     * @param userId The ID of the user whose subscriptions to list.
-     * @return The user's subscription history, newest first, empty if they have none.
+     * @param organizationId The ID of the organization whose subscriptions to list.
+     * @return The organization's subscription history, newest first, empty if it has none.
      */
     @Transactional(readOnly = true)
-    public List<SubscriptionDto> getSubscriptionHistory(Long userId) {
+    public List<SubscriptionDto> getSubscriptionHistory(Long organizationId) {
         return BillingMapper.toSubscriptionDtoList(
-                subscriptionRepository.findByUserIdOrderByCreatedAtDesc(userId));
+                subscriptionRepository.findByOrganizationIdOrderByCreatedAtDesc(organizationId));
     }
 
     /**
-     * Loads a snapshot of the user's active subscription, serving it from the cache when present.
+     * Loads a snapshot of the organization's active subscription, serving it from the cache when
+     * present.
      *
      * <p>On a cache miss it queries the repository and, if a subscription is found, copies it and
      * its plan into a snapshot before the transaction that loaded it ends, then caches that. The
@@ -88,35 +94,42 @@ public class SubscriptionService {
      * detached instance whose uninitialized parts throw {@code LazyInitializationException} in a
      * later transaction that cannot reattach it.
      *
-     * <p>Taking the copy is what the fetch joins on {@code findActiveSubscriptionByUserId} are
+     * <p>Taking the copy is what the fetch joins on {@code findActiveSubscription} are
      * for now. Without them the copy still comes out complete, because it is built inside the
      * transaction and the lazy reads resolve there, but it costs a query per plan feature on
      * every miss instead of one query for the graph. Weakening them is a performance regression
      * rather than a correctness one, which is a change of kind: it used to be the thing standing
      * between the cache and a 500.
      *
-     * @param userId The ID of the user whose subscription to resolve.
-     * @return A snapshot of the active subscription, or empty if the user has none.
+     * <p>A cached snapshot is re-checked against its period end on every hit. The repository
+     * query excludes a lapsed row, but a row cached while live can lapse inside the five minute
+     * window, and the snapshot keeps the timestamp so the check costs nothing.
+     *
+     * @param organizationId The ID of the organization whose subscription to resolve.
+     * @return A snapshot of the active subscription, or empty if the organization has none.
      */
-    private Optional<SubscriptionSnapshot> loadActiveSubscription(Long userId) {
+    private Optional<SubscriptionSnapshot> loadActiveSubscription(Long organizationId) {
 
-        SubscriptionSnapshot cached = subscriptionCache.get(userId);
+        SubscriptionSnapshot cached = subscriptionCache.get(organizationId);
         if(cached != null) {
-            return Optional.of(cached);
+            if (!cached.isExpired(Instant.now())) {
+                return Optional.of(cached);
+            }
+            subscriptionCache.evict(organizationId);
         }
 
         Optional<SubscriptionSnapshot> subscription = subscriptionRepository
-                .findActiveSubscriptionByUserId(userId)
+                .findActiveSubscription(organizationId)
                 .map(BillingMapper::toSubscriptionSnapshot);
 
-        subscription.ifPresent(snapshot -> subscriptionCache.put(userId, snapshot));
+        subscription.ifPresent(snapshot -> subscriptionCache.put(organizationId, snapshot));
 
         return subscription;
     }
 
     /**
-     * Loads the user's active subscription entity for a caller that is about to change it,
-     * always from the database and never from the cache.
+     * Loads the organization's active subscription entity for a caller that is about to change
+     * it, always from the database and never from the cache.
      *
      * <p>{@link #loadActiveSubscription(Long)} answers from the cache, with a snapshot that is
      * immutable and detached from any persistence context. Nothing a write path did to it would
@@ -126,33 +139,34 @@ public class SubscriptionService {
      * {@link SubscriptionCache#evictOnWrite(Long)}. That the snapshot cannot be mutated in the
      * first place is what closed the older hazard here, where the write path resolved its
      * subscription through the cache and set fields straight onto the instance every concurrent
-     * reader of that user was sharing.
+     * reader of that organization was sharing.
      *
      * <p>The read deliberately does not populate the cache either. The row is about to change,
      * so caching what it looks like now would only have to be undone.
      *
-     * @param userId The ID of the user whose subscription is about to be changed.
-     * @return The active subscription as a managed entity, or empty if the user has none.
+     * @param organizationId The ID of the organization whose subscription is about to be changed.
+     * @return The active subscription as a managed entity, or empty if the organization has none.
      */
-    private Optional<Subscription> loadActiveSubscriptionForWrite(Long userId) {
-        return subscriptionRepository.findActiveSubscriptionByUserId(userId);
+    private Optional<Subscription> loadActiveSubscriptionForWrite(Long organizationId) {
+        return subscriptionRepository.findActiveSubscription(organizationId);
     }
 
     /**
-     * Decides whether a user may use a feature under their active plan.
+     * Decides whether an organization may use a feature under its active plan.
      *
-     * <p>Resolves the user's subscription and the matching plan feature, then evaluates access:
+     * <p>Resolves the organization's subscription and the matching plan feature, then evaluates
+     * access:
      * a boolean feature is allowed when enabled, a quota feature is checked against usage in the
      * current period, and a feature with neither constraint is allowed outright. Absence of a
      * subscription or of the feature in the plan yields the corresponding denial result.
      *
-     * @param userId The ID of the user requesting access.
+     * @param organizationId The ID of the organization requesting access.
      * @param featureCode The code of the feature to check.
      * @return The access result, describing whether access is allowed and, for quota features, the current usage against the limit.
      */
     @Transactional(readOnly = true)
-    public FeatureAccessResultDto checkFeatureAccess(Long userId, String featureCode) {
-        Optional<SubscriptionSnapshot> subscriptionOptional = loadActiveSubscription(userId);
+    public FeatureAccessResultDto checkFeatureAccess(Long organizationId, String featureCode) {
+        Optional<SubscriptionSnapshot> subscriptionOptional = loadActiveSubscription(organizationId);
 
         if(subscriptionOptional.isEmpty()) {
             return FeatureAccessResultDto.noSubscription();
@@ -174,29 +188,29 @@ public class SubscriptionService {
         }
 
         if(planFeature.hasQuota()) {
-            return checkQuotaAccess(userId, planFeature);
+            return checkQuotaAccess(organizationId, planFeature);
         }
 
         return FeatureAccessResultDto.allowed();
     }
 
     /**
-     * Counts what the user has already used of a metered feature in the current period and
-     * compares it against the plan's limit.
+     * Counts what the organization has already used of a metered feature in the current period
+     * and compares it against the plan's limit.
      *
      * <p>The count is always a query. Usage moves on every metered request and is the one input
      * to an entitlement decision that could not be cached behind the subscription without being
      * wrong almost immediately, so it is deliberately left out of the snapshot. The snapshot
      * supplies the limit, the period and the feature id the usage rows are keyed on.
      */
-    private FeatureAccessResultDto checkQuotaAccess(Long userId, PlanFeatureSnapshot planFeature) {
+    private FeatureAccessResultDto checkQuotaAccess(Long organizationId, PlanFeatureSnapshot planFeature) {
         Long quotaLimit = planFeature.quotaLimit();
         QuotaPeriod period = planFeature.quotaPeriod();
 
         Instant[] periodBounds = calculatePeriodBounds(period);
 
         Long currentUsage = usageRecordRepository.sumUsageForPeriod(
-                userId,
+                organizationId,
                 planFeature.featureId(),
                 periodBounds[0],
                 periodBounds[1]
@@ -271,25 +285,26 @@ public class SubscriptionService {
     /**
      * Records a usage amount against a metered feature for the current quota period.
      *
-     * <p>If the user has no active subscription or the feature is not in their plan, the call is
-     * logged and ignored rather than raising. On success it writes a usage record for the
+     * <p>If the organization has no active subscription or the feature is not in its plan, the
+     * call is logged and ignored rather than raising. On success it writes a usage record for the
      * feature's current period.
      *
-     * <p>It does not evict the user's cached subscription, and used to. Nothing about the
+     * <p>It does not evict the organization's cached subscription, and used to. Nothing about the
      * subscription or its plan changes here, and the usage this writes is not part of what the
      * cache holds: {@link #checkQuotaAccess} sums it from the usage table on every check. The
      * eviction bought no freshness and cost the entry, on the one path that runs on every
      * metered request, which is where the cache is meant to earn its keep.
      *
-     * @param userId The ID of the user consuming the feature.
+     * @param organizationId The ID of the organization consuming the feature.
+     * @param userId The ID of the user who triggered the consumption, recorded for the audit trail.
      * @param featureCode The code of the feature being consumed.
      * @param amount The quantity to record for this usage event.
      */
     @Transactional
-    public void recordUsage(Long userId, String featureCode, Long amount) {
-        Optional<SubscriptionSnapshot> subscriptionOptional = loadActiveSubscription(userId);
+    public void recordUsage(Long organizationId, Long userId, String featureCode, Long amount) {
+        Optional<SubscriptionSnapshot> subscriptionOptional = loadActiveSubscription(organizationId);
         if(subscriptionOptional.isEmpty()) {
-            log.warn("Attempted to record usage for user without active subscription: {}", userId);
+            log.warn("Attempted to record usage for organization without active subscription: {}", organizationId);
             return;
         }
 
@@ -298,7 +313,7 @@ public class SubscriptionService {
         PlanFeatureSnapshot planFeature = subscription.feature(featureCode).orElse(null);
 
         if(planFeature == null) {
-            log.warn("Feature {} not found in user's plan", featureCode);
+            log.warn("Feature {} not found in organization's plan", featureCode);
             return;
         }
 
@@ -309,6 +324,7 @@ public class SubscriptionService {
         Instant[] periodBounds = calculatePeriodBounds(period);
 
         UsageRecord usageRecord = UsageRecord.builder()
+                .organizationId(organizationId)
                 .userId(userId)
                 .subscriptionId(subscription.id())
                 .featureId(planFeature.featureId())
@@ -321,24 +337,26 @@ public class SubscriptionService {
     }
 
     /**
-     * Subscribes a user to a plan, starting a trial when the plan offers trial days.
+     * Subscribes an organization to a plan, starting a trial when the plan offers trial days.
      *
      * <p>The current period runs 365 days for an annual billing period and 30 days otherwise.
      * A plan with trial days starts the subscription in the trialing state with the trial window
-     * set; otherwise it starts active. The user's cached subscription is evicted.
+     * set; otherwise it starts active. The organization's cached subscription is evicted.
      *
-     * @param userId The ID of the user to subscribe.
+     * @param organizationId The ID of the organization to subscribe.
+     * @param purchasedByUserId The ID of the user buying it, recorded on the row; may be null.
      * @param planCode The code of the plan to subscribe to.
      * @param billingPeriod The billing period that sets the current period length.
      * @return The created subscription, as a DTO.
-     * @throws DuplicateResourceException if the user already has an active subscription.
+     * @throws DuplicateResourceException if the organization already has an active subscription.
      * @throws PlanNotFoundException if no plan with the given code exists.
      */
     @Transactional
-    public SubscriptionDto createSubscription(Long userId, String planCode, BillingPeriod billingPeriod) {
-        if (loadActiveSubscriptionForWrite(userId).isPresent()) {
+    public SubscriptionDto createSubscription(Long organizationId, Long purchasedByUserId,
+                                              String planCode, BillingPeriod billingPeriod) {
+        if (loadActiveSubscriptionForWrite(organizationId).isPresent()) {
             throw new DuplicateResourceException(
-                    "User " + userId + " already has an active subscription; use change-plan to switch plans instead");
+                    "Organization " + organizationId + " already has an active subscription; use change-plan to switch plans instead");
         }
 
         Plan plan = planRepository.findByCodeWithFeatures(planCode)
@@ -353,7 +371,8 @@ public class SubscriptionService {
         }
 
         Subscription subscription = Subscription.builder()
-                .userId(userId)
+                .organizationId(organizationId)
+                .userId(purchasedByUserId)
                 .plan(plan)
                 .status(plan.getTrialDays() > 0 ? SubscriptionStatus.TRIALING : SubscriptionStatus.ACTIVE)
                 .currentPeriodStart(now)
@@ -364,30 +383,30 @@ public class SubscriptionService {
 
         subscription = subscriptionRepository.save(subscription);
 
-        subscriptionCache.evictOnWrite(userId);
+        subscriptionCache.evictOnWrite(organizationId);
 
-        log.info("Created subscription {} for user {} on plan {} ({})", 
-                subscription.getId(), userId, planCode, billingPeriod);
+        log.info("Created subscription {} for organization {} on plan {} ({})",
+                subscription.getId(), organizationId, planCode, billingPeriod);
 
         return BillingMapper.toSubscriptionDto(subscription);
     }
 
     /**
-     * Switches a user's active subscription to a different plan.
+     * Switches an organization's active subscription to a different plan.
      *
-     * <p>The subscription keeps its period and status; only the plan changes. The user's cached
-     * subscription is evicted.
+     * <p>The subscription keeps its period and status; only the plan changes. The organization's
+     * cached subscription is evicted.
      *
-     * @param userId The ID of the user whose plan to change.
+     * @param organizationId The ID of the organization whose plan to change.
      * @param newPlanCode The code of the new plan; it must be active.
      * @return The updated subscription, as a DTO.
-     * @throws NoActiveSubscriptionException if the user has no active subscription.
+     * @throws NoActiveSubscriptionException if the organization has no active subscription.
      * @throws PlanNotFoundException if no active plan with the given code exists.
      */
     @Transactional
-    public SubscriptionDto changeSubscription(Long userId,String newPlanCode) {
-        Subscription currentSubscription = loadActiveSubscriptionForWrite(userId)
-                .orElseThrow(() -> new NoActiveSubscriptionException("User " + userId + " has no active subscription"));
+    public SubscriptionDto changeSubscription(Long organizationId, String newPlanCode) {
+        Subscription currentSubscription = loadActiveSubscriptionForWrite(organizationId)
+                .orElseThrow(() -> new NoActiveSubscriptionException("Organization " + organizationId + " has no active subscription"));
 
         Plan newPlan = planRepository.findByCodeAndIsActiveTrue(newPlanCode)
                 .orElseThrow(() -> new PlanNotFoundException("Active plan with code '" + newPlanCode + "' was not found"));
@@ -395,31 +414,31 @@ public class SubscriptionService {
         currentSubscription.setPlan(newPlan);
         currentSubscription = subscriptionRepository.save(currentSubscription);
 
-        subscriptionCache.evictOnWrite(userId);
+        subscriptionCache.evictOnWrite(organizationId);
 
-        log.info("Changed subscription {} for user {} to plan {}",
-                currentSubscription.getId(), userId, newPlanCode);
+        log.info("Changed subscription {} for organization {} to plan {}",
+                currentSubscription.getId(), organizationId, newPlanCode);
 
         return BillingMapper.toSubscriptionDto(currentSubscription);
 
     }
 
     /**
-     * Cancels a user's active subscription, now or at the end of the current period.
+     * Cancels an organization's active subscription, now or at the end of the current period.
      *
      * <p>An immediate cancellation sets the status to canceled and stamps the cancellation time;
      * a deferred one flags the subscription to end at period end but leaves it active until then.
-     * The user's cached subscription is evicted.
+     * The organization's cached subscription is evicted.
      *
-     * @param userId The ID of the user whose subscription to cancel.
+     * @param organizationId The ID of the organization whose subscription to cancel.
      * @param immediate {@code true} to cancel at once, {@code false} to cancel at period end.
-     * @throws NoActiveSubscriptionException if the user has no active subscription.
+     * @throws NoActiveSubscriptionException if the organization has no active subscription.
      */
     @Transactional
-    public void cancelSubscription(Long userId, boolean immediate) {
+    public void cancelSubscription(Long organizationId, boolean immediate) {
 
-       Subscription subscription = loadActiveSubscriptionForWrite(userId)
-               .orElseThrow(() -> new NoActiveSubscriptionException("User " + userId + " has no active subscription"));
+       Subscription subscription = loadActiveSubscriptionForWrite(organizationId)
+               .orElseThrow(() -> new NoActiveSubscriptionException("Organization " + organizationId + " has no active subscription"));
 
        if(immediate) {
            subscription.setStatus(SubscriptionStatus.CANCELED);
@@ -429,10 +448,10 @@ public class SubscriptionService {
        }
 
        subscriptionRepository.save(subscription);
-       subscriptionCache.evictOnWrite(userId);
+       subscriptionCache.evictOnWrite(organizationId);
 
-       log.info("Canceled subscription {} for user {} (immediate: {})",
-               subscription.getId(), userId, immediate);
+       log.info("Canceled subscription {} for organization {} (immediate: {})",
+               subscription.getId(), organizationId, immediate);
     }
 
 

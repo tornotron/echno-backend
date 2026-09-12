@@ -87,6 +87,7 @@ public class BillingMapper {
 
         return new SubscriptionSnapshot(
                 subscription.getId(),
+                subscription.getOrganizationId(),
                 subscription.getUserId(),
                 subscription.getStatus(),
                 subscription.getCurrentPeriodStart(),
@@ -202,6 +203,7 @@ public class BillingMapper {
         Instant now = Instant.now();
         return SubscriptionDto.builder()
                 .id(subscription.id())
+                .organizationId(subscription.organizationId())
                 .userId(subscription.userId())
                 .plan(toPlanDto(subscription.plan()))
                 .status(subscription.status())

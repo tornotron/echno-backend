@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The billing tables as they stood before 095 rekeyed them, reduced to the columns the
+        seed (082), the rekey (095) and the module grant (096) read or write. Test-only: building
+        the whole application changelog on a fresh database inside the shared container is
+        minutes of CockroachDB schema changes, and the suite's five minute cap was hit under load.
+    -->
+
+    <changeSet id="rekey-643-pre-users" author="abhijith">
+        <createTable tableName="users_table">
+            <column name="id" type="BIGINT"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="keycloak_id" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="default_organization_id" type="BIGINT"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="rekey-643-pre-employee" author="abhijith">
+        <createTable tableName="employee">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="rekey-643-pre-plan" author="abhijith">
+        <createTable tableName="plan">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="code" type="VARCHAR(50)"><constraints nullable="false" unique="true"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="description" type="TEXT"/>
+            <column name="version" type="INT"><constraints nullable="false"/></column>
+            <column name="currency" type="VARCHAR(3)"/>
+            <column name="is_active" type="BOOLEAN"/>
+            <column name="is_public" type="BOOLEAN"/>
+            <column name="trial_days" type="INT"/>
+            <column name="max_users" type="INT"/>
+            <column name="sort_order" type="INT"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="rekey-643-pre-feature" author="abhijith">
+        <createTable tableName="feature">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="code" type="VARCHAR(100)"><constraints nullable="false" unique="true"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="description" type="TEXT"/>
+            <column name="feature_type" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="category" type="VARCHAR(50)"/>
+            <column name="is_active" type="BOOLEAN"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="rekey-643-pre-plan-feature" author="abhijith">
+        <createTable tableName="plan_feature">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="plan_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="feature_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="enabled" type="BOOLEAN"/>
+            <column name="quota_limit" type="BIGINT"/>
+            <column name="quota_period" type="VARCHAR(20)"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="rekey-643-pre-subscription" author="abhijith">
+        <createTable tableName="subscription">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="plan_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)" defaultValue="ACTIVE"><constraints nullable="false"/></column>
+            <column name="current_period_start" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="current_period_end" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="subscription" indexName="idx_subscription_user">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="rekey-643-pre-usage-record" author="abhijith">
+        <createTable tableName="usage_record">
+            <column name="id" type="BIGINT" autoIncrement="true"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="subscription_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="feature_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="usage_amount" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="period_start" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="period_end" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="usage_record" indexName="idx_usage_user_feature">
+            <column name="user_id"/>
+            <column name="feature_id"/>
+        </createIndex>
+    </changeSet>
+
+    <include file="db/changelog/v4.0/082-seed-billing-plans.xml"/>
+
+</databaseChangeLog>

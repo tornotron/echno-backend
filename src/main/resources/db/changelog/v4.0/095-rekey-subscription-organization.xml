@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Rekeys subscription (and the usage_record rows hanging off it) from the buying user to
+        the organization the plan is for. See #643 for the decision.
+
+        A Plan is a tier an organization buys; its maxUsers cap only means anything against an
+        organization, and the entitlement gate asks "does this organization hold the feature".
+        Keying the row on the user made the gate a per-user check and was the stated reason the
+        whole billing surface sat outside tenant isolation.
+
+        Existing rows move to their buyer's default organization (users_table.
+        default_organization_id), and where a buyer has no default but belongs to exactly one
+        organization, to that one. Anything still unresolved after both halts the migration
+        rather than being guessed or dropped: a subscription is a paid record, so the operator
+        maps it by hand and reruns. On the IITM staging database, the only environment with rows,
+        the mapping this produces is:
+
+            subscription 1: user 1 -> organization 2
+            subscription 2: user 2 -> organization 1
+
+        Both buyers carry that organization as their default and hold no other membership.
+
+        The same rows are three months past their period end and still TRIALING, because
+        nothing has ever transitioned a lapsed subscription. The lookup now checks the period
+        end, and the status column is reconciled to EXPIRED here so the data says what the
+        lookup already concludes.
+
+        user_id stays on both tables as a record of who bought or consumed, and becomes
+        nullable: an administrator granting a plan to an organization is not its buyer.
+    -->
+
+    <changeSet id="095-01-subscription-add-organization-id" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="subscription" columnName="organization_id"/></not>
+        </preConditions>
+        <addColumn tableName="subscription">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="095-02-subscription-backfill-default-organization" author="abhijith">
+        <sql>
+            UPDATE subscription s
+            SET organization_id = u.default_organization_id
+            FROM users_table u
+            WHERE s.user_id = u.id
+              AND s.organization_id IS NULL
+              AND u.default_organization_id IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <changeSet id="095-03-subscription-backfill-sole-membership" author="abhijith">
+        <sql>
+            UPDATE subscription s
+            SET organization_id = m.organization_id
+            FROM (
+                SELECT user_id, MIN(organization_id) AS organization_id
+                FROM employee
+                WHERE organization_id IS NOT NULL
+                GROUP BY user_id
+                HAVING COUNT(DISTINCT organization_id) = 1
+            ) m
+            WHERE s.user_id = m.user_id
+              AND s.organization_id IS NULL
+        </sql>
+    </changeSet>
+
+    <changeSet id="095-04-subscription-require-organization" author="abhijith">
+        <preConditions onFail="HALT"
+                       onFailMessage="subscription rows remain with no resolvable organization; map them by hand (see #643) and rerun">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM subscription WHERE organization_id IS NULL</sqlCheck>
+        </preConditions>
+        <addNotNullConstraint tableName="subscription" columnName="organization_id" columnDataType="BIGINT"/>
+        <dropNotNullConstraint tableName="subscription" columnName="user_id" columnDataType="BIGINT"/>
+    </changeSet>
+
+    <changeSet id="095-05-subscription-reindex" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <indexExists tableName="subscription" indexName="idx_subscription_user"/>
+        </preConditions>
+        <dropIndex tableName="subscription" indexName="idx_subscription_user"/>
+    </changeSet>
+
+    <changeSet id="095-06-subscription-index-organization" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists tableName="subscription" indexName="idx_subscription_organization"/></not>
+        </preConditions>
+        <createIndex tableName="subscription" indexName="idx_subscription_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="095-07-subscription-expire-lapsed" author="abhijith">
+        <sql>
+            UPDATE subscription
+            SET status = 'EXPIRED'
+            WHERE current_period_end &lt; now()
+              AND status IN ('ACTIVE', 'TRIALING', 'PAST_DUE')
+        </sql>
+    </changeSet>
+
+    <changeSet id="095-08-usage-record-add-organization-id" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="usage_record" columnName="organization_id"/></not>
+        </preConditions>
+        <addColumn tableName="usage_record">
+            <column name="organization_id" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="095-09-usage-record-backfill-organization" author="abhijith">
+        <sql>
+            UPDATE usage_record ur
+            SET organization_id = s.organization_id
+            FROM subscription s
+            WHERE ur.subscription_id = s.id
+              AND ur.organization_id IS NULL
+        </sql>
+    </changeSet>
+
+    <changeSet id="095-10-usage-record-require-organization" author="abhijith">
+        <preConditions onFail="HALT"
+                       onFailMessage="usage_record rows remain whose subscription has no organization; see #643">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM usage_record WHERE organization_id IS NULL</sqlCheck>
+        </preConditions>
+        <addNotNullConstraint tableName="usage_record" columnName="organization_id" columnDataType="BIGINT"/>
+        <dropNotNullConstraint tableName="usage_record" columnName="user_id" columnDataType="BIGINT"/>
+    </changeSet>
+
+    <changeSet id="095-11-usage-record-reindex" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <indexExists tableName="usage_record" indexName="idx_usage_user_feature"/>
+        </preConditions>
+        <dropIndex tableName="usage_record" indexName="idx_usage_user_feature"/>
+    </changeSet>
+
+    <changeSet id="095-12-usage-record-index-organization" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists tableName="usage_record" indexName="idx_usage_organization_feature"/></not>
+        </preConditions>
+        <createIndex tableName="usage_record" indexName="idx_usage_organization_feature">
+            <column name="organization_id"/>
+            <column name="feature_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

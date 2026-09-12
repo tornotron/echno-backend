@@ -18613,7 +18613,7 @@
         "type": "object"
       },
       "SubscriptionDto": {
-        "description": "A user's subscription to a plan, as returned by the API.",
+        "description": "An organization's subscription to a plan, as returned by the API.",
         "properties": {
           "active": {
             "description": "Whether the subscription is currently active.",
@@ -18670,6 +18670,12 @@
             "example": false,
             "type": "boolean"
           },
+          "organizationId": {
+            "description": "Id of the subscribing organization.",
+            "example": 12,
+            "format": "int64",
+            "type": "integer"
+          },
           "plan": {
             "$ref": "#/components/schemas/PlanDto",
             "description": "Plan the subscription is on."
@@ -18684,7 +18690,8 @@
               "PAST_DUE",
               "CANCELED",
               "UNPAID",
-              "PAUSED"
+              "PAUSED",
+              "EXPIRED"
             ],
             "example": "ACTIVE",
             "type": "string"
@@ -18702,7 +18709,7 @@
             "type": "string"
           },
           "userId": {
-            "description": "Id of the subscribing user.",
+            "description": "Id of the user who bought the subscription, if recorded.",
             "example": 27,
             "format": "int64",
             "type": "integer"
@@ -30636,7 +30643,7 @@
     },
     "/api/v1/billing/subscriptions/web": {
       "post": {
-        "description": "Subscribes the current user to the plan identified by planCode, for the given billing period.",
+        "description": "Subscribes the caller's current organization to the plan identified by planCode, for the given billing period.",
         "operationId": "createSubscription",
         "requestBody": {
           "content": {
@@ -30707,7 +30714,7 @@
                 }
               }
             },
-            "description": "Caller already has an active subscription"
+            "description": "Organization already has an active subscription"
           },
           "422": {
             "content": {
@@ -30748,7 +30755,7 @@
     },
     "/api/v1/billing/subscriptions/web/cancel": {
       "post": {
-        "description": "Cancels the caller's active subscription. By default it stays active until the end of the current billing period; setting immediate true in the request body ends it right away.",
+        "description": "Cancels the current organization's active subscription. By default it stays active until the end of the current billing period; setting immediate true in the request body ends it right away.",
         "operationId": "cancelSubscription",
         "requestBody": {
           "content": {
@@ -30808,7 +30815,7 @@
                 }
               }
             },
-            "description": "Caller has no active subscription"
+            "description": "Organization has no active subscription"
           },
           "409": {
             "content": {
@@ -30851,7 +30858,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Cancel the current user's subscription",
+        "summary": "Cancel the current organization's subscription",
         "tags": [
           "Billing Subscriptions"
         ]
@@ -30859,7 +30866,7 @@
     },
     "/api/v1/billing/subscriptions/web/change-plan": {
       "put": {
-        "description": "Moves the caller's active subscription to a different plan, identified by newPlanCode, keeping the same subscription record.",
+        "description": "Moves the current organization's active subscription to a different plan, identified by newPlanCode, keeping the same subscription record.",
         "operationId": "changeSubscription",
         "requestBody": {
           "content": {
@@ -30920,7 +30927,7 @@
                 }
               }
             },
-            "description": "Caller has no active subscription, or no plan with the given code"
+            "description": "Organization has no active subscription, or no plan with the given code"
           },
           "409": {
             "content": {
@@ -30963,7 +30970,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Change the current user's plan",
+        "summary": "Change the current organization's plan",
         "tags": [
           "Billing Subscriptions"
         ]
@@ -30971,7 +30978,7 @@
     },
     "/api/v1/billing/subscriptions/web/current": {
       "get": {
-        "description": "Returns the caller's active subscription, if any. An empty body with 204 means the caller has no active subscription.",
+        "description": "Returns the active subscription of the caller's current organization, if any. An empty body with 204 means the organization has no active subscription.",
         "operationId": "getCurrentSubscription",
         "responses": {
           "200": {
@@ -31075,7 +31082,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Get the current user's subscription",
+        "summary": "Get the current organization's subscription",
         "tags": [
           "Billing Subscriptions"
         ]
@@ -31083,7 +31090,7 @@
     },
     "/api/v1/billing/subscriptions/web/features/{featureCode}/access": {
       "get": {
-        "description": "Reports whether the current user's subscription grants access to the given feature code, and if it is quota-limited, how much remains.",
+        "description": "Reports whether the current organization's subscription grants access to the given feature code, and if it is quota-limited, how much remains.",
         "operationId": "checkFeatureAccess",
         "parameters": [
           {
@@ -31195,7 +31202,7 @@
     },
     "/api/v1/billing/subscriptions/web/history": {
       "get": {
-        "description": "Returns every subscription the caller has ever held, most recently created first.",
+        "description": "Returns every subscription the caller's current organization has ever held, most recently created first.",
         "operationId": "getSubscriptionHistory",
         "responses": {
           "200": {
@@ -31292,7 +31299,612 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Get the current user's subscription history",
+        "summary": "Get the current organization's subscription history",
+        "tags": [
+          "Billing Subscriptions"
+        ]
+      }
+    },
+    "/api/v1/billing/subscriptions/web/organization/{organizationId}": {
+      "get": {
+        "description": "Returns the active subscription for the given organization id. An empty body with 204 means the organization has no active subscription.",
+        "operationId": "getOrganizationSubscription",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organizationId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionDto"
+                }
+              }
+            },
+            "description": "Active subscription returned"
+          },
+          "204": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionDto"
+                }
+              }
+            },
+            "description": "Organization has no active subscription"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the platform-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get an organization's subscription",
+        "tags": [
+          "Billing Subscriptions"
+        ]
+      },
+      "post": {
+        "description": "Subscribes the given organization to the plan identified by planCode, for the given billing period. The caller is recorded as the buyer.",
+        "operationId": "createSubscriptionForOrganization",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organizationId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionCreateDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionDto"
+                }
+              }
+            },
+            "description": "Subscription created"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Validation failed on the request body"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the platform-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No plan with the given code"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Organization already has an active subscription"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Create a subscription for an organization",
+        "tags": [
+          "Billing Subscriptions"
+        ]
+      }
+    },
+    "/api/v1/billing/subscriptions/web/organization/{organizationId}/cancel": {
+      "post": {
+        "description": "Cancels the given organization's active subscription. By default it stays active until the end of the current billing period; setting immediate true in the request body ends it right away.",
+        "operationId": "cancelSubscriptionForOrganization",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organizationId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionCancelDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            },
+            "description": "Subscription canceled"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the platform-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Organization has no active subscription"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Cancel an organization's subscription",
+        "tags": [
+          "Billing Subscriptions"
+        ]
+      }
+    },
+    "/api/v1/billing/subscriptions/web/organization/{organizationId}/change-plan": {
+      "put": {
+        "description": "Moves the given organization's active subscription to a different plan, identified by newPlanCode.",
+        "operationId": "changeSubscriptionForOrganization",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organizationId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionChangeDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionDto"
+                }
+              }
+            },
+            "description": "Subscription moved to the new plan"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Validation failed on the request body"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the platform-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Organization has no active subscription, or no plan with the given code"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Change an organization's plan",
+        "tags": [
+          "Billing Subscriptions"
+        ]
+      }
+    },
+    "/api/v1/billing/subscriptions/web/organization/{organizationId}/history": {
+      "get": {
+        "description": "Returns every subscription the given organization has ever held, most recently created first.",
+        "operationId": "getOrganizationSubscriptionHistory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organizationId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SubscriptionDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Subscription history returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the platform-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get an organization's subscription history",
         "tags": [
           "Billing Subscriptions"
         ]
@@ -31300,7 +31912,7 @@
     },
     "/api/v1/billing/subscriptions/web/usage": {
       "post": {
-        "description": "Adds the given amount to the current user's recorded usage of a metered feature, for quota enforcement and billing.",
+        "description": "Adds the given amount to the current organization's recorded usage of a metered feature, for quota enforcement and billing.",
         "operationId": "recordUsage",
         "requestBody": {
           "content": {
@@ -31405,611 +32017,6 @@
           }
         },
         "summary": "Record feature usage",
-        "tags": [
-          "Billing Subscriptions"
-        ]
-      }
-    },
-    "/api/v1/billing/subscriptions/web/user/{userId}": {
-      "get": {
-        "description": "Returns the active subscription for the given user id. An empty body with 204 means the user has no active subscription.",
-        "operationId": "getUserSubscription",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "userId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionDto"
-                }
-              }
-            },
-            "description": "Active subscription returned"
-          },
-          "204": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionDto"
-                }
-              }
-            },
-            "description": "User has no active subscription"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the platform-admin role"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Get a user's subscription",
-        "tags": [
-          "Billing Subscriptions"
-        ]
-      },
-      "post": {
-        "description": "Subscribes the given user to the plan identified by planCode, for the given billing period.",
-        "operationId": "createSubscriptionForUser",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "userId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SubscriptionCreateDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionDto"
-                }
-              }
-            },
-            "description": "Subscription created"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Validation failed on the request body"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the platform-admin role"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No plan with the given code"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "User already has an active subscription"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Create a subscription for a user",
-        "tags": [
-          "Billing Subscriptions"
-        ]
-      }
-    },
-    "/api/v1/billing/subscriptions/web/user/{userId}/cancel": {
-      "post": {
-        "description": "Cancels the given user's active subscription. By default it stays active until the end of the current billing period; setting immediate true in the request body ends it right away.",
-        "operationId": "cancelSubscriptionForUser",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "userId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SubscriptionCancelDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            },
-            "description": "Subscription canceled"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the platform-admin role"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "User has no active subscription"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Cancel a user's subscription",
-        "tags": [
-          "Billing Subscriptions"
-        ]
-      }
-    },
-    "/api/v1/billing/subscriptions/web/user/{userId}/change-plan": {
-      "put": {
-        "description": "Moves the given user's active subscription to a different plan, identified by newPlanCode.",
-        "operationId": "changeSubscriptionForUser",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "userId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SubscriptionChangeDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionDto"
-                }
-              }
-            },
-            "description": "Subscription moved to the new plan"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Validation failed on the request body"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the platform-admin role"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "User has no active subscription, or no plan with the given code"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Change a user's plan",
-        "tags": [
-          "Billing Subscriptions"
-        ]
-      }
-    },
-    "/api/v1/billing/subscriptions/web/user/{userId}/history": {
-      "get": {
-        "description": "Returns every subscription the given user has ever held, most recently created first.",
-        "operationId": "getUserSubscriptionHistory",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "userId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SubscriptionDto"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Subscription history returned"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the platform-admin role"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Get a user's subscription history",
         "tags": [
           "Billing Subscriptions"
         ]
@@ -109761,7 +109768,7 @@
       "name": "Billing Plans"
     },
     {
-      "description": "A user's subscription to a plan, tracking its status, billing period and renewal dates. Covers self-service subscription management for the current user, feature access checks, usage recording for metered features, and an admin section for managing any user's subscription.",
+      "description": "An organization's subscription to a plan, tracking its status, billing period and renewal dates. Covers self-service subscription management for the caller's current organization, feature access checks, usage recording for metered features, and an admin section for managing any organization's subscription.",
       "name": "Billing Subscriptions"
     },
     {

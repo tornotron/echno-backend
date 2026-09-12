@@ -262,6 +262,13 @@ echno:
     # the Spring cache abstraction and the rate limiter with the shared Redis configured under
     # spring.data.redis below, so limits and cached values are shared across pods.
     provider: ${ECHNO_CACHE_PROVIDER:caffeine}
+  entitlement:
+    # What a refused entitlement check on a @RequireSubscription endpoint (or a module
+    # entitlement lookup) does. 'advisory' runs the full check, logs the would-be refusal at
+    # WARN with the organization, feature and reason, and lets the call through. 'enforce'
+    # refuses with 402 and the structured reason. Advisory is the default because nothing
+    # creates a subscription yet; flip to enforce per environment once payments exist.
+    mode: ${ECHNO_ENTITLEMENT_MODE:advisory}
   security:
     jwt:
       # Reject any access token whose audience does not include the backend client

@@ -13,7 +13,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * A user's active entitlement to a {@link Plan}, the core record of the SaaS billing model.
+ * An organization's entitlement to a {@link Plan}, the core record of the SaaS billing model.
+ *
+ * <p>Keyed on the organization, because a plan describes a tier an organization buys and its
+ * caps ({@code maxUsers}) only mean anything against one. The user who bought it is kept as
+ * {@link #userId} for the record; it plays no part in any entitlement decision.
  *
  * <p>Holds the current billing period bounds, optional trial window, and the lifecycle
  * status (active, trialing, canceled). Cancellation can take effect immediately or at
@@ -26,7 +30,7 @@ import java.util.Set;
 @NoArgsConstructor
 @Builder
 @Table(name = "subscription", indexes = {
-        @Index(name = "idx_subscription_user", columnList = "userId"),
+        @Index(name = "idx_subscription_organization", columnList = "organizationId"),
         @Index(name = "idx_subscription_status", columnList = "status"),
         @Index(name = "idx_subscription_period_end", columnList = "currentPeriodEnd")
 })
@@ -37,6 +41,9 @@ public class Subscription {
     private Long id;
 
     @Column(nullable = false)
+    private Long organizationId;
+
+    /** The user who bought the subscription. Informational; nothing is keyed on it. */
     private Long userId;
 
     @ManyToOne(fetch = FetchType.LAZY)

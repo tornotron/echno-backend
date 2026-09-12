@@ -136,7 +136,7 @@ class RedisDistributedStateIT {
         readerManager.afterPropertiesSet();
 
         SubscriptionSnapshot snapshot = new SubscriptionSnapshot(
-                101L, 27L, SubscriptionStatus.TRIALING,
+                101L, 12L, 27L, SubscriptionStatus.TRIALING,
                 Instant.parse("2026-08-01T00:00:00Z"),
                 Instant.parse("2026-09-01T00:00:00Z"),
                 Instant.parse("2026-08-01T00:00:00Z"),

@@ -55,7 +55,7 @@ class BillingEntityDefaultsTest {
 
     @Test
     void aBuiltSubscriptionStartsWithAnEmptyItemSet() {
-        Subscription subscription = Subscription.builder().userId(1L).build();
+        Subscription subscription = Subscription.builder().organizationId(1L).build();
 
         assertThat(subscription.getSubscriptionItems()).isNotNull().isEmpty();
     }
