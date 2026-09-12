@@ -45,6 +45,7 @@ class InspectionSecurityServiceTest {
     private static final String[] QUALITY_SIGN_OFF = {"system-admin", "qa-engineer"};
     private static final String[] SAFETY_SIGN_OFF = {"system-admin", "safety-officer"};
     private static final String[] OBSERVATION_REVIEW = {"system-admin", "qa-engineer"};
+    private static final String[] OBSERVATION_INTAKE = {"system-admin", "observation-producer"};
 
     @Mock
     private OrganizationSecurityService orgSecurity;
@@ -55,7 +56,7 @@ class InspectionSecurityServiceTest {
 
     private InspectionSecurityService security() {
         return new InspectionSecurityService(orgSecurity, ncrRepo, reinspectionRepo, READ, MANAGE, CHECKLIST,
-                RAISE, CORRECTIVE, QUALITY_SIGN_OFF, SAFETY_SIGN_OFF, OBSERVATION_REVIEW);
+                RAISE, CORRECTIVE, QUALITY_SIGN_OFF, SAFETY_SIGN_OFF, OBSERVATION_REVIEW, OBSERVATION_INTAKE);
     }
 
     @Test
@@ -127,5 +128,19 @@ class InspectionSecurityServiceTest {
         ncr.setNcrNumber("NCR-2027-000001");
         ncr.setType(type);
         return ncr;
+    }
+
+    @Test
+    void intakeIsCheckedAgainstTheProducerRoles() {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(OBSERVATION_INTAKE)).thenReturn(true);
+        assertThat(security().canIntakeObservations()).isTrue();
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(OBSERVATION_INTAKE)).thenReturn(false);
+        assertThat(security().canIntakeObservations()).isFalse();
+    }
+
+    @Test
+    void reviewIsCheckedAgainstTheReviewRoles() {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(OBSERVATION_REVIEW)).thenReturn(true);
+        assertThat(security().canReviewObservations()).isTrue();
     }
 }
