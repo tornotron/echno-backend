@@ -2,6 +2,9 @@ package org.tornotron.echno_backend.modules.inspections.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.tornotron.echno_backend.project.enums.ProjectType;
+
+import java.util.List;
 import org.tornotron.echno_backend.modules.inspections.domain.OrgTrade;
 import org.tornotron.echno_backend.modules.inspections.domain.ChecklistTemplate;
 import org.tornotron.echno_backend.modules.inspections.domain.ChecklistTemplateItem;
@@ -21,6 +24,10 @@ public interface ChecklistTemplateMapper {
     ChecklistTemplateDto toDto(ChecklistTemplate template);
 
     ChecklistTemplateItemDto toItemDto(ChecklistTemplateItem item);
+
+    default List<ProjectType> projectTypes(List<String> names) {
+        return names == null ? null : names.stream().map(ProjectType::valueOf).toList();
+    }
 
     @Mapping(target = "trade", source = "tradeCode")
     StarterChecklistTemplateDto toStarterDto(StarterChecklistTemplate template);

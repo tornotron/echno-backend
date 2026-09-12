@@ -688,7 +688,7 @@ final class ReviewedResponseSchemas {
                                 "y1", "y2")),
                 new ReviewedSchema(
                         ChecklistTemplateDto.class,
-                        Set.of("description"),
+                        Set.of("applicableElementTypes", "applicableProjectTypes", "description"),
                         Set.of("active", "createdAt", "id", "items", "name", "trade", "tradeGroup",
                                 "tradeId", "tradeName", "updatedAt", "version")),
                 new ReviewedSchema(

@@ -19,6 +19,8 @@ import org.tornotron.echno_backend.modules.inspections.dtos.ChecklistTemplateReq
 import org.tornotron.echno_backend.modules.inspections.dtos.StarterChecklistTemplateDto;
 import org.tornotron.echno_backend.modules.inspections.service.ChecklistTemplateService;
 
+import org.tornotron.echno_backend.project.enums.ProjectType;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -111,6 +113,24 @@ public class ChecklistTemplateControllerWeb {
     public ChecklistTemplateDto update(@PathVariable UUID id,
                                        @Valid @RequestBody ChecklistTemplateRequest req) {
         return service.update(id, req);
+    }
+
+    @GetMapping("/applicable")
+    @PreAuthorize("@inspectionSecurity.canRead()")
+    @Operation(
+            summary = "Suggest templates for an element and project type",
+            description = "Returns the organization's active templates whose applicability admits the "
+                    + "given element type and project type; a template with no applicability set "
+                    + "admits everything. Both parameters are optional. Suggestion only: any template "
+                    + "may still be used on any element."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The applicable templates"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public List<ChecklistTemplateDto> applicable(@RequestParam(required = false) String elementType,
+                                                 @RequestParam(required = false) ProjectType projectType) {
+        return service.findApplicable(elementType, projectType);
     }
 
     @GetMapping("/starters")

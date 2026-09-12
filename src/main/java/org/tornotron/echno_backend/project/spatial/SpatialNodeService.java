@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.project.spatial;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
+import org.tornotron.echno_backend.modules.inspections.api.ElementTypeValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
@@ -47,6 +49,7 @@ public class SpatialNodeService {
     private final SpatialNodeRepository repository;
     private final ProjectRepository projectRepository;
     private final TenantEntityHelper tenantEntityHelper;
+    private final ObjectProvider<ElementTypeValidator> elementTypeValidator;
 
     // ---------------------------------------------------------------- reads
 
@@ -156,7 +159,7 @@ public class SpatialNodeService {
             node.setLevelIndex(request.levelIndex());
         }
         if (request.elementType() != null) {
-            node.setElementType(blankToNull(request.elementType()));
+            node.setElementType(validatedElementType(request.elementType()));
         }
         if (request.bimElementGuid() != null) {
             String guid = blankToNull(request.bimElementGuid());
@@ -360,7 +363,7 @@ public class SpatialNodeService {
         node.setSortOrder(sortOrder == null ? 0 : sortOrder);
         node.setDepth(level.depth());
         node.setLevelIndex(level == SpatialLevel.FLOOR ? levelIndex : null);
-        node.setElementType(level == SpatialLevel.ELEMENT ? blankToNull(elementType) : null);
+        node.setElementType(level == SpatialLevel.ELEMENT ? validatedElementType(elementType) : null);
         node.setBimElementGuid(guid);
         node.setExternalRef(blankToNull(externalRef));
         // The id is assigned at persist; the path needs it, so it is written in a second step.
@@ -475,6 +478,18 @@ public class SpatialNodeService {
         return new SpatialNodeDto(n.getId(), n.getProjectId(), n.getParentId(), n.getLevel(), n.getCode(),
                 n.getName(), n.getSortOrder(), n.getDepth(), n.getLevelIndex(), n.getElementType(),
                 n.getBimElementGuid(), n.getExternalRef(), n.getArchivedAt(), pathSegments(n));
+    }
+
+    /**
+     * Blanks to null and, when the inspections module is present, checks the slug against the
+     * organization's active element types. Without the module any slug is accepted.
+     */
+    private String validatedElementType(String elementType) {
+        String code = blankToNull(elementType);
+        if (code != null) {
+            elementTypeValidator.ifAvailable(validator -> validator.requireActive(code));
+        }
+        return code;
     }
 
     private static String blankToNull(String s) {

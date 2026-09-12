@@ -25,8 +25,10 @@ import org.tornotron.echno_backend.modules.inspections.dtos.OrgTradeDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.TradeCatalogueDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.UpdateTradeRequest;
 import org.tornotron.echno_backend.modules.inspections.mapper.TradeMapperImpl;
+import org.tornotron.echno_backend.modules.inspections.mapper.ElementTypeMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.repositories.OrgTradeRepository;
 import org.tornotron.echno_backend.modules.inspections.service.TradeService;
+import org.tornotron.echno_backend.modules.inspections.service.ElementTypeService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
@@ -44,7 +46,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({TradeService.class, TradeMapperImpl.class, TenantEntityHelper.class})
+@Import({TradeService.class, TradeMapperImpl.class,
+        ElementTypeService.class, ElementTypeMapperImpl.class, TenantEntityHelper.class})
 class TradeServiceIT extends AbstractIntegrationTest {
 
     private static final Set<String> NEW_TRADES =
@@ -91,6 +94,7 @@ class TradeServiceIT extends AbstractIntegrationTest {
         }
         inCommittedTx(() -> {
             deleteForOrgs("DELETE FROM inspection_trades WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM org_element_types WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM organization WHERE id IN (:a,:b)");
         });
     }

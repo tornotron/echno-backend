@@ -2,6 +2,8 @@ package org.tornotron.echno_backend.modules.inspections.dtos;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import org.tornotron.echno_backend.project.enums.ProjectType;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -21,6 +23,10 @@ public record ChecklistTemplateDto(
                 + "on a template adopted from a starter checklist that carried none.",
                 nullable = true)
         String description,
+        @Schema(description = "Element type codes the template suits; null means any.", nullable = true)
+        List<String> applicableElementTypes,
+        @Schema(description = "Project types the template suits; null means any.", nullable = true)
+        List<ProjectType> applicableProjectTypes,
         boolean active,
         int version,
         List<ChecklistTemplateItemDto> items,
