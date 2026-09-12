@@ -61,7 +61,9 @@ class ModuleBoundaryRuleTest {
         assertPasses(ModuleBoundaryTest::moduleEntitiesAreTenantScoped);
         EvaluationResult result = assertFails(ModuleBoundaryTest::moduleEntitiesAreTenantScoped, "LeakyEntity");
         assertThat(result.getFailureReport().toString())
-                .as("only the leaky entity is reported; the owned child and the marked catalogue pass")
+                .as("an optional association is not ownership: the child could be saved with no parent")
+                .contains("LooselyOwnedChild")
+                .as("only the offenders are reported; the owned child and the marked catalogue pass")
                 .doesNotContain("AlphaRecordItem")
                 .doesNotContain("AlphaCatalogue");
     }

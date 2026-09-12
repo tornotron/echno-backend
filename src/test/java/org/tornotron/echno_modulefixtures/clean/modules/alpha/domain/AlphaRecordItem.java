@@ -11,6 +11,6 @@ public class AlphaRecordItem {
     @Id
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(optional = false)
     private AlphaRecord record;
 }
