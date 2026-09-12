@@ -219,6 +219,27 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
                 .contains(java.util.Arrays.stream(InspectionTrade.values())
                         .map(InspectionTrade::getValue).toArray(String[]::new));
         assertThat(starters).allSatisfy(starter -> assertThat(starter.items()).isNotEmpty());
+        // the five trades the catalogue added each ship with a starter of their own
+        assertThat(starters).extracting(StarterChecklistTemplateDto::trade)
+                .contains("tiling", "painting", "ceilings", "doors-windows", "fire-systems");
+        assertThat(starters).hasSize(21);
+    }
+
+    @Test
+    void adoptStarter_forANewTrade_landsOnTheOrganizationsOwnTradeRow() {
+        for (String code : List.of("tiling", "painting", "ceilings", "doors-windows", "fire-systems")) {
+            ChecklistTemplateDto adopted = service.adoptStarter(code);
+            assertThat(adopted.trade()).isEqualTo(code);
+            assertThat(adopted.tradeId()).isEqualTo(trade(code).getId());
+            assertThat(adopted.items()).hasSizeGreaterThanOrEqualTo(5);
+            // no enum constant stands behind these, so the shim column stays empty
+            assertThat(InspectionTrade.find(code)).isEmpty();
+        }
+        assertThat(service.findAll(null, null, null, pageable()).getTotalElements()).isEqualTo(5);
+    }
+
+    private static Pageable pageable() {
+        return PageRequest.of(0, 50);
     }
 
     @Test
