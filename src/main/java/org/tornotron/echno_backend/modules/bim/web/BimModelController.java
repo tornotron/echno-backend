@@ -25,7 +25,10 @@ import org.tornotron.echno_backend.modules.bim.dto.BimElementPageDto;
 import org.tornotron.echno_backend.modules.bim.dto.BimImportJobDto;
 import org.tornotron.echno_backend.modules.bim.dto.BimModelDto;
 import org.tornotron.echno_backend.modules.bim.dto.BimModelVersionDto;
+import org.tornotron.echno_backend.modules.bim.dto.BimHierarchyProposalDto;
+import org.tornotron.echno_backend.modules.bim.dto.ConfirmBimHierarchyRequest;
 import org.tornotron.echno_backend.modules.bim.dto.CreateBimModelRequest;
+import org.tornotron.echno_backend.modules.bim.hierarchy.BimHierarchyService;
 import org.tornotron.echno_backend.modules.bim.dto.MergeBimElementRequest;
 import org.tornotron.echno_backend.modules.bim.service.BimElementService;
 import org.tornotron.echno_backend.modules.bim.service.BimModelService;
@@ -46,6 +49,7 @@ public class BimModelController {
 
     private final BimModelService service;
     private final BimElementService elementService;
+    private final BimHierarchyService hierarchyService;
 
     @GetMapping("/projects/{projectId}/models")
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
@@ -136,6 +140,49 @@ public class BimModelController {
     })
     public BimElementDto merge(@PathVariable UUID elementId, @Valid @RequestBody MergeBimElementRequest req) {
         return elementService.merge(elementId, req);
+    }
+
+    @GetMapping("/models/{modelId}/versions/{versionId}/hierarchy/proposal")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(summary = "The site structure proposed from this version's IFC containment",
+            description = "Building > Floor > Zone > Element from IfcBuilding, IfcBuildingStorey and IfcSpace, with "
+                    + "the construction elements under each. Entries carrying matchedNodeId already have a spatial "
+                    + "node with that GlobalId. Nothing exists in the site structure until confirmed.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The proposal"),
+            @ApiResponse(responseCode = "404", description = "No such version, or its import has not produced a proposal yet")
+    })
+    public BimHierarchyProposalDto getHierarchyProposal(@PathVariable UUID modelId, @PathVariable UUID versionId) {
+        return hierarchyService.get(modelId, versionId);
+    }
+
+    @PostMapping("/models/{modelId}/versions/{versionId}/hierarchy/proposal")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(summary = "Rebuild the proposal from the stored structure, picking up nodes created since")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The rebuilt proposal"),
+            @ApiResponse(responseCode = "400", description = "The version is not READY"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No such model or version in the current tenant")
+    })
+    public BimHierarchyProposalDto regenerateHierarchyProposal(@PathVariable UUID modelId, @PathVariable UUID versionId) {
+        return hierarchyService.regenerate(modelId, versionId);
+    }
+
+    @PostMapping("/models/{modelId}/versions/{versionId}/hierarchy/confirm")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(summary = "Confirm the proposal into the project's site structure",
+            description = "Creates the buildings, floors, zones and elements that have no node yet, matches the "
+                    + "ones that do by GlobalId, and links each element row to its node. Idempotent: confirming "
+                    + "again matches everything the first run created.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The proposal with the confirmation result and refreshed matches"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No such version, or no proposal to confirm")
+    })
+    public BimHierarchyProposalDto confirmHierarchy(@PathVariable UUID modelId, @PathVariable UUID versionId,
+                                                    @Valid @RequestBody(required = false) ConfirmBimHierarchyRequest req) {
+        return hierarchyService.confirm(modelId, versionId, req);
     }
 
     @GetMapping("/models/{modelId}/versions/{versionId}/jobs")

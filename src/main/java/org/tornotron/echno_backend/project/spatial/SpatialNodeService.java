@@ -130,6 +130,21 @@ public class SpatialNodeService {
 
     // --------------------------------------------------------------- writes
 
+    /**
+     * The node carrying an IFC GlobalId, archived or not. The BIM module matches its hierarchy
+     * proposal against this before creating anything; the guid is unique per project so there
+     * is at most one.
+     */
+    @Transactional(readOnly = true)
+    public Optional<SpatialNodeDto> findByBimElementGuid(Long projectId, String bimElementGuid) {
+        requireProject(projectId);
+        String guid = blankToNull(bimElementGuid);
+        if (guid == null) {
+            return Optional.empty();
+        }
+        return repository.findByProjectIdAndBimElementGuid(projectId, guid).map(this::toDto);
+    }
+
     @Transactional
     public SpatialNodeDto create(Long projectId, CreateSpatialNodeRequest request) {
         requireProject(projectId);
