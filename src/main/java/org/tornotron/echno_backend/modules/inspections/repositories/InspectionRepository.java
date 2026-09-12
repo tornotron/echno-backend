@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
+import org.tornotron.echno_backend.modules.inspections.domain.InspectionDefect;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -38,6 +39,11 @@ public interface InspectionRepository
     /** The project an inspection belongs to, without loading its check points and defects. */
     @Query("SELECT i.projectId FROM Inspection i WHERE i.id = :id")
     Optional<Long> findProjectIdByIdScoped(@Param("id") UUID id);
+
+    /** A defect by id, organization-explicit through its inspection; defects have no repository of their own. */
+    @Query("SELECT d FROM InspectionDefect d WHERE d.id = :id AND d.inspection.organization.id = :organizationId")
+    Optional<InspectionDefect> findDefectByIdAndOrganizationId(@Param("id") UUID id,
+                                                              @Param("organizationId") Long organizationId);
 
     /**
      * Dedupe guard for AI compliance generation: true when a compliance inspection

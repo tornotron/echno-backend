@@ -7,6 +7,7 @@ import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.modules.inspections.NcrType;
 import org.tornotron.echno_backend.modules.inspections.domain.Ncr;
 import org.tornotron.echno_backend.modules.inspections.repositories.NcrRepository;
+import org.tornotron.echno_backend.modules.inspections.repositories.ReinspectionRepository;
 
 import java.util.UUID;
 
@@ -61,6 +62,7 @@ public class InspectionSecurityService {
 
     private final OrganizationSecurityService orgSecurity;
     private final NcrRepository ncrRepo;
+    private final ReinspectionRepository reinspectionRepo;
     private final String[] readRoles;
     private final String[] manageRoles;
     private final String[] checklistRoles;
@@ -72,6 +74,7 @@ public class InspectionSecurityService {
     public InspectionSecurityService(
             OrganizationSecurityService orgSecurity,
             NcrRepository ncrRepo,
+            ReinspectionRepository reinspectionRepo,
             @Value("${echno.security.inspection.read-roles:"
                     + "system-admin,project-manager,qa-engineer,safety-officer,site-engineer}")
             String[] readRoles,
@@ -91,6 +94,7 @@ public class InspectionSecurityService {
             String[] safetySignOffRoles) {
         this.orgSecurity = orgSecurity;
         this.ncrRepo = ncrRepo;
+        this.reinspectionRepo = reinspectionRepo;
         this.readRoles = readRoles;
         this.manageRoles = manageRoles;
         this.checklistRoles = checklistRoles;
@@ -149,6 +153,21 @@ public class InspectionSecurityService {
                 .map(Ncr::getType)
                 .map(type -> orgSecurity.hasAnyOrgRoleForCurrentTenant(
                         type == NcrType.SAFETY ? safetySignOffRoles : qualitySignOffRoles))
+                .orElse(true);
+    }
+
+    /**
+     * Recording a reinspection outcome is the same authority as signing off the NCR it answers:
+     * the sign-off roles of that NCR's discipline. A defect-only reinspection has no NCR to take
+     * a discipline from and falls to the quality sign-off roles. Unknown ids pass through so the
+     * service can answer 404 rather than 403.
+     */
+    @Transactional(readOnly = true)
+    public boolean canRecordReinspectionOutcome(UUID reinspectionId) {
+        return reinspectionRepo.findByIdScoped(reinspectionId)
+                .map(r -> r.getNcrId() != null
+                        ? canSignOffNcr(r.getNcrId())
+                        : orgSecurity.hasAnyOrgRoleForCurrentTenant(qualitySignOffRoles))
                 .orElse(true);
     }
 }

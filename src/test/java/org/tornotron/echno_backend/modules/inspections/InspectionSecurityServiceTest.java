@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.inspections;
 
+import org.tornotron.echno_backend.modules.inspections.repositories.ReinspectionRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -48,9 +49,11 @@ class InspectionSecurityServiceTest {
     private OrganizationSecurityService orgSecurity;
     @Mock
     private NcrRepository ncrRepo;
+    @Mock
+    private ReinspectionRepository reinspectionRepo;
 
     private InspectionSecurityService security() {
-        return new InspectionSecurityService(orgSecurity, ncrRepo, READ, MANAGE, CHECKLIST,
+        return new InspectionSecurityService(orgSecurity, ncrRepo, reinspectionRepo, READ, MANAGE, CHECKLIST,
                 RAISE, CORRECTIVE, QUALITY_SIGN_OFF, SAFETY_SIGN_OFF);
     }
 

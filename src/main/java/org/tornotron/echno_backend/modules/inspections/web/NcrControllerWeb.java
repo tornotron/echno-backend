@@ -22,6 +22,7 @@ import org.tornotron.echno_backend.modules.inspections.dtos.AssignNcrRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateNcrRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.NcrDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.NcrRemarksRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.VerifyNcrRequest;
 import org.tornotron.echno_backend.modules.inspections.pdf.NcrReportPdfService;
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
 import org.tornotron.echno_backend.pdfGeneration.RenderedReport;
@@ -152,17 +153,20 @@ public class NcrControllerWeb {
     @PreAuthorize("@inspectionSecurity.canSignOffNcr(#id)")
     @Operation(
             summary = "Verify the corrective action",
-            description = "Records that the corrective work was re-inspected and accepted."
+            description = "Records that the corrective work was re-inspected and accepted. Naming a "
+                    + "passed reinspection ties the verification to it and takes the verifier and "
+                    + "time from its outcome; without one, the verification stands on the caller."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "NCR verified"),
-            @ApiResponse(responseCode = "400", description = "The corrective action has not been reported complete"),
+            @ApiResponse(responseCode = "400", description = "The corrective action has not been reported "
+                    + "complete, or the named reinspection is not this NCR's or has not passed"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant")
     })
     public NcrDto verify(@PathVariable UUID id,
-                         @Valid @RequestBody(required = false) NcrRemarksRequest req) {
-        return service.verify(id, remarksOf(req));
+                         @Valid @RequestBody(required = false) VerifyNcrRequest req) {
+        return service.verify(id, req == null ? null : req.remarks(), req == null ? null : req.reinspectionId());
     }
 
     @PostMapping("/{id}/reject")

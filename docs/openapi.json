@@ -16882,6 +16882,108 @@
         ],
         "type": "object"
       },
+      "ReinspectionDto": {
+        "properties": {
+          "assignedInspectorId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "defectId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "ncrId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "originalInspectionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "pending",
+              "passed",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "outcomeAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "outcomeById": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reinspectionInspectionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "remarks": {
+            "type": "string"
+          },
+          "requestedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "requestedById": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sequence": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "targetDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ReinspectionOutcomeRequest": {
+        "description": "What the reinspection found.",
+        "properties": {
+          "outcome": {
+            "description": "passed when the work now conforms, failed otherwise.",
+            "enum": [
+              "pending",
+              "passed",
+              "failed"
+            ],
+            "example": "passed",
+            "type": "string"
+          },
+          "remarks": {
+            "description": "What was seen on the re-check.",
+            "example": "Cover re-measured at 42 mm at all three points.",
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome"
+        ],
+        "type": "object"
+      },
       "ReplaceAnnotationsRequest": {
         "description": "Every mark drawn across an inspection's defect photos, replacing what is stored.",
         "properties": {
@@ -16985,6 +17087,29 @@
         "required": [
           "name"
         ],
+        "type": "object"
+      },
+      "ScheduleReinspectionRequest": {
+        "description": "Payload to schedule a reinspection of an NCR or a defect.",
+        "properties": {
+          "assignedInspectorId": {
+            "description": "Employee id of the inspector who carries out the re-check.",
+            "example": 8,
+            "format": "int64",
+            "type": "integer"
+          },
+          "copyAllItems": {
+            "description": "Copy every check point of the original inspection rather than only the failed ones. Defaults to false.",
+            "example": false,
+            "type": "boolean"
+          },
+          "targetDate": {
+            "description": "Date the re-check is due; becomes the new inspection's scheduled date.",
+            "example": "2026-09-20",
+            "format": "date",
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "SearchHit": {
@@ -21416,6 +21541,24 @@
             "type": "string"
           },
           "value": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "VerifyNcrRequest": {
+        "description": "Payload to verify the corrective action on an NCR.",
+        "properties": {
+          "reinspectionId": {
+            "description": "The passed reinspection this verification rests on. Optional this release; when given it must belong to this NCR and have passed, and the verifier and time are taken from its outcome.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "remarks": {
+            "description": "What was seen on re-inspection.",
+            "example": "Section chipped out and re-poured; cover re-measured at 42 mm.",
+            "maxLength": 2000,
+            "minLength": 0,
             "type": "string"
           }
         },
@@ -39893,7 +40036,7 @@
     "/api/v1/finance/company-bank-accounts/web/{id}": {
       "get": {
         "description": "Returns a single company bank account, including the linked ledger account.",
-        "operationId": "get_13",
+        "operationId": "get_14",
         "parameters": [
           {
             "in": "path",
@@ -43551,7 +43694,7 @@
     "/api/v1/finance/invoices/web/{id}": {
       "get": {
         "description": "Returns a single customer invoice, including its computed totals and line items.",
-        "operationId": "get_12",
+        "operationId": "get_13",
         "parameters": [
           {
             "in": "path",
@@ -44625,7 +44768,7 @@
     "/api/v1/finance/payments/web/{id}": {
       "get": {
         "description": "Returns a single customer payment with its invoice allocations.",
-        "operationId": "get_11",
+        "operationId": "get_12",
         "parameters": [
           {
             "in": "path",
@@ -45452,7 +45595,7 @@
     "/api/v1/finance/projects/{projectId}/cost-control/web": {
       "get": {
         "description": "Returns the per-budget-head roll-up of allocated, committed, spent and remaining amounts for the project, plus a project total row. Heads with an allocation or any tagged spend are included; a head whose committed plus spent exceeds its allocation is flagged as over budget.",
-        "operationId": "get_10",
+        "operationId": "get_11",
         "parameters": [
           {
             "in": "path",
@@ -53326,6 +53469,128 @@
         ]
       }
     },
+    "/api/v1/inspections/web/defects/{defectId}/reinspections": {
+      "post": {
+        "description": "The defect-only path, for a defect reported resolved with no NCR over it. Same shape as the NCR path; a passed outcome verifies the defect.",
+        "operationId": "scheduleForDefect",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "defectId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleReinspectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReinspectionDto"
+                }
+              }
+            },
+            "description": "Reinspection scheduled"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The defect is not resolved, or an attempt is still pending"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No defect with the given id in the current tenant, or no such inspector"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Schedule a reinspection of a defect",
+        "tags": [
+          "Reinspections"
+        ]
+      }
+    },
     "/api/v1/inspections/web/events": {
       "get": {
         "description": "The project-wide log. Every parameter is an optional filter and they narrow together; from and to bound occurredAt inclusively.",
@@ -53494,6 +53759,241 @@
         "summary": "Search the inspection event log",
         "tags": [
           "Inspection history"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/reinspections/{id}": {
+      "get": {
+        "operationId": "get_10",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReinspectionDto"
+                }
+              }
+            },
+            "description": "Reinspection found"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reinspection with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get a reinspection by id",
+        "tags": [
+          "Reinspections"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/reinspections/{id}/outcome": {
+      "post": {
+        "description": "passed or failed, once. A failed re-check of an NCR sends it to rejected; a passed one lets the verify call name this reinspection. On a defect-only reinspection, passed verifies the defect and failed puts it back in progress.",
+        "operationId": "recordOutcome",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReinspectionOutcomeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReinspectionDto"
+                }
+              }
+            },
+            "description": "Outcome recorded"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The outcome is pending, or was already recorded"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the sign-off role for this reinspection's discipline"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reinspection with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Record what the reinspection found",
+        "tags": [
+          "Reinspections"
         ]
       }
     },
@@ -81086,7 +81586,7 @@
     },
     "/api/v1/ncrs/web/{id}/verify": {
       "post": {
-        "description": "Records that the corrective work was re-inspected and accepted.",
+        "description": "Records that the corrective work was re-inspected and accepted. Naming a passed reinspection ties the verification to it and takes the verifier and time from its outcome; without one, the verification stands on the caller.",
         "operationId": "verify",
         "parameters": [
           {
@@ -81103,7 +81603,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NcrRemarksRequest"
+                "$ref": "#/components/schemas/VerifyNcrRequest"
               }
             }
           }
@@ -81127,7 +81627,7 @@
                 }
               }
             },
-            "description": "The corrective action has not been reported complete"
+            "description": "The corrective action has not been reported complete, or the named reinspection is not this NCR's or has not passed"
           },
           "402": {
             "content": {
@@ -81203,6 +81703,242 @@
         "summary": "Verify the corrective action",
         "tags": [
           "Non-conformance reports"
+        ]
+      }
+    },
+    "/api/v1/ncrs/web/{ncrId}/reinspections": {
+      "get": {
+        "description": "In attempt order.",
+        "operationId": "listForNcr",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ncrId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReinspectionDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The attempts, oldest first"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No NCR with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the reinspection attempts on an NCR",
+        "tags": [
+          "Reinspections"
+        ]
+      },
+      "post": {
+        "description": "Creates the reinspection record and a new inspection with the original's failed check points reset to pending (every check point with copyAllItems). Allowed only while the NCR is corrective-action-complete and no earlier attempt is still pending.",
+        "operationId": "scheduleForNcr",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ncrId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleReinspectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReinspectionDto"
+                }
+              }
+            },
+            "description": "Reinspection scheduled"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The NCR is not awaiting verification, or an attempt is still pending"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No NCR with the given id in the current tenant, or no such inspector"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Schedule a reinspection of an NCR",
+        "tags": [
+          "Reinspections"
         ]
       }
     },
@@ -112532,6 +113268,10 @@
     {
       "description": "Money received against a project or the organization: payments, advances, security deposits and refunds, with the payer, tax breakdown and an optional link to a project, payment, invoice or customer. Read access requires tenant membership; creating, updating and deleting are restricted to system-admin or project-manager.",
       "name": "Receipts"
+    },
+    {
+      "description": "The re-check of a non-conformance: which inspection re-ran the failed check points, by whom, and what it found. Scheduling one creates a new inspection carrying the original's failed check points; recording its outcome moves the NCR or defect it answers. Attempts are numbered, and one re-check inspection serves one attempt. All endpoints are tenant scoped.",
+      "name": "Reinspections"
     },
     {
       "description": "Quick search across the records the web client's navigation palette can jump to. Returns a small ranked set of matches rather than a page of a collection, because a search box wants what matches rather than what comes first.",

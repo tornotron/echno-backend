@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      The reinspection record (#762, design note 2026-09-12-qaqc-reinspection-audit-log.md):
+      one row per attempt to re-check an NCR or a defect, linking the originating
+      non-conformance, the inspection that found it and the new inspection created for the
+      re-check, with the outcome of that re-check. At least one of ncr_id and defect_id is
+      set; attempts are numbered within their NCR or defect; a re-check inspection serves one
+      attempt only. Foreign keys to the organization, the NCR and both inspections; none to the
+      defect, whose row is replaced whenever its inspection is updated.
+    -->
+
+    <changeSet id="101-01-create-inspection-reinspections" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="inspection_reinspections"/></not>
+        </preConditions>
+
+        <createTable tableName="inspection_reinspections">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_inspection_reinspections" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ncr_id" type="UUID"/>
+            <column name="defect_id" type="UUID"/>
+            <column name="original_inspection_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reinspection_inspection_id" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_reinspection_inspection"/>
+            </column>
+            <column name="sequence" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="requested_by_id" type="BIGINT"/>
+            <column name="requested_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="assigned_inspector_id" type="BIGINT"/>
+            <column name="target_date" type="DATE"/>
+            <column name="outcome" type="VARCHAR(20)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+            <column name="outcome_by_id" type="BIGINT"/>
+            <column name="outcome_at" type="TIMESTAMP"/>
+            <column name="remarks" type="VARCHAR(2000)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="inspection_reinspections" baseColumnNames="organization_id"
+                                 constraintName="fk_reinspection_organization"
+                                 referencedTableName="organization" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="inspection_reinspections" baseColumnNames="ncr_id"
+                                 constraintName="fk_reinspection_ncr"
+                                 referencedTableName="ncrs" referencedColumnNames="id"/>
+        <!-- No foreign key on defect_id, on purpose: an inspection update replaces its defect
+             rows (orphanRemoval), the same reason ncrs.defect_id carries none. -->
+        <addForeignKeyConstraint baseTableName="inspection_reinspections" baseColumnNames="original_inspection_id"
+                                 constraintName="fk_reinspection_original_inspection"
+                                 referencedTableName="inspections" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="inspection_reinspections" baseColumnNames="reinspection_inspection_id"
+                                 constraintName="fk_reinspection_recheck_inspection"
+                                 referencedTableName="inspections" referencedColumnNames="id"/>
+
+        <sql>
+            ALTER TABLE inspection_reinspections
+                ADD CONSTRAINT ck_reinspection_subject CHECK (ncr_id IS NOT NULL OR defect_id IS NOT NULL)
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX uk_reinspection_ncr_sequence
+                ON inspection_reinspections (ncr_id, sequence) WHERE ncr_id IS NOT NULL
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX uk_reinspection_defect_sequence
+                ON inspection_reinspections (defect_id, sequence) WHERE defect_id IS NOT NULL
+        </sql>
+
+        <createIndex tableName="inspection_reinspections" indexName="idx_reinsp_ncr">
+            <column name="ncr_id"/>
+        </createIndex>
+        <createIndex tableName="inspection_reinspections" indexName="idx_reinsp_defect">
+            <column name="defect_id"/>
+        </createIndex>
+        <createIndex tableName="inspection_reinspections" indexName="idx_reinsp_original">
+            <column name="original_inspection_id"/>
+        </createIndex>
+        <createIndex tableName="inspection_reinspections" indexName="idx_reinsp_project">
+            <column name="project_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
