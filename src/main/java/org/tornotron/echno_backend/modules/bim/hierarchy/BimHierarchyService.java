@@ -29,7 +29,6 @@ import org.tornotron.echno_backend.modules.bim.dto.BimHierarchyProposalDto.Propo
 import org.tornotron.echno_backend.modules.bim.dto.BimHierarchyProposalDto.ProposedZone;
 import org.tornotron.echno_backend.modules.bim.dto.ConfirmBimHierarchyRequest;
 import org.tornotron.echno_backend.modules.bim.importer.BimArtifactReader;
-import org.tornotron.echno_backend.modules.bim.importer.BimIngestionListener;
 import org.tornotron.echno_backend.modules.bim.repository.BimElementRepository;
 import org.tornotron.echno_backend.modules.bim.service.BimModelService;
 import org.tornotron.echno_backend.project.spatial.SpatialLevel;
@@ -49,7 +48,7 @@ import org.tornotron.echno_backend.project.spatial.dto.SpatialNodeDto;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class BimHierarchyService implements BimIngestionListener {
+public class BimHierarchyService {
 
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {};
 
@@ -59,9 +58,8 @@ public class BimHierarchyService implements BimIngestionListener {
     private final BimArtifactReader artifacts;
     private final ObjectMapper objectMapper;
 
-    @Override
-    public void afterElementsIngested(BimModel model, BimModelVersion version,
-                                      Map<String, Object> structure, Map<String, Object> meta) {
+    /** Builds and stores the proposal; called inside the ingestion transaction by the listener. */
+    public void propose(BimModel model, BimModelVersion version, Map<String, Object> structure) {
         BimHierarchyProposalDto proposal = BimHierarchyProposalBuilder.build(version.getId(), structure,
                 elements.findByModelId(model.getId()), guid -> lookup(model.getProjectId(), guid));
         version.setHierarchyProposal(objectMapper.convertValue(proposal, MAP));
@@ -90,7 +88,7 @@ public class BimHierarchyService implements BimIngestionListener {
         } catch (IOException e) {
             throw new InvalidRequestException("structure.json could not be read for this version: " + e.getMessage());
         }
-        afterElementsIngested(model, version, structure, version.getMeta());
+        propose(model, version, structure);
         return requireProposal(version);
     }
 
