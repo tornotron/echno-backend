@@ -46,6 +46,7 @@ import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSer
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserContextService;
@@ -71,7 +72,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({InspectionService.class, InspectionMapperImpl.class,
+@Import({InspectionService.class, SpatialNodeService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         TradeService.class, TradeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
@@ -605,7 +606,7 @@ class NcrServiceIT extends AbstractIntegrationTest {
                 "Slab check", InspectionType.QUALITY, null, null, null, foreignProjectId,
                 "Block A", null, null, LocalDate.of(2026, 8, 20), null,
                 null, null, null, 100L, null, null, null, null, null,
-                null, null));
+                null, null, null));
         UUID id = service.create(new CreateNcrRequest(inspection.id(), null,
                 "Their non-conformance", "Org B's own report", DefectSeverity.MAJOR,
                 foreignSiteEngineerId, null)).id();
@@ -644,7 +645,7 @@ class NcrServiceIT extends AbstractIntegrationTest {
                 null,
                 List.of(new InspectionDefectRequest("Structural", "Honeycombing on column C4",
                         DefectSeverity.MAJOR, "Grid C4", null, "Chip out and re-pour",
-                        "Contractor", LocalDate.of(2026, 9, 1), null, null))));
+                        "Contractor", LocalDate.of(2026, 9, 1), null, null, null)), null));
     }
 
     private InspectionDto inspectionOf(InspectionType type) {
@@ -652,7 +653,7 @@ class NcrServiceIT extends AbstractIntegrationTest {
                 "Site check", type, null, null, null, projectId,
                 "Block A", null, null, LocalDate.of(2026, 8, 20), null,
                 null, null, null, 100L, null, null, null, null, null,
-                null, null));
+                null, null, null));
     }
 
     private void enableOrgFilter(Long orgId) {

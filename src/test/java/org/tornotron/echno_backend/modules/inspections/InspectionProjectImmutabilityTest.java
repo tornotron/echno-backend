@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRe
 import org.tornotron.echno_backend.modules.inspections.service.ChecklistTemplateService;
 import org.tornotron.echno_backend.modules.inspections.service.DefectAnnotationService;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
+import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -60,6 +61,9 @@ class InspectionProjectImmutabilityTest {
     // Mocked away here: this test is about the project comparison, not the sweep.
     @Mock
     private DefectAnnotationService defectAnnotationService;
+    // The response path fills in site-structure breadcrumbs; an unstubbed mock answers with none.
+    @Mock
+    private SpatialNodeService spatialNodeService;
 
     @Mock
     private InspectionEventRecorder events;
@@ -157,6 +161,6 @@ class InspectionProjectImmutabilityTest {
                 "Clear",
                 "30C",
                 List.of(),
-                List.of());
+                List.of(), null);
     }
 }

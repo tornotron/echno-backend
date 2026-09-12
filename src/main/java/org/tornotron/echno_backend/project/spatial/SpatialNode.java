@@ -17,11 +17,11 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.annotation.CreatedBy;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
@@ -40,6 +40,8 @@ import java.util.UUID;
  *
  * <p>{@code path} is the chain of node ids from the building down to this node, each
  * prefixed by {@code /}, maintained by {@link SpatialNodeService} on create and move.
+ * Timestamps come from Hibernate so the entity persists in any JPA slice; the created-by and
+ * updated-by names come from Spring Data auditing where it is enabled.
  * A subtree is every node whose path starts with the root's path. Ids are UUIDs and a node
  * is archived, never deleted, so a reference from an inspection or a capture stays valid.
  */
@@ -114,11 +116,11 @@ public class SpatialNode implements TenantScopedEntity {
     @Column(name = "archived_at")
     private Instant archivedAt;
 
-    @CreatedDate
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    @LastModifiedDate
+    @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 

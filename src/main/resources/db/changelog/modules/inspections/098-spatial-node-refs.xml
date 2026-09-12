@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Inspections, defects and check items take a nullable reference into the project's
+        site structure (project_spatial_node, changeset 097). The free-text location columns
+        stay as the fallback, so every existing row is already in its valid state: null node,
+        text intact. ON DELETE RESTRICT is the second guard behind archive-never-delete.
+        Design: docs/specs/2026-09-12-qaqc-spatial-hierarchy.md (#756).
+    -->
+
+    <changeSet id="098-spatial-node-refs" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="inspections" columnName="spatial_node_id"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="inspections">
+            <column name="spatial_node_id" type="UUID"/>
+        </addColumn>
+        <addColumn tableName="inspection_defects">
+            <column name="spatial_node_id" type="UUID"/>
+        </addColumn>
+        <addColumn tableName="inspection_check_items">
+            <column name="spatial_node_id" type="UUID"/>
+        </addColumn>
+
+        <addForeignKeyConstraint baseTableName="inspections" baseColumnNames="spatial_node_id"
+                                 referencedTableName="project_spatial_node" referencedColumnNames="id"
+                                 constraintName="fk_insp_spatial_node" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="inspection_defects" baseColumnNames="spatial_node_id"
+                                 referencedTableName="project_spatial_node" referencedColumnNames="id"
+                                 constraintName="fk_insp_defect_spatial_node" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="inspection_check_items" baseColumnNames="spatial_node_id"
+                                 referencedTableName="project_spatial_node" referencedColumnNames="id"
+                                 constraintName="fk_insp_check_item_spatial_node" onDelete="RESTRICT"/>
+
+        <createIndex tableName="inspections" indexName="idx_insp_spatial_node">
+            <column name="spatial_node_id"/>
+        </createIndex>
+        <createIndex tableName="inspection_defects" indexName="idx_insp_defect_spatial_node">
+            <column name="spatial_node_id"/>
+        </createIndex>
+        <createIndex tableName="inspection_check_items" indexName="idx_insp_check_item_spatial_node">
+            <column name="spatial_node_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropColumn tableName="inspection_check_items" columnName="spatial_node_id"/>
+            <dropColumn tableName="inspection_defects" columnName="spatial_node_id"/>
+            <dropColumn tableName="inspections" columnName="spatial_node_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

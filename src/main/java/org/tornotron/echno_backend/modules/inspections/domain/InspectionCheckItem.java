@@ -83,6 +83,10 @@ public class InspectionCheckItem {
     @Column(name = "bim_element_guid", length = 100)
     private String bimElementGuid;
 
+    // Site structure reference; bim_element_guid above stays as it is for now.
+    @Column(name = "spatial_node_id")
+    private UUID spatialNodeId;
+
     // Free-form priority ('high' | 'medium' | 'low'), kept as text to match the
     // web contract's inline string union.
     @Column(length = 20)

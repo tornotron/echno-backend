@@ -45,6 +45,7 @@ import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSer
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -76,7 +77,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({InspectionService.class, InspectionMapperImpl.class,
+@Import({InspectionService.class, SpatialNodeService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         TradeService.class, TradeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
@@ -228,21 +229,21 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                 List.of(
                         new InspectionCheckItemRequest("Structural", "Column alignment",
                                 "Within 5mm", CheckItemStatus.PASSED, null, false, null,
-                                "3mm", "5mm", null, null, null, "high"),
+                                "3mm", "5mm", null, null, null, "high", null),
                         new InspectionCheckItemRequest("Structural", "Rebar spacing",
                                 "150mm c/c", CheckItemStatus.PASSED, null, false, null,
-                                null, null, null, null, null, "medium"),
+                                null, null, null, null, null, "medium", null),
                         new InspectionCheckItemRequest("Finishing", "Surface level",
                                 "Level within tolerance", CheckItemStatus.FAILED, "Uneven patch",
-                                true, List.of("photo-1.jpg"), null, null, null, null, null, "low")
+                                true, List.of("photo-1.jpg"), null, null, null, null, null, "low", null)
                 ),
                 List.of(
                         new InspectionDefectRequest("Finishing", "Uneven surface near grid B2",
                                 DefectSeverity.MINOR, "Grid B2", List.of("defect-1.jpg"),
                                 "Re-level and re-finish", "Contractor",
-                                LocalDate.of(2026, 8, 25), null, null)
+                                LocalDate.of(2026, 8, 25), null, null, null)
                 )
-        );
+        , null);
 
         // create - counts derived from the children, status forced to SCHEDULED
         InspectionDto created = service.create(createReq);
@@ -330,10 +331,10 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                 List.of(
                         new InspectionCheckItemRequest("Structural", "Column alignment",
                                 "Within 5mm", CheckItemStatus.PASSED, null, false, null,
-                                null, null, null, null, null, "high")
+                                null, null, null, null, null, "high", null)
                 ),
                 List.of()
-        );
+        , null);
 
         InspectionDto updated = service.update(id, updateReq);
         assertThat(updated.status()).isEqualTo(InspectionStatus.COMPLETED);
@@ -396,7 +397,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
         InspectionDto created = service.create(scheduleFor("masonry",
                 List.of(new InspectionCheckItemRequest("Joints", "Re-check the failed joint",
                         null, CheckItemStatus.PENDING, null, false, null,
-                        null, null, null, null, null, "high"))));
+                        null, null, null, null, null, "high", null))));
 
         assertThat(created.checkItems()).hasSize(1);
         assertThat(created.checkItems().getFirst().checkPoint()).isEqualTo("Re-check the failed joint");
@@ -457,7 +458,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
         InspectionCheckItemRequest surfaceLevel = new InspectionCheckItemRequest(
                 "Finishing", "Surface level", "Level within tolerance",
                 CheckItemStatus.PENDING, null, false, null,
-                null, null, null, null, null, "medium");
+                null, null, null, null, null, "medium", null);
 
         InspectionDto created = service.create(
                 scheduleFor("plastering", List.of(surfaceLevel)));
@@ -508,7 +509,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                 "Wall check", InspectionType.QUALITY, null, "plastering", null,
                 InspectionStatus.IN_PROGRESS, null, projectId, "Block A", null, null,
                 LocalDate.of(2026, 8, 20), null, null, null, null, 100L, null, null,
-                null, null, null, checkItems, null);
+                null, null, null, checkItems, null, null);
     }
 
     /** Stores one piece of evidence against a UUID-keyed record, and returns its id. */
@@ -550,7 +551,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                 "Wall check", InspectionType.QUALITY, null, "plastering", null,
                 status, null, projectId, "Block A", null, null,
                 LocalDate.of(2026, 8, 20), null, null, null, null, 100L, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
     }
 
     private CreateInspectionRequest scheduleFor(String trade,
@@ -559,7 +560,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                 "Wall check", InspectionType.QUALITY, null, trade, null, projectId,
                 "Block A", null, null, LocalDate.of(2026, 8, 20), null,
                 null, null, null, 100L, null, null, null, null, null,
-                checkItems, null);
+                checkItems, null, null);
     }
 
     private void enableOrgFilter(Long orgId) {

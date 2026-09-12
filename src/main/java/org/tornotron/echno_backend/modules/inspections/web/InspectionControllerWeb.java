@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.modules.inspections.web;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -111,8 +112,10 @@ public class InspectionControllerWeb {
                                     @RequestParam(required = false) String trade,
                                     @RequestParam(required = false) UUID tradeId,
                                     @RequestParam(required = false) InspectionResult result,
+                                    @Parameter(description = "Site structure node; matches inspections on it and on every node under it.")
+                                    @RequestParam(required = false) UUID spatialNodeId,
                                     Pageable pageable) {
-        return service.findAll(projectId, status, type, category, trade, tradeId, result, pageable);
+        return service.findAll(projectId, status, type, category, trade, tradeId, result, spatialNodeId, pageable);
     }
 
     @PutMapping("/{id}")

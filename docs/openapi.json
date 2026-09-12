@@ -4723,6 +4723,14 @@
             "minLength": 0,
             "type": "string"
           },
+          "spatialNodeId": {
+            "description": "Site structure node the inspection covers, any level of the project's tree. Null keeps the free-text location, areaInspected and drawingReference as the only place; with a node set they read as a location note.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "temperature": {
             "description": "Ambient temperature at the time of inspection.",
             "example": "31C",
@@ -6951,6 +6959,21 @@
               "null"
             ]
           },
+          "spatialNodeId": {
+            "description": "Site structure node the check point covers, or null where only the free-text location was recorded.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spatialPath": {
+            "description": "Ordered ancestors from the building down to spatialNodeId, for a breadcrumb with no second call. Empty when spatialNodeId is null.",
+            "items": {
+              "$ref": "#/components/schemas/SpatialPathSegment"
+            },
+            "type": "array"
+          },
           "specification": {
             "description": "Reference specification for the check point. Null where none was recorded.",
             "type": [
@@ -7050,6 +7073,14 @@
             "minLength": 0,
             "type": "string"
           },
+          "spatialNodeId": {
+            "description": "Site structure node the check point covers, a zone or element of the inspection's project. Null keeps the check point unplaced.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "specification": {
             "description": "Reference specification or tolerance for the check point.",
             "example": "150mm c/c +/- 10mm",
@@ -7143,6 +7174,21 @@
               "null"
             ]
           },
+          "spatialNodeId": {
+            "description": "Site structure node the defect sits on, or null where only the free-text location was recorded.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spatialPath": {
+            "description": "Ordered ancestors from the building down to spatialNodeId, for a breadcrumb with no second call. Empty when spatialNodeId is null.",
+            "items": {
+              "$ref": "#/components/schemas/SpatialPathSegment"
+            },
+            "type": "array"
+          },
           "status": {
             "description": "Where the defect stands. The service substitutes OPEN wherever a payload omits it, but the column permits null, so a row loaded outside the application can carry none.",
             "enum": [
@@ -7229,6 +7275,14 @@
             ],
             "example": "major",
             "type": "string"
+          },
+          "spatialNodeId": {
+            "description": "Site structure node the defect sits on, a zone or element of the inspection's project. Null keeps the free-text location as the only place.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "description": "Current resolution status of the defect. Defaults to open when omitted.",
@@ -7463,6 +7517,21 @@
               "string",
               "null"
             ]
+          },
+          "spatialNodeId": {
+            "description": "Site structure node the inspection covers, or null where only the free-text location was recorded.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spatialPath": {
+            "description": "Ordered ancestors from the building down to spatialNodeId, for a breadcrumb with no second call. Empty when spatialNodeId is null.",
+            "items": {
+              "$ref": "#/components/schemas/SpatialPathSegment"
+            },
+            "type": "array"
           },
           "status": {
             "enum": [
@@ -20369,6 +20438,14 @@
             "maxLength": 20,
             "minLength": 0,
             "type": "string"
+          },
+          "spatialNodeId": {
+            "description": "Site structure node the inspection covers, any level of the project's tree. Null keeps the free-text location, areaInspected and drawingReference as the only place; with a node set they read as a location note.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "description": "Current lifecycle status of the inspection.",
@@ -52555,6 +52632,16 @@
                 "passed-with-remarks",
                 "pending"
               ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Site structure node; matches inspections on it and on every node under it.",
+            "in": "query",
+            "name": "spatialNodeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
               "type": "string"
             }
           },

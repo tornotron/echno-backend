@@ -5,6 +5,7 @@ import org.tornotron.echno_backend.modules.inspections.CheckItemStatus;
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 import java.util.UUID;
 
 @Schema(description = "A checklist item within an inspection, as returned by the API.")
@@ -45,5 +46,20 @@ public record InspectionCheckItemDto(
         @Schema(description = "Priority of the check point. The service substitutes \"medium\" "
                 + "wherever a payload omits it, but the column permits null, so a row loaded "
                 + "outside the application can carry none.", nullable = true)
-        String priority
-) {}
+        String priority,
+        @Schema(description = "Site structure node the check point covers, or null where only the free-text "
+                + "location was recorded.", nullable = true)
+        UUID spatialNodeId,
+        @Schema(description = "Ordered ancestors from the building down to spatialNodeId, for a "
+                + "breadcrumb with no second call. Empty when spatialNodeId is null.")
+        List<SpatialPathSegment> spatialPath
+) {
+
+    /** The same record with the breadcrumb filled in; the mapper leaves it empty. */
+    public InspectionCheckItemDto withSpatialPath(List<SpatialPathSegment> path) {
+        return new InspectionCheckItemDto(
+                id, category, checkPoint, specification, status, remarks, photosRequired, photos,
+                measurement, expectedValue, acceptanceCriterion, tolerance, deviation,
+                bimElementGuid, priority, spatialNodeId, path);
+    }
+}
