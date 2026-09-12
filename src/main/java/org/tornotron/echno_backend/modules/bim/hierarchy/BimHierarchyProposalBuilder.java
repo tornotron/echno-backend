@@ -162,7 +162,8 @@ final class BimHierarchyProposalBuilder {
         if (name == null || name.isBlank()) {
             return truncate(fallback);
         }
-        String code = name.trim().replaceAll("\\s+", "-").replaceAll("[^A-Za-z0-9._:\\-]", "");
+        String code = name.trim().replaceAll("\\s+", "-").replaceAll("[^A-Za-z0-9._:\\-]", "")
+                .replaceAll("-{2,}", "-").replaceAll("^-+|-+$", "");
         return code.isBlank() ? truncate(fallback) : truncate(code);
     }
 

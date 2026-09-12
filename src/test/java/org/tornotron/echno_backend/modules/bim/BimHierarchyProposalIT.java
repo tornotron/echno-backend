@@ -37,6 +37,7 @@ import org.tornotron.echno_backend.modules.bim.dto.BimModelDto;
 import org.tornotron.echno_backend.modules.bim.dto.CreateBimModelRequest;
 import org.tornotron.echno_backend.modules.bim.dto.BimHierarchyProposalDto;
 import org.tornotron.echno_backend.modules.bim.dto.ConfirmBimHierarchyRequest;
+import org.tornotron.echno_backend.modules.bim.hierarchy.BimHierarchyProposalListener;
 import org.tornotron.echno_backend.modules.bim.hierarchy.BimHierarchyService;
 import org.tornotron.echno_backend.modules.bim.importer.BimArtifactReader;
 import org.tornotron.echno_backend.modules.bim.importer.BimImportIngestor;
@@ -70,7 +71,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({BimImportPipeline.class, BimImportIngestor.class, BimModelService.class, BimElementService.class,
-        BimHierarchyService.class,
+        BimHierarchyService.class, BimHierarchyProposalListener.class,
         BimMapperImpl.class, SpatialNodeService.class, UserContextService.class, TenantEntityHelper.class,
         BimHierarchyProposalIT.Artifacts.class})
 class BimHierarchyProposalIT extends AbstractIntegrationTest {
