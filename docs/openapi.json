@@ -4912,6 +4912,71 @@
         ],
         "type": "object"
       },
+      "CreateSpatialNodeRequest": {
+        "description": "Adds a node under a parent of the level above it; a building has no parent.",
+        "properties": {
+          "bimElementGuid": {
+            "description": "IFC GlobalId, unique within the project.",
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          },
+          "code": {
+            "description": "Short label, unique among siblings.",
+            "example": "L03",
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "elementType": {
+            "description": "Elements only. Free slug.",
+            "example": "column",
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "externalRef": {
+            "description": "Drawing or grid reference.",
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "BUILDING",
+              "FLOOR",
+              "ZONE",
+              "ELEMENT"
+            ],
+            "type": "string"
+          },
+          "levelIndex": {
+            "description": "Floors only. Negative for basements, 0 for ground.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "parentId": {
+            "description": "Parent node id. Null for a building.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "sortOrder": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "level",
+          "name"
+        ],
+        "type": "object"
+      },
       "CustomerDto": {
         "description": "A customer with tax registration, contact and billing details, credit limit and payment terms.",
         "properties": {
@@ -11457,6 +11522,19 @@
         },
         "type": "object"
       },
+      "MoveSpatialNodeRequest": {
+        "description": "Re-parents a node. The target must be an active node of the level above, in the same project.",
+        "properties": {
+          "parentId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "parentId"
+        ],
+        "type": "object"
+      },
       "MovementRecordCreationDto": {
         "description": "Payload to log a movement away from an employee's checked-in location.",
         "properties": {
@@ -17203,6 +17281,224 @@
         },
         "type": "object"
       },
+      "SpatialImportRequest": {
+        "description": "Bulk import of a site structure, one row per leaf.",
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SpatialImportRow"
+            },
+            "maxItems": 5000,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "type": "object"
+      },
+      "SpatialImportResult": {
+        "description": "How many nodes the import created and how many already existed.",
+        "properties": {
+          "created": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "skipped": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "SpatialImportRow": {
+        "description": "One spreadsheet row of the site structure: codes from the building down. A code doubles as the name on first creation. Nodes that already exist on the code path are skipped, so the same rows can be posted again.",
+        "properties": {
+          "building": {
+            "example": "B1",
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "element": {
+            "example": "C4",
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "elementType": {
+            "description": "Applied when the element is created.",
+            "example": "column",
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "floor": {
+            "example": "L03",
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "levelIndex": {
+            "description": "Applied when the floor is created.",
+            "example": 3,
+            "format": "int32",
+            "type": "integer"
+          },
+          "zone": {
+            "description": "Omitted with an element present: the floor's default zone is used.",
+            "example": "Z1",
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "building"
+        ],
+        "type": "object"
+      },
+      "SpatialNodeDto": {
+        "description": "A node of a project's site structure with the path from its building down to it.",
+        "properties": {
+          "archivedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "bimElementGuid": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "depth": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "elementType": {
+            "type": "string"
+          },
+          "externalRef": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "BUILDING",
+              "FLOOR",
+              "ZONE",
+              "ELEMENT"
+            ],
+            "type": "string"
+          },
+          "levelIndex": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sortOrder": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "spatialPath": {
+            "description": "Ordered ancestors from the building down to and including this node.",
+            "items": {
+              "$ref": "#/components/schemas/SpatialPathSegment"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "SpatialPathSegment": {
+        "description": "One ancestor on the way from the building down to a node.",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "BUILDING",
+              "FLOOR",
+              "ZONE",
+              "ELEMENT"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SpatialTreeNodeDto": {
+        "description": "A node of the site structure with its children nested.",
+        "properties": {
+          "archivedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "bimElementGuid": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "elementType": {
+            "type": "string"
+          },
+          "externalRef": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "BUILDING",
+              "FLOOR",
+              "ZONE",
+              "ELEMENT"
+            ],
+            "type": "string"
+          },
+          "levelIndex": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "sortOrder": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "SseEmitter": {
         "properties": {
           "timeout": {
@@ -19964,6 +20260,45 @@
           "title",
           "type"
         ],
+        "type": "object"
+      },
+      "UpdateSpatialNodeRequest": {
+        "description": "Partial update; every field is optional and an omitted field is left as it is.",
+        "properties": {
+          "bimElementGuid": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          },
+          "code": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "elementType": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "externalRef": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "levelIndex": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "sortOrder": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
         "type": "object"
       },
       "UploadRequest": {
@@ -24493,7 +24828,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_13",
+        "operationId": "create_14",
         "requestBody": {
           "content": {
             "application/json": {
@@ -24923,7 +25258,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_14",
+        "operationId": "create_15",
         "requestBody": {
           "content": {
             "application/json": {
@@ -25354,7 +25689,7 @@
       },
       "patch": {
         "description": "Applies a partial update to an attendance settings profile. Only the fields present in the request body are changed.",
-        "operationId": "update_11",
+        "operationId": "update_12",
         "parameters": [
           {
             "in": "path",
@@ -25581,7 +25916,7 @@
       },
       "patch": {
         "description": "Applies a partial update to an attendance settings profile. Only the fields present in the request body are changed.",
-        "operationId": "update_10",
+        "operationId": "update_11",
         "parameters": [
           {
             "in": "path",
@@ -33929,7 +34264,7 @@
       },
       "post": {
         "description": "Creates the organization's checklist for a trade, with its check points. There is one template per trade per organization.",
-        "operationId": "create_12",
+        "operationId": "create_13",
         "requestBody": {
           "content": {
             "application/json": {
@@ -38067,7 +38402,7 @@
       },
       "post": {
         "description": "Creates a new account in the chart. When a parent is given, the account type is inherited from the parent; a root account must declare its own type. When the code is left blank it is generated from the parent and existing sibling accounts.",
-        "operationId": "create_11",
+        "operationId": "create_12",
         "requestBody": {
           "content": {
             "application/json": {
@@ -39186,7 +39521,7 @@
       },
       "post": {
         "description": "Registers a new company bank account, linked to an existing ledger account for reconciliation.",
-        "operationId": "create_10",
+        "operationId": "create_11",
         "requestBody": {
           "content": {
             "application/json": {
@@ -39685,7 +40020,7 @@
       },
       "post": {
         "description": "Creates a draft invoice from the supplied header and line items. Line-level subtotal, tax, discount and total amounts are computed server side from the quantity, unit price and percentage rates on each line.",
-        "operationId": "create_9",
+        "operationId": "create_10",
         "requestBody": {
           "content": {
             "application/json": {
@@ -40843,7 +41178,7 @@
       },
       "post": {
         "description": "Creates a payment voucher in pending status. The payment number is generated server side from the CPMT sequence. The status cannot be set on creation.",
-        "operationId": "create_8",
+        "operationId": "create_9",
         "requestBody": {
           "content": {
             "application/json": {
@@ -41539,7 +41874,7 @@
       },
       "post": {
         "description": "Creates a budget head. The name must be unique within the tenant; an optional expense account maps the head to the chart of accounts for reporting.",
-        "operationId": "create_7",
+        "operationId": "create_8",
         "requestBody": {
           "content": {
             "application/json": {
@@ -42215,7 +42550,7 @@
       },
       "post": {
         "description": "Creates a new customer from the supplied details. The customer code must be unique within the tenant.",
-        "operationId": "create_6",
+        "operationId": "create_7",
         "requestBody": {
           "content": {
             "application/json": {
@@ -52157,7 +52492,7 @@
       },
       "post": {
         "description": "Creates a new inspection for a project, including its checklist items.",
-        "operationId": "create_5",
+        "operationId": "create_6",
         "requestBody": {
           "content": {
             "application/json": {
@@ -77427,7 +77762,7 @@
     "/api/v1/movement-records": {
       "post": {
         "description": "Records an employee's movement away from their checked-in location against an existing attendance record.",
-        "operationId": "create_3",
+        "operationId": "create_4",
         "parameters": [
           {
             "in": "query",
@@ -77666,7 +78001,7 @@
     "/api/v1/movement-records/web": {
       "post": {
         "description": "Records an employee's movement away from their checked-in location against an existing attendance record.",
-        "operationId": "create_4",
+        "operationId": "create_5",
         "parameters": [
           {
             "in": "query",
@@ -78549,7 +78884,7 @@
       },
       "post": {
         "description": "Raises an NCR against an inspection, and against one of its defects when one is named. The NCR number, the type (from the inspection's category) and the raiser are all set server-side. Naming a site engineer assigns it in the same step.",
-        "operationId": "create_2",
+        "operationId": "create_3",
         "requestBody": {
           "content": {
             "application/json": {
@@ -86297,6 +86632,1005 @@
         "summary": "Assign an employee to a project",
         "tags": [
           "Projects"
+        ]
+      }
+    },
+    "/api/v1/project/{projectId}/spatial": {
+      "get": {
+        "description": "The whole tree nested from buildings down. Archived nodes are left out unless includeArchived is set.",
+        "operationId": "getTree",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeArchived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SpatialTreeNodeDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The tree"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Project not found in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get the site structure tree",
+        "tags": [
+          "Project site structure"
+        ]
+      }
+    },
+    "/api/v1/project/{projectId}/spatial/import": {
+      "post": {
+        "description": "One row per leaf, codes from the building down. Idempotent on the code path: nodes that already exist are skipped and counted.",
+        "operationId": "importRows",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpatialImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpatialImportResult"
+                }
+              }
+            },
+            "description": "Counts of created and skipped nodes"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A row names a zone or element without the levels above it"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Project not found in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A node on the path is archived"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Import a site structure from rows",
+        "tags": [
+          "Project site structure"
+        ]
+      }
+    },
+    "/api/v1/project/{projectId}/spatial/nodes": {
+      "post": {
+        "description": "A building takes no parent; a floor, zone or element takes a parent of the level above. The code must be unique among siblings.",
+        "operationId": "create_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSpatialNodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpatialNodeDto"
+                }
+              }
+            },
+            "description": "Node created"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Parent not in this project"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Sibling code clash or parent of the wrong level"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Parent is archived"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Add a node",
+        "tags": [
+          "Project site structure"
+        ]
+      }
+    },
+    "/api/v1/project/{projectId}/spatial/nodes/{nodeId}": {
+      "get": {
+        "description": "The node and the ordered ancestors from its building down to it.",
+        "operationId": "getNode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "nodeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpatialNodeDto"
+                }
+              }
+            },
+            "description": "The node"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Node not in this project, or project not in the tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get one node with its path",
+        "tags": [
+          "Project site structure"
+        ]
+      },
+      "patch": {
+        "description": "Omitted fields are left as they are. Level and parent do not change here; use move.",
+        "operationId": "update_10",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "nodeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSpatialNodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpatialNodeDto"
+                }
+              }
+            },
+            "description": "Node updated"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Node not in this project"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Sibling code clash or BIM guid already used"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Node is archived"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Update a node's fields",
+        "tags": [
+          "Project site structure"
+        ]
+      }
+    },
+    "/api/v1/project/{projectId}/spatial/nodes/{nodeId}/archive": {
+      "post": {
+        "description": "The node leaves pickers and refuses new references; existing references stay valid.",
+        "operationId": "archive",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "nodeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpatialNodeDto"
+                }
+              }
+            },
+            "description": "Node archived"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Node not in this project"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Archive a node and its subtree",
+        "tags": [
+          "Project site structure"
+        ]
+      }
+    },
+    "/api/v1/project/{projectId}/spatial/nodes/{nodeId}/move": {
+      "post": {
+        "description": "Same project, parent of the level above, not into the node's own subtree. Descendant paths are rewritten.",
+        "operationId": "move",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "nodeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveSpatialNodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpatialNodeDto"
+                }
+              }
+            },
+            "description": "Node moved"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Node or target not in this project"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Wrong target level, own subtree, sibling code clash, or a building"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Node or target is archived"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Move a node under another parent",
+        "tags": [
+          "Project site structure"
+        ]
+      }
+    },
+    "/api/v1/project/{projectId}/spatial/nodes/{nodeId}/restore": {
+      "post": {
+        "description": "Brings back the node and the descendants archived with it. The parent must be active.",
+        "operationId": "restore",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "nodeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpatialNodeDto"
+                }
+              }
+            },
+            "description": "Node restored"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Node not in this project"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Parent is archived"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Restore an archived node",
+        "tags": [
+          "Project site structure"
         ]
       }
     },
@@ -110030,6 +111364,10 @@
     {
       "description": "Invite codes that let users join an organization or project. A code carries a usage limit, current usage count and an active flag. Endpoints cover listing an organization's codes, generating a code, validating a code to join, and patching a code's limits or active state. This is the web-console API, gated by organization roles for the current tenant; validation additionally allows the user acting on their own account.",
       "name": "Project Invite Codes"
+    },
+    {
+      "description": "Building, floor, zone and element tree of a project",
+      "name": "Project site structure"
     },
     {
       "description": "Web-client twin of the project endpoints. Adds employee membership management (add/remove/list by project or by employee) alongside the same create, read, update and delete operations as the base project API. Access is gated by tenant membership, with mutations restricted to a system admin or project manager.",

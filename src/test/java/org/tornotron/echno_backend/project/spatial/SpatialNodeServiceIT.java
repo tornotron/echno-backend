@@ -20,7 +20,10 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.project.spatial.dto.CreateSpatialNodeRequest;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialImportResult;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialImportRow;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialNodeDto;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialTreeNodeDto;
@@ -274,6 +277,37 @@ class SpatialNodeServiceIT extends AbstractIntegrationTest {
         enableOrgFilter(orgAId);
         TenantContext.setCurrentOrgId(orgAId);
         assertThat(service.subtreePathPrefix(b1.id())).contains("/" + b1.id());
+    }
+
+    @Test
+    void importIsIdempotentOnTheCodePath() {
+        List<SpatialImportRow> rows = List.of(
+                new SpatialImportRow("B1", "L01", 1, "Z1", "C1", "column"),
+                new SpatialImportRow("B1", "L01", 1, "Z1", "C2", "column"),
+                new SpatialImportRow("B1", "L02", 2, null, "S1", "slab"),
+                new SpatialImportRow("B2", null, null, null, null, null));
+
+        SpatialImportResult first = service.importRows(projectId, rows);
+        // B1, L01, Z1, C1 | C2 | L02, default zone, S1 | B2
+        assertThat(first.created()).isEqualTo(9);
+        assertThat(first.skipped()).isEqualTo(4);
+
+        SpatialImportResult second = service.importRows(projectId, rows);
+        assertThat(second.created()).isZero();
+        assertThat(second.skipped()).isEqualTo(13);
+
+        List<SpatialTreeNodeDto> tree = service.getTree(projectId, false);
+        assertThat(tree).extracting(SpatialTreeNodeDto::code).containsExactly("B1", "B2");
+        SpatialTreeNodeDto l02 = tree.get(0).children().get(1);
+        assertThat(l02.code()).isEqualTo("L02");
+        assertThat(l02.levelIndex()).isEqualTo(2);
+        assertThat(l02.children()).extracting(SpatialTreeNodeDto::code).containsExactly("L02");
+        assertThat(l02.children().get(0).children()).extracting(SpatialTreeNodeDto::code).containsExactly("S1");
+        assertThat(l02.children().get(0).children().get(0).elementType()).isEqualTo("slab");
+
+        assertThatThrownBy(() -> service.importRows(projectId,
+                List.of(new SpatialImportRow("B1", null, null, "Z9", null, null))))
+                .isInstanceOf(InvalidRequestException.class);
     }
 
     private SpatialNodeDto create(UUID parentId, SpatialLevel level, String code, String name) {

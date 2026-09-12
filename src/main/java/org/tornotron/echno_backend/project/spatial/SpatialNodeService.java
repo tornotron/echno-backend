@@ -3,12 +3,15 @@ package org.tornotron.echno_backend.project.spatial;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.project.spatial.dto.CreateSpatialNodeRequest;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialImportResult;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialImportRow;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialNodeDto;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialTreeNodeDto;
@@ -229,10 +232,80 @@ public class SpatialNodeService {
         if (floor.getLevel() != SpatialLevel.FLOOR) {
             throw new SpatialNodeConflictException("Node " + floorId + " is a " + floor.getLevel() + ", not a FLOOR");
         }
-        return repository.findByProjectIdAndParentIdAndArchivedAtIsNull(projectId, floor.getId()).stream()
-                .min(Comparator.comparingInt(SpatialNode::getSortOrder).thenComparing(SpatialNode::getCode))
+        return firstActiveZone(projectId, floor.getId())
                 .orElseGet(() -> createNode(projectId, floor, SpatialLevel.ZONE, floor.getCode(),
                         floor.getName(), 0, null, null, null, null));
+    }
+
+    private Optional<SpatialNode> firstActiveZone(Long projectId, UUID floorId) {
+        return repository.findByProjectIdAndParentIdAndArchivedAtIsNull(projectId, floorId).stream()
+                .min(Comparator.comparingInt(SpatialNode::getSortOrder).thenComparing(SpatialNode::getCode));
+    }
+
+    /** The node of {@code level} with this code under the parent, created with code as name when absent. */
+    private SpatialNode findOrCreate(Long projectId, SpatialNode parent, SpatialLevel level, String code,
+                                     Integer levelIndex, String elementType, int[] counts) {
+        Optional<SpatialNode> existing = parent == null
+                ? repository.findByProjectIdAndParentIdIsNullAndCode(projectId, code)
+                : repository.findByProjectIdAndParentIdAndCode(projectId, parent.getId(), code);
+        if (existing.isPresent()) {
+            SpatialNode node = existing.get();
+            if (node.isArchived()) {
+                throw new SpatialNodeArchivedException(level + " '" + code + "' is archived; restore it before importing under it");
+            }
+            counts[1]++;
+            return node;
+        }
+        counts[0]++;
+        return createNode(projectId, parent, level, code, code, null, levelIndex, elementType, null, null);
+    }
+
+    /**
+     * Stands up a tree from spreadsheet rows, one row per leaf. Each level of a row is found
+     * by its code under the level above and created when absent, so posting the same rows
+     * twice creates nothing the second time. An element with no zone goes under the floor's
+     * default zone. A zone or element with no floor is a 400: the chain is strict. Counts are
+     * per node visited, so a building shared by many rows is skipped once per row after the
+     * first.
+     */
+    @Transactional
+    public SpatialImportResult importRows(Long projectId, List<SpatialImportRow> rows) {
+        requireProject(projectId);
+        int[] counts = new int[2];
+        for (SpatialImportRow row : rows) {
+            String floorCode = blankToNull(row.floor());
+            String zoneCode = blankToNull(row.zone());
+            String elementCode = blankToNull(row.element());
+            if (floorCode == null && (zoneCode != null || elementCode != null)) {
+                throw new InvalidRequestException("Row with building '" + row.building()
+                        + "' names a zone or element without a floor");
+            }
+            SpatialNode building = findOrCreate(projectId, null, SpatialLevel.BUILDING,
+                    row.building().trim(), null, null, counts);
+            if (floorCode == null) {
+                continue;
+            }
+            SpatialNode floor = findOrCreate(projectId, building, SpatialLevel.FLOOR, floorCode,
+                    row.levelIndex(), null, counts);
+            SpatialNode zone = null;
+            if (zoneCode != null) {
+                zone = findOrCreate(projectId, floor, SpatialLevel.ZONE, zoneCode, null, null, counts);
+            } else if (elementCode != null) {
+                zone = firstActiveZone(projectId, floor.getId()).orElse(null);
+                if (zone == null) {
+                    zone = createNode(projectId, floor, SpatialLevel.ZONE, floor.getCode(), floor.getName(),
+                            0, null, null, null, null);
+                    counts[0]++;
+                } else {
+                    counts[1]++;
+                }
+            }
+            if (elementCode != null) {
+                findOrCreate(projectId, zone, SpatialLevel.ELEMENT, elementCode, null,
+                        blankToNull(row.elementType()), counts);
+            }
+        }
+        return new SpatialImportResult(counts[0], counts[1]);
     }
 
     // ------------------------------------------------------------- internals
