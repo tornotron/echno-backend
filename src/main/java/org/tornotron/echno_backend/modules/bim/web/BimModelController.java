@@ -30,6 +30,11 @@ import org.tornotron.echno_backend.modules.bim.dto.ConfirmBimHierarchyRequest;
 import org.tornotron.echno_backend.modules.bim.dto.CreateBimModelRequest;
 import org.tornotron.echno_backend.modules.bim.hierarchy.BimHierarchyService;
 import org.tornotron.echno_backend.modules.bim.dto.MergeBimElementRequest;
+import org.tornotron.echno_backend.modules.bim.dto.BimSourceUploadDto;
+import org.tornotron.echno_backend.modules.bim.dto.BimTileManifestDto;
+import org.tornotron.echno_backend.modules.bim.dto.PresignBimSourceRequest;
+import org.tornotron.echno_backend.modules.bim.service.BimTileService;
+import org.tornotron.echno_backend.modules.bim.service.BimUploadService;
 import org.tornotron.echno_backend.modules.bim.service.BimElementService;
 import org.tornotron.echno_backend.modules.bim.service.BimModelService;
 
@@ -50,6 +55,8 @@ public class BimModelController {
     private final BimModelService service;
     private final BimElementService elementService;
     private final BimHierarchyService hierarchyService;
+    private final BimUploadService uploadService;
+    private final BimTileService tileService;
 
     @GetMapping("/projects/{projectId}/models")
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
@@ -96,6 +103,50 @@ public class BimModelController {
     })
     public BimModelVersionDto getVersion(@PathVariable UUID modelId, @PathVariable UUID versionId) {
         return service.getVersion(modelId, versionId);
+    }
+
+    @PostMapping("/models/{modelId}/versions/presign")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(summary = "Start an IFC upload: create the next version and presign the PUT for its source file",
+            description = "The browser PUTs the file straight to the object store at the returned URL (the file never "
+                    + "passes through the API), then calls register. Files over the cap (1 GB by default) are refused "
+                    + "with a message to split the model by building.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Version created and upload URL issued"),
+            @ApiResponse(responseCode = "400", description = "Not an IFC, or over the size cap"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No such model in the current tenant")
+    })
+    public ResponseEntity<BimSourceUploadDto> presignSource(@PathVariable UUID modelId,
+                                                            @Valid @RequestBody PresignBimSourceRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(uploadService.presignSource(modelId, req));
+    }
+
+    @PostMapping("/models/{modelId}/versions/{versionId}/register")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(summary = "Finish an IFC upload: verify the object is in storage, file it as an attachment, queue the import")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The version, now QUEUED for the worker"),
+            @ApiResponse(responseCode = "400", description = "The object is not in storage, or the version was already registered"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No such model or version in the current tenant")
+    })
+    public BimModelVersionDto registerSource(@PathVariable UUID modelId, @PathVariable UUID versionId) {
+        return uploadService.registerSource(modelId, versionId);
+    }
+
+    @GetMapping("/models/{modelId}/versions/{versionId}/tiles")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(summary = "Presigned GET URLs for a READY version's glTF tiles, one per storey plus the coarse model",
+            description = "URLs are short-lived and signed for keys under this version's prefix only; the viewer "
+                    + "fetches the floors it opens straight from the object store.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The tile manifest"),
+            @ApiResponse(responseCode = "400", description = "The version is not READY"),
+            @ApiResponse(responseCode = "404", description = "No such model or version in the current tenant")
+    })
+    public BimTileManifestDto tiles(@PathVariable UUID modelId, @PathVariable UUID versionId) {
+        return tileService.manifest(modelId, versionId);
     }
 
     @GetMapping("/models/{modelId}/elements")
