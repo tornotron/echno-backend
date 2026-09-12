@@ -29,6 +29,8 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.modules.bim.hierarchy.BimHierarchyService;
 import org.tornotron.echno_backend.modules.bim.service.BimElementService;
 import org.tornotron.echno_backend.modules.bim.service.BimModelService;
+import org.tornotron.echno_backend.modules.bim.service.BimTileService;
+import org.tornotron.echno_backend.modules.bim.service.BimUploadService;
 import org.tornotron.echno_backend.modules.bim.web.BimModelController;
 import org.tornotron.echno_backend.modules.inspections.InspectionsModule;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
@@ -131,7 +133,8 @@ class BimModuleTest {
         SubscriptionService subscriptionService = mock(SubscriptionService.class);
         when(subscriptionService.checkFeatureAccess(LIT_ORG, BimModule.FEATURE_KEY)).thenReturn(access);
         when(subscriptionService.checkFeatureAccess(DARK_ORG, BimModule.FEATURE_KEY)).thenReturn(access);
-        AspectJProxyFactory factory = new AspectJProxyFactory(new BimModelController(service, mock(BimElementService.class), mock(BimHierarchyService.class)));
+        AspectJProxyFactory factory = new AspectJProxyFactory(new BimModelController(service, mock(BimElementService.class), mock(BimHierarchyService.class),
+                mock(BimUploadService.class), mock(BimTileService.class)));
         factory.setProxyTargetClass(true);
         factory.addAspect(new SubscriptionAspect(subscriptionService, mock(UserContextService.class),
                 new EntitlementPolicy(mode)));

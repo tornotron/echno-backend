@@ -142,6 +142,26 @@ public class FileStorageService {
         return new PresignedUpload(key, presignedRequest.url().toString(), contentType, expiry.toSeconds());
     }
 
+    /**
+     * Presigns a PUT for an exact key, for callers whose layout fixes where an object lives
+     * (a BIM version's source file sits at a known path under its prefix). The caller owns
+     * the uniqueness of the key; nothing is prefixed.
+     */
+    public PresignedUpload generateUploadUrlForKey(String key, String contentType, Duration expiry) {
+        if (key == null || key.isBlank()) {
+            throw new FileUploadException("A storage key is required to presign an upload");
+        }
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .contentType(contentType)
+                .build();
+        PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(r -> r
+                .signatureDuration(expiry)
+                .putObjectRequest(putObjectRequest));
+        return new PresignedUpload(key, presignedRequest.url().toString(), contentType, expiry.toSeconds());
+    }
+
     public String generateDownloadUrl(String key, Duration expiry) {
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(bucketName)
