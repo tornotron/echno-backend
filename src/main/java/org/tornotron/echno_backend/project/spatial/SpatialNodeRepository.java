@@ -41,6 +41,8 @@ public interface SpatialNodeRepository extends JpaRepository<SpatialNode, UUID> 
 
     boolean existsByProjectIdAndBimElementGuidAndIdNot(Long projectId, String bimElementGuid, UUID id);
 
+    Optional<SpatialNode> findByProjectIdAndBimElementGuid(Long projectId, String bimElementGuid);
+
     @Query("SELECT n FROM SpatialNode n WHERE n.id IN :ids")
     List<SpatialNode> findAllScoped(@Param("ids") List<UUID> ids);
 }
