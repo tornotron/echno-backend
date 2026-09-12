@@ -5698,7 +5698,8 @@
                 "QA_ENGINEER",
                 "SAFETY_OFFICER",
                 "SITE_ENGINEER",
-                "STORE_KEEPER"
+                "STORE_KEEPER",
+                "OBSERVATION_PRODUCER"
               ],
               "type": "string"
             },
@@ -7935,6 +7936,132 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "IntakeObservationRequest": {
+        "description": "A finding posted by a machine producer: a fleet's drone or robot, a fixed camera, or a model. Lands in the pending queue for a person to review. externalRef is the producer's own id for the finding and makes the call idempotent per organisation.",
+        "properties": {
+          "captureRef": {
+            "description": "Pointer into the robot data layer's capture record.",
+            "maxLength": 200,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "confidence": {
+            "description": "Model confidence in [0, 1].",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "description": {
+            "maxLength": 4000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "evidenceRefs": {
+            "description": "Pointers to captures outside the Echno store (frame index, point-cloud id, crop bounds), in the producer's own shape.",
+            "items": {
+              "additionalProperties": {
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "externalRef": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "locationNote": {
+            "maxLength": 300,
+            "minLength": 0,
+            "type": "string"
+          },
+          "missionRef": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          },
+          "modelName": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          },
+          "modelVersion": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "observedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "source": {
+            "description": "AI, DRONE, ROBOT or FIXED_CAMERA. HUMAN is refused: people record through the web endpoint.",
+            "enum": [
+              "human",
+              "ai",
+              "drone",
+              "robot",
+              "fixed-camera"
+            ],
+            "type": "string"
+          },
+          "sourceDeviceId": {
+            "description": "The device or integration that produced it, named by the producer. The calling service account identifies the fleet; this identifies the unit.",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "spatialNodeId": {
+            "description": "Site structure node, when the tree has one for the place. Otherwise locationNote.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "suggestedSeverity": {
+            "enum": [
+              "critical",
+              "major",
+              "minor"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "externalRef",
+          "observedAt",
+          "projectId",
+          "source",
+          "sourceDeviceId",
+          "title"
+        ],
         "type": "object"
       },
       "InventoryMaterialStockDto": {
@@ -12743,7 +12870,8 @@
               "QA_ENGINEER",
               "SAFETY_OFFICER",
               "SITE_ENGINEER",
-              "STORE_KEEPER"
+              "STORE_KEEPER",
+              "OBSERVATION_PRODUCER"
             ],
             "type": "string"
           }
@@ -37755,7 +37883,8 @@
                       "QA_ENGINEER",
                       "SAFETY_OFFICER",
                       "SITE_ENGINEER",
-                      "STORE_KEEPER"
+                      "STORE_KEEPER",
+                      "OBSERVATION_PRODUCER"
                     ],
                     "type": "string"
                   },
@@ -38001,7 +38130,8 @@
                 "QA_ENGINEER",
                 "SAFETY_OFFICER",
                 "SITE_ENGINEER",
-                "STORE_KEEPER"
+                "STORE_KEEPER",
+                "OBSERVATION_PRODUCER"
               ],
               "type": "string"
             }
@@ -85198,6 +85328,128 @@
         ]
       }
     },
+    "/api/v1/observations/intake": {
+      "post": {
+        "description": "Records the finding as pending review. A repeat with the same externalRef returns the row already recorded, with 200 instead of 201, and changes nothing.",
+        "operationId": "intake",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeObservationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservationDto"
+                }
+              }
+            },
+            "description": "An observation with this externalRef already exists; returned unchanged"
+          },
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservationDto"
+                }
+              }
+            },
+            "description": "Observation recorded, pending review"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Validation failed, or the source is HUMAN"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the producer role in the current tenant, or the tenant is not entitled to the module"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No spatial node with the given id in the project"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Post a machine observation",
+        "tags": [
+          "Observation intake"
+        ]
+      }
+    },
     "/api/v1/organization": {
       "post": {
         "description": "Creates an organization from a multipart request. The data part carries the organization details as JSON and the optional attachments part carries supporting files such as a logo. The caller becomes the organization's system admin. A user's first organization is part of signing up and needs no subscription; each one after it counts against the CREATE_ORGANIZATION subscription feature.",
@@ -115376,6 +115628,10 @@
     {
       "description": "Web-console equivalent of the notification endpoints, addressing a notification by a notificationId query parameter instead of a path segment. Covers reading a page of the caller's notifications, listing or counting the unread ones, and marking one or all as read. An inbox is personal, so every endpoint answers about the caller and none takes an employee id; access is gated on membership of the caller's current tenant.",
       "name": "Notifications (Web)"
+    },
+    {
+      "description": "Machine producers post findings here: drones, ground robots, fixed cameras and models, each authenticated as a service account of the organisation. Every finding lands pending; a person reviews it through the inspections web endpoints. Idempotent on the producer's externalRef.",
+      "name": "Observation intake"
     },
     {
       "description": "Findings on site, from a person, a model or a device, each with a persistent id from the moment it is recorded. A human observation is accepted on creation; a machine one waits in the pending queue for a reviewer to accept, modify or reject it and link what it became: a check-item result, a defect, or an inspection. Tenant scoped.",

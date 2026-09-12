@@ -52,7 +52,12 @@ public enum OrgRole {
     // Deliberately not a manager role, for the same reason the three inspection roles are not:
     // getManagerRoles decides who may be named the manager on a project invite code and who
     // appears in the manager listings, and running a store is not managing headcount.
-    STORE_KEEPER("store-keeper");
+    STORE_KEEPER("store-keeper"),
+    // The machine producer: the org-scoped role a fleet's or integration's Keycloak service
+    // account is placed in so it may post observations through the intake endpoint. It grants
+    // that one write and nothing else; a device proposes, a person reviews. Not a manager
+    // role, and not something a person would normally hold.
+    OBSERVATION_PRODUCER("observation-producer");
 
     private final String groupName;
 

@@ -26,8 +26,10 @@ import org.tornotron.echno_backend.modules.inspections.domain.Ncr;
 import org.tornotron.echno_backend.modules.inspections.domain.Observation;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDefectRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.ReviewObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventActorType;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventChanges;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSubject;
@@ -141,6 +143,66 @@ public class ObservationService {
         recordCreated(saved, null);
         log.info("Recorded human observation {} on project {}", saved.getId(), saved.getProjectId());
         return withSpatialPath(mapper.toDto(saved));
+    }
+
+    // ------------------------------------------------------ machine producers
+
+    /** What intake returns: the row, and whether this call created it. */
+    public record IntakeResult(ObservationDto observation, boolean created) {}
+
+    /**
+     * A finding from a drone, a robot, a fixed camera or a model, posted by the fleet's
+     * service account. Lands pending. Idempotent on the producer's {@code externalRef}: a
+     * repeat returns the row already recorded, unchanged. The check here is the fast path;
+     * the partial unique index on {@code (organization_id, external_ref)} is the guarantee, and
+     * a concurrent duplicate that races past the check fails on it rather than duplicating.
+     */
+    @Transactional
+    public IntakeResult intake(IntakeObservationRequest req) {
+        if (req.source() == ObservationSource.HUMAN) {
+            throw new InvalidRequestException("Intake is for machine producers; people record through the web endpoint");
+        }
+        Optional<Observation> existing = observationRepo.findByExternalRefScoped(req.externalRef());
+        if (existing.isPresent()) {
+            log.debug("Observation intake repeated externalRef {}; returning the existing row", req.externalRef());
+            return new IntakeResult(withSpatialPath(mapper.toDto(existing.get())), false);
+        }
+        Observation o = newObservation(req.projectId(), null, req.source(), req.title(), req.description());
+        o.setExternalRef(req.externalRef());
+        o.setSourceDeviceId(req.sourceDeviceId());
+        o.setMissionRef(req.missionRef());
+        o.setCaptureRef(req.captureRef());
+        o.setSpatialNodeId(resolveNode(req.projectId(), req.spatialNodeId()));
+        o.setLocationNote(req.locationNote());
+        o.setObservedAt(req.observedAt());
+        o.setCategory(req.category());
+        o.setSuggestedSeverity(req.suggestedSeverity());
+        o.setModelName(req.modelName());
+        o.setModelVersion(req.modelVersion());
+        o.setConfidence(req.confidence());
+        o.setEvidenceRefs(req.evidenceRefs());
+        Observation saved = observationRepo.saveAndFlush(o);
+        InspectionEventActorType actor = req.source() == ObservationSource.AI
+                ? InspectionEventActorType.AI : InspectionEventActorType.DEVICE;
+        String actorId = req.source() == ObservationSource.AI && req.modelName() != null
+                ? req.modelName() : req.sourceDeviceId();
+        events.recordAs(InspectionEventSubject.observation(saved), InspectionEventType.OBSERVATION_CREATED,
+                actor, actorId, null,
+                InspectionEventChanges.none()
+                        .field("source", null, saved.getSource())
+                        .field("externalRef", null, saved.getExternalRef())
+                        .field("sourceDeviceId", null, saved.getSourceDeviceId())
+                        .field("missionRef", null, saved.getMissionRef())
+                        .field("modelName", null, saved.getModelName())
+                        .field("modelVersion", null, saved.getModelVersion())
+                        .field("confidence", null, saved.getConfidence())
+                        .field("reviewStatus", null, saved.getReviewStatus())
+                        .field("title", null, saved.getTitle())
+                        .after(),
+                null);
+        log.info("Observation {} taken in from {} {} on project {} (externalRef {})", saved.getId(),
+                saved.getSource(), saved.getSourceDeviceId(), saved.getProjectId(), saved.getExternalRef());
+        return new IntakeResult(withSpatialPath(mapper.toDto(saved)), true);
     }
 
     // ---------------------------------------------------------------- review

@@ -71,6 +71,7 @@ public class InspectionSecurityService {
     private final String[] qualitySignOffRoles;
     private final String[] safetySignOffRoles;
     private final String[] observationReviewRoles;
+    private final String[] observationIntakeRoles;
 
     public InspectionSecurityService(
             OrganizationSecurityService orgSecurity,
@@ -95,7 +96,9 @@ public class InspectionSecurityService {
             String[] safetySignOffRoles,
             @Value("${echno.security.inspection.observation-review-roles:"
                     + "system-admin,project-manager,qa-engineer,safety-officer}")
-            String[] observationReviewRoles) {
+            String[] observationReviewRoles,
+            @Value("${echno.security.inspection.observation-intake-roles:system-admin,observation-producer}")
+            String[] observationIntakeRoles) {
         this.orgSecurity = orgSecurity;
         this.ncrRepo = ncrRepo;
         this.reinspectionRepo = reinspectionRepo;
@@ -107,6 +110,7 @@ public class InspectionSecurityService {
         this.qualitySignOffRoles = qualitySignOffRoles;
         this.safetySignOffRoles = safetySignOffRoles;
         this.observationReviewRoles = observationReviewRoles;
+        this.observationIntakeRoles = observationIntakeRoles;
     }
 
     /** Read inspections, checklist templates and non-conformance reports. */
@@ -127,6 +131,18 @@ public class InspectionSecurityService {
      */
     public boolean canReviewObservations() {
         return orgSecurity.hasAnyOrgRoleForCurrentTenant(observationReviewRoles);
+    }
+
+    /**
+     * Post a machine observation. {@code echno.security.inspection.observation-intake-roles},
+     * default {@code system-admin,observation-producer}. The producer role is the org-scoped
+     * role a fleet's or integration's Keycloak service account is placed in, exactly as a
+     * person is placed in {@code qa-engineer}: the service-account user joins the organisation
+     * group and the role subgroup, its client-credentials token carries them in {@code groups},
+     * and the JWT converter turns them into the same authorities. No second identity path.
+     */
+    public boolean canIntakeObservations() {
+        return orgSecurity.hasAnyOrgRoleForCurrentTenant(observationIntakeRoles);
     }
 
     /** Define the criteria work is judged against. */

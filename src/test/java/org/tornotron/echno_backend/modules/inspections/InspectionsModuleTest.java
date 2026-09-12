@@ -42,6 +42,11 @@ import org.tornotron.echno_backend.modules.inspections.service.InspectionService
 import org.tornotron.echno_backend.modules.inspections.web.ChecklistTemplateControllerWeb;
 import org.tornotron.echno_backend.modules.inspections.web.InspectionControllerWeb;
 import org.tornotron.echno_backend.modules.inspections.web.NcrControllerWeb;
+import org.tornotron.echno_backend.modules.inspections.web.ObservationControllerWeb;
+import org.tornotron.echno_backend.modules.inspections.web.ObservationIntakeController;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
+import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.ObservationSource;
 
 /**
  * The module's contract with the registry and the gate: what the manifest says, that every
@@ -127,7 +132,8 @@ class InspectionsModuleTest {
     @Test
     void everyWebControllerIsGatedOnTheModuleFeatureAtClassLevel() {
         for (Class<?> controller : List.of(InspectionControllerWeb.class, ChecklistTemplateControllerWeb.class,
-                NcrControllerWeb.class, ComplianceControllerWeb.class)) {
+                NcrControllerWeb.class, ComplianceControllerWeb.class, ObservationControllerWeb.class,
+                ObservationIntakeController.class)) {
             RequireSubscription gate = controller.getAnnotation(RequireSubscription.class);
             assertThat(gate).as("%s carries the module gate", controller.getSimpleName()).isNotNull();
             assertThat(gate.feature()).isEqualTo(InspectionsModule.FEATURE_KEY);
@@ -177,6 +183,28 @@ class InspectionsModuleTest {
 
         verify(service).findById(id);
         assertThat(policyLog.list).isEmpty();
+    }
+
+    @Test
+    void machineIntakeFromAnUnentitledOrganizationIsRefusedBeforeTheServiceIsCalled() {
+        ObservationService service = mock(ObservationService.class);
+        SubscriptionService subscriptionService = mock(SubscriptionService.class);
+        when(subscriptionService.checkFeatureAccess(DARK_ORG, InspectionsModule.FEATURE_KEY))
+                .thenReturn(FeatureAccessResultDto.featureNotInPlan());
+        AspectJProxyFactory factory = new AspectJProxyFactory(new ObservationIntakeController(service));
+        factory.setProxyTargetClass(true);
+        factory.addAspect(new SubscriptionAspect(subscriptionService, mock(UserContextService.class),
+                new EntitlementPolicy("enforce")));
+        ObservationIntakeController controller = factory.getProxy();
+        TenantContext.setCurrentOrgId(DARK_ORG);
+        IntakeObservationRequest req = new IntakeObservationRequest(1L, "drone-7:42", ObservationSource.DRONE,
+                "drone-7", null, null, null, "L3 slab", java.time.LocalDateTime.of(2026, 9, 12, 8, 0),
+                "Crack", null, null, null, null, null, null, null);
+
+        assertThatExceptionOfType(SubscriptionAccessDeniedException.class)
+                .isThrownBy(() -> controller.intake(req))
+                .satisfies(ex -> assertThat(ex.getFeatureCode()).isEqualTo(InspectionsModule.FEATURE_KEY));
+        verifyNoInteractions(service);
     }
 
     /**

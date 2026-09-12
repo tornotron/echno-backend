@@ -25,7 +25,8 @@ org-5/                      ← This is a folder (Keycloak group) for the organi
     ├── qa-engineer
     ├── safety-officer
     ├── site-engineer
-    └── store-keeper
+    ├── store-keeper
+    └── observation-producer
 ```
 
 - When a user **joins an organization**, they are placed inside the `org-5` folder.
@@ -59,7 +60,8 @@ org-5/
     ├── qa-engineer
     ├── safety-officer
     ├── site-engineer
-    └── store-keeper
+    ├── store-keeper
+    └── observation-producer
 ```
 
 **File:** `KeycloakGroupService.java` → `createOrganizationGroup()` and `createDefaultRoleSubgroups()`
@@ -181,6 +183,7 @@ QA_ENGINEER("qa-engineer")         // Quality inspections, checklists, quality N
 SAFETY_OFFICER("safety-officer")   // Safety inspections and safety NCRs
 SITE_ENGINEER("site-engineer")     // Reads inspections, reports corrective action
 STORE_KEEPER("store-keeper")       // Runs the store: receipts, issues, transfers, counts
+OBSERVATION_PRODUCER("observation-producer") // A fleet or integration service account posting observations
 ```
 
 The three inspection roles sit here rather than among the realm occupation roles because this is the
@@ -255,6 +258,20 @@ no employee row in the organization is refused there, with the role held.
 - When you want to rename a role
 
 ---
+
+#### What `observation-producer` grants
+
+One write: `POST /api/v1/observations/intake`, the door through which a drone, a ground robot, a fixed
+camera or a model posts a finding for a person to review. It is meant for a Keycloak service account
+rather than a person. The identity path is the same as for anyone else: the fleet's or integration's
+confidential client has service accounts enabled, its service-account user is placed in the
+organization's `org-{id}` group and the `org-{id}/observation-producer` subgroup, and a
+client-credentials token then carries both in `groups`, which `JwtAuthConverter` turns into
+`ORG_MEMBER_{id}` and `ORG_{id}_ROLE_observation-producer` exactly as it does for a user's token. The
+device itself is named in the payload (`sourceDeviceId`), so one service account per fleet is enough.
+It grants no read of the inspections module and nothing else in the API: a device proposes, a person
+reviews, and the review roles are the same four jobs that record an inspection by hand.
+
 
 ### 2. `JwtAuthConverter.java` — Reads the Token
 
