@@ -15,7 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +24,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.transaction.AfterTransaction;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -60,8 +60,12 @@ import org.tornotron.echno_backend.user.UserContextService;
  * The element identity rules against a real database: a first import inserts, a second one
  * keeps row ids for matched GlobalIds, retires the missing, inserts the new, and a merge
  * carries a construction element from a retired row to its replacement.
+ *
+ * <p>Runs without a test transaction so each service call commits or rolls back on its own,
+ * which is what the failure test is about: a broken artifact must leave no element behind.
  */
 @DataJpaTest
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({BimImportPipeline.class, BimImportIngestor.class, BimModelService.class, BimElementService.class,
         BimMapperImpl.class, SpatialNodeService.class, UserContextService.class, TenantEntityHelper.class,
@@ -115,24 +119,17 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
             project.setProjectName("Tower P");
             project.setOrganization(orgA);
             entityManager.persist(project);
-            entityManager.flush();
             orgAId = orgA.getId();
             orgBId = orgB.getId();
             projectId = project.getId();
         });
         TenantContext.setCurrentOrgId(orgAId);
-        enableOrgFilter(orgAId);
         modelId = modelService.create(projectId, new CreateBimModelRequest("ARC", null)).id();
     }
 
     @AfterEach
-    void clearTenantState() {
-        disableOrgFilter();
-        TenantContext.clear();
-    }
-
-    @AfterTransaction
     void removeCommittedRows() {
+        TenantContext.clear();
         if (orgAId == null && orgBId == null) {
             return;
         }
@@ -157,8 +154,6 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
                 line("CHAIR-1", "IfcFurnishingElement", "Chair", "STOREY-1")), 1);
 
         pipeline.ingest(job);
-        entityManager.flush();
-        entityManager.clear();
 
         BimModelVersion version = versions.findById(v1).orElseThrow();
         assertThat(version.getStatus()).isEqualTo(BimVersionStatus.READY);
@@ -184,20 +179,16 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
                 line("WALL-1", "IfcWallStandardCase", "Wall 1", "STOREY-1"),
                 line("COL-1", "IfcColumn", "Column 1", "STOREY-1")), 1);
         pipeline.ingest(doneJob(v1));
-        entityManager.flush();
         BimElement wall = elements.findByModelIdAndGlobalId(modelId, "WALL-1").orElseThrow();
         UUID wallRowId = wall.getId();
         UUID node = elementNode("W1", "WALL-1");
-        wall.setSpatialNodeId(node);
-        elements.saveAndFlush(wall);
+        link(wallRowId, node);
 
         UUID v2 = version(2);
         artifacts(v2, List.of(
                 line("WALL-1", "IfcWallStandardCase", "Wall 1 (moved)", "STOREY-2"),
                 line("SLAB-9", "IfcSlab", "Slab 9", "STOREY-2")), 2);
         pipeline.ingest(doneJob(v2));
-        entityManager.flush();
-        entityManager.clear();
 
         BimElement wallAgain = elements.findByModelIdAndGlobalId(modelId, "WALL-1").orElseThrow();
         assertThat(wallAgain.getId()).as("the matched row keeps its id").isEqualTo(wallRowId);
@@ -225,16 +216,13 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
         UUID v1 = version(1);
         artifacts(v1, List.of(line("COL-OLD", "IfcColumn", "Column", "STOREY-1")), 1);
         pipeline.ingest(doneJob(v1));
-        entityManager.flush();
         BimElement old = elements.findByModelIdAndGlobalId(modelId, "COL-OLD").orElseThrow();
         UUID node = elementNode("C1", "COL-OLD");
-        old.setSpatialNodeId(node);
-        elements.saveAndFlush(old);
+        link(old.getId(), node);
 
         UUID v2 = version(2);
         artifacts(v2, List.of(line("COL-NEW", "IfcColumn", "Column", "STOREY-1")), 1);
         pipeline.ingest(doneJob(v2));
-        entityManager.flush();
         BimElement replacement = elements.findByModelIdAndGlobalId(modelId, "COL-NEW").orElseThrow();
 
         assertThatThrownBy(() -> elementService.merge(replacement.getId(), new MergeBimElementRequest(old.getId())))
@@ -242,8 +230,6 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
                 .isInstanceOf(InvalidRequestException.class);
 
         BimElementDto merged = elementService.merge(old.getId(), new MergeBimElementRequest(replacement.getId()));
-        entityManager.flush();
-        entityManager.clear();
 
         assertThat(merged.spatialNodeId()).isEqualTo(node);
         assertThat(elements.findById(old.getId()).orElseThrow())
@@ -263,7 +249,6 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
                 "{\"globalId\":\"WALL-1\",\"ifcType\":\"IfcWall\"}\n{not json\n".getBytes(StandardCharsets.UTF_8));
 
         pipeline.ingest(job);
-        entityManager.clear();
 
         BimModelVersion version = versions.findById(v1).orElseThrow();
         assertThat(version.getStatus()).isEqualTo(BimVersionStatus.FAILED);
@@ -277,7 +262,7 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
 
     private UUID version(int number) {
         BimModelVersion v = new BimModelVersion();
-        v.setOrganization(entityManager.getReference(Organization.class, orgAId));
+        v.setOrganization(orgRef());
         v.setModelId(modelId);
         v.setProjectId(projectId);
         v.setVersionNumber(number);
@@ -289,7 +274,7 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
 
     private UUID doneJob(UUID versionId) {
         BimImportJob j = new BimImportJob();
-        j.setOrganization(entityManager.getReference(Organization.class, orgAId));
+        j.setOrganization(orgRef());
         j.setModelId(modelId);
         j.setVersionId(versionId);
         j.setStatus(BimImportJobStatus.DONE);
@@ -334,12 +319,18 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
                 code, "Element " + code, null, null, "wall", guid, null)).id();
     }
 
-    private void enableOrgFilter(Long orgId) {
-        entityManager.unwrap(Session.class).enableFilter("orgFilter").setParameter("organizationId", orgId);
+
+
+    private void link(UUID elementId, UUID nodeId) {
+        inCommittedTx(() -> entityManager.createNativeQuery(
+                        "UPDATE bim_elements SET spatial_node_id = :n WHERE id = :id")
+                .setParameter("n", nodeId).setParameter("id", elementId).executeUpdate());
     }
 
-    private void disableOrgFilter() {
-        entityManager.unwrap(Session.class).disableFilter("orgFilter");
+    private Organization orgRef() {
+        Organization org = new Organization();
+        org.setId(orgAId);
+        return org;
     }
 
     private void deleteForOrgs(String sql) {

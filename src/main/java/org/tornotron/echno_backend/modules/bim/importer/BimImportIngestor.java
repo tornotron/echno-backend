@@ -58,7 +58,7 @@ public class BimImportIngestor {
     private final ObjectMapper objectMapper;
     private final ObjectProvider<BimIngestionListener> listeners;
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public BimImportSummary ingest(UUID jobId) throws IOException {
         BimImportJob job = requireJob(jobId);
         BimModelVersion version = versions.findByIdAndModelId(job.getVersionId(), job.getModelId())
@@ -164,7 +164,14 @@ public class BimImportIngestor {
                 elements.save(row);
             }
         }
-        int retired = elements.retireNotSeenIn(model.getId(), version.getId());
+        int retired = 0;
+        for (BimElement row : existing.values()) {
+            if (!seen.contains(row.getGlobalId()) && !row.isRetired()) {
+                row.setRetired(true);
+                elements.save(row);
+                retired++;
+            }
+        }
         return new BimImportSummary(inserted, updated, retired);
     }
 
