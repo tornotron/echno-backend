@@ -38,8 +38,9 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
  *   <li>Code outside a module reaches it only through its {@code api} subpackage, and one module
  *       reaches another the same way. Everything else in a module is its own business.
  *   <li>Every {@code @Entity} in a module is tenant scoped: it implements
- *       {@link TenantScopedEntity}, or it is an owned child reached through a {@code @ManyToOne}
- *       to one that does, or it says why not with {@link GlobalReferenceData}. A module that skips
+ *       {@link TenantScopedEntity}, or it is an owned child reached through a required
+ *       {@code @ManyToOne(optional = false)} to one that does, or it says why not with
+ *       {@link GlobalReferenceData}. A module that skips
  *       this is a cross-tenant leak, which is why it is a rule rather than a review note.
  *   <li>Every module package declares exactly one {@link EchnoModule} bean, and no such bean lives
  *       anywhere else. The registry is built from those beans; a module without one is invisible
@@ -140,7 +141,7 @@ class ModuleBoundaryTest {
     }
 
     private static ArchCondition<JavaClass> beTenantScopedOrAnOwnedChild() {
-        return new ArchCondition<>("implement TenantScopedEntity or hold a @ManyToOne to a class that does") {
+        return new ArchCondition<>("implement TenantScopedEntity or hold a required @ManyToOne to a class that does") {
             @Override
             public void check(JavaClass entity, ConditionEvents events) {
                 boolean scoped = entity.isAssignableTo(TenantScopedEntity.class);
@@ -152,8 +153,13 @@ class ModuleBoundaryTest {
         };
     }
 
+    /**
+     * A bare {@code @ManyToOne} is optional in JPA, so a child row could be persisted with no
+     * parent and therefore no organization. Only a required association counts as ownership.
+     */
     private static boolean pointsAtATenantScopedParent(JavaField field) {
         return field.isAnnotatedWith(ManyToOne.class)
+                && !field.getAnnotationOfType(ManyToOne.class).optional()
                 && field.getRawType().isAssignableTo(TenantScopedEntity.class);
     }
 
