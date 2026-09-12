@@ -69,6 +69,9 @@ class InspectionProjectImmutabilityTest {
     private InspectionEventRecorder events;
 
     @Mock
+    private org.tornotron.echno_backend.modules.inspections.service.ObservationService observations;
+
+    @Mock
     private org.tornotron.echno_backend.modules.inspections.service.TradeService tradeService;
 
     @InjectMocks
