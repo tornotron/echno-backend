@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- The inspection ontology as data, part 4 (#766): starter checklists for the five     -->
+    <!-- trades the catalogue added. Design record section 6 step 7. A short generic first    -->
+    <!-- draft per trade, to be refined in the checklist builder; adopting one copies it into -->
+    <!-- the organization, after which the two are independent.                               -->
+
+    <changeSet id="106-01-seed-starter-checklists-for-new-trades" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM starter_checklist_templates
+                WHERE trade_code IN ('tiling', 'painting', 'ceilings', 'doors-windows', 'fire-systems')
+            </sqlCheck>
+        </preConditions>
+        <comment>
+            One starter per new trade, keyed by catalogue code as 104-05 requires. Guarded on
+            the five codes so a database that already carries them, seeded by hand or by an
+            earlier run, is left alone.
+        </comment>
+        <insert tableName="starter_checklist_templates">
+            <column name="id" value="2bfe9c27-dd65-560a-ab53-d4160997af53"/>
+            <column name="trade_code" value="tiling"/>
+            <column name="name" value="Tiling checklist"/>
+            <column name="description" value="Floor and wall tile laying: substrate, setting out, bedding, level, joints and hollowness, checked before grouting is signed off."/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="2bfe9c27-dd65-560a-ab53-d4160997af53"/>
+            <column name="category" value="Substrate"/>
+            <column name="check_point" value="Substrate is clean, cured and within level tolerance before tiling starts"/>
+            <column name="specification" value="Screed cured, dust free, no loose material"/>
+            <column name="expected_value" value="Level within 3 mm over 2 m"/>
+            <column name="acceptance_criterion" value="Straight edge check at three points per bay"/>
+            <column name="tolerance" value="+/- 3 mm / 2 m"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="0"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="2bfe9c27-dd65-560a-ab53-d4160997af53"/>
+            <column name="category" value="Setting out"/>
+            <column name="check_point" value="Tile layout starts from the agreed datum with cut tiles at the perimeter"/>
+            <column name="specification" value="Approved layout drawing"/>
+            <column name="expected_value" value="As per layout"/>
+            <column name="acceptance_criterion" value="Cut tiles no narrower than half a tile at visible edges"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="1"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="2bfe9c27-dd65-560a-ab53-d4160997af53"/>
+            <column name="category" value="Bedding"/>
+            <column name="check_point" value="Full bedding with no voids under the tile"/>
+            <column name="specification" value="Adhesive combed and back buttered where required"/>
+            <column name="expected_value" value="No hollow sound"/>
+            <column name="acceptance_criterion" value="Tap test on every tile, hollowness under 5 percent of the bay"/>
+            <column name="tolerance" value="5 percent"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="2"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="2bfe9c27-dd65-560a-ab53-d4160997af53"/>
+            <column name="category" value="Level and lippage"/>
+            <column name="check_point" value="Finished surface is level with no lippage between adjacent tiles"/>
+            <column name="specification" value="Spirit level and straight edge"/>
+            <column name="expected_value" value="Lippage under 1 mm"/>
+            <column name="acceptance_criterion" value="Measured at joints across the bay"/>
+            <column name="tolerance" value="1 mm"/>
+            <column name="photos_required" valueBoolean="false"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="3"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="2bfe9c27-dd65-560a-ab53-d4160997af53"/>
+            <column name="category" value="Joints"/>
+            <column name="check_point" value="Joint width is uniform and lines are straight across the bay"/>
+            <column name="specification" value="Spacers as specified"/>
+            <column name="expected_value" value="Uniform, 2 to 3 mm"/>
+            <column name="acceptance_criterion" value="Line and width checked along the longest run"/>
+            <column name="tolerance" value="+/- 0.5 mm"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="4"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="2bfe9c27-dd65-560a-ab53-d4160997af53"/>
+            <column name="category" value="Slope"/>
+            <column name="check_point" value="Wet area floors fall to the drain with no ponding"/>
+            <column name="specification" value="Ponding test 24 hours"/>
+            <column name="expected_value" value="1:100 towards drain"/>
+            <column name="acceptance_criterion" value="No standing water after the test"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="5"/>
+        </insert>
+        <insert tableName="starter_checklist_templates">
+            <column name="id" value="4161931e-4a6e-5e95-9e5e-0eaeee17736a"/>
+            <column name="trade_code" value="painting"/>
+            <column name="name" value="Painting checklist"/>
+            <column name="description" value="Interior and exterior paint: surface preparation, primer, putty, coats and finish, checked coat by coat."/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="4161931e-4a6e-5e95-9e5e-0eaeee17736a"/>
+            <column name="category" value="Surface preparation"/>
+            <column name="check_point" value="Surface is dry, sound and free of dust, oil and efflorescence"/>
+            <column name="specification" value="Moisture meter reading"/>
+            <column name="expected_value" value="Under 12 percent moisture"/>
+            <column name="acceptance_criterion" value="Reading taken at three points per wall"/>
+            <column name="tolerance" value="12 percent"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="0"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="4161931e-4a6e-5e95-9e5e-0eaeee17736a"/>
+            <column name="category" value="Primer"/>
+            <column name="check_point" value="Primer applied uniformly with full coverage before putty or first coat"/>
+            <column name="specification" value="Manufacturer data sheet"/>
+            <column name="expected_value" value="One full coat"/>
+            <column name="acceptance_criterion" value="No bare patches visible"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="1"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="4161931e-4a6e-5e95-9e5e-0eaeee17736a"/>
+            <column name="category" value="Putty and sanding"/>
+            <column name="check_point" value="Putty applied, sanded smooth and dust removed before the first coat"/>
+            <column name="specification" value="Two coats of putty where specified"/>
+            <column name="expected_value" value="Smooth, even surface"/>
+            <column name="acceptance_criterion" value="No sanding marks or undulations under raking light"/>
+            <column name="photos_required" valueBoolean="false"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="2"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="4161931e-4a6e-5e95-9e5e-0eaeee17736a"/>
+            <column name="category" value="Coats"/>
+            <column name="check_point" value="Number of finish coats matches the specification with the recoat interval kept"/>
+            <column name="specification" value="Approved paint and shade"/>
+            <column name="expected_value" value="Two finish coats"/>
+            <column name="acceptance_criterion" value="Wet film thickness per data sheet, interval logged"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="3"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="4161931e-4a6e-5e95-9e5e-0eaeee17736a"/>
+            <column name="category" value="Finish"/>
+            <column name="check_point" value="Finished surface has uniform shade with no brush marks, runs, sags or patches"/>
+            <column name="specification" value="Raking light inspection"/>
+            <column name="expected_value" value="Uniform finish"/>
+            <column name="acceptance_criterion" value="Viewed at 1 m under site lighting"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="4"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="4161931e-4a6e-5e95-9e5e-0eaeee17736a"/>
+            <column name="category" value="Protection"/>
+            <column name="check_point" value="Adjacent surfaces, fixtures and floors are masked and cleaned after work"/>
+            <column name="specification" value="Masking in place before starting"/>
+            <column name="expected_value" value="No spillage"/>
+            <column name="acceptance_criterion" value="Adjacent work free of paint marks"/>
+            <column name="photos_required" valueBoolean="false"/>
+            <column name="priority" value="low"/>
+            <column name="line_order" valueNumeric="5"/>
+        </insert>
+        <insert tableName="starter_checklist_templates">
+            <column name="id" value="fcb9b5a4-d343-574b-ae5a-599b522418c3"/>
+            <column name="trade_code" value="ceilings"/>
+            <column name="name" value="Ceilings checklist"/>
+            <column name="description" value="False ceilings and plastered ceilings: framing, hangers, services above, panels, level and finish."/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="fcb9b5a4-d343-574b-ae5a-599b522418c3"/>
+            <column name="category" value="Framing"/>
+            <column name="check_point" value="Grid or framing members are at the specified spacing and fixed to the soffit"/>
+            <column name="specification" value="Framing drawing"/>
+            <column name="expected_value" value="As per drawing"/>
+            <column name="acceptance_criterion" value="Spacing measured at three locations"/>
+            <column name="tolerance" value="+/- 10 mm"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="0"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="fcb9b5a4-d343-574b-ae5a-599b522418c3"/>
+            <column name="category" value="Hangers"/>
+            <column name="check_point" value="Hangers are plumb, of the specified type and fixed with approved anchors"/>
+            <column name="specification" value="Anchor pull-out test where required"/>
+            <column name="expected_value" value="As per specification"/>
+            <column name="acceptance_criterion" value="Anchor type and spacing match the drawing"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="1"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="fcb9b5a4-d343-574b-ae5a-599b522418c3"/>
+            <column name="category" value="Services above"/>
+            <column name="check_point" value="Services above the ceiling are complete, tested and insulated before closing"/>
+            <column name="specification" value="Service clearance sign off"/>
+            <column name="expected_value" value="All services signed off"/>
+            <column name="acceptance_criterion" value="No pending service work above the ceiling line"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="2"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="fcb9b5a4-d343-574b-ae5a-599b522418c3"/>
+            <column name="category" value="Level"/>
+            <column name="check_point" value="Finished ceiling is level across the room"/>
+            <column name="specification" value="Laser level"/>
+            <column name="expected_value" value="Within 3 mm over 3 m"/>
+            <column name="acceptance_criterion" value="Measured at the corners and the centre"/>
+            <column name="tolerance" value="+/- 3 mm / 3 m"/>
+            <column name="photos_required" valueBoolean="false"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="3"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="fcb9b5a4-d343-574b-ae5a-599b522418c3"/>
+            <column name="category" value="Panels and joints"/>
+            <column name="check_point" value="Panels are undamaged, joints are taped and filled, and cutouts are neat"/>
+            <column name="specification" value="Visual under raking light"/>
+            <column name="expected_value" value="No visible joints after finish"/>
+            <column name="acceptance_criterion" value="Cutouts fit the fixture with no gaps over 3 mm"/>
+            <column name="tolerance" value="3 mm"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="4"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="fcb9b5a4-d343-574b-ae5a-599b522418c3"/>
+            <column name="category" value="Access"/>
+            <column name="check_point" value="Access panels are provided at every valve, damper and junction box"/>
+            <column name="specification" value="Services drawing"/>
+            <column name="expected_value" value="Access at every point"/>
+            <column name="acceptance_criterion" value="Each access point opens without obstruction"/>
+            <column name="photos_required" valueBoolean="false"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="5"/>
+        </insert>
+        <insert tableName="starter_checklist_templates">
+            <column name="id" value="d6085279-18c9-5a67-8f98-5c8ed305ce52"/>
+            <column name="trade_code" value="doors-windows"/>
+            <column name="name" value="Doors and windows checklist"/>
+            <column name="description" value="Door and window installation: opening size, frame fixing, plumb and level, hardware, sealing and operation."/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="d6085279-18c9-5a67-8f98-5c8ed305ce52"/>
+            <column name="category" value="Opening"/>
+            <column name="check_point" value="Opening size and position match the door and window schedule"/>
+            <column name="specification" value="Schedule and drawing"/>
+            <column name="expected_value" value="As per schedule"/>
+            <column name="acceptance_criterion" value="Width and height within tolerance"/>
+            <column name="tolerance" value="+/- 5 mm"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="0"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="d6085279-18c9-5a67-8f98-5c8ed305ce52"/>
+            <column name="category" value="Frame fixing"/>
+            <column name="check_point" value="Frame is fixed at the specified points with approved fasteners and packing"/>
+            <column name="specification" value="Fixing detail"/>
+            <column name="expected_value" value="As per detail"/>
+            <column name="acceptance_criterion" value="Fixings at every point on the detail"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="1"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="d6085279-18c9-5a67-8f98-5c8ed305ce52"/>
+            <column name="category" value="Plumb and level"/>
+            <column name="check_point" value="Frame is plumb, level and square in both directions"/>
+            <column name="specification" value="Spirit level and diagonal check"/>
+            <column name="expected_value" value="Diagonals equal"/>
+            <column name="acceptance_criterion" value="Difference in diagonals under 3 mm"/>
+            <column name="tolerance" value="3 mm"/>
+            <column name="photos_required" valueBoolean="false"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="2"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="d6085279-18c9-5a67-8f98-5c8ed305ce52"/>
+            <column name="category" value="Hardware"/>
+            <column name="check_point" value="Hinges, locks, handles and closers are installed and operate smoothly"/>
+            <column name="specification" value="Hardware schedule"/>
+            <column name="expected_value" value="As per schedule"/>
+            <column name="acceptance_criterion" value="Every item fitted and operating"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="3"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="d6085279-18c9-5a67-8f98-5c8ed305ce52"/>
+            <column name="category" value="Sealing"/>
+            <column name="check_point" value="Gap between frame and wall is sealed with the specified filler and sealant"/>
+            <column name="specification" value="Sealant data sheet"/>
+            <column name="expected_value" value="Continuous seal"/>
+            <column name="acceptance_criterion" value="No gaps or voids along the perimeter"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="4"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="d6085279-18c9-5a67-8f98-5c8ed305ce52"/>
+            <column name="category" value="Operation"/>
+            <column name="check_point" value="Leaf opens, closes and latches without binding, with the specified clearances"/>
+            <column name="specification" value="Clearance check"/>
+            <column name="expected_value" value="Uniform clearance"/>
+            <column name="acceptance_criterion" value="Bottom and side clearances within tolerance"/>
+            <column name="tolerance" value="+/- 2 mm"/>
+            <column name="photos_required" valueBoolean="false"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="5"/>
+        </insert>
+        <insert tableName="starter_checklist_templates">
+            <column name="id" value="ad865654-3761-579e-9aea-59a0377dce8c"/>
+            <column name="trade_code" value="fire-systems"/>
+            <column name="name" value="Fire systems checklist"/>
+            <column name="description" value="Fire detection and suppression: detector and sprinkler layout, pipe work, hydrants, pressure test and panel commissioning."/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="ad865654-3761-579e-9aea-59a0377dce8c"/>
+            <column name="category" value="Layout"/>
+            <column name="check_point" value="Detectors, sprinkler heads and call points are at the positions on the approved drawing"/>
+            <column name="specification" value="Approved fire drawing"/>
+            <column name="expected_value" value="As per drawing"/>
+            <column name="acceptance_criterion" value="Every device located and count matches the drawing"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="0"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="ad865654-3761-579e-9aea-59a0377dce8c"/>
+            <column name="category" value="Pipe work"/>
+            <column name="check_point" value="Sprinkler and hydrant pipe work is of the specified material, size and support spacing"/>
+            <column name="specification" value="Pipe schedule"/>
+            <column name="expected_value" value="As per schedule"/>
+            <column name="acceptance_criterion" value="Supports at the specified spacing, no unsupported runs"/>
+            <column name="tolerance" value="+/- 100 mm"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="1"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="ad865654-3761-579e-9aea-59a0377dce8c"/>
+            <column name="category" value="Pressure test"/>
+            <column name="check_point" value="Wet pipe work holds the test pressure for the specified duration without drop"/>
+            <column name="specification" value="Hydrostatic test record"/>
+            <column name="expected_value" value="Test pressure held 2 hours"/>
+            <column name="acceptance_criterion" value="No pressure drop or visible leak"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="2"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="ad865654-3761-579e-9aea-59a0377dce8c"/>
+            <column name="category" value="Hydrants and hose reels"/>
+            <column name="check_point" value="Hydrant valves and hose reels are accessible, signed and operate freely"/>
+            <column name="specification" value="Location drawing"/>
+            <column name="expected_value" value="Accessible and signed"/>
+            <column name="acceptance_criterion" value="Each valve opens fully and reseals"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="medium"/>
+            <column name="line_order" valueNumeric="3"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="ad865654-3761-579e-9aea-59a0377dce8c"/>
+            <column name="category" value="Panel and wiring"/>
+            <column name="check_point" value="Fire alarm panel is wired, addressed and every loop reports without fault"/>
+            <column name="specification" value="Cause and effect matrix"/>
+            <column name="expected_value" value="No fault on any loop"/>
+            <column name="acceptance_criterion" value="Every device reports at the panel"/>
+            <column name="photos_required" valueBoolean="true"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="4"/>
+        </insert>
+        <insert tableName="starter_checklist_template_items">
+            <column name="template_id" value="ad865654-3761-579e-9aea-59a0377dce8c"/>
+            <column name="category" value="Interface test"/>
+            <column name="check_point" value="Interfaces to lifts, dampers, doors and pumps operate as per the cause and effect matrix"/>
+            <column name="specification" value="Cause and effect matrix"/>
+            <column name="expected_value" value="All interfaces operate"/>
+            <column name="acceptance_criterion" value="Each row of the matrix demonstrated"/>
+            <column name="photos_required" valueBoolean="false"/>
+            <column name="priority" value="high"/>
+            <column name="line_order" valueNumeric="5"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>
