@@ -42,6 +42,8 @@ import org.tornotron.echno_backend.project.spatial.dto.CreateSpatialNodeRequest;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventService;
+import org.tornotron.echno_backend.modules.inspections.service.TradeService;
+import org.tornotron.echno_backend.modules.inspections.mapper.TradeMapperImpl;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -65,6 +67,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({InspectionService.class, SpatialNodeService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
+        TradeService.class, TradeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
@@ -231,7 +234,7 @@ class InspectionSpatialReferenceIT extends AbstractIntegrationTest {
     }
 
     private Page<InspectionDto> list(UUID nodeId) {
-        return service.findAll(projectId, null, null, null, null, null, nodeId, PageRequest.of(0, 10));
+        return service.findAll(projectId, null, null, null, null, null, null, nodeId, PageRequest.of(0, 10));
     }
 
     private static List<String> titles(Page<InspectionDto> page) {
@@ -246,14 +249,14 @@ class InspectionSpatialReferenceIT extends AbstractIntegrationTest {
     private static CreateInspectionRequest request(String title, Long project, UUID nodeId,
                                                    List<InspectionCheckItemRequest> items,
                                                    List<InspectionDefectRequest> defects) {
-        return new CreateInspectionRequest(title, InspectionType.QUALITY, null, InspectionTrade.RCC,
+        return new CreateInspectionRequest(title, InspectionType.QUALITY, null, "rcc", null,
                 project, "Block A, Level 3", "Slab and columns", "STR-03-REV2",
                 LocalDate.of(2026, 8, 20), "09:30", null, null, 90, 100L, 200L, "Client Rep",
                 List.of("Site Engineer"), "Clear", "32C", items, defects, nodeId);
     }
 
     private static UpdateInspectionRequest update(String title, Long project, UUID nodeId) {
-        return new UpdateInspectionRequest(title, InspectionType.QUALITY, null, InspectionTrade.RCC,
+        return new UpdateInspectionRequest(title, InspectionType.QUALITY, null, "rcc", null,
                 InspectionStatus.SCHEDULED, null, project, "Block A, Level 3", "Slab and columns",
                 "STR-03-REV2", LocalDate.of(2026, 8, 20), "09:30", null, null, 90, 100L, 200L,
                 "Client Rep", List.of("Site Engineer"), "Clear", "32C", List.of(), List.of(), nodeId);
