@@ -75,6 +75,78 @@ import org.tornotron.echno_backend.user.UserContextService;
         BimHierarchyProposalIT.Artifacts.class})
 class BimHierarchyProposalIT extends AbstractIntegrationTest {
 
+    @TestConfiguration
+    static class Artifacts {
+        static final Map<String, byte[]> STORE = new HashMap<>();
+
+        @Bean
+        BimArtifactReader bimArtifactReader() {
+            return key -> {
+                byte[] bytes = STORE.get(key);
+                if (bytes == null) {
+                    throw new FileNotFoundException(key);
+                }
+                return new ByteArrayInputStream(bytes);
+            };
+        }
+
+        @Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper();
+        }
+    }
+
+    @Autowired private BimImportPipeline pipeline;
+    @Autowired private BimModelService modelService;
+    @Autowired private BimElementService elementService;
+    @Autowired private SpatialNodeService spatial;
+    @Autowired private BimModelVersionRepository versions;
+    @Autowired private BimImportJobRepository jobs;
+    @Autowired private BimElementRepository elements;
+    @PersistenceContext private EntityManager entityManager;
+    @Autowired private PlatformTransactionManager txManager;
+
+    private Long orgAId;
+    private Long orgBId;
+    private Long projectId;
+    private UUID modelId;
+
+    @BeforeEach
+    void seed() {
+        TenantContext.clear();
+        Artifacts.STORE.clear();
+        inCommittedTx(() -> {
+            Organization orgA = persistOrganization("Pipe Org A");
+            Organization orgB = persistOrganization("Pipe Org B");
+            Project project = new Project();
+            project.setProjectName("Tower P");
+            project.setOrganization(orgA);
+            entityManager.persist(project);
+            orgAId = orgA.getId();
+            orgBId = orgB.getId();
+            projectId = project.getId();
+        });
+        TenantContext.setCurrentOrgId(orgAId);
+        modelId = modelService.create(projectId, new CreateBimModelRequest("ARC", null)).id();
+    }
+
+    @AfterEach
+    void removeCommittedRows() {
+        TenantContext.clear();
+        if (orgAId == null && orgBId == null) {
+            return;
+        }
+        inCommittedTx(() -> {
+            deleteForOrgs("DELETE FROM bim_import_jobs WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM bim_elements WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM bim_model_versions WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM bim_models WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM project_spatial_node WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM project WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM organization WHERE id IN (:a,:b)");
+        });
+    }
+
     @Test
     void ingestionProposesTheTreeMatchesExistingNodesAndCreatesNothing() {
         UUID existingBuilding = spatial.create(projectId, new CreateSpatialNodeRequest(null, SpatialLevel.BUILDING,
