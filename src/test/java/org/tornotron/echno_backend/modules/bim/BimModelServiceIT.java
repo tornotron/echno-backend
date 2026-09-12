@@ -27,6 +27,7 @@ import org.tornotron.echno_backend.modules.bim.domain.BimModelVersion;
 import org.tornotron.echno_backend.modules.bim.dto.BimImportJobDto;
 import org.tornotron.echno_backend.modules.bim.dto.BimModelDto;
 import org.tornotron.echno_backend.modules.bim.dto.CreateBimModelRequest;
+import org.tornotron.echno_backend.modules.bim.mapper.BimMapperImpl;
 import org.tornotron.echno_backend.modules.bim.repository.BimModelVersionRepository;
 import org.tornotron.echno_backend.modules.bim.service.BimModelService;
 import org.tornotron.echno_backend.organization.Organization;
@@ -40,7 +41,7 @@ import org.tornotron.echno_backend.user.UserContextService;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({BimModelService.class, UserContextService.class, TenantEntityHelper.class})
+@Import({BimModelService.class, BimMapperImpl.class, UserContextService.class, TenantEntityHelper.class})
 class BimModelServiceIT extends AbstractIntegrationTest {
 
     @Autowired
