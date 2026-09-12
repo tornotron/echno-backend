@@ -27,7 +27,7 @@ import org.tornotron.echno_backend.modules.bim.repository.BimImportJobRepository
 public class BimImportPoller {
 
     public static final String PROPERTY = "echno.modules.bim.ingest.enabled";
-    static final int BATCH = 5;
+    public static final int BATCH = 5;
 
     private final BimImportJobRepository jobs;
     private final BimImportPipeline pipeline;
