@@ -34,6 +34,8 @@ import org.tornotron.echno_backend.modules.inspections.mapper.NcrMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.service.ChecklistTemplateService;
 import org.tornotron.echno_backend.modules.inspections.service.DefectAnnotationService;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventService;
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
@@ -61,6 +63,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Import({InspectionService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
+        InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
         UserContextService.class,
         TenantEntityHelper.class, EntryNumberGenerator.class})

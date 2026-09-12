@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      The inspection module's append-only event log (#760, design note
+      2026-09-12-qaqc-reinspection-audit-log.md). One row per recorded change: what it was
+      about, who made it, when, and the before and after as JSON. No foreign key to the
+      subject, deliberately: the trail outlives the row it describes. No TTL: retention is
+      indefinite.
+    -->
+
+    <changeSet id="100-01-create-inspection-events" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="inspection_events"/></not>
+        </preConditions>
+
+        <createTable tableName="inspection_events">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_inspection_events" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT"/>
+            <column name="inspection_id" type="UUID"/>
+            <column name="subject_type" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subject_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_type" type="VARCHAR(80)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_type" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_id" type="VARCHAR(100)"/>
+            <column name="occurred_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="before_state" type="jsonb"/>
+            <column name="after_state" type="jsonb"/>
+            <column name="note" type="TEXT"/>
+            <column name="request_id" type="VARCHAR(64)"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="inspection_events"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_inspection_event_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"/>
+
+        <createIndex tableName="inspection_events" indexName="idx_insp_event_inspection">
+            <column name="inspection_id"/>
+            <column name="occurred_at"/>
+        </createIndex>
+        <createIndex tableName="inspection_events" indexName="idx_insp_event_subject">
+            <column name="subject_type"/>
+            <column name="subject_id"/>
+            <column name="occurred_at"/>
+        </createIndex>
+        <createIndex tableName="inspection_events" indexName="idx_insp_event_project">
+            <column name="project_id"/>
+            <column name="occurred_at"/>
+        </createIndex>
+        <createIndex tableName="inspection_events" indexName="idx_insp_event_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

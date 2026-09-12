@@ -32,6 +32,9 @@ public interface InspectionRepository
     @Query("SELECT i.inspectionNumber FROM Inspection i WHERE i.id = :id")
     Optional<String> findNumberByIdScoped(@Param("id") UUID id);
 
+    /** Organization-explicit existence check, for reads that must not lean on the session filter. */
+    boolean existsByIdAndOrganization_Id(UUID id, Long organizationId);
+
     /**
      * Dedupe guard for AI compliance generation: true when a compliance inspection
      * for this project already references the given rule in this organization. The

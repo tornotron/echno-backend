@@ -422,6 +422,10 @@ spring:
         # its own to-one/to-many) into a handful of batched queries. No effect on the
         # response shape, and unlike a collection JOIN FETCH it composes with pagination.
         default_batch_fetch_size: 100
+        # Refuse bulk JPQL updates against @Immutable entities (the append-only event and
+        # status logs) instead of logging a warning and running them.
+        query:
+          immutable_entity_update_query_handling_mode: exception
   servlet:
     multipart:
       enabled: true
