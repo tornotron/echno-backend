@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Project site structure: one table for Building > Floor > Zone > Element, keyed by a
+        UUID that inspections, BIM and the robot data layer reference. Core, not a module
+        table, so it lives here rather than under modules/. Design: docs/specs/2026-09-12-qaqc-spatial-hierarchy.md (#754).
+    -->
+
+    <changeSet id="097-create-project-spatial-node" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="project_spatial_node"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="project_spatial_node">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="parent_id" type="UUID"/>
+            <column name="level" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort_order" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="path" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="depth" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="level_index" type="INT"/>
+            <column name="element_type" type="VARCHAR(50)"/>
+            <column name="bim_element_guid" type="VARCHAR(100)"/>
+            <column name="external_ref" type="VARCHAR(200)"/>
+            <column name="archived_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="project_spatial_node" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_spatial_node_organization"/>
+        <addForeignKeyConstraint baseTableName="project_spatial_node" baseColumnNames="project_id"
+                                 referencedTableName="project" referencedColumnNames="id"
+                                 constraintName="fk_spatial_node_project"/>
+        <addForeignKeyConstraint baseTableName="project_spatial_node" baseColumnNames="parent_id"
+                                 referencedTableName="project_spatial_node" referencedColumnNames="id"
+                                 constraintName="fk_spatial_node_parent"/>
+
+        <!-- Sibling codes. parent_id is null for buildings, where NULLs are distinct, so the
+             service also checks building codes per project. -->
+        <addUniqueConstraint tableName="project_spatial_node" columnNames="project_id, parent_id, code"
+                             constraintName="uk_spatial_node_sibling_code"/>
+
+        <createIndex tableName="project_spatial_node" indexName="idx_spatial_node_project_level">
+            <column name="project_id"/>
+            <column name="level"/>
+        </createIndex>
+        <createIndex tableName="project_spatial_node" indexName="idx_spatial_node_project_path">
+            <column name="project_id"/>
+            <column name="path"/>
+        </createIndex>
+        <createIndex tableName="project_spatial_node" indexName="idx_spatial_node_parent">
+            <column name="parent_id"/>
+        </createIndex>
+
+        <!-- Partial unique index: an IFC GlobalId is unique within a project once set. -->
+        <sql>
+            CREATE UNIQUE INDEX uk_spatial_node_project_bim_guid
+                ON project_spatial_node (project_id, bim_element_guid)
+                WHERE bim_element_guid IS NOT NULL
+        </sql>
+
+        <rollback>
+            <dropTable tableName="project_spatial_node"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
