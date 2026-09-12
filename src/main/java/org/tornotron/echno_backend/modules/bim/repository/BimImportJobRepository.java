@@ -41,8 +41,9 @@ public interface BimImportJobRepository extends JpaRepository<BimImportJob, UUID
     List<JobRef> findClosedNotIngested(@Param("status") String status, @Param("limit") int limit);
 
     @Query(value = "SELECT j.id AS id, j.organization_id AS organizationId, j.error AS error "
-            + "FROM bim_import_jobs j JOIN bim_model_versions v ON v.id = j.version_id "
-            + "WHERE j.status = 'RUNNING' AND v.status = 'QUEUED'", nativeQuery = true)
+            + "FROM bim_import_jobs j WHERE j.status = 'RUNNING' AND j.version_id IN "
+            + "(SELECT v.id FROM bim_model_versions v WHERE v.status = 'QUEUED' "
+            + "AND v.organization_id = j.organization_id)", nativeQuery = true)
     List<JobRef> findRunningWithQueuedVersion();
 
     @Modifying
