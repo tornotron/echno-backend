@@ -2460,6 +2460,55 @@
         },
         "type": "object"
       },
+      "BimSourceUploadDto": {
+        "description": "The version created for an upload and the short-lived PUT URL for its source IFC.",
+        "properties": {
+          "upload": {
+            "$ref": "#/components/schemas/PresignedUpload"
+          },
+          "versionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "versionNumber": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "BimTileManifestDto": {
+        "description": "Short-lived presigned GET URLs for a version's glTF tiles, one per storey plus the coarse whole model.",
+        "properties": {
+          "coarseUrl": {
+            "description": "Decimated whole model for the first paint.",
+            "type": "string"
+          },
+          "expiresInSeconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "modelId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "storeys": {
+            "items": {
+              "$ref": "#/components/schemas/StoreyTile"
+            },
+            "type": "array"
+          },
+          "unassignedUrl": {
+            "description": "Products with no storey, or null.",
+            "type": "string"
+          },
+          "versionId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "BudgetAllocationDto": {
         "description": "One budget-head allocation on a project: the amount set aside for a cost category.",
         "properties": {
@@ -16028,6 +16077,31 @@
         },
         "type": "object"
       },
+      "PresignBimSourceRequest": {
+        "description": "Declares the IFC about to be uploaded. Creates the next version and returns where to PUT it.",
+        "properties": {
+          "contentType": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          },
+          "fileSize": {
+            "exclusiveMinimum": 0,
+            "format": "int64",
+            "type": "integer"
+          },
+          "filename": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "fileSize",
+          "filename"
+        ],
+        "type": "object"
+      },
       "PresignedUpload": {
         "properties": {
           "contentType": {
@@ -19981,6 +20055,28 @@
             "example": 12,
             "format": "int64",
             "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "StoreyTile": {
+        "properties": {
+          "elementCount": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "elevation": {
+            "format": "double",
+            "type": "number"
+          },
+          "globalId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
           }
         },
         "type": "object"
@@ -34690,6 +34786,129 @@
         ]
       }
     },
+    "/api/v1/bim/models/{modelId}/versions/presign": {
+      "post": {
+        "description": "The browser PUTs the file straight to the object store at the returned URL (the file never passes through the API), then calls register. Files over the cap (1 GB by default) are refused with a message to split the model by building.",
+        "operationId": "presignSource",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignBimSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BimSourceUploadDto"
+                }
+              }
+            },
+            "description": "Version created and upload URL issued"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not an IFC, or over the size cap"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such model in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Start an IFC upload: create the next version and presign the PUT for its source file",
+        "tags": [
+          "BIM Models"
+        ]
+      }
+    },
     "/api/v1/bim/models/{modelId}/versions/{versionId}": {
       "get": {
         "operationId": "getVersion",
@@ -35421,6 +35640,249 @@
           }
         },
         "summary": "Queue (or re-queue after a failure) the worker import of a version",
+        "tags": [
+          "BIM Models"
+        ]
+      }
+    },
+    "/api/v1/bim/models/{modelId}/versions/{versionId}/register": {
+      "post": {
+        "operationId": "registerSource",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BimModelVersionDto"
+                }
+              }
+            },
+            "description": "The version, now QUEUED for the worker"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The object is not in storage, or the version was already registered"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such model or version in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Finish an IFC upload: verify the object is in storage, file it as an attachment, queue the import",
+        "tags": [
+          "BIM Models"
+        ]
+      }
+    },
+    "/api/v1/bim/models/{modelId}/versions/{versionId}/tiles": {
+      "get": {
+        "description": "URLs are short-lived and signed for keys under this version's prefix only; the viewer fetches the floors it opens straight from the object store.",
+        "operationId": "tiles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "versionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BimTileManifestDto"
+                }
+              }
+            },
+            "description": "The tile manifest"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The version is not READY"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such model or version in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Presigned GET URLs for a READY version's glTF tiles, one per storey plus the coarse model",
         "tags": [
           "BIM Models"
         ]
