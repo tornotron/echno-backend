@@ -20,6 +20,7 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
+import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionEvent;
 import org.tornotron.echno_backend.modules.inspections.domain.Observation;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateInspectionRequest;
@@ -371,6 +372,58 @@ class ObservationServiceIT extends AbstractIntegrationTest {
         assertThat(own.getTitle()).isEqualTo("Housekeeping");
     }
 
+    // ------------------------------------------------- compliance suggestions
+
+    @Test
+    void approvingASuggestedInspectionAcceptsItsAiObservation() {
+        UUID suggested = suggestedInspection("Building permit");
+        Observation ai = repository.findByInspectionScoped(suggested).get(0);
+        assertThat(ai.getReviewStatus()).isEqualTo(ObservationReviewStatus.PENDING);
+
+        inspections.update(suggested, suggestionUpdate("Building permit", InspectionStatus.SCHEDULED));
+
+        Observation reviewed = repository.findByIdScoped(ai.getId()).orElseThrow();
+        assertThat(reviewed.getReviewStatus()).isEqualTo(ObservationReviewStatus.ACCEPTED);
+        assertThat(reviewed.getReviewChanges()).isNull();
+        assertThat(reviewed.getOutcomeRef()).isEqualTo(suggested);
+        assertThat(events(ai.getId(), InspectionEventType.OBSERVATION_REVIEWED)).hasSize(1);
+
+        // a later move is not a second decision
+        inspections.update(suggested, suggestionUpdate("Building permit", InspectionStatus.CANCELLED));
+        assertThat(repository.findByIdScoped(ai.getId()).orElseThrow().getReviewStatus())
+                .isEqualTo(ObservationReviewStatus.ACCEPTED);
+    }
+
+    @Test
+    void dismissingASuggestedInspectionRejectsItsAiObservation() {
+        UUID suggested = suggestedInspection("Occupancy certificate");
+        Observation ai = repository.findByInspectionScoped(suggested).get(0);
+
+        inspections.update(suggested, suggestionUpdate("Occupancy certificate", InspectionStatus.CANCELLED));
+
+        Observation reviewed = repository.findByIdScoped(ai.getId()).orElseThrow();
+        assertThat(reviewed.getReviewStatus()).isEqualTo(ObservationReviewStatus.REJECTED);
+        assertThat(reviewed.getReviewNote()).contains("dismissed");
+    }
+
+    @Test
+    void editingASuggestedInspectionBeforeApprovalModifiesItsAiObservationWithTheDiff() {
+        UUID suggested = suggestedInspection("Fire NOC");
+        Observation ai = repository.findByInspectionScoped(suggested).get(0);
+
+        inspections.update(suggested, suggestionUpdate("Fire NOC, block A", InspectionStatus.SUGGESTED));
+
+        Observation reviewed = repository.findByIdScoped(ai.getId()).orElseThrow();
+        assertThat(reviewed.getReviewStatus()).isEqualTo(ObservationReviewStatus.MODIFIED);
+        assertThat(reviewed.getReviewChanges()).anySatisfy(c -> {
+            assertThat(c).containsEntry("field", "title");
+            assertThat(c).containsEntry("before", "Fire NOC");
+            assertThat(c).containsEntry("after", "Fire NOC, block A");
+        });
+        // the proposal itself is untouched
+        assertThat(reviewed.getTitle()).isEqualTo("Fire NOC");
+    }
+
     // ---------------------------------------------------------- tenancy
 
     @Test
@@ -395,6 +448,33 @@ class ObservationServiceIT extends AbstractIntegrationTest {
     }
 
     // ---------------------------------------------------------- helpers
+
+    /** A compliance suggestion as the generator leaves it, with its pending AI observation. */
+    private UUID suggestedInspection(String title) {
+        Inspection i = new Inspection();
+        i.setInspectionNumber("INSP-S-" + title.hashCode());
+        i.setTitle(title);
+        i.setType(InspectionType.COMPLIANCE);
+        i.setCategory(InspectionCategory.COMPLIANCE);
+        i.setStatus(InspectionStatus.SUGGESTED);
+        i.setOrigin(InspectionOrigin.AI_GENERATED);
+        i.setProjectId(projectId);
+        i.setComplianceRuleRef("TN-01");
+        i.setAiRationale("Required before work starts");
+        i.setOrganization(entityManager.getReference(Organization.class, orgAId));
+        entityManager.persist(i);
+        entityManager.flush();
+        service.recordAiSuggestion(i, "llama3.3-70b-instruct", "", "compliance-generator");
+        entityManager.flush();
+        entityManager.clear();
+        return i.getId();
+    }
+
+    private UpdateInspectionRequest suggestionUpdate(String title, InspectionStatus status) {
+        return new UpdateInspectionRequest(title, InspectionType.COMPLIANCE, InspectionCategory.COMPLIANCE, null, null,
+                status, null, projectId, null, null, null, null, null, null, null, null, null, null,
+                null, List.of(), null, null, List.of(), List.of(), null);
+    }
 
     private Observation pending(UUID inspectionId, String title) {
         Observation o = new Observation();

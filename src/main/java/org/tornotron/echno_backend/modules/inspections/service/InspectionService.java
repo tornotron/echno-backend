@@ -322,6 +322,7 @@ public class InspectionService {
             events.record(subject, InspectionEventType.INSPECTION_UPDATED,
                     header.before(), header.after(), null);
         }
+        observations.reviewSuggestedInspection(saved, before.status(), header);
 
         List<InspectionCheckItem> items = saved.getCheckItems();
         for (int i = 0; i < items.size(); i++) {

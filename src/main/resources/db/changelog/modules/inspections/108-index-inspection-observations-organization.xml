@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Every query on inspection_observations carries the orgFilter predicate
+        organization_id = ?, and the other tenant-scoped inspection tables all answer it from
+        a secondary index. This one answered it from a primary-index scan, which is slower per
+        tenant as the table grows and, on CockroachDB, makes an org-scoped DELETE wait on any
+        open transaction's intents where an index scan would step past them. (#759)
+    -->
+
+    <changeSet id="108-index-inspection-observations-organization" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="inspection_observations" indexName="idx_insp_obs_organization"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="inspection_observations" indexName="idx_insp_obs_organization">
+            <column name="organization_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="inspection_observations" indexName="idx_insp_obs_organization"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.modules.inspections.CheckItemStatus;
 import org.tornotron.echno_backend.modules.inspections.DefectStatus;
+import org.tornotron.echno_backend.modules.inspections.InspectionStatus;
 import org.tornotron.echno_backend.modules.inspections.ObservationOutcomeKind;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewDecision;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewStatus;
@@ -405,6 +406,95 @@ public class ObservationService {
             entry.put("after", a);
             into.add(entry);
         }
+    }
+
+    // ------------------------------------------------- the compliance model
+
+    /**
+     * One AI observation per compliance suggestion: pending, with the suggested inspection as
+     * its outcome and the model's rationale as its description. Called from the generator's
+     * own transaction. The event names the generator as the actor, the model in the row.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Observation recordAiSuggestion(Inspection suggested, String modelName, String modelVersion,
+                                          String actorId) {
+        Observation o = newObservation(suggested.getProjectId(), suggested.getId(), ObservationSource.AI,
+                suggested.getTitle(), suggested.getAiRationale());
+        o.setCategory(suggested.getComplianceRuleRef());
+        o.setSpatialNodeId(suggested.getSpatialNodeId());
+        o.setLocationNote(suggested.getLocation());
+        o.setObservedAt(LocalDateTime.now());
+        o.setModelName(modelName);
+        o.setModelVersion(modelVersion == null || modelVersion.isBlank() ? null : modelVersion);
+        o.setOutcomeKind(ObservationOutcomeKind.INSPECTION);
+        o.setOutcomeRef(suggested.getId());
+        Observation saved = observationRepo.save(o);
+        events.recordAs(InspectionEventSubject.observation(saved), InspectionEventType.OBSERVATION_CREATED,
+                InspectionEventActorType.AI, actorId, null,
+                InspectionEventChanges.none()
+                        .field("source", null, saved.getSource())
+                        .field("modelName", null, saved.getModelName())
+                        .field("modelVersion", null, saved.getModelVersion())
+                        .field("reviewStatus", null, saved.getReviewStatus())
+                        .field("outcomeKind", null, saved.getOutcomeKind())
+                        .field("outcomeRef", null, saved.getOutcomeRef())
+                        .field("complianceRuleRef", null, suggested.getComplianceRuleRef())
+                        .after(),
+                saved.getDescription());
+        return saved;
+    }
+
+    /**
+     * The human decision on a suggested inspection, taken through the inspection form rather
+     * than the observation review: dismissing (cancelling) it rejects the pending AI
+     * observation, editing it before approval modifies the observation with the diff, and any
+     * other move out of SUGGESTED accepts it. One decision; a suggestion already reviewed is
+     * left alone.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Optional<Observation> reviewSuggestedInspection(Inspection inspection, InspectionStatus before,
+                                                           InspectionEventChanges header) {
+        if (before != InspectionStatus.SUGGESTED) {
+            return Optional.empty();
+        }
+        Optional<Observation> pending = observationRepo
+                .findByOutcomeScoped(ObservationOutcomeKind.INSPECTION, inspection.getId()).stream()
+                .filter(o -> !o.isReviewed())
+                .findFirst();
+        if (pending.isEmpty()) {
+            return Optional.empty();
+        }
+        Observation o = pending.get();
+        boolean edited = header != null && !header.isEmpty();
+        ObservationReviewStatus decided;
+        if (inspection.getStatus() == InspectionStatus.CANCELLED) {
+            decided = ObservationReviewStatus.REJECTED;
+            o.setReviewNote("Suggested inspection dismissed");
+        } else if (edited) {
+            decided = ObservationReviewStatus.MODIFIED;
+            List<Map<String, Object>> changes = new ArrayList<>();
+            for (Map.Entry<String, Object> e : header.after().entrySet()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("field", e.getKey());
+                entry.put("before", header.before().get(e.getKey()));
+                entry.put("after", e.getValue());
+                changes.add(entry);
+            }
+            o.setReviewChanges(changes);
+            o.setReviewNote(inspection.getStatus() == InspectionStatus.SUGGESTED
+                    ? "Suggested inspection edited before approval" : "Suggested inspection edited and approved");
+        } else if (inspection.getStatus() != InspectionStatus.SUGGESTED) {
+            decided = ObservationReviewStatus.ACCEPTED;
+            o.setReviewNote("Suggested inspection approved");
+        } else {
+            return Optional.empty();
+        }
+        o.setReviewStatus(decided);
+        o.setReviewedById(currentEmployeeId());
+        o.setReviewedAt(LocalDateTime.now());
+        Observation saved = observationRepo.save(o);
+        recordReviewed(saved, ObservationReviewStatus.PENDING);
+        return Optional.of(saved);
     }
 
     // ---------------------------------------------- implicit human producers

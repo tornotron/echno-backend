@@ -16,6 +16,8 @@ import org.tornotron.echno_backend.modules.inspections.compliance.repository.Com
 import org.tornotron.echno_backend.modules.inspections.ComplianceRiskLevel;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventActorType;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
+import org.tornotron.echno_backend.modules.inspections.compliance.ai.ComplianceAiProperties;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventType;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDto;
@@ -89,7 +91,8 @@ class ComplianceGenerationConcurrencyTest {
 
         service = new ComplianceGenerationService(
                 projectRepository, ruleRepository, complianceAiService, inspectionRepository,
-                numberGen, tenantEntityHelper, inspectionMapper, retryTemplate, events);
+                numberGen, tenantEntityHelper, inspectionMapper, retryTemplate, events,
+                mock(ObservationService.class), new ComplianceAiProperties());
 
         Project project = new Project();
         project.setProjectName("Race Test");

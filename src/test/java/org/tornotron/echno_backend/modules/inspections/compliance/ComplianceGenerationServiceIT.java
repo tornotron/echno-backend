@@ -51,6 +51,10 @@ import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.project.enums.ProjectType;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
+import org.tornotron.echno_backend.modules.inspections.compliance.ai.ComplianceAiProperties;
+import org.tornotron.echno_backend.modules.inspections.mapper.ObservationMapperImpl;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
+import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDateTime;
@@ -79,6 +83,8 @@ import static org.mockito.Mockito.when;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ComplianceGenerationService.class, InspectionMapperImpl.class,
+        ObservationService.class, ObservationMapperImpl.class, SpatialNodeService.class,
+        ComplianceAiProperties.class,
         InspectionEventRecorder.class, UserContextService.class,
         TenantEntityHelper.class, EntryNumberGenerator.class, TransactionalWorkRunner.class,
         TransactionRetryTemplate.class, ComplianceGenerationServiceIT.RetryMetrics.class})
@@ -124,6 +130,7 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
 
     @Autowired
     private TransactionRetryTemplate retryTemplate;
+
 
     private Long orgAId;
     private Long projectId;
@@ -183,6 +190,9 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
                             "DELETE FROM inspection_events WHERE organization_id = :org")
                     .setParameter("org", orgAId).executeUpdate();
             entityManager.createNativeQuery(
+                            "DELETE FROM inspection_observations WHERE organization_id = :org")
+                    .setParameter("org", orgAId).executeUpdate();
+            entityManager.createNativeQuery(
                             "DELETE FROM inspections WHERE organization_id = :org")
                     .setParameter("org", orgAId).executeUpdate();
             entityManager.createNativeQuery(
@@ -217,6 +227,27 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
                 .containsExactly("pre-construction", "post-construction");
         assertThat(created.get(0).aiRationale()).isEqualTo("Required before work starts");
 
+        // one AI observation per suggestion, pending, with the suggested inspection as outcome.
+        // Read natively: the rows were committed by the write phase, and loading them as
+        // entities into this test's transaction would hold them against the cleanup's delete.
+        for (InspectionDto dto : created) {
+            List<?> rows = entityManager.createNativeQuery(
+                            "SELECT source, review_status, outcome_kind, outcome_ref, model_name, description, "
+                                    + "category, project_id FROM inspection_observations WHERE inspection_id = :id")
+                    .setParameter("id", dto.id())
+                    .getResultList();
+            assertThat(rows).hasSize(1);
+            Object[] row = (Object[]) rows.get(0);
+            assertThat(row[0]).isEqualTo("AI");
+            assertThat(row[1]).isEqualTo("PENDING");
+            assertThat(row[2]).isEqualTo("INSPECTION");
+            assertThat(row[3]).isEqualTo(dto.id());
+            assertThat(row[4]).isEqualTo("llama3.3-70b-instruct");
+            assertThat(row[5]).isEqualTo(dto.aiRationale());
+            assertThat(row[6]).isEqualTo(dto.complianceRuleRef());
+            assertThat(((Number) row[7]).longValue()).isEqualTo(projectId);
+        }
+
         entityManager.flush();
 
         // Re-run: everything already exists, so nothing new is created.
@@ -228,6 +259,11 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
                 .setParameter("org", orgAId)
                 .getSingleResult()).longValue();
         assertThat(total).isEqualTo(2L);
+        Long observations = ((Number) entityManager.createNativeQuery(
+                        "SELECT COUNT(*) FROM inspection_observations WHERE organization_id = :org AND source = 'AI'")
+                .setParameter("org", orgAId)
+                .getSingleResult()).longValue();
+        assertThat(observations).isEqualTo(2L);
     }
 
     /**

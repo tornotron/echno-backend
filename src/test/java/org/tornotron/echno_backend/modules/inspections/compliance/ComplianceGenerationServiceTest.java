@@ -1,6 +1,9 @@
 package org.tornotron.echno_backend.modules.inspections.compliance;
 
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
+import org.tornotron.echno_backend.modules.inspections.compliance.ai.ComplianceAiProperties;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
+import org.mockito.Spy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -67,6 +70,12 @@ class ComplianceGenerationServiceTest {
 
     @Mock
     private InspectionEventRecorder events;
+
+    @Mock
+    private ObservationService observations;
+
+    @Spy
+    private ComplianceAiProperties aiProperties = new ComplianceAiProperties();
 
     @InjectMocks
     private ComplianceGenerationService service;
