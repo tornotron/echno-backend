@@ -2570,6 +2570,35 @@
           "active": {
             "type": "boolean"
           },
+          "applicableElementTypes": {
+            "description": "Element type codes the template suits; null means any.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "applicableProjectTypes": {
+            "description": "Project types the template suits; null means any.",
+            "items": {
+              "enum": [
+                "RESIDENTIAL",
+                "COMMERCIAL",
+                "INDUSTRIAL",
+                "INFRASTRUCTURE",
+                "INSTITUTIONAL",
+                "MIXED_USE",
+                "OTHER"
+              ],
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -2751,6 +2780,39 @@
             "description": "Whether new inspections of this trade are created from this template. Defaults to true when omitted.",
             "example": true,
             "type": "boolean"
+          },
+          "applicableElementTypes": {
+            "description": "Element type codes of the organization the template suits. Omit or send null for any; an empty list also means any.",
+            "example": [
+              "column",
+              "beam"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "applicableProjectTypes": {
+            "description": "Project types the template suits. Omit or send null for any.",
+            "items": {
+              "enum": [
+                "RESIDENTIAL",
+                "COMMERCIAL",
+                "INDUSTRIAL",
+                "INFRASTRUCTURE",
+                "INSTITUTIONAL",
+                "MIXED_USE",
+                "OTHER"
+              ],
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "description": {
             "description": "What the checklist covers and when it is used.",
@@ -4604,6 +4666,45 @@
         ],
         "type": "object"
       },
+      "CreateElementTypeRequest": {
+        "description": "Payload to define an organization's own element type.",
+        "properties": {
+          "code": {
+            "description": "Slug: lowercase letters, digits and hyphens. Unique within the organization.",
+            "example": "precast-panel",
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "[a-z0-9]+(-[a-z0-9]+)*",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "groupCode": {
+            "description": "Group heading. Any string; the seeded groups are structure, openings, finishes, services and fire.",
+            "example": "structure",
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sortOrder": {
+            "description": "Position in pickers. Defaults to after every seeded type.",
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "groupCode",
+          "name"
+        ],
+        "type": "object"
+      },
       "CreateInspectionRequest": {
         "description": "Payload to schedule a new inspection, with its checklist items and any defects already known at scheduling time.",
         "properties": {
@@ -5221,6 +5322,38 @@
         "required": [
           "content"
         ],
+        "type": "object"
+      },
+      "ElementTypeCatalogueDto": {
+        "description": "One element type of the product-shipped catalogue. Read only.",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "code": {
+            "description": "Stable slug.",
+            "example": "column",
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupCode": {
+            "description": "Group: structure, openings, finishes, services or fire.",
+            "example": "structure",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
         "type": "object"
       },
       "EmployeeCreationDto": {
@@ -12210,6 +12343,49 @@
             "description": "Short title of the notification.",
             "example": "Leave request pending your approval",
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "OrgElementTypeDto": {
+        "description": "An element type as the organization has it: a catalogue copy or an org-defined type.",
+        "properties": {
+          "active": {
+            "description": "Inactive types disappear from pickers and stay valid on the elements that carry them.",
+            "type": "boolean"
+          },
+          "catalogueCode": {
+            "description": "Catalogue code the row was copied from; null for an org-defined type.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "code": {
+            "description": "Slug unique within the organization; the value a spatial node's elementType carries. Fixed once created.",
+            "example": "column",
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupCode": {
+            "example": "structure",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "format": "int32",
+            "type": "integer"
           }
         },
         "type": "object"
@@ -20422,6 +20598,33 @@
         ],
         "type": "object"
       },
+      "UpdateElementTypeRequest": {
+        "description": "Fields of an element type that may change after creation. Omitted fields are left as they are; the code never changes.",
+        "properties": {
+          "active": {
+            "description": "False retires the type from pickers without touching the elements that carry it.",
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "groupCode": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "sortOrder": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "UpdateFinanceSettingsRequest": {
         "description": "Payload to update the organization-level finance settings.",
         "properties": {
@@ -24304,7 +24507,7 @@
     "/api/v1/attendance-regularizations/web": {
       "get": {
         "description": "Returns a paged list of regularization requests in the current tenant, in any status. The optional status, approver and requester parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nThe approver and the rejecter are recorded in the same pair of columns, so approvedById on its own means \"requests this person decided\". Pair it with status to separate the two: approvedById with status=APPROVED is what that person approved, and with status=REJECTED what they rejected.\n\nBoth ids are employee ids. A request decided by a caller who has no employee record in this tenant carries no approver id and is not matched by any approvedById.",
-        "operationId": "list_13",
+        "operationId": "list_14",
         "parameters": [
           {
             "in": "query",
@@ -25258,7 +25461,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_15",
+        "operationId": "create_16",
         "requestBody": {
           "content": {
             "application/json": {
@@ -25688,7 +25891,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_16",
+        "operationId": "create_17",
         "requestBody": {
           "content": {
             "application/json": {
@@ -26119,7 +26322,7 @@
       },
       "patch": {
         "description": "Applies a partial update to an attendance settings profile. Only the fields present in the request body are changed.",
-        "operationId": "update_13",
+        "operationId": "update_14",
         "parameters": [
           {
             "in": "path",
@@ -26346,7 +26549,7 @@
       },
       "patch": {
         "description": "Applies a partial update to an attendance settings profile. Only the fields present in the request body are changed.",
-        "operationId": "update_12",
+        "operationId": "update_13",
         "parameters": [
           {
             "in": "path",
@@ -34550,7 +34753,7 @@
     "/api/v1/checklist-templates/web": {
       "get": {
         "description": "Returns a page of the organization's templates. The trade and active parameters are optional filters; omitting both returns every template, subject to paging.",
-        "operationId": "list_9",
+        "operationId": "list_10",
         "parameters": [
           {
             "in": "query",
@@ -34685,7 +34888,7 @@
       },
       "post": {
         "description": "Creates the organization's checklist for a trade, with its check points. There is one template per trade per organization.",
-        "operationId": "create_14",
+        "operationId": "create_15",
         "requestBody": {
           "content": {
             "application/json": {
@@ -34789,6 +34992,138 @@
           }
         },
         "summary": "Define a checklist template",
+        "tags": [
+          "Checklist templates"
+        ]
+      }
+    },
+    "/api/v1/checklist-templates/web/applicable": {
+      "get": {
+        "description": "Returns the organization's active templates whose applicability admits the given element type and project type; a template with no applicability set admits everything. Both parameters are optional. Suggestion only: any template may still be used on any element.",
+        "operationId": "applicable",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "elementType",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "projectType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "RESIDENTIAL",
+                "COMMERCIAL",
+                "INDUSTRIAL",
+                "INFRASTRUCTURE",
+                "INSTITUTIONAL",
+                "MIXED_USE",
+                "OTHER"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChecklistTemplateDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The applicable templates"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Suggest templates for an element and project type",
         "tags": [
           "Checklist templates"
         ]
@@ -38691,7 +39026,7 @@
     "/api/v1/finance/accounts/web": {
       "get": {
         "description": "Returns the flat list of accounts in the current tenant. By default only active accounts are returned; set activeOnly to false to include deactivated accounts.",
-        "operationId": "list_8",
+        "operationId": "list_9",
         "parameters": [
           {
             "in": "query",
@@ -38805,7 +39140,7 @@
       },
       "post": {
         "description": "Creates a new account in the chart. When a parent is given, the account type is inherited from the parent; a root account must declare its own type. When the code is left blank it is generated from the parent and existing sibling accounts.",
-        "operationId": "create_13",
+        "operationId": "create_14",
         "requestBody": {
           "content": {
             "application/json": {
@@ -39810,7 +40145,7 @@
     "/api/v1/finance/company-bank-accounts/web": {
       "get": {
         "description": "Returns the organization's bank accounts. By default only active accounts are returned; set activeOnly to false to include deactivated accounts as well.",
-        "operationId": "list_7",
+        "operationId": "list_8",
         "parameters": [
           {
             "in": "query",
@@ -39924,7 +40259,7 @@
       },
       "post": {
         "description": "Registers a new company bank account, linked to an existing ledger account for reconciliation.",
-        "operationId": "create_12",
+        "operationId": "create_13",
         "requestBody": {
           "content": {
             "application/json": {
@@ -40262,7 +40597,7 @@
     "/api/v1/finance/construction-invoices/web": {
       "get": {
         "description": "Returns a paged list of invoices in the current tenant. The optional project, vendor, status and type parameters narrow the result; omitting a parameter leaves that dimension unfiltered.",
-        "operationId": "list_6",
+        "operationId": "list_7",
         "parameters": [
           {
             "in": "query",
@@ -40423,7 +40758,7 @@
       },
       "post": {
         "description": "Creates a draft invoice from the supplied header and line items. Line-level subtotal, tax, discount and total amounts are computed server side from the quantity, unit price and percentage rates on each line.",
-        "operationId": "create_11",
+        "operationId": "create_12",
         "requestBody": {
           "content": {
             "application/json": {
@@ -41353,7 +41688,7 @@
     "/api/v1/finance/construction-payments/web": {
       "get": {
         "description": "Returns a paged list of payment vouchers in the current tenant. The optional project, vendor, status, type, payee type, employee, verifier and raiser parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nNarrow here rather than in the client. A filter applied to the rows one page came back in narrows that page and not the register, so it answers a different question from the one it appears to, and an empty result then reads as a complete answer.\n\nThe three person parameters carry ids from two different sequences and are not interchangeable. employeeId is the payee on a salary or advance voucher and is an employee id; verifiedBy and raisedBy are platform user ids, the same ids the response returns beside verifiedByName and raisedByName.",
-        "operationId": "list_5",
+        "operationId": "list_6",
         "parameters": [
           {
             "in": "query",
@@ -41581,7 +41916,7 @@
       },
       "post": {
         "description": "Creates a payment voucher in pending status. The payment number is generated server side from the CPMT sequence. The status cannot be set on creation.",
-        "operationId": "create_10",
+        "operationId": "create_11",
         "requestBody": {
           "content": {
             "application/json": {
@@ -42163,7 +42498,7 @@
     "/api/v1/finance/cost-categories/web": {
       "get": {
         "description": "Returns the budget heads in the current tenant. By default only active heads are returned; set activeOnly to false to include deactivated ones.",
-        "operationId": "list_4",
+        "operationId": "list_5",
         "parameters": [
           {
             "in": "query",
@@ -42277,7 +42612,7 @@
       },
       "post": {
         "description": "Creates a budget head. The name must be unique within the tenant; an optional expense account maps the head to the chart of accounts for reporting.",
-        "operationId": "create_9",
+        "operationId": "create_10",
         "requestBody": {
           "content": {
             "application/json": {
@@ -42953,7 +43288,7 @@
       },
       "post": {
         "description": "Creates a new customer from the supplied details. The customer code must be unique within the tenant.",
-        "operationId": "create_8",
+        "operationId": "create_9",
         "requestBody": {
           "content": {
             "application/json": {
@@ -43065,7 +43400,7 @@
     "/api/v1/finance/customers/web/all": {
       "get": {
         "description": "Returns a page of customers in the current tenant. The optional name parameter filters by customer name; omitting it returns all customers, subject to paging.",
-        "operationId": "list_12",
+        "operationId": "list_13",
         "parameters": [
           {
             "in": "query",
@@ -43417,7 +43752,7 @@
     "/api/v1/finance/invoices/web": {
       "get": {
         "description": "Returns a page of customer invoices in the current tenant, newest invoice date first. The optional customer, status and openOnly parameters narrow the result and combine with AND; omitting a parameter leaves that dimension unfiltered. Use pageNo and pageSize to page through the results.",
-        "operationId": "list_3",
+        "operationId": "list_4",
         "parameters": [
           {
             "description": "Restrict to invoices billed to this customer.",
@@ -44881,7 +45216,7 @@
     "/api/v1/finance/posting-accounts/web": {
       "get": {
         "description": "Returns all six posting roles with the account each currently resolves to for the tenant, flagged as coming from an explicit mapping (MAPPED) or the configured default (DEFAULT).",
-        "operationId": "list_11",
+        "operationId": "list_12",
         "responses": {
           "200": {
             "content": {
@@ -45234,7 +45569,7 @@
     "/api/v1/finance/projects/{projectId}/budget/web": {
       "get": {
         "description": "Returns the set of budget-head allocations that make up the project's budget.",
-        "operationId": "list_10",
+        "operationId": "list_11",
         "parameters": [
           {
             "in": "path",
@@ -53588,6 +53923,460 @@
         "summary": "Schedule a reinspection of a defect",
         "tags": [
           "Reinspections"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/element-types": {
+      "get": {
+        "description": "Active types by default, in sort order then name. Pass includeInactive=true to see retired ones too.",
+        "operationId": "list_3",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "includeInactive",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrgElementTypeDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The organization's element types"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the organization's element types",
+        "tags": [
+          "Element types"
+        ]
+      },
+      "post": {
+        "description": "Adds an organization-defined element type. It appears in pickers at once.",
+        "operationId": "create_8",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateElementTypeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgElementTypeDto"
+                }
+              }
+            },
+            "description": "Element type created"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Validation failed on the request body"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The organization already has an element type with that code"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Define an element type",
+        "tags": [
+          "Element types"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/element-types/catalogue": {
+      "get": {
+        "description": "The global catalogue every organization's list is copied from. Read only.",
+        "operationId": "catalogue_1",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ElementTypeCatalogueDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The catalogue"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the shipped element type catalogue",
+        "tags": [
+          "Element types"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/element-types/{id}": {
+      "patch": {
+        "description": "The code is immutable, including on catalogue copies.",
+        "operationId": "update_12",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateElementTypeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgElementTypeDto"
+                }
+              }
+            },
+            "description": "Element type updated"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Validation failed on the request body"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No element type with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Rename, regroup, reorder or deactivate an element type",
+        "tags": [
+          "Element types"
         ]
       }
     },
@@ -113016,6 +113805,10 @@
     {
       "description": "Customers billed by the ledger, holding their tax registration, contact and billing details along with a credit limit and payment terms. All endpoints are tenant scoped and limited to system administrators and project managers.",
       "name": "Customers"
+    },
+    {
+      "description": "The construction element types an organization inspects: the seeded catalogue copied into the tenant on first use, plus any the organization defines. A spatial node of level ELEMENT carries one of these codes, and a checklist template's applicability names the ones it suits. Managing the list is the same authority as defining checklists. Types are deactivated, never deleted.",
+      "name": "Element types"
     },
     {
       "description": "Web-client twin of the employee endpoints. Adds joining an organization as an employee, a minimal lookup list for pickers, paginated and filtered listing, manager assignment, subordinate and manager lookups, and org-role assignment, alongside the same read, update and delete operations as the base employee API.",
