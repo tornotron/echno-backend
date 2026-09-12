@@ -11393,6 +11393,70 @@
         },
         "type": "object"
       },
+      "ModuleDescriptorDto": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "entitled": {
+            "type": "boolean"
+          },
+          "entitlementFeatureKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nav": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleNavDescriptorDto"
+            },
+            "type": "array"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ModuleNavDescriptorDto": {
+        "properties": {
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "requiredPermissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "section": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "MovementRecordCreationDto": {
         "description": "Payload to log a movement away from an employee's checked-in location.",
         "properties": {
@@ -77143,6 +77207,216 @@
         ]
       }
     },
+    "/api/v1/modules/web": {
+      "get": {
+        "description": "Every module compiled into this build, with whether its kill switch is on and whether the caller's organization is entitled to it.",
+        "operationId": "installed",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModuleDescriptorDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Installed modules"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a system admin of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List installed modules",
+        "tags": [
+          "Modules (Web)"
+        ]
+      }
+    },
+    "/api/v1/modules/web/enabled": {
+      "get": {
+        "description": "The modules that are installed, switched on and entitled for the current tenant, with their dependencies satisfied. The web loader mounts exactly these.",
+        "operationId": "enabled",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModuleDescriptorDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Enabled modules"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List modules enabled for the caller's organization",
+        "tags": [
+          "Modules (Web)"
+        ]
+      }
+    },
     "/api/v1/movement-records": {
       "post": {
         "description": "Records an employee's movement away from their checked-in location against an existing attendance record.",
@@ -109689,6 +109963,10 @@
     {
       "description": "Web-console counterpart of the materials API, gated by organization role for the current tenant. Covers the same create, browse, search, update, stock lookup and delete operations as the standard materials endpoints, for use from the admin web console rather than the mobile app. Reads, including the stock lookup, are open to the system-admin, project-manager and store-keeper roles, because a project manager raises and approves stock adjustments and those are documents about a material's balance, and a storekeeper cannot name a material on a receipt, an issue or a count without reading the catalogue first. Changing the catalogue, its thresholds included, stays with system-admin.",
       "name": "Materials (Web)"
+    },
+    {
+      "description": "Lists the modules compiled into this build and the subset enabled for the caller's organization, with the navigation and permission keys each publishes.",
+      "name": "Modules (Web)"
     },
     {
       "description": "Records of an employee travelling away from their checked-in location during a work day, for example a site visit, client meeting or material procurement trip. Each movement is logged against an attendance record with a start and end time, distance and purpose, and can be verified afterwards. Creating and reading movements is tenant scoped; verifying one is limited to callers who can manage attendance records.",
