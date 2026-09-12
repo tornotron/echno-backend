@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Changeset 107-02 added observation_id to inspection_defects and ncrs under one
+        precondition that looked only at the defect column, so a database holding the defect
+        column but not the NCR one would have marked it ran and never gained the NCR link. This
+        changeset guards the NCR column on its own; on every database 107-02 ran in full it is
+        marked ran and does nothing. (#759)
+    -->
+
+    <changeSet id="109-ncr-observation-link" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="ncrs" columnName="observation_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="ncrs">
+            <column name="observation_id" type="UUID"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="ncrs" baseColumnNames="observation_id"
+                                 referencedTableName="inspection_observations" referencedColumnNames="id"
+                                 constraintName="fk_ncr_observation" onDelete="SET NULL"/>
+        <createIndex tableName="ncrs" indexName="idx_ncr_observation">
+            <column name="observation_id"/>
+        </createIndex>
+        <rollback>
+            <dropColumn tableName="ncrs" columnName="observation_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

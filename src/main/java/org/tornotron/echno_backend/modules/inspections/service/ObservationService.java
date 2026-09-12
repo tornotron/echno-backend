@@ -41,6 +41,8 @@ import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRe
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionSpecifications;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationSpecifications;
+import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.common.repository.AttachmentRepository;
 import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -82,6 +84,8 @@ public class ObservationService {
     private final UserContextService userContextService;
     private final EmployeeRepository employeeRepository;
     private final ObservationMapper mapper;
+    private final ProjectRepository projectRepository;
+    private final AttachmentRepository attachmentRepository;
 
     // ------------------------------------------------------------------ reads
 
@@ -123,6 +127,7 @@ public class ObservationService {
                 throw new InvalidRequestException("The inspection belongs to a different project");
             }
         }
+        requireProject(req.projectId());
         Long employeeId = currentEmployeeId();
         Observation o = newObservation(req.projectId(), inspection == null ? null : inspection.getId(),
                 ObservationSource.HUMAN, req.title(), req.description());
@@ -135,6 +140,10 @@ public class ObservationService {
         if (req.evidenceAttachmentIds() != null && !req.evidenceAttachmentIds().isEmpty()) {
             List<Map<String, Object>> refs = new ArrayList<>();
             for (Long attachmentId : req.evidenceAttachmentIds()) {
+                if (attachmentId == null
+                        || attachmentRepository.findByIdAndOrganization_Id(attachmentId, TenantContext.getCurrentOrgId()).isEmpty()) {
+                    throw new ResourceNotFoundException("Attachment with ID " + attachmentId + " was not found");
+                }
                 refs.add(Map.of("attachmentId", attachmentId));
             }
             o.setEvidenceRefs(refs);
@@ -168,6 +177,7 @@ public class ObservationService {
             log.debug("Observation intake repeated externalRef {}; returning the existing row", req.externalRef());
             return new IntakeResult(withSpatialPath(mapper.toDto(existing.get())), false);
         }
+        requireProject(req.projectId());
         Observation o = newObservation(req.projectId(), null, req.source(), req.title(), req.description());
         o.setExternalRef(req.externalRef());
         o.setSourceDeviceId(req.sourceDeviceId());
@@ -520,25 +530,27 @@ public class ObservationService {
     @Transactional(propagation = Propagation.MANDATORY)
     public void carryOver(List<UUID> oldItemIds, List<UUID> oldDefectIds,
                           List<UUID> oldDefectObservationIds, Inspection saved) {
-        Map<UUID, Observation> byOutcome = new HashMap<>();
+        // Several observations may point at one child (a drone's and a person's, say), so every
+        // one of them follows the child to its new id.
+        Map<UUID, List<Observation>> byOutcome = new HashMap<>();
         for (Observation existing : observationRepo.findByInspectionScoped(saved.getId())) {
             if (existing.getOutcomeRef() != null) {
-                byOutcome.put(existing.getOutcomeRef(), existing);
+                byOutcome.computeIfAbsent(existing.getOutcomeRef(), k -> new ArrayList<>()).add(existing);
             }
         }
         List<InspectionCheckItem> items = saved.getCheckItems();
         for (int i = 0; i < items.size(); i++) {
             InspectionCheckItem item = items.get(i);
-            Observation linked = null;
+            boolean linked = false;
             if (i < oldItemIds.size()) {
-                linked = byOutcome.get(oldItemIds.get(i));
-                if (linked != null && linked.getOutcomeKind() == ObservationOutcomeKind.CHECK_ITEM) {
-                    linked.setOutcomeRef(item.getId());
-                } else {
-                    linked = null;
+                for (Observation o : byOutcome.getOrDefault(oldItemIds.get(i), List.of())) {
+                    if (o.getOutcomeKind() == ObservationOutcomeKind.CHECK_ITEM) {
+                        o.setOutcomeRef(item.getId());
+                        linked = true;
+                    }
                 }
             }
-            if (linked == null && item.getStatus() == CheckItemStatus.FAILED) {
+            if (!linked && item.getStatus() == CheckItemStatus.FAILED) {
                 recordFailedCheckItem(item);
             }
         }
@@ -547,9 +559,10 @@ public class ObservationService {
             InspectionDefect defect = defects.get(i);
             if (i < oldDefectIds.size() && oldDefectObservationIds.get(i) != null) {
                 defect.setObservationId(oldDefectObservationIds.get(i));
-                Observation linked = byOutcome.get(oldDefectIds.get(i));
-                if (linked != null && linked.getOutcomeKind() == ObservationOutcomeKind.DEFECT) {
-                    linked.setOutcomeRef(defect.getId());
+                for (Observation o : byOutcome.getOrDefault(oldDefectIds.get(i), List.of())) {
+                    if (o.getOutcomeKind() == ObservationOutcomeKind.DEFECT) {
+                        o.setOutcomeRef(defect.getId());
+                    }
                 }
             }
             if (defect.getObservationId() == null) {
@@ -700,6 +713,12 @@ public class ObservationService {
         if (o.getProjectId() != null && inspection.getProjectId() != null
                 && !o.getProjectId().equals(inspection.getProjectId())) {
             throw new InvalidRequestException("The outcome belongs to a different project than the observation");
+        }
+    }
+
+    private void requireProject(Long projectId) {
+        if (projectId == null || !projectRepository.existsByIdAndOrganization_Id(projectId, TenantContext.getCurrentOrgId())) {
+            throw new ResourceNotFoundException("Project with ID " + projectId + " was not found");
         }
     }
 

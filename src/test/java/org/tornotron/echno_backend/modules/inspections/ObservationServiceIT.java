@@ -15,6 +15,7 @@ import org.springframework.test.context.transaction.AfterTransaction;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -173,16 +174,23 @@ class ObservationServiceIT extends AbstractIntegrationTest {
 
     @Test
     void humanObservationIsAcceptedOnCreationWithItsNodeAndEvidence() {
+        Long photo = attachment("c14.jpg");
+        Long clip = attachment("c14.mp4");
+        // an attachment that is not this tenant's is refused before anything is written
+        assertThatThrownBy(() -> service.create(new CreateObservationRequest(projectId, null, zone,
+                "Column C-14", null, "Hairline crack", null, null, null, List.of(photo, 999999L))))
+                .isInstanceOf(ResourceNotFoundException.class);
+
         ObservationDto dto = service.create(new CreateObservationRequest(projectId, null, zone,
                 "Column C-14", null, "Hairline crack", "Crack at column C-14, hairline", "Structural",
-                DefectSeverity.MINOR, List.of(41L, 42L)));
+                DefectSeverity.MINOR, List.of(photo, clip)));
 
         assertThat(dto.source()).isEqualTo(ObservationSource.HUMAN);
         assertThat(dto.reviewStatus()).isEqualTo(ObservationReviewStatus.ACCEPTED);
         assertThat(dto.outcomeKind()).isEqualTo(ObservationOutcomeKind.NONE);
         assertThat(dto.reviewedAt()).isNotNull();
         assertThat(dto.spatialPath()).hasSize(3);
-        assertThat(dto.evidenceRefs()).extracting(m -> m.get("attachmentId")).containsExactly(41L, 42L);
+        assertThat(dto.evidenceRefs()).extracting(m -> m.get("attachmentId")).containsExactly(photo, clip);
         assertThat(events(dto.id(), InspectionEventType.OBSERVATION_CREATED)).hasSize(1);
         assertThat(service.findAll(projectId, null, ObservationSource.HUMAN, null, zone, null, null,
                 PageRequest.of(0, 10)).getContent()).extracting(ObservationDto::id).containsExactly(dto.id());
@@ -448,6 +456,20 @@ class ObservationServiceIT extends AbstractIntegrationTest {
     }
 
     // ---------------------------------------------------------- helpers
+
+    private Long attachment(String filename) {
+        Attachment attachment = new Attachment();
+        attachment.setEntityType(InspectionEvidence.ENTITY_TYPE);
+        attachment.setEntityUuid(UUID.randomUUID());
+        attachment.setStorageKey("inspection/" + filename);
+        attachment.setOriginalFilename(filename);
+        attachment.setContentType("image/jpeg");
+        attachment.setFileSize(1024L);
+        attachment.setOrganization(entityManager.getReference(Organization.class, orgAId));
+        entityManager.persist(attachment);
+        entityManager.flush();
+        return attachment.getId();
+    }
 
     /** A compliance suggestion as the generator leaves it, with its pending AI observation. */
     private UUID suggestedInspection(String title) {
