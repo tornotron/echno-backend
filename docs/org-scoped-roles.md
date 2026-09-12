@@ -205,7 +205,7 @@ so letting somebody book a delivery meant making them an administrator of the wh
 `store-keeper` is the tier in between, and it is scoped to the work rather than to the domain: it
 grants the storekeeper's own documents and the reads those forms need, and nothing else.
 
-Writes it grants, nine endpoints in all:
+Writes it grants, ten endpoints in all:
 
 | Document | Endpoints |
 | --- | --- |
@@ -213,6 +213,13 @@ Writes it grants, nine endpoints in all:
 | Material issue | `POST /material-consumptions/web` |
 | Site transfer | `POST /site-transfers/web`, `POST /site-transfers/web/{id}/receive`, `POST /site-transfers/web/{id}/cancel`, `PATCH /site-transfers/web/{id}/status` |
 | Stock adjustment | `POST /stock-adjustments/web`, `PUT /stock-adjustments/web/{id}` |
+| Reorder thresholds | `PUT /materials/web/{id}/location-thresholds/{storageLocationId}` |
+
+The threshold write is the one catalogue-adjacent grant, decided on #650 and built for #746. It is
+open to `store-keeper` and `project-manager` alongside `system-admin`: a threshold at a storage
+location tunes one project's reorder point, and the low-stock sweep that reads it notifies the same
+people who set it. Removing an override, which puts the material's global threshold back, stays with
+`system-admin`.
 
 The site-transfer status route is on that list as a signpost rather than as an authority: it refuses
 every payload it is handed and answers by naming the receive and cancel routes, which is a more
@@ -232,9 +239,9 @@ What it does not grant, and why:
   storekeepers wave each other's counts through, which is the same control gone. Approval stays with
   `system-admin` and `project-manager`.
 - **No deletions anywhere**, including of a stock adjustment or a goods received note.
-- **No catalogue, storage-location, vendor, purchase-order or indent writes.** Deciding what
-  materials exist, who supplies them and what has been ordered is not the same job as recording what
-  arrived.
+- **No catalogue, storage-location, vendor, purchase-order or indent writes**, the per-location
+  threshold above excepted. Deciding what materials exist, who supplies them and what has been
+  ordered is not the same job as recording what arrived.
 - **No vendor financial reads.** The vendor summary, bank accounts, tax identifiers and payment terms
   are outside it; the storekeeper gets the vendor's name and contacts, which is what a delivery
   needs.

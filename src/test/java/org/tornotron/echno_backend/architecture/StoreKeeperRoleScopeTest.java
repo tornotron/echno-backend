@@ -99,6 +99,10 @@ class StoreKeeperRoleScopeTest {
             "MaterialControllerWeb.searchMaterials GET /search",
             "MaterialControllerWeb.getMaterialWithStock GET /{id}/stock",
             "MaterialControllerWeb.getLocationThresholds GET /{materialId}/location-thresholds",
+            // Reorder thresholds at a storage location are the one catalogue write on the role,
+            // decided on #650: tuning them per project is a stores decision, and the low-stock
+            // sweep that reads them notifies the same people. Removing an override is not here.
+            "MaterialControllerWeb.upsertLocationThreshold PUT /{materialId}/location-thresholds/{storageLocationId}",
 
             // Where the material came from and where it is going.
             "StorageLocationControllerWeb.getStorageLocationById GET /{id}",
@@ -183,8 +187,8 @@ class StoreKeeperRoleScopeTest {
      * unique. {@code IndentControllerWeb} declares {@code getAllIndents} twice, once on
      * {@code @GetMapping("/all")} and once on the bare {@code @GetMapping}, and keying by name
      * collapsed the two into one entry: the set comparison then held with one of the pair
-     * ungranted, which is the failure this test exists to catch. Ninety-four guarded mappings must
-     * produce ninety-four signatures.
+     * ungranted, which is the failure this test exists to catch. Ninety-five guarded mappings must
+     * produce ninety-five signatures.
      */
     private record Granted(String controller, String method, String verb, String path) {
         String signature() {
