@@ -13,8 +13,10 @@ import org.tornotron.echno_backend.modules.inspections.repositories.InspectionEv
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionEventRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.NcrRepository;
+import org.tornotron.echno_backend.modules.inspections.repositories.ReinspectionRepository;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,6 +32,7 @@ public class InspectionEventService {
     private final InspectionEventRepository events;
     private final InspectionRepository inspectionRepo;
     private final NcrRepository ncrRepo;
+    private final ReinspectionRepository reinspectionRepo;
 
     /** The whole timeline of one inspection: itself, its items, defects, NCRs and reinspections. */
     @Transactional(readOnly = true)
@@ -50,8 +53,11 @@ public class InspectionEventService {
         if (!ncrRepo.existsByIdAndOrganization_Id(ncrId, orgId)) {
             throw new ResourceNotFoundException("NCR with ID " + ncrId + " was not found");
         }
+        List<UUID> subjects = new ArrayList<>();
+        subjects.add(ncrId);
+        subjects.addAll(reinspectionRepo.findIdsByNcrIdAndOrganizationId(ncrId, orgId));
         return events.search(orgId,
-                        new InspectionEventFilter(null, null, List.of(ncrId), null, null, null, null, null),
+                        new InspectionEventFilter(null, null, subjects, null, null, null, null, null),
                         pageable)
                 .map(InspectionEventService::toDto);
     }

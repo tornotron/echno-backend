@@ -29,6 +29,9 @@ import org.tornotron.echno_backend.modules.inspections.mapper.NcrMapper;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.NcrRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.NcrSpecifications;
+import org.tornotron.echno_backend.modules.inspections.repositories.ReinspectionRepository;
+import org.tornotron.echno_backend.modules.inspections.ReinspectionOutcome;
+import org.tornotron.echno_backend.modules.inspections.domain.Reinspection;
 import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDateTime;
@@ -63,6 +66,7 @@ public class NcrService {
     private final NcrMapper mapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final InspectionEventRecorder events;
+    private final ReinspectionRepository reinspectionRepo;
 
     @Transactional(readOnly = true)
     public NcrDto findById(UUID id) {
@@ -177,12 +181,14 @@ public class NcrService {
     @Transactional
     public NcrDto markCorrectiveActionComplete(UUID id, String remarks) {
         Ncr ncr = require(id);
+        LocalDateTime completedAt = LocalDateTime.now();
         InspectionEventChanges changes = InspectionEventChanges.none()
                 .field("status", ncr.getStatus(), NcrStatus.CORRECTIVE_ACTION_COMPLETE)
-                .field("correctiveActionRemarks", ncr.getCorrectiveActionRemarks(), remarks);
+                .field("correctiveActionRemarks", ncr.getCorrectiveActionRemarks(), remarks)
+                .field("correctiveActionCompletedAt", ncr.getCorrectiveActionCompletedAt(), completedAt);
         transition(ncr, NcrStatus.CORRECTIVE_ACTION_COMPLETE);
         ncr.setCorrectiveActionRemarks(remarks);
-        ncr.setCorrectiveActionCompletedAt(LocalDateTime.now());
+        ncr.setCorrectiveActionCompletedAt(completedAt);
         return save(ncr, "corrective action reported complete",
                 InspectionEventType.NCR_CORRECTIVE_ACTION_COMPLETE, changes, remarks);
     }
@@ -195,12 +201,50 @@ public class NcrService {
      */
     @Transactional
     public NcrDto verify(UUID id, String remarks) {
+        return verify(id, remarks, null);
+    }
+
+    /**
+     * Verifies on the strength of a passed reinspection when one is named: the verifier and
+     * the time are taken from its outcome, and the event is {@code ncr.verified}. Without one,
+     * the verification stands on the caller alone and is logged as such.
+     *
+     * @throws InvalidRequestException if the reinspection is not this NCR's, or has not passed
+     */
+    @Transactional
+    public NcrDto verify(UUID id, String remarks, UUID reinspectionId) {
         Ncr ncr = require(id);
-        InspectionEventChanges changes = verificationChanges(ncr, NcrStatus.VERIFIED, remarks);
+        if (reinspectionId == null) {
+            LocalDateTime decidedAt = LocalDateTime.now();
+            InspectionEventChanges changes = verificationChanges(ncr, NcrStatus.VERIFIED, remarks, decidedAt);
+            transition(ncr, NcrStatus.VERIFIED);
+            stampVerification(ncr, remarks, decidedAt);
+            return save(ncr, "verified", InspectionEventType.NCR_VERIFIED_WITHOUT_REINSPECTION,
+                    changes, remarks);
+        }
+        Reinspection reinspection = reinspectionRepo.findByIdScoped(reinspectionId)
+                .filter(r -> ncr.getId().equals(r.getNcrId()))
+                .orElseThrow(() -> new InvalidRequestException("Reinspection " + reinspectionId
+                        + " does not belong to NCR " + ncr.getNcrNumber() + "."));
+        if (reinspection.getOutcome() != ReinspectionOutcome.PASSED) {
+            throw new InvalidRequestException("Reinspection " + reinspectionId + " is "
+                    + reinspection.getOutcome().getValue() + "; only a passed reinspection verifies "
+                    + "NCR " + ncr.getNcrNumber() + ".");
+        }
+        Long verifier = reinspection.getOutcomeById() != null ? reinspection.getOutcomeById() : currentEmployeeId();
+        LocalDateTime verifiedAt = reinspection.getOutcomeAt() != null ? reinspection.getOutcomeAt() : LocalDateTime.now();
+        InspectionEventChanges changes = InspectionEventChanges.none()
+                .field("status", ncr.getStatus(), NcrStatus.VERIFIED)
+                .field("verificationRemarks", ncr.getVerificationRemarks(), remarks)
+                .field("verifiedById", ncr.getVerifiedById(), verifier)
+                .field("verifiedAt", ncr.getVerifiedAt(), verifiedAt)
+                .field("reinspectionId", null, reinspection.getId());
         transition(ncr, NcrStatus.VERIFIED);
-        stampVerification(ncr, remarks);
-        return save(ncr, "verified", InspectionEventType.NCR_VERIFIED_WITHOUT_REINSPECTION,
-                changes, remarks);
+        ncr.setVerificationRemarks(remarks);
+        ncr.setVerifiedById(verifier);
+        ncr.setVerifiedAt(verifiedAt);
+        return save(ncr, "verified on reinspection " + reinspection.getSequence(),
+                InspectionEventType.NCR_VERIFIED, changes, remarks);
     }
 
     /**
@@ -215,9 +259,10 @@ public class NcrService {
     @Transactional
     public NcrDto reject(UUID id, String remarks) {
         Ncr ncr = require(id);
-        InspectionEventChanges changes = verificationChanges(ncr, NcrStatus.REJECTED, remarks);
+        LocalDateTime decidedAt = LocalDateTime.now();
+        InspectionEventChanges changes = verificationChanges(ncr, NcrStatus.REJECTED, remarks, decidedAt);
         transition(ncr, NcrStatus.REJECTED);
-        stampVerification(ncr, remarks);
+        stampVerification(ncr, remarks, decidedAt);
         return save(ncr, "rejected on re-inspection", InspectionEventType.NCR_REJECTED,
                 changes, remarks);
     }
@@ -233,7 +278,8 @@ public class NcrService {
         InspectionEventChanges changes = InspectionEventChanges.none()
                 .field("status", ncr.getStatus(), NcrStatus.REOPENED)
                 .field("verificationRemarks", ncr.getVerificationRemarks(), remarks)
-                .field("closedById", ncr.getClosedById(), null);
+                .field("closedById", ncr.getClosedById(), null)
+                .field("closedAt", ncr.getClosedAt(), null);
         transition(ncr, NcrStatus.REOPENED);
         ncr.setVerificationRemarks(remarks);
         ncr.setClosedById(null);
@@ -246,12 +292,14 @@ public class NcrService {
     public NcrDto close(UUID id) {
         Ncr ncr = require(id);
         Long closer = currentEmployeeId();
+        LocalDateTime closedAt = LocalDateTime.now();
         InspectionEventChanges changes = InspectionEventChanges.none()
                 .field("status", ncr.getStatus(), NcrStatus.CLOSED)
-                .field("closedById", ncr.getClosedById(), closer);
+                .field("closedById", ncr.getClosedById(), closer)
+                .field("closedAt", ncr.getClosedAt(), closedAt);
         transition(ncr, NcrStatus.CLOSED);
         ncr.setClosedById(closer);
-        ncr.setClosedAt(LocalDateTime.now());
+        ncr.setClosedAt(closedAt);
         return save(ncr, "closed", InspectionEventType.NCR_CLOSED, changes, null);
     }
 
@@ -353,17 +401,19 @@ public class NcrService {
     }
 
     /** The fields a verification decision moves, captured before the entity is touched. */
-    private InspectionEventChanges verificationChanges(Ncr ncr, NcrStatus target, String remarks) {
+    private InspectionEventChanges verificationChanges(Ncr ncr, NcrStatus target, String remarks,
+                                                       LocalDateTime decidedAt) {
         return InspectionEventChanges.none()
                 .field("status", ncr.getStatus(), target)
                 .field("verificationRemarks", ncr.getVerificationRemarks(), remarks)
-                .field("verifiedById", ncr.getVerifiedById(), currentEmployeeId());
+                .field("verifiedById", ncr.getVerifiedById(), currentEmployeeId())
+                .field("verifiedAt", ncr.getVerifiedAt(), decidedAt);
     }
 
-    private void stampVerification(Ncr ncr, String remarks) {
+    private void stampVerification(Ncr ncr, String remarks, LocalDateTime decidedAt) {
         ncr.setVerificationRemarks(remarks);
         ncr.setVerifiedById(currentEmployeeId());
-        ncr.setVerifiedAt(LocalDateTime.now());
+        ncr.setVerifiedAt(decidedAt);
     }
 
     /**

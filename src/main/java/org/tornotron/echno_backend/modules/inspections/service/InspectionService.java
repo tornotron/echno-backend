@@ -271,8 +271,13 @@ public class InspectionService {
                 .field("scheduledTime", before.scheduledTime(), saved.getScheduledTime())
                 .field("actualStartTime", before.actualStartTime(), saved.getActualStartTime())
                 .field("actualEndTime", before.actualEndTime(), saved.getActualEndTime())
+                .field("duration", before.duration(), saved.getDuration())
                 .field("inspectorId", before.inspectorId(), saved.getInspectorId())
-                .field("contractorId", before.contractorId(), saved.getContractorId());
+                .field("contractorId", before.contractorId(), saved.getContractorId())
+                .field("clientRepresentative", before.clientRepresentative(), saved.getClientRepresentative())
+                .field("attendees", String.join(", ", before.attendees()), String.join(", ", saved.getAttendees()))
+                .field("weatherConditions", before.weatherConditions(), saved.getWeatherConditions())
+                .field("temperature", before.temperature(), saved.getTemperature());
         if (!header.isEmpty()) {
             events.record(subject, InspectionEventType.INSPECTION_UPDATED,
                     header.before(), header.after(), null);
@@ -359,13 +364,17 @@ public class InspectionService {
                                       String location, String areaInspected, String drawingReference,
                                       LocalDate scheduledDate, String scheduledTime,
                                       LocalDateTime actualStartTime, LocalDateTime actualEndTime,
-                                      Long inspectorId, Long contractorId,
+                                      Integer duration, Long inspectorId, Long contractorId,
+                                      String clientRepresentative, List<String> attendees,
+                                      String weatherConditions, String temperature,
                                       List<CheckItemSnapshot> checkItems, List<DefectSnapshot> defects) {
         static InspectionSnapshot of(Inspection i) {
             return new InspectionSnapshot(i.getTitle(), i.getType(), i.getCategory(), tradeCode(i),
                     i.getStatus(), i.getResult(), i.getLocation(), i.getAreaInspected(),
                     i.getDrawingReference(), i.getScheduledDate(), i.getScheduledTime(),
-                    i.getActualStartTime(), i.getActualEndTime(), i.getInspectorId(), i.getContractorId(),
+                    i.getActualStartTime(), i.getActualEndTime(), i.getDuration(),
+                    i.getInspectorId(), i.getContractorId(), i.getClientRepresentative(),
+                    List.copyOf(i.getAttendees()), i.getWeatherConditions(), i.getTemperature(),
                     i.getCheckItems().stream().map(CheckItemSnapshot::of).toList(),
                     i.getDefects().stream().map(DefectSnapshot::of).toList());
         }
