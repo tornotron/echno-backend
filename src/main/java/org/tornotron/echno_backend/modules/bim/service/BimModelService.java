@@ -149,17 +149,17 @@ public class BimModelService {
     // Lookups shared with the other BIM services
     // ------------------------------------------------------------------------------------
 
-    BimModel requireModel(UUID modelId) {
+    public BimModel requireModel(UUID modelId) {
         return models.findByIdScoped(modelId)
                 .orElseThrow(() -> new ResourceNotFoundException("BIM model not found: " + modelId));
     }
 
-    BimModelVersion requireVersion(UUID modelId, UUID versionId) {
+    public BimModelVersion requireVersion(UUID modelId, UUID versionId) {
         return versions.findByIdAndModelId(versionId, modelId)
                 .orElseThrow(() -> new ResourceNotFoundException("BIM model version not found: " + versionId));
     }
 
-    BimElement requireElement(UUID elementId) {
+    public BimElement requireElement(UUID elementId) {
         return elements.findByIdScoped(elementId)
                 .orElseThrow(() -> new ResourceNotFoundException("BIM element not found: " + elementId));
     }
