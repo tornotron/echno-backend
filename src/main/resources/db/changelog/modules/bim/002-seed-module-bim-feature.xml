@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Seeds the feature the BIM module is gated on and grants it on every seeded plan.
+
+        A module's entitlement key is a Feature row, and an organization has the module when its
+        plan carries a plan_feature for it. Granting it on all four tiers means no tenant goes
+        dark on cutover; a plan that omits it is how a tenant is made dark later, by a billing
+        data change rather than a migration. Mirrors 096-seed-module-inspections-feature.xml (#748); see #782.
+
+        Each changeSet is guarded on its own row, so an environment that already holds the
+        feature or a grant keeps what it has. The grants are also guarded on the plan existing,
+        since the plan catalogue on staging was seeded by hand (#642) and a missing code would
+        otherwise turn into a null plan_id.
+    -->
+
+    <changeSet id="bim-002-seed-feature-module-bim" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM feature WHERE code = 'MODULE_BIM'</sqlCheck>
+        </preConditions>
+        <insert tableName="feature">
+            <column name="code" value="MODULE_BIM"/>
+            <column name="name" value="BIM Module"/>
+            <column name="description"
+                    value="Access to the BIM module: IFC model upload and import, the element table, the hierarchy proposal and the 3D viewer tiles."/>
+            <column name="feature_type" value="BOOLEAN"/>
+            <column name="category" value="MODULE"/>
+            <column name="is_active" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="bim-002-grant-module-bim-free" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <sqlCheck expectedResult="1">SELECT COUNT(*) FROM plan WHERE code = 'FREE'</sqlCheck>
+                <sqlCheck expectedResult="0">
+                    SELECT COUNT(*) FROM plan_feature pf
+                    JOIN plan p ON p.id = pf.plan_id
+                    JOIN feature f ON f.id = pf.feature_id
+                    WHERE p.code = 'FREE' AND f.code = 'MODULE_BIM'
+                </sqlCheck>
+            </and>
+        </preConditions>
+        <insert tableName="plan_feature">
+            <column name="plan_id" valueComputed="(SELECT id FROM plan WHERE code = 'FREE')"/>
+            <column name="feature_id" valueComputed="(SELECT id FROM feature WHERE code = 'MODULE_BIM')"/>
+            <column name="enabled" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="bim-002-grant-module-bim-starter" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <sqlCheck expectedResult="1">SELECT COUNT(*) FROM plan WHERE code = 'STARTER'</sqlCheck>
+                <sqlCheck expectedResult="0">
+                    SELECT COUNT(*) FROM plan_feature pf
+                    JOIN plan p ON p.id = pf.plan_id
+                    JOIN feature f ON f.id = pf.feature_id
+                    WHERE p.code = 'STARTER' AND f.code = 'MODULE_BIM'
+                </sqlCheck>
+            </and>
+        </preConditions>
+        <insert tableName="plan_feature">
+            <column name="plan_id" valueComputed="(SELECT id FROM plan WHERE code = 'STARTER')"/>
+            <column name="feature_id" valueComputed="(SELECT id FROM feature WHERE code = 'MODULE_BIM')"/>
+            <column name="enabled" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="bim-002-grant-module-bim-pro" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <sqlCheck expectedResult="1">SELECT COUNT(*) FROM plan WHERE code = 'PRO'</sqlCheck>
+                <sqlCheck expectedResult="0">
+                    SELECT COUNT(*) FROM plan_feature pf
+                    JOIN plan p ON p.id = pf.plan_id
+                    JOIN feature f ON f.id = pf.feature_id
+                    WHERE p.code = 'PRO' AND f.code = 'MODULE_BIM'
+                </sqlCheck>
+            </and>
+        </preConditions>
+        <insert tableName="plan_feature">
+            <column name="plan_id" valueComputed="(SELECT id FROM plan WHERE code = 'PRO')"/>
+            <column name="feature_id" valueComputed="(SELECT id FROM feature WHERE code = 'MODULE_BIM')"/>
+            <column name="enabled" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="bim-002-grant-module-bim-enterprise" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <sqlCheck expectedResult="1">SELECT COUNT(*) FROM plan WHERE code = 'ENTERPRISE'</sqlCheck>
+                <sqlCheck expectedResult="0">
+                    SELECT COUNT(*) FROM plan_feature pf
+                    JOIN plan p ON p.id = pf.plan_id
+                    JOIN feature f ON f.id = pf.feature_id
+                    WHERE p.code = 'ENTERPRISE' AND f.code = 'MODULE_BIM'
+                </sqlCheck>
+            </and>
+        </preConditions>
+        <insert tableName="plan_feature">
+            <column name="plan_id" valueComputed="(SELECT id FROM plan WHERE code = 'ENTERPRISE')"/>
+            <column name="feature_id" valueComputed="(SELECT id FROM feature WHERE code = 'MODULE_BIM')"/>
+            <column name="enabled" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

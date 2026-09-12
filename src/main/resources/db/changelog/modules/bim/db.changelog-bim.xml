@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- BIM module (modules/bim). Sibling files in this directory are picked up by the       -->
+    <!-- master's includeAll on db/changelog/modules/; ids are namespaced bim-NNN-* and carry  -->
+    <!-- no context, so they run on every baseline.                                           -->
+
+</databaseChangeLog>

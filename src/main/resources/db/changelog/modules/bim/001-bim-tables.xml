@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The BIM module's tables: a model per project, a version per uploaded IFC, the element
+        table keyed by IFC GlobalId within a model, and the job row the IfcOpenShell worker
+        polls. Element rows are never deleted by an import; a missing GlobalId is flagged
+        retired so the spatial node and everything attached to it keep their anchor.
+        Design: echno-roadmap/bim/bim-ingestion-viewer-element-identity.md (#782).
+    -->
+
+    <changeSet id="bim-001-create-bim-models" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="bim_models"/></not>
+        </preConditions>
+        <createTable tableName="bim_models">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_bim_models" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(200)"><constraints nullable="false"/></column>
+            <column name="description" type="TEXT"/>
+            <column name="current_version_id" type="UUID"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_by" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="bim_models" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_bim_models_organization"/>
+        <addForeignKeyConstraint baseTableName="bim_models" baseColumnNames="project_id"
+                                 referencedTableName="project" referencedColumnNames="id"
+                                 constraintName="fk_bim_models_project"/>
+        <createIndex tableName="bim_models" indexName="idx_bim_models_project">
+            <column name="project_id"/>
+        </createIndex>
+        <createIndex tableName="bim_models" indexName="idx_bim_models_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="bim-001-create-bim-model-versions" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="bim_model_versions"/></not>
+        </preConditions>
+        <createTable tableName="bim_model_versions">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_bim_model_versions" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="model_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="version_number" type="INT"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="source_key" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="source_filename" type="VARCHAR(300)"/>
+            <column name="source_size_bytes" type="BIGINT"/>
+            <column name="ifc_schema" type="VARCHAR(20)"/>
+            <column name="element_count" type="INT"/>
+            <column name="storey_count" type="INT"/>
+            <column name="meta" type="JSONB"/>
+            <column name="hierarchy_proposal" type="JSONB"/>
+            <column name="hierarchy_confirmed_at" type="TIMESTAMP"/>
+            <column name="error" type="TEXT"/>
+            <column name="uploaded_by_id" type="BIGINT"/>
+            <column name="imported_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="bim_model_versions" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_bim_versions_organization"/>
+        <addForeignKeyConstraint baseTableName="bim_model_versions" baseColumnNames="model_id"
+                                 referencedTableName="bim_models" referencedColumnNames="id"
+                                 constraintName="fk_bim_versions_model"/>
+        <addUniqueConstraint tableName="bim_model_versions" columnNames="model_id, version_number"
+                             constraintName="uq_bim_versions_model_number"/>
+        <createIndex tableName="bim_model_versions" indexName="idx_bim_versions_model">
+            <column name="model_id"/>
+            <column name="version_number"/>
+        </createIndex>
+        <createIndex tableName="bim_model_versions" indexName="idx_bim_versions_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="bim-001-create-bim-elements" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="bim_elements"/></not>
+        </preConditions>
+        <createTable tableName="bim_elements">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_bim_elements" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="model_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="global_id" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="ifc_type" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(300)"/>
+            <column name="storey_global_id" type="VARCHAR(100)"/>
+            <column name="space_global_id" type="VARCHAR(100)"/>
+            <column name="bbox" type="JSONB"/>
+            <column name="properties" type="JSONB"/>
+            <column name="spatial_node_id" type="UUID"/>
+            <column name="first_seen_version_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="last_seen_version_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="retired" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="merged_into_id" type="UUID"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="bim_elements" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_bim_elements_organization"/>
+        <addForeignKeyConstraint baseTableName="bim_elements" baseColumnNames="model_id"
+                                 referencedTableName="bim_models" referencedColumnNames="id"
+                                 constraintName="fk_bim_elements_model"/>
+        <addForeignKeyConstraint baseTableName="bim_elements" baseColumnNames="spatial_node_id"
+                                 referencedTableName="project_spatial_node" referencedColumnNames="id"
+                                 constraintName="fk_bim_elements_spatial_node" onDelete="RESTRICT"/>
+        <addUniqueConstraint tableName="bim_elements" columnNames="model_id, global_id"
+                             constraintName="uq_bim_elements_model_global_id"/>
+        <createIndex tableName="bim_elements" indexName="idx_bim_elements_model_storey">
+            <column name="model_id"/>
+            <column name="storey_global_id"/>
+        </createIndex>
+        <createIndex tableName="bim_elements" indexName="idx_bim_elements_spatial_node">
+            <column name="spatial_node_id"/>
+        </createIndex>
+        <createIndex tableName="bim_elements" indexName="idx_bim_elements_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="bim-001-create-bim-import-jobs" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="bim_import_jobs"/></not>
+        </preConditions>
+        <createTable tableName="bim_import_jobs">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_bim_import_jobs" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="model_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="version_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="source_key" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="output_prefix" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="worker_id" type="VARCHAR(100)"/>
+            <column name="attempt" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="max_attempts" type="INT" defaultValueNumeric="3"><constraints nullable="false"/></column>
+            <column name="lease_expires_at" type="TIMESTAMP"/>
+            <column name="element_count" type="INT"/>
+            <column name="storey_count" type="INT"/>
+            <column name="worker_version" type="VARCHAR(50)"/>
+            <column name="error" type="TEXT"/>
+            <column name="queued_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="started_at" type="TIMESTAMP"/>
+            <column name="finished_at" type="TIMESTAMP"/>
+            <column name="ingested_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="bim_import_jobs" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_bim_jobs_organization"/>
+        <addForeignKeyConstraint baseTableName="bim_import_jobs" baseColumnNames="version_id"
+                                 referencedTableName="bim_model_versions" referencedColumnNames="id"
+                                 constraintName="fk_bim_jobs_version"/>
+        <createIndex tableName="bim_import_jobs" indexName="idx_bim_jobs_status_queued">
+            <column name="status"/>
+            <column name="queued_at"/>
+        </createIndex>
+        <createIndex tableName="bim_import_jobs" indexName="idx_bim_jobs_version">
+            <column name="version_id"/>
+        </createIndex>
+        <createIndex tableName="bim_import_jobs" indexName="idx_bim_jobs_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
