@@ -57,6 +57,7 @@ import org.tornotron.echno_backend.modules.inspections.service.InspectionService
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserContextService;
@@ -82,7 +83,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({InspectionService.class, InspectionMapperImpl.class,
+@Import({InspectionService.class, SpatialNodeService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         TradeService.class, TradeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
@@ -213,20 +214,20 @@ class InspectionEventInstrumentationIT extends AbstractIntegrationTest {
                 List.of(
                         new InspectionCheckItemRequest("Structural", "Column alignment",
                                 null, CheckItemStatus.PASSED, null, false, null,
-                                null, null, null, null, null, "high"),
+                                null, null, null, null, null, "high", null),
                         new InspectionCheckItemRequest("Structural", "Rebar spacing",
                                 null, CheckItemStatus.FAILED, "Spacing 180 c/c", false, null,
-                                null, null, null, null, null, "medium"),
+                                null, null, null, null, null, "medium", null),
                         new InspectionCheckItemRequest("Finishing", "Surface level",
                                 null, CheckItemStatus.FAILED, null, false, null,
-                                null, null, null, null, null, "low")),
+                                null, null, null, null, null, "low", null)),
                 List.of(
                         new InspectionDefectRequest("Finishing", "Uneven surface near grid B2",
                                 DefectSeverity.MAJOR, "Grid B2", null, "Re-level and re-finish",
-                                "Contractor", LocalDate.of(2026, 9, 20), DefectStatus.IN_PROGRESS, null),
+                                "Contractor", LocalDate.of(2026, 9, 20), DefectStatus.IN_PROGRESS, null, null),
                         new InspectionDefectRequest("Structural", "Rebar spacing out of tolerance",
                                 DefectSeverity.MAJOR, "Bay 4", null, "Re-tie to 150 c/c",
-                                "Contractor", null, null, null))));
+                                "Contractor", null, null, null, null)), null));
         entityManager.flush();
         entityManager.clear();
 
@@ -382,16 +383,16 @@ class InspectionEventInstrumentationIT extends AbstractIntegrationTest {
                 List.of(
                         new InspectionCheckItemRequest("Structural", "Column alignment",
                                 null, CheckItemStatus.PASSED, null, false, null,
-                                null, null, null, null, null, "high"),
+                                null, null, null, null, null, "high", null),
                         new InspectionCheckItemRequest("Structural", "Rebar spacing",
                                 null, CheckItemStatus.PENDING, null, false, null,
-                                null, null, null, null, null, "medium"),
+                                null, null, null, null, null, "medium", null),
                         new InspectionCheckItemRequest("Finishing", "Surface level",
                                 null, CheckItemStatus.FAILED, null, false, null,
-                                null, null, null, null, null, "low")),
+                                null, null, null, null, null, "low", null)),
                 List.of(new InspectionDefectRequest("Finishing", "Uneven surface near grid B2",
                         DefectSeverity.MINOR, "Grid B2", null, "Re-level and re-finish",
-                        "Contractor", LocalDate.of(2026, 9, 20), null, null)));
+                        "Contractor", LocalDate.of(2026, 9, 20), null, null, null)), null);
     }
 
     private UpdateInspectionRequest headerOnly(InspectionStatus status, InspectionResult result) {
@@ -399,7 +400,7 @@ class InspectionEventInstrumentationIT extends AbstractIntegrationTest {
                 "Slab check", InspectionType.QUALITY, null, null, null, status, result, projectId,
                 "Block A", null, null, LocalDate.of(2026, 9, 12), null,
                 null, null, null, 100L, null, null, null, null, null,
-                List.of(), List.of());
+                List.of(), List.of(), null);
     }
 
     private Inspection scheduledInspection() {
@@ -407,7 +408,7 @@ class InspectionEventInstrumentationIT extends AbstractIntegrationTest {
                 "Slab check", InspectionType.QUALITY, null, null, null, projectId,
                 "Block A", null, null, LocalDate.of(2026, 9, 12), null,
                 null, null, null, 100L, null, null, null, null, null,
-                null, null));
+                null, null, null));
         return inspectionRepo.findByIdScoped(dto.id()).orElseThrow();
     }
 

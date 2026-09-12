@@ -40,6 +40,8 @@ import org.tornotron.echno_backend.project.spatial.SpatialNodeArchivedException;
 import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.project.spatial.dto.CreateSpatialNodeRequest;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventService;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -64,6 +66,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Import({InspectionService.class, SpatialNodeService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
+        InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
         UserContextService.class,
         TenantEntityHelper.class, EntryNumberGenerator.class})
