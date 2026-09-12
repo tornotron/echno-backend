@@ -60,8 +60,9 @@ public class BimHierarchyService {
 
     /** Builds and stores the proposal; called inside the ingestion transaction by the listener. */
     public void propose(BimModel model, BimModelVersion version, Map<String, Object> structure) {
+        Map<String, UUID> index = spatial.bimElementGuidIndex(model.getProjectId());
         BimHierarchyProposalDto proposal = BimHierarchyProposalBuilder.build(version.getId(), structure,
-                elements.findByModelId(model.getId()), guid -> lookup(model.getProjectId(), guid));
+                elements.findByModelId(model.getId()), index::get);
         version.setHierarchyProposal(objectMapper.convertValue(proposal, MAP));
         version.setHierarchyConfirmedAt(null);
     }
@@ -81,6 +82,11 @@ public class BimHierarchyService {
         if (version.getStatus() != BimVersionStatus.READY) {
             throw new InvalidRequestException("A proposal can only be built for a READY version; this one is "
                     + version.getStatus());
+        }
+        if (!versionId.equals(model.getCurrentVersionId())) {
+            // The element table holds the latest import; an older version's membership is not kept.
+            throw new InvalidRequestException("Only the current version's proposal can be rebuilt; version "
+                    + version.getVersionNumber() + " has been superseded");
         }
         Map<String, Object> structure;
         try (InputStream in = artifacts.open(BimStorageLayout.structureKey(modelId, versionId))) {
@@ -112,7 +118,9 @@ public class BimHierarchyService {
                 for (ProposedZone zone : floor.zones()) {
                     UUID zoneId;
                     if (zone.defaultZone()) {
-                        if (!withElements || zone.elements().isEmpty()) {
+                        // A floor whose only zone is the default one still needs it for the chain to
+                        // reach ZONE; a floor with real spaces gets its default zone only for elements.
+                        if (zone.elements().isEmpty() && floor.zones().size() > 1) {
                             continue;
                         }
                         SpatialNode defaultZone = spatial.ensureDefaultZone(projectId, floorId);
@@ -162,10 +170,14 @@ public class BimHierarchyService {
     private UUID nodeFor(Long projectId, UUID parentId, SpatialLevel level, String guid, String code, String name,
                          Integer levelIndex, String elementType, int[] counts) {
         if (guid != null) {
-            UUID existing = lookup(projectId, guid);
+            SpatialNodeDto existing = spatial.findByBimElementGuid(projectId, guid).orElse(null);
             if (existing != null) {
+                if (existing.archivedAt() != null) {
+                    // The guid is the identity; an archived node with it is brought back, not duplicated.
+                    spatial.restore(projectId, existing.id());
+                }
                 counts[1]++;
-                return existing;
+                return existing.id();
             }
         }
         SpatialNodeDto created = create(projectId, parentId, level, guid, code, name, levelIndex, elementType);
@@ -195,21 +207,19 @@ public class BimHierarchyService {
     }
 
     private List<ProposedBuilding> rematch(Long projectId, List<ProposedBuilding> buildings) {
+        Map<String, UUID> index = spatial.bimElementGuidIndex(projectId);
         return buildings.stream().map(b -> new ProposedBuilding(b.globalId(), b.name(), b.code(),
-                lookup(projectId, b.globalId()),
+                lookup(index, b.globalId()),
                 b.floors().stream().map(f -> new ProposedFloor(f.globalId(), f.name(), f.code(), f.levelIndex(),
-                        f.elevation(), lookup(projectId, f.globalId()),
+                        f.elevation(), lookup(index, f.globalId()),
                         f.zones().stream().map(z -> new ProposedZone(z.globalId(), z.name(), z.code(), z.defaultZone(),
-                                lookup(projectId, z.globalId()),
+                                lookup(index, z.globalId()),
                                 z.elements().stream().map(e -> new ProposedElement(e.globalId(), e.ifcType(), e.name(),
-                                        e.code(), e.elementType(), lookup(projectId, e.globalId()))).toList())).toList())).toList())).toList();
+                                        e.code(), e.elementType(), lookup(index, e.globalId()))).toList())).toList())).toList())).toList();
     }
 
-    private UUID lookup(Long projectId, String guid) {
-        if (guid == null) {
-            return null;
-        }
-        return spatial.findByBimElementGuid(projectId, guid).map(SpatialNodeDto::id).orElse(null);
+    private static UUID lookup(Map<String, UUID> index, String guid) {
+        return guid == null ? null : index.get(guid);
     }
 
     private BimHierarchyProposalDto requireProposal(BimModelVersion version) {

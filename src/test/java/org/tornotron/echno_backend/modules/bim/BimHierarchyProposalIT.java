@@ -226,6 +226,27 @@ class BimHierarchyProposalIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void anArchivedNodeWithTheGuidIsRestoredAndMatchedNotDuplicated() {
+        UUID archived = spatial.create(projectId, new CreateSpatialNodeRequest(null, SpatialLevel.BUILDING,
+                "OLD", "Old block", null, null, null, "BLDG", null)).id();
+        spatial.archive(projectId, archived);
+        UUID v1 = version(1);
+        artifacts(v1, List.of(line("WALL-1", "IfcWallStandardCase", "Wall 1", "STOREY-1", "SPACE-1")), 1);
+        pipeline.ingest(doneJob(v1));
+
+        BimHierarchyProposalDto confirmed = hierarchy.confirm(modelId, v1, new ConfirmBimHierarchyRequest(false, null));
+
+        assertThat(confirmed.buildings().get(0).matchedNodeId()).isEqualTo(archived);
+        List<SpatialTreeNodeDto> tree = spatial.getTree(projectId, false);
+        assertThat(tree).singleElement().satisfies(b -> {
+            assertThat(b.id()).isEqualTo(archived);
+            assertThat(b.children()).extracting(SpatialTreeNodeDto::code).containsExactly("Level-01", "Level-02");
+            assertThat(b.children().get(1).children()).as("a floor with no spaces still gets its default zone")
+                    .singleElement().satisfies(z -> assertThat(z.level()).isEqualTo(SpatialLevel.ZONE));
+        });
+    }
+
+    @Test
     void confirmingWithoutElementsStopsAtZonesAndASubsetLinksOnlyThose() {
         UUID v1 = version(1);
         artifacts(v1, List.of(
