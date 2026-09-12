@@ -424,4 +424,11 @@
     <!-- v4.0 - Billing: the inspections module feature, granted on every seeded plan (#748) -->
     <include file="db/changelog/v4.0/096-seed-module-inspections-feature.xml"/>
 
+    <!-- ============================================================== -->
+    <!-- Modules: one directory per module under db/changelog/modules/  -->
+    <!-- (#749). Files run in path order; a module's pre-move changesets -->
+    <!-- stay in v4.0/ above so their DATABASECHANGELOG keys are kept.   -->
+    <!-- ============================================================== -->
+    <includeAll path="db/changelog/modules/" errorIfMissingOrEmpty="false"/>
+
 </databaseChangeLog>
