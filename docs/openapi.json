@@ -7530,6 +7530,75 @@
         },
         "type": "object"
       },
+      "InspectionEventDto": {
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "actorType": {
+            "enum": [
+              "USER",
+              "DEVICE",
+              "AI",
+              "SYSTEM"
+            ],
+            "type": "string"
+          },
+          "after": {
+            "additionalProperties": {
+              "type": "object"
+            },
+            "type": "object"
+          },
+          "before": {
+            "additionalProperties": {
+              "type": "object"
+            },
+            "type": "object"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "inspectionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "subjectId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "subjectType": {
+            "enum": [
+              "INSPECTION",
+              "CHECK_ITEM",
+              "DEFECT",
+              "NCR",
+              "OBSERVATION",
+              "REINSPECTION"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "InventoryMaterialStockDto": {
         "description": "Current stock held at a single storage location, broken down by material with the location totals.",
         "properties": {
@@ -12889,6 +12958,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/InspectionDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageInspectionEventDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/InspectionEventDto"
             },
             "type": "array"
           },
@@ -53065,6 +53180,177 @@
         ]
       }
     },
+    "/api/v1/inspections/web/events": {
+      "get": {
+        "description": "The project-wide log. Every parameter is an optional filter and they narrow together; from and to bound occurredAt inclusively.",
+        "operationId": "search_1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subjectType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "INSPECTION",
+                "CHECK_ITEM",
+                "DEFECT",
+                "NCR",
+                "OBSERVATION",
+                "REINSPECTION"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "eventType",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actorId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageable",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageInspectionEventDto"
+                }
+              }
+            },
+            "description": "Page of matching events"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Search the inspection event log",
+        "tags": [
+          "Inspection history"
+        ]
+      }
+    },
     "/api/v1/inspections/web/{id}": {
       "get": {
         "description": "Returns a single inspection including its checklist items and any recorded defects.",
@@ -53541,6 +53827,127 @@
         "summary": "Replace the marks drawn over an inspection's defect photos",
         "tags": [
           "Inspections"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/{id}/events": {
+      "get": {
+        "description": "Every event on the inspection and on its check points, defects, non-conformance reports and reinspections, oldest first.",
+        "operationId": "inspectionTimeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageable",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageInspectionEventDto"
+                }
+              }
+            },
+            "description": "Page of events"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No inspection with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Read an inspection's timeline",
+        "tags": [
+          "Inspection history"
         ]
       }
     },
@@ -79595,6 +80002,127 @@
         "summary": "Report the corrective action complete",
         "tags": [
           "Non-conformance reports"
+        ]
+      }
+    },
+    "/api/v1/ncrs/web/{id}/events": {
+      "get": {
+        "description": "Every event on the NCR and on the reinspections raised against it, oldest first.",
+        "operationId": "ncrTimeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageable",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageInspectionEventDto"
+                }
+              }
+            },
+            "description": "Page of events"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No NCR with the given id in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Read a non-conformance report's timeline",
+        "tags": [
+          "Inspection history"
         ]
       }
     },
@@ -111196,6 +111724,10 @@
     {
       "description": "Web-console mirror of the indent endpoints, with an additional partial-update operation not exposed on the mobile API. Access is gated by the web app's org-role check instead of point authorities.",
       "name": "Indents (Web)"
+    },
+    {
+      "description": "The append-only audit log of the inspection module: who did what, to which inspection, check point, defect, non-conformance report or reinspection, when, and the before and after of each change. Every timeline is oldest first and tenant scoped. Events are written by the server as the change happens and cannot be edited or removed.",
+      "name": "Inspection history"
     },
     {
       "description": "Site inspections carried out against a project, covering routine, safety and compliance types. An inspection tracks its checklist items, defects, result and status. All endpoints are tenant scoped. Reading is open to the project manager, QA engineer, safety officer and site engineer; scheduling and recording an inspection is not open to the site engineer, who acts on the non-conformances an inspection raises rather than carrying it out.",
