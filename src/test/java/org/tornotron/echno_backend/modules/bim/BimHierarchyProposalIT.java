@@ -99,6 +99,7 @@ class BimHierarchyProposalIT extends AbstractIntegrationTest {
     @Autowired private BimImportPipeline pipeline;
     @Autowired private BimModelService modelService;
     @Autowired private BimElementService elementService;
+    @Autowired private BimHierarchyService hierarchy;
     @Autowired private SpatialNodeService spatial;
     @Autowired private BimModelVersionRepository versions;
     @Autowired private BimImportJobRepository jobs;
