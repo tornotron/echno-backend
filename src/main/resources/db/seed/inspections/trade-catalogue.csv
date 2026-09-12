@@ -1,0 +1,22 @@
+code,name,group_code,description,sort_order,active
+pre-construction-documentation,Pre-construction documentation,structural,Drawings and approvals and method statements in place before work starts,10,true
+shuttering-formwork,Shuttering and formwork,structural,Pre-pour check on formwork alignment and tightness and props,20,true
+reinforcement,Reinforcement,structural,Bar size and spacing and cover and laps before concreting,30,true
+rcc,RCC,structural,Concrete placement and compaction and curing,40,true
+fabrication,Fabrication,structural,Structural steel fabrication and welding and bolting,50,true
+dimensional-check,Dimensional check,structural,Set-out and level and plumb checks against the drawing,60,true
+masonry,Masonry,masonry,Block and brick work bonding and mortar and plumb,110,true
+plastering,Plastering,masonry,Plaster thickness and finish and curing,120,true
+waterproofing,Waterproofing,masonry,Membrane and coating application and ponding tests,130,true
+flooring,Flooring,finishes,Floor screed and finish level and slope,210,true
+tiling,Tiling,finishes,Tile laying and level and joint and hollowness checks,220,true
+painting,Painting,finishes,Surface preparation and primer and coats and finish,230,true
+ceilings,Ceilings,finishes,False ceiling framing and panels and level,240,true
+finishing,Finishing,finishes,Final finishes and snagging before handover,250,true
+aluminium-upvc,Aluminium and uPVC,openings,Window and door frame installation and glazing and sealing,310,true
+doors-windows,Doors and windows,openings,Door and window installation and hardware and operation,320,true
+electrical-fixtures,Electrical fixtures,mep,Electrical fixture installation and termination and testing,410,true
+plumbing-fixtures,Plumbing fixtures,mep,Plumbing fixture installation and pressure testing,420,true
+sanitary-fixtures,Sanitary fixtures,mep,Sanitary fixture fixing and connection and flow test,430,true
+fire-systems,Fire systems,fire,Fire detection and suppression installation and testing,510,true
+progress-check,Progress check,general,Periodic progress and general condition check,610,true

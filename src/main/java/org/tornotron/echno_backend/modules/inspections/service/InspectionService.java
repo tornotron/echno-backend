@@ -15,7 +15,7 @@ import org.tornotron.echno_backend.modules.inspections.DefectStatus;
 import org.tornotron.echno_backend.modules.inspections.InspectionCategory;
 import org.tornotron.echno_backend.modules.inspections.InspectionResult;
 import org.tornotron.echno_backend.modules.inspections.InspectionStatus;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
+import org.tornotron.echno_backend.modules.inspections.domain.OrgTrade;
 import org.tornotron.echno_backend.modules.inspections.InspectionType;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionCheckItem;
@@ -70,6 +70,7 @@ public class InspectionService {
     private final InspectionMapper mapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final ChecklistTemplateService checklistTemplateService;
+    private final TradeService tradeService;
     private final DefectAnnotationService defectAnnotationService;
     private final InspectionEventRecorder events;
 
@@ -85,12 +86,13 @@ public class InspectionService {
                                        InspectionStatus status,
                                        InspectionType type,
                                        InspectionCategory category,
-                                       InspectionTrade trade,
+                                       String trade,
+                                       UUID tradeId,
                                        InspectionResult result,
                                        Pageable pageable) {
         return inspectionRepo.findAll(
                         InspectionSpecifications.withFilters(projectId, status, type, category,
-                                trade, result),
+                                trade, tradeId, result),
                         pageable)
                 .map(mapper::toDto);
     }
@@ -102,7 +104,7 @@ public class InspectionService {
         inspection.setTitle(req.title());
         inspection.setType(req.type());
         inspection.setCategory(categoryFor(req.category(), req.type()));
-        inspection.setTrade(req.trade());
+        setTrade(inspection, tradeService.resolve(req.trade(), req.tradeId()));
         inspection.setStatus(InspectionStatus.SCHEDULED);
         inspection.setProjectId(req.projectId());
         inspection.setLocation(req.location());
@@ -157,7 +159,7 @@ public class InspectionService {
         inspection.setTitle(req.title());
         inspection.setType(req.type());
         inspection.setCategory(categoryFor(req.category(), req.type()));
-        inspection.setTrade(req.trade());
+        setTrade(inspection, tradeService.resolve(req.trade(), req.tradeId()));
         transitionTo(inspection, req.status());
         inspection.setResult(req.result());
         inspection.setLocation(req.location());
@@ -212,7 +214,7 @@ public class InspectionService {
                         .field("title", null, saved.getTitle())
                         .field("type", null, saved.getType())
                         .field("category", null, saved.getCategory())
-                        .field("trade", null, saved.getTrade())
+                        .field("trade", null, tradeCode(saved))
                         .field("status", null, saved.getStatus())
                         .field("projectId", null, saved.getProjectId())
                         .field("inspectorId", null, saved.getInspectorId())
@@ -261,7 +263,7 @@ public class InspectionService {
                 .field("title", before.title(), saved.getTitle())
                 .field("type", before.type(), saved.getType())
                 .field("category", before.category(), saved.getCategory())
-                .field("trade", before.trade(), saved.getTrade())
+                .field("trade", before.trade(), tradeCode(saved))
                 .field("location", before.location(), saved.getLocation())
                 .field("areaInspected", before.areaInspected(), saved.getAreaInspected())
                 .field("drawingReference", before.drawingReference(), saved.getDrawingReference())
@@ -353,14 +355,14 @@ public class InspectionService {
 
     /** The inspection as loaded, held apart from the entity the update then rewrites in place. */
     private record InspectionSnapshot(String title, InspectionType type, InspectionCategory category,
-                                      InspectionTrade trade, InspectionStatus status, InspectionResult result,
+                                      String trade, InspectionStatus status, InspectionResult result,
                                       String location, String areaInspected, String drawingReference,
                                       LocalDate scheduledDate, String scheduledTime,
                                       LocalDateTime actualStartTime, LocalDateTime actualEndTime,
                                       Long inspectorId, Long contractorId,
                                       List<CheckItemSnapshot> checkItems, List<DefectSnapshot> defects) {
         static InspectionSnapshot of(Inspection i) {
-            return new InspectionSnapshot(i.getTitle(), i.getType(), i.getCategory(), i.getTrade(),
+            return new InspectionSnapshot(i.getTitle(), i.getType(), i.getCategory(), tradeCode(i),
                     i.getStatus(), i.getResult(), i.getLocation(), i.getAreaInspected(),
                     i.getDrawingReference(), i.getScheduledDate(), i.getScheduledTime(),
                     i.getActualStartTime(), i.getActualEndTime(), i.getInspectorId(), i.getContractorId(),
@@ -516,19 +518,35 @@ public class InspectionService {
      * after it has run. Instantiated items are all {@code PENDING}, so only the total
      * moves; passed and failed stay at zero until the inspection is carried out.
      */
+    /** The trade slug as the wire and the event log carry it: the org row's code, else the enum's value. */
+    @SuppressWarnings("deprecation")
+    private static String tradeCode(Inspection inspection) {
+        if (inspection.getTradeRef() != null) {
+            return inspection.getTradeRef().getCode();
+        }
+        return inspection.getTrade() == null ? null : inspection.getTrade().getValue();
+    }
+
+    /** Sets the org trade row and keeps the legacy enum column in step for the shim. */
+    @SuppressWarnings("deprecation")
+    private static void setTrade(Inspection inspection, OrgTrade trade) {
+        inspection.setTradeRef(trade);
+        inspection.setTrade(trade == null ? null : trade.legacyTrade());
+    }
+
     private void instantiateTemplateIfEmpty(Inspection inspection) {
         if (!inspection.getCheckItems().isEmpty()) {
             return;
         }
         List<InspectionCheckItem> instantiated =
-                checklistTemplateService.instantiateFor(inspection.getTrade());
+                checklistTemplateService.instantiateFor(inspection.getTradeRef());
         if (instantiated.isEmpty()) {
             return;
         }
         instantiated.forEach(inspection::addCheckItem);
         inspection.setTotalCheckPoints(instantiated.size());
         log.info("Instantiated {} check points from the {} checklist template",
-                instantiated.size(), inspection.getTrade().getValue());
+                instantiated.size(), inspection.getTradeRef().getCode());
     }
 
     /**

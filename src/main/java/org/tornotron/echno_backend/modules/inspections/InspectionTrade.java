@@ -3,6 +3,8 @@ package org.tornotron.echno_backend.modules.inspections;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import java.util.Optional;
+
 /**
  * The construction stage or trade a QA/QC inspection is carried out against, one
  * value per FR-QA requirement of the inspection functional spec. Nullable on an
@@ -11,7 +13,13 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * leave it unset. The wire value is the hyphenated lowercase form from
  * {@link #getValue()}; the constant name is the database representation stored by
  * {@code @Enumerated(STRING)}.
+ *
+ * @deprecated The trade is data now: {@code TradeCatalogueEntry} seeds it and each
+ * organization owns an {@code OrgTrade} copy it can extend. This enum survives one release
+ * as the compatibility shim that keeps the legacy {@code trade} column in step and is used
+ * only by the resolver; the wire value of the sixteen codes is unchanged.
  */
+@Deprecated
 public enum InspectionTrade {
     PRE_CONSTRUCTION_DOCUMENTATION("pre-construction-documentation"),
     SHUTTERING_FORMWORK("shuttering-formwork"),
@@ -39,6 +47,19 @@ public enum InspectionTrade {
     @JsonValue
     public String getValue() {
         return value;
+    }
+
+    /** The constant for a slug, empty for a slug the enum never had. */
+    public static Optional<InspectionTrade> find(String value) {
+        if (value == null) {
+            return Optional.empty();
+        }
+        for (InspectionTrade trade : values()) {
+            if (trade.value.equalsIgnoreCase(value)) {
+                return Optional.of(trade);
+            }
+        }
+        return Optional.empty();
     }
 
     @JsonCreator

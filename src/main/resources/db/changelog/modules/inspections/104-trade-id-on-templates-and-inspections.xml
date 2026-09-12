@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- The inspection ontology as data, part 2 (#764): trade_id on checklist templates and  -->
+    <!-- inspections, backfilled from the enum column, and starter templates keyed by          -->
+    <!-- catalogue code. Design record section 6 steps 4 to 6. The enum column stays for one   -->
+    <!-- release as the compatibility shim; the drop changeset is filed separately.            -->
+
+    <changeSet id="104-01-add-trade-id-columns" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="checklist_templates" columnName="trade_id"/></not>
+        </preConditions>
+        <comment>
+            Nullable while the shim lives: the backfill below fills every existing row, and the
+            service writes both columns from here on. checklist_templates.trade loses NOT NULL
+            because a template for an org-defined trade has no enum constant to store.
+        </comment>
+        <addColumn tableName="checklist_templates">
+            <column name="trade_id" type="UUID"/>
+        </addColumn>
+        <addColumn tableName="inspections">
+            <column name="trade_id" type="UUID"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="checklist_templates"
+                                 baseColumnNames="trade_id"
+                                 constraintName="fk_checklist_template_trade"
+                                 referencedTableName="inspection_trades"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="inspections"
+                                 baseColumnNames="trade_id"
+                                 constraintName="fk_inspection_trade"
+                                 referencedTableName="inspection_trades"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+        <createIndex tableName="checklist_templates" indexName="idx_checklist_template_trade_id">
+            <column name="trade_id"/>
+        </createIndex>
+        <createIndex tableName="inspections" indexName="idx_insp_trade_id">
+            <column name="trade_id"/>
+        </createIndex>
+        <dropNotNullConstraint tableName="checklist_templates" columnName="trade" columnDataType="VARCHAR(50)"/>
+    </changeSet>
+
+    <changeSet id="104-02-backfill-trade-id" author="echno">
+        <comment>
+            Join the enum constant each row stores to the org's trade row through legacy_enum,
+            within the same organization. Every existing value is one of the sixteen, so every
+            row with a trade resolves. Idempotent: only rows still without a trade_id are touched.
+        </comment>
+        <sql>
+            UPDATE checklist_templates ct
+            SET trade_id = t.id
+            FROM inspection_trades t
+            WHERE ct.trade_id IS NULL
+              AND ct.trade IS NOT NULL
+              AND t.organization_id = ct.organization_id
+              AND t.legacy_enum = ct.trade
+        </sql>
+        <sql>
+            UPDATE inspections i
+            SET trade_id = t.id
+            FROM inspection_trades t
+            WHERE i.trade_id IS NULL
+              AND i.trade IS NOT NULL
+              AND t.organization_id = i.organization_id
+              AND t.legacy_enum = i.trade
+        </sql>
+    </changeSet>
+
+    <changeSet id="104-03-swap-checklist-template-unique" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><uniqueConstraintExists tableName="checklist_templates" constraintName="uk_checklist_template_trade_id"/></not>
+        </preConditions>
+        <comment>
+            One template per trade per org is now keyed on the trade row. The old key on the
+            enum column goes, since an org-defined trade stores null there.
+        </comment>
+        <dropUniqueConstraint tableName="checklist_templates" constraintName="uk_checklist_template_trade"/>
+        <addUniqueConstraint tableName="checklist_templates"
+                             columnNames="organization_id, trade_id"
+                             constraintName="uk_checklist_template_trade_id"/>
+    </changeSet>
+
+    <changeSet id="104-04-starter-trade-to-slug" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="starter_checklist_templates" columnName="trade"/>
+        </preConditions>
+        <comment>
+            The starter rows were seeded with the enum constant name (SHUTTERING_FORMWORK), which
+            is what @Enumerated(STRING) stored, not the slug the design note assumed. Lower the
+            case and swap the underscore so the value is the catalogue code before the foreign
+            key is added.
+        </comment>
+        <sql>
+            UPDATE starter_checklist_templates
+            SET trade = lower(replace(trade, '_', '-'))
+            WHERE trade &lt;&gt; lower(replace(trade, '_', '-'))
+        </sql>
+    </changeSet>
+
+    <changeSet id="104-05-rename-starter-trade-to-trade-code" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="starter_checklist_templates" columnName="trade"/>
+        </preConditions>
+        <comment>
+            starter_checklist_templates.trade becomes trade_code, a catalogue code. The unique
+            index uk_starter_checklist_template_trade follows the renamed column.
+        </comment>
+        <renameColumn tableName="starter_checklist_templates" oldColumnName="trade" newColumnName="trade_code" columnDataType="VARCHAR(50)"/>
+        <addForeignKeyConstraint baseTableName="starter_checklist_templates"
+                                 baseColumnNames="trade_code"
+                                 constraintName="fk_starter_checklist_template_trade"
+                                 referencedTableName="trade_catalogue"
+                                 referencedColumnNames="code"
+                                 onDelete="RESTRICT"/>
+    </changeSet>
+
+</databaseChangeLog>

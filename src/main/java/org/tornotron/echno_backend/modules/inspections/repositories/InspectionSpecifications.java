@@ -5,7 +5,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.tornotron.echno_backend.modules.inspections.InspectionCategory;
 import org.tornotron.echno_backend.modules.inspections.InspectionResult;
 import org.tornotron.echno_backend.modules.inspections.InspectionStatus;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
+import java.util.UUID;
 import org.tornotron.echno_backend.modules.inspections.InspectionType;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 
@@ -26,7 +26,8 @@ public final class InspectionSpecifications {
                                                         InspectionStatus status,
                                                         InspectionType type,
                                                         InspectionCategory category,
-                                                        InspectionTrade trade,
+                                                        String trade,
+                                                        UUID tradeId,
                                                         InspectionResult result) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -43,7 +44,10 @@ public final class InspectionSpecifications {
                 predicates.add(cb.equal(root.get("category"), category));
             }
             if (trade != null) {
-                predicates.add(cb.equal(root.get("trade"), trade));
+                predicates.add(cb.equal(root.get("tradeRef").get("code"), trade.trim().toLowerCase()));
+            }
+            if (tradeId != null) {
+                predicates.add(cb.equal(root.get("tradeRef").get("id"), tradeId));
             }
             if (result != null) {
                 predicates.add(cb.equal(root.get("result"), result));

@@ -24,7 +24,9 @@ import java.util.UUID;
  * is invisible to every other.
  *
  * <p>One template per trade per org, enforced by the unique constraint on
- * ({@code organization_id}, {@code trade}). {@code version} is therefore a
+ * ({@code organization_id}, {@code trade_id}). {@code tradeRef} is the org's own
+ * {@link OrgTrade} row; the {@code trade} enum column is the compatibility shim, kept in
+ * step for the sixteen trades the enum knew and null for an org-defined trade. {@code version} is therefore a
  * revision counter on that one row rather than a key: it starts at 1 and the
  * service bumps it on every edit, so an inspection's copied items can be traced
  * back to the revision they came from. {@code active} decides whether the
@@ -37,10 +39,11 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "checklist_templates",
-        uniqueConstraints = @UniqueConstraint(name = "uk_checklist_template_trade",
-                columnNames = {"organization_id", "trade"}),
+        uniqueConstraints = @UniqueConstraint(name = "uk_checklist_template_trade_id",
+                columnNames = {"organization_id", "trade_id"}),
         indexes = {
                 @Index(name = "idx_checklist_template_trade", columnList = "trade"),
+                @Index(name = "idx_checklist_template_trade_id", columnList = "trade_id"),
                 @Index(name = "idx_checklist_template_active", columnList = "active")
         })
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
@@ -52,9 +55,15 @@ public class ChecklistTemplate implements TenantScopedEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    /** Compatibility shim; null for an org-defined trade. Goes with {@link InspectionTrade}. */
+    @Deprecated
     @Enumerated(EnumType.STRING)
-    @Column(name = "trade", nullable = false, length = 50)
+    @Column(name = "trade", length = 50)
     private InspectionTrade trade;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "trade_id")
+    private OrgTrade tradeRef;
 
     @Column(nullable = false, length = 200)
     private String name;

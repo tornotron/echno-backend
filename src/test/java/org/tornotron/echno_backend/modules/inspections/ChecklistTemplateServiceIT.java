@@ -28,10 +28,12 @@ import org.tornotron.echno_backend.modules.inspections.dtos.ChecklistTemplateIte
 import org.tornotron.echno_backend.modules.inspections.dtos.ChecklistTemplateRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.StarterChecklistTemplateDto;
 import org.tornotron.echno_backend.modules.inspections.mapper.ChecklistTemplateMapperImpl;
+import org.tornotron.echno_backend.modules.inspections.mapper.TradeMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.InspectionMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.DefectPhotoAnnotationMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.NcrMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.service.ChecklistTemplateService;
+import org.tornotron.echno_backend.modules.inspections.service.TradeService;
 import org.tornotron.echno_backend.modules.inspections.service.DefectAnnotationService;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
@@ -62,6 +64,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({InspectionService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
+        TradeService.class, TradeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
@@ -71,6 +74,9 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
 
     @Autowired
     private ChecklistTemplateService service;
+
+    @Autowired
+    private TradeService tradeService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -128,6 +134,7 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
             deleteForOrgs("DELETE FROM checklist_template_items WHERE template_id IN "
                     + "(SELECT id FROM checklist_templates WHERE organization_id IN (:a,:b))");
             deleteForOrgs("DELETE FROM checklist_templates WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM inspection_trades WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM organization WHERE id IN (:a,:b)");
         });
     }
@@ -142,7 +149,9 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
                         "IS 456:2000 cl. 26.3", "150 mm", "Measured at three locations", "+/- 10 mm",
                         true, null)));
 
-        assertThat(created.trade()).isEqualTo(InspectionTrade.REINFORCEMENT);
+        assertThat(created.trade()).isEqualTo("reinforcement");
+        assertThat(created.tradeId()).isNotNull();
+        assertThat(created.tradeGroup()).isEqualTo("structural");
         assertThat(created.version()).isEqualTo(1);
         // active is omitted on the request and defaults to true, so the template is
         // instantiated into new inspections straight away
@@ -170,7 +179,7 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
         UUID id = service.create(request(anItem())).id();
 
         ChecklistTemplateDto updated = service.update(id, new ChecklistTemplateRequest(
-                InspectionTrade.REINFORCEMENT,
+                "reinforcement", null,
                 "Reinforcement checklist, revision 2",
                 "Tightened after the audit",
                 false,
@@ -190,7 +199,7 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
         UUID id = service.create(request(anItem())).id();
 
         assertThatThrownBy(() -> service.update(id, new ChecklistTemplateRequest(
-                InspectionTrade.MASONRY, "Moved", null, null, List.of(anItem()))))
+                "masonry", null, "Moved", null, null, List.of(anItem()))))
                 .isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("cannot be moved");
     }
@@ -199,22 +208,24 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
     void findStarters_returnsTheShippedSeedForEveryTrade() {
         List<StarterChecklistTemplateDto> starters = service.findStarters();
 
-        assertThat(starters).hasSize(InspectionTrade.values().length);
+        assertThat(starters).hasSizeGreaterThanOrEqualTo(InspectionTrade.values().length);
         assertThat(starters).extracting(StarterChecklistTemplateDto::trade)
-                .containsExactlyInAnyOrder(InspectionTrade.values());
+                .contains(java.util.Arrays.stream(InspectionTrade.values())
+                        .map(InspectionTrade::getValue).toArray(String[]::new));
         assertThat(starters).allSatisfy(starter -> assertThat(starter.items()).isNotEmpty());
     }
 
     @Test
     void adoptStarter_copiesTheShippedChecklistIntoTheTenant() {
-        ChecklistTemplateDto adopted = service.adoptStarter(InspectionTrade.WATERPROOFING);
+        ChecklistTemplateDto adopted = service.adoptStarter("waterproofing");
 
         StarterChecklistTemplateDto starter = service.findStarters().stream()
-                .filter(candidate -> candidate.trade() == InspectionTrade.WATERPROOFING)
+                .filter(candidate -> candidate.trade().equals("waterproofing"))
                 .findFirst()
                 .orElseThrow();
 
-        assertThat(adopted.trade()).isEqualTo(InspectionTrade.WATERPROOFING);
+        assertThat(adopted.trade()).isEqualTo("waterproofing");
+        assertThat(adopted.tradeId()).isNotNull();
         assertThat(adopted.version()).isEqualTo(1);
         assertThat(adopted.active()).isTrue();
         assertThat(adopted.items()).hasSameSizeAs(starter.items());
@@ -229,7 +240,7 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
     void adoptStarter_refusesWhenTheTenantAlreadyHasATemplateForTheTrade() {
         service.create(request(anItem()));
 
-        assertThatThrownBy(() -> service.adoptStarter(InspectionTrade.REINFORCEMENT))
+        assertThatThrownBy(() -> service.adoptStarter("reinforcement"))
                 .isInstanceOf(DuplicateResourceException.class);
     }
 
@@ -240,19 +251,21 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
         entityManager.clear();
 
         Pageable pageable = PageRequest.of(0, 10);
+        // resolved while the caller's own tenant is in view, as the inspection service does
+        org.tornotron.echno_backend.modules.inspections.domain.OrgTrade reinforcement = trade("reinforcement");
 
         enableOrgFilter(orgBId);
         assertThatThrownBy(() -> service.findById(id)).isInstanceOf(ResourceNotFoundException.class);
-        assertThat(service.findAll(null, null, pageable).getTotalElements()).isZero();
+        assertThat(service.findAll(null, null, null, pageable).getTotalElements()).isZero();
         // and an inspection in the other tenant gets no check points from it
-        assertThat(service.instantiateFor(InspectionTrade.REINFORCEMENT)).isEmpty();
+        assertThat(service.instantiateFor(reinforcement)).isEmpty();
         disableOrgFilter();
 
         enableOrgFilter(orgAId);
         assertThat(service.findById(id).id()).isEqualTo(id);
-        assertThat(service.findAll(InspectionTrade.REINFORCEMENT, true, pageable).getTotalElements())
+        assertThat(service.findAll("reinforcement", null, true, pageable).getTotalElements())
                 .isEqualTo(1);
-        assertThat(service.findAll(InspectionTrade.MASONRY, null, pageable).getTotalElements())
+        assertThat(service.findAll("masonry", null, null, pageable).getTotalElements())
                 .isZero();
         disableOrgFilter();
     }
@@ -260,19 +273,19 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
     @Test
     void instantiateFor_skipsARetiredTemplateAndAnUnknownTrade() {
         UUID id = service.create(request(anItem())).id();
-        assertThat(service.instantiateFor(InspectionTrade.REINFORCEMENT)).hasSize(1);
+        assertThat(service.instantiateFor(trade("reinforcement"))).hasSize(1);
 
         // no template at all for this trade
-        assertThat(service.instantiateFor(InspectionTrade.FLOORING)).isEmpty();
+        assertThat(service.instantiateFor(trade("flooring"))).isEmpty();
         // and no trade at all, which is every safety and compliance inspection
         assertThat(service.instantiateFor(null)).isEmpty();
 
-        service.update(id, new ChecklistTemplateRequest(InspectionTrade.REINFORCEMENT,
+        service.update(id, new ChecklistTemplateRequest("reinforcement", null,
                 "Retired", null, false, List.of(anItem())));
         entityManager.flush();
         entityManager.clear();
 
-        assertThat(service.instantiateFor(InspectionTrade.REINFORCEMENT)).isEmpty();
+        assertThat(service.instantiateFor(trade("reinforcement"))).isEmpty();
     }
 
     @Test
@@ -281,7 +294,7 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
                 "Clear cover to the outermost bar", "IS 456:2000 cl. 26.4", "40 mm",
                 "Measured at five points", "+/- 5 mm", true, "high")));
 
-        List<InspectionCheckItem> items = service.instantiateFor(InspectionTrade.REINFORCEMENT);
+        List<InspectionCheckItem> items = service.instantiateFor(trade("reinforcement"));
 
         assertThat(items).hasSize(1);
         InspectionCheckItem item = items.getFirst();
@@ -298,8 +311,12 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
     }
 
     private static ChecklistTemplateRequest request(ChecklistTemplateItemRequest... items) {
-        return new ChecklistTemplateRequest(InspectionTrade.REINFORCEMENT,
+        return new ChecklistTemplateRequest("reinforcement", null,
                 "Reinforcement checklist", "Pre-pour check", null, List.of(items));
+    }
+
+    private org.tornotron.echno_backend.modules.inspections.domain.OrgTrade trade(String code) {
+        return tradeService.resolve(code, null);
     }
 
     private static ChecklistTemplateItemRequest anItem() {

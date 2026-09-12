@@ -34,7 +34,6 @@ import org.tornotron.echno_backend.modules.inspections.dtos.InspectionCheckItemR
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateNcrRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.AssignNcrRequest;
 import org.tornotron.echno_backend.modules.inspections.NcrStatus;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
 import org.tornotron.echno_backend.modules.inspections.InspectionStatus;
 import org.tornotron.echno_backend.modules.inspections.InspectionResult;
 import org.tornotron.echno_backend.modules.inspections.InspectionCategory;
@@ -46,11 +45,13 @@ import org.tornotron.echno_backend.modules.inspections.dtos.CreateInspectionRequ
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionEventDto;
 import org.tornotron.echno_backend.modules.inspections.mapper.ChecklistTemplateMapperImpl;
+import org.tornotron.echno_backend.modules.inspections.mapper.TradeMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.DefectPhotoAnnotationMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.InspectionMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.NcrMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
 import org.tornotron.echno_backend.modules.inspections.service.ChecklistTemplateService;
+import org.tornotron.echno_backend.modules.inspections.service.TradeService;
 import org.tornotron.echno_backend.modules.inspections.service.DefectAnnotationService;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
@@ -83,6 +84,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({InspectionService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
+        TradeService.class, TradeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
@@ -164,6 +166,7 @@ class InspectionEventInstrumentationIT extends AbstractIntegrationTest {
             entityManager.createNativeQuery(
                             "DELETE FROM users_table WHERE keycloak_id IN ('kc-ins-qa','kc-ins-spare')")
                     .executeUpdate();
+            deleteForOrgs("DELETE FROM inspection_trades WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM organization WHERE id IN (:a,:b)");
         });
     }
@@ -203,7 +206,7 @@ class InspectionEventInstrumentationIT extends AbstractIntegrationTest {
         int already = timeline(created.id()).size();
 
         inspectionService.update(created.id(), new UpdateInspectionRequest(
-                "Slab check, level 3", InspectionType.QUALITY, InspectionCategory.QA_QC, InspectionTrade.RCC,
+                "Slab check, level 3", InspectionType.QUALITY, InspectionCategory.QA_QC, "rcc", null,
                 InspectionStatus.COMPLETED, InspectionResult.FAILED, projectId,
                 "Block A", null, null, LocalDate.of(2026, 9, 12), null,
                 null, null, null, 100L, null, null, null, null, null,
@@ -373,7 +376,7 @@ class InspectionEventInstrumentationIT extends AbstractIntegrationTest {
 
     private CreateInspectionRequest withChildren() {
         return new CreateInspectionRequest(
-                "Slab check", InspectionType.QUALITY, null, InspectionTrade.RCC, projectId,
+                "Slab check", InspectionType.QUALITY, null, "rcc", null, projectId,
                 "Block A", null, null, LocalDate.of(2026, 9, 12), null,
                 null, null, null, 100L, null, null, null, null, null,
                 List.of(
@@ -393,7 +396,7 @@ class InspectionEventInstrumentationIT extends AbstractIntegrationTest {
 
     private UpdateInspectionRequest headerOnly(InspectionStatus status, InspectionResult result) {
         return new UpdateInspectionRequest(
-                "Slab check", InspectionType.QUALITY, null, null, status, result, projectId,
+                "Slab check", InspectionType.QUALITY, null, null, null, status, result, projectId,
                 "Block A", null, null, LocalDate.of(2026, 9, 12), null,
                 null, null, null, 100L, null, null, null, null, null,
                 List.of(), List.of());
@@ -401,7 +404,7 @@ class InspectionEventInstrumentationIT extends AbstractIntegrationTest {
 
     private Inspection scheduledInspection() {
         InspectionDto dto = inspectionService.create(new CreateInspectionRequest(
-                "Slab check", InspectionType.QUALITY, null, null, projectId,
+                "Slab check", InspectionType.QUALITY, null, null, null, projectId,
                 "Block A", null, null, LocalDate.of(2026, 9, 12), null,
                 null, null, null, 100L, null, null, null, null, null,
                 null, null));

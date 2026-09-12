@@ -31,11 +31,13 @@ import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDefectRequ
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.UpdateInspectionRequest;
 import org.tornotron.echno_backend.modules.inspections.mapper.ChecklistTemplateMapperImpl;
+import org.tornotron.echno_backend.modules.inspections.mapper.TradeMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.InspectionMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.DefectPhotoAnnotationMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.NcrMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
 import org.tornotron.echno_backend.modules.inspections.service.ChecklistTemplateService;
+import org.tornotron.echno_backend.modules.inspections.service.TradeService;
 import org.tornotron.echno_backend.modules.inspections.service.DefectAnnotationService;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
@@ -76,6 +78,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({InspectionService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
+        TradeService.class, TradeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
@@ -184,6 +187,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
             deleteForOrgs("DELETE FROM checklist_templates WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM document_sequence WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM project WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM inspection_trades WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM organization WHERE id IN (:a,:b)");
         });
     }
@@ -207,7 +211,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                 "Third floor slab check",
                 InspectionType.QUALITY,
                 null,
-                InspectionTrade.RCC,
+                "rcc", null,
                 projectId,
                 "Block A, Level 3",
                 "Slab and columns",
@@ -245,7 +249,9 @@ class InspectionServiceIT extends AbstractIntegrationTest {
         assertThat(created.status()).isEqualTo(InspectionStatus.SCHEDULED);
         // category omitted on the request, so it is derived from the type
         assertThat(created.category()).isEqualTo(InspectionCategory.QA_QC);
-        assertThat(created.trade()).isEqualTo(InspectionTrade.RCC);
+        assertThat(created.trade()).isEqualTo("rcc");
+        assertThat(created.tradeId()).isNotNull();
+        assertThat(created.tradeName()).isEqualTo("RCC");
         assertThat(created.result()).isNull();
         assertThat(created.inspectionNumber()).startsWith("INSP-");
         assertThat(created.checkItems()).hasSize(3);
@@ -279,22 +285,24 @@ class InspectionServiceIT extends AbstractIntegrationTest {
 
         // tenant scoping - invisible to another organization
         enableOrgFilter(orgBId);
-        assertThat(service.findAll(null, null, null, null, null, null, pageable).getTotalElements())
+        assertThat(service.findAll(null, null, null, null, null, null, null, pageable).getTotalElements())
                 .isZero();
         assertThat(inspectionRepo.findByIdScoped(id)).isEmpty();
 
         // visible and listable to the owning organization
         disableOrgFilter();
         enableOrgFilter(orgAId);
-        assertThat(service.findAll(null, null, null, null, null, null, pageable).getTotalElements())
+        assertThat(service.findAll(null, null, null, null, null, null, null, pageable).getTotalElements())
                 .isEqualTo(1);
         assertThat(service.findAll(projectId, InspectionStatus.SCHEDULED,
-                InspectionType.QUALITY, null, null, null, pageable).getTotalElements()).isEqualTo(1);
+                InspectionType.QUALITY, null, null, null, null, pageable).getTotalElements()).isEqualTo(1);
         // the taxonomy filters narrow on the derived category and the stated trade
         assertThat(service.findAll(null, null, null, InspectionCategory.QA_QC,
-                InspectionTrade.RCC, null, pageable).getTotalElements()).isEqualTo(1);
+                "rcc", null, null, pageable).getTotalElements()).isEqualTo(1);
+        assertThat(service.findAll(null, null, null, null,
+                null, created.tradeId(), null, pageable).getTotalElements()).isEqualTo(1);
         assertThat(service.findAll(null, null, null, InspectionCategory.SAFETY,
-                null, null, pageable).getTotalElements()).isZero();
+                null, null, null, pageable).getTotalElements()).isZero();
         assertThat(inspectionRepo.findByIdScoped(id)).isPresent();
         disableOrgFilter();
 
@@ -303,7 +311,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                 "Third floor slab check",
                 InspectionType.QUALITY,
                 InspectionCategory.QA_QC,
-                InspectionTrade.RCC,
+                "rcc", null,
                 InspectionStatus.COMPLETED,
                 InspectionResult.PASSED,
                 projectId,
@@ -343,7 +351,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
     @Test
     void create_startsFromTheTradeChecklistTemplateWhenNoCheckItemsAreSupplied() {
         templateService.create(new ChecklistTemplateRequest(
-                InspectionTrade.MASONRY,
+                "masonry", null,
                 "Masonry checklist",
                 "Block work",
                 null,
@@ -355,7 +363,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                                 "IS 2212", "10 mm", "No unfilled vertical joint", "+/- 2 mm",
                                 false, "medium"))));
 
-        InspectionDto created = service.create(scheduleFor(InspectionTrade.MASONRY, null));
+        InspectionDto created = service.create(scheduleFor("masonry", null));
 
         assertThat(created.checkItems()).hasSize(2);
         assertThat(created.totalCheckPoints()).isEqualTo(2);
@@ -378,14 +386,14 @@ class InspectionServiceIT extends AbstractIntegrationTest {
     @Test
     void create_keepsTheSuppliedCheckItemsInsteadOfAppendingTheTemplate() {
         templateService.create(new ChecklistTemplateRequest(
-                InspectionTrade.MASONRY,
+                "masonry", null,
                 "Masonry checklist",
                 null,
                 null,
                 List.of(new ChecklistTemplateItemRequest("Coursing", "Course height uniform",
                         null, null, null, null, false, null))));
 
-        InspectionDto created = service.create(scheduleFor(InspectionTrade.MASONRY,
+        InspectionDto created = service.create(scheduleFor("masonry",
                 List.of(new InspectionCheckItemRequest("Joints", "Re-check the failed joint",
                         null, CheckItemStatus.PENDING, null, false, null,
                         null, null, null, null, null, "high"))));
@@ -397,7 +405,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
 
     @Test
     void create_leavesTheChecklistEmptyWhenTheTradeHasNoActiveTemplate() {
-        InspectionDto created = service.create(scheduleFor(InspectionTrade.PLASTERING, null));
+        InspectionDto created = service.create(scheduleFor("plastering", null));
 
         assertThat(created.checkItems()).isEmpty();
         assertThat(created.totalCheckPoints()).isZero();
@@ -405,7 +413,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
 
     @Test
     void update_refusesAStatusMoveThatIsNotPartOfTheLifecycle() {
-        InspectionDto created = service.create(scheduleFor(InspectionTrade.PLASTERING, null));
+        InspectionDto created = service.create(scheduleFor("plastering", null));
         UUID id = created.id();
 
         // scheduled straight to passed is legal: work is often carried out and recorded
@@ -427,7 +435,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
     void update_acceptsAPayloadThatRepeatsTheStoredStatus() {
         // the web client sends the whole record back on every save, so an unchanged
         // status must not be read as an attempted transition
-        UUID id = service.create(scheduleFor(InspectionTrade.PLASTERING, null)).id();
+        UUID id = service.create(scheduleFor("plastering", null)).id();
 
         assertThat(service.update(id, concludeAs(InspectionStatus.SCHEDULED)).status())
                 .isEqualTo(InspectionStatus.SCHEDULED);
@@ -452,7 +460,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                 null, null, null, null, null, "medium");
 
         InspectionDto created = service.create(
-                scheduleFor(InspectionTrade.PLASTERING, List.of(surfaceLevel)));
+                scheduleFor("plastering", List.of(surfaceLevel)));
         UUID inspectionId = created.id();
         UUID originalCheckItemId = created.checkItems().getFirst().id();
 
@@ -497,7 +505,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
     /** An update that sends the given check points back, the shape the web client saves in. */
     private UpdateInspectionRequest rebuildWith(List<InspectionCheckItemRequest> checkItems) {
         return new UpdateInspectionRequest(
-                "Wall check", InspectionType.QUALITY, null, InspectionTrade.PLASTERING,
+                "Wall check", InspectionType.QUALITY, null, "plastering", null,
                 InspectionStatus.IN_PROGRESS, null, projectId, "Block A", null, null,
                 LocalDate.of(2026, 8, 20), null, null, null, null, 100L, null, null,
                 null, null, null, checkItems, null);
@@ -539,16 +547,16 @@ class InspectionServiceIT extends AbstractIntegrationTest {
 
     private UpdateInspectionRequest concludeAs(InspectionStatus status) {
         return new UpdateInspectionRequest(
-                "Wall check", InspectionType.QUALITY, null, InspectionTrade.PLASTERING,
+                "Wall check", InspectionType.QUALITY, null, "plastering", null,
                 status, null, projectId, "Block A", null, null,
                 LocalDate.of(2026, 8, 20), null, null, null, null, 100L, null, null,
                 null, null, null, null, null);
     }
 
-    private CreateInspectionRequest scheduleFor(InspectionTrade trade,
+    private CreateInspectionRequest scheduleFor(String trade,
                                                 List<InspectionCheckItemRequest> checkItems) {
         return new CreateInspectionRequest(
-                "Wall check", InspectionType.QUALITY, null, trade, projectId,
+                "Wall check", InspectionType.QUALITY, null, trade, null, projectId,
                 "Block A", null, null, LocalDate.of(2026, 8, 20), null,
                 null, null, null, 100L, null, null, null, null, null,
                 checkItems, null);

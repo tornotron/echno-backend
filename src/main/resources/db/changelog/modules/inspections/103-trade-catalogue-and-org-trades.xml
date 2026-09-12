@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- The inspection ontology as data, part 1 (#763): the seeded trade catalogue and the   -->
+    <!-- per-organization trade table it is copied into. Design record:                        -->
+    <!-- docs/specs/2026-09-12-qaqc-ontology-as-data.md, section 6 steps 1 to 3.                -->
+    <!-- DDL and DML are kept in separate changesets because CockroachDB refuses a schema      -->
+    <!-- change after a write in the same transaction.                                         -->
+
+    <changeSet id="103-01-create-trade-catalogue" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="trade_catalogue"/></not>
+        </preConditions>
+        <comment>
+            Global reference data: the trades the product ships. The code is the stable key and,
+            for the sixteen trades the InspectionTrade enum knew, the same slug the enum has
+            always put on the wire. No organization_id: every tenant copies from this list and
+            none owns a row.
+        </comment>
+        <createTable tableName="trade_catalogue">
+            <column name="code" type="VARCHAR(50)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="group_code" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="sort_order" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="103-02-seed-trade-catalogue" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM trade_catalogue</sqlCheck>
+        </preConditions>
+        <comment>
+            Twenty-one trades in seven groups. The sixteen enum slugs plus tiling, painting,
+            ceilings, doors-windows and fire-systems. Roadmap "Concrete" is rcc and "Structural
+            works" and "MEP" are groups, not codes.
+        </comment>
+        <loadData tableName="trade_catalogue" file="db/seed/inspections/trade-catalogue.csv" separator=",">
+            <column name="code" type="STRING"/>
+            <column name="name" type="STRING"/>
+            <column name="group_code" type="STRING"/>
+            <column name="description" type="STRING"/>
+            <column name="sort_order" type="NUMERIC"/>
+            <column name="active" type="BOOLEAN"/>
+        </loadData>
+    </changeSet>
+
+    <changeSet id="103-03-create-inspection-trades" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="inspection_trades"/></not>
+        </preConditions>
+        <comment>
+            The tenant-owned trade list: catalogue copies (catalogue_code set) and org-defined
+            trades (catalogue_code null). Every tenant row that names a trade points here, never
+            at the catalogue, so the orgFilter stays honest. legacy_enum carries the enum
+            constant name for the sixteen shim trades and is dropped with the shim.
+        </comment>
+        <createTable tableName="inspection_trades">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="group_code" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="sort_order" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="catalogue_code" type="VARCHAR(50)"/>
+            <column name="legacy_enum" type="VARCHAR(50)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="inspection_trades"
+                                 baseColumnNames="organization_id"
+                                 constraintName="fk_inspection_trade_organization"
+                                 referencedTableName="organization"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+        <addUniqueConstraint tableName="inspection_trades"
+                             columnNames="organization_id, code"
+                             constraintName="uk_inspection_trade_code"/>
+        <createIndex tableName="inspection_trades" indexName="idx_inspection_trade_active">
+            <column name="organization_id"/>
+            <column name="active"/>
+        </createIndex>
+        <sql>
+            CREATE UNIQUE INDEX IF NOT EXISTS uk_inspection_trade_catalogue_code
+                ON inspection_trades (organization_id, catalogue_code)
+                WHERE catalogue_code IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <changeSet id="103-04-copy-catalogue-into-organizations" author="echno">
+        <comment>
+            One org row per active catalogue code for every existing organization, idempotent on
+            (organization_id, catalogue_code). The same thing TradeService.ensureOrgTrades does
+            lazily for organizations created later. legacy_enum is set only for the sixteen
+            codes the enum had; the five new trades have no enum constant.
+        </comment>
+        <sql>
+            INSERT INTO inspection_trades (organization_id, code, name, group_code, description, sort_order, active, catalogue_code, legacy_enum)
+            SELECT o.id, c.code, c.name, c.group_code, c.description, c.sort_order, true, c.code,
+                   CASE WHEN c.code IN ('pre-construction-documentation', 'shuttering-formwork', 'reinforcement', 'rcc',
+                                        'masonry', 'plastering', 'waterproofing', 'flooring', 'fabrication',
+                                        'aluminium-upvc', 'electrical-fixtures', 'plumbing-fixtures',
+                                        'sanitary-fixtures', 'finishing', 'dimensional-check', 'progress-check')
+                        THEN upper(replace(c.code, '-', '_')) END
+            FROM organization o
+            CROSS JOIN trade_catalogue c
+            WHERE c.active
+              AND NOT EXISTS (SELECT 1 FROM inspection_trades t
+                              WHERE t.organization_id = o.id AND t.catalogue_code = c.code)
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
