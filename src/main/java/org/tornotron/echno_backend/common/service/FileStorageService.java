@@ -295,6 +295,18 @@ public class FileStorageService {
         }
     }
 
+    /**
+     * Opens an object as a stream, for callers that read line by line and must not hold a
+     * whole file in memory (a BIM element list runs to hundreds of megabytes). The caller
+     * closes the stream. A missing key surfaces as {@link NoSuchKeyException}.
+     *
+     * @param key Key of the object to open.
+     * @return The object's bytes as a stream.
+     */
+    public java.io.InputStream openObject(String key) {
+        return s3Client.getObject(GetObjectRequest.builder().bucket(bucketName).key(key).build());
+    }
+
     /** An object read back out of storage. */
     public record StoredObject(String key, String contentType, byte[] content) {
     }

@@ -187,9 +187,9 @@ and stores the whole document in `bim_model_versions.meta`.
    confirm; confirmation creates or matches `SpatialNode` rows by `bim_element_guid`.
 4. Sets `ingested_at`, the version READY, and `bim_models.current_version_id` to this version.
 
-Any failure in steps 1 to 4 sets the version FAILED with the message and leaves the job DONE with
-`ingested_at` null, so the backend retries ingestion on its next pass without re-running the
-worker.
+Any failure in steps 1 to 4 rolls the element changes back, sets the version FAILED with the
+message, and stamps `ingested_at` on the DONE job so it is not read again. Queueing the version
+again creates a new job; the worker re-runs and the outputs are read afresh.
 
 ## 7. Limits
 

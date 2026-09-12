@@ -26,6 +26,8 @@ import org.tornotron.echno_backend.modules.bim.dto.BimImportJobDto;
 import org.tornotron.echno_backend.modules.bim.dto.BimModelDto;
 import org.tornotron.echno_backend.modules.bim.dto.BimModelVersionDto;
 import org.tornotron.echno_backend.modules.bim.dto.CreateBimModelRequest;
+import org.tornotron.echno_backend.modules.bim.dto.MergeBimElementRequest;
+import org.tornotron.echno_backend.modules.bim.service.BimElementService;
 import org.tornotron.echno_backend.modules.bim.service.BimModelService;
 
 /**
@@ -43,6 +45,7 @@ import org.tornotron.echno_backend.modules.bim.service.BimModelService;
 public class BimModelController {
 
     private final BimModelService service;
+    private final BimElementService elementService;
 
     @GetMapping("/projects/{projectId}/models")
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
@@ -117,6 +120,22 @@ public class BimModelController {
     })
     public BimElementDto getElement(@PathVariable UUID elementId) {
         return service.getElement(elementId);
+    }
+
+    @PostMapping("/elements/{elementId}/merge")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @Operation(summary = "Merge a retired element into the element that replaced it",
+            description = "For a GlobalId an authoring tool regenerated: the retired row's construction "
+                    + "element moves to the target, the spatial node's bimElementGuid follows, and the "
+                    + "retired row records what it was merged into.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The target element with the carried link"),
+            @ApiResponse(responseCode = "400", description = "Source not retired, target retired or merged, different models, or both linked"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "404", description = "No such element in the current tenant")
+    })
+    public BimElementDto merge(@PathVariable UUID elementId, @Valid @RequestBody MergeBimElementRequest req) {
+        return elementService.merge(elementId, req);
     }
 
     @GetMapping("/models/{modelId}/versions/{versionId}/jobs")
