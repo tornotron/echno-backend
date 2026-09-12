@@ -37,8 +37,13 @@ public interface BimElementRepository extends JpaRepository<BimElement, UUID> {
 
     List<BimElement> findByModelIdAndSpatialNodeIdIsNotNull(UUID modelId);
 
-    /** Flags every row of the model that this version did not bring; returns how many. */
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    /**
+     * Flags every row of the model that this version did not bring; returns how many. Flushes
+     * first so the rows just written carry their new last-seen version; does not clear, so the
+     * version, model and job the caller holds stay managed. Rows in the context that this
+     * statement retires are stale until reloaded, and nothing in the ingestion reads them.
+     */
+    @Modifying(flushAutomatically = true)
     @Query("UPDATE BimElement e SET e.retired = TRUE WHERE e.modelId = :modelId "
             + "AND e.lastSeenVersionId <> :versionId AND e.retired = FALSE")
     int retireNotSeenIn(@Param("modelId") UUID modelId, @Param("versionId") UUID versionId);

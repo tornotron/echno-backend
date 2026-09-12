@@ -36,9 +36,10 @@ class BimImportPollerTest {
     void doneJobsAreIngestedUnderTheirOwnTenantAndFailedOnesClosed() {
         UUID done = UUID.randomUUID();
         UUID failed = UUID.randomUUID();
-        when(jobs.findClosedNotIngested("DONE", BimImportPoller.BATCH)).thenReturn(List.of(ref(done, 7L, null)));
-        when(jobs.findClosedNotIngested("FAILED", BimImportPoller.BATCH))
-                .thenReturn(List.of(ref(failed, 9L, "IfcOpenShell could not open the file")));
+        JobRef doneRef = ref(done, 7L, null);
+        JobRef failedRef = ref(failed, 9L, "IfcOpenShell could not open the file");
+        when(jobs.findClosedNotIngested("DONE", BimImportPoller.BATCH)).thenReturn(List.of(doneRef));
+        when(jobs.findClosedNotIngested("FAILED", BimImportPoller.BATCH)).thenReturn(List.of(failedRef));
         doAnswer(inv -> {
             TenantContext.setCurrentOrgId(inv.getArgument(0));
             try {
