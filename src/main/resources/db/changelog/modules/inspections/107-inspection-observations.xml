@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        A source-agnostic observation: what was seen on site, by whom or what, with the human
+        decision that turned it into a check-item result, a defect, an NCR or an inspection.
+        outcome_ref carries no FK because it points at one of four tables by outcome_kind; the
+        reverse links on inspection_defects and ncrs are the FKs. Existing defects and NCRs keep
+        observation_id null: no backfill, an observation invented after the fact would carry a
+        false observed_at. Design: docs/specs/2026-09-12-qaqc-observation.md (#757).
+    -->
+
+    <changeSet id="107-01-create-inspection-observations" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="inspection_observations"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="inspection_observations">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_inspection_observations" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="inspection_id" type="UUID"/>
+            <column name="spatial_node_id" type="UUID"/>
+            <column name="location_note" type="VARCHAR(300)"/>
+            <column name="source" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_device_id" type="VARCHAR(100)"/>
+            <column name="mission_ref" type="VARCHAR(100)"/>
+            <column name="capture_ref" type="VARCHAR(200)"/>
+            <column name="external_ref" type="VARCHAR(200)"/>
+            <column name="model_name" type="VARCHAR(100)"/>
+            <column name="model_version" type="VARCHAR(50)"/>
+            <column name="confidence" type="NUMERIC(5,4)"/>
+            <column name="observed_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reported_by_id" type="BIGINT"/>
+            <column name="title" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="category" type="VARCHAR(200)"/>
+            <column name="suggested_severity" type="VARCHAR(20)"/>
+            <column name="evidence_refs" type="JSONB"/>
+            <column name="review_status" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reviewed_by_id" type="BIGINT"/>
+            <column name="reviewed_at" type="TIMESTAMP"/>
+            <column name="review_note" type="TEXT"/>
+            <column name="review_changes" type="JSONB"/>
+            <column name="outcome_kind" type="VARCHAR(20)" defaultValue="NONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="outcome_ref" type="UUID"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_by" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="inspection_observations" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_insp_obs_organization"/>
+        <addForeignKeyConstraint baseTableName="inspection_observations" baseColumnNames="inspection_id"
+                                 referencedTableName="inspections" referencedColumnNames="id"
+                                 constraintName="fk_insp_obs_inspection"/>
+        <addForeignKeyConstraint baseTableName="inspection_observations" baseColumnNames="spatial_node_id"
+                                 referencedTableName="project_spatial_node" referencedColumnNames="id"
+                                 constraintName="fk_insp_obs_spatial_node" onDelete="RESTRICT"/>
+
+        <createIndex tableName="inspection_observations" indexName="idx_insp_obs_project_status">
+            <column name="project_id"/>
+            <column name="review_status"/>
+        </createIndex>
+        <createIndex tableName="inspection_observations" indexName="idx_insp_obs_inspection">
+            <column name="inspection_id"/>
+        </createIndex>
+        <createIndex tableName="inspection_observations" indexName="idx_insp_obs_spatial_node">
+            <column name="spatial_node_id"/>
+        </createIndex>
+        <createIndex tableName="inspection_observations" indexName="idx_insp_obs_source_observed">
+            <column name="source"/>
+            <column name="observed_at"/>
+        </createIndex>
+        <createIndex tableName="inspection_observations" indexName="idx_insp_obs_outcome">
+            <column name="outcome_kind"/>
+            <column name="outcome_ref"/>
+        </createIndex>
+
+        <!-- The producer's own id is unique per organisation only when it is set. -->
+        <sql>
+            CREATE UNIQUE INDEX uk_insp_obs_external_ref
+                ON inspection_observations (organization_id, external_ref)
+                WHERE external_ref IS NOT NULL
+        </sql>
+
+        <rollback>
+            <dropTable tableName="inspection_observations"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="107-02-observation-reverse-links" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="inspection_defects" columnName="observation_id"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="inspection_defects">
+            <column name="observation_id" type="UUID"/>
+        </addColumn>
+        <addColumn tableName="ncrs">
+            <column name="observation_id" type="UUID"/>
+        </addColumn>
+
+        <addForeignKeyConstraint baseTableName="inspection_defects" baseColumnNames="observation_id"
+                                 referencedTableName="inspection_observations" referencedColumnNames="id"
+                                 constraintName="fk_insp_defect_observation" onDelete="SET NULL"/>
+        <addForeignKeyConstraint baseTableName="ncrs" baseColumnNames="observation_id"
+                                 referencedTableName="inspection_observations" referencedColumnNames="id"
+                                 constraintName="fk_ncr_observation" onDelete="SET NULL"/>
+
+        <createIndex tableName="inspection_defects" indexName="idx_insp_defect_observation">
+            <column name="observation_id"/>
+        </createIndex>
+        <createIndex tableName="ncrs" indexName="idx_ncr_observation">
+            <column name="observation_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropColumn tableName="ncrs" columnName="observation_id"/>
+            <dropColumn tableName="inspection_defects" columnName="observation_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

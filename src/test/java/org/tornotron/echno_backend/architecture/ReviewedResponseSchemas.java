@@ -670,15 +670,15 @@ final class ReviewedResponseSchemas {
                                 "spatialPath", "status")),
                 new ReviewedSchema(
                         InspectionDefectDto.class,
-                        Set.of("category", "location", "resolvedDate", "responsibleParty",
+                        Set.of("category", "location", "observationId", "resolvedDate", "responsibleParty",
                                 "severity", "spatialNodeId", "status", "targetDate"),
                         Set.of("correctiveAction", "description", "id", "photos", "spatialPath")),
                 new ReviewedSchema(
                         NcrDto.class,
                         Set.of("closedAt", "closedById", "correctiveActionCompletedAt",
-                                "correctiveActionRemarks", "defectId", "raisedById", "severity",
-                                "siteEngineerId", "targetDate", "verificationRemarks", "verifiedAt",
-                                "verifiedById"),
+                                "correctiveActionRemarks", "defectId", "observationId", "raisedById",
+                                "severity", "siteEngineerId", "targetDate", "verificationRemarks",
+                                "verifiedAt", "verifiedById"),
                         Set.of("createdAt", "description", "id", "inspectionId", "ncrNumber",
                                 "status", "title", "type", "updatedAt")),
                 new ReviewedSchema(

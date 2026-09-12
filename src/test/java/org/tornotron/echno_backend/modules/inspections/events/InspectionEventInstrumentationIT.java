@@ -57,6 +57,8 @@ import org.tornotron.echno_backend.modules.inspections.service.ElementTypeServic
 import org.tornotron.echno_backend.modules.inspections.service.DefectAnnotationService;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
+import org.tornotron.echno_backend.modules.inspections.mapper.ObservationMapperImpl;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
@@ -90,6 +92,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         TradeService.class, TradeMapperImpl.class,
         ElementTypeService.class, ElementTypeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
+        ObservationService.class, ObservationMapperImpl.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
         UserContextService.class,
@@ -163,6 +166,7 @@ class InspectionEventInstrumentationIT extends AbstractIntegrationTest {
                     + "(SELECT id FROM inspections WHERE organization_id IN (:a,:b))");
             deleteForOrgs("DELETE FROM inspection_check_items WHERE inspection_id IN "
                     + "(SELECT id FROM inspections WHERE organization_id IN (:a,:b))");
+            deleteForOrgs("DELETE FROM inspection_observations WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM inspections WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM document_sequence WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM project WHERE organization_id IN (:a,:b)");
@@ -187,7 +191,9 @@ class InspectionEventInstrumentationIT extends AbstractIntegrationTest {
 
         assertThat(timeline).extracting(InspectionEventDto::eventType).containsExactly(
                 "inspection.created", "check_item.result.recorded", "check_item.result.recorded",
-                "defect.created");
+                "defect.created",
+                // the failed check point and the defect each get their implicit observation
+                "observation.created", "observation.created");
         InspectionEventDto head = timeline.getFirst();
         assertThat(head.actorType()).isEqualTo(InspectionEventActorType.USER);
         assertThat(head.actorId()).isEqualTo(String.valueOf(qaEmployeeId));
@@ -240,7 +246,9 @@ class InspectionEventInstrumentationIT extends AbstractIntegrationTest {
         assertThat(fresh).extracting(InspectionEventDto::eventType).containsExactly(
                 "inspection.status.changed", "inspection.result.recorded", "inspection.updated",
                 "check_item.result.recorded", "check_item.remarks.recorded",
-                "defect.status.changed", "defect.updated", "defect.created");
+                "defect.status.changed", "defect.updated", "defect.created",
+                // the newly failed check point and the new defect each get an observation
+                "observation.created", "observation.created");
         assertThat(fresh.get(0).before()).containsEntry("status", "scheduled");
         assertThat(fresh.get(0).after()).containsEntry("status", "completed");
         assertThat(fresh.get(1).after()).containsEntry("result", "failed");

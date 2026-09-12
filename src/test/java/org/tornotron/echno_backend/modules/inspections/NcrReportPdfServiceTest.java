@@ -91,7 +91,7 @@ class NcrReportPdfServiceTest {
                 "Edge protection missing", "Open edge on level 4 with no barrier",
                 DefectSeverity.CRITICAL, NcrStatus.OPEN, null, null, null, null, null,
                 null, null, null, null, null,
-                LocalDateTime.of(2026, 8, 21, 10, 0), LocalDateTime.of(2026, 8, 21, 10, 0)));
+                LocalDateTime.of(2026, 8, 21, 10, 0), LocalDateTime.of(2026, 8, 21, 10, 0), null));
         when(inspectionRepo.findNumberByIdScoped(INSPECTION_ID)).thenReturn(Optional.empty());
 
         RenderedReport report = service.render(NCR_ID);
@@ -162,7 +162,7 @@ class NcrReportPdfServiceTest {
                     INSPECTION_ID, null, "Cover below specification", "Measured 25 mm",
                     DefectSeverity.MAJOR, NcrStatus.ASSIGNED, 100L + i, LocalDate.of(2026, 9, 10),
                     7L, null, null, null, null, null, null, null,
-                    LocalDateTime.of(2026, 8, 21, 10, 0), LocalDateTime.of(2026, 8, 21, 10, 0)));
+                    LocalDateTime.of(2026, 8, 21, 10, 0), LocalDateTime.of(2026, 8, 21, 10, 0), null));
         }
         Page<NcrDto> page = new PageImpl<>(content, PageRequest.of(0, 500), rows);
         when(ncrService.findAll(any(), any(), any(), any(), any(), any(), any(), eq(Boolean.TRUE), any()))
@@ -199,6 +199,6 @@ class NcrReportPdfServiceTest {
                 "Re-measured at 41 mm, accepted",
                 LocalDateTime.of(2026, 9, 5, 14, 0), LocalDateTime.of(2026, 9, 6, 9, 30),
                 LocalDateTime.of(2026, 9, 6, 10, 0),
-                LocalDateTime.of(2026, 8, 21, 10, 0), LocalDateTime.of(2026, 9, 6, 10, 0));
+                LocalDateTime.of(2026, 8, 21, 10, 0), LocalDateTime.of(2026, 9, 6, 10, 0), null);
     }
 }

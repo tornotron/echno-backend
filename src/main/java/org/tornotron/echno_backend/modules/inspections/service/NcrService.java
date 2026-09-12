@@ -67,6 +67,7 @@ public class NcrService {
     private final TenantEntityHelper tenantEntityHelper;
     private final InspectionEventRecorder events;
     private final ReinspectionRepository reinspectionRepo;
+    private final ObservationService observations;
 
     @Transactional(readOnly = true)
     public NcrDto findById(UUID id) {
@@ -137,6 +138,7 @@ public class NcrService {
         }
 
         Ncr saved = ncrRepo.saveAndFlush(ncr);
+        observations.recordNcr(saved, inspection);
         events.record(InspectionEventSubject.ncr(saved, inspection.getProjectId()),
                 InspectionEventType.NCR_CREATED, null,
                 InspectionEventChanges.none()
@@ -148,6 +150,7 @@ public class NcrService {
                         .field("defectId", null, saved.getDefectId())
                         .field("siteEngineerId", null, saved.getSiteEngineerId())
                         .field("targetDate", null, saved.getTargetDate())
+                        .field("observationId", null, saved.getObservationId())
                         .after(),
                 null);
         log.info("Raised {} NCR {} against inspection {}",

@@ -44,6 +44,7 @@ class InspectionSecurityServiceTest {
     private static final String[] CORRECTIVE = {"system-admin", "site-engineer"};
     private static final String[] QUALITY_SIGN_OFF = {"system-admin", "qa-engineer"};
     private static final String[] SAFETY_SIGN_OFF = {"system-admin", "safety-officer"};
+    private static final String[] OBSERVATION_REVIEW = {"system-admin", "qa-engineer"};
 
     @Mock
     private OrganizationSecurityService orgSecurity;
@@ -54,7 +55,7 @@ class InspectionSecurityServiceTest {
 
     private InspectionSecurityService security() {
         return new InspectionSecurityService(orgSecurity, ncrRepo, reinspectionRepo, READ, MANAGE, CHECKLIST,
-                RAISE, CORRECTIVE, QUALITY_SIGN_OFF, SAFETY_SIGN_OFF);
+                RAISE, CORRECTIVE, QUALITY_SIGN_OFF, SAFETY_SIGN_OFF, OBSERVATION_REVIEW);
     }
 
     @Test

@@ -36,6 +36,14 @@ public interface InspectionRepository
     /** Organization-explicit existence check, for reads that must not lean on the session filter. */
     boolean existsByIdAndOrganization_Id(UUID id, Long organizationId);
 
+    /** The inspection one check item belongs to, for a review that sets that item's result. */
+    @Query("SELECT DISTINCT i FROM Inspection i JOIN i.checkItems c WHERE c.id = :checkItemId")
+    Optional<Inspection> findByCheckItemIdScoped(@Param("checkItemId") UUID checkItemId);
+
+    /** The inspection one defect belongs to, for a review that attaches to that defect. */
+    @Query("SELECT DISTINCT i FROM Inspection i JOIN i.defects d WHERE d.id = :defectId")
+    Optional<Inspection> findByDefectIdScoped(@Param("defectId") UUID defectId);
+
     /** The project an inspection belongs to, without loading its check points and defects. */
     @Query("SELECT i.projectId FROM Inspection i WHERE i.id = :id")
     Optional<Long> findProjectIdByIdScoped(@Param("id") UUID id);
