@@ -76247,7 +76247,7 @@
         ]
       },
       "put": {
-        "description": "Creates or replaces the material's threshold override at the given storage location. Any field left null clears that level so the material's global threshold applies.",
+        "description": "Creates or replaces the material's threshold override at the given storage location. Any field left null clears that level so the material's global threshold applies. Open to the system-admin, project-manager and store-keeper roles.",
         "operationId": "upsertLocationThreshold_1",
         "parameters": [
           {
@@ -109968,7 +109968,7 @@
       "name": "Materials"
     },
     {
-      "description": "Web-console counterpart of the materials API, gated by organization role for the current tenant. Covers the same create, browse, search, update, stock lookup and delete operations as the standard materials endpoints, for use from the admin web console rather than the mobile app. Reads, including the stock lookup, are open to the system-admin, project-manager and store-keeper roles, because a project manager raises and approves stock adjustments and those are documents about a material's balance, and a storekeeper cannot name a material on a receipt, an issue or a count without reading the catalogue first. Changing the catalogue, its thresholds included, stays with system-admin.",
+      "description": "Web-console counterpart of the materials API, gated by organization role for the current tenant. Covers the same create, browse, search, update, stock lookup and delete operations as the standard materials endpoints, for use from the admin web console rather than the mobile app. Reads, including the stock lookup, are open to the system-admin, project-manager and store-keeper roles, because a project manager raises and approves stock adjustments and those are documents about a material's balance, and a storekeeper cannot name a material on a receipt, an issue or a count without reading the catalogue first. Setting a material's reorder thresholds at a storage location is open to the same three roles, because tuning them per project is an operational decision and the low-stock sweep that reads them notifies the same people. Creating, editing and deleting materials, and removing a threshold override, stay with system-admin.",
       "name": "Materials (Web)"
     },
     {

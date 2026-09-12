@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.material.threshold.dto.MaterialLocationThresholdDto;
 import org.tornotron.echno_backend.material.dto.MaterialStockSummaryDto;
 import org.tornotron.echno_backend.material.dto.MaterialWithStockDto;
 import org.tornotron.echno_backend.material.lowstock.LowStockService;
@@ -37,6 +38,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -56,10 +58,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * and a count each name a material before anything else can be typed, so the store cannot be given
  * the write while the catalogue lookup behind the form stays shut.
  *
- * <p>The write half is the ratchet. Creating a material, editing it, deleting it, or moving its
- * reorder thresholds are catalogue decisions rather than count decisions, and #650 left them with
- * system-admin: deciding what materials exist is a different job from recording what arrived. If a
- * later change widened them along with the reads, {@code aProjectManagerMayNot*} fails.
+ * <p>The write half is the ratchet. Creating a material, editing it, or deleting it are catalogue
+ * decisions rather than count decisions, and #650 left them with system-admin: deciding what
+ * materials exist is a different job from recording what arrived. If a later change widened them
+ * along with the reads, {@code aProjectManagerMayNot*} fails.
+ *
+ * <p>Reorder thresholds at a storage location are the one exception, decided on #650 and built for
+ * #746: setting one is open to project-manager and store-keeper as well, because tuning a threshold
+ * per project is an operational decision and the low-stock sweep that reads it notifies the same
+ * people. Removing an override stays with system-admin, so the pair below pins both directions.
  *
  * <p>{@code @orgSecurity} is mocked so each branch is exercised on its own: the project-manager
  * tests deliberately answer false to the system-admin-only expression and true to the pair, which
@@ -98,6 +105,16 @@ class MaterialControllerWebAuthzTest {
 
     /** A caller holding project-manager and not system-admin. */
     private void asProjectManager() {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
+    }
+
+    /**
+     * A caller holding store-keeper and not system-admin. The mock answers by expression, so at
+     * this level a storekeeper and a project manager are the same caller; the source-level
+     * {@code StoreKeeperRoleScopeTest} is what tells the two roles apart.
+     */
+    private void asStoreKeeper() {
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
     }
@@ -187,10 +204,56 @@ class MaterialControllerWebAuthzTest {
                 .andExpect(status().isForbidden());
     }
 
+    private static final String THRESHOLD_BODY = "{\"minStock\":10,\"reorderLevel\":20}";
+
     @Test
-    void aProjectManagerMayNotMoveAReorderThreshold() throws Exception {
-        // Reading a threshold explains a balance; setting one is a planning decision.
+    void aProjectManagerMaySetAReorderThreshold() throws Exception {
+        // Before #746 this answered 403: the write sat on the system-admin-only expression.
         asProjectManager();
+        when(thresholdService.upsert(anyLong(), anyLong(), any())).thenReturn(new MaterialLocationThresholdDto());
+
+        mockMvc.perform(put("/api/v1/materials/web/1/location-thresholds/7").with(jwt()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(THRESHOLD_BODY))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void aStoreKeeperMaySetAReorderThreshold() throws Exception {
+        asStoreKeeper();
+        when(thresholdService.upsert(anyLong(), anyLong(), any())).thenReturn(new MaterialLocationThresholdDto());
+
+        mockMvc.perform(put("/api/v1/materials/web/1/location-thresholds/7").with(jwt()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(THRESHOLD_BODY))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void aMemberHoldingNeitherRoleMayNotSetAReorderThreshold() throws Exception {
+        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(false);
+
+        mockMvc.perform(put("/api/v1/materials/web/1/location-thresholds/7").with(jwt()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(THRESHOLD_BODY))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aProjectManagerMayNotRemoveAReorderThreshold() throws Exception {
+        // Setting a threshold tunes a project; removing the override puts the catalogue default
+        // back, and that stays a catalogue decision.
+        asProjectManager();
+
+        mockMvc.perform(delete("/api/v1/materials/web/1/location-thresholds/7").with(jwt()).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aStoreKeeperMayNotRemoveAReorderThreshold() throws Exception {
+        asStoreKeeper();
 
         mockMvc.perform(delete("/api/v1/materials/web/1/location-thresholds/7").with(jwt()).with(csrf()))
                 .andExpect(status().isForbidden());

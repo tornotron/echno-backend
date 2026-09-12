@@ -40,8 +40,11 @@ import java.util.List;
                 + "the system-admin, project-manager and store-keeper roles, because a project manager "
                 + "raises and approves stock adjustments and those are documents about a material's "
                 + "balance, and a storekeeper cannot name a material on a receipt, an issue or a count "
-                + "without reading the catalogue first. Changing the catalogue, its thresholds included, "
-                + "stays with system-admin."
+                + "without reading the catalogue first. Setting a material's reorder thresholds at a "
+                + "storage location is open to the same three roles, because tuning them per project is "
+                + "an operational decision and the low-stock sweep that reads them notifies the same "
+                + "people. Creating, editing and deleting materials, and removing a threshold override, "
+                + "stay with system-admin."
 )
 public class MaterialControllerWeb {
 
@@ -284,11 +287,12 @@ public class MaterialControllerWeb {
     }
 
     @PutMapping("/{materialId}/location-thresholds/{storageLocationId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Set a material's thresholds at a storage location",
             description = "Creates or replaces the material's threshold override at the given storage location. "
-                    + "Any field left null clears that level so the material's global threshold applies."
+                    + "Any field left null clears that level so the material's global threshold applies. "
+                    + "Open to the system-admin, project-manager and store-keeper roles."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Override saved"),
