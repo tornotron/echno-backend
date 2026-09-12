@@ -21,6 +21,10 @@ import org.tornotron.echno_backend.modules.inspections.domain.Ncr;
 import org.tornotron.echno_backend.modules.inspections.dtos.AssignNcrRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateNcrRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.NcrDto;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventChanges;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSubject;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventType;
 import org.tornotron.echno_backend.modules.inspections.mapper.NcrMapper;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.NcrRepository;
@@ -58,6 +62,7 @@ public class NcrService {
     private final EntryNumberGenerator numberGen;
     private final NcrMapper mapper;
     private final TenantEntityHelper tenantEntityHelper;
+    private final InspectionEventRecorder events;
 
     @Transactional(readOnly = true)
     public NcrDto findById(UUID id) {
@@ -128,6 +133,19 @@ public class NcrService {
         }
 
         Ncr saved = ncrRepo.saveAndFlush(ncr);
+        events.record(InspectionEventSubject.ncr(saved, inspection.getProjectId()),
+                InspectionEventType.NCR_CREATED, null,
+                InspectionEventChanges.none()
+                        .field("ncrNumber", null, saved.getNcrNumber())
+                        .field("type", null, saved.getType())
+                        .field("status", null, saved.getStatus())
+                        .field("title", null, saved.getTitle())
+                        .field("severity", null, saved.getSeverity())
+                        .field("defectId", null, saved.getDefectId())
+                        .field("siteEngineerId", null, saved.getSiteEngineerId())
+                        .field("targetDate", null, saved.getTargetDate())
+                        .after(),
+                null);
         log.info("Raised {} NCR {} against inspection {}",
                 saved.getType().getValue(), saved.getNcrNumber(), inspection.getInspectionNumber());
         return mapper.toDto(saved);
@@ -138,12 +156,17 @@ public class NcrService {
     public NcrDto assign(UUID id, AssignNcrRequest req) {
         Ncr ncr = require(id);
         requireEmployeeInTenant(req.siteEngineerId());
+        InspectionEventChanges changes = InspectionEventChanges.none()
+                .field("status", ncr.getStatus(), NcrStatus.ASSIGNED)
+                .field("siteEngineerId", ncr.getSiteEngineerId(), req.siteEngineerId());
         transition(ncr, NcrStatus.ASSIGNED);
         ncr.setSiteEngineerId(req.siteEngineerId());
         if (req.targetDate() != null) {
+            changes.field("targetDate", ncr.getTargetDate(), req.targetDate());
             ncr.setTargetDate(req.targetDate());
         }
-        return save(ncr, "assigned to employee " + req.siteEngineerId());
+        return save(ncr, "assigned to employee " + req.siteEngineerId(),
+                InspectionEventType.NCR_ASSIGNED, changes, null);
     }
 
     /**
@@ -154,21 +177,30 @@ public class NcrService {
     @Transactional
     public NcrDto markCorrectiveActionComplete(UUID id, String remarks) {
         Ncr ncr = require(id);
+        InspectionEventChanges changes = InspectionEventChanges.none()
+                .field("status", ncr.getStatus(), NcrStatus.CORRECTIVE_ACTION_COMPLETE)
+                .field("correctiveActionRemarks", ncr.getCorrectiveActionRemarks(), remarks);
         transition(ncr, NcrStatus.CORRECTIVE_ACTION_COMPLETE);
         ncr.setCorrectiveActionRemarks(remarks);
         ncr.setCorrectiveActionCompletedAt(LocalDateTime.now());
-        return save(ncr, "corrective action reported complete");
+        return save(ncr, "corrective action reported complete",
+                InspectionEventType.NCR_CORRECTIVE_ACTION_COMPLETE, changes, remarks);
     }
 
-    /** Re-inspected and accepted. Closing it is a separate, role-gated step. */
+    /**
+     * Re-inspected and accepted. Closing it is a separate, role-gated step.
+     *
+     * <p>Logged as {@code ncr.verified.without_reinspection}: nothing in the record says which
+     * check points were re-run, so the event type names that gap and lets it be reported on.
+     */
     @Transactional
     public NcrDto verify(UUID id, String remarks) {
         Ncr ncr = require(id);
+        InspectionEventChanges changes = verificationChanges(ncr, NcrStatus.VERIFIED, remarks);
         transition(ncr, NcrStatus.VERIFIED);
-        ncr.setVerificationRemarks(remarks);
-        ncr.setVerifiedById(currentEmployeeId());
-        ncr.setVerifiedAt(LocalDateTime.now());
-        return save(ncr, "verified");
+        stampVerification(ncr, remarks);
+        return save(ncr, "verified", InspectionEventType.NCR_VERIFIED_WITHOUT_REINSPECTION,
+                changes, remarks);
     }
 
     /**
@@ -183,11 +215,11 @@ public class NcrService {
     @Transactional
     public NcrDto reject(UUID id, String remarks) {
         Ncr ncr = require(id);
+        InspectionEventChanges changes = verificationChanges(ncr, NcrStatus.REJECTED, remarks);
         transition(ncr, NcrStatus.REJECTED);
-        ncr.setVerificationRemarks(remarks);
-        ncr.setVerifiedById(currentEmployeeId());
-        ncr.setVerifiedAt(LocalDateTime.now());
-        return save(ncr, "rejected on re-inspection");
+        stampVerification(ncr, remarks);
+        return save(ncr, "rejected on re-inspection", InspectionEventType.NCR_REJECTED,
+                changes, remarks);
     }
 
     /**
@@ -198,21 +230,29 @@ public class NcrService {
     @Transactional
     public NcrDto reopen(UUID id, String remarks) {
         Ncr ncr = require(id);
+        InspectionEventChanges changes = InspectionEventChanges.none()
+                .field("status", ncr.getStatus(), NcrStatus.REOPENED)
+                .field("verificationRemarks", ncr.getVerificationRemarks(), remarks)
+                .field("closedById", ncr.getClosedById(), null);
         transition(ncr, NcrStatus.REOPENED);
         ncr.setVerificationRemarks(remarks);
         ncr.setClosedById(null);
         ncr.setClosedAt(null);
-        return save(ncr, "reopened");
+        return save(ncr, "reopened", InspectionEventType.NCR_REOPENED, changes, remarks);
     }
 
     /** Closes a verified NCR and records who closed it. */
     @Transactional
     public NcrDto close(UUID id) {
         Ncr ncr = require(id);
+        Long closer = currentEmployeeId();
+        InspectionEventChanges changes = InspectionEventChanges.none()
+                .field("status", ncr.getStatus(), NcrStatus.CLOSED)
+                .field("closedById", ncr.getClosedById(), closer);
         transition(ncr, NcrStatus.CLOSED);
-        ncr.setClosedById(currentEmployeeId());
+        ncr.setClosedById(closer);
         ncr.setClosedAt(LocalDateTime.now());
-        return save(ncr, "closed");
+        return save(ncr, "closed", InspectionEventType.NCR_CLOSED, changes, null);
     }
 
     /**
@@ -312,9 +352,34 @@ public class NcrService {
                         "NCR with ID " + id + " was not found"));
     }
 
-    private NcrDto save(Ncr ncr, String what) {
+    /** The fields a verification decision moves, captured before the entity is touched. */
+    private InspectionEventChanges verificationChanges(Ncr ncr, NcrStatus target, String remarks) {
+        return InspectionEventChanges.none()
+                .field("status", ncr.getStatus(), target)
+                .field("verificationRemarks", ncr.getVerificationRemarks(), remarks)
+                .field("verifiedById", ncr.getVerifiedById(), currentEmployeeId());
+    }
+
+    private void stampVerification(Ncr ncr, String remarks) {
+        ncr.setVerificationRemarks(remarks);
+        ncr.setVerifiedById(currentEmployeeId());
+        ncr.setVerifiedAt(LocalDateTime.now());
+    }
+
+    /**
+     * Persists the change and records its event in the same transaction. The event is
+     * written after the flush so a refused write leaves no event behind it.
+     */
+    private NcrDto save(Ncr ncr, String what, String eventType,
+                        InspectionEventChanges changes, String note) {
         Ncr saved = ncrRepo.saveAndFlush(ncr);
+        events.record(InspectionEventSubject.ncr(saved, projectOf(saved)), eventType,
+                changes.before(), changes.after(), note);
         log.info("NCR {} {}", saved.getNcrNumber(), what);
         return mapper.toDto(saved);
+    }
+
+    private Long projectOf(Ncr ncr) {
+        return inspectionRepo.findProjectIdByIdScoped(ncr.getInspectionId()).orElse(null);
     }
 }

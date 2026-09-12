@@ -26,6 +26,8 @@ import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSub
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -130,11 +132,19 @@ public class InspectionEvent implements TenantScopedEntity {
         event.actorType = Objects.requireNonNull(actorType, "actor type");
         event.actorId = actorId;
         event.occurredAt = Objects.requireNonNull(occurredAt, "occurred at");
-        event.before = before == null || before.isEmpty() ? null : Map.copyOf(before);
-        event.after = after == null || after.isEmpty() ? null : Map.copyOf(after);
+        event.before = snapshot(before);
+        event.after = snapshot(after);
         event.note = note;
         event.requestId = requestId;
         return event;
+    }
+
+    /** A private, unmodifiable copy that keeps null values: "siteEngineerId: null" is a fact. */
+    private static Map<String, Object> snapshot(Map<String, Object> fields) {
+        if (fields == null || fields.isEmpty()) {
+            return null;
+        }
+        return Collections.unmodifiableMap(new LinkedHashMap<>(fields));
     }
 
     /**

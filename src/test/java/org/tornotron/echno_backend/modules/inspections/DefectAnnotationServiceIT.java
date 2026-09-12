@@ -133,6 +133,7 @@ class DefectAnnotationServiceIT extends AbstractIntegrationTest {
                     + "(SELECT id FROM inspections WHERE organization_id IN (:a,:b))");
             deleteForOrgs("DELETE FROM inspection_check_items WHERE inspection_id IN "
                     + "(SELECT id FROM inspections WHERE organization_id IN (:a,:b))");
+            deleteForOrgs("DELETE FROM inspection_events WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM inspections WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM document_sequence WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM project WHERE organization_id IN (:a,:b)");

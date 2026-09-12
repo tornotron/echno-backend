@@ -177,6 +177,7 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                     + "(SELECT id FROM inspections WHERE organization_id IN (:a,:b))");
             deleteForOrgs("DELETE FROM inspection_check_items WHERE inspection_id IN "
                     + "(SELECT id FROM inspections WHERE organization_id IN (:a,:b))");
+            deleteForOrgs("DELETE FROM inspection_events WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM inspections WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM checklist_template_items WHERE template_id IN "
                     + "(SELECT id FROM checklist_templates WHERE organization_id IN (:a,:b))");

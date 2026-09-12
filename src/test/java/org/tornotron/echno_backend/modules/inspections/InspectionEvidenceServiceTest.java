@@ -21,9 +21,12 @@ import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventType;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionEvidenceService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,13 +56,14 @@ class InspectionEvidenceServiceTest {
     @Mock private InspectionRepository inspectionRepo;
     @Mock private AttachmentService attachmentService;
     @Mock private AttachmentMapper attachmentMapper;
+    @Mock private InspectionEventRecorder events;
 
     private InspectionEvidenceService service;
     private UUID inspectionId;
 
     @BeforeEach
     void setUp() {
-        service = new InspectionEvidenceService(inspectionRepo, attachmentService, attachmentMapper);
+        service = new InspectionEvidenceService(inspectionRepo, attachmentService, attachmentMapper, events);
         inspectionId = UUID.randomUUID();
     }
 
@@ -101,6 +106,7 @@ class InspectionEvidenceServiceTest {
         // The certificate a compliance inspection stands in for routinely arrives after the work
         // was signed off. Freezing additions at the verdict would make the record unfinishable.
         assertThat(service.upload(inspectionId, List.of(aFile()))).hasSize(1);
+        verify(events).record(any(), eq(InspectionEventType.EVIDENCE_ATTACHED), isNull(), any(), isNull());
     }
 
     @ParameterizedTest
@@ -115,6 +121,7 @@ class InspectionEvidenceServiceTest {
                 .hasMessageContaining("cannot be removed");
 
         verify(attachmentService, never()).deleteAttachmentOf(any(), any());
+        verify(events, never()).record(any(), anyString(), any(), any(), any());
     }
 
     @ParameterizedTest
@@ -128,6 +135,8 @@ class InspectionEvidenceServiceTest {
         ArgumentCaptor<AttachmentOwner> owner = ArgumentCaptor.forClass(AttachmentOwner.class);
         verify(attachmentService).deleteAttachmentOf(owner.capture(), eq(88L));
         assertThat(owner.getValue().entityUuid()).isEqualTo(inspectionId);
+        verify(events).record(any(), eq(InspectionEventType.EVIDENCE_REMOVED),
+                eq(Map.of("attachmentId", 88L)), isNull(), isNull());
     }
 
     @Test
