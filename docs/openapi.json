@@ -12278,6 +12278,19 @@
         },
         "type": "object"
       },
+      "MergeBimElementRequest": {
+        "description": "Carries a retired element's construction-element link onto the element that replaced it after an authoring tool regenerated the GlobalId.",
+        "properties": {
+          "intoElementId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "intoElementId"
+        ],
+        "type": "object"
+      },
       "ModuleDescriptorDto": {
         "properties": {
           "enabled": {
@@ -33990,6 +34003,129 @@
           }
         },
         "summary": "Get one element by its Echno id",
+        "tags": [
+          "BIM Models"
+        ]
+      }
+    },
+    "/api/v1/bim/elements/{elementId}/merge": {
+      "post": {
+        "description": "For a GlobalId an authoring tool regenerated: the retired row's construction element moves to the target, the spatial node's bimElementGuid follows, and the retired row records what it was merged into.",
+        "operationId": "merge",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "elementId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeBimElementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BimElementDto"
+                }
+              }
+            },
+            "description": "The target element with the carried link"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Source not retired, target retired or merged, different models, or both linked"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such element in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Merge a retired element into the element that replaced it",
         "tags": [
           "BIM Models"
         ]
