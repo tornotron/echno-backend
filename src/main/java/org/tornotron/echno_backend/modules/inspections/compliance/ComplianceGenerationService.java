@@ -25,6 +25,8 @@ import org.tornotron.echno_backend.modules.inspections.events.InspectionEventCha
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSubject;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventType;
+import org.tornotron.echno_backend.modules.inspections.compliance.ai.ComplianceAiProperties;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDto;
 import org.tornotron.echno_backend.modules.inspections.mapper.InspectionMapper;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
@@ -130,6 +132,8 @@ public class ComplianceGenerationService {
     private final InspectionMapper inspectionMapper;
     private final TransactionRetryTemplate retryTemplate;
     private final InspectionEventRecorder events;
+    private final ObservationService observations;
+    private final ComplianceAiProperties aiProperties;
 
     /**
      * What the read phase hands to the phases after it. The entities are detached once the
@@ -374,6 +378,10 @@ public class ComplianceGenerationService {
                             .field("riskLevel", null, saved.getRiskLevel())
                             .after(),
                     saved.getAiRationale());
+            // The durable record of the suggestion: an AI observation, pending, whose outcome is
+            // the suggested inspection. Approving, editing or dismissing the inspection reviews it.
+            observations.recordAiSuggestion(saved, aiProperties.getModel(), aiProperties.getModelVersion(),
+                    GENERATOR_ACTOR);
             created.add(inspectionMapper.toDto(saved));
         }
 

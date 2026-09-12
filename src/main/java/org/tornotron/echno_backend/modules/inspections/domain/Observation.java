@@ -58,7 +58,8 @@ import java.util.UUID;
                 @Index(name = "idx_insp_obs_inspection", columnList = "inspection_id"),
                 @Index(name = "idx_insp_obs_spatial_node", columnList = "spatial_node_id"),
                 @Index(name = "idx_insp_obs_source_observed", columnList = "source, observed_at"),
-                @Index(name = "idx_insp_obs_outcome", columnList = "outcome_kind, outcome_ref")
+                @Index(name = "idx_insp_obs_outcome", columnList = "outcome_kind, outcome_ref"),
+                @Index(name = "idx_insp_obs_organization", columnList = "organization_id")
         })
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Getter

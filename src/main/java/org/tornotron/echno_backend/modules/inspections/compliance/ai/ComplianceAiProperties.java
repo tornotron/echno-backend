@@ -31,6 +31,13 @@ public class ComplianceAiProperties {
     /** Model id (slug) to call. */
     private String model = "llama3.3-70b-instruct";
 
+    /**
+     * Version label recorded on every observation the compliance generator writes, beside the
+     * model slug. The slug alone does not say which revision of a hosted model answered; set this
+     * when the provider exposes one, or to a date the deployment was pinned. Empty means unknown.
+     */
+    private String modelVersion = "";
+
     /** Upper bound on tokens generated in the response. */
     private int maxTokens = 4096;
 
