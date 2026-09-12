@@ -145,6 +145,20 @@ public class SpatialNodeService {
         return repository.findByProjectIdAndBimElementGuid(projectId, guid).map(this::toDto);
     }
 
+    /**
+     * Every IFC GlobalId the project's nodes carry, archived ones included, mapped to the node
+     * id. One query for a whole proposal instead of one per proposed node.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, UUID> bimElementGuidIndex(Long projectId) {
+        requireProject(projectId);
+        Map<String, UUID> index = new HashMap<>();
+        for (SpatialNode node : repository.findByProjectIdAndBimElementGuidIsNotNull(projectId)) {
+            index.put(node.getBimElementGuid(), node.getId());
+        }
+        return index;
+    }
+
     @Transactional
     public SpatialNodeDto create(Long projectId, CreateSpatialNodeRequest request) {
         requireProject(projectId);

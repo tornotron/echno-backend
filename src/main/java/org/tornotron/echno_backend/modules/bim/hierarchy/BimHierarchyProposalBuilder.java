@@ -47,6 +47,7 @@ final class BimHierarchyProposalBuilder {
         }
 
         int[] counts = new int[5];
+        Set<String> storeysSeen = new HashSet<>();
         List<ProposedBuilding> buildings = new ArrayList<>();
         Set<String> buildingCodes = new HashSet<>();
         int buildingNo = 0;
@@ -58,8 +59,14 @@ final class BimHierarchyProposalBuilder {
                 String code = unique(codeFrom(name, "B" + buildingNo), buildingCodes);
                 UUID matched = match(nodeByGuid, guid, counts);
                 buildings.add(new ProposedBuilding(guid, name, code, matched,
-                        floors(building, byStorey, nodeByGuid, counts)));
+                        floors(building, byStorey, storeysSeen, nodeByGuid, counts)));
                 counts[0]++;
+            }
+        }
+        // Elements that name a storey the structure does not have are as unplaced as those with none.
+        for (Map.Entry<String, List<BimElement>> entry : byStorey.entrySet()) {
+            if (!storeysSeen.contains(entry.getKey())) {
+                unplaced += entry.getValue().size();
             }
         }
         Map<String, Integer> summary = new LinkedHashMap<>();
@@ -73,7 +80,7 @@ final class BimHierarchyProposalBuilder {
     }
 
     private static List<ProposedFloor> floors(Map<String, Object> building, Map<String, List<BimElement>> byStorey,
-                                              Function<String, UUID> nodeByGuid, int[] counts) {
+                                              Set<String> storeysSeen, Function<String, UUID> nodeByGuid, int[] counts) {
         List<Map<String, Object>> storeys = new ArrayList<>(listOf(building.get("storeys")));
         storeys.sort(Comparator.comparing(s -> dbl(s.get("elevation")) == null ? Double.MAX_VALUE : dbl(s.get("elevation"))));
         int negatives = (int) storeys.stream().filter(s -> dbl(s.get("elevation")) != null && dbl(s.get("elevation")) < 0).count();
@@ -82,6 +89,7 @@ final class BimHierarchyProposalBuilder {
         for (int i = 0; i < storeys.size(); i++) {
             Map<String, Object> storey = storeys.get(i);
             String guid = str(storey.get("globalId"));
+            storeysSeen.add(guid);
             int levelIndex = i - negatives;
             String name = firstNonBlank(str(storey.get("name")), "Level " + levelIndex);
             String code = unique(codeFrom(name, "L" + levelIndex), floorCodes);
@@ -122,7 +130,8 @@ final class BimHierarchyProposalBuilder {
             counts[2]++;
         }
         if (!noSpace.isEmpty() || zones.isEmpty()) {
-            zones.add(new ProposedZone(null, floorCode, floorCode, true, null, elements(noSpace, nodeByGuid, counts)));
+            String code = unique(floorCode, zoneCodes);
+            zones.add(new ProposedZone(null, floorCode, code, true, null, elements(noSpace, nodeByGuid, counts)));
             counts[2]++;
         }
         return zones;
