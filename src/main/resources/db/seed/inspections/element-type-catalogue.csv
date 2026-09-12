@@ -1,0 +1,18 @@
+code,name,group_code,description,sort_order,active
+footing,Footing,structure,Isolated or combined foundation footing,10,true
+column,Column,structure,Vertical load-bearing member,20,true
+beam,Beam,structure,Horizontal load-bearing member,30,true
+slab,Slab,structure,Floor or roof slab,40,true
+wall,Wall,structure,Masonry or concrete wall,50,true
+staircase,Staircase,structure,Flight and landing,60,true
+lintel,Lintel,structure,Beam over an opening,70,true
+door,Door,openings,Door leaf and frame,110,true
+window,Window,openings,Window unit and frame,120,true
+fire-door,Fire door,fire,Fire-rated door assembly,130,true
+ceiling,Ceiling,finishes,False or plastered ceiling,210,true
+floor-finish,Floor finish,finishes,Tiles or stone or screed finish on a floor,220,true
+wall-finish,Wall finish,finishes,Plaster or paint or cladding on a wall,230,true
+pipe-run,Pipe run,services,Water or drainage pipe run,310,true
+duct,Duct,services,Air-conditioning or ventilation duct,320,true
+cable-tray,Cable tray,services,Cable tray or trunking run,330,true
+sprinkler-branch,Sprinkler branch,fire,Sprinkler branch line and heads,410,true

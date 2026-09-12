@@ -43,7 +43,9 @@ import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventService;
 import org.tornotron.echno_backend.modules.inspections.service.TradeService;
+import org.tornotron.echno_backend.modules.inspections.service.ElementTypeService;
 import org.tornotron.echno_backend.modules.inspections.mapper.TradeMapperImpl;
+import org.tornotron.echno_backend.modules.inspections.mapper.ElementTypeMapperImpl;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -68,6 +70,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Import({InspectionService.class, SpatialNodeService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         TradeService.class, TradeMapperImpl.class,
+        ElementTypeService.class, ElementTypeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,

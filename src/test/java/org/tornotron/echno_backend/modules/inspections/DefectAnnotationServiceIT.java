@@ -28,11 +28,13 @@ import org.tornotron.echno_backend.modules.inspections.dtos.ReplaceAnnotationsRe
 import org.tornotron.echno_backend.modules.inspections.dtos.UpdateInspectionRequest;
 import org.tornotron.echno_backend.modules.inspections.mapper.ChecklistTemplateMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.TradeMapperImpl;
+import org.tornotron.echno_backend.modules.inspections.mapper.ElementTypeMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.DefectPhotoAnnotationMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.InspectionMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.NcrMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.service.ChecklistTemplateService;
 import org.tornotron.echno_backend.modules.inspections.service.TradeService;
+import org.tornotron.echno_backend.modules.inspections.service.ElementTypeService;
 import org.tornotron.echno_backend.modules.inspections.service.DefectAnnotationService;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
@@ -74,6 +76,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Import({InspectionService.class, SpatialNodeService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         TradeService.class, TradeMapperImpl.class,
+        ElementTypeService.class, ElementTypeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
@@ -142,6 +145,7 @@ class DefectAnnotationServiceIT extends AbstractIntegrationTest {
             deleteForOrgs("DELETE FROM document_sequence WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM project WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM inspection_trades WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM org_element_types WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM organization WHERE id IN (:a,:b)");
         });
     }

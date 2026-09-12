@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 
+import org.tornotron.echno_backend.project.enums.ProjectType;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -28,6 +30,11 @@ public record ChecklistTemplateRequest(
         @Schema(description = "What the checklist covers and when it is used.",
                 example = "Pre-pour reinforcement check for slabs, beams and columns")
         String description,
+        @Schema(description = "Element type codes of the organization the template suits. Omit or send null for any; "
+                + "an empty list also means any.", nullable = true, example = "[\"column\", \"beam\"]")
+        List<String> applicableElementTypes,
+        @Schema(description = "Project types the template suits. Omit or send null for any.", nullable = true)
+        List<ProjectType> applicableProjectTypes,
         @Schema(description = "Whether new inspections of this trade are created from this template. "
                 + "Defaults to true when omitted.", example = "true")
         Boolean active,

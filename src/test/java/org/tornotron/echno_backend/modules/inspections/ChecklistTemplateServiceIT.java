@@ -29,11 +29,13 @@ import org.tornotron.echno_backend.modules.inspections.dtos.ChecklistTemplateReq
 import org.tornotron.echno_backend.modules.inspections.dtos.StarterChecklistTemplateDto;
 import org.tornotron.echno_backend.modules.inspections.mapper.ChecklistTemplateMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.TradeMapperImpl;
+import org.tornotron.echno_backend.modules.inspections.mapper.ElementTypeMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.InspectionMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.DefectPhotoAnnotationMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.NcrMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.service.ChecklistTemplateService;
 import org.tornotron.echno_backend.modules.inspections.service.TradeService;
+import org.tornotron.echno_backend.modules.inspections.service.ElementTypeService;
 import org.tornotron.echno_backend.modules.inspections.service.DefectAnnotationService;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
@@ -66,6 +68,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Import({InspectionService.class, SpatialNodeService.class, InspectionMapperImpl.class,
         ChecklistTemplateService.class, ChecklistTemplateMapperImpl.class,
         TradeService.class, TradeMapperImpl.class,
+        ElementTypeService.class, ElementTypeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
@@ -136,6 +139,7 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
                     + "(SELECT id FROM checklist_templates WHERE organization_id IN (:a,:b))");
             deleteForOrgs("DELETE FROM checklist_templates WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM inspection_trades WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM org_element_types WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM organization WHERE id IN (:a,:b)");
         });
     }
@@ -183,6 +187,7 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
                 "reinforcement", null,
                 "Reinforcement checklist, revision 2",
                 "Tightened after the audit",
+                null, null,
                 false,
                 List.of(new ChecklistTemplateItemRequest("Laps", "Lap length and stagger",
                         "IS 456:2000 cl. 26.2.5", "50d", "Measured on each lapped bar", "+/- 25 mm",
@@ -200,7 +205,7 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
         UUID id = service.create(request(anItem())).id();
 
         assertThatThrownBy(() -> service.update(id, new ChecklistTemplateRequest(
-                "masonry", null, "Moved", null, null, List.of(anItem()))))
+                "masonry", null, "Moved", null, null, null, null, List.of(anItem()))))
                 .isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("cannot be moved");
     }
@@ -282,7 +287,7 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
         assertThat(service.instantiateFor(null)).isEmpty();
 
         service.update(id, new ChecklistTemplateRequest("reinforcement", null,
-                "Retired", null, false, List.of(anItem())));
+                "Retired", null, null, null, false, List.of(anItem())));
         entityManager.flush();
         entityManager.clear();
 
@@ -311,9 +316,49 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
         assertThat(item.getInspection()).isNull();
     }
 
+    @Test
+    void applicability_isStoredNormalisedAndFiltersTheSuggestions() {
+        UUID structural = service.create(new ChecklistTemplateRequest("rcc", null,
+                "RCC checklist", null, List.of(" Column", "beam", "column"),
+                List.of(org.tornotron.echno_backend.project.enums.ProjectType.RESIDENTIAL), null,
+                List.of(anItem()))).id();
+        UUID any = service.create(request(anItem())).id();
+        UUID retired = service.create(new ChecklistTemplateRequest("masonry", null,
+                "Masonry checklist", null, List.of("wall"), null, false, List.of(anItem()))).id();
+
+        ChecklistTemplateDto stored = service.findById(structural);
+        assertThat(stored.applicableElementTypes()).containsExactly("column", "beam");
+        assertThat(stored.applicableProjectTypes())
+                .containsExactly(org.tornotron.echno_backend.project.enums.ProjectType.RESIDENTIAL);
+        assertThat(service.findById(any).applicableElementTypes()).isNull();
+
+        // a column on a residential project: the RCC template and the unrestricted one
+        assertThat(service.findApplicable("column",
+                org.tornotron.echno_backend.project.enums.ProjectType.RESIDENTIAL))
+                .extracting(ChecklistTemplateDto::id).containsExactlyInAnyOrder(structural, any);
+        // a column on a commercial project: the RCC template's project filter excludes it
+        assertThat(service.findApplicable("column",
+                org.tornotron.echno_backend.project.enums.ProjectType.COMMERCIAL))
+                .extracting(ChecklistTemplateDto::id).containsExactly(any);
+        // a wall: only the unrestricted one, since the masonry template is inactive
+        assertThat(service.findApplicable("wall", null))
+                .extracting(ChecklistTemplateDto::id).containsExactly(any);
+        assertThat(service.findApplicable(null, null)).extracting(ChecklistTemplateDto::id)
+                .containsExactlyInAnyOrder(structural, any)
+                .doesNotContain(retired);
+    }
+
+    @Test
+    void applicability_refusesAnElementTypeTheOrganizationDoesNotHave() {
+        assertThatThrownBy(() -> service.create(new ChecklistTemplateRequest("rcc", null,
+                "RCC checklist", null, List.of("hologram"), null, null, List.of(anItem()))))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("hologram");
+    }
+
     private static ChecklistTemplateRequest request(ChecklistTemplateItemRequest... items) {
         return new ChecklistTemplateRequest("reinforcement", null,
-                "Reinforcement checklist", "Pre-pour check", null, List.of(items));
+                "Reinforcement checklist", "Pre-pour check", null, null, null, List.of(items));
     }
 
     private org.tornotron.echno_backend.modules.inspections.domain.OrgTrade trade(String code) {

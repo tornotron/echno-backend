@@ -26,6 +26,8 @@ import org.tornotron.echno_backend.modules.inspections.repositories.ChecklistTem
 import org.tornotron.echno_backend.modules.inspections.repositories.ChecklistTemplateSpecifications;
 import org.tornotron.echno_backend.modules.inspections.repositories.StarterChecklistTemplateRepository;
 
+import org.tornotron.echno_backend.project.enums.ProjectType;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -51,6 +53,7 @@ public class ChecklistTemplateService {
     private final ChecklistTemplateMapper mapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final TradeService tradeService;
+    private final ElementTypeService elementTypeService;
 
     @Transactional(readOnly = true)
     public ChecklistTemplateDto findById(UUID id) {
@@ -71,6 +74,27 @@ public class ChecklistTemplateService {
      *                                    org, so a second definition is an edit of the
      *                                    first, not a new row.
      */
+    /**
+     * The templates to suggest for an element of the given type on a project of the given type:
+     * active templates whose applicability is unset or names the value. Both parameters are
+     * optional; with neither, every active template is returned. Suggestion only, so the
+     * filtering happens in memory over the tenant's own short list.
+     */
+    @Transactional(readOnly = true)
+    public List<ChecklistTemplateDto> findApplicable(String elementType, ProjectType projectType) {
+        String element = elementType == null || elementType.isBlank() ? null : elementType.trim().toLowerCase();
+        return templateRepo.findAll(ChecklistTemplateSpecifications.withFilters(null, null, true)).stream()
+                .filter(t -> element == null || admits(t.getApplicableElementTypes(), element))
+                .filter(t -> projectType == null || admits(t.getApplicableProjectTypes(), projectType.name()))
+                .sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName()))
+                .map(mapper::toDto)
+                .toList();
+    }
+
+    private static boolean admits(List<String> applicable, String value) {
+        return applicable == null || applicable.isEmpty() || applicable.contains(value);
+    }
+
     @Transactional
     public ChecklistTemplateDto create(ChecklistTemplateRequest req) {
         OrgTrade trade = requireTrade(req.trade(), req.tradeId());
@@ -239,10 +263,33 @@ public class ChecklistTemplateService {
         }
     }
 
+    /** Lowercases, de-duplicates and checks each code against the org's element types. */
+    private List<String> normaliseElementTypes(List<String> codes) {
+        if (codes == null || codes.isEmpty()) {
+            return null;
+        }
+        List<String> cleaned = codes.stream()
+                .filter(c -> c != null && !c.isBlank())
+                .map(c -> c.trim().toLowerCase())
+                .distinct()
+                .toList();
+        for (String code : cleaned) {
+            if (!elementTypeService.isKnownCode(code)) {
+                throw new InvalidRequestException("Unknown element type: " + code
+                        + ". Define it under the organization's element types first.");
+            }
+        }
+        return cleaned.isEmpty() ? null : cleaned;
+    }
+
     private void apply(ChecklistTemplate template, ChecklistTemplateRequest req) {
         template.setName(req.name());
         template.setDescription(req.description());
         template.setActive(req.active() == null || req.active());
+        template.setApplicableElementTypes(normaliseElementTypes(req.applicableElementTypes()));
+        template.setApplicableProjectTypes(req.applicableProjectTypes() == null || req.applicableProjectTypes().isEmpty()
+                ? null
+                : req.applicableProjectTypes().stream().distinct().map(Enum::name).toList());
         for (ChecklistTemplateItemRequest source : req.items()) {
             ChecklistTemplateItem item = new ChecklistTemplateItem();
             item.setCategory(source.category());

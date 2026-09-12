@@ -74,6 +74,20 @@ public class ChecklistTemplate implements TenantScopedEntity {
     @Column(name = "active", nullable = false)
     private boolean active = true;
 
+    /**
+     * Element type codes this template suits; null means any. Suggestion only: the
+     * inspection form narrows its template picker to these once an element is chosen.
+     * Stored as a text array like {@code users_table.certifications}: a JSON-typed
+     * {@code List<String>} would be cached by Hibernate for every other {@code List<String>}
+     * column and break schema validation on that one.
+     */
+    @Column(name = "applicable_element_types", columnDefinition = "text[]")
+    private List<String> applicableElementTypes;
+
+    /** {@code ProjectType} names this template suits; null means any. Suggestion only. */
+    @Column(name = "applicable_project_types", columnDefinition = "text[]")
+    private List<String> applicableProjectTypes;
+
     /** Revision counter, bumped by the service on every edit. Never a key. */
     @Column(name = "version", nullable = false)
     private int version = 1;
