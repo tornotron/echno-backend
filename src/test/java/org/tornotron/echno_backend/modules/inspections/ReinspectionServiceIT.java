@@ -43,7 +43,11 @@ import org.tornotron.echno_backend.modules.inspections.mapper.ReinspectionMapper
 import org.tornotron.echno_backend.modules.inspections.repositories.ReinspectionRepository;
 import org.tornotron.echno_backend.modules.inspections.service.ReinspectionService;
 import org.tornotron.echno_backend.modules.inspections.service.TradeService;
+import org.tornotron.echno_backend.modules.inspections.service.ElementTypeService;
+import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
+import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.modules.inspections.mapper.TradeMapperImpl;
+import org.tornotron.echno_backend.modules.inspections.mapper.ElementTypeMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateInspectionRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDto;
@@ -90,6 +94,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         NcrService.class, NcrMapperImpl.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         TradeService.class, TradeMapperImpl.class,
+        ElementTypeService.class, ElementTypeMapperImpl.class,
+        SpatialNodeService.class, JpaAuditingConfig.class,
         ReinspectionService.class, ReinspectionMapperImpl.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
         UserContextService.class,
@@ -172,6 +178,7 @@ class ReinspectionServiceIT extends AbstractIntegrationTest {
                     + "(SELECT id FROM inspections WHERE organization_id IN (:a,:b))");
             deleteForOrgs("DELETE FROM inspections WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM inspection_trades WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM org_element_types WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM document_sequence WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM project WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM employee WHERE organization_id IN (:a,:b)");
@@ -439,10 +446,11 @@ class ReinspectionServiceIT extends AbstractIntegrationTest {
                 current.checkItems().stream().map(c -> new InspectionCheckItemRequest(c.category(), c.checkPoint(),
                         c.specification(), c.status(), c.remarks(), c.photosRequired(), c.photos(),
                         c.measurement(), c.expectedValue(), c.acceptanceCriterion(), c.tolerance(),
-                        c.bimElementGuid(), c.priority())).toList(),
+                        c.bimElementGuid(), c.priority(), c.spatialNodeId())).toList(),
                 List.of(new InspectionDefectRequest("Finishing", "Uneven surface near grid B2",
                         DefectSeverity.MINOR, "Grid B2", null, "Re-level and re-finish",
-                        "Contractor", LocalDate.of(2026, 9, 20), DefectStatus.RESOLVED, LocalDate.of(2026, 9, 15)))));
+                        "Contractor", LocalDate.of(2026, 9, 20), DefectStatus.RESOLVED, LocalDate.of(2026, 9, 15), null)),
+                null));
         entityManager.flush();
         return updated.defects().getFirst().id();
     }
@@ -463,16 +471,17 @@ class ReinspectionServiceIT extends AbstractIntegrationTest {
                 List.of(
                         new InspectionCheckItemRequest("Structural", "Column alignment",
                                 null, CheckItemStatus.PASSED, null, false, null,
-                                null, null, null, null, null, "high"),
+                                null, null, null, null, null, "high", null),
                         new InspectionCheckItemRequest("Structural", "Rebar spacing",
                                 null, CheckItemStatus.PENDING, null, false, null,
-                                null, null, null, null, null, "medium"),
+                                null, null, null, null, null, "medium", null),
                         new InspectionCheckItemRequest("Finishing", "Surface level",
                                 null, CheckItemStatus.FAILED, null, false, null,
-                                null, null, null, null, null, "low")),
+                                null, null, null, null, null, "low", null)),
                 List.of(new InspectionDefectRequest("Finishing", "Uneven surface near grid B2",
                         DefectSeverity.MINOR, "Grid B2", null, "Re-level and re-finish",
-                        "Contractor", LocalDate.of(2026, 9, 20), null, null)));
+                        "Contractor", LocalDate.of(2026, 9, 20), null, null, null)),
+                null);
     }
 
     private UpdateInspectionRequest headerOnly(InspectionStatus status, InspectionResult result) {
@@ -480,7 +489,7 @@ class ReinspectionServiceIT extends AbstractIntegrationTest {
                 "Slab check", InspectionType.QUALITY, null, null, null, status, result, projectId,
                 "Block A", null, null, LocalDate.of(2026, 9, 12), null,
                 null, null, null, 100L, null, null, null, null, null,
-                List.of(), List.of());
+                List.of(), List.of(), null);
     }
 
     private Inspection scheduledInspection() {
@@ -488,7 +497,7 @@ class ReinspectionServiceIT extends AbstractIntegrationTest {
                 "Slab check", InspectionType.QUALITY, null, null, null, projectId,
                 "Block A", null, null, LocalDate.of(2026, 9, 12), null,
                 null, null, null, 100L, null, null, null, null, null,
-                null, null));
+                null, null, null));
         return inspectionRepo.findByIdScoped(dto.id()).orElseThrow();
     }
 
