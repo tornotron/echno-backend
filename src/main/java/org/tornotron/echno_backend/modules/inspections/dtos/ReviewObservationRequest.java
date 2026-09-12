@@ -35,7 +35,9 @@ public record ReviewObservationRequest(
 
     @Schema(description = "The outcome to link. kind decides which of the other fields are read: "
             + "CHECK_ITEM reads checkItemId and status; DEFECT reads defectId (attach) or defect "
-            + "(create, needs the observation on an inspection); INSPECTION reads inspectionId.")
+            + "(create, needs the observation on an inspection); INSPECTION reads inspectionId. NCR is not "
+            + "chosen here: an NCR raised through the NCR endpoint links its observation itself, and a "
+            + "review naming it is refused with 400.")
     public record Outcome(
             @NotNull ObservationOutcomeKind kind,
             UUID checkItemId,

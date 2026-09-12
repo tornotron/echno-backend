@@ -117,6 +117,7 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
     private Long orgAId;
     private Long orgBId;
     private Long projectId;
+    private Long otherProjectId;
     private UUID zone;
 
     @BeforeEach
@@ -129,10 +130,15 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
             project.setProjectName("Tower A");
             project.setOrganization(orgA);
             entityManager.persist(project);
+            Project other = new Project();
+            other.setProjectName("Tower B");
+            other.setOrganization(orgB);
+            entityManager.persist(other);
             entityManager.flush();
             orgAId = orgA.getId();
             orgBId = orgB.getId();
             projectId = project.getId();
+            otherProjectId = other.getId();
         });
         TenantContext.setCurrentOrgId(orgAId);
         enableOrgFilter(orgAId);
@@ -248,7 +254,12 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
         enableOrgFilter(orgBId);
         // the other tenant cannot see it, and its own use of the same reference is a new row
         assertThatThrownBy(() -> service.findById(mine.id())).isInstanceOf(ResourceNotFoundException.class);
-        ObservationService.IntakeResult theirs = service.intake(new IntakeObservationRequest(projectId,
+        // a project of the other tenant is not theirs to post against
+        assertThatThrownBy(() -> service.intake(new IntakeObservationRequest(projectId, "shared-ref",
+                ObservationSource.ROBOT, "spot-1", null, null, null, null, LocalDateTime.of(2026, 9, 12, 9, 0),
+                "Theirs", null, null, null, null, null, null, null)))
+                .isInstanceOf(ResourceNotFoundException.class);
+        ObservationService.IntakeResult theirs = service.intake(new IntakeObservationRequest(otherProjectId,
                 "shared-ref", ObservationSource.ROBOT, "spot-1", null, null, null, null,
                 LocalDateTime.of(2026, 9, 12, 9, 0), "Theirs", null, null, null, null, null, null, null));
         assertThat(theirs.created()).isTrue();
