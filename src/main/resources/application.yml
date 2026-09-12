@@ -269,6 +269,13 @@ echno:
     # refuses with 402 and the structured reason. Advisory is the default because nothing
     # creates a subscription yet; flip to enforce per environment once payments exist.
     mode: ${ECHNO_ENTITLEMENT_MODE:advisory}
+  modules:
+    # Operator kill switches, one per installed module (echno.modules.<id>.enabled, default on).
+    # Off hides the module from /api/v1/modules/web/enabled for every organization and, for
+    # inspections, also stops the compliance sweep and the generation job dispatcher, on top of
+    # their own compliance.sweep.enabled / compliance.job.enabled switches.
+    inspections:
+      enabled: ${ECHNO_MODULE_INSPECTIONS_ENABLED:true}
   security:
     jwt:
       # Reject any access token whose audience does not include the backend client

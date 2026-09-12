@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.support.CronExpression;
 import org.tornotron.echno_backend.common.multitenancy.WithoutTenant;
-import org.tornotron.echno_backend.compliance.sweep.ComplianceRuleSweep;
+import org.tornotron.echno_backend.modules.inspections.compliance.sweep.ComplianceRuleSweep;
 
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;

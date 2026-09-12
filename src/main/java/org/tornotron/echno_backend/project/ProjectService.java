@@ -26,7 +26,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.employee.Employee;
-import org.tornotron.echno_backend.compliance.IndianStateResolver;
+import org.tornotron.echno_backend.modules.inspections.api.IndianStateResolver;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.finance.ledger.repositories.CustomerRepository;
