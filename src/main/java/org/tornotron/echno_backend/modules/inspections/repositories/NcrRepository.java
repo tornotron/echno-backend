@@ -19,4 +19,7 @@ public interface NcrRepository extends JpaRepository<Ncr, UUID>, JpaSpecificatio
      */
     @Query("SELECT n FROM Ncr n WHERE n.id = :id")
     Optional<Ncr> findByIdScoped(@Param("id") UUID id);
+
+    /** Organization-explicit existence check, for reads that must not lean on the session filter. */
+    boolean existsByIdAndOrganization_Id(UUID id, Long organizationId);
 }
