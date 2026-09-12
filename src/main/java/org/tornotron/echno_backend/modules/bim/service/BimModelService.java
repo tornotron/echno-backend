@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.modules.bim.BimImportJobStatus;
 import org.tornotron.echno_backend.modules.bim.BimStorageLayout;
 import org.tornotron.echno_backend.modules.bim.BimVersionStatus;
 import org.tornotron.echno_backend.modules.bim.domain.BimElement;
+import org.tornotron.echno_backend.modules.bim.mapper.BimMapper;
 import org.tornotron.echno_backend.modules.bim.domain.BimImportJob;
 import org.tornotron.echno_backend.modules.bim.domain.BimModel;
 import org.tornotron.echno_backend.modules.bim.domain.BimModelVersion;
@@ -48,6 +49,7 @@ public class BimModelService {
     private final ProjectRepository projectRepository;
     private final TenantEntityHelper tenantEntityHelper;
     private final UserContextService userContextService;
+    private final BimMapper mapper;
 
     @Transactional
     public BimModelDto create(Long projectId, CreateBimModelRequest req) {
@@ -63,27 +65,27 @@ public class BimModelService {
         m.setDescription(req.description());
         m.setCreatedBy(userContextService.getCurrentUserId());
         m.setUpdatedBy(m.getCreatedBy());
-        return BimMapper.toDto(models.save(m), List.of());
+        return mapper.toDto(models.save(m), List.of());
     }
 
     @Transactional(readOnly = true)
     public List<BimModelDto> listForProject(Long projectId) {
         requireProject(projectId);
         return models.findByProjectIdOrderByCreatedAtAsc(projectId).stream()
-                .map(m -> BimMapper.toDto(m, versionDtos(m.getId())))
+                .map(m -> mapper.toDto(m, versionDtos(m.getId())))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public BimModelDto get(UUID modelId) {
         BimModel m = requireModel(modelId);
-        return BimMapper.toDto(m, versionDtos(m.getId()));
+        return mapper.toDto(m, versionDtos(m.getId()));
     }
 
     @Transactional(readOnly = true)
     public BimModelVersionDto getVersion(UUID modelId, UUID versionId) {
         requireModel(modelId);
-        return BimMapper.toDto(requireVersion(modelId, versionId));
+        return mapper.toDto(requireVersion(modelId, versionId));
     }
 
     @Transactional(readOnly = true)
@@ -92,26 +94,26 @@ public class BimModelService {
         requireModel(modelId);
         Page<BimElement> found = elements.search(modelId, blankToNull(storeyGlobalId), includeRetired,
                 PageRequest.of(page, Math.min(Math.max(size, 1), 500)));
-        List<BimElementDto> content = found.getContent().stream().map(BimMapper::toDto).toList();
+        List<BimElementDto> content = found.getContent().stream().map(mapper::toDto).toList();
         return new BimElementPageDto(content, found.getNumber(), found.getSize(),
                 found.getTotalElements(), found.getTotalPages());
     }
 
     @Transactional(readOnly = true)
     public BimElementDto getElement(UUID elementId) {
-        return BimMapper.toDto(requireElement(elementId));
+        return mapper.toDto(requireElement(elementId));
     }
 
     @Transactional(readOnly = true)
     public List<BimImportJobDto> listJobs(UUID modelId, UUID versionId) {
         requireModel(modelId);
         requireVersion(modelId, versionId);
-        return jobs.findByVersionIdOrderByQueuedAtDesc(versionId).stream().map(BimMapper::toDto).toList();
+        return jobs.findByVersionIdOrderByQueuedAtDesc(versionId).stream().map(mapper::toDto).toList();
     }
 
     @Transactional(readOnly = true)
     public BimImportJobDto getJob(UUID jobId) {
-        return BimMapper.toDto(jobs.findByIdScoped(jobId)
+        return mapper.toDto(jobs.findByIdScoped(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("BIM import job not found: " + jobId)));
     }
 
@@ -140,7 +142,7 @@ public class BimModelService {
         job.setOutputPrefix(BimStorageLayout.prefix(modelId, versionId));
         job.setStatus(BimImportJobStatus.QUEUED);
         job.setQueuedAt(LocalDateTime.now());
-        return BimMapper.toDto(jobs.save(job));
+        return mapper.toDto(jobs.save(job));
     }
 
     // ------------------------------------------------------------------------------------
@@ -169,7 +171,7 @@ public class BimModelService {
     }
 
     private List<BimModelVersionDto> versionDtos(UUID modelId) {
-        return versions.findByModelIdOrderByVersionNumberDesc(modelId).stream().map(BimMapper::toDto).toList();
+        return versions.findByModelIdOrderByVersionNumberDesc(modelId).stream().map(mapper::toDto).toList();
     }
 
     private static String blankToNull(String s) {
