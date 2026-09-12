@@ -418,4 +418,10 @@
     <!-- v4.0 - Inspection: spell the defect status default the way the enum reads it, and stop an inspection losing its tenant -->
     <include file="db/changelog/v4.0/094-repair-inspection-nullability.xml"/>
 
+    <!-- v4.0 - Billing: key subscriptions on the organization, expire lapsed rows (#643) -->
+    <include file="db/changelog/v4.0/095-rekey-subscription-organization.xml"/>
+
+    <!-- v4.0 - Billing: the inspections module feature, granted on every seeded plan (#748) -->
+    <include file="db/changelog/v4.0/096-seed-module-inspections-feature.xml"/>
+
 </databaseChangeLog>

@@ -67,8 +67,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class BillingMappingIT extends AbstractIntegrationTest {
 
-    private static final Long SUBSCRIBED_USER = 991_001L;
-    private static final Long UNSUBSCRIBED_USER = 991_002L;
+    private static final Long SUBSCRIBED_ORG = 991_001L;
+    private static final Long UNSUBSCRIBED_ORG = 991_002L;
+    private static final Long BUYER = 991_009L;
     private static final String CURRENT_PLAN = "mapping-it-plan-a";
     private static final String TARGET_PLAN = "mapping-it-plan-b";
     private static final String FEATURE_CODE = "MAPPING_IT_FEATURE";
@@ -113,7 +114,8 @@ class BillingMappingIT extends AbstractIntegrationTest {
 
             Instant now = Instant.now();
             entityManager.persist(Subscription.builder()
-                    .userId(SUBSCRIBED_USER)
+                    .organizationId(SUBSCRIBED_ORG)
+                    .userId(BUYER)
                     .plan(current)
                     .status(SubscriptionStatus.ACTIVE)
                     .currentPeriodStart(now)
@@ -128,10 +130,10 @@ class BillingMappingIT extends AbstractIntegrationTest {
     void cleanup() {
         subscriptionCache.evictAll();
         inCommittedTx(() -> {
-            executeUpdate("DELETE FROM usage_record WHERE user_id IN ("
-                    + SUBSCRIBED_USER + ", " + UNSUBSCRIBED_USER + ")");
-            executeUpdate("DELETE FROM subscription WHERE user_id IN ("
-                    + SUBSCRIBED_USER + ", " + UNSUBSCRIBED_USER + ")");
+            executeUpdate("DELETE FROM usage_record WHERE organization_id IN ("
+                    + SUBSCRIBED_ORG + ", " + UNSUBSCRIBED_ORG + ")");
+            executeUpdate("DELETE FROM subscription WHERE organization_id IN ("
+                    + SUBSCRIBED_ORG + ", " + UNSUBSCRIBED_ORG + ")");
             executeUpdate("DELETE FROM plan_feature WHERE plan_id IN "
                     + "(SELECT id FROM plan WHERE code LIKE 'mapping-it-plan-%')");
             executeUpdate("DELETE FROM plan WHERE code LIKE 'mapping-it-plan-%'");
@@ -148,7 +150,7 @@ class BillingMappingIT extends AbstractIntegrationTest {
     @Test
     void mappingASubscriptionEntityOutsideATransaction_throwsLazyInitialization() {
         List<Subscription> subscriptions =
-                inCommittedTx(() -> subscriptionRepository.findByUserIdOrderByCreatedAtDesc(SUBSCRIBED_USER));
+                inCommittedTx(() -> subscriptionRepository.findByOrganizationIdOrderByCreatedAtDesc(SUBSCRIBED_ORG));
 
         assertThatThrownBy(() -> BillingMapper.toSubscriptionDtoList(subscriptions))
                 .isInstanceOf(LazyInitializationException.class);
@@ -156,14 +158,14 @@ class BillingMappingIT extends AbstractIntegrationTest {
 
     @Test
     void getActiveSubscription_returnsAFullyMappedDto() {
-        SubscriptionDto dto = subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow();
+        SubscriptionDto dto = subscriptionService.getActiveSubscription(SUBSCRIBED_ORG).orElseThrow();
 
         assertFullyMapped(dto, CURRENT_PLAN);
     }
 
     @Test
     void getSubscriptionHistory_returnsFullyMappedDtos() {
-        List<SubscriptionDto> history = subscriptionService.getSubscriptionHistory(SUBSCRIBED_USER);
+        List<SubscriptionDto> history = subscriptionService.getSubscriptionHistory(SUBSCRIBED_ORG);
 
         assertThat(history).hasSize(1);
         assertFullyMapped(history.get(0), CURRENT_PLAN);
@@ -172,20 +174,20 @@ class BillingMappingIT extends AbstractIntegrationTest {
     @Test
     void createSubscription_returnsAFullyMappedDto() {
         SubscriptionDto dto = subscriptionService.createSubscription(
-                UNSUBSCRIBED_USER, TARGET_PLAN, BillingPeriod.MONTHLY);
+                UNSUBSCRIBED_ORG, BUYER, TARGET_PLAN, BillingPeriod.MONTHLY);
 
         assertFullyMapped(dto, TARGET_PLAN);
     }
 
     @Test
     void changeSubscription_returnsAFullyMappedDto() {
-        SubscriptionDto dto = subscriptionService.changeSubscription(SUBSCRIBED_USER, TARGET_PLAN);
+        SubscriptionDto dto = subscriptionService.changeSubscription(SUBSCRIBED_ORG, TARGET_PLAN);
 
         assertFullyMapped(dto, TARGET_PLAN);
     }
 
     /**
-     * What the fetch joins on {@code findActiveSubscriptionByUserId} are worth now that the
+     * What the fetch joins on {@code findActiveSubscription} are worth now that the
      * cache holds a snapshot rather than the entity. The snapshot is copied inside the loading
      * transaction, so the lazy reads resolve there either way and weakening the query costs a
      * round trip per plan feature instead of a 500. This pins the query all the same: it is the
@@ -194,7 +196,7 @@ class BillingMappingIT extends AbstractIntegrationTest {
     @Test
     void theQueryBehindTheCacheReturnsAGraphThatOutlivesItsSession() {
         Subscription subscription = inCommittedTx(() ->
-                subscriptionRepository.findActiveSubscriptionByUserId(SUBSCRIBED_USER).orElseThrow());
+                subscriptionRepository.findActiveSubscription(SUBSCRIBED_ORG).orElseThrow());
 
         assertFullyMapped(BillingMapper.toSubscriptionDto(subscription), CURRENT_PLAN);
     }
@@ -207,9 +209,9 @@ class BillingMappingIT extends AbstractIntegrationTest {
      */
     @Test
     void whatTheCacheHoldsIsACompleteCopyWithNoPersistenceStateLeftOnIt() {
-        subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow();
+        subscriptionService.getActiveSubscription(SUBSCRIBED_ORG).orElseThrow();
 
-        SubscriptionSnapshot cached = subscriptionCache.get(SUBSCRIBED_USER);
+        SubscriptionSnapshot cached = subscriptionCache.get(SUBSCRIBED_ORG);
         assertThat(cached).as("the read should have populated the cache").isNotNull();
 
         assertFullyMapped(BillingMapper.toSubscriptionDto(cached), CURRENT_PLAN);
@@ -224,16 +226,16 @@ class BillingMappingIT extends AbstractIntegrationTest {
      */
     @Test
     void changeSubscription_leavesTheCachedValueAlone() {
-        subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow();
-        SubscriptionSnapshot cached = subscriptionCache.get(SUBSCRIBED_USER);
+        subscriptionService.getActiveSubscription(SUBSCRIBED_ORG).orElseThrow();
+        SubscriptionSnapshot cached = subscriptionCache.get(SUBSCRIBED_ORG);
         assertThat(cached.plan().code()).isEqualTo(CURRENT_PLAN);
 
-        subscriptionService.changeSubscription(SUBSCRIBED_USER, TARGET_PLAN);
+        subscriptionService.changeSubscription(SUBSCRIBED_ORG, TARGET_PLAN);
 
         assertThat(cached.plan().code())
                 .as("the write must not have changed the shared cached value")
                 .isEqualTo(CURRENT_PLAN);
-        assertThat(subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow()
+        assertThat(subscriptionService.getActiveSubscription(SUBSCRIBED_ORG).orElseThrow()
                 .getPlan().getCode())
                 .as("and the next read must see the new plan")
                 .isEqualTo(TARGET_PLAN);
@@ -245,11 +247,11 @@ class BillingMappingIT extends AbstractIntegrationTest {
      */
     @Test
     void cancelSubscription_leavesTheCachedValueAlone() {
-        subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow();
-        SubscriptionSnapshot cached = subscriptionCache.get(SUBSCRIBED_USER);
+        subscriptionService.getActiveSubscription(SUBSCRIBED_ORG).orElseThrow();
+        SubscriptionSnapshot cached = subscriptionCache.get(SUBSCRIBED_ORG);
         assertThat(cached.status()).isEqualTo(SubscriptionStatus.ACTIVE);
 
-        subscriptionService.cancelSubscription(SUBSCRIBED_USER, true);
+        subscriptionService.cancelSubscription(SUBSCRIBED_ORG, true);
 
         assertThat(cached.status())
                 .as("the write must not have changed the shared cached value")
@@ -268,18 +270,18 @@ class BillingMappingIT extends AbstractIntegrationTest {
      */
     @Test
     void removingAFeatureFromAPlan_invalidatesTheCachedSubscriptions() {
-        subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow();
-        assertThat(subscriptionCache.get(SUBSCRIBED_USER))
+        subscriptionService.getActiveSubscription(SUBSCRIBED_ORG).orElseThrow();
+        assertThat(subscriptionCache.get(SUBSCRIBED_ORG))
                 .as("the read should have populated the cache").isNotNull();
 
         Long planId = inCommittedTx(() ->
                 planRepository.findByCodeWithFeatures(CURRENT_PLAN).orElseThrow().getId());
         planService.removeFeatureFromPlan(planId, FEATURE_CODE);
 
-        assertThat(subscriptionCache.get(SUBSCRIBED_USER))
+        assertThat(subscriptionCache.get(SUBSCRIBED_ORG))
                 .as("a plan write must not leave subscribers holding the old plan")
                 .isNull();
-        assertThat(subscriptionService.getActiveSubscription(SUBSCRIBED_USER).orElseThrow()
+        assertThat(subscriptionService.getActiveSubscription(SUBSCRIBED_ORG).orElseThrow()
                 .getPlan().getFeatures())
                 .as("and the next read must see the plan without the feature")
                 .isEmpty();
@@ -298,20 +300,20 @@ class BillingMappingIT extends AbstractIntegrationTest {
     void changeSubscription_evictsAgainOnceItsTransactionHasCompleted() {
         SubscriptionSnapshot concurrentlyCachedRow = inCommittedTx(() ->
                 BillingMapper.toSubscriptionSnapshot(subscriptionRepository
-                        .findActiveSubscriptionByUserId(SUBSCRIBED_USER).orElseThrow()));
+                        .findActiveSubscription(SUBSCRIBED_ORG).orElseThrow()));
 
         inCommittedTx(() -> {
-            subscriptionService.changeSubscription(SUBSCRIBED_USER, TARGET_PLAN);
+            subscriptionService.changeSubscription(SUBSCRIBED_ORG, TARGET_PLAN);
 
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void beforeCommit(boolean readOnly) {
-                    subscriptionCache.put(SUBSCRIBED_USER, concurrentlyCachedRow);
+                    subscriptionCache.put(SUBSCRIBED_ORG, concurrentlyCachedRow);
                 }
             });
         });
 
-        assertThat(subscriptionCache.get(SUBSCRIBED_USER))
+        assertThat(subscriptionCache.get(SUBSCRIBED_ORG))
                 .as("a read that landed mid-write must not leave a stale entry behind")
                 .isNull();
     }

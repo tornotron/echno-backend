@@ -7,13 +7,15 @@ import org.tornotron.echno_backend.billing.enums.SubscriptionStatus;
 
 import java.time.Instant;
 
-@Schema(description = "A user's subscription to a plan, as returned by the API.")
+@Schema(description = "An organization's subscription to a plan, as returned by the API.")
 @Value
 @Builder
 public class SubscriptionDto {
     @Schema(description = "Numeric id of the subscription.", example = "101")
     Long id;
-    @Schema(description = "Id of the subscribing user.", example = "27")
+    @Schema(description = "Id of the subscribing organization.", example = "12")
+    Long organizationId;
+    @Schema(description = "Id of the user who bought the subscription, if recorded.", example = "27")
     Long userId;
     @Schema(description = "Plan the subscription is on.")
     PlanDto plan;

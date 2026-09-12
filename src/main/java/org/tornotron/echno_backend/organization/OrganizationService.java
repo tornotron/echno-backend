@@ -124,7 +124,12 @@ public class OrganizationService {
             return;
         }
 
-        FeatureAccessResultDto access = subscriptionService.checkFeatureAccess(currentUser.getId(), CREATE_ORGANIZATION_FEATURE);
+        // The quota belongs to the organization the caller is acting in, since that is what
+        // holds the plan.
+        Long organizationId = billingOrganizationId(currentUser);
+        FeatureAccessResultDto access = organizationId == null
+                ? FeatureAccessResultDto.noOrganization()
+                : subscriptionService.checkFeatureAccess(organizationId, CREATE_ORGANIZATION_FEATURE);
         if (!access.isAllowed()) {
             throw new SubscriptionAccessDeniedException(
                     explainOrganizationDenial(access), CREATE_ORGANIZATION_FEATURE, access);
@@ -178,6 +183,9 @@ public class OrganizationService {
                     "Your account is not provisioned yet, so an organization cannot be created for it");
         }
         requireCreateOrganizationEntitlement(currentUser);
+        // Read before the tenant context is switched to the new organization below: this is
+        // the organization whose plan was just checked, and the one the creation is counted against.
+        Long billedOrganizationId = billingOrganizationId(currentUser);
         Organization organization = new Organization();
         organization.setOrganizationName(organizationCreationDto.getOrganizationName());
         organization.setOrganizationAddress(organizationCreationDto.getOrganizationAddress());
@@ -218,11 +226,14 @@ public class OrganizationService {
         // idempotent seeder see the committed org and run in its own transaction.
         scheduleFinanceSeeding(savedOrganization.getId());
 
-        // Count the creation against the user's CREATE_ORGANIZATION quota, after commit for the
-        // same reason as the seeding: a usage-recording failure must not lose the organization.
-        // The first organization is exempt from the check above but still counted, so the quota
-        // stays an honest record of what was created.
-        afterCommit(() -> recordOrganizationCreated(currentUser.getId()));
+        // Count the creation against the CREATE_ORGANIZATION quota of the organization the
+        // caller was acting in (the one whose plan was checked), after commit for the same
+        // reason as the seeding: a usage-recording failure must not lose the organization. The
+        // first organization is exempt from the check above but still counted, against itself
+        // since there was nothing else to count it against, so the quota stays an honest record
+        // of what was created.
+        Long countedAgainst = billedOrganizationId != null ? billedOrganizationId : savedOrganization.getId();
+        afterCommit(() -> recordOrganizationCreated(countedAgainst, currentUser.getId()));
 
         return organizationMapper.toSimpleDto(savedOrganization);
     }
@@ -233,12 +244,23 @@ public class OrganizationService {
      * <p>Usage accounting is bookkeeping, not part of the creation: an organization that exists
      * must not be reported as failed because its meter could not be written.
      */
-    private void recordOrganizationCreated(Long userId) {
+    private void recordOrganizationCreated(Long organizationId, Long userId) {
         try {
-            subscriptionService.recordUsage(userId, CREATE_ORGANIZATION_FEATURE, 1L);
+            subscriptionService.recordUsage(organizationId, userId, CREATE_ORGANIZATION_FEATURE, 1L);
         } catch (Exception e) {
-            log.error("Failed to record organization creation usage for user {}", userId, e);
+            log.error("Failed to record organization creation usage for organization {} by user {}",
+                    organizationId, userId, e);
         }
+    }
+
+    /**
+     * The organization whose plan governs what the caller may create: the one in context, or
+     * failing that the caller's default. Null when the caller belongs to nothing yet.
+     */
+    private static Long billingOrganizationId(User currentUser) {
+        return TenantContext.getCurrentOrgId() != null
+                ? TenantContext.getCurrentOrgId()
+                : currentUser.getDefaultOrganizationId();
     }
 
     /**
@@ -464,11 +486,15 @@ public class OrganizationService {
         Integer creatorId = organization.getCreatorId();
         repository.deleteById(id);
 
-        if (creatorId != null) {
+        // The creation was counted against the organization the creator was acting in, which
+        // is not recorded on the deleted row; the tenant the deleter is acting in now is the
+        // closest thing to it. With no tenant in context there is nothing to give it back to.
+        Long countedAgainst = TenantContext.getCurrentOrgId();
+        if (creatorId != null && countedAgainst != null) {
             try {
-                subscriptionService.recordUsage(creatorId.longValue(), CREATE_ORGANIZATION_FEATURE, -1L);
+                subscriptionService.recordUsage(countedAgainst, creatorId.longValue(), CREATE_ORGANIZATION_FEATURE, -1L);
             } catch (Exception e) {
-                log.warn("Failed to decrement organization usage for user {}", creatorId);
+                log.warn("Failed to decrement organization usage for organization {}", countedAgainst);
             }
         }
     }

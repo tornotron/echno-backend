@@ -38,7 +38,7 @@ class SubscriptionSnapshotTest {
 
     private static SubscriptionSnapshot snapshot(SubscriptionStatus status) {
         return new SubscriptionSnapshot(
-                1L, 42L, status,
+                1L, 12L, 42L, status,
                 PERIOD_START, PERIOD_END, PERIOD_START, TRIAL_END,
                 false, null, PERIOD_START, null,
                 new PlanSnapshot(

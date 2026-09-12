@@ -28,7 +28,8 @@ import java.util.Optional;
  * a shorter cache lifetime, not a different value type.
  *
  * @param id Numeric id of the subscription.
- * @param userId Id of the subscribing user.
+ * @param organizationId Id of the subscribing organization.
+ * @param userId Id of the user who bought the subscription, informational.
  * @param status Lifecycle status the subscription had when the snapshot was taken.
  * @param currentPeriodStart Start of the current billing period.
  * @param currentPeriodEnd End of the current billing period.
@@ -42,6 +43,7 @@ import java.util.Optional;
  */
 public record SubscriptionSnapshot(
         Long id,
+        Long organizationId,
         Long userId,
         SubscriptionStatus status,
         Instant currentPeriodStart,

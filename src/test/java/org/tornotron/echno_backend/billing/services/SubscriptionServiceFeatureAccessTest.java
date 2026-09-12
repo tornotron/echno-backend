@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -49,7 +50,8 @@ class SubscriptionServiceFeatureAccessTest {
     private final SubscriptionService svc = new SubscriptionService(
             subscriptionRepository, planRepository, usageRecordRepository, subscriptionCache);
 
-    private static final Long USER = 1L;
+    private static final Long ORG = 1L;
+    private static final Long USER = 5L;
     private static final Long FEATURE_ID = 9L;
     private static final String CODE = "advanced-reports";
 
@@ -61,13 +63,14 @@ class SubscriptionServiceFeatureAccessTest {
         Plan plan = Plan.builder().id(1L).planFeatures(Set.of(planFeatures)).build();
         Subscription sub = Subscription.builder()
                 .id(1L)
+                .organizationId(ORG)
                 .userId(USER)
                 .plan(plan)
                 .status(SubscriptionStatus.ACTIVE)
                 .currentPeriodStart(periodEnd.minus(30, ChronoUnit.DAYS))
                 .currentPeriodEnd(periodEnd)
                 .build();
-        when(subscriptionCache.get(USER)).thenReturn(BillingMapper.toSubscriptionSnapshot(sub));
+        when(subscriptionCache.get(ORG)).thenReturn(BillingMapper.toSubscriptionSnapshot(sub));
     }
 
     private PlanFeature booleanFeature(boolean enabled) {
@@ -83,10 +86,10 @@ class SubscriptionServiceFeatureAccessTest {
 
     @Test
     void noActiveSubscription_isDenied() {
-        when(subscriptionCache.get(USER)).thenReturn(null);
-        when(subscriptionRepository.findActiveSubscriptionByUserId(USER)).thenReturn(Optional.empty());
+        when(subscriptionCache.get(ORG)).thenReturn(null);
+        when(subscriptionRepository.findActiveSubscription(ORG)).thenReturn(Optional.empty());
 
-        FeatureAccessResultDto r = svc.checkFeatureAccess(USER, CODE);
+        FeatureAccessResultDto r = svc.checkFeatureAccess(ORG, CODE);
 
         assertThat(r.isAllowed()).isFalse();
         assertThat(r.getReason()).isEqualTo("No active subscription");
@@ -97,7 +100,7 @@ class SubscriptionServiceFeatureAccessTest {
         Feature other = Feature.builder().id(1L).code("something-else").featureType(FeatureType.BOOLEAN).build();
         activeSubscriptionWith(PlanFeature.builder().feature(other).enabled(true).build());
 
-        FeatureAccessResultDto r = svc.checkFeatureAccess(USER, CODE);
+        FeatureAccessResultDto r = svc.checkFeatureAccess(ORG, CODE);
 
         assertThat(r.isAllowed()).isFalse();
         assertThat(r.getReason()).contains("not included");
@@ -107,14 +110,14 @@ class SubscriptionServiceFeatureAccessTest {
     void booleanFeatureEnabled_isAllowed() {
         activeSubscriptionWith(booleanFeature(true));
 
-        assertThat(svc.checkFeatureAccess(USER, CODE).isAllowed()).isTrue();
+        assertThat(svc.checkFeatureAccess(ORG, CODE).isAllowed()).isTrue();
     }
 
     @Test
     void booleanFeatureDisabled_isDenied() {
         activeSubscriptionWith(booleanFeature(false));
 
-        FeatureAccessResultDto r = svc.checkFeatureAccess(USER, CODE);
+        FeatureAccessResultDto r = svc.checkFeatureAccess(ORG, CODE);
 
         assertThat(r.isAllowed()).isFalse();
         assertThat(r.getReason()).isEqualTo("Feature is disabled");
@@ -123,10 +126,10 @@ class SubscriptionServiceFeatureAccessTest {
     @Test
     void quotaWithinLimit_isAllowedAndReportsUsage() {
         activeSubscriptionWith(quotaFeature(100L));
-        when(usageRecordRepository.sumUsageForPeriod(eq(USER), eq(FEATURE_ID), any(Instant.class), any(Instant.class)))
+        when(usageRecordRepository.sumUsageForPeriod(eq(ORG), eq(FEATURE_ID), any(Instant.class), any(Instant.class)))
                 .thenReturn(30L);
 
-        FeatureAccessResultDto r = svc.checkFeatureAccess(USER, CODE);
+        FeatureAccessResultDto r = svc.checkFeatureAccess(ORG, CODE);
 
         assertThat(r.isAllowed()).isTrue();
         assertThat(r.getCurrentUsage()).isEqualTo(30L);
@@ -136,10 +139,10 @@ class SubscriptionServiceFeatureAccessTest {
     @Test
     void quotaAtOrOverLimit_isDenied() {
         activeSubscriptionWith(quotaFeature(100L));
-        when(usageRecordRepository.sumUsageForPeriod(eq(USER), eq(FEATURE_ID), any(Instant.class), any(Instant.class)))
+        when(usageRecordRepository.sumUsageForPeriod(eq(ORG), eq(FEATURE_ID), any(Instant.class), any(Instant.class)))
                 .thenReturn(100L);
 
-        FeatureAccessResultDto r = svc.checkFeatureAccess(USER, CODE);
+        FeatureAccessResultDto r = svc.checkFeatureAccess(ORG, CODE);
 
         assertThat(r.isAllowed()).isFalse();
         assertThat(r.getReason()).isEqualTo("Quota exceeded");
@@ -155,12 +158,14 @@ class SubscriptionServiceFeatureAccessTest {
     void recordUsage_keysTheUsageRowOnTheFeatureIdFromTheCachedValue() {
         activeSubscriptionWith(quotaFeature(100L));
 
-        svc.recordUsage(USER, CODE, 3L);
+        svc.recordUsage(ORG, USER, CODE, 3L);
 
         ArgumentCaptor<UsageRecord> saved = ArgumentCaptor.forClass(UsageRecord.class);
         verify(usageRecordRepository).save(saved.capture());
         assertThat(saved.getValue().getFeatureId()).isEqualTo(FEATURE_ID);
         assertThat(saved.getValue().getSubscriptionId()).isEqualTo(1L);
+        assertThat(saved.getValue().getOrganizationId()).isEqualTo(ORG);
+        assertThat(saved.getValue().getUserId()).isEqualTo(USER);
         assertThat(saved.getValue().getUsageAmount()).isEqualTo(3L);
         verifyNoInteractions(subscriptionRepository);
     }
@@ -175,10 +180,10 @@ class SubscriptionServiceFeatureAccessTest {
     void recordUsage_doesNotEvictTheCachedSubscription() {
         activeSubscriptionWith(quotaFeature(100L));
 
-        svc.recordUsage(USER, CODE, 1L);
+        svc.recordUsage(ORG, USER, CODE, 1L);
 
-        verify(subscriptionCache, never()).evict(USER);
-        verify(subscriptionCache, never()).evictOnWrite(USER);
+        verify(subscriptionCache, never()).evict(ORG);
+        verify(subscriptionCache, never()).evictOnWrite(ORG);
     }
 
     /**
@@ -191,7 +196,7 @@ class SubscriptionServiceFeatureAccessTest {
         Feature f = Feature.builder().id(FEATURE_ID).code(CODE).featureType(FeatureType.QUOTA).build();
         activeSubscriptionWith(PlanFeature.builder().feature(f).enabled(true).quotaLimit(10L).build());
 
-        svc.recordUsage(USER, CODE, 1L);
+        svc.recordUsage(ORG, USER, CODE, 1L);
 
         ArgumentCaptor<UsageRecord> saved = ArgumentCaptor.forClass(UsageRecord.class);
         verify(usageRecordRepository).save(saved.capture());
@@ -218,7 +223,7 @@ class SubscriptionServiceFeatureAccessTest {
             activeSubscriptionWith(PlanFeature.builder().feature(f).enabled(true)
                     .quotaLimit(10L).quotaPeriod(QuotaPeriod.DAILY).build());
 
-            svc.recordUsage(USER, CODE, 1L);
+            svc.recordUsage(ORG, USER, CODE, 1L);
 
             ArgumentCaptor<UsageRecord> saved = ArgumentCaptor.forClass(UsageRecord.class);
             verify(usageRecordRepository).save(saved.capture());
@@ -241,12 +246,14 @@ class SubscriptionServiceFeatureAccessTest {
      * value whose period has already ended must answer for now.
      */
     @Test
-    void aCachedSubscriptionWhosePeriodHasEnded_readsAsExpired() {
+    void aCachedSubscriptionWhosePeriodHasEnded_isDroppedAndReadAgain() {
         cacheSubscription(Instant.now().minus(1, ChronoUnit.HOURS), booleanFeature(true));
+        when(subscriptionRepository.findActiveSubscription(ORG)).thenReturn(Optional.empty());
 
-        SubscriptionDto dto = svc.getActiveSubscription(USER).orElseThrow();
+        assertThat(svc.getActiveSubscription(ORG)).isEmpty();
+        assertThat(svc.checkFeatureAccess(ORG, CODE).isAllowed()).isFalse();
 
-        assertThat(dto.isExpired()).isTrue();
-        verifyNoInteractions(subscriptionRepository);
+        verify(subscriptionCache, atLeastOnce()).evict(ORG);
+        verify(subscriptionRepository, atLeastOnce()).findActiveSubscription(ORG);
     }
 }

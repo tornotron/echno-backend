@@ -33,6 +33,13 @@ public class FeatureAccessResultDto {
                 .build();
     }
 
+    public static FeatureAccessResultDto noOrganization() {
+        return FeatureAccessResultDto.builder()
+                .allowed(false)
+                .reason("No organization in context")
+                .build();
+    }
+
     public static FeatureAccessResultDto noSubscription() {
         return FeatureAccessResultDto.builder()
                 .allowed(false)

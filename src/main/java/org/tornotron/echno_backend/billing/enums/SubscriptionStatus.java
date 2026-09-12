@@ -8,5 +8,6 @@ public enum SubscriptionStatus {
     PAST_DUE,            // Payment failed but still active
     CANCELED,            // Canceled
     UNPAID,              // Payment failed and no longer active
-    PAUSED
+    PAUSED,
+    EXPIRED              // Current period ended without renewal
 }
