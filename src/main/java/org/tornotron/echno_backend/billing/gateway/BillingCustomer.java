@@ -8,7 +8,6 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -28,7 +27,9 @@ import java.time.Instant;
 /**
  * The provider customer that stands for an organization, one row per organization per
  * provider. Created once by {@code ensureCustomer} and reused; the webhook projector also reads
- * it in reverse, from the provider customer id on an event back to the organization.
+ * it in reverse, from the provider customer id on an event back to the organization. A provider
+ * customer belongs to exactly one organization, which the second unique key enforces: Razorpay
+ * would otherwise hand two organizations sharing an email and phone the same customer.
  */
 @Entity
 @Getter
@@ -37,9 +38,10 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "billing_customer",
-        uniqueConstraints = @UniqueConstraint(name = "uk_billing_customer_org_provider",
-                columnNames = {"organization_id", "provider"}),
-        indexes = @Index(name = "idx_billing_customer_provider_id", columnList = "provider, providerCustomerId"))
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_billing_customer_org_provider", columnNames = {"organization_id", "provider"}),
+                @UniqueConstraint(name = "uk_billing_customer_provider_customer", columnNames = {"provider", "provider_customer_id"})
+        })
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 public class BillingCustomer implements TenantScopedEntity {
 

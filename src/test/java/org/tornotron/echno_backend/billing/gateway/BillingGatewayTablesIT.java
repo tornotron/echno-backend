@@ -108,7 +108,7 @@ class BillingGatewayTablesIT extends AbstractIntegrationTest {
                 .authorizedAt(Instant.now()).build());
         GatewayPlanMapping mapping = planMappings.save(GatewayPlanMapping.builder()
                 .planCode("it-plan").provider(ProviderId.RAZORPAY).billingInterval(BillingPeriod.MONTHLY)
-                .providerPlanId("plan_it_" + organization.getId()).build());
+                .providerPlanId("plan_it_" + organization.getId()).amountPaise(499_900L).build());
 
         assertThat(customers.findByProviderAndProviderCustomerId(ProviderId.RAZORPAY, customer.getProviderCustomerId()))
                 .isPresent().get().extracting(c -> c.getOrganization().getId()).isEqualTo(organization.getId());

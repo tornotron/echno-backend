@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.billing.Plan;
 import org.tornotron.echno_backend.billing.enums.BillingPeriod;
+import org.tornotron.echno_backend.billing.gateway.dto.ChangePlanCommand;
 import org.tornotron.echno_backend.billing.gateway.dto.CreateSubscriptionCommand;
 import org.tornotron.echno_backend.billing.gateway.dto.InitiateMandateCommand;
 import org.tornotron.echno_backend.billing.gateway.dto.NotifyInfo;
@@ -84,12 +85,44 @@ public class MandatePolicy {
                     "Plan '" + cmd.planCode() + "' has no price for the " + cmd.interval() + " interval");
         }
         requireNotifyChannel(cmd.notifyInfo());
-        long perCycle = cycleAmountPaise * cmd.quantity();
+        long perCycle = perCycle(cmd.planCode(), cycleAmountPaise, cmd.quantity());
         if (requiresPerChargeAfa(perCycle) && !cmd.acceptPerChargeAfa()) {
             throw new MandatePolicyViolationException(
                     "Plan '" + cmd.planCode() + "' debits " + perCycle + " paise per cycle, above the RBI cap of "
                             + afaCapPaise + " paise; each payment will need the payer to authenticate, "
                             + "which the buyer must accept explicitly");
+        }
+    }
+
+    /**
+     * Checks a plan change against the rules: the new cycle amount is subject to the same cap
+     * and acceptance as a new subscription. The notification channel is already on file.
+     *
+     * @param cmd The request.
+     * @param cycleAmountPaise What the target plan debits per cycle on the requested interval.
+     * @throws MandatePolicyViolationException when a rule is broken.
+     */
+    public void validateChange(ChangePlanCommand cmd, long cycleAmountPaise) {
+        if (cycleAmountPaise <= 0) {
+            throw new MandatePolicyViolationException(
+                    "Plan '" + cmd.newPlanCode() + "' has no price for the " + cmd.interval() + " interval");
+        }
+        long perCycle = perCycle(cmd.newPlanCode(), cycleAmountPaise, Math.max(1, cmd.quantity()));
+        if (requiresPerChargeAfa(perCycle) && !cmd.acceptPerChargeAfa()) {
+            throw new MandatePolicyViolationException(
+                    "Plan '" + cmd.newPlanCode() + "' debits " + perCycle + " paise per cycle, above the RBI cap of "
+                            + afaCapPaise + " paise; each payment will need the payer to authenticate, "
+                            + "which the buyer must accept explicitly");
+        }
+    }
+
+    /** Amount times quantity, refusing rather than wrapping on overflow. */
+    private static long perCycle(String planCode, long cycleAmountPaise, int quantity) {
+        try {
+            return Math.multiplyExact(cycleAmountPaise, quantity);
+        } catch (ArithmeticException e) {
+            throw new MandatePolicyViolationException(
+                    "Plan '" + planCode + "' times quantity " + quantity + " overflows the cycle amount");
         }
     }
 

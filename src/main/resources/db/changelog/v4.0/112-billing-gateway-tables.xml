@@ -56,10 +56,9 @@
         <addUniqueConstraint tableName="billing_customer"
                              columnNames="organization_id, provider"
                              constraintName="uk_billing_customer_org_provider"/>
-        <createIndex tableName="billing_customer" indexName="idx_billing_customer_provider_id">
-            <column name="provider"/>
-            <column name="provider_customer_id"/>
-        </createIndex>
+        <addUniqueConstraint tableName="billing_customer"
+                             columnNames="provider, provider_customer_id"
+                             constraintName="uk_billing_customer_provider_customer"/>
     </changeSet>
 
     <changeSet id="112-03-gateway-plan-ref" author="abhijith">
@@ -82,6 +81,9 @@
                 <constraints nullable="false"/>
             </column>
             <column name="provider_plan_id" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount_paise" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
             <column name="is_current" type="BOOLEAN" defaultValueBoolean="true">

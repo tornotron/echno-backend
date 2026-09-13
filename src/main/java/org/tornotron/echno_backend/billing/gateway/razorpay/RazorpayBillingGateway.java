@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * {@link BillingGateway} over Razorpay's REST API. The only class that knows Razorpay's
@@ -121,10 +122,21 @@ public class RazorpayBillingGateway implements BillingGateway {
 
     @Override
     public GatewayPlanRef ensurePlan(Plan plan, BillingPeriod interval) {
-        return planMappings.findByProviderAndPlanCodeAndBillingIntervalAndIsCurrentTrue(
-                        ProviderId.RAZORPAY, plan.getCode(), interval)
-                .map(existing -> new GatewayPlanRef(plan.getCode(), interval, existing.getProviderPlanId()))
-                .orElseGet(() -> createPlan(plan, interval));
+        long amountPaise = MandatePolicy.cycleAmountPaise(plan, interval);
+        Optional<GatewayPlanMapping> current = planMappings.findByProviderAndPlanCodeAndBillingIntervalAndIsCurrentTrue(
+                ProviderId.RAZORPAY, plan.getCode(), interval);
+        if (current.isPresent() && current.get().getAmountPaise() == amountPaise) {
+            return new GatewayPlanRef(plan.getCode(), interval, current.get().getProviderPlanId());
+        }
+        current.ifPresent(stale -> {
+            // The internal price moved. Razorpay plans are immutable, so the old one is retired
+            // (subscriptions already on it keep their id) and a new one is created below.
+            stale.setIsCurrent(false);
+            planMappings.save(stale);
+            log.info("Razorpay plan {} for {} ({}) retired: amount moved from {} to {} paise",
+                    stale.getProviderPlanId(), plan.getCode(), interval, stale.getAmountPaise(), amountPaise);
+        });
+        return createPlan(plan, interval);
     }
 
     private GatewayPlanRef createPlan(Plan plan, BillingPeriod interval) {
@@ -150,6 +162,7 @@ public class RazorpayBillingGateway implements BillingGateway {
                 .provider(ProviderId.RAZORPAY)
                 .billingInterval(interval)
                 .providerPlanId(planId)
+                .amountPaise(amountPaise)
                 .isCurrent(true)
                 .build());
         log.info("Razorpay plan {} created for plan {} ({}) at {} paise", planId, plan.getCode(), interval, amountPaise);
@@ -228,6 +241,7 @@ public class RazorpayBillingGateway implements BillingGateway {
                         ProviderId.RAZORPAY, cmd.newPlanCode(), cmd.interval())
                 .orElseThrow(() -> new BillingGatewayException(
                         "No current Razorpay plan for '" + cmd.newPlanCode() + "' (" + cmd.interval() + "); call ensurePlan first"));
+        mandatePolicy.validateChange(cmd, target.getAmountPaise());
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("plan_id", target.getProviderPlanId());
         body.put("quantity", Math.max(1, cmd.quantity()));

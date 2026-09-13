@@ -55,6 +55,15 @@ class MandatePolicyTest {
     }
 
     @Test
+    void anOverflowingCycleAmountIsRefusedRatherThanWrapped() {
+        CreateSubscriptionCommand huge = new CreateSubscriptionCommand(
+                1L, "p", BillingPeriod.MONTHLY, Integer.MAX_VALUE, 0, null, EMAIL, false);
+        assertThatThrownBy(() -> policy.validateCreate(huge, Long.MAX_VALUE / 2))
+                .isInstanceOf(MandatePolicyViolationException.class)
+                .hasMessageContaining("overflows");
+    }
+
+    @Test
     void aSubscriptionNeedsAChannelForThePreDebitNotice() {
         CreateSubscriptionCommand noChannel = new CreateSubscriptionCommand(
                 1L, "p", BillingPeriod.MONTHLY, 1, 0, null, new NotifyInfo(" ", null), false);

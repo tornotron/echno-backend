@@ -30,6 +30,14 @@ public class RazorpayRestClient {
 
     public RazorpayRestClient(BillingGatewayProperties.Razorpay props) {
         this.props = props;
+        String baseUrl = props.getBaseUrl() == null ? "" : props.getBaseUrl().trim().toLowerCase();
+        // The key pair rides on every request as basic auth, so the transport has to be TLS. A
+        // loopback URL is allowed for a local stub.
+        boolean loopback = baseUrl.startsWith("http://localhost") || baseUrl.startsWith("http://127.0.0.1");
+        if (!baseUrl.startsWith("https://") && !loopback) {
+            throw new IllegalArgumentException(
+                    "echno.billing.razorpay.base-url must be https (credentials are sent on every request): " + props.getBaseUrl());
+        }
     }
 
     public JsonNode post(String path, Map<String, Object> body) {
