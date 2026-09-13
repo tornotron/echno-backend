@@ -20,8 +20,8 @@ import java.util.List;
  * gave up on or set aside, and a retry that hands one back to it.
  *
  * <p>The inbox is global, so the list is not filtered by the caller's organization; it is a
- * platform-operator view and the endpoint is guarded accordingly. The organization filter
- * is a convenience for narrowing, not a boundary.
+ * platform-operator view and the endpoint is guarded by the platform-admin role. The
+ * organization filter is a convenience for narrowing, not a boundary.
  */
 @Slf4j
 @Service

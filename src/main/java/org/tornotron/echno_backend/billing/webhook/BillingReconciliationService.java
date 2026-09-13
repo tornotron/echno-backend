@@ -78,7 +78,13 @@ public class BillingReconciliationService {
             if (row.getAttemptCount() >= BillingEventProjector.MAX_ATTEMPTS) {
                 continue;
             }
-            projector.process(row.getId());
+            try {
+                projector.process(row.getId());
+            } catch (RuntimeException e) {
+                // process() records a projection failure on the row itself; this catches a
+                // failure of that recording, so one bad row does not end the batch.
+                log.error("Billing event {} could not be retried: {}", row.getId(), e.getMessage(), e);
+            }
             attempted++;
         }
         return attempted;

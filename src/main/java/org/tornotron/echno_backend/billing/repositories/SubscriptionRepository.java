@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.billing.repositories;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -40,7 +41,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     /**
      * Provider-backed rows the reconciliation sweep should ask the provider about: a live row
      * whose period has ended, any PAST_DUE row, and a row left INCOMPLETE since before the
-     * given cut-off. Oldest period end first, so a capped pass takes the longest-stale rows.
+     * given cut-off. Oldest period end first, so a capped pass takes the longest-stale rows;
+     * the cap is the page size.
      */
     @Query("SELECT s FROM Subscription s LEFT JOIN FETCH s.plan " +
            "WHERE s.provider = :provider AND s.externalSubscriptionId IS NOT NULL AND (" +
@@ -53,7 +55,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             @Param("provider") ProviderId provider,
             @Param("liveStatuses") List<SubscriptionStatus> liveStatuses,
             @Param("now") Instant now,
-            @Param("incompleteBefore") Instant incompleteBefore);
+            @Param("incompleteBefore") Instant incompleteBefore,
+            Pageable pageable);
 
     /**
      * The organization's past-due subscriptions, the most recently paid-up first. Whether one

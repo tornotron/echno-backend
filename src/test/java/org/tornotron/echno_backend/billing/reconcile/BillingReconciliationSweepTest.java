@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 import org.tornotron.echno_backend.billing.Plan;
 import org.tornotron.echno_backend.billing.Subscription;
 import org.tornotron.echno_backend.billing.enums.SubscriptionStatus;
@@ -77,7 +78,7 @@ class BillingReconciliationSweepTest {
     void runsEachStaleRowPinnedToItsOrganization_thenRetriesTheInbox() {
         when(gateway.isEnabled()).thenReturn(true);
         when(gateway.providerId()).thenReturn(ProviderId.RAZORPAY);
-        when(subscriptions.findStaleProviderSubscriptions(eq(ProviderId.RAZORPAY), anyList(), any(), any()))
+        when(subscriptions.findStaleProviderSubscriptions(eq(ProviderId.RAZORPAY), anyList(), any(), any(), eq(PageRequest.of(0, 200))))
                 .thenReturn(List.of(stale(1L, 10L, "sub_a"), stale(2L, 20L, "sub_b"), stale(3L, 10L, "sub_c")));
         List<Long> tenantsSeen = new ArrayList<>();
         when(reconciliation.reconcile(anyString())).thenAnswer(call -> {
@@ -101,7 +102,7 @@ class BillingReconciliationSweepTest {
     void oneFailingRow_doesNotStopThePass() {
         when(gateway.isEnabled()).thenReturn(true);
         when(gateway.providerId()).thenReturn(ProviderId.RAZORPAY);
-        when(subscriptions.findStaleProviderSubscriptions(eq(ProviderId.RAZORPAY), anyList(), any(), any()))
+        when(subscriptions.findStaleProviderSubscriptions(eq(ProviderId.RAZORPAY), anyList(), any(), any(), any()))
                 .thenReturn(List.of(stale(1L, 10L, "sub_a"), stale(2L, 20L, "sub_b")));
         when(reconciliation.reconcile("sub_a")).thenThrow(new BillingGatewayException("provider 503"));
         when(reconciliation.reconcile("sub_b")).thenReturn("PAST_DUE -> ACTIVE");
@@ -114,14 +115,14 @@ class BillingReconciliationSweepTest {
     }
 
     @Test
-    void capsTheRowsOnePassFetches() {
+    void capsTheRowsOnePassFetches_inTheQuery() {
         BillingReconcileProperties properties = new BillingReconcileProperties();
         properties.setMaxPerRun(1);
         sweep = new BillingReconciliationSweep(gateway, subscriptions, reconciliation, new TenantScopedJobRunner(), properties);
         when(gateway.isEnabled()).thenReturn(true);
         when(gateway.providerId()).thenReturn(ProviderId.RAZORPAY);
-        when(subscriptions.findStaleProviderSubscriptions(eq(ProviderId.RAZORPAY), anyList(), any(), any()))
-                .thenReturn(List.of(stale(1L, 10L, "sub_a"), stale(2L, 20L, "sub_b")));
+        when(subscriptions.findStaleProviderSubscriptions(eq(ProviderId.RAZORPAY), anyList(), any(), any(), eq(PageRequest.of(0, 1))))
+                .thenReturn(List.of(stale(1L, 10L, "sub_a")));
         when(reconciliation.reconcile("sub_a")).thenReturn("ok");
 
         sweep.runPass();
