@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Hosted checkout sessions (#803). One row per checkout an organization opens for a plan:
+      the provider subscription or order created for it, the cycle amount, the mandate terms
+      shown to the buyer, and whether the buyer's result has been verified. Organization scoped.
+      Entitlement is never stored here; the subscription projection is written by the verify
+      step and the webhook projector, which converge on the provider subscription id.
+    -->
+
+    <changeSet id="114-01-checkout-session" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="checkout_session"/>
+            </not>
+        </preConditions>
+        <createTable tableName="checkout_session">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_checkout_session_organization"
+                             references="organization(id)"/>
+            </column>
+            <column name="provider" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="plan_code" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="billing_period" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider_subscription_id" type="VARCHAR(100)"/>
+            <column name="provider_order_id" type="VARCHAR(100)"/>
+            <column name="provider_payment_id" type="VARCHAR(100)"/>
+            <column name="amount_paise" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency" type="VARCHAR(3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recurring" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="per_charge_approval" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="per_charge_approval_accepted" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="mandate_method" type="VARCHAR(20)" defaultValue="UNKNOWN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="mandate_amount_cap_paise" type="BIGINT"/>
+            <column name="auth_url" type="TEXT"/>
+            <column name="status" type="VARCHAR(20)" defaultValue="OPEN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subscription_id" type="BIGINT"/>
+            <column name="created_by_user_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="verified_at" type="TIMESTAMP"/>
+        </createTable>
+        <createIndex tableName="checkout_session" indexName="idx_checkout_session_org">
+            <column name="organization_id"/>
+        </createIndex>
+        <createIndex tableName="checkout_session" indexName="idx_checkout_session_provider_sub">
+            <column name="provider"/>
+            <column name="provider_subscription_id"/>
+        </createIndex>
+        <createIndex tableName="checkout_session" indexName="idx_checkout_session_provider_order">
+            <column name="provider"/>
+            <column name="provider_order_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

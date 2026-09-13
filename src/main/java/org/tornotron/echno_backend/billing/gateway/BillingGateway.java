@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.billing.gateway;
 import org.tornotron.echno_backend.billing.Plan;
 import org.tornotron.echno_backend.billing.enums.BillingPeriod;
 import org.tornotron.echno_backend.billing.gateway.dto.ChangePlanCommand;
+import org.tornotron.echno_backend.billing.gateway.dto.CheckoutSignature;
 import org.tornotron.echno_backend.billing.gateway.dto.CreateSubscriptionCommand;
 import org.tornotron.echno_backend.billing.gateway.dto.GatewayCustomer;
 import org.tornotron.echno_backend.billing.gateway.dto.GatewayPlanRef;
@@ -32,6 +33,23 @@ public interface BillingGateway {
 
     /** Whether a real provider is behind this gateway. False for the no-op gateway. */
     boolean isEnabled();
+
+    /**
+     * The public key id the provider's browser checkout widget is initialised with. Never the
+     * secret. Null when no provider is configured.
+     */
+    default String publicKeyId() {
+        return null;
+    }
+
+    /**
+     * Whether the signature the browser widget returned authenticates the payment against the
+     * subscription or order it claims to have paid. Signed with the API key secret, not the
+     * webhook secret. False under the no-op gateway.
+     */
+    default boolean verifyCheckoutSignature(CheckoutSignature result) {
+        return false;
+    }
 
     /** Finds or creates the provider customer that stands for the organization. */
     GatewayCustomer ensureCustomer(OrgBillingProfile org);

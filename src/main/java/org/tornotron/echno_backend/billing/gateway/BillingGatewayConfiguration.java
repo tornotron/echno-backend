@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.tornotron.echno_backend.billing.gateway.razorpay.RazorpayBillingGateway;
+import org.tornotron.echno_backend.billing.gateway.razorpay.RazorpayCheckoutSignature;
 import org.tornotron.echno_backend.billing.gateway.razorpay.RazorpayEventParser;
 import org.tornotron.echno_backend.billing.gateway.razorpay.RazorpayRestClient;
 import org.tornotron.echno_backend.billing.gateway.razorpay.RazorpayWebhookSignature;
@@ -44,6 +45,8 @@ public class BillingGatewayConfiguration {
         return new RazorpayBillingGateway(
                 new RazorpayRestClient(razorpay),
                 new RazorpayWebhookSignature(razorpay.getWebhookSecret()),
+                new RazorpayCheckoutSignature(razorpay.getKeySecret()),
+                razorpay.getKeyId(),
                 new RazorpayEventParser(),
                 mandatePolicy,
                 properties.getCurrency(),

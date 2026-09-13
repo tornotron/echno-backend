@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.billing.snapshot;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.tornotron.echno_backend.billing.enums.SubscriptionStatus;
+import org.tornotron.echno_backend.billing.gateway.ProviderId;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -41,6 +42,8 @@ import java.util.Optional;
  * @param createdAt When the subscription was first created.
  * @param cancellationReason Reason given for cancellation, null if none was given.
  * @param plan The plan the subscription is on, with the features it grants.
+ * @param provider Which payment provider backs the row; MANUAL for one with no provider twin.
+ * @param externalSubscriptionId The provider's id for the subscription, null for a manual row.
  */
 public record SubscriptionSnapshot(
         Long id,
@@ -56,7 +59,18 @@ public record SubscriptionSnapshot(
         Instant pastDueSince,
         Instant createdAt,
         String cancellationReason,
-        PlanSnapshot plan) {
+        PlanSnapshot plan,
+        ProviderId provider,
+        String externalSubscriptionId) {
+
+    /** The pre-gateway shape: a manually provisioned row with no provider twin. */
+    public SubscriptionSnapshot(Long id, Long organizationId, Long userId, SubscriptionStatus status,
+                                Instant currentPeriodStart, Instant currentPeriodEnd, Instant trialStart, Instant trialEnd,
+                                Boolean cancelAtPeriodEnd, Instant canceledAt, Instant pastDueSince, Instant createdAt,
+                                String cancellationReason, PlanSnapshot plan) {
+        this(id, organizationId, userId, status, currentPeriodStart, currentPeriodEnd, trialStart, trialEnd,
+                cancelAtPeriodEnd, canceledAt, pastDueSince, createdAt, cancellationReason, plan, ProviderId.MANUAL, null);
+    }
 
     /**
      * Whether the subscription was in a state that grants access when the snapshot was taken.
