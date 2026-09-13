@@ -304,6 +304,16 @@ echno:
       # Optional forward proxy for egress, as for compliance.ai (the IITM lab host proxy).
       proxy-host: ${RAZORPAY_PROXY_HOST:}
       proxy-port: ${RAZORPAY_PROXY_PORT:3128}
+    # The hourly reconciliation sweep (spec 5.4): asks the provider about provider-backed
+    # subscriptions that look stale and re-queues failed inbox rows. A no-op with provider=none;
+    # enabled=false removes the bean.
+    reconcile:
+      enabled: ${ECHNO_BILLING_RECONCILE_ENABLED:true}
+      cron: ${ECHNO_BILLING_RECONCILE_CRON:0 0 * * * *}
+      zone: UTC
+      max-per-run: 200
+      retry-batch: 100
+      incomplete-after-minutes: 60
   modules:
     # Operator kill switches, one per installed module (echno.modules.<id>.enabled, default on).
     # Off hides the module from /api/v1/modules/web/enabled for every organization and, for
