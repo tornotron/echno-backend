@@ -204,7 +204,8 @@ public class SubscriptionService {
 
         SubscriptionSnapshot subscription = subscriptionOptional.get();
         FeatureAccessResultDto access = checkPlanAccess(organizationId, subscription, featureCode);
-        if (subscription.status() == SubscriptionStatus.PAST_DUE) {
+        if (access.isAllowed() && subscription.status() == SubscriptionStatus.PAST_DUE) {
+            // Only an allowed result says so; a denial keeps its own reason (disabled, quota).
             return access.withinPastDueGrace(gracePolicy.entitledUntil(subscription), gracePolicy.graceDays());
         }
         return access;

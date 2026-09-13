@@ -76,6 +76,17 @@ class PastDueGraceTest {
     }
 
     @Test
+    void pastDueInsideGrace_keepsAPlanDenialsOwnReason() {
+        Instant since = Instant.now().minus(2, ChronoUnit.DAYS);
+        onlyPastDueRow(pastDue(since, since));
+
+        FeatureAccessResultDto r = svc.checkFeatureAccess(ORG, "not-in-plan");
+
+        assertThat(r.isAllowed()).isFalse();
+        assertThat(r.getReason()).contains("not included");
+    }
+
+    @Test
     void pastDueBeyondGrace_isRefusedAndSaysSo() {
         Instant since = Instant.now().minus(GRACE_DAYS + 1, ChronoUnit.DAYS);
         onlyPastDueRow(pastDue(since, since));
