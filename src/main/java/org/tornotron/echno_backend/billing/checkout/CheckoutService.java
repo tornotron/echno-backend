@@ -100,16 +100,25 @@ public class CheckoutService {
     /** What the browser checkout needs to know before it starts; well formed under NONE too. */
     public BillingProviderInfoDto providerInfo() {
         boolean live = gateway.isEnabled();
-        String keyId = live ? gateway.publicKeyId() : null;
+        boolean ready = checkoutReady();
         return BillingProviderInfoDto.builder()
                 .provider(BillingMapper.providerName(live ? gateway.providerId() : ProviderId.MANUAL))
-                .enabled(live && keyId != null && !keyId.isBlank())
-                .keyId(keyId)
+                .enabled(ready)
+                .keyId(live ? gateway.publicKeyId() : null)
                 .currency(properties.getCurrency())
                 .afaCapPaise(mandatePolicy.afaCapPaise())
                 .preDebitNoticeHours(PRE_DEBIT_NOTICE_HOURS)
-                .supportedFlows(live ? List.of("SUBSCRIPTION") : List.of())
+                .supportedFlows(ready ? List.of("SUBSCRIPTION") : List.of())
                 .build();
+    }
+
+    /** One answer for "can a browser checkout start": a live gateway that also has a public key to hand out. */
+    private boolean checkoutReady() {
+        if (!gateway.isEnabled()) {
+            return false;
+        }
+        String keyId = gateway.publicKeyId();
+        return keyId != null && !keyId.isBlank();
     }
 
     /**
@@ -139,15 +148,25 @@ public class CheckoutService {
                     .subscription(activated)
                     .build();
         }
-        if (!gateway.isEnabled()) {
+        if (!checkoutReady()) {
             throw new BillingNotConfiguredException();
         }
-        subscriptions.findActiveSubscription(organizationId)
-                .filter(live -> live.getPlan() != null && plan.getCode().equals(live.getPlan().getCode()))
-                .ifPresent(live -> {
-                    throw new DuplicateResourceException("Organization " + organizationId
-                            + " already has an active subscription on plan '" + plan.getCode() + "'");
-                });
+        // Already live on this plan: nothing to buy. Live on another plan through a provider:
+        // a second provider subscription would bill twice, so that goes through change-plan.
+        // A manual or trial row on another plan is what a paid checkout replaces; the
+        // projection supersedes it when the new subscription activates.
+        subscriptions.findActiveSubscription(organizationId).ifPresent(live -> {
+            boolean samePlan = live.getPlan() != null && plan.getCode().equals(live.getPlan().getCode());
+            if (samePlan) {
+                throw new DuplicateResourceException("Organization " + organizationId
+                        + " already has an active subscription on plan '" + plan.getCode() + "'");
+            }
+            if (live.getProvider() != null && live.getProvider() != ProviderId.MANUAL) {
+                throw new DuplicateResourceException("Organization " + organizationId
+                        + " already has an active " + live.getProvider() + " subscription on plan '"
+                        + live.getPlan().getCode() + "'; use change-plan to switch plans instead");
+            }
+        });
         Instant now = Instant.now();
         Optional<CheckoutSession> open = sessions
                 .findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
