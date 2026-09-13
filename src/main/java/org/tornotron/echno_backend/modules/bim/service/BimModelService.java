@@ -104,6 +104,39 @@ public class BimModelService {
         return mapper.toDto(requireElement(elementId));
     }
 
+    /**
+     * The element carrying an IFC GlobalId as it stood in one version of its model. Elements
+     * are rows per model, updated in place on re-import, so "in this version" means the
+     * version number falls between the versions the element was first and last seen in.
+     * A GlobalId the model has never carried, or one first seen in a later version or last
+     * seen in an earlier one, reads as absent.
+     */
+    @Transactional(readOnly = true)
+    public BimElementDto getElementByGlobalId(UUID versionId, String globalId) {
+        BimModelVersion version = versions.findByIdScoped(versionId)
+                .orElseThrow(() -> new ResourceNotFoundException("BIM model version not found: " + versionId));
+        BimElement element = elements.findByModelIdAndGlobalId(version.getModelId(), globalId)
+                .filter(e -> presentIn(e, version))
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "BIM element not found in version " + versionId + ": " + globalId));
+        return mapper.toDto(element);
+    }
+
+    private boolean presentIn(BimElement element, BimModelVersion version) {
+        int number = version.getVersionNumber();
+        return versionNumber(element.getFirstSeenVersionId(), version) <= number
+                && number <= versionNumber(element.getLastSeenVersionId(), version);
+    }
+
+    private int versionNumber(UUID versionId, BimModelVersion known) {
+        if (known.getId().equals(versionId)) {
+            return known.getVersionNumber();
+        }
+        return versions.findByIdScoped(versionId)
+                .map(BimModelVersion::getVersionNumber)
+                .orElseThrow(() -> new IllegalStateException("BIM element refers to a missing version " + versionId));
+    }
+
     @Transactional(readOnly = true)
     public List<BimImportJobDto> listJobs(UUID modelId, UUID versionId) {
         requireModel(modelId);

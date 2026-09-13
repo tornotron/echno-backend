@@ -177,6 +177,21 @@ public class BimModelController {
         return service.getElement(elementId);
     }
 
+    @GetMapping("/versions/{versionId}/elements/by-guid/{globalId}")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(summary = "Get one element by its IFC GlobalId within a model version",
+            description = "Resolves the element the viewer is looking at without paging its storey. "
+                    + "The element must have been present in the given version: one first seen "
+                    + "later, or last seen earlier, reads as absent.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The element"),
+            @ApiResponse(responseCode = "404", description = "No such version in the current tenant, or no element "
+                    + "with that GlobalId in it")
+    })
+    public BimElementDto getElementByGlobalId(@PathVariable UUID versionId, @PathVariable String globalId) {
+        return service.getElementByGlobalId(versionId, globalId);
+    }
+
     @PostMapping("/elements/{elementId}/merge")
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(summary = "Merge a retired element into the element that replaced it",
