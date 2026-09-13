@@ -279,6 +279,27 @@ echno:
     # refuses with 402 and the structured reason. Advisory is the default because nothing
     # creates a subscription yet; flip to enforce per environment once payments exist.
     mode: ${ECHNO_ENTITLEMENT_MODE:advisory}
+  billing:
+    # Which payment provider backs subscriptions: none (the default; subscriptions are
+    # provisioned manually and every webhook is rejected) or razorpay. The Razorpay keys are
+    # deploy-time secrets from the deployment vault; with provider=razorpay but empty keys the
+    # no-op gateway is wired and a warning is logged. See docs/runbooks/payments-razorpay.md.
+    provider: ${ECHNO_BILLING_PROVIDER:none}
+    currency: INR
+    # The RBI additional-factor-of-authentication ceiling per recurring debit, in paise
+    # (15,000 rupees). A plan priced above it needs the payer to authenticate every cycle,
+    # and MandatePolicy refuses to create such a subscription unless the buyer accepted that.
+    afa-cap-paise: 1500000
+    razorpay:
+      base-url: ${RAZORPAY_BASE_URL:https://api.razorpay.com/v1}
+      key-id: ${RAZORPAY_KEY_ID:}
+      key-secret: ${RAZORPAY_KEY_SECRET:}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+      connect-timeout-seconds: 10
+      read-timeout-seconds: 30
+      # Optional forward proxy for egress, as for compliance.ai (the IITM lab host proxy).
+      proxy-host: ${RAZORPAY_PROXY_HOST:}
+      proxy-port: ${RAZORPAY_PROXY_PORT:3128}
   modules:
     # Operator kill switches, one per installed module (echno.modules.<id>.enabled, default on).
     # Off hides the module from /api/v1/modules/web/enabled for every organization and, for
