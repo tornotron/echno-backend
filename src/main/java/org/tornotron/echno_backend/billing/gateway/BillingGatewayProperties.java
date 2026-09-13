@@ -27,6 +27,20 @@ public class BillingGatewayProperties {
     /** The RBI additional-factor-of-authentication ceiling per debit, in paise. */
     private long afaCapPaise = MandatePolicy.DEFAULT_AFA_CAP_PAISE;
 
+    /**
+     * Whether the org-side subscription endpoints may write a paid plan directly when no
+     * provider is wired. Off by default: without a provider a paid plan has nothing behind it,
+     * so the self-service path is limited to free plans. Staging without keys sets it on.
+     */
+    private boolean allowManualPaid = false;
+
+    /**
+     * How long a hosted checkout stays usable, in minutes. The session's expiry and the
+     * provider subscription's {@code expire_by} are both set from it, so an abandoned
+     * checkout expires at the provider as well as here.
+     */
+    private int checkoutWindowMinutes = 30;
+
     private Razorpay razorpay = new Razorpay();
 
     public boolean isRazorpay() {

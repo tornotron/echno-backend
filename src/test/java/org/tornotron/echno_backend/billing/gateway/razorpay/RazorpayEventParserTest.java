@@ -75,18 +75,30 @@ class RazorpayEventParserTest {
         assertThat(event.mandateMethod()).isEqualTo(MandateMethod.UPI_AUTOPAY);
         assertThat(event.mandateStatus()).isEqualTo(NormalizedMandateStatus.AUTHORIZED);
         assertThat(event.mandateMaxAmountPaise()).isEqualTo(1_500_000L);
-        assertThat(event.organizationId()).isEqualTo(4242L);
+        assertThat(event.organizationId()).as("a token's notes are never read; the customer mapping resolves it").isNull();
         assertThat(event.providerCustomerId()).isEqualTo("cust_FixtureCust001");
         assertThat(event.subscription()).isNull();
     }
 
     @Test
-    void aFailedPaymentCarriesTheOrganizationFromThePaymentNotes() {
+    void aFailedPaymentDoesNotCarryTheOrganizationFromItsOwnNotes() {
         NormalizedBillingEvent event = only(mapper.parse(RazorpayFixtures.body("payment.failed")));
 
         assertThat(event.type()).isEqualTo(NormalizedEventType.PAYMENT_FAILED);
-        assertThat(event.organizationId()).isEqualTo(4242L);
+        assertThat(event.organizationId()).as("payment notes are what the browser passed to the widget").isNull();
+        assertThat(event.providerCustomerId()).isEqualTo("cust_FixtureCust001");
         assertThat(event.subscription()).isNull();
+    }
+
+    @Test
+    void aPaymentBoundToASubscriptionMayCarryTheOrganizationFromItsNotes() {
+        byte[] body = new String(RazorpayFixtures.body("payment.failed"), java.nio.charset.StandardCharsets.UTF_8)
+                .replace("\"status\":\"failed\"", "\"status\":\"failed\",\"subscription_id\":\"sub_FixtureSub00001\"")
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        NormalizedBillingEvent event = only(mapper.parse(body));
+
+        assertThat(event.providerSubscriptionId()).isEqualTo("sub_FixtureSub00001");
+        assertThat(event.organizationId()).isEqualTo(4242L);
     }
 
     @Test

@@ -84,7 +84,7 @@ public class RazorpayEventParser {
         JsonNode invoice = payload.path("invoice").path("entity");
 
         GatewaySubscription snapshot = subscription.isObject() ? toSubscription(subscription) : null;
-        JsonNode notes = firstNotes(subscription, payment, invoice, token);
+        JsonNode notes = trustedNotes(subscription, invoice, payment);
         String providerSubscriptionId = firstText(
                 text(subscription, "id"), text(invoice, "subscription_id"), text(payment, "subscription_id"));
         String providerCustomerId = firstText(
@@ -172,14 +172,24 @@ public class RazorpayEventParser {
         }
     }
 
-    private static JsonNode firstNotes(JsonNode... entities) {
-        for (JsonNode entity : entities) {
+    /**
+     * The notes this side wrote. The subscription's notes are ours (the adapter sets them on
+     * creation); an invoice's or a payment's count only when the entity names the
+     * subscription, because a payment's notes are whatever the browser passed to the checkout
+     * widget. A token's notes are never read.
+     */
+    private static JsonNode trustedNotes(JsonNode subscription, JsonNode... boundEntities) {
+        JsonNode own = subscription.path("notes");
+        if (own.isObject() && own.size() > 0) {
+            return own;
+        }
+        for (JsonNode entity : boundEntities) {
             JsonNode notes = entity.path("notes");
-            if (notes.isObject() && notes.size() > 0) {
+            if (text(entity, "subscription_id") != null && notes.isObject() && notes.size() > 0) {
                 return notes;
             }
         }
-        return entities[0].path("notes");
+        return own;
     }
 
     private static Instant epoch(JsonNode node) {

@@ -33,7 +33,7 @@ public class BillingHistoryController {
 
     private final CheckoutService checkoutService;
 
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @GetMapping
     @Operation(
             summary = "List the organization's billing events",
@@ -42,7 +42,7 @@ public class BillingHistoryController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Billing events returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the system-admin role in the current tenant")
     })
     public ResponseEntity<List<BillingEventSummaryDto>> listEvents() {
         return ResponseEntity.ok(checkoutService.listEvents(TenantContext.getCurrentOrgId()));

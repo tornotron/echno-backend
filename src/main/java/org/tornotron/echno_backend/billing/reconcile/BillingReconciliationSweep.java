@@ -77,9 +77,10 @@ public class BillingReconciliationSweep {
         }
         Instant now = Instant.now();
         Instant incompleteBefore = now.minus(Math.max(0, properties.getIncompleteAfterMinutes()), ChronoUnit.MINUTES);
+        Instant canceledAfter = now.minus(Math.max(0, properties.getCanceledLookbackDays()), ChronoUnit.DAYS);
         int cap = Math.max(1, properties.getMaxPerRun());
         List<Subscription> stale = subscriptions.findStaleProviderSubscriptions(
-                gateway.providerId(), LIVE, now, incompleteBefore, PageRequest.of(0, cap));
+                gateway.providerId(), LIVE, now, incompleteBefore, canceledAfter, PageRequest.of(0, cap));
         if (stale.size() == cap) {
             log.info("Billing reconciliation took its per-pass cap of {} stale subscription(s); any beyond it wait for the next pass", cap);
         }

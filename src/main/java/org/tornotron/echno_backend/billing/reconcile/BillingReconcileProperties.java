@@ -33,4 +33,11 @@ public class BillingReconcileProperties {
 
     /** How long a row may sit INCOMPLETE before the provider is asked what became of it. */
     private int incompleteAfterMinutes = 60;
+
+    /**
+     * How many days back a CANCELED provider row is still re-read from the provider, so a
+     * cancellation the provider did not take (it keeps charging) is re-sent, and a row this
+     * side cancelled on a mandate event the provider disagrees with is repaired.
+     */
+    private int canceledLookbackDays = 14;
 }
