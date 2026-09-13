@@ -153,7 +153,7 @@ public class ObservationControllerWeb {
                     + "verified present in storage.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Evidence registered"),
-            @ApiResponse(responseCode = "400", description = "A referenced object is missing from storage"),
+            @ApiResponse(responseCode = "400", description = "A referenced object is missing from storage, or its key was not presigned for this observation"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No observation with the given id in the current tenant")
     })

@@ -9,6 +9,7 @@ import org.tornotron.echno_backend.common.dto.PresignedUpload;
 import org.tornotron.echno_backend.common.dto.RegisterUploadRequest;
 import org.tornotron.echno_backend.common.dto.UploadRequest;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 import org.tornotron.echno_backend.common.service.AttachmentService;
@@ -28,6 +29,10 @@ import java.util.UUID;
  * path as inspection evidence, under owner type {@value ObservationEvidence#ENTITY_TYPE}.
  * Kept apart from {@link ObservationService} so the storage client is a dependency of the
  * upload path only.
+ *
+ * <p>Uploads are presigned into a folder of the observation's own ({@code observation/<id>}),
+ * and registration accepts only keys under that folder, so a caller who can see one
+ * observation cannot file an object presigned for another against it.
  */
 @Slf4j
 @Service
@@ -49,15 +54,17 @@ public class ObservationEvidenceService {
     public List<PresignedUpload> presign(UUID observationId, List<UploadRequest> uploads) {
         require(observationId);
         AttachmentOwner owner = ObservationEvidence.ownerOf(observationId);
-        return attachmentService.presignUploads(uploads, owner, owner.folder());
+        return attachmentService.presignUploads(uploads, owner, folderFor(observationId));
     }
 
     @Transactional
     public List<AttachmentDto> register(UUID observationId, List<RegisterUploadRequest> uploads) {
         Observation observation = require(observationId);
         AttachmentOwner owner = ObservationEvidence.ownerOf(observationId);
+        String folder = folderFor(observationId);
+        requireKeysUnder(folder, uploads);
         List<AttachmentDto> stored = attachmentService
-                .registerUploads(uploads, owner, owner.folder())
+                .registerUploads(uploads, owner, folder)
                 .stream()
                 .map(attachmentMapper::toDto)
                 .toList();
@@ -72,6 +79,25 @@ public class ObservationEvidenceService {
         }
         log.info("Registered {} pieces of evidence against observation {}", stored.size(), observationId);
         return stored;
+    }
+
+    /** The storage folder presigned for one observation; a registered key must sit under it. */
+    static String folderFor(UUID observationId) {
+        return ObservationEvidence.ownerOf(observationId).folder() + "/" + observationId;
+    }
+
+    private static void requireKeysUnder(String folder, List<RegisterUploadRequest> uploads) {
+        if (uploads == null) {
+            return;
+        }
+        String prefix = folder + "/";
+        for (RegisterUploadRequest upload : uploads) {
+            String key = upload.key();
+            if (key == null || !key.startsWith(prefix) || key.contains("/../")) {
+                throw new InvalidRequestException(
+                        "Storage key '" + key + "' was not presigned for this observation");
+            }
+        }
     }
 
     private Observation require(UUID id) {

@@ -58791,7 +58791,7 @@
                 }
               }
             },
-            "description": "A referenced object is missing from storage"
+            "description": "A referenced object is missing from storage, or its key was not presigned for this observation"
           },
           "402": {
             "content": {
