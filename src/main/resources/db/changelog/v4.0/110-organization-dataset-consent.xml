@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Per-organization consent to exporting inspection evidence into the construction image
+      dataset (#790). Consent is a written line from the client; this column records that it
+      exists. It defaults to false for every organization, including the ones already there,
+      so nothing is exported until an admin turns it on for a named client.
+    -->
+    <changeSet id="110-01-organization-dataset-consent" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="organization" columnName="dataset_consent"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="organization">
+            <column name="dataset_consent" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

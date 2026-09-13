@@ -10,7 +10,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.tornotron.echno_backend.organization.dto.DatasetConsentDto;
+import org.tornotron.echno_backend.organization.dto.DatasetConsentUpdateDto;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -189,6 +192,50 @@ public class OrganizationWebController {
             @RequestParam(value = "entityType",required = false,defaultValue = "ORGANIZATION_LOGO") String entityType) throws JsonProcessingException{
         Map<String, Object> updates = jsonPartBinder.readUpdates(data);
         return ResponseEntity.status(HttpStatus.OK).body(service.partialUpdateAnOrganization(updates,id,attachments,entityType));
+    }
+
+    /**
+     * Reads the organization's consent to dataset export of its inspection evidence.
+     * Requires the system-admin role in the organization.
+     */
+    @GetMapping("{id}/dataset-consent")
+    @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin')")
+    @Operation(
+            summary = "Read the organization's dataset-consent flag",
+            description = "Whether the organization has consented, in writing, to its inspection "
+                    + "evidence being exported into the construction image dataset. Off by default."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "The flag"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the system-admin role in the organization"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
+    })
+    public ResponseEntity<DatasetConsentDto> readDatasetConsent(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getDatasetConsent(id));
+    }
+
+    /**
+     * Records or withdraws the organization's consent to dataset export of its inspection
+     * evidence. Requires the system-admin role in the organization; hr-admin, who may edit the
+     * organization's other fields, may not make this statement.
+     */
+    @PutMapping("{id}/dataset-consent")
+    @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin')")
+    @Operation(
+            summary = "Set the organization's dataset-consent flag",
+            description = "Records (true) or withdraws (false) the client's written consent to its "
+                    + "inspection evidence being exported into the construction image dataset. The "
+                    + "export job includes an organization only while this is true."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "The flag as stored"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The body carries no datasetConsent value"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the system-admin role in the organization"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
+    })
+    public ResponseEntity<DatasetConsentDto> setDatasetConsent(@PathVariable Long id,
+                                                               @Valid @RequestBody DatasetConsentUpdateDto body) {
+        return ResponseEntity.ok(service.setDatasetConsent(id, body.datasetConsent()));
     }
 
     /**

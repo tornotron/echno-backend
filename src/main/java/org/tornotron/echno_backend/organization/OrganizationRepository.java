@@ -57,4 +57,10 @@ public interface OrganizationRepository extends JpaRepository<Organization, Long
     )
     Optional<Organization> findByIdAndUserEmail(@Param("organizationId") Long organizationId, @Param("email") String email);
 
+
+    /**
+     * The organizations that have recorded written consent to dataset export (#790). Read by
+     * the export sweep across tenants; the organization table carries no tenant filter.
+     */
+    List<Organization> findByDatasetConsentTrue();
 }

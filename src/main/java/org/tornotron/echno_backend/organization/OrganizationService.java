@@ -33,6 +33,7 @@ import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import lombok.extern.slf4j.Slf4j;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserContextService;
+import org.tornotron.echno_backend.organization.dto.DatasetConsentDto;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -430,6 +431,42 @@ public class OrganizationService {
                     break;
             }
         });
+    }
+
+    /**
+     * Reads the organization's dataset-consent flag.
+     *
+     * @throws ResourceNotFoundException if no organization with the given ID is found.
+     */
+    @Transactional(readOnly = true)
+    public DatasetConsentDto getDatasetConsent(Long id) {
+        Organization organization = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + id + " was not found"));
+        return new DatasetConsentDto(organization.getId(), organization.isDatasetConsent());
+    }
+
+    /**
+     * Records or withdraws the organization's consent to dataset export of its inspection
+     * evidence.
+     *
+     * <p>Kept out of {@link #partialUpdateAnOrganization} on purpose: that path is open to
+     * hr-admin and takes a free map of fields, while consent is a legal statement about the
+     * client's data that only the organization's system-admin may make. The change is logged
+     * with the actor so the toggle can be traced; there is no audit table on organization
+     * settings to write to.
+     *
+     * @throws ResourceNotFoundException if no organization with the given ID is found.
+     */
+    @Transactional
+    public DatasetConsentDto setDatasetConsent(Long id, boolean datasetConsent) {
+        Organization organization = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + id + " was not found"));
+        boolean previous = organization.isDatasetConsent();
+        organization.setDatasetConsent(datasetConsent);
+        Organization saved = repository.save(organization);
+        log.info("Dataset consent for organization {} set to {} (was {}) by user {}",
+                id, datasetConsent, previous, userContextService.getCurrentUserId());
+        return new DatasetConsentDto(saved.getId(), saved.isDatasetConsent());
     }
 
     /**

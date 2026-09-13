@@ -427,6 +427,9 @@
     <!-- v4.0 - Project: site structure Building > Floor > Zone > Element (#754) -->
     <include file="db/changelog/v4.0/097-create-project-spatial-node.xml"/>
 
+    <!-- v4.0 - Organization: record a client's written consent to dataset export of its evidence (#790) -->
+    <include file="db/changelog/v4.0/110-organization-dataset-consent.xml"/>
+
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->
     <!-- (#749). Files run in path order; a module's pre-move changesets -->
