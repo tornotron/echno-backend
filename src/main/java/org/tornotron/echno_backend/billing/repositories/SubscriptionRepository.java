@@ -37,6 +37,24 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
                 Instant.now());
     }
 
+    /**
+     * The organization's past-due subscriptions, the most recently paid-up first. Whether one
+     * still grants access is the grace policy's call, made in the service against the clock.
+     */
+    @Query("SELECT s FROM Subscription s " +
+           "LEFT JOIN FETCH s.plan p " +
+           "LEFT JOIN FETCH p.planFeatures pf " +
+           "LEFT JOIN FETCH pf.feature " +
+           "WHERE s.organizationId = :organizationId AND s.status = :status " +
+           "ORDER BY s.currentPeriodEnd DESC")
+    List<Subscription> findByOrganizationIdAndStatusOrderByCurrentPeriodEndDesc(
+            @Param("organizationId") Long organizationId,
+            @Param("status") SubscriptionStatus status);
+
+    default List<Subscription> findPastDueSubscriptions(Long organizationId) {
+        return findByOrganizationIdAndStatusOrderByCurrentPeriodEndDesc(organizationId, SubscriptionStatus.PAST_DUE);
+    }
+
     @Query("SELECT s FROM Subscription s WHERE s.currentPeriodEnd < :now " +
            "AND s.status IN ('ACTIVE', 'TRIALING', 'PAST_DUE')")
     List<Subscription> findExpiredSubscriptions(@Param("now")Instant now);

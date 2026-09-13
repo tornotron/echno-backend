@@ -290,6 +290,10 @@ echno:
     # (15,000 rupees). A plan priced above it needs the payer to authenticate every cycle,
     # and MandatePolicy refuses to create such a subscription unless the buyer accepted that.
     afa-cap-paise: 1500000
+    # How long a PAST_DUE subscription (a failed renewal the provider is still retrying) keeps
+    # its entitlement, counted from the moment it went past due. After this the gate refuses
+    # until a successful charge moves the row back to ACTIVE. Never shorter than the paid period.
+    past-due-grace-days: ${ECHNO_BILLING_PAST_DUE_GRACE_DAYS:7}
     razorpay:
       base-url: ${RAZORPAY_BASE_URL:https://api.razorpay.com/v1}
       key-id: ${RAZORPAY_KEY_ID:}

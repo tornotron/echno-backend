@@ -8,6 +8,7 @@ import org.tornotron.echno_backend.billing.PlanFeature;
 import org.tornotron.echno_backend.billing.Subscription;
 import org.tornotron.echno_backend.billing.UsageRecord;
 import org.tornotron.echno_backend.billing.components.SubscriptionCache;
+import org.tornotron.echno_backend.billing.entitlement.PastDueGracePolicy;
 import org.tornotron.echno_backend.billing.dto.BillingMapper;
 import org.tornotron.echno_backend.billing.dto.FeatureAccessResultDto;
 import org.tornotron.echno_backend.billing.dto.SubscriptionDto;
@@ -48,7 +49,7 @@ class SubscriptionServiceFeatureAccessTest {
     private final UsageRecordRepository usageRecordRepository = mock(UsageRecordRepository.class);
     private final SubscriptionCache subscriptionCache = mock(SubscriptionCache.class);
     private final SubscriptionService svc = new SubscriptionService(
-            subscriptionRepository, planRepository, usageRecordRepository, subscriptionCache);
+            subscriptionRepository, planRepository, usageRecordRepository, subscriptionCache, new PastDueGracePolicy(7));
 
     private static final Long ORG = 1L;
     private static final Long USER = 5L;

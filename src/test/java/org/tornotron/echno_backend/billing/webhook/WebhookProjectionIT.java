@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.billing.Feature;
+import org.tornotron.echno_backend.billing.entitlement.PastDueGracePolicy;
 import org.tornotron.echno_backend.billing.Plan;
 import org.tornotron.echno_backend.billing.PlanFeature;
 import org.tornotron.echno_backend.billing.Subscription;
@@ -76,7 +77,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestPropertySource(properties = "echno.entitlement.mode=enforce")
 @Import({BillingWebhookService.class, BillingEventProjector.class, EntitlementProjection.class,
         BillingReconciliationService.class, SubscriptionService.class, SubscriptionCache.class,
-        TenantScopedJobRunner.class, EntitlementPolicy.class, BillingModuleEntitlementResolver.class,
+        TenantScopedJobRunner.class, EntitlementPolicy.class, PastDueGracePolicy.class, BillingModuleEntitlementResolver.class,
         WebhookProjectionIT.GatewayConfig.class})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class WebhookProjectionIT extends AbstractIntegrationTest {

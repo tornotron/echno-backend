@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.billing.*;
 import org.tornotron.echno_backend.billing.components.SubscriptionCache;
+import org.tornotron.echno_backend.billing.entitlement.PastDueGracePolicy;
 import org.tornotron.echno_backend.billing.dto.BillingMapper;
 import org.tornotron.echno_backend.billing.dto.FeatureAccessResultDto;
 import org.tornotron.echno_backend.billing.dto.SubscriptionDto;
@@ -60,6 +61,7 @@ public class SubscriptionService {
     private final PlanRepository planRepository;
     private final UsageRecordRepository usageRecordRepository;
     private final SubscriptionCache subscriptionCache;
+    private final PastDueGracePolicy gracePolicy;
 
     /**
      * Returns the organization's active subscription as a DTO.
@@ -110,9 +112,10 @@ public class SubscriptionService {
      */
     private Optional<SubscriptionSnapshot> loadActiveSubscription(Long organizationId) {
 
+        Instant now = Instant.now();
         SubscriptionSnapshot cached = subscriptionCache.get(organizationId);
         if(cached != null) {
-            if (!cached.isExpired(Instant.now())) {
+            if (!gracePolicy.hasLapsed(cached, now)) {
                 return Optional.of(cached);
             }
             subscriptionCache.evict(organizationId);
@@ -120,11 +123,38 @@ public class SubscriptionService {
 
         Optional<SubscriptionSnapshot> subscription = subscriptionRepository
                 .findActiveSubscription(organizationId)
-                .map(BillingMapper::toSubscriptionSnapshot);
+                .map(BillingMapper::toSubscriptionSnapshot)
+                .or(() -> pastDueWithinGrace(organizationId, now));
 
         subscription.ifPresent(snapshot -> subscriptionCache.put(organizationId, snapshot));
 
         return subscription;
+    }
+
+    /**
+     * The organization's past-due subscription while its grace window is still open. A
+     * PAST_DUE row is a failed renewal the provider is still retrying, so its period has
+     * usually ended; the grace policy, not the period, decides whether it still entitles.
+     */
+    private Optional<SubscriptionSnapshot> pastDueWithinGrace(Long organizationId, Instant now) {
+        return subscriptionRepository.findPastDueSubscriptions(organizationId).stream()
+                .map(BillingMapper::toSubscriptionSnapshot)
+                .filter(snapshot -> !gracePolicy.hasLapsed(snapshot, now))
+                .findFirst();
+    }
+
+    /**
+     * The denial for an organization with no entitling subscription: names the ended grace
+     * window when a past-due row is what it has, so the reason says why access stopped today
+     * rather than reading as never subscribed.
+     */
+    private FeatureAccessResultDto noEntitlement(Long organizationId) {
+        return subscriptionRepository.findPastDueSubscriptions(organizationId).stream()
+                .map(BillingMapper::toSubscriptionSnapshot)
+                .map(gracePolicy::entitledUntil)
+                .max(Instant::compareTo)
+                .map(until -> FeatureAccessResultDto.pastDueGraceEnded(until, gracePolicy.graceDays()))
+                .orElseGet(FeatureAccessResultDto::noSubscription);
     }
 
     /**
@@ -169,11 +199,19 @@ public class SubscriptionService {
         Optional<SubscriptionSnapshot> subscriptionOptional = loadActiveSubscription(organizationId);
 
         if(subscriptionOptional.isEmpty()) {
-            return FeatureAccessResultDto.noSubscription();
+            return noEntitlement(organizationId);
         }
 
-        Optional<PlanFeatureSnapshot> planFeatureOptional =
-                subscriptionOptional.get().feature(featureCode);
+        SubscriptionSnapshot subscription = subscriptionOptional.get();
+        FeatureAccessResultDto access = checkPlanAccess(organizationId, subscription, featureCode);
+        if (subscription.status() == SubscriptionStatus.PAST_DUE) {
+            return access.withinPastDueGrace(gracePolicy.entitledUntil(subscription), gracePolicy.graceDays());
+        }
+        return access;
+    }
+
+    private FeatureAccessResultDto checkPlanAccess(Long organizationId, SubscriptionSnapshot subscription, String featureCode) {
+        Optional<PlanFeatureSnapshot> planFeatureOptional = subscription.feature(featureCode);
 
         if(planFeatureOptional.isEmpty()) {
             return FeatureAccessResultDto.featureNotInPlan();

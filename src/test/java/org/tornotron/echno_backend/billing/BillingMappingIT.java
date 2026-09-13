@@ -19,6 +19,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.billing.components.SubscriptionCache;
+import org.tornotron.echno_backend.billing.entitlement.PastDueGracePolicy;
 import org.tornotron.echno_backend.billing.dto.BillingMapper;
 import org.tornotron.echno_backend.billing.dto.PlanCreateDto;
 import org.tornotron.echno_backend.billing.dto.PlanDto;
@@ -63,7 +64,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
-@Import({SubscriptionService.class, SubscriptionCache.class, PlanService.class})
+@Import({SubscriptionService.class, SubscriptionCache.class, PlanService.class, PastDueGracePolicy.class})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class BillingMappingIT extends AbstractIntegrationTest {
 

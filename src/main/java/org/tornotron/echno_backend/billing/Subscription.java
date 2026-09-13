@@ -70,6 +70,12 @@ public class Subscription {
 
     private Instant canceledAt;
 
+    /**
+     * When the row last went PAST_DUE; null otherwise. The gate keeps the organization entitled
+     * for the configured grace window from here, see {@code PastDueGracePolicy}.
+     */
+    private Instant pastDueSince;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

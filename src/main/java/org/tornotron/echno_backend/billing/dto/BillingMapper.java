@@ -96,6 +96,7 @@ public class BillingMapper {
                 subscription.getTrialEnd(),
                 subscription.getCancelAtPeriodEnd(),
                 subscription.getCanceledAt(),
+                subscription.getPastDueSince(),
                 subscription.getCreatedAt(),
                 subscription.getCancellationReason(),
                 toPlanSnapshot(subscription.getPlan()));
