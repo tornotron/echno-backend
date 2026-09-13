@@ -16,12 +16,14 @@ import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.organization.dto.DatasetConsentDto;
 import org.tornotron.echno_backend.organization.mapper.OrganizationMapper;
 import org.tornotron.echno_backend.user.UserContextService;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,6 +50,7 @@ class OrganizationServiceDatasetConsentTest {
     void setDatasetConsent_persistsTheGivenValueAndReportsIt() {
         Organization org = new Organization();
         org.setId(7L);
+        when(userContextService.getCurrentUserId()).thenReturn(3L);
         when(repository.findById(7L)).thenReturn(Optional.of(org));
         when(repository.save(any(Organization.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -62,7 +65,19 @@ class OrganizationServiceDatasetConsentTest {
     }
 
     @Test
+    void setDatasetConsent_refusesAnUnidentifiedCallerBeforeTouchingTheRow() {
+        // No local user and no subject: nothing is read or written, and the refusal is explicit.
+        when(userContextService.getCurrentUserId()).thenReturn(null);
+        when(userContextService.getCurrentKeycloakId()).thenReturn(null);
+
+        assertThatThrownBy(() -> service.setDatasetConsent(7L, true))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void setDatasetConsent_isNotFoundForAnUnknownOrganization() {
+        when(userContextService.getCurrentUserId()).thenReturn(3L);
         when(repository.findById(99L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.setDatasetConsent(99L, true))
                 .isInstanceOf(ResourceNotFoundException.class);
