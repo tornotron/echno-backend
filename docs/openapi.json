@@ -5710,6 +5710,34 @@
         },
         "type": "object"
       },
+      "DatasetConsentDto": {
+        "description": "Per-organization consent to dataset export of inspection evidence",
+        "properties": {
+          "datasetConsent": {
+            "description": "True when the client has given written consent",
+            "type": "boolean"
+          },
+          "organizationId": {
+            "description": "The organization the flag belongs to",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "DatasetConsentUpdateDto": {
+        "description": "Sets the organization's dataset-consent flag",
+        "properties": {
+          "datasetConsent": {
+            "description": "True to record written consent, false to withdraw it",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "datasetConsent"
+        ],
+        "type": "object"
+      },
       "DefectPhotoAnnotationDto": {
         "description": "A mark drawn over one defect photo. Coordinates are fractions of the image width and height, so the mark holds its place at any rendered size.",
         "properties": {
@@ -13410,6 +13438,9 @@
           "creatorId": {
             "format": "int32",
             "type": "integer"
+          },
+          "datasetConsent": {
+            "type": "boolean"
           },
           "employees": {
             "items": {
@@ -89053,6 +89084,240 @@
           }
         },
         "summary": "Partially update an organization",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/api/v1/organization/web/{id}/dataset-consent": {
+      "get": {
+        "description": "Whether the organization has consented, in writing, to its inspection evidence being exported into the construction image dataset. Off by default.",
+        "operationId": "readDatasetConsent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetConsentDto"
+                }
+              }
+            },
+            "description": "The flag"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the system-admin role in the organization"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No organization with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Read the organization's dataset-consent flag",
+        "tags": [
+          "Organizations"
+        ]
+      },
+      "put": {
+        "description": "Records (true) or withdraws (false) the client's written consent to its inspection evidence being exported into the construction image dataset. The export job includes an organization only while this is true.",
+        "operationId": "setDatasetConsent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetConsentUpdateDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetConsentDto"
+                }
+              }
+            },
+            "description": "The flag as stored"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The body carries no datasetConsent value"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the system-admin role in the organization"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No organization with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Set the organization's dataset-consent flag",
         "tags": [
           "Organizations"
         ]
