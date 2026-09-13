@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.common.exception;
 
+import org.tornotron.echno_backend.billing.gateway.BillingNotConfiguredException;
+import org.tornotron.echno_backend.billing.gateway.MandatePolicyViolationException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -387,6 +389,20 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleInvalidRequestException(InvalidRequestException ex, WebRequest request) {
         logger.error("Invalid request: ", ex);
         return problem(HttpStatus.BAD_REQUEST, "Invalid Request", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(BillingNotConfiguredException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ProblemDetail handleBillingNotConfiguredException(BillingNotConfiguredException ex, WebRequest request) {
+        logger.info("Billing not configured: {}", ex.getMessage());
+        return problem(HttpStatus.CONFLICT, "Billing Not Configured", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(MandatePolicyViolationException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ProblemDetail handleMandatePolicyViolationException(MandatePolicyViolationException ex, WebRequest request) {
+        logger.info("Mandate policy violation: {}", ex.getMessage());
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, "Mandate Policy Violation", ex.getMessage(), request);
     }
 
     @ExceptionHandler(NoActiveSubscriptionException.class)

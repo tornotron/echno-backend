@@ -43,4 +43,16 @@ public class SubscriptionDto {
     boolean inTrial;
     @Schema(description = "Whether the subscription has expired.", example = "false")
     boolean expired;
+
+    @Schema(description = "Which payment provider backs the subscription; NONE for a manually provisioned or trial row.", example = "RAZORPAY")
+    String provider;
+
+    @Schema(description = "The provider's id for the subscription, when a provider backs it.", example = "sub_Nx8k2QhT0aYb1c")
+    String providerSubscriptionId;
+
+    @Schema(description = "When the next recurring debit is due: the end of the current period for a live provider-backed row.", example = "2026-09-01T00:00:00Z")
+    Instant nextChargeAt;
+
+    @Schema(description = "When the subscription last went past due; null when it is not.", example = "null")
+    Instant pastDueSince;
 }

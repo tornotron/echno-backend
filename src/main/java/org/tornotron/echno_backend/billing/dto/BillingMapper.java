@@ -3,6 +3,8 @@ package org.tornotron.echno_backend.billing.dto;
 import org.tornotron.echno_backend.billing.*;
 import org.tornotron.echno_backend.billing.snapshot.PlanFeatureSnapshot;
 import org.tornotron.echno_backend.billing.snapshot.PlanSnapshot;
+import org.tornotron.echno_backend.billing.gateway.PaymentMandate;
+import org.tornotron.echno_backend.billing.gateway.ProviderId;
 import org.tornotron.echno_backend.billing.snapshot.SubscriptionSnapshot;
 
 import java.time.Instant;
@@ -99,7 +101,9 @@ public class BillingMapper {
                 subscription.getPastDueSince(),
                 subscription.getCreatedAt(),
                 subscription.getCancellationReason(),
-                toPlanSnapshot(subscription.getPlan()));
+                toPlanSnapshot(subscription.getPlan()),
+                subscription.getProvider(),
+                subscription.getExternalSubscriptionId());
     }
 
     public static PlanDto toPlanDto(Plan plan) {
@@ -219,6 +223,52 @@ public class BillingMapper {
                 .active(subscription.isActive())
                 .inTrial(subscription.isInTrial(now))
                 .expired(subscription.isExpired(now))
+                .provider(providerName(subscription.provider()))
+                .providerSubscriptionId(subscription.externalSubscriptionId())
+                .nextChargeAt(nextChargeAt(subscription))
+                .pastDueSince(subscription.pastDueSince())
+                .build();
+    }
+
+    /**
+     * The provider name the API speaks: {@code NONE} for a row with no provider twin, which
+     * the web maps to "billing not configured", otherwise the provider's own name.
+     */
+    public static String providerName(ProviderId provider) {
+        return provider == null || provider == ProviderId.MANUAL ? "NONE" : provider.name();
+    }
+
+    /**
+     * When the provider will next debit: the end of the current period for a provider-backed
+     * row that is live and not ending at period end. The projector stretches the period to the
+     * provider's next charge as each charged event arrives, so the period end is that instant.
+     */
+    static Instant nextChargeAt(SubscriptionSnapshot subscription) {
+        if (subscription.provider() == null || subscription.provider() == ProviderId.MANUAL) {
+            return null;
+        }
+        if (Boolean.TRUE.equals(subscription.cancelAtPeriodEnd())) {
+            return null;
+        }
+        return switch (subscription.status()) {
+            case ACTIVE, TRIALING, PAST_DUE -> subscription.currentPeriodEnd();
+            default -> null;
+        };
+    }
+
+    public static MandateDto toMandateDto(PaymentMandate mandate) {
+        if (mandate == null) return null;
+        return MandateDto.builder()
+                .id(mandate.getId())
+                .provider(providerName(mandate.getProvider()))
+                .providerMandateRef(mandate.getProviderMandateRef())
+                .providerSubscriptionId(mandate.getProviderSubscriptionId())
+                .method(mandate.getMethod())
+                .status(mandate.getStatus())
+                .maxAmountPaise(mandate.getMaxAmountPaise())
+                .authorizedAt(mandate.getAuthorizedAt())
+                .revokedAt(mandate.getRevokedAt())
+                .createdAt(mandate.getCreatedAt())
                 .build();
     }
 

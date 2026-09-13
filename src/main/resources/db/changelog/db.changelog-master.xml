@@ -433,6 +433,7 @@
     <!-- v4.0 - Billing: payment gateway plumbing, subscription.provider, webhook inbox (#794) -->
     <include file="db/changelog/v4.0/112-billing-gateway-tables.xml"/>
     <include file="db/changelog/v4.0/113-subscription-past-due-since.xml"/>
+    <include file="db/changelog/v4.0/114-checkout-session.xml"/>
 
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->

@@ -137,3 +137,21 @@ whether `PAST_DUE` should keep access, and for how long, is a product decision r
   notification, and the buyer must have an email or phone to receive it.
 - Entitlement is granted only from the provider's own state (`activated`, `charged`), never at
   `createSubscription` time.
+
+## The web checkout (#803)
+
+The web drives Razorpay Checkout.js against five endpoints under `/api/v1/billing`:
+
+| Endpoint | Guard | What it does |
+|---|---|---|
+| `GET /checkout/web/provider` | org member | Which provider is wired, `enabled`, the public key id, currency, the AFA cap and the 24 hour notice. Under `provider=none` it answers `{provider: NONE, enabled: false, keyId: null, ...}` with 200, never an error; the web reads that as "billing not configured". |
+| `POST /checkout/web/sessions` | org `system-admin` | Opens the Razorpay subscription for the plan through the port (`ensureCustomer`, `ensurePlan`, `createSubscription`), writes a `checkout_session` row and an `INCOMPLETE` projection row keyed on the provider subscription id, and returns what Checkout.js needs. A free plan is activated directly with no provider round trip (its response carries the subscription and no provider ids, so the web should send free plans to `POST /subscriptions/web`). Refused with 409 under `provider=none` or when the organization is already live on the plan, and with 422 when a mandate rule is broken. An open, unexpired session for the same plan and cycle is reused. |
+| `POST /checkout/web/verify` | org `system-admin` | Checks the Checkout.js signature (`payment_id|subscription_id` under the key secret) against the session, then activates through `EntitlementProjection` exactly as a webhook would. Idempotent: a verified session, or a row the webhook already activated, is returned as is. |
+| `GET /checkout/web/mandate` | org `system-admin` | The organization's latest `payment_mandate` row, or 204. |
+| `POST /checkout/web/mandate` | org `system-admin` | Records the buyer's acceptance of the mandate terms for a plan and cycle and returns the constraints. Razorpay registers the mandate itself inside the subscription authorization, so this step is the explicit acknowledgement the RBI rules ask for, not a second registration. |
+| `GET /events/web` | org member | The organization's own billing events, newest first, with the amount and payment or invoice reference each carries. The global inbox with retries stays at `/billing/web/events` for platform admins. |
+
+Verify and the webhook race safely because both write the projection through the same class and
+key: whichever arrives first activates, the second finds the row live and changes nothing. A
+verify that never comes (the buyer closed the tab) leaves the session `OPEN` until its expiry; the
+webhook still activates the row on its own.

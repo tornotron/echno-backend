@@ -11,6 +11,7 @@ import org.tornotron.echno_backend.billing.gateway.GatewayPlanMapping;
 import org.tornotron.echno_backend.billing.gateway.MandatePolicy;
 import org.tornotron.echno_backend.billing.gateway.ProviderId;
 import org.tornotron.echno_backend.billing.gateway.dto.ChangePlanCommand;
+import org.tornotron.echno_backend.billing.gateway.dto.CheckoutSignature;
 import org.tornotron.echno_backend.billing.gateway.dto.CreateSubscriptionCommand;
 import org.tornotron.echno_backend.billing.gateway.dto.GatewayCustomer;
 import org.tornotron.echno_backend.billing.gateway.dto.GatewayPlanRef;
@@ -54,6 +55,8 @@ public class RazorpayBillingGateway implements BillingGateway {
 
     private final RazorpayRestClient client;
     private final RazorpayWebhookSignature signature;
+    private final RazorpayCheckoutSignature checkoutSignature;
+    private final String keyId;
     private final RazorpayEventParser mapper;
     private final MandatePolicy mandatePolicy;
     private final String currency;
@@ -69,8 +72,24 @@ public class RazorpayBillingGateway implements BillingGateway {
                                   BillingCustomerRepository customers,
                                   GatewayPlanMappingRepository planMappings,
                                   PlanRepository plans) {
+        this(client, signature, new RazorpayCheckoutSignature(""), null, mapper, mandatePolicy, currency,
+                customers, planMappings, plans);
+    }
+
+    public RazorpayBillingGateway(RazorpayRestClient client,
+                                  RazorpayWebhookSignature signature,
+                                  RazorpayCheckoutSignature checkoutSignature,
+                                  String keyId,
+                                  RazorpayEventParser mapper,
+                                  MandatePolicy mandatePolicy,
+                                  String currency,
+                                  BillingCustomerRepository customers,
+                                  GatewayPlanMappingRepository planMappings,
+                                  PlanRepository plans) {
         this.client = client;
         this.signature = signature;
+        this.checkoutSignature = checkoutSignature;
+        this.keyId = keyId;
         this.mapper = mapper;
         this.mandatePolicy = mandatePolicy;
         this.currency = currency;
@@ -87,6 +106,16 @@ public class RazorpayBillingGateway implements BillingGateway {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    @Override
+    public String publicKeyId() {
+        return keyId;
+    }
+
+    @Override
+    public boolean verifyCheckoutSignature(CheckoutSignature result) {
+        return checkoutSignature.verify(result);
     }
 
     @Override

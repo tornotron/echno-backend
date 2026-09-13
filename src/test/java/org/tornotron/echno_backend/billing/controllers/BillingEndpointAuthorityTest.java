@@ -37,9 +37,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class BillingEndpointAuthorityTest {
 
-    /** The three controllers that make up the billing HTTP surface. */
+    /** The controllers that make up the billing HTTP surface. */
     private static final List<Class<?>> BILLING_CONTROLLERS =
-            List.of(SubscriptionController.class, PlanController.class, FeatureController.class, BillingEventAdminController.class);
+            List.of(SubscriptionController.class, PlanController.class, FeatureController.class, BillingEventAdminController.class,
+                    CheckoutController.class, BillingHistoryController.class);
 
     /**
      * A bare {@code resource:scope} grant inside a hasAuthority call, which is the form that

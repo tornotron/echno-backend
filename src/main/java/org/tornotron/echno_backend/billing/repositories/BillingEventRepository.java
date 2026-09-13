@@ -40,4 +40,7 @@ public interface BillingEventRepository extends JpaRepository<BillingEvent, Long
     }
 
     List<BillingEvent> findByStatusInOrderByReceivedAtAsc(List<BillingEventStatus> statuses, Pageable pageable);
+
+    /** One organization's events, newest first: the billing history page, never the global inbox. */
+    List<BillingEvent> findByOrganizationIdOrderByReceivedAtDesc(Long organizationId, Pageable pageable);
 }
