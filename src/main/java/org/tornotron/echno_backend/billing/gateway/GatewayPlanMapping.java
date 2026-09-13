@@ -23,7 +23,8 @@ import java.time.Instant;
  * Which provider plan id currently stands for an internal plan code on an interval. Provider
  * plans are immutable once created, so a price change creates a new provider plan and a new
  * row here, and the previous row is marked not current rather than deleted, because
- * subscriptions already on the old provider plan keep referring to it. Global, like the plan
+ * subscriptions already on the old provider plan keep referring to it. The amount is kept so
+ * {@code ensurePlan} can tell that the internal price has moved. Global, like the plan
  * catalog it maps.
  */
 @Entity
@@ -56,6 +57,10 @@ public class GatewayPlanMapping {
 
     @Column(nullable = false, length = 100)
     private String providerPlanId;
+
+    /** What the provider plan charges per cycle; a change here is what retires the row. */
+    @Column(nullable = false)
+    private Long amountPaise;
 
     @Column(nullable = false)
     @Builder.Default

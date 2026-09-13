@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.billing.gateway.MandatePolicy;
 import org.tornotron.echno_backend.billing.gateway.MandatePolicyViolationException;
 import org.tornotron.echno_backend.billing.gateway.NormalizedSubscriptionStatus;
 import org.tornotron.echno_backend.billing.gateway.ProviderId;
+import org.tornotron.echno_backend.billing.gateway.dto.ChangePlanCommand;
 import org.tornotron.echno_backend.billing.gateway.dto.CreateSubscriptionCommand;
 import org.tornotron.echno_backend.billing.gateway.dto.GatewayCustomer;
 import org.tornotron.echno_backend.billing.gateway.dto.GatewayPlanRef;
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -128,6 +130,50 @@ class RazorpayBillingGatewayTest {
         Map<String, Object> item = (Map<String, Object>) body.get("item");
         assertThat(item).containsEntry("amount", 499_900L).containsEntry("currency", "INR").containsEntry("name", "Pro");
         verify(planMappings).save(any(GatewayPlanMapping.class));
+    }
+
+    @Test
+    void ensurePlanRetiresTheMappingWhenThePriceMovesAndCreatesAFreshRazorpayPlan() {
+        GatewayPlanMapping stale = mapping("pro", BillingPeriod.MONTHLY);
+        when(planMappings.findByProviderAndPlanCodeAndBillingIntervalAndIsCurrentTrue(ProviderId.RAZORPAY, "pro", BillingPeriod.MONTHLY))
+                .thenReturn(Optional.of(stale));
+        nextResponse = "{\"id\":\"plan_New002\"}";
+
+        GatewayPlanRef unchanged = gateway.ensurePlan(plan("pro", "4999.00", null), BillingPeriod.MONTHLY);
+        assertThat(unchanged.providerPlanId()).isEqualTo("plan_New001");
+        assertThat(calls).isEmpty();
+
+        GatewayPlanRef repriced = gateway.ensurePlan(plan("pro", "5999.00", null), BillingPeriod.MONTHLY);
+        assertThat(repriced.providerPlanId()).isEqualTo("plan_New002");
+        assertThat(stale.getIsCurrent()).isFalse();
+        assertThat(calls).containsExactly("POST /plans");
+    }
+
+    @Test
+    void changePlanRunsTheRbiRulesAgainstTheTargetPlan() {
+        GatewayPlanMapping enterprise = GatewayPlanMapping.builder().planCode("enterprise").provider(ProviderId.RAZORPAY)
+                .billingInterval(BillingPeriod.MONTHLY).providerPlanId("plan_Ent001").amountPaise(2_500_000L).build();
+        when(planMappings.findByProviderAndPlanCodeAndBillingIntervalAndIsCurrentTrue(ProviderId.RAZORPAY, "enterprise", BillingPeriod.MONTHLY))
+                .thenReturn(Optional.of(enterprise));
+
+        assertThatThrownBy(() -> gateway.changePlan(new ChangePlanCommand(ORG, "sub_X", "enterprise", BillingPeriod.MONTHLY, 1, true, false)))
+                .isInstanceOf(MandatePolicyViolationException.class);
+        assertThat(calls).isEmpty();
+
+        nextResponse = "{\"id\":\"sub_X\",\"status\":\"active\"}";
+        gateway.changePlan(new ChangePlanCommand(ORG, "sub_X", "enterprise", BillingPeriod.MONTHLY, 1, true, true));
+        assertThat(calls).containsExactly("PATCH /subscriptions/sub_X");
+        assertThat(bodies.getFirst()).containsEntry("plan_id", "plan_Ent001").containsEntry("schedule_change_at", "cycle_end");
+    }
+
+    @Test
+    void aPlainHttpBaseUrlIsRefusedBecauseCredentialsRideOnEveryRequest() {
+        BillingGatewayProperties.Razorpay insecure = new BillingGatewayProperties.Razorpay();
+        insecure.setBaseUrl("http://api.razorpay.com/v1");
+        assertThatThrownBy(() -> new RazorpayRestClient(insecure)).isInstanceOf(IllegalArgumentException.class);
+        BillingGatewayProperties.Razorpay local = new BillingGatewayProperties.Razorpay();
+        local.setBaseUrl("http://localhost:9999");
+        assertThatCode(() -> new RazorpayRestClient(local)).doesNotThrowAnyException();
     }
 
     @Test
@@ -236,7 +282,7 @@ class RazorpayBillingGatewayTest {
 
     private static GatewayPlanMapping mapping(String planCode, BillingPeriod interval) {
         return GatewayPlanMapping.builder().planCode(planCode).provider(ProviderId.RAZORPAY)
-                .billingInterval(interval).providerPlanId("plan_New001").build();
+                .billingInterval(interval).providerPlanId("plan_New001").amountPaise(499_900L).build();
     }
 
     private static CreateSubscriptionCommand command(String planCode, int quantity, int trialDays, boolean acceptAfa) {

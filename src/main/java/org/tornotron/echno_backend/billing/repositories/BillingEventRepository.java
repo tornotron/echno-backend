@@ -18,9 +18,14 @@ public interface BillingEventRepository extends JpaRepository<BillingEvent, Long
 
     /** The watermark: the latest provider timestamp already applied for this provider subscription. */
     @Query("SELECT MAX(e.lastAppliedAt) FROM BillingEvent e WHERE e.provider = :provider "
-            + "AND e.providerSubscriptionId = :subscriptionId AND e.status = 'PROCESSED'")
+            + "AND e.providerSubscriptionId = :subscriptionId AND e.status = :status")
     Optional<Instant> findLastAppliedAt(@Param("provider") ProviderId provider,
-                                        @Param("subscriptionId") String providerSubscriptionId);
+                                        @Param("subscriptionId") String providerSubscriptionId,
+                                        @Param("status") BillingEventStatus status);
+
+    default Optional<Instant> findLastAppliedAt(ProviderId provider, String providerSubscriptionId) {
+        return findLastAppliedAt(provider, providerSubscriptionId, BillingEventStatus.PROCESSED);
+    }
 
     List<BillingEvent> findByStatusInOrderByReceivedAtAsc(List<BillingEventStatus> statuses, Pageable pageable);
 }
