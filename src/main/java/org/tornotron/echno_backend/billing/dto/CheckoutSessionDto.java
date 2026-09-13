@@ -5,8 +5,9 @@ import lombok.Builder;
 import lombok.Value;
 import org.tornotron.echno_backend.billing.enums.BillingPeriod;
 
-@Schema(description = "A checkout opened with the provider: what the browser checkout widget needs. Exactly one of "
-        + "providerSubscriptionId and providerOrderId is set. No entitlement is granted here.")
+@Schema(description = "A checkout opened with the provider: what the browser checkout widget needs. For a paid plan "
+        + "exactly one of providerSubscriptionId and providerOrderId is set and no entitlement is granted here. For a "
+        + "free plan neither is set: the plan is activated directly and returned in the subscription field.")
 @Value
 @Builder
 public class CheckoutSessionDto {

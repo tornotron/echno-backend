@@ -263,6 +263,54 @@ class CheckoutServiceTest {
     }
 
     @Test
+    void anOrganizationLiveOnAnotherProviderPlanIsSentToChangePlan() {
+        razorpayWired();
+        Plan pro = plan("PRO", "9999.00", "99990.00", 0);
+        Plan starter = plan("STARTER", "999.00", "9990.00", 0);
+        when(plans.findByCodeWithFeatures("PRO")).thenReturn(Optional.of(pro));
+        when(subscriptions.findActiveSubscription(ORG)).thenReturn(Optional.of(row(starter, SubscriptionStatus.ACTIVE, "sub_old")));
+
+        assertThatThrownBy(() -> service.createSession(ORG, USER, CheckoutSessionCreateDto.builder().planCode("PRO").build()))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessageContaining("change-plan");
+        verify(gateway, never()).createSubscription(any());
+    }
+
+    @Test
+    void aManualRowOnAnotherPlanDoesNotBlockAPaidCheckout() {
+        razorpayWired();
+        Plan pro = plan("PRO", "9999.00", "99990.00", 0);
+        Plan free = plan("FREE", "0.00", "0.00", 0);
+        Subscription manual = row(free, SubscriptionStatus.ACTIVE, null);
+        manual.setProvider(ProviderId.MANUAL);
+        when(plans.findByCodeWithFeatures("PRO")).thenReturn(Optional.of(pro));
+        when(subscriptions.findActiveSubscription(ORG)).thenReturn(Optional.of(manual));
+        when(subscriptions.findByProviderAndExternalSubscriptionId(ProviderId.RAZORPAY, "sub_1")).thenReturn(Optional.empty());
+        when(sessions.findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                anyLong(), any(), any(), any(), any())).thenReturn(Optional.empty());
+
+        CheckoutSessionDto dto = service.createSession(ORG, USER, CheckoutSessionCreateDto.builder().planCode("PRO").build());
+
+        assertThat(dto.getProviderSubscriptionId()).isEqualTo("sub_1");
+        verify(gateway).createSubscription(any());
+    }
+
+    @Test
+    void aLiveGatewayWithoutAPublicKeyIsNotCheckoutReady() {
+        when(gateway.isEnabled()).thenReturn(true);
+        when(gateway.providerId()).thenReturn(ProviderId.RAZORPAY);
+        when(gateway.publicKeyId()).thenReturn("");
+        when(plans.findByCodeWithFeatures("PRO")).thenReturn(Optional.of(plan("PRO", "9999.00", "99990.00", 0)));
+
+        BillingProviderInfoDto info = service.providerInfo();
+        assertThat(info.isEnabled()).isFalse();
+        assertThat(info.getSupportedFlows()).isEmpty();
+        assertThatThrownBy(() -> service.createSession(ORG, USER, CheckoutSessionCreateDto.builder().planCode("PRO").build()))
+                .isInstanceOf(BillingNotConfiguredException.class);
+        verify(gateway, never()).createSubscription(any());
+    }
+
+    @Test
     void aCycleAboveTheAfaCapNeedsTheBuyersAcceptanceBeforeThePortIsCalled() {
         razorpayWired();
         Plan pro = plan("PRO", "9999.00", "99990.00", 0);
