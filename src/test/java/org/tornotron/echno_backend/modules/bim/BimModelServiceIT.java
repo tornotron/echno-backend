@@ -23,11 +23,14 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.modules.bim.domain.BimElement;
 import org.tornotron.echno_backend.modules.bim.domain.BimModelVersion;
+import org.tornotron.echno_backend.modules.bim.dto.BimElementDto;
 import org.tornotron.echno_backend.modules.bim.dto.BimImportJobDto;
 import org.tornotron.echno_backend.modules.bim.dto.BimModelDto;
 import org.tornotron.echno_backend.modules.bim.dto.CreateBimModelRequest;
 import org.tornotron.echno_backend.modules.bim.mapper.BimMapperImpl;
+import org.tornotron.echno_backend.modules.bim.repository.BimElementRepository;
 import org.tornotron.echno_backend.modules.bim.repository.BimModelVersionRepository;
 import org.tornotron.echno_backend.modules.bim.service.BimModelService;
 import org.tornotron.echno_backend.organization.Organization;
@@ -49,6 +52,9 @@ class BimModelServiceIT extends AbstractIntegrationTest {
 
     @Autowired
     private BimModelVersionRepository versions;
+
+    @Autowired
+    private BimElementRepository elements;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -154,14 +160,55 @@ class BimModelServiceIT extends AbstractIntegrationTest {
         });
     }
 
+    @Test
+    void anElementIsFoundByGlobalIdOnlyInTheVersionsThatCarriedIt() {
+        BimModelDto model = service.create(projectAId, new CreateBimModelRequest("Civil", null));
+        UUID v1 = persistVersion(model.id(), 1);
+        UUID v2 = persistVersion(model.id(), 2);
+        UUID v3 = persistVersion(model.id(), 3);
+        // seen in v1 and v2, gone by v3
+        UUID elementId = persistElement(model.id(), "2O2Fr$t4X7Zf8NOew3FLKI", v1, v2);
+        entityManager.flush();
+
+        BimElementDto found = service.getElementByGlobalId(v2, "2O2Fr$t4X7Zf8NOew3FLKI");
+        assertThat(found.id()).isEqualTo(elementId);
+        assertThat(service.getElementByGlobalId(v1, "2O2Fr$t4X7Zf8NOew3FLKI").id()).isEqualTo(elementId);
+
+        assertThatThrownBy(() -> service.getElementByGlobalId(v3, "2O2Fr$t4X7Zf8NOew3FLKI"))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> service.getElementByGlobalId(v2, "0000000000000000000000"))
+                .isInstanceOf(ResourceNotFoundException.class);
+        asTenant(orgBId, () -> {
+            assertThatThrownBy(() -> service.getElementByGlobalId(v2, "2O2Fr$t4X7Zf8NOew3FLKI"))
+                    .isInstanceOf(ResourceNotFoundException.class);
+            return null;
+        });
+    }
+
     // ------------------------------------------------------------------------------------
 
     private UUID persistVersion(UUID modelId) {
+        return persistVersion(modelId, 1);
+    }
+
+    private UUID persistElement(UUID modelId, String globalId, UUID firstSeen, UUID lastSeen) {
+        BimElement e = new BimElement();
+        e.setOrganization(entityManager.getReference(Organization.class, orgAId));
+        e.setModelId(modelId);
+        e.setProjectId(projectAId);
+        e.setGlobalId(globalId);
+        e.setIfcType("IfcWall");
+        e.setFirstSeenVersionId(firstSeen);
+        e.setLastSeenVersionId(lastSeen);
+        return elements.save(e).getId();
+    }
+
+    private UUID persistVersion(UUID modelId, int number) {
         BimModelVersion v = new BimModelVersion();
         v.setOrganization(entityManager.getReference(Organization.class, orgAId));
         v.setModelId(modelId);
         v.setProjectId(projectAId);
-        v.setVersionNumber(1);
+        v.setVersionNumber(number);
         v.setSourceKey(BimStorageLayout.sourceKey(modelId, UUID.randomUUID()));
         v.setSourceFilename("tower-a.ifc");
         v.setSourceSizeBytes(1024L);

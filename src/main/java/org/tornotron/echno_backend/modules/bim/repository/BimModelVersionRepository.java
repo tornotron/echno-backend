@@ -12,6 +12,10 @@ import org.tornotron.echno_backend.modules.bim.domain.BimModelVersion;
 @Repository
 public interface BimModelVersionRepository extends JpaRepository<BimModelVersion, UUID> {
 
+    /** Lookup by id alone, as JPQL so the {@code orgFilter} applies. */
+    @Query("SELECT v FROM BimModelVersion v WHERE v.id = :id")
+    Optional<BimModelVersion> findByIdScoped(@Param("id") UUID id);
+
     @Query("SELECT v FROM BimModelVersion v WHERE v.id = :id AND v.modelId = :modelId")
     Optional<BimModelVersion> findByIdAndModelId(@Param("id") UUID id, @Param("modelId") UUID modelId);
 
