@@ -306,6 +306,11 @@ public class EntitlementProjection {
         row.setStatus(SubscriptionStatus.CANCELED);
         row.setCanceledAt(Optional.ofNullable(event.occurredAt()).orElse(Instant.now()));
         row.setCancellationReason("Mandate " + event.mandateReference() + " revoked");
+        // The customer withdrew the mandate, so this is a cancel the provider has to hold as
+        // well: stamped like an org-side cancel, so a charge reported afterwards never
+        // re-activates the row and reconciliation re-sends the cancel while the provider
+        // still reports it live.
+        row.setCancelRequestedAt(Optional.ofNullable(event.occurredAt()).orElse(Instant.now()));
         subscriptions.save(row);
         return "mandate " + status + "; subscription " + providerSubscriptionId + " cancelled";
     }

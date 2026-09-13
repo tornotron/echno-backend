@@ -356,6 +356,28 @@ class WebhookProjectionIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void aRevokedTokenOfTheLiveRowCancelsItAsACancelTheProviderMustHoldToo() {
+        deliver("subscription.activated", "evt_act");
+        Long orgId = projected().getOrganizationId();
+        inCommittedTx(() -> {
+            Organization organization = new Organization();
+            organization.setId(orgId);
+            entityManager.persist(PaymentMandate.builder().organization(organization).provider(ProviderId.RAZORPAY)
+                    .providerMandateRef("token_FixtureTok0001").providerSubscriptionId(projected().getExternalSubscriptionId())
+                    .status(NormalizedMandateStatus.AUTHORIZED).build());
+        });
+
+        deliverTokenEvent("token.cancelled", "evt_tok_live");
+
+        Subscription row = projected();
+        assertThat(row.getStatus()).isEqualTo(SubscriptionStatus.CANCELED);
+        assertThat(row.getCancellationReason()).contains("token_FixtureTok0001");
+        // stamped like an org-side cancel: a later charge never re-activates it and the sweep re-sends the cancel
+        assertThat(row.getCancelRequestedAt()).isNotNull();
+        assertThat(inbox("evt_tok_live").getStatus()).isEqualTo(BillingEventStatus.PROCESSED);
+    }
+
+    @Test
     void aRevokedTokenWithNoMandateOnFileIsRecordedAndSkippedNotFannedOut() {
         deliver("subscription.activated", "evt_act");
 

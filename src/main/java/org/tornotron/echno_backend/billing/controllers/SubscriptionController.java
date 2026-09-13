@@ -102,7 +102,7 @@ public class SubscriptionController {
             description = "Subscribes the caller's current organization to the plan identified by planCode, "
                     + "for the given billing period. A free plan is activated at once. With a payment provider "
                     + "wired, a paid plan opens a checkout instead: the row comes back INCOMPLETE with the "
-                    + "provider subscription id, and the checkout session for it (POST /billing/checkout/web/sessions, "
+                    + "provider subscription id, and the checkout session for it (POST /api/v1/billing/checkout/web/sessions, "
                     + "same plan and period) carries what the payment widget needs; the entitlement follows once "
                     + "the buyer authorizes. Without a provider a paid plan is refused unless manual paid rows are allowed."
     )
@@ -117,7 +117,7 @@ public class SubscriptionController {
             throws AuthenticationException {
         Long userId = userContextService.getCurrentUserIdOrThrow();
         SubscriptionDto subscription = lifecycle.subscribe(
-                currentOrganizationId(), userId, dto.getPlanCode(), dto.getBillingPeriod());
+                currentOrganizationId(), userId, dto.getPlanCode(), dto.getBillingPeriod(), dto.isAcceptPerChargeAfa());
         return ResponseEntity.status(HttpStatus.CREATED).body(subscription);
     }
 
@@ -171,8 +171,8 @@ public class SubscriptionController {
     })
     public ResponseEntity<ApiResponse> cancelSubscription(@RequestBody(required = false) SubscriptionCancelDto dto) {
         boolean immediate = dto != null && dto.isImmediate();
-        lifecycle.cancel(currentOrganizationId(), immediate);
-        String message = immediate
+        boolean endedNow = lifecycle.cancel(currentOrganizationId(), immediate);
+        String message = endedNow
                 ? "Subscription canceled immediately"
                 : "Subscription will be canceled at the end of the current billing period";
         return ResponseEntity.ok(new ApiResponse(message));
@@ -357,8 +357,8 @@ public class SubscriptionController {
             @PathVariable Long organizationId,
             @RequestBody(required = false) SubscriptionCancelDto dto) {
         boolean immediate = dto != null && dto.isImmediate();
-        lifecycle.cancel(organizationId, immediate);
-        String message = immediate
+        boolean endedNow = lifecycle.cancel(organizationId, immediate);
+        String message = endedNow
                 ? "Subscription canceled immediately"
                 : "Subscription will be canceled at the end of the current billing period";
         return ResponseEntity.ok(new ApiResponse(message));

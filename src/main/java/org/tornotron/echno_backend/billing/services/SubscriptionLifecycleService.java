@@ -64,7 +64,8 @@ public class SubscriptionLifecycleService {
 
     /** Self-service subscribe for the organization's own admin. */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public SubscriptionDto subscribe(Long organizationId, Long userId, String planCode, BillingPeriod billingPeriod) {
+    public SubscriptionDto subscribe(Long organizationId, Long userId, String planCode, BillingPeriod billingPeriod,
+                                     boolean acceptPerChargeAfa) {
         BillingPeriod period = Optional.ofNullable(billingPeriod).orElse(BillingPeriod.MONTHLY);
         Plan plan = plans.findByCodeWithFeatures(planCode)
                 .orElseThrow(() -> new PlanNotFoundException("Plan with code '" + planCode + "' was not found"));
@@ -73,7 +74,7 @@ public class SubscriptionLifecycleService {
         }
         if (gateway.isEnabled()) {
             CheckoutSessionDto session = checkout.createSession(organizationId, userId, CheckoutSessionCreateDto.builder()
-                    .planCode(plan.getCode()).billingPeriod(period).build());
+                    .planCode(plan.getCode()).billingPeriod(period).acceptPerChargeAfa(acceptPerChargeAfa).build());
             log.info("Self-service subscribe for organization {} on paid plan {} opened checkout session {}",
                     organizationId, plan.getCode(), session.getId());
             return subscriptions.getProviderSubscription(gateway.providerId(), session.getProviderSubscriptionId())
@@ -124,14 +125,20 @@ public class SubscriptionLifecycleService {
                 .orElseThrow(() -> new IllegalStateException("Projection row missing after change-plan of " + current.getProviderSubscriptionId()));
     }
 
-    /** Cancels the organization's live subscription, now or at the end of the current period. */
+    /**
+     * Cancels the organization's live subscription, now or at the end of the current period.
+     *
+     * @return whether the subscription ended at once. For a provider-backed row that is the
+     *         provider's answer, which can be an immediate end even when the end of the period
+     *         was asked for (a subscription with no cycle left, for one).
+     */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public void cancel(Long organizationId, boolean immediate) {
+    public boolean cancel(Long organizationId, boolean immediate) {
         SubscriptionDto current = subscriptions.getActiveSubscription(organizationId)
                 .orElseThrow(() -> new NoActiveSubscriptionException("Organization " + organizationId + " has no active subscription"));
         if (!providerBacked(current)) {
             subscriptions.cancelSubscription(organizationId, immediate);
-            return;
+            return immediate;
         }
         if (!gateway.isEnabled()) {
             throw new BillingNotConfiguredException();
@@ -144,6 +151,7 @@ public class SubscriptionLifecycleService {
         String outcome = projection.apply(organizationId, synthetic(provider, "cancel", organizationId, current, answer));
         log.info("Organization {} cancelled {} (immediate {}); provider answered {}: {}",
                 organizationId, current.getProviderSubscriptionId(), immediate, answer.status(), outcome);
+        return endsNow;
     }
 
     private static boolean providerBacked(SubscriptionDto row) {

@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.billing.Plan;
 import org.tornotron.echno_backend.billing.checkout.CheckoutRequiredException;
 import org.tornotron.echno_backend.billing.checkout.CheckoutService;
 import org.tornotron.echno_backend.billing.checkout.CheckoutSession;
+import org.tornotron.echno_backend.billing.dto.CheckoutSessionCreateDto;
 import org.tornotron.echno_backend.billing.dto.CheckoutSessionDto;
 import org.tornotron.echno_backend.billing.dto.PlanDto;
 import org.tornotron.echno_backend.billing.dto.SubscriptionDto;
@@ -102,7 +103,7 @@ class SubscriptionLifecycleServiceTest {
     @Test
     void aFreePlanIsWrittenDirectlyWhateverTheProvider() {
         razorpayWired();
-        SubscriptionDto created = service.subscribe(ORG, USER, "starter", BillingPeriod.MONTHLY);
+        SubscriptionDto created = service.subscribe(ORG, USER, "starter", BillingPeriod.MONTHLY, false);
         assertThat(created.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
         verify(subscriptions).createSubscription(ORG, USER, "starter", BillingPeriod.MONTHLY);
         verify(checkout, never()).createSession(anyLong(), any(), any());
@@ -115,22 +116,26 @@ class SubscriptionLifecycleServiceTest {
         when(subscriptions.getProviderSubscription(ProviderId.RAZORPAY, SUB))
                 .thenReturn(Optional.of(dto("RAZORPAY", SUB, "pro", SubscriptionStatus.INCOMPLETE)));
 
-        SubscriptionDto pending = service.subscribe(ORG, USER, "pro", BillingPeriod.MONTHLY);
+        SubscriptionDto pending = service.subscribe(ORG, USER, "pro", BillingPeriod.MONTHLY, true);
 
         assertThat(pending.getStatus()).isEqualTo(SubscriptionStatus.INCOMPLETE);
         assertThat(pending.getProviderSubscriptionId()).isEqualTo(SUB);
+        // the buyer's per-charge acceptance travels into the checkout, so a cycle above the cap can be bought here too
+        ArgumentCaptor<CheckoutSessionCreateDto> request = ArgumentCaptor.forClass(CheckoutSessionCreateDto.class);
+        verify(checkout).createSession(eq(ORG), eq(USER), request.capture());
+        assertThat(request.getValue().isAcceptPerChargeAfa()).isTrue();
         verify(subscriptions, never()).createSubscription(anyLong(), any(), anyString(), any());
     }
 
     @Test
     void aPaidPlanWithoutAProviderIsRefusedUnlessManualPaidRowsAreAllowed() {
         when(gateway.isEnabled()).thenReturn(false);
-        assertThatThrownBy(() -> service.subscribe(ORG, USER, "pro", BillingPeriod.MONTHLY))
+        assertThatThrownBy(() -> service.subscribe(ORG, USER, "pro", BillingPeriod.MONTHLY, false))
                 .isInstanceOf(BillingNotConfiguredException.class);
         verify(subscriptions, never()).createSubscription(anyLong(), any(), anyString(), any());
 
         properties.setAllowManualPaid(true);
-        SubscriptionDto manual = service.subscribe(ORG, USER, "pro", BillingPeriod.MONTHLY);
+        SubscriptionDto manual = service.subscribe(ORG, USER, "pro", BillingPeriod.MONTHLY, false);
         assertThat(manual.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
         verify(subscriptions).createSubscription(ORG, USER, "pro", BillingPeriod.MONTHLY);
     }
@@ -194,8 +199,9 @@ class SubscriptionLifecycleServiceTest {
                 Instant.now(), Instant.now().plus(20, ChronoUnit.DAYS), null, null, null);
         when(gateway.cancelSubscription(SUB, true)).thenReturn(stillLive);
 
-        service.cancel(ORG, false);
+        boolean endedNow = service.cancel(ORG, false);
 
+        assertThat(endedNow).isFalse();
         verify(gateway).cancelSubscription(SUB, true);
         verify(subscriptions).markCancelRequested(ProviderId.RAZORPAY, SUB, true);
         ArgumentCaptor<NormalizedBillingEvent> event = ArgumentCaptor.forClass(NormalizedBillingEvent.class);
@@ -212,7 +218,7 @@ class SubscriptionLifecycleServiceTest {
                 null, null, null, null, null);
         when(gateway.cancelSubscription(SUB, false)).thenReturn(cancelled);
 
-        service.cancel(ORG, true);
+        assertThat(service.cancel(ORG, true)).isTrue();
 
         verify(subscriptions).markCancelRequested(ProviderId.RAZORPAY, SUB, false);
         ArgumentCaptor<NormalizedBillingEvent> event = ArgumentCaptor.forClass(NormalizedBillingEvent.class);

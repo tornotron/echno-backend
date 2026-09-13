@@ -334,8 +334,15 @@ public class CheckoutService {
                 log.info("Checkout session {} verified: {}", session.getId(), outcome);
             } catch (DataIntegrityViolationException e) {
                 // The webhook inserted the same provider subscription between the read above and
-                // the projection's insert; the unique key refused a second row. The winner's
-                // row is what is read back below.
+                // the projection's insert; the unique key refused a second row. That is the one
+                // refusal swallowed here: the winner's row must exist and have moved on. Any
+                // other constraint failure is the caller's to see.
+                boolean webhookWon = subscriptions.findByProviderAndExternalSubscriptionId(provider, session.getProviderSubscriptionId())
+                        .map(row -> row.getStatus() != SubscriptionStatus.INCOMPLETE)
+                        .orElse(false);
+                if (!webhookWon) {
+                    throw e;
+                }
                 log.info("Checkout session {}: the webhook projected {} first; reading its row", session.getId(), session.getProviderSubscriptionId());
             }
         }

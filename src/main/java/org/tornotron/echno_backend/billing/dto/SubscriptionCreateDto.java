@@ -15,4 +15,9 @@ public class SubscriptionCreateDto {
 
     @Schema(description = "Billing period for the subscription.", example = "MONTHLY")
     private BillingPeriod billingPeriod = BillingPeriod.MONTHLY;
+
+    @Schema(description = "For a paid plan that goes through the payment provider, with a cycle above the RBI per-debit "
+            + "cap: the buyer accepts that each debit will need them to authenticate. Ignored for free plans and "
+            + "without a provider.", example = "false")
+    private boolean acceptPerChargeAfa = false;
 }

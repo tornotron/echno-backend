@@ -21179,6 +21179,11 @@
       "SubscriptionCreateDto": {
         "description": "Payload to create a subscription to a plan.",
         "properties": {
+          "acceptPerChargeAfa": {
+            "description": "For a paid plan that goes through the payment provider, with a cycle above the RBI per-debit cap: the buyer accepts that each debit will need them to authenticate. Ignored for free plans and without a provider.",
+            "example": false,
+            "type": "boolean"
+          },
           "billingPeriod": {
             "description": "Billing period for the subscription.",
             "enum": [
@@ -34077,7 +34082,7 @@
     },
     "/api/v1/billing/subscriptions/web": {
       "post": {
-        "description": "Subscribes the caller's current organization to the plan identified by planCode, for the given billing period. A free plan is activated at once. With a payment provider wired, a paid plan opens a checkout instead: the row comes back INCOMPLETE with the provider subscription id, and the checkout session for it (POST /billing/checkout/web/sessions, same plan and period) carries what the payment widget needs; the entitlement follows once the buyer authorizes. Without a provider a paid plan is refused unless manual paid rows are allowed.",
+        "description": "Subscribes the caller's current organization to the plan identified by planCode, for the given billing period. A free plan is activated at once. With a payment provider wired, a paid plan opens a checkout instead: the row comes back INCOMPLETE with the provider subscription id, and the checkout session for it (POST /api/v1/billing/checkout/web/sessions, same plan and period) carries what the payment widget needs; the entitlement follows once the buyer authorizes. Without a provider a paid plan is refused unless manual paid rows are allowed.",
         "operationId": "createSubscription",
         "requestBody": {
           "content": {
