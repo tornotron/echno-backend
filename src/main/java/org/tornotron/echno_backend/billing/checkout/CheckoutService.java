@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.billing.checkout;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -92,6 +93,7 @@ public class CheckoutService {
     private final SubscriptionService subscriptionService;
     private final EntitlementProjection projection;
     private final SubscriptionCache cache;
+    private final EntityManager entityManager;
 
     private final ObjectMapper json = new ObjectMapper();
 
@@ -240,6 +242,10 @@ public class CheckoutService {
         } else {
             Plan plan = plans.findByCodeWithFeatures(session.getPlanCode())
                     .orElseThrow(() -> new PlanNotFoundException("Plan with code '" + session.getPlanCode() + "' was not found"));
+            // The projection commits in its own transaction. A persistence context bound to this
+            // thread (open-in-view on a request) would otherwise hand back the instance it read
+            // above, still INCOMPLETE, so that instance is dropped before the row is read again.
+            existing.filter(entityManager::contains).ifPresent(entityManager::detach);
             String outcome = projection.apply(organizationId, activation(provider, session, plan));
             log.info("Checkout session {} verified: {}", session.getId(), outcome);
         }

@@ -191,8 +191,8 @@ class CheckoutFlowIT extends AbstractIntegrationTest {
     @Test
     void aWebhookThatActivatedFirstIsLeftAloneByVerify() {
         checkout.createSession(orgA, null, CheckoutSessionCreateDto.builder().planCode(PLAN).billingPeriod(BillingPeriod.MONTHLY).build());
-        Instant periodStart = Instant.now().minus(1, ChronoUnit.HOURS);
-        Instant periodEnd = Instant.now().plus(45, ChronoUnit.DAYS);
+        Instant periodStart = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MICROS);
+        Instant periodEnd = Instant.now().plus(45, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MICROS);
         projection.apply(orgA, new NormalizedBillingEvent(ProviderId.RAZORPAY, "evt_it_activated", NormalizedEventType.SUBSCRIPTION_ACTIVATED,
                 Instant.now(), orgA, SUB, "cust_it", "plan_it", PLAN,
                 new GatewaySubscription(SUB, "plan_it", "cust_it", NormalizedSubscriptionStatus.ACTIVE, periodStart, periodEnd, null, null, null),

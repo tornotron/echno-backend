@@ -2205,6 +2205,107 @@
         },
         "type": "object"
       },
+      "BillingEventSummaryDto": {
+        "description": "One billing event as the organization's payment history shows it: a charge, an invoice, a failure.",
+        "properties": {
+          "amountPaise": {
+            "description": "Amount the event carries, in paise, when it names one.",
+            "example": 999900,
+            "format": "int64",
+            "type": "integer"
+          },
+          "currency": {
+            "description": "Currency of that amount.",
+            "example": "INR",
+            "type": "string"
+          },
+          "description": {
+            "description": "Why a failed or skipped event was not applied, when it was not.",
+            "type": "string"
+          },
+          "eventType": {
+            "description": "The provider's event type.",
+            "example": "subscription.charged",
+            "type": "string"
+          },
+          "id": {
+            "description": "Numeric id of the event row.",
+            "example": 512,
+            "format": "int64",
+            "type": "integer"
+          },
+          "occurredAt": {
+            "description": "When the provider says it happened.",
+            "example": "2026-09-01T00:00:12Z",
+            "format": "date-time",
+            "type": "string"
+          },
+          "providerEventId": {
+            "description": "The provider's event id.",
+            "example": "evt_Nx8k5TuW3dBe4f",
+            "type": "string"
+          },
+          "reference": {
+            "description": "Provider payment or invoice reference, when the event carries one.",
+            "example": "pay_Nx8k3RtU1bZc2d",
+            "type": "string"
+          },
+          "status": {
+            "description": "What the inbox did with the event.",
+            "example": "PROCESSED",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BillingProviderInfoDto": {
+        "description": "Which payment provider the environment is wired to, and what the browser checkout needs to start.",
+        "properties": {
+          "afaCapPaise": {
+            "description": "The RBI additional-factor-authentication ceiling per recurring debit, in paise.",
+            "example": 1500000,
+            "format": "int64",
+            "type": "integer"
+          },
+          "currency": {
+            "description": "Currency every plan is billed in.",
+            "example": "INR",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "Whether online checkout can be started. False under NONE or when the keys are missing.",
+            "example": true,
+            "type": "boolean"
+          },
+          "keyId": {
+            "description": "The public key id the browser checkout is initialised with; null when not configured. Never the secret.",
+            "example": "rzp_test_Ab12Cd34Ef56Gh",
+            "type": "string"
+          },
+          "preDebitNoticeHours": {
+            "description": "Hours of notice the buyer gets before each recurring debit.",
+            "example": 24,
+            "format": "int32",
+            "type": "integer"
+          },
+          "provider": {
+            "description": "The provider; NONE when online checkout is unavailable.",
+            "example": "RAZORPAY",
+            "type": "string"
+          },
+          "supportedFlows": {
+            "description": "The checkout flows the provider supports.",
+            "example": [
+              "SUBSCRIPTION"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "BimElementDto": {
         "description": "One IfcProduct of a model, stable across versions by its IFC GlobalId.",
         "properties": {
@@ -3335,6 +3436,159 @@
           "items",
           "name"
         ],
+        "type": "object"
+      },
+      "CheckoutMandateTermsDto": {
+        "description": "The e-mandate terms a recurring checkout registers, shown to the buyer before the provider widget opens.",
+        "properties": {
+          "amountCapPaise": {
+            "description": "Ceiling the mandate is registered for, in paise: the cycle amount.",
+            "example": 999900,
+            "format": "int64",
+            "type": "integer"
+          },
+          "method": {
+            "description": "The instrument the mandate is registered on; UNKNOWN until the buyer picks one in the provider widget.",
+            "enum": [
+              "UPI_AUTOPAY",
+              "ENACH",
+              "CARD",
+              "UNKNOWN"
+            ],
+            "example": "UPI_AUTOPAY",
+            "type": "string"
+          },
+          "perChargeApproval": {
+            "description": "The cycle is above the RBI cap, so each charge needs the buyer's authentication.",
+            "example": false,
+            "type": "boolean"
+          },
+          "preDebitNoticeHours": {
+            "description": "Hours of notice before each debit.",
+            "example": 24,
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "CheckoutSessionCreateDto": {
+        "description": "Opens a hosted checkout for the caller's organization on a plan.",
+        "properties": {
+          "acceptPerChargeAfa": {
+            "description": "The buyer accepted that a cycle above the RBI cap needs authentication on every charge.",
+            "example": false,
+            "type": "boolean"
+          },
+          "billingPeriod": {
+            "description": "Billing cycle; MONTHLY when omitted.",
+            "enum": [
+              "MONTHLY",
+              "ANNUAL"
+            ],
+            "example": "MONTHLY",
+            "type": "string"
+          },
+          "planCode": {
+            "description": "Code of the plan to buy.",
+            "example": "PRO",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "planCode"
+        ],
+        "type": "object"
+      },
+      "CheckoutSessionDto": {
+        "description": "A checkout opened with the provider: what the browser checkout widget needs. Exactly one of providerSubscriptionId and providerOrderId is set. No entitlement is granted here.",
+        "properties": {
+          "amountPaise": {
+            "description": "Cycle amount in paise.",
+            "example": 999900,
+            "format": "int64",
+            "type": "integer"
+          },
+          "authUrl": {
+            "description": "Hosted authorization page, when the provider issues one as an alternative to the widget.",
+            "type": "string"
+          },
+          "billingPeriod": {
+            "description": "Billing cycle.",
+            "enum": [
+              "MONTHLY",
+              "ANNUAL"
+            ],
+            "example": "MONTHLY",
+            "type": "string"
+          },
+          "currency": {
+            "description": "Currency.",
+            "example": "INR",
+            "type": "string"
+          },
+          "customerContact": {
+            "description": "Buyer phone to prefill.",
+            "example": "+919999999999",
+            "type": "string"
+          },
+          "customerEmail": {
+            "description": "Buyer email to prefill.",
+            "example": "billing@example.com",
+            "type": "string"
+          },
+          "expiresAt": {
+            "description": "When the session stops being usable.",
+            "example": "2026-09-13T12:00:00Z",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "Id of the checkout session row.",
+            "example": 17,
+            "format": "int64",
+            "type": "integer"
+          },
+          "keyId": {
+            "description": "Public key id for the browser widget.",
+            "example": "rzp_test_Ab12Cd34Ef56Gh",
+            "type": "string"
+          },
+          "mandate": {
+            "$ref": "#/components/schemas/CheckoutMandateTermsDto",
+            "description": "Mandate terms for a recurring checkout; null for a one-off or free plan."
+          },
+          "planCode": {
+            "description": "Plan being bought.",
+            "example": "PRO",
+            "type": "string"
+          },
+          "provider": {
+            "description": "The provider the checkout was opened with; NONE for a free plan activated directly.",
+            "example": "RAZORPAY",
+            "type": "string"
+          },
+          "providerOrderId": {
+            "description": "The provider order to pay, for a one-off checkout.",
+            "example": null,
+            "type": "string"
+          },
+          "providerSubscriptionId": {
+            "description": "The provider subscription to authorize, for a recurring plan.",
+            "example": "sub_Nx8k2QhT0aYb1c",
+            "type": "string"
+          },
+          "recurring": {
+            "description": "Whether the checkout registers a recurring mandate.",
+            "example": true,
+            "type": "boolean"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/SubscriptionDto",
+            "description": "The subscription activated directly, only for a free plan (no provider round trip)."
+          }
+        },
         "type": "object"
       },
       "ClientCreationDto": {
@@ -11768,6 +12022,115 @@
           "unit": {
             "description": "Unit of measure for the material.",
             "example": "kg",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MandateAcknowledgeDto": {
+        "description": "The buyer's acknowledgement of the e-mandate terms for a plan and cycle.",
+        "properties": {
+          "acceptPerChargeAfa": {
+            "description": "The buyer accepted per-charge authentication for a cycle above the RBI cap.",
+            "example": true,
+            "type": "boolean"
+          },
+          "billingPeriod": {
+            "description": "Billing cycle; MONTHLY when omitted.",
+            "enum": [
+              "MONTHLY",
+              "ANNUAL"
+            ],
+            "example": "MONTHLY",
+            "type": "string"
+          },
+          "method": {
+            "description": "The instrument the buyer intends to register on, when known.",
+            "enum": [
+              "UPI_AUTOPAY",
+              "ENACH",
+              "CARD",
+              "UNKNOWN"
+            ],
+            "example": "UPI_AUTOPAY",
+            "type": "string"
+          },
+          "planCode": {
+            "description": "Plan the mandate is for.",
+            "example": "PRO",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "planCode"
+        ],
+        "type": "object"
+      },
+      "MandateDto": {
+        "description": "A recurring-payment mandate the organization has registered with the provider.",
+        "properties": {
+          "authorizedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "Numeric id.",
+            "example": 3,
+            "format": "int64",
+            "type": "integer"
+          },
+          "maxAmountPaise": {
+            "description": "Ceiling per debit, in paise.",
+            "example": 999900,
+            "format": "int64",
+            "type": "integer"
+          },
+          "method": {
+            "description": "The instrument the mandate is on.",
+            "enum": [
+              "UPI_AUTOPAY",
+              "ENACH",
+              "CARD",
+              "UNKNOWN"
+            ],
+            "example": "UPI_AUTOPAY",
+            "type": "string"
+          },
+          "provider": {
+            "description": "The provider; NONE never occurs for a registered mandate.",
+            "example": "RAZORPAY",
+            "type": "string"
+          },
+          "providerMandateRef": {
+            "description": "The provider's mandate or token reference.",
+            "example": "token_Nx8k4StV2cAd3e",
+            "type": "string"
+          },
+          "providerSubscriptionId": {
+            "description": "The provider subscription the mandate was registered for, when known.",
+            "example": "sub_Nx8k2QhT0aYb1c",
+            "type": "string"
+          },
+          "revokedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "Lifecycle state.",
+            "enum": [
+              "CREATED",
+              "PENDING",
+              "AUTHORIZED",
+              "PAUSED",
+              "REVOKED",
+              "EXPIRED"
+            ],
+            "example": "AUTHORIZED",
             "type": "string"
           }
         },
@@ -20890,15 +21253,37 @@
             "example": false,
             "type": "boolean"
           },
+          "nextChargeAt": {
+            "description": "When the next recurring debit is due: the end of the current period for a live provider-backed row.",
+            "example": "2026-09-01T00:00:00Z",
+            "format": "date-time",
+            "type": "string"
+          },
           "organizationId": {
             "description": "Id of the subscribing organization.",
             "example": 12,
             "format": "int64",
             "type": "integer"
           },
+          "pastDueSince": {
+            "description": "When the subscription last went past due; null when it is not.",
+            "example": null,
+            "format": "date-time",
+            "type": "string"
+          },
           "plan": {
             "$ref": "#/components/schemas/PlanDto",
             "description": "Plan the subscription is on."
+          },
+          "provider": {
+            "description": "Which payment provider backs the subscription; NONE for a manually provisioned or trial row.",
+            "example": "RAZORPAY",
+            "type": "string"
+          },
+          "providerSubscriptionId": {
+            "description": "The provider's id for the subscription, when a provider backs it.",
+            "example": "sub_Nx8k2QhT0aYb1c",
+            "type": "string"
           },
           "status": {
             "description": "Current lifecycle status of the subscription.",
@@ -23140,6 +23525,36 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "VerifyCheckoutDto": {
+        "description": "The success payload the provider's browser widget returned, for server-side signature verification.",
+        "properties": {
+          "providerOrderId": {
+            "description": "The provider order the payment paid, for a one-off checkout.",
+            "type": "string"
+          },
+          "providerPaymentId": {
+            "description": "The provider payment id.",
+            "example": "pay_Nx8k3RtU1bZc2d",
+            "minLength": 1,
+            "type": "string"
+          },
+          "providerSignature": {
+            "description": "The provider's signature over the payment and the subscription or order.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "providerSubscriptionId": {
+            "description": "The provider subscription the payment authorized, for a recurring checkout.",
+            "example": "sub_Nx8k2QhT0aYb1c",
+            "type": "string"
+          }
+        },
+        "required": [
+          "providerPaymentId",
+          "providerSignature"
+        ],
         "type": "object"
       },
       "VerifyNcrRequest": {
@@ -30975,6 +31390,659 @@
         "summary": "Register a new user",
         "tags": [
           "Auth"
+        ]
+      }
+    },
+    "/api/v1/billing/checkout/web/mandate": {
+      "get": {
+        "description": "Returns the organization's most recently registered recurring-payment mandate. An empty body with 204 means none has been registered.",
+        "operationId": "getMandate",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MandateDto"
+                }
+              }
+            },
+            "description": "Mandate returned"
+          },
+          "204": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MandateDto"
+                }
+              }
+            },
+            "description": "No mandate registered"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get the organization's mandate",
+        "tags": [
+          "Billing Checkout"
+        ]
+      },
+      "post": {
+        "description": "Records the buyer's acceptance of the recurring-payment terms for a plan and cycle and returns the constraints: the ceiling, the pre-debit notice, and whether each charge needs authentication. The mandate itself is registered by the provider during subscription authorization.",
+        "operationId": "acknowledgeMandate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MandateAcknowledgeDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutMandateTermsDto"
+                }
+              }
+            },
+            "description": "Terms returned and the acknowledgement recorded"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Validation failed on the request body"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No plan with the given code"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The terms break a mandate rule"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Acknowledge the mandate terms",
+        "tags": [
+          "Billing Checkout"
+        ]
+      }
+    },
+    "/api/v1/billing/checkout/web/provider": {
+      "get": {
+        "description": "Reports which payment provider the environment is wired to, whether checkout is enabled, the public key id the browser widget needs, the currency, and the RBI mandate constraints. Under provider NONE the response is well formed with enabled false.",
+        "operationId": "getProvider",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingProviderInfoDto"
+                }
+              }
+            },
+            "description": "Provider information returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get the billing provider",
+        "tags": [
+          "Billing Checkout"
+        ]
+      }
+    },
+    "/api/v1/billing/checkout/web/sessions": {
+      "post": {
+        "description": "Creates the provider subscription for the plan and returns what the browser widget needs. A free plan is activated directly and returned in the subscription field with no provider ids. No entitlement is granted for a paid plan here.",
+        "operationId": "createSession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutSessionCreateDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionDto"
+                }
+              }
+            },
+            "description": "Checkout session opened"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Validation failed on the request body"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No plan with the given code"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No billing provider is configured, or the organization is already subscribed to the plan"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The plan breaks a mandate rule: above the RBI cap without acceptance, or no channel for the pre-debit notice"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Open a checkout session",
+        "tags": [
+          "Billing Checkout"
+        ]
+      }
+    },
+    "/api/v1/billing/checkout/web/verify": {
+      "post": {
+        "description": "Checks the provider signature of the browser widget's success payload against the checkout session and activates the subscription once. Idempotent: a session already verified, or a subscription the provider's webhook already activated, returns the row as it is.",
+        "operationId": "verify_4",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyCheckoutDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionDto"
+                }
+              }
+            },
+            "description": "Signature verified; the projected subscription returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The signature does not verify, or the body is invalid"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No checkout session matches the payment result"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No billing provider is configured"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Verify a checkout result",
+        "tags": [
+          "Billing Checkout"
+        ]
+      }
+    },
+    "/api/v1/billing/events/web": {
+      "get": {
+        "description": "Returns the caller's organization's billing events, newest first, with the amount and provider reference each carries.",
+        "operationId": "listEvents",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BillingEventSummaryDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Billing events returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the organization's billing events",
+        "tags": [
+          "Billing History"
         ]
       }
     },
@@ -119063,8 +120131,16 @@
       "name": "BIM Models"
     },
     {
+      "description": "Online checkout for the caller's organization: which provider is wired, opening a provider subscription for a plan, verifying the browser widget's result, and the recurring-payment mandate. Entitlement is granted only after the payment result verifies or the provider's webhook arrives.",
+      "name": "Billing Checkout"
+    },
+    {
       "description": "Individually toggleable capabilities that a plan can grant, such as report exports or a device quota. A feature has a type (boolean, quota or metered) and, once deactivated, is no longer offered on new plans. The feature catalogue is platform-wide rather than per-customer, so every endpoint here is restricted to the platform-admin role.",
       "name": "Billing Features"
+    },
+    {
+      "description": "The caller's organization's billing events, newest first: charges, invoices and payment failures as the provider reported them.",
+      "name": "Billing History"
     },
     {
       "description": "Subscription plans such as Starter, Professional or Enterprise, each carrying a price per billing period and a set of assigned features. Endpoints cover listing public plans, full plan administration, and attaching or detaching features on a plan. All administrative endpoints require the platform-admin role.",
