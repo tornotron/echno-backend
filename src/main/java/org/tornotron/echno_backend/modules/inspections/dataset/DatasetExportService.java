@@ -5,10 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.modules.inspections.InspectionEvidence;
 import org.tornotron.echno_backend.modules.inspections.ObservationEvidence;
@@ -70,6 +72,18 @@ import java.util.stream.Collectors;
  * {@code manifest.jsonl} per run sits beside them. Nothing is written under the dataset's
  * immutable {@code raw/} prefix: face and plate anonymisation is the tooling's step, and it is
  * the tooling that promotes an export into {@code raw/}.
+ *
+ * <h2>How it runs</h2>
+ *
+ * <p>A run is two steps (#812). {@link #start} records the run row as {@code running} in one
+ * short transaction, refusing while another run of the organization is still running, and is
+ * what the endpoint answers with. {@link #execute} then does the copying outside any
+ * transaction: the rows to copy are read and the manifest lines prepared in one read
+ * transaction, the objects are copied one by one, and the ledger rows and the run's counters are
+ * committed in batches, so a run that dies half way leaves what it copied on record and the next
+ * run skips it. The web endpoint hands {@code execute} to {@link DatasetExportLauncher}; the
+ * sweep, which already runs off a scheduler thread, calls {@link #runForOrganization} and gets
+ * the two steps in sequence.
  */
 @Slf4j
 @Service
@@ -90,46 +104,89 @@ public class DatasetExportService {
     private final DatasetExportedItemRepository itemRepository;
     private final DatasetExportProperties properties;
     private final ObjectMapper objectMapper;
+    private final TransactionalWorkRunner transactions;
 
     /**
-     * Runs one export for the organization and returns the finished run.
+     * Starts a run for the organization and runs it to the end on the calling thread.
      *
-     * <p>Runs under the caller's tenant context (a request, or {@code TenantScopedJobRunner} from
-     * the sweep). A failure of one object is counted and the run continues; a failure of the run
-     * as a whole is recorded on the row as {@code failed} and the row is still returned, so the
+     * <p>Runs under the caller's tenant context ({@code TenantScopedJobRunner} from the sweep, or
+     * a test). A failure of one object is counted and the run continues; a failure of the run as
+     * a whole is recorded on the row as {@code failed} and the row is still returned, so the
      * sweep's log and the admin screen both see it.
      *
      * @throws DatasetConsentMissingException when the organization has not recorded consent
+     * @throws DatasetExportInProgressException when a run of the organization is still running
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public DatasetExportRunDto runForOrganization(Long organizationId, String triggeredBy) {
+        DatasetExportRunDto started = start(organizationId, triggeredBy);
+        return execute(started.id(), organizationId);
+    }
+
+    /**
+     * Records a new run as {@code running} and returns it, without copying anything.
+     *
+     * <p>One run at a time per organization: a second request while one is running is refused
+     * with a 409 naming the run, so a second click does not repeat every copy the first has not
+     * recorded yet. A run left {@code running} for longer than
+     * {@link DatasetExportProperties#getStaleRunningMinutes()} belongs to a process that is
+     * gone; it is closed as {@code failed} here and a fresh run is allowed, and the ledger rows
+     * it did commit stand, so the fresh run skips them.
      */
     @Transactional
-    public DatasetExportRunDto runForOrganization(Long organizationId, String triggeredBy) {
+    public DatasetExportRunDto start(Long organizationId, String triggeredBy) {
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization " + organizationId + " was not found"));
         if (!organization.isDatasetConsent()) {
             throw new DatasetConsentMissingException(organizationId);
+        }
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime staleBefore = now.minusMinutes(Math.max(1, properties.getStaleRunningMinutes()));
+        for (DatasetExportRun running : runRepository.findByOrganization_IdAndStatus(organizationId, DatasetExportRunStatus.RUNNING)) {
+            if (running.getStartedAt() != null && running.getStartedAt().isAfter(staleBefore)) {
+                throw new DatasetExportInProgressException(organizationId, running.getId());
+            }
+            log.warn("Dataset export run {} for organization {} has been running since {}; the process that ran it "
+                    + "is gone, closing it as failed", running.getRunKey(), organizationId, running.getStartedAt());
+            running.setStatus(DatasetExportRunStatus.FAILED);
+            running.setErrorMessage("Abandoned: still running after " + properties.getStaleRunningMinutes()
+                    + " minutes; what it copied is on record and the next run skips it");
+            running.setFinishedAt(now);
+            runRepository.save(running);
         }
 
         DatasetExportRun run = new DatasetExportRun();
         run.setOrganization(organization);
         run.setRunKey(newRunKey());
         run.setTriggeredBy(triggeredBy);
-        run.setStartedAt(LocalDateTime.now(ZoneOffset.UTC));
+        run.setStartedAt(now);
         run = runRepository.save(run);
-
-        try {
-            export(run, organizationId);
-            run.setStatus(DatasetExportRunStatus.COMPLETED);
-        } catch (RuntimeException e) {
-            log.error("Dataset export run {} for organization {} failed: {}", run.getRunKey(), organizationId,
-                    e.getMessage(), e);
-            run.setStatus(DatasetExportRunStatus.FAILED);
-            run.setErrorMessage(truncate(e.getMessage(), 1000));
-        }
-        run.setFinishedAt(LocalDateTime.now(ZoneOffset.UTC));
-        run = runRepository.save(run);
-        log.info("Dataset export run {} for organization {}: {} exported, {} skipped, {} failed",
-                run.getRunKey(), organizationId, run.getExportedCount(), run.getSkippedCount(), run.getFailedCount());
         return DatasetExportRunDto.from(run);
+    }
+
+    /**
+     * Runs one started run to its end and returns the finished row.
+     *
+     * <p>Deliberately not one transaction. The candidates are read and their manifest lines
+     * prepared in one read transaction; the copies are S3 calls with no transaction open; the
+     * ledger rows and the run's counters are committed every
+     * {@link DatasetExportProperties#getBatchSize()} objects; and the row is closed in one
+     * last write. A transaction spanning thousands of copies was pushed and restarted by the
+     * database, and repeated the whole loop each time.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public DatasetExportRunDto execute(UUID runId, Long organizationId) {
+        Progress progress = new Progress();
+        try {
+            ExportPlan plan = transactions.runInTransaction(() -> plan(runId, organizationId));
+            progress.skipped = plan.skipped();
+            copy(plan, progress);
+        } catch (RuntimeException e) {
+            log.error("Dataset export run {} for organization {} failed: {}", runId, organizationId, e.getMessage(), e);
+            return transactions.runInTransaction(() -> finish(runId, organizationId, progress, DatasetExportRunStatus.FAILED,
+                    truncate(e.getMessage(), 1000)));
+        }
+        return transactions.runInTransaction(() -> finish(runId, organizationId, progress, DatasetExportRunStatus.COMPLETED, null));
     }
 
     @Transactional(readOnly = true)
@@ -146,7 +203,30 @@ public class DatasetExportService {
                 .orElseThrow(() -> new ResourceNotFoundException("Dataset export run " + runId + " was not found"));
     }
 
-    private void export(DatasetExportRun run, Long organizationId) {
+    /** What one run will copy, resolved while the rows are still attached. */
+    record ExportPlan(UUID runId, Long organizationId, String runKey, String runPrefix, List<Planned> planned, int skipped) {
+    }
+
+    /** One object to copy, its target key and its manifest line, with no entity behind it. */
+    record Planned(DatasetSourceKind kind, String sourceRef, String sourceKey, UUID inspectionId, String exportKey,
+                   String manifestLine) {
+    }
+
+    /** Counters the batches commit as they go. Only ever touched by the thread running the export. */
+    private static final class Progress {
+        int exported;
+        int skipped;
+        int failed;
+        String manifestKey;
+    }
+
+    private ExportPlan plan(UUID runId, Long organizationId) {
+        DatasetExportRun run = runRepository.findByIdAndOrganization_Id(runId, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Dataset export run " + runId + " was not found"));
+        if (run.getStatus() != DatasetExportRunStatus.RUNNING) {
+            throw new IllegalStateException("Dataset export run " + run.getRunKey() + " is " + run.getStatus().getValue()
+                    + ", not running");
+        }
         List<Candidate> candidates = collectCandidates(organizationId);
         Map<DatasetSourceKind, Set<String>> alreadyExported = new HashMap<>();
         for (DatasetSourceKind kind : DatasetSourceKind.values()) {
@@ -156,59 +236,106 @@ public class DatasetExportService {
         Map<String, List<DefectPhotoAnnotation>> annotationsByPhoto = annotationsByPhoto(organizationId);
 
         String runPrefix = runPrefix(run.getRunKey());
-        StringBuilder manifest = new StringBuilder();
-        int exported = 0;
-        int skipped = 0;
-        int failed = 0;
         int cap = Math.max(1, properties.getMaxObjectsPerRun());
-
+        List<Planned> planned = new ArrayList<>();
+        int skipped = 0;
         for (Candidate candidate : candidates) {
             if (alreadyExported.get(candidate.kind()).contains(candidate.sourceRef())) {
                 skipped++;
                 continue;
             }
-            if (exported >= cap) {
-                log.info("Dataset export run {} stopped at its per-run cap of {} object(s); the rest are "
+            if (planned.size() >= cap) {
+                log.info("Dataset export run {} stops at its per-run cap of {} object(s); the rest are "
                         + "picked up by the next run", run.getRunKey(), cap);
                 break;
             }
             String exportKey = runPrefix + candidate.kind().folder() + "/" + candidate.exportName();
-            try {
-                fileStorageService.copyObjectTo(candidate.sourceKey(), properties.getBucket(), exportKey);
-            } catch (RuntimeException e) {
-                failed++;
-                log.warn("Dataset export run {}: could not copy {} ({}): {}", run.getRunKey(),
-                        candidate.sourceKey(), candidate.kind(), e.getMessage());
-                continue;
-            }
-
-            DatasetExportedItem item = new DatasetExportedItem();
-            item.setOrganization(run.getOrganization());
-            item.setRunId(run.getId());
-            item.setSourceKind(candidate.kind());
-            item.setSourceRef(candidate.sourceRef());
-            item.setSourceKey(candidate.sourceKey());
-            item.setExportKey(exportKey);
-            item.setInspectionId(candidate.inspection() == null ? null : candidate.inspection().getId());
-            itemRepository.save(item);
-            alreadyExported.get(candidate.kind()).add(candidate.sourceRef());
-
             List<DefectPhotoAnnotation> boxes = candidate.kind() == DatasetSourceKind.DEFECT_PHOTO
                     ? annotationsByPhoto.getOrDefault(photoKey(candidate.inspection().getId(), candidate.sourceRef()), List.of())
                     : List.of();
-            manifest.append(toJson(manifestLine(run, candidate, exportKey, breadcrumbs, boxes))).append('\n');
-            exported++;
+            planned.add(new Planned(candidate.kind(), candidate.sourceRef(), candidate.sourceKey(),
+                    candidate.inspection() == null ? null : candidate.inspection().getId(), exportKey,
+                    toJson(manifestLine(run.getRunKey(), organizationId, candidate, exportKey, breadcrumbs, boxes))));
+        }
+        return new ExportPlan(runId, organizationId, run.getRunKey(), runPrefix, List.copyOf(planned), skipped);
+    }
+
+    private void copy(ExportPlan plan, Progress progress) {
+        StringBuilder manifest = new StringBuilder();
+        List<Planned> batch = new ArrayList<>();
+        int batchSize = Math.max(1, properties.getBatchSize());
+
+        for (Planned item : plan.planned()) {
+            try {
+                fileStorageService.copyObjectTo(item.sourceKey(), properties.getBucket(), item.exportKey());
+            } catch (RuntimeException e) {
+                progress.failed++;
+                log.warn("Dataset export run {}: could not copy {} ({}): {}", plan.runKey(),
+                        item.sourceKey(), item.kind(), e.getMessage());
+                continue;
+            }
+            batch.add(item);
+            manifest.append(item.manifestLine()).append('\n');
+            if (batch.size() >= batchSize) {
+                commitBatch(plan, batch, progress);
+                batch.clear();
+            }
+        }
+        if (!batch.isEmpty()) {
+            commitBatch(plan, batch, progress);
         }
 
-        if (exported > 0) {
-            String manifestKey = runPrefix + MANIFEST_FILE;
+        if (progress.exported > 0) {
+            String manifestKey = plan.runPrefix() + MANIFEST_FILE;
             fileStorageService.putObject(properties.getBucket(), manifestKey,
                     manifest.toString().getBytes(StandardCharsets.UTF_8), "application/x-ndjson");
-            run.setManifestKey(manifestKey);
+            progress.manifestKey = manifestKey;
         }
-        run.setExportedCount(exported);
-        run.setSkippedCount(skipped);
-        run.setFailedCount(failed);
+    }
+
+    /** The ledger rows for one batch of copied objects and the run's counters so far, in one transaction. */
+    private void commitBatch(ExportPlan plan, List<Planned> batch, Progress progress) {
+        List<Planned> copied = List.copyOf(batch);
+        transactions.runInTransaction(() -> {
+            Organization organization = organizationRepository.getReferenceById(plan.organizationId());
+            for (Planned item : copied) {
+                DatasetExportedItem row = new DatasetExportedItem();
+                row.setOrganization(organization);
+                row.setRunId(plan.runId());
+                row.setSourceKind(item.kind());
+                row.setSourceRef(item.sourceRef());
+                row.setSourceKey(item.sourceKey());
+                row.setExportKey(item.exportKey());
+                row.setInspectionId(item.inspectionId());
+                itemRepository.save(row);
+            }
+            progress.exported += copied.size();
+            runRepository.findByIdAndOrganization_Id(plan.runId(), plan.organizationId()).ifPresent(run -> {
+                run.setExportedCount(progress.exported);
+                run.setSkippedCount(progress.skipped);
+                run.setFailedCount(progress.failed);
+                runRepository.save(run);
+            });
+            return null;
+        });
+    }
+
+    private DatasetExportRunDto finish(UUID runId, Long organizationId, Progress progress, DatasetExportRunStatus status,
+                                       String error) {
+        DatasetExportRun run = runRepository.findByIdAndOrganization_Id(runId, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Dataset export run " + runId + " was not found"));
+        run.setStatus(status);
+        run.setErrorMessage(error);
+        run.setExportedCount(progress.exported);
+        run.setSkippedCount(progress.skipped);
+        run.setFailedCount(progress.failed);
+        run.setManifestKey(progress.manifestKey);
+        run.setFinishedAt(LocalDateTime.now(ZoneOffset.UTC));
+        run = runRepository.save(run);
+        log.info("Dataset export run {} for organization {}: {}, {} exported, {} skipped, {} failed",
+                run.getRunKey(), organizationId, status.getValue(), run.getExportedCount(), run.getSkippedCount(),
+                run.getFailedCount());
+        return DatasetExportRunDto.from(run);
     }
 
     /** The three sources, in a stable order, with everything the manifest line needs resolved. */
@@ -306,12 +433,11 @@ public class DatasetExportService {
         return inspectionId + "|" + photo;
     }
 
-    private DatasetManifestLine manifestLine(DatasetExportRun run, Candidate c, String exportKey,
+    private DatasetManifestLine manifestLine(String runKey, Long orgId, Candidate c, String exportKey,
                                              Map<UUID, String> breadcrumbs, List<DefectPhotoAnnotation> boxes) {
         Inspection inspection = c.inspection();
         Observation observation = c.observation();
         Attachment attachment = c.attachment();
-        Long orgId = run.getOrganization().getId();
         List<DatasetManifestLine.Box> annotations = boxes.stream()
                 .map(b -> new DatasetManifestLine.Box(b.getShape() == null ? null : b.getShape().getValue(),
                         b.getX1(), b.getY1(), b.getX2(), b.getY2(), b.getLabel(), b.getLineOrder()))
@@ -342,7 +468,7 @@ public class DatasetExportService {
                 annotations,
                 DatasetManifestLine.LICENCE_ORG_CONSENT,
                 false,
-                run.getRunKey());
+                runKey);
     }
 
     private static String tradeOf(Inspection inspection) {
