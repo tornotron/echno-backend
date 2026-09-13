@@ -84,6 +84,11 @@ public class SecurityConfig {
                         // still denied at the load boundary.
                         .authorizeHttpRequests(auth -> {
                                 auth.requestMatchers(HttpMethod.POST, "/api/"+backend_version+"/auth/register").permitAll()
+                                // Provider webhooks carry no session; the HMAC over the raw body is
+                                // the gate (BillingWebhookService). The handler reaches only the
+                                // global inbox and hands off asynchronously, which is what keeps it
+                                // inside the exposure rule described above.
+                                .requestMatchers(HttpMethod.POST, "/api/"+backend_version+"/billing/webhooks/**").permitAll()
                                 .requestMatchers("/actuator/**").permitAll();
                                 if (swaggerPublicAccess) {
                                     auth.requestMatchers(SWAGGER_PATHS).permitAll();

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.tornotron.echno_backend.billing.Subscription;
 import org.tornotron.echno_backend.billing.enums.SubscriptionStatus;
+import org.tornotron.echno_backend.billing.gateway.ProviderId;
 
 import java.time.Instant;
 import java.util.Arrays;
@@ -41,4 +42,17 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     List<Subscription> findExpiredSubscriptions(@Param("now")Instant now);
 
     List<Subscription> findByOrganizationIdOrderByCreatedAtDesc(Long organizationId);
+
+    /** The projection row a provider subscription id maps to, with its plan graph, for the webhook projector. */
+    @Query("SELECT s FROM Subscription s " +
+           "LEFT JOIN FETCH s.plan p " +
+           "LEFT JOIN FETCH p.planFeatures pf " +
+           "LEFT JOIN FETCH pf.feature " +
+           "WHERE s.provider = :provider AND s.externalSubscriptionId = :externalSubscriptionId")
+    Optional<Subscription> findByProviderAndExternalSubscriptionId(
+            @Param("provider") ProviderId provider,
+            @Param("externalSubscriptionId") String externalSubscriptionId);
+
+    /** Every row of the organization in one of the given statuses; what a gateway activation supersedes. */
+    List<Subscription> findByOrganizationIdAndStatusIn(Long organizationId, List<SubscriptionStatus> statuses);
 }
