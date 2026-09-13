@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.modules.inspections;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -514,6 +515,32 @@ class InspectionServiceIT extends AbstractIntegrationTest {
     }
 
     /** An update that sends the given check points back, the shape the web client saves in. */
+    @Test
+    void findAll_loadsEachRowsTradeInTheListSelectRatherThanOnePerRow() {
+        for (String trade : List.of("masonry", "plastering", "reinforcement", "rcc", "waterproofing")) {
+            service.create(scheduleFor(trade, null));
+        }
+        entityManager.flush();
+        entityManager.clear();
+        Statistics stats = entityManager.unwrap(Session.class).getSessionFactory().getStatistics();
+        stats.setStatisticsEnabled(true);
+        stats.clear();
+
+        List<InspectionDto> page = service.findAll(null, null, null, null, null, null, null,
+                PageRequest.of(0, 50)).getContent();
+
+        assertThat(page).hasSize(5);
+        assertThat(page).extracting(InspectionDto::tradeGroup).doesNotContainNull();
+        // the trade rows come with the page select; a lazy proxy initialised by the
+        // mapper would count here, one per distinct trade on the page
+        assertThat(stats.getEntityFetchCount())
+                .as("lazy entity fetches (prepared statements: %d, entities loaded: %d)",
+                        stats.getPrepareStatementCount(), stats.getEntityLoadCount())
+                .isZero();
+        // page select, count select, and the check-item and defect collections of each row
+        assertThat(stats.getPrepareStatementCount()).isLessThanOrEqualTo(2 + 2 * page.size());
+    }
+
     private UpdateInspectionRequest rebuildWith(List<InspectionCheckItemRequest> checkItems) {
         return new UpdateInspectionRequest(
                 "Wall check", InspectionType.QUALITY, null, "plastering", null,

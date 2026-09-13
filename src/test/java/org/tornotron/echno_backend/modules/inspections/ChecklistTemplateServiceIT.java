@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.modules.inspections;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -243,6 +244,31 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
 
     private static Pageable pageable() {
         return PageRequest.of(0, 50);
+    }
+
+    @Test
+    void findAll_loadsEachRowsTradeInTheListSelectRatherThanOnePerRow() {
+        for (String code : List.of("tiling", "painting", "ceilings", "doors-windows", "fire-systems")) {
+            service.adoptStarter(code);
+        }
+        entityManager.flush();
+        entityManager.clear();
+        Statistics stats = entityManager.unwrap(Session.class).getSessionFactory().getStatistics();
+        stats.setStatisticsEnabled(true);
+        stats.clear();
+
+        List<ChecklistTemplateDto> page = service.findAll(null, null, null, pageable()).getContent();
+
+        assertThat(page).hasSize(5);
+        assertThat(page).extracting(ChecklistTemplateDto::tradeGroup).doesNotContainNull();
+        // the trade rows come with the page select; a lazy proxy initialised by the
+        // mapper would count here, one per distinct trade on the page
+        assertThat(stats.getEntityFetchCount())
+                .as("lazy entity fetches (prepared statements: %d, entities loaded: %d)",
+                        stats.getPrepareStatementCount(), stats.getEntityLoadCount())
+                .isZero();
+        // page select, count select, and the items collection of each row
+        assertThat(stats.getPrepareStatementCount()).isLessThanOrEqualTo(2 + page.size());
     }
 
     @Test
