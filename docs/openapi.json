@@ -5738,6 +5738,62 @@
         ],
         "type": "object"
       },
+      "DatasetExportRunDto": {
+        "description": "A consented evidence export run for the current organization",
+        "properties": {
+          "errorMessage": {
+            "type": "string"
+          },
+          "exportedCount": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "failedCount": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "finishedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "manifestKey": {
+            "description": "Key of manifest.jsonl in the dataset bucket, once written",
+            "type": "string"
+          },
+          "organizationId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "runKey": {
+            "description": "The export/<runKey>/ segment in the dataset bucket",
+            "type": "string"
+          },
+          "skippedCount": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "running",
+              "completed",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "triggeredBy": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "DefectPhotoAnnotationDto": {
         "description": "A mark drawn over one defect photo. Coordinates are fractions of the image width and height, so the mark holds its place at any rendered size.",
         "properties": {
@@ -25725,7 +25781,7 @@
     "/api/v1/attendance-regularizations/web": {
       "get": {
         "description": "Returns a paged list of regularization requests in the current tenant, in any status. The optional status, approver and requester parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nThe approver and the rejecter are recorded in the same pair of columns, so approvedById on its own means \"requests this person decided\". Pair it with status to separate the two: approvedById with status=APPROVED is what that person approved, and with status=REJECTED what they rejected.\n\nBoth ids are employee ids. A request decided by a caller who has no employee record in this tenant carries no approver id and is not matched by any approvedById.",
-        "operationId": "list_15",
+        "operationId": "list_16",
         "parameters": [
           {
             "in": "query",
@@ -34557,7 +34613,7 @@
     },
     "/api/v1/bim/models/{modelId}": {
       "get": {
-        "operationId": "get_15",
+        "operationId": "get_16",
         "parameters": [
           {
             "in": "path",
@@ -37917,7 +37973,7 @@
     "/api/v1/checklist-templates/web": {
       "get": {
         "description": "Returns a page of the organization's templates. The trade and active parameters are optional filters; omitting both returns every template, subject to paging.",
-        "operationId": "list_11",
+        "operationId": "list_12",
         "parameters": [
           {
             "in": "query",
@@ -42192,7 +42248,7 @@
     "/api/v1/finance/accounts/web": {
       "get": {
         "description": "Returns the flat list of accounts in the current tenant. By default only active accounts are returned; set activeOnly to false to include deactivated accounts.",
-        "operationId": "list_10",
+        "operationId": "list_11",
         "parameters": [
           {
             "in": "query",
@@ -43311,7 +43367,7 @@
     "/api/v1/finance/company-bank-accounts/web": {
       "get": {
         "description": "Returns the organization's bank accounts. By default only active accounts are returned; set activeOnly to false to include deactivated accounts as well.",
-        "operationId": "list_9",
+        "operationId": "list_10",
         "parameters": [
           {
             "in": "query",
@@ -43537,7 +43593,7 @@
     "/api/v1/finance/company-bank-accounts/web/{id}": {
       "get": {
         "description": "Returns a single company bank account, including the linked ledger account.",
-        "operationId": "get_14",
+        "operationId": "get_15",
         "parameters": [
           {
             "in": "path",
@@ -43763,7 +43819,7 @@
     "/api/v1/finance/construction-invoices/web": {
       "get": {
         "description": "Returns a paged list of invoices in the current tenant. The optional project, vendor, status and type parameters narrow the result; omitting a parameter leaves that dimension unfiltered.",
-        "operationId": "list_8",
+        "operationId": "list_9",
         "parameters": [
           {
             "in": "query",
@@ -44854,7 +44910,7 @@
     "/api/v1/finance/construction-payments/web": {
       "get": {
         "description": "Returns a paged list of payment vouchers in the current tenant. The optional project, vendor, status, type, payee type, employee, verifier and raiser parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nNarrow here rather than in the client. A filter applied to the rows one page came back in narrows that page and not the register, so it answers a different question from the one it appears to, and an empty result then reads as a complete answer.\n\nThe three person parameters carry ids from two different sequences and are not interchangeable. employeeId is the payee on a salary or advance voucher and is an employee id; verifiedBy and raisedBy are platform user ids, the same ids the response returns beside verifiedByName and raisedByName.",
-        "operationId": "list_7",
+        "operationId": "list_8",
         "parameters": [
           {
             "in": "query",
@@ -45664,7 +45720,7 @@
     "/api/v1/finance/cost-categories/web": {
       "get": {
         "description": "Returns the budget heads in the current tenant. By default only active heads are returned; set activeOnly to false to include deactivated ones.",
-        "operationId": "list_6",
+        "operationId": "list_7",
         "parameters": [
           {
             "in": "query",
@@ -46566,7 +46622,7 @@
     "/api/v1/finance/customers/web/all": {
       "get": {
         "description": "Returns a page of customers in the current tenant. The optional name parameter filters by customer name; omitting it returns all customers, subject to paging.",
-        "operationId": "list_14",
+        "operationId": "list_15",
         "parameters": [
           {
             "in": "query",
@@ -46918,7 +46974,7 @@
     "/api/v1/finance/invoices/web": {
       "get": {
         "description": "Returns a page of customer invoices in the current tenant, newest invoice date first. The optional customer, status and openOnly parameters narrow the result and combine with AND; omitting a parameter leaves that dimension unfiltered. Use pageNo and pageSize to page through the results.",
-        "operationId": "list_5",
+        "operationId": "list_6",
         "parameters": [
           {
             "description": "Restrict to invoices billed to this customer.",
@@ -47195,7 +47251,7 @@
     "/api/v1/finance/invoices/web/{id}": {
       "get": {
         "description": "Returns a single customer invoice, including its computed totals and line items.",
-        "operationId": "get_13",
+        "operationId": "get_14",
         "parameters": [
           {
             "in": "path",
@@ -48269,7 +48325,7 @@
     "/api/v1/finance/payments/web/{id}": {
       "get": {
         "description": "Returns a single customer payment with its invoice allocations.",
-        "operationId": "get_12",
+        "operationId": "get_13",
         "parameters": [
           {
             "in": "path",
@@ -48382,7 +48438,7 @@
     "/api/v1/finance/posting-accounts/web": {
       "get": {
         "description": "Returns all six posting roles with the account each currently resolves to for the tenant, flagged as coming from an explicit mapping (MAPPED) or the configured default (DEFAULT).",
-        "operationId": "list_13",
+        "operationId": "list_14",
         "responses": {
           "200": {
             "content": {
@@ -48735,7 +48791,7 @@
     "/api/v1/finance/projects/{projectId}/budget/web": {
       "get": {
         "description": "Returns the set of budget-head allocations that make up the project's budget.",
-        "operationId": "list_12",
+        "operationId": "list_13",
         "parameters": [
           {
             "in": "path",
@@ -49096,7 +49152,7 @@
     "/api/v1/finance/projects/{projectId}/cost-control/web": {
       "get": {
         "description": "Returns the per-budget-head roll-up of allocated, committed, spent and remaining amounts for the project, plus a project total row. Heads with an allocation or any tagged spend are included; a head whose committed plus spent exceeds its allocation is flagged as over budget.",
-        "operationId": "get_11",
+        "operationId": "get_12",
         "parameters": [
           {
             "in": "path",
@@ -56967,6 +57023,322 @@
         "summary": "Regenerate compliance inspections for a project (superseded by POST /compliance/jobs)",
         "tags": [
           "Compliance Generation"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/dataset-export/runs": {
+      "get": {
+        "operationId": "list_5",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DatasetExportRunDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the organization's export runs, newest first",
+        "tags": [
+          "Dataset Export"
+        ]
+      },
+      "post": {
+        "description": "Copies every not-yet-exported inspection image (inspection evidence, defect photos, observation evidence) to export/<runKey>/ in the dataset bucket and writes manifest.jsonl beside them. Idempotent: a second run exports nothing new.",
+        "operationId": "run",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetExportRunDto"
+                }
+              }
+            },
+            "description": "The finished run"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the system-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The organization has not recorded dataset consent"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Run the evidence export for the current organization now",
+        "tags": [
+          "Dataset Export"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/dataset-export/runs/{id}": {
+      "get": {
+        "operationId": "get_11",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetExportRunDto"
+                }
+              }
+            },
+            "description": "The run"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such run in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Read one export run",
+        "tags": [
+          "Dataset Export"
         ]
       }
     },
@@ -118235,6 +118607,10 @@
     {
       "description": "Customers billed by the ledger, holding their tax registration, contact and billing details along with a credit limit and payment terms. All endpoints are tenant scoped and limited to system administrators and project managers.",
       "name": "Customers"
+    },
+    {
+      "description": "Copies the organization's consented inspection images into the dataset bucket with a per-run manifest. Refused unless the organization has recorded dataset consent.",
+      "name": "Dataset Export"
     },
     {
       "description": "The construction element types an organization inspects: the seeded catalogue copied into the tenant on first use, plus any the organization defines. A spatial node of level ELEMENT carries one of these codes, and a checklist template's applicability names the ones it suits. Managing the list is the same authority as defining checklists. Types are deactivated, never deleted.",
