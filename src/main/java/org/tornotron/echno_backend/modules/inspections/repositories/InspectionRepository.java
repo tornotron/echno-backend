@@ -1,5 +1,9 @@
 package org.tornotron.echno_backend.modules.inspections.repositories;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +19,15 @@ import java.util.UUID;
 @Repository
 public interface InspectionRepository
         extends JpaRepository<Inspection, UUID>, JpaSpecificationExecutor<Inspection> {
+
+    /**
+     * The paged list with each row's {@code tradeRef} fetched in the same select. The
+     * mapper reads the trade's code, name and group for every row, and with the lazy
+     * association that was one extra select per distinct trade on the page.
+     */
+    @Override
+    @EntityGraph(attributePaths = "tradeRef")
+    Page<Inspection> findAll(Specification<Inspection> spec, Pageable pageable);
 
     /**
      * Org-scoped lookup by id. Uses JPQL (not {@code find()} by primary key) so the
