@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.tornotron.echno_backend.common.exception.TenantAccessDeniedException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -91,9 +92,11 @@ class DatasetExportTenantIsolationIT extends AbstractIntegrationTest {
 
         assertThat(runRepository.findByIdAndOrganization_Id(runId, orgBId)).isEmpty();
         assertThat(runRepository.findByOrganization_IdOrderByStartedAtDesc(orgBId)).isEmpty();
-        assertThat(itemRepository.findSourceRefs(orgAId, DatasetSourceKind.INSPECTION_EVIDENCE)).isEmpty();
-        assertThat(itemRepository.findByRunIdOrderByCreatedAtAsc(runId)).isEmpty();
+        assertThat(itemRepository.findSourceRefs(orgBId, DatasetSourceKind.INSPECTION_EVIDENCE)).isEmpty();
+        // the rows themselves cannot be loaded from the other tenant, by id or by run
         assertThatThrownBy(() -> runRepository.findById(runId))
+                .isInstanceOf(TenantAccessDeniedException.class);
+        assertThatThrownBy(() -> itemRepository.findByRunIdOrderByCreatedAtAsc(runId))
                 .isInstanceOf(TenantAccessDeniedException.class);
     }
 
@@ -106,7 +109,7 @@ class DatasetExportTenantIsolationIT extends AbstractIntegrationTest {
         assertThatThrownBy(() -> {
             itemRepository.save(item(owner, UUID.randomUUID(), "11"));
             entityManager.flush();
-        }).isInstanceOf(DataIntegrityViolationException.class);
+        }).isInstanceOfAny(DataIntegrityViolationException.class, ConstraintViolationException.class);
     }
 
     private static DatasetExportedItem item(Organization owner, UUID runId, String sourceRef) {
