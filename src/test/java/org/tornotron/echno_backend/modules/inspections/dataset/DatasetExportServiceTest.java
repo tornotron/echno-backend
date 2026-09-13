@@ -48,7 +48,8 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -198,7 +199,7 @@ class DatasetExportServiceTest {
         verify(fileStorageService, never()).copyObjectTo(eq("inspection/2026/09/permit.pdf"), anyString(), anyString());
 
         ArgumentCaptor<DatasetExportedItem> items = ArgumentCaptor.forClass(DatasetExportedItem.class);
-        verify(itemRepository, org.mockito.Mockito.times(3)).save(items.capture());
+        verify(itemRepository, times(3)).save(items.capture());
         assertThat(items.getAllValues()).extracting(DatasetExportedItem::getSourceRef)
                 .containsExactly("11", DEFECT_PHOTO_REF, "13");
         assertThat(items.getAllValues()).extracting(DatasetExportedItem::getSourceKind)
@@ -294,7 +295,7 @@ class DatasetExportServiceTest {
 
     @Test
     void aFailedCopyIsCountedAndTheRunGoesOn() {
-        org.mockito.Mockito.doThrow(new IllegalStateException("boom")).when(fileStorageService)
+        doThrow(new IllegalStateException("boom")).when(fileStorageService)
                 .copyObjectTo(eq(EVIDENCE_KEY), anyString(), anyString());
 
         DatasetExportRunDto run = service.runForOrganization(ORG, "user:1");
