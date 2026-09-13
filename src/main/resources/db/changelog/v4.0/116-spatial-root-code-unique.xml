@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Building codes are unique per project in the database too (#814). The sibling key
+      uk_spatial_node_sibling_code is (project_id, parent_id, code), and a building has no
+      parent: NULLs are distinct there, so two buildings with one code passed the key and only
+      SpatialNodeService stood in the way. A partial unique index on the root rows closes it.
+
+      HALT on existing duplicates, with the query that finds them: which of two buildings a
+      project keeps is the operator's call.
+    -->
+    <changeSet id="116-01-spatial-root-code-unique" author="abhijith">
+        <preConditions onFail="HALT"
+                       onFailMessage="project_spatial_node holds duplicate root (project_id, code) rows; find them with: SELECT project_id, code, count(*) FROM project_spatial_node WHERE parent_id IS NULL GROUP BY project_id, code HAVING count(*) &gt; 1; merge or recode the extra buildings, then rerun the migration">
+            <not>
+                <indexExists tableName="project_spatial_node" indexName="uk_spatial_node_root_code"/>
+            </not>
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM (
+                    SELECT project_id, code FROM project_spatial_node
+                    WHERE parent_id IS NULL
+                    GROUP BY project_id, code HAVING count(*) &gt; 1
+                ) duplicates
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            CREATE UNIQUE INDEX uk_spatial_node_root_code
+                ON project_spatial_node (project_id, code)
+                WHERE parent_id IS NULL
+        </sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS uk_spatial_node_root_code</sql>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

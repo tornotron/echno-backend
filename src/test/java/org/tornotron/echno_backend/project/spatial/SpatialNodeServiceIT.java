@@ -177,6 +177,23 @@ class SpatialNodeServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void theDatabaseRefusesASecondBuildingWithTheSameCodeEvenPastTheService() {
+        SpatialNodeDto b1 = create(null, SpatialLevel.BUILDING, "B1", "Block 1");
+
+        // the service's own check is bypassed: a root row with the same code, written directly
+        assertThatThrownBy(() -> entityManager.createNativeQuery(
+                        "INSERT INTO project_spatial_node (organization_id, project_id, parent_id, level, code, name, "
+                                + "sort_order, path, depth) "
+                                + "SELECT organization_id, project_id, NULL, level, code, 'Duplicate block', sort_order, "
+                                + "path || '-dup', depth FROM project_spatial_node WHERE id = :id")
+                .setParameter("id", b1.id())
+                .executeUpdate())
+                .isInstanceOfAny(jakarta.persistence.PersistenceException.class,
+                        org.springframework.dao.DataIntegrityViolationException.class)
+                .hasStackTraceContaining("uk_spatial_node_root_code");
+    }
+
+    @Test
     void moveRewritesDescendantPathsAndRefusesBadTargets() {
         SpatialNodeDto b1 = create(null, SpatialLevel.BUILDING, "B1", "Block 1");
         SpatialNodeDto b2 = create(null, SpatialLevel.BUILDING, "B2", "Block 2");

@@ -44,6 +44,7 @@ import org.tornotron.echno_backend.modules.inspections.repositories.ObservationS
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
 import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDateTime;
@@ -55,6 +56,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+
 
 /**
  * The observation life cycle: proposed, reviewed, outcome linked.
@@ -105,12 +107,16 @@ public class ObservationService {
                                         Pageable pageable) {
         String prefix = spatialNodeId == null ? null
                 : spatialNodeService.subtreePathPrefix(spatialNodeId).orElse(InspectionSpecifications.NO_MATCH);
-        return observationRepo.findAll(
+        Page<ObservationDto> page = observationRepo.findAll(
                         ObservationSpecifications.withFilters(projectId, reviewStatus, source, inspectionId,
                                 prefix, from, to),
                         pageable)
-                .map(mapper::toDto)
-                .map(this::withSpatialPath);
+                .map(mapper::toDto);
+        // One breadcrumb lookup for the page (two queries), not one per row.
+        Map<UUID, List<SpatialPathSegment>> paths = spatialNodeService.pathsOf(
+                page.getContent().stream().map(ObservationDto::spatialNodeId).filter(Objects::nonNull).toList());
+        return page.map(dto -> dto.spatialNodeId() == null ? dto
+                : dto.withSpatialPath(paths.getOrDefault(dto.spatialNodeId(), List.of())));
     }
 
     // -------------------------------------------------------- human producer
