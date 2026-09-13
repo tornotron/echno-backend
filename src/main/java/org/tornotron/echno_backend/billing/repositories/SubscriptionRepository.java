@@ -38,6 +38,24 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     }
 
     /**
+     * Provider-backed rows the reconciliation sweep should ask the provider about: a live row
+     * whose period has ended, any PAST_DUE row, and a row left INCOMPLETE since before the
+     * given cut-off. Oldest period end first, so a capped pass takes the longest-stale rows.
+     */
+    @Query("SELECT s FROM Subscription s LEFT JOIN FETCH s.plan " +
+           "WHERE s.provider = :provider AND s.externalSubscriptionId IS NOT NULL AND (" +
+           "(s.status IN :liveStatuses AND s.currentPeriodEnd < :now) " +
+           "OR s.status = org.tornotron.echno_backend.billing.enums.SubscriptionStatus.PAST_DUE " +
+           "OR (s.status = org.tornotron.echno_backend.billing.enums.SubscriptionStatus.INCOMPLETE " +
+           "AND s.createdAt < :incompleteBefore)) " +
+           "ORDER BY s.currentPeriodEnd ASC")
+    List<Subscription> findStaleProviderSubscriptions(
+            @Param("provider") ProviderId provider,
+            @Param("liveStatuses") List<SubscriptionStatus> liveStatuses,
+            @Param("now") Instant now,
+            @Param("incompleteBefore") Instant incompleteBefore);
+
+    /**
      * The organization's past-due subscriptions, the most recently paid-up first. Whether one
      * still grants access is the grace policy's call, made in the service against the clock.
      */

@@ -2132,6 +2132,79 @@
         },
         "type": "object"
       },
+      "BillingEventDto": {
+        "description": "A webhook inbox row: what arrived, what became of it, and why.",
+        "properties": {
+          "attemptCount": {
+            "description": "Projection attempts so far.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "eventType": {
+            "description": "Provider event type as delivered.",
+            "example": "subscription.charged",
+            "type": "string"
+          },
+          "id": {
+            "description": "Inbox row id.",
+            "example": 42,
+            "format": "int64",
+            "type": "integer"
+          },
+          "lastError": {
+            "description": "The last projection error, or why the row was skipped.",
+            "type": "string"
+          },
+          "occurredAt": {
+            "description": "When the provider says the event happened.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "organizationId": {
+            "description": "Organization the event was resolved to, null until the projector resolved it.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "processedAt": {
+            "description": "When the row was last processed or skipped.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "provider": {
+            "description": "Provider the event came from.",
+            "enum": [
+              "MANUAL",
+              "RAZORPAY"
+            ],
+            "type": "string"
+          },
+          "providerEventId": {
+            "description": "The provider's own event id.",
+            "example": "evt_ABC123",
+            "type": "string"
+          },
+          "providerSubscriptionId": {
+            "description": "Provider subscription the event concerns, when known.",
+            "type": "string"
+          },
+          "receivedAt": {
+            "description": "When the webhook was received.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "Where the row is in the inbox.",
+            "enum": [
+              "RECEIVED",
+              "PROCESSED",
+              "FAILED",
+              "SKIPPED"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "BimElementDto": {
         "description": "One IfcProduct of a model, stable across versions by its IFC GlobalId.",
         "properties": {
@@ -13785,6 +13858,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/AttendanceRegularizationDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageBillingEventDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/BillingEventDto"
             },
             "type": "array"
           },
@@ -25781,7 +25900,7 @@
     "/api/v1/attendance-regularizations/web": {
       "get": {
         "description": "Returns a paged list of regularization requests in the current tenant, in any status. The optional status, approver and requester parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nThe approver and the rejecter are recorded in the same pair of columns, so approvedById on its own means \"requests this person decided\". Pair it with status to separate the two: approvedById with status=APPROVED is what that person approved, and with status=REJECTED what they rejected.\n\nBoth ids are employee ids. A request decided by a caller who has no employee record in this tenant carries no approver id and is not matched by any approvedById.",
-        "operationId": "list_16",
+        "operationId": "list_17",
         "parameters": [
           {
             "in": "query",
@@ -34261,6 +34380,280 @@
         "summary": "Record feature usage",
         "tags": [
           "Billing Subscriptions"
+        ]
+      }
+    },
+    "/api/v1/billing/web/events": {
+      "get": {
+        "description": "Newest first. Without a status filter, shows FAILED and SKIPPED rows: the dead letters.",
+        "operationId": "list_16",
+        "parameters": [
+          {
+            "description": "Narrow to one organization",
+            "in": "query",
+            "name": "organizationId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Narrow to one provider event type, such as subscription.charged",
+            "in": "query",
+            "name": "eventType",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Statuses to show; defaults to FAILED and SKIPPED",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "items": {
+                "enum": [
+                  "RECEIVED",
+                  "PROCESSED",
+                  "FAILED",
+                  "SKIPPED"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageBillingEventDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List webhook inbox rows",
+        "tags": [
+          "Billing events"
+        ]
+      }
+    },
+    "/api/v1/billing/web/events/{id}/retry": {
+      "post": {
+        "description": "Hands the row back to the projector with a fresh attempt budget and returns it after the attempt. A row already processed is returned unchanged.",
+        "operationId": "retry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingEventDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Retry one inbox row",
+        "tags": [
+          "Billing events"
         ]
       }
     },
@@ -118680,6 +119073,10 @@
     {
       "description": "An organization's subscription to a plan, tracking its status, billing period and renewal dates. Covers self-service subscription management for the caller's current organization, feature access checks, usage recording for metered features, and an admin section for managing any organization's subscription.",
       "name": "Billing Subscriptions"
+    },
+    {
+      "description": "Webhook inbox dead letters and retry",
+      "name": "Billing events"
     },
     {
       "description": "Work categories used to classify tasks, such as \"Reinforcement Steel\" or \"Aggregates\". A category carries a name, description and optional icon and image. Endpoints cover creating, listing and deleting categories. Access is gated by the category authorities, with an admin authority that grants all operations.",
