@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.tornotron.echno_backend.billing.enums.SubscriptionStatus;
+import org.tornotron.echno_backend.billing.gateway.ProviderId;
 
 import java.time.Instant;
 import java.util.HashSet;
@@ -75,6 +76,16 @@ public class Subscription {
 
     @Column(columnDefinition = "TEXT")
     private String cancellationReason;
+
+    /**
+     * Which gateway backs this row. {@code MANUAL} for anything an admin or a trial provisioned,
+     * a provider for a row the webhook projector writes; only the projector writes the
+     * lifecycle fields of a provider-backed row.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private ProviderId provider = ProviderId.MANUAL;
 
     private String externalSubscriptionId;
 

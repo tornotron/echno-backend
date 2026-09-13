@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Payment gateway plumbing (#794, design record 2026-08-26-payment-integration-razorpay,
+      section 8). The subscription row stays the entitlement projection and gains only a
+      provider column; the four new tables hold what does not belong on the projection: the
+      organization-to-provider-customer mapping, the provider plan mapping, the recurring
+      mandate, and the webhook inbox. billing_customer and payment_mandate are organization
+      scoped; gateway_plan_ref is global like the plan catalog; billing_event is global because
+      the row exists before the organization is known.
+    -->
+
+    <changeSet id="112-01-subscription-provider" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="subscription" columnName="provider"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="subscription">
+            <column name="provider" type="VARCHAR(20)" defaultValue="MANUAL">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="112-02-billing-customer" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="billing_customer"/>
+            </not>
+        </preConditions>
+        <createTable tableName="billing_customer">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_billing_customer_organization"
+                             references="organization(id)"/>
+            </column>
+            <column name="provider" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider_customer_id" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="billing_customer"
+                             columnNames="organization_id, provider"
+                             constraintName="uk_billing_customer_org_provider"/>
+        <createIndex tableName="billing_customer" indexName="idx_billing_customer_provider_id">
+            <column name="provider"/>
+            <column name="provider_customer_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="112-03-gateway-plan-ref" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="gateway_plan_ref"/>
+            </not>
+        </preConditions>
+        <createTable tableName="gateway_plan_ref">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="plan_code" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="billing_interval" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider_plan_id" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_current" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="gateway_plan_ref" indexName="idx_gateway_plan_ref_lookup">
+            <column name="provider"/>
+            <column name="plan_code"/>
+            <column name="billing_interval"/>
+        </createIndex>
+        <createIndex tableName="gateway_plan_ref" indexName="idx_gateway_plan_ref_provider_plan">
+            <column name="provider"/>
+            <column name="provider_plan_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="112-04-payment-mandate" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="payment_mandate"/>
+            </not>
+        </preConditions>
+        <createTable tableName="payment_mandate">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_payment_mandate_organization"
+                             references="organization(id)"/>
+            </column>
+            <column name="provider" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider_mandate_ref" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider_subscription_id" type="VARCHAR(100)"/>
+            <column name="method" type="VARCHAR(20)" defaultValue="UNKNOWN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="CREATED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_amount_paise" type="BIGINT"/>
+            <column name="authorized_at" type="TIMESTAMP"/>
+            <column name="revoked_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="payment_mandate" indexName="idx_payment_mandate_org">
+            <column name="organization_id"/>
+        </createIndex>
+        <createIndex tableName="payment_mandate" indexName="idx_payment_mandate_ref">
+            <column name="provider"/>
+            <column name="provider_mandate_ref"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="112-05-billing-event" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="billing_event"/>
+            </not>
+        </preConditions>
+        <createTable tableName="billing_event">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="provider" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider_event_id" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_type" type="VARCHAR(64)"/>
+            <column name="organization_id" type="BIGINT"/>
+            <column name="provider_subscription_id" type="VARCHAR(100)"/>
+            <column name="payload" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="signature_verified" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="RECEIVED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attempt_count" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="received_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="occurred_at" type="TIMESTAMP"/>
+            <column name="processed_at" type="TIMESTAMP"/>
+            <column name="last_applied_at" type="TIMESTAMP"/>
+            <column name="last_error" type="TEXT"/>
+        </createTable>
+        <addUniqueConstraint tableName="billing_event"
+                             columnNames="provider, provider_event_id"
+                             constraintName="uk_billing_event_provider_event"/>
+        <createIndex tableName="billing_event" indexName="idx_billing_event_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="billing_event" indexName="idx_billing_event_subscription">
+            <column name="provider"/>
+            <column name="provider_subscription_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
