@@ -10,6 +10,7 @@ import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -258,6 +259,40 @@ public class FileStorageService {
             return Optional.empty();
         }
         return Optional.of(reference.startsWith("/") ? reference.substring(1) : reference);
+    }
+
+    /**
+     * Copies an object of ours into another bucket, server-side.
+     *
+     * <p>The bytes never pass through the application: S3 performs the copy between the two
+     * keys. The source is always this service's bucket, so a caller can only ever export what
+     * the attachment layer stored; the destination bucket is the caller's, for a store that is
+     * not the attachment store, such as the dataset bucket.
+     *
+     * @param sourceKey         Key of the object in our bucket.
+     * @param destinationBucket Bucket to copy into.
+     * @param destinationKey    Key to copy to.
+     */
+    public void copyObjectTo(String sourceKey, String destinationBucket, String destinationKey) {
+        s3Client.copyObject(CopyObjectRequest.builder()
+                .sourceBucket(bucketName)
+                .sourceKey(sourceKey)
+                .destinationBucket(destinationBucket)
+                .destinationKey(destinationKey)
+                .build());
+    }
+
+    /**
+     * Writes a small object the application produced, such as a manifest, to the given bucket.
+     * Private, like everything else written here.
+     */
+    public void putObject(String bucket, String key, byte[] content, String contentType) {
+        s3Client.putObject(PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(key)
+                        .contentType(contentType)
+                        .build(),
+                RequestBody.fromBytes(content));
     }
 
     /**

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionDefect;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -62,4 +63,12 @@ public interface InspectionRepository
     boolean existsByProjectIdAndComplianceRuleRefAndOrganization_Id(Long projectId,
                                                                     String complianceRuleRef,
                                                                     Long organizationId);
+
+    /**
+     * Every defect in the organization with its inspection loaded, in a stable order. Read by
+     * the dataset export to enumerate defect photos (#791).
+     */
+    @Query("SELECT d FROM InspectionDefect d JOIN FETCH d.inspection i "
+            + "WHERE i.organization.id = :organizationId ORDER BY i.createdAt ASC, i.id ASC, d.lineOrder ASC")
+    List<InspectionDefect> findDefectsForOrganization(@Param("organizationId") Long organizationId);
 }

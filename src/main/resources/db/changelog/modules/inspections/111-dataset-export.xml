@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Consented evidence export (#791). Two tables: one row per export run, and one row per
+      source object ever copied for an organization. The second is the idempotence ledger: it
+      is unique on (organization, source kind, source reference), so a re-run finds every
+      object it already exported and copies nothing new. Neither table holds a foreign key
+      into the inspection tables; a defect photo is an element-collection string with no row
+      identity, and an attachment may be deleted after export without the ledger losing the
+      fact that it was exported.
+    -->
+
+    <changeSet id="111-01-create-dataset-export-runs" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="dataset_export_runs"/>
+            </not>
+        </preConditions>
+        <createTable tableName="dataset_export_runs">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_dataset_export_runs" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_dataset_export_run_organization"
+                             references="organization(id)"/>
+            </column>
+            <column name="run_key" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_dataset_export_run_key"/>
+            </column>
+            <column name="status" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="triggered_by" type="VARCHAR(120)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="exported_count" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="skipped_count" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="failed_count" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="manifest_key" type="VARCHAR(500)"/>
+            <column name="error_message" type="VARCHAR(1000)"/>
+            <column name="started_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="finished_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="dataset_export_runs" indexName="idx_dataset_export_run_org">
+            <column name="organization_id"/>
+            <column name="created_at"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="dataset_export_runs"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="111-02-create-dataset-exported-items" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="dataset_exported_items"/>
+            </not>
+        </preConditions>
+        <createTable tableName="dataset_exported_items">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_dataset_exported_items" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_dataset_exported_item_organization"
+                             references="organization(id)"/>
+            </column>
+            <column name="run_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_kind" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_ref" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_key" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="export_key" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="inspection_id" type="UUID"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="dataset_exported_items"
+                             columnNames="organization_id, source_kind, source_ref"
+                             constraintName="uk_dataset_exported_item_source"/>
+        <createIndex tableName="dataset_exported_items" indexName="idx_dataset_exported_item_run">
+            <column name="run_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="dataset_exported_items"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

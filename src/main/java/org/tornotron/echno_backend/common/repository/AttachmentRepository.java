@@ -93,4 +93,11 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
      */
     List<Attachment> findByEntityTypeAndOrganization_IdAndExpiresOnLessThanEqualOrderByExpiresOnAscIdAsc(
             String entityType, Long organizationId, LocalDate cutoff, Pageable pageable);
+
+    /**
+     * Every attachment of one type in one organization, oldest first. The dataset export reads
+     * its candidates with this; the explicit organization keeps the query honest even where the
+     * tenant filter is already in force.
+     */
+    List<Attachment> findByEntityTypeAndOrganization_IdOrderByIdAsc(String entityType, Long organizationId);
 }
