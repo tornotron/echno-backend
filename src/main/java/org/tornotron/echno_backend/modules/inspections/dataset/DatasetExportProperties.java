@@ -34,4 +34,22 @@ public class DatasetExportProperties {
      * transaction open for the whole corpus.
      */
     private int maxObjectsPerRun = 500;
+
+    /**
+     * Objects copied between two commits of the ledger and the run's counters. Small enough that
+     * a run which dies loses little, large enough that the commits are not the cost.
+     */
+    private int batchSize = 200;
+
+    /**
+     * A run still {@code running} after this many minutes belongs to a process that is gone (a
+     * replica restarted mid-run). {@code start} closes it as failed and lets a fresh run begin.
+     */
+    private int staleRunningMinutes = 180;
+
+    /**
+     * Threads copying on-demand runs on this replica. One is enough: a run is bounded by the
+     * per-run cap and there is one run per organization at a time.
+     */
+    private int workers = 1;
 }

@@ -58722,10 +58722,10 @@
         ]
       },
       "post": {
-        "description": "Copies every not-yet-exported inspection image (inspection evidence, defect photos, observation evidence) to export/<runKey>/ in the dataset bucket and writes manifest.jsonl beside them. Idempotent: a second run exports nothing new.",
+        "description": "Records a run and returns it as running; the copy of every not-yet-exported inspection image (inspection evidence, defect photos, observation evidence) to export/<runKey>/ in the dataset bucket, with manifest.jsonl beside them, happens in the background. Poll GET .../runs/{id} for the outcome. One run per organization at a time. Idempotent per object: a later run exports nothing already on record.",
         "operationId": "run",
         "responses": {
-          "200": {
+          "202": {
             "content": {
               "*/*": {
                 "schema": {
@@ -58733,7 +58733,7 @@
                 }
               }
             },
-            "description": "The finished run"
+            "description": "The run, recorded as running; its status endpoint carries the outcome"
           },
           "400": {
             "content": {
@@ -58783,7 +58783,7 @@
                 }
               }
             },
-            "description": "The organization has not recorded dataset consent"
+            "description": "The organization has not recorded dataset consent, or a run of it is still running"
           },
           "422": {
             "content": {
@@ -58816,7 +58816,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Run the evidence export for the current organization now",
+        "summary": "Start an evidence export run for the current organization",
         "tags": [
           "Dataset Export"
         ]

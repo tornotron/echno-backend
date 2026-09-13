@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +17,7 @@ import org.tornotron.echno_backend.common.customAnnotation.RequireSubscription;
 import org.tornotron.echno_backend.common.exception.TenantIdMissingException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.modules.inspections.InspectionsModule;
+import org.tornotron.echno_backend.modules.inspections.dataset.DatasetExportLauncher;
 import org.tornotron.echno_backend.modules.inspections.dataset.DatasetExportRunDto;
 import org.tornotron.echno_backend.modules.inspections.dataset.DatasetExportService;
 import org.tornotron.echno_backend.user.UserContextService;
@@ -25,8 +27,10 @@ import java.util.UUID;
 
 /**
  * On-demand runs of the consented evidence export, and their history, for the current
- * organization's system-admin (#791). The run is synchronous and bounded by the per-run cap, so
- * the response is the finished run; a backlog larger than the cap drains over repeated calls.
+ * organization's system-admin (#791). A run is recorded and answered with 202 at once, and the
+ * copying happens off the request thread (#812); the run's own endpoint carries its status. One
+ * run per organization at a time, bounded by the per-run cap, so a backlog larger than the cap
+ * drains over repeated runs.
  */
 @RestController
 @RequireSubscription(feature = InspectionsModule.FEATURE_KEY)
@@ -40,24 +44,29 @@ import java.util.UUID;
 public class DatasetExportControllerWeb {
 
     private final DatasetExportService exportService;
+    private final DatasetExportLauncher launcher;
     private final UserContextService userContextService;
 
     @PostMapping
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
-    @Operation(summary = "Run the evidence export for the current organization now",
-            description = "Copies every not-yet-exported inspection image (inspection evidence, defect "
-                    + "photos, observation evidence) to export/<runKey>/ in the dataset bucket and writes "
-                    + "manifest.jsonl beside them. Idempotent: a second run exports nothing new.")
+    @Operation(summary = "Start an evidence export run for the current organization",
+            description = "Records a run and returns it as running; the copy of every not-yet-exported inspection "
+                    + "image (inspection evidence, defect photos, observation evidence) to export/<runKey>/ in the "
+                    + "dataset bucket, with manifest.jsonl beside them, happens in the background. Poll "
+                    + "GET .../runs/{id} for the outcome. One run per organization at a time. Idempotent per object: "
+                    + "a later run exports nothing already on record.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "The finished run"),
+            @ApiResponse(responseCode = "202", description = "The run, recorded as running; its status endpoint carries the outcome"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the system-admin role"),
-            @ApiResponse(responseCode = "409", description = "The organization has not recorded dataset consent")
+            @ApiResponse(responseCode = "409", description = "The organization has not recorded dataset consent, or a run of it is still running")
     })
     public ResponseEntity<DatasetExportRunDto> run() {
         Long orgId = currentOrgId();
         Long userId = userContextService.getCurrentUserId();
         String actor = userId == null ? "user" : "user:" + userId;
-        return ResponseEntity.ok(exportService.runForOrganization(orgId, actor));
+        DatasetExportRunDto started = exportService.start(orgId, actor);
+        launcher.launch(started.id(), orgId);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(started);
     }
 
     @GetMapping

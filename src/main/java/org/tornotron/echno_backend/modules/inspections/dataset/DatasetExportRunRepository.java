@@ -11,4 +11,6 @@ public interface DatasetExportRunRepository extends JpaRepository<DatasetExportR
     List<DatasetExportRun> findByOrganization_IdOrderByStartedAtDesc(Long organizationId);
 
     Optional<DatasetExportRun> findByIdAndOrganization_Id(UUID id, Long organizationId);
+
+    List<DatasetExportRun> findByOrganization_IdAndStatus(Long organizationId, DatasetExportRunStatus status);
 }

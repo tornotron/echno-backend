@@ -6,12 +6,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.modules.inspections.DefectAnnotationShape;
 import org.tornotron.echno_backend.modules.inspections.InspectionCategory;
@@ -34,10 +36,12 @@ import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -49,6 +53,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -81,6 +86,7 @@ class DatasetExportServiceTest {
     private final DatasetExportProperties properties = new DatasetExportProperties();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private DatasetExportService service;
+    private final Map<UUID, DatasetExportRun> savedRuns = new ConcurrentHashMap<>();
 
     private Organization org;
     private Inspection inspection;
@@ -91,20 +97,25 @@ class DatasetExportServiceTest {
     void setUp() {
         service = new DatasetExportService(organizationRepository, attachmentRepository, inspectionRepository,
                 annotationRepository, observationRepository, spatialNodeService, fileStorageService,
-                runRepository, itemRepository, properties, objectMapper);
+                runRepository, itemRepository, properties, objectMapper, new TransactionalWorkRunner());
 
         org = new Organization();
         org.setId(ORG);
         org.setDatasetConsent(true);
         when(organizationRepository.findById(ORG)).thenReturn(Optional.of(org));
+        when(organizationRepository.getReferenceById(ORG)).thenReturn(org);
 
         when(runRepository.save(any(DatasetExportRun.class))).thenAnswer(inv -> {
             DatasetExportRun run = inv.getArgument(0);
             if (run.getId() == null) {
                 run.setId(UUID.randomUUID());
             }
+            savedRuns.put(run.getId(), run);
             return run;
         });
+        when(runRepository.findByIdAndOrganization_Id(any(UUID.class), eq(ORG)))
+                .thenAnswer(inv -> Optional.ofNullable(savedRuns.get(inv.<UUID>getArgument(0))));
+        when(runRepository.findByOrganization_IdAndStatus(ORG, DatasetExportRunStatus.RUNNING)).thenReturn(List.of());
         when(itemRepository.save(any(DatasetExportedItem.class))).thenAnswer(inv -> inv.getArgument(0));
         when(itemRepository.findSourceRefs(eq(ORG), any())).thenReturn(List.of());
 
@@ -304,6 +315,80 @@ class DatasetExportServiceTest {
         assertThat(run.failedCount()).isEqualTo(1);
         assertThat(run.exportedCount()).isEqualTo(2);
         verify(fileStorageService).copyObjectTo(eq(OBSERVATION_KEY), anyString(), anyString());
+    }
+
+    @Test
+    void startRecordsTheRunAsRunningAndCopiesNothing() {
+        DatasetExportRunDto run = service.start(ORG, "user:1");
+
+        assertThat(run.status()).isEqualTo(DatasetExportRunStatus.RUNNING);
+        assertThat(run.triggeredBy()).isEqualTo("user:1");
+        assertThat(run.finishedAt()).isNull();
+        verify(fileStorageService, never()).copyObjectTo(anyString(), anyString(), anyString());
+        verify(itemRepository, never()).save(any());
+    }
+
+    @Test
+    void refusesASecondRunWhileOneIsStillRunning() {
+        DatasetExportRun running = new DatasetExportRun();
+        running.setId(UUID.randomUUID());
+        running.setRunKey("run-live");
+        running.setStartedAt(LocalDateTime.now(ZoneOffset.UTC).minusMinutes(5));
+        when(runRepository.findByOrganization_IdAndStatus(ORG, DatasetExportRunStatus.RUNNING)).thenReturn(List.of(running));
+
+        assertThatThrownBy(() -> service.start(ORG, "user:1"))
+                .isInstanceOf(DatasetExportInProgressException.class)
+                .hasMessageContaining(running.getId().toString());
+        verify(runRepository, never()).save(any());
+    }
+
+    @Test
+    void closesARunLeftRunningByADeadProcessAndStartsAFreshOne() {
+        properties.setStaleRunningMinutes(30);
+        DatasetExportRun abandoned = new DatasetExportRun();
+        abandoned.setId(UUID.randomUUID());
+        abandoned.setRunKey("run-dead");
+        abandoned.setStartedAt(LocalDateTime.now(ZoneOffset.UTC).minusHours(2));
+        when(runRepository.findByOrganization_IdAndStatus(ORG, DatasetExportRunStatus.RUNNING)).thenReturn(List.of(abandoned));
+
+        DatasetExportRunDto fresh = service.start(ORG, "user:1");
+
+        assertThat(fresh.status()).isEqualTo(DatasetExportRunStatus.RUNNING);
+        assertThat(abandoned.getStatus()).isEqualTo(DatasetExportRunStatus.FAILED);
+        assertThat(abandoned.getErrorMessage()).contains("Abandoned");
+        assertThat(abandoned.getFinishedAt()).isNotNull();
+    }
+
+    @Test
+    void commitsTheLedgerInBatchesAsTheCopiesGoOnRatherThanOnceAtTheEnd() {
+        properties.setBatchSize(2);
+
+        DatasetExportRunDto run = service.runForOrganization(ORG, "user:1");
+
+        assertThat(run.exportedCount()).isEqualTo(3);
+        // two batches: the ledger rows of the first two objects are written before the third copy starts
+        InOrder order = inOrder(fileStorageService, itemRepository);
+        order.verify(fileStorageService).copyObjectTo(eq(EVIDENCE_KEY), anyString(), anyString());
+        order.verify(fileStorageService).copyObjectTo(eq(DEFECT_PHOTO_KEY), anyString(), anyString());
+        order.verify(itemRepository, times(2)).save(any());
+        order.verify(fileStorageService).copyObjectTo(eq(OBSERVATION_KEY), anyString(), anyString());
+        order.verify(itemRepository).save(any());
+        // the run's counters moved with each batch and the row was closed once
+        DatasetExportRun row = savedRuns.get(run.id());
+        assertThat(row.getStatus()).isEqualTo(DatasetExportRunStatus.COMPLETED);
+        verify(runRepository, times(4)).save(row);
+    }
+
+    @Test
+    void aRunThatDiesInTheReadStepIsClosedAsFailedWithTheReason() {
+        when(inspectionRepository.findDefectsForOrganization(ORG)).thenThrow(new IllegalStateException("db away"));
+
+        DatasetExportRunDto run = service.runForOrganization(ORG, "user:1");
+
+        assertThat(run.status()).isEqualTo(DatasetExportRunStatus.FAILED);
+        assertThat(run.errorMessage()).isEqualTo("db away");
+        assertThat(run.finishedAt()).isNotNull();
+        verify(fileStorageService, never()).copyObjectTo(anyString(), anyString(), anyString());
     }
 
     private List<JsonNode> manifestLines(DatasetExportRunDto run) throws Exception {
