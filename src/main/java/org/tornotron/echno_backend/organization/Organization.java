@@ -73,6 +73,15 @@ public class Organization {
     @Column(name = "is_active", nullable = true)
     private Boolean isActive;
 
+    /**
+     * Whether this organization has consented, in writing, to its inspection evidence being
+     * exported into the construction image dataset. Off by default; the flag records the
+     * client's written line and nothing exports without it. Toggled only by the organization's
+     * system-admin through the dataset-consent endpoint.
+     */
+    @Column(name = "dataset_consent", nullable = false)
+    private boolean datasetConsent = false;
+
     /** The list of attachments associated with this organization. */
     @OneToMany(mappedBy = "organization")
     private List<Attachment> attachments;
