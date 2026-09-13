@@ -58,7 +58,7 @@ public class BillingEventProjector {
     @WithoutTenant("Webhook events arrive with no session; the organization is resolved from the payload or the customer mapping")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void process(Long billingEventId) {
-        BillingEvent row = events.findById(billingEventId).orElse(null);
+        BillingEvent row = events.findByIdForUpdate(billingEventId).orElse(null);
         if (row == null) {
             log.warn("Billing event {} vanished before projection", billingEventId);
             return;

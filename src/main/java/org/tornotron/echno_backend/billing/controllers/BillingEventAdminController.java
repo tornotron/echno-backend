@@ -22,8 +22,12 @@ import org.tornotron.echno_backend.billing.webhook.BillingEventDto;
 import java.util.List;
 
 /**
- * The dead-letter view of the webhook inbox for system administrators: which events the
- * projector could not apply, why, and a retry that hands one back to it.
+ * The dead-letter view of the webhook inbox: which events the projector could not apply,
+ * why, and a retry that hands one back to it.
+ *
+ * <p>The inbox is global, so this is a platform surface, guarded by the platform-admin role
+ * like the feature catalogue and not by a tenant's own system-admin, who must not see or
+ * replay another organization's events.
  */
 @RestController
 @RequestMapping("/api/v1/billing/web/events")
@@ -37,7 +41,7 @@ public class BillingEventAdminController {
 
     @Operation(summary = "List webhook inbox rows",
             description = "Newest first. Without a status filter, shows FAILED and SKIPPED rows: the dead letters.")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @GetMapping
     public ResponseEntity<Page<BillingEventDto>> list(
             @Parameter(description = "Narrow to one organization") @RequestParam(required = false) Long organizationId,
@@ -55,7 +59,7 @@ public class BillingEventAdminController {
     @Operation(summary = "Retry one inbox row",
             description = "Hands the row back to the projector with a fresh attempt budget and returns it after the attempt. "
                     + "A row already processed is returned unchanged.")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("hasRole('platform-admin')")
     @PostMapping("/{id}/retry")
     public ResponseEntity<BillingEventDto> retry(@PathVariable Long id) {
         return ResponseEntity.ok(service.retry(id));

@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.billing.reconcile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.billing.Subscription;
@@ -76,13 +77,11 @@ public class BillingReconciliationSweep {
         }
         Instant now = Instant.now();
         Instant incompleteBefore = now.minus(Math.max(0, properties.getIncompleteAfterMinutes()), ChronoUnit.MINUTES);
-        List<Subscription> stale = subscriptions.findStaleProviderSubscriptions(
-                gateway.providerId(), LIVE, now, incompleteBefore);
         int cap = Math.max(1, properties.getMaxPerRun());
-        if (stale.size() > cap) {
-            log.info("Billing reconciliation capped at {} of {} stale subscription(s); the rest wait for the next pass",
-                    cap, stale.size());
-            stale = stale.subList(0, cap);
+        List<Subscription> stale = subscriptions.findStaleProviderSubscriptions(
+                gateway.providerId(), LIVE, now, incompleteBefore, PageRequest.of(0, cap));
+        if (stale.size() == cap) {
+            log.info("Billing reconciliation took its per-pass cap of {} stale subscription(s); any beyond it wait for the next pass", cap);
         }
 
         Map<Long, List<Subscription>> byOrganization = new LinkedHashMap<>();
