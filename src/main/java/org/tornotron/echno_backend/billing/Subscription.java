@@ -84,6 +84,13 @@ public class Subscription {
     private String cancellationReason;
 
     /**
+     * When the organization asked for this provider-backed row to be cancelled and the request
+     * reached the provider. Set only by the gateway cancel path. A charge the provider reports
+     * after it is recorded but never re-activates the row; reconciliation re-sends the cancel.
+     */
+    private Instant cancelRequestedAt;
+
+    /**
      * Which gateway backs this row. {@code MANUAL} for anything an admin or a trial provisioned,
      * a provider for a row the webhook projector writes; only the projector writes the
      * lifecycle fields of a provider-backed row.

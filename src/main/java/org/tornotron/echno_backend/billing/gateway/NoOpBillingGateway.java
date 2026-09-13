@@ -66,7 +66,7 @@ public class NoOpBillingGateway implements BillingGateway {
     }
 
     @Override
-    public void cancelSubscription(String providerSubscriptionId, boolean atCycleEnd) {
+    public GatewaySubscription cancelSubscription(String providerSubscriptionId, boolean atCycleEnd) {
         throw new BillingGatewayException(MESSAGE);
     }
 

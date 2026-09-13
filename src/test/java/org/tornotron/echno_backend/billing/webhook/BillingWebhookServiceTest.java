@@ -40,7 +40,7 @@ class BillingWebhookServiceTest {
     void wire() {
         BillingGateway gateway = new RazorpayBillingGateway(null, new RazorpayWebhookSignature(RazorpayFixtures.WEBHOOK_SECRET),
                 new RazorpayEventParser(), new MandatePolicy(MandatePolicy.DEFAULT_AFA_CAP_PAISE), "INR", null, null, null);
-        service = new BillingWebhookService(gateway, events, publisher);
+        service = new BillingWebhookService(gateway, events, publisher, mock(org.springframework.transaction.PlatformTransactionManager.class));
         when(events.findByProviderAndProviderEventId(any(), anyString())).thenReturn(Optional.empty());
         when(events.saveAndFlush(any(BillingEvent.class))).thenAnswer(inv -> {
             BillingEvent row = inv.getArgument(0);
@@ -120,7 +120,8 @@ class BillingWebhookServiceTest {
 
     @Test
     void underProviderNoneEveryDeliveryIsRejected() {
-        BillingWebhookService none = new BillingWebhookService(new NoOpBillingGateway(), events, publisher);
+        BillingWebhookService none = new BillingWebhookService(new NoOpBillingGateway(), events, publisher,
+                mock(org.springframework.transaction.PlatformTransactionManager.class));
         byte[] body = RazorpayFixtures.body("subscription.activated");
 
         assertThat(none.ingest(body, RazorpayFixtures.signature(body), "evt_1")).isEqualTo(WebhookIngestResult.REJECTED);

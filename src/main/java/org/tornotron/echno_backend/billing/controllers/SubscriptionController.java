@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.billing.dto.*;
+import org.tornotron.echno_backend.billing.services.SubscriptionLifecycleService;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.response.ApiResponse;
@@ -33,6 +34,7 @@ import java.util.List;
 public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
+    private final SubscriptionLifecycleService lifecycle;
     private final UserContextService userContextService;
 
     /**
@@ -98,10 +100,14 @@ public class SubscriptionController {
     @Operation(
             summary = "Create a subscription",
             description = "Subscribes the caller's current organization to the plan identified by planCode, "
-                    + "for the given billing period."
+                    + "for the given billing period. A free plan is activated at once. With a payment provider "
+                    + "wired, a paid plan opens a checkout instead: the row comes back INCOMPLETE with the "
+                    + "provider subscription id, and the checkout session for it (POST /billing/checkout/web/sessions, "
+                    + "same plan and period) carries what the payment widget needs; the entitlement follows once "
+                    + "the buyer authorizes. Without a provider a paid plan is refused unless manual paid rows are allowed."
     )
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Subscription created"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Subscription created, or opened INCOMPLETE pending the buyer's authorization at the provider"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given code"),
@@ -110,7 +116,7 @@ public class SubscriptionController {
     public ResponseEntity<SubscriptionDto> createSubscription(@Valid @RequestBody SubscriptionCreateDto dto)
             throws AuthenticationException {
         Long userId = userContextService.getCurrentUserIdOrThrow();
-        SubscriptionDto subscription = subscriptionService.createSubscription(
+        SubscriptionDto subscription = lifecycle.subscribe(
                 currentOrganizationId(), userId, dto.getPlanCode(), dto.getBillingPeriod());
         return ResponseEntity.status(HttpStatus.CREATED).body(subscription);
     }
@@ -126,16 +132,21 @@ public class SubscriptionController {
     @Operation(
             summary = "Change the current organization's plan",
             description = "Moves the current organization's active subscription to a different plan, "
-                    + "identified by newPlanCode, keeping the same subscription record."
+                    + "identified by newPlanCode, keeping the same subscription record. A provider-backed "
+                    + "subscription is changed at the provider and the record follows the provider's answer, "
+                    + "which may schedule the change for the end of the current cycle. A manual subscription "
+                    + "cannot be moved to a paid plan this way while a provider is wired; open a checkout for the new plan."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subscription moved to the new plan"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization has no active subscription, or no plan with the given code")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization has no active subscription, or no plan with the given code"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The new plan is paid and needs a checkout, or no provider is wired for a provider-backed subscription"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "422", description = "The new plan's cycle needs the buyer's per-charge acceptance")
     })
     public ResponseEntity<SubscriptionDto> changeSubscription(@Valid @RequestBody SubscriptionChangeDto dto) {
-        return ResponseEntity.ok(subscriptionService.changeSubscription(currentOrganizationId(), dto.getNewPlanCode()));
+        return ResponseEntity.ok(lifecycle.changePlan(currentOrganizationId(), dto.getNewPlanCode(), dto.isAcceptPerChargeAfa(), true));
     }
 
     /**
@@ -150,7 +161,8 @@ public class SubscriptionController {
             summary = "Cancel the current organization's subscription",
             description = "Cancels the current organization's active subscription. By default it stays active "
                     + "until the end of the current billing period; setting immediate true in the request "
-                    + "body ends it right away."
+                    + "body ends it right away. A provider-backed subscription is cancelled at the provider, so the "
+                    + "mandate stops, and the record follows the provider's answer."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subscription canceled"),
@@ -159,7 +171,7 @@ public class SubscriptionController {
     })
     public ResponseEntity<ApiResponse> cancelSubscription(@RequestBody(required = false) SubscriptionCancelDto dto) {
         boolean immediate = dto != null && dto.isImmediate();
-        subscriptionService.cancelSubscription(currentOrganizationId(), immediate);
+        lifecycle.cancel(currentOrganizationId(), immediate);
         String message = immediate
                 ? "Subscription canceled immediately"
                 : "Subscription will be canceled at the end of the current billing period";
@@ -317,7 +329,7 @@ public class SubscriptionController {
     public ResponseEntity<SubscriptionDto> changeSubscriptionForOrganization(
             @PathVariable Long organizationId,
             @Valid @RequestBody SubscriptionChangeDto dto) {
-        return ResponseEntity.ok(subscriptionService.changeSubscription(organizationId, dto.getNewPlanCode()));
+        return ResponseEntity.ok(lifecycle.changePlan(organizationId, dto.getNewPlanCode(), dto.isAcceptPerChargeAfa(), false));
     }
 
     /**
@@ -345,7 +357,7 @@ public class SubscriptionController {
             @PathVariable Long organizationId,
             @RequestBody(required = false) SubscriptionCancelDto dto) {
         boolean immediate = dto != null && dto.isImmediate();
-        subscriptionService.cancelSubscription(organizationId, immediate);
+        lifecycle.cancel(organizationId, immediate);
         String message = immediate
                 ? "Subscription canceled immediately"
                 : "Subscription will be canceled at the end of the current billing period";

@@ -113,7 +113,12 @@ public class BillingEventProjector {
                 row.setLastError("Stale: a later event for " + event.providerSubscriptionId() + " was already applied");
                 continue;
             }
-            outcomes.append(projection.apply(organizationId, event)).append("; ");
+            String outcome = projection.apply(organizationId, event);
+            if (outcome != null && outcome.startsWith(EntitlementProjection.SKIPPED)) {
+                row.setLastError(outcome.substring(EntitlementProjection.SKIPPED.length()));
+                continue;
+            }
+            outcomes.append(outcome).append("; ");
             applied = true;
         }
         return applied ? outcomes.toString().trim() : null;
@@ -127,9 +132,21 @@ public class BillingEventProjector {
         return watermark.isPresent() && event.occurredAt().isBefore(watermark.get());
     }
 
+    /**
+     * The organization an event belongs to, from what this side wrote: the projected row for
+     * the subscription id first, then the customer mapping. The organization id in the
+     * payload notes comes last. The signature proves the payload came from the provider, not
+     * that the notes are ours: on a payment they are whatever the browser passed to the
+     * checkout widget, so they only ever fill in for a subscription this side has not
+     * projected yet.
+     */
     private Long resolveOrganization(NormalizedBillingEvent event) {
-        if (event.organizationId() != null) {
-            return event.organizationId();
+        if (event.providerSubscriptionId() != null) {
+            Optional<Long> byRow = subscriptions.findByProviderAndExternalSubscriptionId(event.provider(), event.providerSubscriptionId())
+                    .map(subscription -> subscription.getOrganizationId());
+            if (byRow.isPresent()) {
+                return byRow.get();
+            }
         }
         if (event.providerCustomerId() != null) {
             Optional<Long> byCustomer = customers.findByProviderAndProviderCustomerId(event.provider(), event.providerCustomerId())
@@ -138,12 +155,7 @@ public class BillingEventProjector {
                 return byCustomer.get();
             }
         }
-        if (event.providerSubscriptionId() != null) {
-            return subscriptions.findByProviderAndExternalSubscriptionId(event.provider(), event.providerSubscriptionId())
-                    .map(subscription -> subscription.getOrganizationId())
-                    .orElse(null);
-        }
-        return null;
+        return event.organizationId();
     }
 
     private static String truncate(String message) {

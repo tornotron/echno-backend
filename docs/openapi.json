@@ -21159,6 +21159,11 @@
       "SubscriptionChangeDto": {
         "description": "Payload to move a subscription to a different plan.",
         "properties": {
+          "acceptPerChargeAfa": {
+            "description": "For a provider-backed subscription moving to a cycle above the RBI per-debit cap: the buyer accepts that each debit will need them to authenticate. Ignored otherwise.",
+            "example": false,
+            "type": "boolean"
+          },
           "newPlanCode": {
             "description": "Code of the plan to move the subscription to.",
             "example": "enterprise-monthly",
@@ -31987,7 +31992,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller lacks the system-admin role in the current tenant"
           },
           "404": {
             "content": {
@@ -34072,7 +34077,7 @@
     },
     "/api/v1/billing/subscriptions/web": {
       "post": {
-        "description": "Subscribes the caller's current organization to the plan identified by planCode, for the given billing period.",
+        "description": "Subscribes the caller's current organization to the plan identified by planCode, for the given billing period. A free plan is activated at once. With a payment provider wired, a paid plan opens a checkout instead: the row comes back INCOMPLETE with the provider subscription id, and the checkout session for it (POST /billing/checkout/web/sessions, same plan and period) carries what the payment widget needs; the entitlement follows once the buyer authorizes. Without a provider a paid plan is refused unless manual paid rows are allowed.",
         "operationId": "createSubscription",
         "requestBody": {
           "content": {
@@ -34093,7 +34098,7 @@
                 }
               }
             },
-            "description": "Subscription created"
+            "description": "Subscription created, or opened INCOMPLETE pending the buyer's authorization at the provider"
           },
           "400": {
             "content": {
@@ -34184,7 +34189,7 @@
     },
     "/api/v1/billing/subscriptions/web/cancel": {
       "post": {
-        "description": "Cancels the current organization's active subscription. By default it stays active until the end of the current billing period; setting immediate true in the request body ends it right away.",
+        "description": "Cancels the current organization's active subscription. By default it stays active until the end of the current billing period; setting immediate true in the request body ends it right away. A provider-backed subscription is cancelled at the provider, so the mandate stops, and the record follows the provider's answer.",
         "operationId": "cancelSubscription",
         "requestBody": {
           "content": {
@@ -34295,7 +34300,7 @@
     },
     "/api/v1/billing/subscriptions/web/change-plan": {
       "put": {
-        "description": "Moves the current organization's active subscription to a different plan, identified by newPlanCode, keeping the same subscription record.",
+        "description": "Moves the current organization's active subscription to a different plan, identified by newPlanCode, keeping the same subscription record. A provider-backed subscription is changed at the provider and the record follows the provider's answer, which may schedule the change for the end of the current cycle. A manual subscription cannot be moved to a paid plan this way while a provider is wired; open a checkout for the new plan.",
         "operationId": "changeSubscription",
         "requestBody": {
           "content": {
@@ -34366,7 +34371,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "The new plan is paid and needs a checkout, or no provider is wired for a provider-backed subscription"
           },
           "422": {
             "content": {
@@ -34376,7 +34381,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "The new plan's cycle needs the buyer's per-charge acceptance"
           },
           "500": {
             "content": {

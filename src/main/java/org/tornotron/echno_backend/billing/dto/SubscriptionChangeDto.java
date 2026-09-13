@@ -11,4 +11,8 @@ public class SubscriptionChangeDto {
     @Schema(description = "Code of the plan to move the subscription to.", example = "enterprise-monthly")
     @NotBlank(message = "New plan code is required")
     private String newPlanCode;
+
+    @Schema(description = "For a provider-backed subscription moving to a cycle above the RBI per-debit cap: the buyer "
+            + "accepts that each debit will need them to authenticate. Ignored otherwise.", example = "false")
+    private boolean acceptPerChargeAfa = false;
 }

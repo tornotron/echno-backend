@@ -50,6 +50,7 @@ import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.billing.webhook.EntitlementProjection;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
@@ -61,6 +62,8 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.tornotron.echno_backend.billing.gateway.dto.CreateSubscriptionCommand;
 import static org.mockito.ArgumentMatchers.any;
 
 /**
@@ -73,7 +76,8 @@ import static org.mockito.ArgumentMatchers.any;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @Import({CheckoutService.class, EntitlementProjection.class, SubscriptionService.class, SubscriptionCache.class,
-        TenantScopedJobRunner.class, EntitlementPolicy.class, PastDueGracePolicy.class, BillingModuleEntitlementResolver.class,
+        TenantScopedJobRunner.class, TransactionalWorkRunner.class, EntitlementPolicy.class, PastDueGracePolicy.class,
+        BillingModuleEntitlementResolver.class,
         CheckoutFlowIT.GatewayConfig.class})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class CheckoutFlowIT extends AbstractIntegrationTest {
@@ -109,6 +113,7 @@ class CheckoutFlowIT extends AbstractIntegrationTest {
     }
 
     @Autowired private CheckoutService checkout;
+    @Autowired private BillingGateway gateway;
     @Autowired private EntitlementProjection projection;
     @Autowired private SubscriptionRepository subscriptions;
     @Autowired private CheckoutSessionRepository sessions;
@@ -159,6 +164,30 @@ class CheckoutFlowIT extends AbstractIntegrationTest {
                 entityManager.createNativeQuery("DELETE FROM organization WHERE id = " + org).executeUpdate();
             }
         });
+    }
+
+    @Test
+    void theDatabaseRefusesASecondRowForOneProviderSubscription() {
+        checkout.createSession(orgA, null, CheckoutSessionCreateDto.builder().planCode(PLAN).billingPeriod(BillingPeriod.MONTHLY).build());
+        Instant now = Instant.now();
+        assertThatThrownBy(() -> inCommittedTx(() -> {
+            Plan plan = (Plan) entityManager.createQuery("SELECT p FROM Plan p WHERE p.code = :code").setParameter("code", PLAN).getSingleResult();
+            entityManager.persist(Subscription.builder().organizationId(orgA).plan(plan).provider(ProviderId.RAZORPAY)
+                    .externalSubscriptionId(SUB).status(SubscriptionStatus.INCOMPLETE)
+                    .currentPeriodStart(now).currentPeriodEnd(now.plus(30, ChronoUnit.DAYS)).build());
+            entityManager.flush();
+        })).hasMessageContaining("uk_subscription_provider_external");
+        assertThat(inCommittedTx(() -> subscriptions.findByOrganizationIdOrderByCreatedAtDesc(orgA))).hasSize(1);
+    }
+
+    @Test
+    void aSessionExpiresWithTheCheckoutWindowAndTheProviderIsToldTheSame() {
+        CheckoutSessionDto session = checkout.createSession(orgA, null,
+                CheckoutSessionCreateDto.builder().planCode(PLAN).billingPeriod(BillingPeriod.MONTHLY).build());
+        assertThat(session.getExpiresAt()).isBetween(Instant.now().plus(25, ChronoUnit.MINUTES), Instant.now().plus(35, ChronoUnit.MINUTES));
+        org.mockito.ArgumentCaptor<CreateSubscriptionCommand> cmd = org.mockito.ArgumentCaptor.forClass(CreateSubscriptionCommand.class);
+        Mockito.verify(gateway, Mockito.atLeastOnce()).createSubscription(cmd.capture());
+        assertThat(cmd.getValue().expireBy()).isAfter(session.getExpiresAt());
     }
 
     @Test

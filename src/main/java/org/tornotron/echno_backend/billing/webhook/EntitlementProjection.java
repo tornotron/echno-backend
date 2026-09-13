@@ -53,6 +53,12 @@ public class EntitlementProjection {
             List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING, SubscriptionStatus.PAST_DUE);
     private static final long DEFAULT_PERIOD_DAYS = 30;
 
+    /**
+     * Prefix of an outcome that applied nothing and says why. The projector records such an
+     * event as SKIPPED with the outcome as its reason, instead of PROCESSED.
+     */
+    public static final String SKIPPED = "skipped: ";
+
     private final SubscriptionRepository subscriptions;
     private final PlanRepository plans;
     private final GatewayPlanMappingRepository planMappings;
@@ -93,20 +99,29 @@ public class EntitlementProjection {
         }
         Subscription row = subscriptions.findByProviderAndExternalSubscriptionId(event.provider(), snapshot.providerSubscriptionId())
                 .orElseGet(() -> newRow(organizationId, event));
-        if (!organizationId.equals(row.getOrganizationId())) {
-            throw new BillingGatewayException("Provider subscription " + snapshot.providerSubscriptionId()
-                    + " belongs to organization " + row.getOrganizationId() + ", event resolved to " + organizationId);
-        }
+        requireSameOrganization(organizationId, row);
         SubscriptionStatus before = row.getStatus();
         SubscriptionStatus target = snapshot.status().toSubscriptionStatus();
+        if (before == SubscriptionStatus.CANCELED && row.getCancelRequestedAt() != null && LIVE_STATUSES.contains(target)) {
+            // The organization cancelled through the gateway. A charge the provider reports
+            // after that is recorded (this event stays in the inbox) but never re-activates
+            // the row; reconciliation re-sends the cancel until the provider agrees.
+            log.warn("Provider reports {} for subscription {} ({}) after the organization cancelled it on {}; left CANCELED",
+                    snapshot.status(), row.getId(), snapshot.providerSubscriptionId(), row.getCancelRequestedAt());
+            return "CANCELED kept: provider reports " + target + " after the cancel of "
+                    + row.getCancelRequestedAt() + "; reconciliation re-sends the cancel";
+        }
+        target = keepTrialing(row, before, target, snapshot);
         row.setStatus(target);
         trackPastDue(row, before, target, event.occurredAt());
         applyPeriod(row, snapshot, event);
         switchPlanIfChanged(row, event);
-        if (target == SubscriptionStatus.CANCELED) {
+        if (target == SubscriptionStatus.CANCELED && before != SubscriptionStatus.CANCELED) {
             row.setCanceledAt(Optional.ofNullable(event.occurredAt()).orElse(Instant.now()));
-            row.setCancellationReason(event.type() == NormalizedEventType.SUBSCRIPTION_COMPLETED
-                    ? "Completed at the provider" : "Cancelled at the provider");
+            if (row.getCancellationReason() == null) {
+                row.setCancellationReason(event.type() == NormalizedEventType.SUBSCRIPTION_COMPLETED
+                        ? "Completed at the provider" : "Cancelled at the provider");
+            }
         }
         if (snapshot.mandateReference() != null) {
             touchMandate(organizationId, event.provider(), snapshot.mandateReference(), snapshot.providerSubscriptionId(),
@@ -151,6 +166,22 @@ public class EntitlementProjection {
         }
         throw new BillingGatewayException("Cannot resolve the internal plan for provider subscription "
                 + event.providerSubscriptionId() + " (plan code " + event.planCode() + ", provider plan " + event.providerPlanId() + ")");
+    }
+
+    /**
+     * A row the verify step projected TRIALING stays TRIALING until its trial ends. The
+     * provider's own snapshot for the same subscription says {@code authenticated} (ACTIVE)
+     * with the first charge still ahead, which is the same fact in the provider's vocabulary;
+     * flipping the status on it would show the organization ACTIVE with a trial still running.
+     */
+    private static SubscriptionStatus keepTrialing(Subscription row, SubscriptionStatus before, SubscriptionStatus target,
+                                                   GatewaySubscription snapshot) {
+        if (target != SubscriptionStatus.ACTIVE || before != SubscriptionStatus.TRIALING || row.getTrialEnd() == null) {
+            return target;
+        }
+        Instant now = Instant.now();
+        boolean chargeAhead = snapshot.nextChargeAt() == null || snapshot.nextChargeAt().isAfter(now);
+        return row.getTrialEnd().isAfter(now) && chargeAhead ? SubscriptionStatus.TRIALING : target;
     }
 
     /**
@@ -224,6 +255,7 @@ public class EntitlementProjection {
             return "payment failed for a subscription not yet projected; nothing to move";
         }
         Subscription row = target.get();
+        requireSameOrganization(organizationId, row);
         if (row.getStatus() == SubscriptionStatus.ACTIVE || row.getStatus() == SubscriptionStatus.TRIALING) {
             SubscriptionStatus before = row.getStatus();
             row.setStatus(SubscriptionStatus.PAST_DUE);
@@ -234,31 +266,56 @@ public class EntitlementProjection {
         return "payment failed while " + row.getStatus() + "; unchanged";
     }
 
+    /**
+     * A mandate event names a token, never a subscription, so the subscription it belongs to
+     * is the one the mandate row already has on file (written from the subscription snapshot
+     * that carried the token id, or from an earlier token event). A revocation cancels that
+     * row and only that row. With nothing on file the mandate status is still recorded, the
+     * event is left SKIPPED with the reason, and the sweep reconciles whatever the provider
+     * has halted. It never fans out to every live row of the organization: a stale token of a
+     * superseded subscription is exactly the kind that gets cancelled weeks later.
+     */
     private String projectMandate(Long organizationId, NormalizedBillingEvent event) {
         if (event.mandateReference() == null) {
             return "mandate event without a reference; nothing to record";
         }
         NormalizedMandateStatus status = event.mandateStatus();
-        touchMandate(organizationId, event.provider(), event.mandateReference(), event.providerSubscriptionId(),
+        String onFile = mandates.findByProviderAndProviderMandateRef(event.provider(), event.mandateReference())
+                .map(PaymentMandate::getProviderSubscriptionId)
+                .orElse(null);
+        String providerSubscriptionId = onFile != null ? onFile : event.providerSubscriptionId();
+        touchMandate(organizationId, event.provider(), event.mandateReference(), providerSubscriptionId,
                 event.mandateMethod(), status, event.mandateMaxAmountPaise(), event.occurredAt());
-        if (event.type() == NormalizedEventType.MANDATE_REVOKED) {
-            int cancelled = 0;
-            for (Subscription row : subscriptions.findByOrganizationIdAndStatusIn(organizationId, LIVE_STATUSES)) {
-                if (row.getProvider() != event.provider()) {
-                    continue;
-                }
-                if (event.providerSubscriptionId() != null && !event.providerSubscriptionId().equals(row.getExternalSubscriptionId())) {
-                    continue;
-                }
-                row.setStatus(SubscriptionStatus.CANCELED);
-                row.setCanceledAt(Optional.ofNullable(event.occurredAt()).orElse(Instant.now()));
-                row.setCancellationReason("Mandate " + event.mandateReference() + " revoked");
-                subscriptions.save(row);
-                cancelled++;
-            }
-            return "mandate " + status + "; " + cancelled + " subscription(s) cancelled";
+        if (event.type() != NormalizedEventType.MANDATE_REVOKED) {
+            return "mandate " + status;
         }
-        return "mandate " + status;
+        if (providerSubscriptionId == null) {
+            return SKIPPED + "mandate " + event.mandateReference() + " " + status
+                    + " resolves to no subscription; recorded, reconciliation picks up a halted subscription";
+        }
+        Optional<Subscription> target = subscriptions.findByProviderAndExternalSubscriptionId(event.provider(), providerSubscriptionId);
+        if (target.isEmpty()) {
+            return SKIPPED + "mandate " + event.mandateReference() + " " + status + " names subscription "
+                    + providerSubscriptionId + ", which is not projected; recorded";
+        }
+        Subscription row = target.get();
+        requireSameOrganization(organizationId, row);
+        if (!LIVE_STATUSES.contains(row.getStatus())) {
+            return "mandate " + status + "; subscription " + providerSubscriptionId + " already " + row.getStatus();
+        }
+        row.setStatus(SubscriptionStatus.CANCELED);
+        row.setCanceledAt(Optional.ofNullable(event.occurredAt()).orElse(Instant.now()));
+        row.setCancellationReason("Mandate " + event.mandateReference() + " revoked");
+        subscriptions.save(row);
+        return "mandate " + status + "; subscription " + providerSubscriptionId + " cancelled";
+    }
+
+    /** The organization an event resolved to must own the row it is about to move. */
+    private static void requireSameOrganization(Long organizationId, Subscription row) {
+        if (!organizationId.equals(row.getOrganizationId())) {
+            throw new BillingGatewayException("Provider subscription " + row.getExternalSubscriptionId()
+                    + " belongs to organization " + row.getOrganizationId() + ", event resolved to " + organizationId);
+        }
     }
 
     private void touchMandate(Long organizationId, ProviderId provider, String reference, String providerSubscriptionId,

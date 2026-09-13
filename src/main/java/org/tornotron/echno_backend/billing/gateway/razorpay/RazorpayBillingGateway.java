@@ -23,6 +23,7 @@ import org.tornotron.echno_backend.billing.gateway.dto.OrgBillingProfile;
 import org.tornotron.echno_backend.billing.repositories.BillingCustomerRepository;
 import org.tornotron.echno_backend.billing.repositories.GatewayPlanMappingRepository;
 import org.tornotron.echno_backend.billing.repositories.PlanRepository;
+import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.Instant;
@@ -138,6 +139,13 @@ public class RazorpayBillingGateway implements BillingGateway {
         body.put("notes", Map.of(RazorpayEventParser.NOTE_ORGANIZATION_ID, String.valueOf(org.organizationId())));
         JsonNode created = client.post("/customers", body);
         String customerId = requireText(created, "id", "customer");
+        customers.findByProviderAndProviderCustomerId(ProviderId.RAZORPAY, customerId)
+                .filter(existing -> !existing.getOrganization().getId().equals(org.organizationId()))
+                .ifPresent(existing -> {
+                    throw new DuplicateResourceException("Razorpay already holds customer " + customerId
+                            + " for another organization with this billing email and phone; give organization "
+                            + org.organizationId() + " a distinct billing email before checking out");
+                });
         Organization organization = new Organization();
         organization.setId(org.organizationId());
         customers.save(BillingCustomer.builder()
@@ -157,15 +165,17 @@ public class RazorpayBillingGateway implements BillingGateway {
         if (current.isPresent() && current.get().getAmountPaise() == amountPaise) {
             return new GatewayPlanRef(plan.getCode(), interval, current.get().getProviderPlanId());
         }
+        // The internal price moved. Razorpay plans are immutable, so a new one is created and
+        // only then is the old mapping retired (subscriptions already on it keep their id): a
+        // failed POST /plans leaves the current mapping in place instead of leaving none.
+        GatewayPlanRef created = createPlan(plan, interval);
         current.ifPresent(stale -> {
-            // The internal price moved. Razorpay plans are immutable, so the old one is retired
-            // (subscriptions already on it keep their id) and a new one is created below.
             stale.setIsCurrent(false);
             planMappings.save(stale);
             log.info("Razorpay plan {} for {} ({}) retired: amount moved from {} to {} paise",
                     stale.getProviderPlanId(), plan.getCode(), interval, stale.getAmountPaise(), amountPaise);
         });
-        return createPlan(plan, interval);
+        return created;
     }
 
     private GatewayPlanRef createPlan(Plan plan, BillingPeriod interval) {
@@ -228,6 +238,11 @@ public class RazorpayBillingGateway implements BillingGateway {
         if (cmd.trialDays() > 0) {
             body.put("start_at", Instant.now().plus(cmd.trialDays(), ChronoUnit.DAYS).getEpochSecond());
         }
+        if (cmd.expireBy() != null) {
+            // An abandoned checkout then expires at Razorpay too (subscription.expired), instead
+            // of staying "created" forever with a local INCOMPLETE twin.
+            body.put("expire_by", cmd.expireBy().getEpochSecond());
+        }
         Map<String, String> notes = new HashMap<>();
         notes.put(RazorpayEventParser.NOTE_ORGANIZATION_ID, String.valueOf(cmd.organizationId()));
         notes.put(RazorpayEventParser.NOTE_PLAN_CODE, cmd.planCode());
@@ -253,9 +268,13 @@ public class RazorpayBillingGateway implements BillingGateway {
     }
 
     @Override
-    public void cancelSubscription(String providerSubscriptionId, boolean atCycleEnd) {
-        client.post("/subscriptions/" + providerSubscriptionId + "/cancel",
+    public GatewaySubscription cancelSubscription(String providerSubscriptionId, boolean atCycleEnd) {
+        JsonNode answer = client.post("/subscriptions/" + providerSubscriptionId + "/cancel",
                 Map.of("cancel_at_cycle_end", atCycleEnd ? 1 : 0));
+        if (answer == null || !answer.hasNonNull("id")) {
+            return fetchSubscription(providerSubscriptionId);
+        }
+        return mapper.toSubscription(answer);
     }
 
     /**

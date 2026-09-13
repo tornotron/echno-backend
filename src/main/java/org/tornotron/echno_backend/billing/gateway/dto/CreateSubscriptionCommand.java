@@ -2,6 +2,8 @@ package org.tornotron.echno_backend.billing.gateway.dto;
 
 import org.tornotron.echno_backend.billing.enums.BillingPeriod;
 
+import java.time.Instant;
+
 /**
  * Asks the provider to create a subscription for an organization on an internal plan.
  *
@@ -23,5 +25,12 @@ public record CreateSubscriptionCommand(
         int trialDays,
         Integer totalCycles,
         NotifyInfo notifyInfo,
-        boolean acceptPerChargeAfa) {
+        boolean acceptPerChargeAfa,
+        Instant expireBy) {
+
+    /** Without an expiry: the provider subscription stays open until authorized or cancelled. */
+    public CreateSubscriptionCommand(Long organizationId, String planCode, BillingPeriod interval, int quantity,
+                                     int trialDays, Integer totalCycles, NotifyInfo notifyInfo, boolean acceptPerChargeAfa) {
+        this(organizationId, planCode, interval, quantity, trialDays, totalCycles, notifyInfo, acceptPerChargeAfa, null);
+    }
 }
