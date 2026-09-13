@@ -83,6 +83,7 @@ class CheckoutServiceTest {
     @Mock private SubscriptionService subscriptionService;
     @Mock private EntitlementProjection projection;
     @Mock private SubscriptionCache cache;
+    @Mock private jakarta.persistence.EntityManager entityManager;
 
     private CheckoutService service;
     private Organization organization;
@@ -91,7 +92,7 @@ class CheckoutServiceTest {
     void setUp() {
         BillingGatewayProperties properties = new BillingGatewayProperties();
         service = new CheckoutService(gateway, properties, new MandatePolicy(MandatePolicy.DEFAULT_AFA_CAP_PAISE), plans,
-                subscriptions, sessions, mandates, events, organizations, subscriptionService, projection, cache);
+                subscriptions, sessions, mandates, events, organizations, subscriptionService, projection, cache, entityManager);
         organization = new Organization();
         organization.setId(ORG);
         organization.setOrganizationName("Acme Builders");
