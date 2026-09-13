@@ -7,6 +7,10 @@ import org.junit.jupiter.api.Test;
 import org.tornotron.echno_backend.billing.Plan;
 import org.tornotron.echno_backend.billing.enums.BillingPeriod;
 import org.tornotron.echno_backend.billing.gateway.BillingCustomer;
+import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.organization.Organization;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import org.tornotron.echno_backend.billing.gateway.BillingGatewayException;
 import org.tornotron.echno_backend.billing.gateway.BillingGatewayProperties;
 import org.tornotron.echno_backend.billing.gateway.GatewayPlanMapping;
@@ -247,6 +251,41 @@ class RazorpayBillingGatewayTest {
                 .isInstanceOf(BillingGatewayException.class).hasMessageContaining("ensureCustomer");
         assertThat(calls).isEmpty();
         verify(plans, never()).findByCodeWithFeatures(any());
+    }
+
+    @Test
+    void anExpiryOnTheCommandIsSentAsExpireBy() {
+        mappedCustomerAndPlan("pro", "4999.00");
+        nextResponse = "{\"id\":\"sub_New002\",\"status\":\"created\"}";
+        Instant expireBy = Instant.now().plus(35, ChronoUnit.MINUTES);
+
+        gateway.createSubscription(new CreateSubscriptionCommand(ORG, "pro", BillingPeriod.MONTHLY, 1, 0, null, NOTIFY, false, expireBy));
+
+        assertThat(bodies.getFirst()).containsEntry("expire_by", expireBy.getEpochSecond());
+        assertThat(bodies.getFirst()).doesNotContainKey("start_at");
+    }
+
+    @Test
+    void aCustomerRazorpayAlreadyHoldsForAnotherOrganizationIsRefusedWithTheFix() {
+        when(customers.findByOrganizationIdAndProvider(ORG, ProviderId.RAZORPAY)).thenReturn(Optional.empty());
+        Organization other = new Organization();
+        other.setId(999L);
+        when(customers.findByProviderAndProviderCustomerId(ProviderId.RAZORPAY, "cust_Shared"))
+                .thenReturn(Optional.of(BillingCustomer.builder().organization(other).provider(ProviderId.RAZORPAY).providerCustomerId("cust_Shared").build()));
+        nextResponse = "{\"id\":\"cust_Shared\",\"entity\":\"customer\"}";
+
+        assertThatThrownBy(() -> gateway.ensureCustomer(new OrgBillingProfile(ORG, "Acme", null, "shared@example.com", "+919999999999", "INR")))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessageContaining("distinct billing email");
+        verify(customers, never()).save(any(BillingCustomer.class));
+    }
+
+    @Test
+    void cancelReturnsTheProvidersAnswer() {
+        nextResponse = "{\"id\":\"sub_X\",\"status\":\"active\",\"current_start\":1727740800,\"current_end\":1730419200}";
+        GatewaySubscription answer = gateway.cancelSubscription("sub_X", true);
+        assertThat(answer.status()).isEqualTo(NormalizedSubscriptionStatus.ACTIVE);
+        assertThat(bodies.getFirst()).containsEntry("cancel_at_cycle_end", 1);
     }
 
     @Test

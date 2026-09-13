@@ -44,18 +44,34 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
      * given cut-off. Oldest period end first, so a capped pass takes the longest-stale rows;
      * the cap is the page size.
      */
+    /**
+     * Provider-backed rows the hourly sweep re-reads from the provider, ordered so that the
+     * rows that need repair come first: a failed renewal, then a live row whose period lapsed,
+     * then a recent cancellation to confirm, and only then abandoned checkouts. Abandoned
+     * checkouts used to sort first by period end and, past a few dozen, filled the per-pass cap
+     * ahead of everything else. A superseded row is never re-read: the gateway row that
+     * replaced it is the live one by definition.
+     */
     @Query("SELECT s FROM Subscription s LEFT JOIN FETCH s.plan " +
            "WHERE s.provider = :provider AND s.externalSubscriptionId IS NOT NULL AND (" +
            "(s.status IN :liveStatuses AND s.currentPeriodEnd < :now) " +
            "OR s.status = org.tornotron.echno_backend.billing.enums.SubscriptionStatus.PAST_DUE " +
            "OR (s.status = org.tornotron.echno_backend.billing.enums.SubscriptionStatus.INCOMPLETE " +
-           "AND s.createdAt < :incompleteBefore)) " +
-           "ORDER BY s.currentPeriodEnd ASC")
+           "AND s.createdAt < :incompleteBefore) " +
+           "OR (s.status = org.tornotron.echno_backend.billing.enums.SubscriptionStatus.CANCELED " +
+           "AND s.canceledAt > :canceledAfter " +
+           "AND (s.cancellationReason IS NULL OR s.cancellationReason NOT LIKE 'Superseded by%'))) " +
+           "ORDER BY CASE " +
+           "WHEN s.status = org.tornotron.echno_backend.billing.enums.SubscriptionStatus.PAST_DUE THEN 0 " +
+           "WHEN s.status = org.tornotron.echno_backend.billing.enums.SubscriptionStatus.INCOMPLETE THEN 3 " +
+           "WHEN s.status = org.tornotron.echno_backend.billing.enums.SubscriptionStatus.CANCELED THEN 2 " +
+           "ELSE 1 END ASC, s.currentPeriodEnd ASC")
     List<Subscription> findStaleProviderSubscriptions(
             @Param("provider") ProviderId provider,
             @Param("liveStatuses") List<SubscriptionStatus> liveStatuses,
             @Param("now") Instant now,
             @Param("incompleteBefore") Instant incompleteBefore,
+            @Param("canceledAfter") Instant canceledAfter,
             Pageable pageable);
 
     /**

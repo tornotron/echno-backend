@@ -5,6 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.billing.Subscription;
+import org.tornotron.echno_backend.billing.repositories.CheckoutSessionRepository;
+import org.tornotron.echno_backend.billing.gateway.NormalizedSubscriptionStatus;
+import org.tornotron.echno_backend.billing.enums.SubscriptionStatus;
+import org.tornotron.echno_backend.billing.checkout.CheckoutSessionStatus;
 import org.tornotron.echno_backend.billing.gateway.BillingEvent;
 import org.tornotron.echno_backend.billing.gateway.BillingEventStatus;
 import org.tornotron.echno_backend.billing.gateway.BillingGateway;
@@ -17,6 +21,7 @@ import org.tornotron.echno_backend.billing.repositories.SubscriptionRepository;
 import org.tornotron.echno_backend.common.multitenancy.WithoutTenant;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 /**
@@ -35,6 +40,7 @@ public class BillingReconciliationService {
     private final BillingEventRepository events;
     private final EntitlementProjection projection;
     private final BillingEventProjector projector;
+    private final CheckoutSessionRepository sessions;
 
     /**
      * Fetches the provider's state for one subscription and projects it as if the matching
@@ -53,6 +59,24 @@ public class BillingReconciliationService {
                 .orElseThrow(() -> new BillingGatewayException(
                         "No projected subscription for provider id " + providerSubscriptionId + "; nothing to reconcile"));
         GatewaySubscription current = gateway.fetchSubscription(providerSubscriptionId);
+        if (row.getStatus() == SubscriptionStatus.CANCELED && row.getCancelRequestedAt() != null && isLive(current.status())) {
+            // The organization cancelled and the provider still reports it live: the cancel is
+            // re-sent, never the other way round. The row stays CANCELED whatever comes back.
+            log.warn("Provider still reports {} for {} cancelled by organization {} on {}; re-sending the cancel",
+                    current.status(), providerSubscriptionId, row.getOrganizationId(), row.getCancelRequestedAt());
+            current = gateway.cancelSubscription(providerSubscriptionId, false);
+        } else if (row.getStatus() == SubscriptionStatus.INCOMPLETE && !isLive(current.status())
+                && current.status().toSubscriptionStatus() == SubscriptionStatus.INCOMPLETE && abandoned(row)) {
+            // Past its checkout window and never authorized: an abandoned checkout. Without
+            // this the row would be re-read from the provider every hour for good.
+            log.info("Checkout for {} (organization {}) was never authorized within its window; expiring it",
+                    providerSubscriptionId, row.getOrganizationId());
+            current = new GatewaySubscription(current.providerSubscriptionId(), current.providerPlanId(),
+                    current.providerCustomerId(), NormalizedSubscriptionStatus.EXPIRED_BEFORE_AUTH,
+                    current.currentPeriodStart(), current.currentPeriodEnd(), current.nextChargeAt(),
+                    current.mandateReference(), null);
+            expireOpenSession(row);
+        }
         NormalizedBillingEvent synthetic = new NormalizedBillingEvent(
                 gateway.providerId(), "reconcile-" + providerSubscriptionId + "-" + Instant.now().toEpochMilli(),
                 eventTypeFor(current), Instant.now(), row.getOrganizationId(), providerSubscriptionId,
@@ -90,7 +114,33 @@ public class BillingReconciliationService {
         return attempted;
     }
 
-    private static NormalizedEventType eventTypeFor(GatewaySubscription current) {
+    /** Whether the provider is still entitled to debit, or about to be. */
+    private static boolean isLive(NormalizedSubscriptionStatus status) {
+        return switch (status) {
+            case TRIAL, AUTHENTICATED, ACTIVE, PAYMENT_FAILED_RETRYING, PAUSED -> true;
+            default -> false;
+        };
+    }
+
+    /** Past the checkout session's expiry, or, with no session on file, a day old. */
+    private boolean abandoned(Subscription row) {
+        Instant now = Instant.now();
+        return sessions.findFirstByProviderAndProviderSubscriptionId(row.getProvider(), row.getExternalSubscriptionId())
+                .map(session -> session.getExpiresAt() != null && session.getExpiresAt().isBefore(now))
+                .orElseGet(() -> row.getCreatedAt() != null && row.getCreatedAt().plus(1, ChronoUnit.DAYS).isBefore(now));
+    }
+
+    private void expireOpenSession(Subscription row) {
+        sessions.findFirstByProviderAndProviderSubscriptionId(row.getProvider(), row.getExternalSubscriptionId())
+                .filter(session -> session.getStatus() == CheckoutSessionStatus.OPEN)
+                .ifPresent(session -> {
+                    session.setStatus(CheckoutSessionStatus.EXPIRED);
+                    sessions.save(session);
+                });
+    }
+
+    /** The event type a provider snapshot stands for, so a synthetic event reads like the webhook would. */
+    public static NormalizedEventType eventTypeFor(GatewaySubscription current) {
         return switch (current.status()) {
             case CREATED, PENDING_AUTH, AUTH_FAILED, EXPIRED_BEFORE_AUTH -> NormalizedEventType.SUBSCRIPTION_PENDING;
             case TRIAL, AUTHENTICATED -> NormalizedEventType.SUBSCRIPTION_AUTHENTICATED;

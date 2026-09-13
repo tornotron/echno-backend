@@ -12,6 +12,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -38,9 +39,9 @@ import java.time.Instant;
 @AllArgsConstructor
 @Table(name = "payment_mandate",
         indexes = {
-                @Index(name = "idx_payment_mandate_org", columnList = "organization_id"),
-                @Index(name = "idx_payment_mandate_ref", columnList = "provider, providerMandateRef")
-        })
+                @Index(name = "idx_payment_mandate_org", columnList = "organization_id")
+        },
+        uniqueConstraints = @UniqueConstraint(name = "uk_payment_mandate_ref", columnNames = {"provider", "provider_mandate_ref"}))
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 public class PaymentMandate implements TenantScopedEntity {
 

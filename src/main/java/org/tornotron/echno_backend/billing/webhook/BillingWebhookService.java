@@ -5,7 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.billing.gateway.BillingEvent;
 import org.tornotron.echno_backend.billing.gateway.BillingGateway;
 import org.tornotron.echno_backend.billing.gateway.BillingGatewayException;
@@ -35,6 +38,7 @@ public class BillingWebhookService {
     private final BillingGateway gateway;
     private final BillingEventRepository events;
     private final ApplicationEventPublisher publisher;
+    private final PlatformTransactionManager transactionManager;
 
     /**
      * Ingests one delivery.
@@ -80,7 +84,13 @@ public class BillingWebhookService {
                 .occurredAt(first.occurredAt())
                 .build();
         try {
-            row = events.saveAndFlush(row);
+            // Its own transaction: a unique-key refusal then rolls back the insert alone. Caught
+            // inside the joined transaction it left that transaction rollback-only, so the
+            // duplicate answer became an UnexpectedRollbackException and a 500 the provider retried.
+            TransactionTemplate insert = new TransactionTemplate(transactionManager);
+            insert.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            BillingEvent toInsert = row;
+            row = insert.execute(status -> events.saveAndFlush(toInsert));
         } catch (DataIntegrityViolationException e) {
             log.info("Billing webhook duplicate under race: {} {}", first.provider(), eventId);
             return WebhookIngestResult.DUPLICATE;

@@ -92,7 +92,8 @@ class CheckoutServiceTest {
     void setUp() {
         BillingGatewayProperties properties = new BillingGatewayProperties();
         service = new CheckoutService(gateway, properties, new MandatePolicy(MandatePolicy.DEFAULT_AFA_CAP_PAISE), plans,
-                subscriptions, sessions, mandates, events, organizations, subscriptionService, projection, cache, entityManager);
+                subscriptions, sessions, mandates, events, organizations, subscriptionService, projection, cache, entityManager,
+                new org.tornotron.echno_backend.common.retry.TransactionalWorkRunner());
         organization = new Organization();
         organization.setId(ORG);
         organization.setOrganizationName("Acme Builders");
@@ -220,6 +221,44 @@ class CheckoutServiceTest {
         assertThat(dto.getMandate().getPreDebitNoticeHours()).isEqualTo(24);
         assertThat(dto.getMandate().isPerChargeApproval()).isFalse();
         verify(projection, never()).apply(anyLong(), any());
+    }
+
+    @Test
+    void aFailedLocalWriteAfterTheProviderCallsCancelsTheProviderSubscription() {
+        razorpayWired();
+        Plan pro = plan("PRO", "9999.00", "99990.00", 0);
+        when(plans.findByCodeWithFeatures("PRO")).thenReturn(Optional.of(pro));
+        when(subscriptions.findActiveSubscription(ORG)).thenReturn(Optional.empty());
+        when(subscriptions.findByProviderAndExternalSubscriptionId(ProviderId.RAZORPAY, "sub_1")).thenReturn(Optional.empty());
+        when(sessions.findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                eq(ORG), eq("PRO"), eq(BillingPeriod.MONTHLY), eq(CheckoutSessionStatus.OPEN), any())).thenReturn(Optional.empty());
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DataIntegrityViolationException("uk_something")).when(sessions).save(any());
+
+        assertThatThrownBy(() -> service.createSession(ORG, USER,
+                CheckoutSessionCreateDto.builder().planCode("PRO").billingPeriod(BillingPeriod.MONTHLY).build()))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+
+        verify(gateway).createSubscription(any());
+        verify(gateway).cancelSubscription("sub_1", false);
+    }
+
+    @Test
+    void theProviderSubscriptionExpiresJustAfterTheCheckoutWindow() {
+        razorpayWired();
+        Plan pro = plan("PRO", "9999.00", "99990.00", 0);
+        when(plans.findByCodeWithFeatures("PRO")).thenReturn(Optional.of(pro));
+        when(subscriptions.findActiveSubscription(ORG)).thenReturn(Optional.empty());
+        when(subscriptions.findByProviderAndExternalSubscriptionId(ProviderId.RAZORPAY, "sub_1")).thenReturn(Optional.empty());
+        when(sessions.findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                eq(ORG), eq("PRO"), eq(BillingPeriod.MONTHLY), eq(CheckoutSessionStatus.OPEN), any())).thenReturn(Optional.empty());
+
+        CheckoutSessionDto dto = service.createSession(ORG, USER,
+                CheckoutSessionCreateDto.builder().planCode("PRO").billingPeriod(BillingPeriod.MONTHLY).build());
+
+        ArgumentCaptor<CreateSubscriptionCommand> cmd = ArgumentCaptor.forClass(CreateSubscriptionCommand.class);
+        verify(gateway).createSubscription(cmd.capture());
+        assertThat(dto.getExpiresAt()).isBetween(Instant.now().plus(29, ChronoUnit.MINUTES), Instant.now().plus(31, ChronoUnit.MINUTES));
+        assertThat(cmd.getValue().expireBy()).isEqualTo(dto.getExpiresAt().plus(CheckoutService.PROVIDER_EXPIRY_MARGIN_MINUTES, ChronoUnit.MINUTES));
     }
 
     @Test

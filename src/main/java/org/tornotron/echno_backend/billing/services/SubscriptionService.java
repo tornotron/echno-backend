@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.billing.enums.BillingPeriod;
 import org.tornotron.echno_backend.billing.enums.FeatureType;
 import org.tornotron.echno_backend.billing.enums.QuotaPeriod;
 import org.tornotron.echno_backend.billing.enums.SubscriptionStatus;
+import org.tornotron.echno_backend.billing.gateway.ProviderId;
 import org.tornotron.echno_backend.billing.repositories.PlanRepository;
 import org.tornotron.echno_backend.billing.repositories.SubscriptionRepository;
 import org.tornotron.echno_backend.billing.repositories.UsageRecordRepository;
@@ -446,6 +447,7 @@ public class SubscriptionService {
     public SubscriptionDto changeSubscription(Long organizationId, String newPlanCode) {
         Subscription currentSubscription = loadActiveSubscriptionForWrite(organizationId)
                 .orElseThrow(() -> new NoActiveSubscriptionException("Organization " + organizationId + " has no active subscription"));
+        requireManual(currentSubscription, "change-plan");
 
         Plan newPlan = planRepository.findByCodeAndIsActiveTrue(newPlanCode)
                 .orElseThrow(() -> new PlanNotFoundException("Active plan with code '" + newPlanCode + "' was not found"));
@@ -478,6 +480,7 @@ public class SubscriptionService {
 
        Subscription subscription = loadActiveSubscriptionForWrite(organizationId)
                .orElseThrow(() -> new NoActiveSubscriptionException("Organization " + organizationId + " has no active subscription"));
+       requireManual(subscription, "cancel");
 
        if(immediate) {
            subscription.setStatus(SubscriptionStatus.CANCELED);
@@ -491,6 +494,45 @@ public class SubscriptionService {
 
        log.info("Canceled subscription {} for organization {} (immediate: {})",
                subscription.getId(), organizationId, immediate);
+    }
+
+    /**
+     * The direct lifecycle writes here are for manual rows only. A provider-backed row is moved
+     * by the provider's answer through {@link SubscriptionLifecycleService}; writing it here
+     * would show the organization a state the provider does not hold (a cancel the mandate
+     * never saw, a plan the provider keeps billing the old price for).
+     */
+    private static void requireManual(Subscription row, String action) {
+        if (row.getProvider() != null && row.getProvider() != ProviderId.MANUAL && row.getExternalSubscriptionId() != null) {
+            throw new IllegalStateException("Subscription " + row.getId() + " is backed by " + row.getProvider()
+                    + "; " + action + " must go through the gateway path");
+        }
+    }
+
+    /** The projection row for a provider subscription, as a DTO. */
+    @Transactional(readOnly = true)
+    public Optional<SubscriptionDto> getProviderSubscription(ProviderId provider, String externalSubscriptionId) {
+        return subscriptionRepository.findByProviderAndExternalSubscriptionId(provider, externalSubscriptionId)
+                .map(BillingMapper::toSubscriptionDto);
+    }
+
+    /**
+     * Records that the organization's cancel reached the provider. The status itself is the
+     * projection's to write from the provider's answer; this stamps the request so a later
+     * charge event never re-activates the row, and sets the period-end flag when the provider
+     * took the cancel as scheduled rather than immediate.
+     */
+    @Transactional
+    public void markCancelRequested(ProviderId provider, String externalSubscriptionId, boolean atPeriodEnd) {
+        Subscription row = subscriptionRepository.findByProviderAndExternalSubscriptionId(provider, externalSubscriptionId)
+                .orElseThrow(() -> new NoActiveSubscriptionException("No projected subscription for " + provider + " " + externalSubscriptionId));
+        row.setCancelRequestedAt(Instant.now());
+        row.setCancelAtPeriodEnd(atPeriodEnd);
+        if (row.getCancellationReason() == null) {
+            row.setCancellationReason("Cancelled by the organization");
+        }
+        subscriptionRepository.save(row);
+        subscriptionCache.evictOnWrite(row.getOrganizationId());
     }
 
 

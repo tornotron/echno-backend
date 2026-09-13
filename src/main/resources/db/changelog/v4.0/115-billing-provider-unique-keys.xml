@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      One local row per provider object (#810). The projection, the verify step and the
+      reconciliation sweep all look a subscription up by (provider, external_subscription_id)
+      and expect one row; without a unique key a verify racing the first webhook could insert
+      two, after which every lookup failed. Same for the mandate reference on payment_mandate,
+      which so far had a plain index only.
+
+      Both preconditions HALT when duplicates already exist, and say which query finds them.
+      Silently dropping rows here would decide which of two subscriptions an organization
+      keeps, and that is an operator's call.
+    -->
+
+    <changeSet id="115-01-subscription-provider-external-unique" author="abhijith">
+        <preConditions onFail="HALT"
+                       onFailMessage="subscription holds duplicate (provider, external_subscription_id) rows; find them with: SELECT provider, external_subscription_id, count(*) FROM subscription WHERE external_subscription_id IS NOT NULL GROUP BY provider, external_subscription_id HAVING count(*) &gt; 1; merge or cancel the extra rows, then rerun the migration">
+            <not>
+                <indexExists tableName="subscription" indexName="uk_subscription_provider_external"/>
+            </not>
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM (
+                    SELECT provider, external_subscription_id FROM subscription
+                    WHERE external_subscription_id IS NOT NULL
+                    GROUP BY provider, external_subscription_id HAVING count(*) &gt; 1
+                ) duplicates
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            CREATE UNIQUE INDEX uk_subscription_provider_external
+                ON subscription (provider, external_subscription_id)
+                WHERE external_subscription_id IS NOT NULL
+        </sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS uk_subscription_provider_external</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="115-02-payment-mandate-ref-unique" author="abhijith">
+        <preConditions onFail="HALT"
+                       onFailMessage="payment_mandate holds duplicate (provider, provider_mandate_ref) rows; find them with: SELECT provider, provider_mandate_ref, count(*) FROM payment_mandate GROUP BY provider, provider_mandate_ref HAVING count(*) &gt; 1; delete the extra rows, then rerun the migration">
+            <not>
+                <uniqueConstraintExists tableName="payment_mandate" constraintName="uk_payment_mandate_ref"/>
+            </not>
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM (
+                    SELECT provider, provider_mandate_ref FROM payment_mandate
+                    GROUP BY provider, provider_mandate_ref HAVING count(*) &gt; 1
+                ) duplicates
+            </sqlCheck>
+        </preConditions>
+        <addUniqueConstraint tableName="payment_mandate"
+                             columnNames="provider, provider_mandate_ref"
+                             constraintName="uk_payment_mandate_ref"/>
+        <dropIndex tableName="payment_mandate" indexName="idx_payment_mandate_ref"/>
+        <rollback>
+            <dropUniqueConstraint tableName="payment_mandate" constraintName="uk_payment_mandate_ref"/>
+            <createIndex tableName="payment_mandate" indexName="idx_payment_mandate_ref">
+                <column name="provider"/>
+                <column name="provider_mandate_ref"/>
+            </createIndex>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="115-03-subscription-cancel-requested-at" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="subscription" columnName="cancel_requested_at"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="subscription">
+            <column name="cancel_requested_at" type="TIMESTAMP"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

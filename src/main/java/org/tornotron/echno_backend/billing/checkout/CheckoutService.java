@@ -6,6 +6,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.billing.Plan;
 import org.tornotron.echno_backend.billing.Subscription;
 import org.tornotron.echno_backend.billing.components.SubscriptionCache;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.billing.dto.BillingEventSummaryDto;
 import org.tornotron.echno_backend.billing.dto.BillingMapper;
 import org.tornotron.echno_backend.billing.dto.BillingProviderInfoDto;
@@ -77,8 +79,8 @@ public class CheckoutService {
 
     /** Hours of notice the buyer gets before each recurring debit (RBI e-mandate framework). */
     public static final int PRE_DEBIT_NOTICE_HOURS = 24;
-    /** How long a hosted checkout stays usable before the buyer has to start over. */
-    static final long SESSION_TTL_MINUTES = 60;
+    /** Margin past the session's expiry before the provider expires the subscription too. */
+    static final long PROVIDER_EXPIRY_MARGIN_MINUTES = 5;
     static final int HISTORY_PAGE_SIZE = 200;
 
     private final BillingGateway gateway;
@@ -94,6 +96,7 @@ public class CheckoutService {
     private final EntitlementProjection projection;
     private final SubscriptionCache cache;
     private final EntityManager entityManager;
+    private final TransactionalWorkRunner transactions;
 
     private final ObjectMapper json = new ObjectMapper();
 
@@ -128,25 +131,86 @@ public class CheckoutService {
      * when the cycle is above the RBI cap; the provider subscription is then created through
      * the port, a projection row is written INCOMPLETE so the webhook and the verify step
      * converge on it, and the session row records what the browser widget needs.
+     *
+     * <p>Deliberately not one transaction. The provider round trips (customer, plan, subscription)
+     * run outside any database transaction: a rollback after them would leave provider objects
+     * with no local twin, and three HTTP calls inside a serializable transaction held the row
+     * locks against the webhook projector and the sweep for as long as the provider took. The
+     * pre-check reads in one short transaction, the provider is called, and the rows are
+     * written in another (both through {@link TransactionalWorkRunner}, so the tenant filter is
+     * on for them); if that write fails the provider subscription just created is cancelled
+     * again so nothing is orphaned.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public CheckoutSessionDto createSession(Long organizationId, Long userId, CheckoutSessionCreateDto request) {
+        Prepared prepared = transactions.runInTransaction(() -> prepare(organizationId, request));
+        if (prepared.free()) {
+            SubscriptionDto activated = subscriptionService.createSubscription(organizationId, userId, prepared.plan().getCode(), prepared.period());
+            log.info("Free plan {} activated directly for organization {} (no gateway)", prepared.plan().getCode(), organizationId);
+            return CheckoutSessionDto.builder()
+                    .provider(BillingMapper.providerName(ProviderId.MANUAL))
+                    .planCode(prepared.plan().getCode())
+                    .billingPeriod(prepared.period())
+                    .amountPaise(0)
+                    .currency(prepared.currency())
+                    .recurring(false)
+                    .subscription(activated)
+                    .build();
+        }
+        if (prepared.open() != null) {
+            log.info("Reusing open checkout session {} for organization {} on plan {}",
+                    prepared.open().getId(), organizationId, prepared.plan().getCode());
+            return toDto(prepared.open(), prepared.organization());
+        }
+        Plan plan = prepared.plan();
+        BillingPeriod period = prepared.period();
+        Organization organization = prepared.organization();
+        Instant now = Instant.now();
+        Instant expiresAt = now.plus(checkoutWindowMinutes(), ChronoUnit.MINUTES);
+        NotifyInfo notify = new NotifyInfo(organization.getOrganizationEmail(), organization.getOrganizationPhone());
+        int trialDays = Optional.ofNullable(plan.getTrialDays()).orElse(0);
+        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
+                organizationId, plan.getCode(), period, 1, trialDays, null, notify, request.isAcceptPerChargeAfa(),
+                expiresAt.plus(PROVIDER_EXPIRY_MARGIN_MINUTES, ChronoUnit.MINUTES));
+        // The rules hold here regardless of what the adapter checks, so a violation never reaches the provider.
+        mandatePolicy.validateCreate(command, prepared.cycleAmount());
+
+        // Provider calls, outside any transaction. Each adapter call records its own mapping
+        // row as soon as the provider hands back an id.
+        gateway.ensureCustomer(new OrgBillingProfile(organizationId, organization.getOrganizationName(), null,
+                organization.getOrganizationEmail(), organization.getOrganizationPhone(), prepared.currency()));
+        gateway.ensurePlan(plan, period);
+        GatewaySubscription created = gateway.createSubscription(command);
+        ProviderId provider = gateway.providerId();
+
+        CheckoutSession session;
+        try {
+            session = transactions.runInTransaction(() -> persistSession(organizationId, userId, request, prepared, created, provider, now, expiresAt));
+        } catch (RuntimeException e) {
+            compensate(created, organizationId, e);
+            throw e;
+        }
+        log.info("Checkout session {} opened: organization {} plan {} ({}) provider subscription {}, expires {}",
+                session.getId(), organizationId, plan.getCode(), period, created.providerSubscriptionId(), expiresAt);
+        return toDto(session, organization);
+    }
+
+    /** What the read pre-check found, for the steps after it. */
+    private record Prepared(Plan plan, BillingPeriod period, long cycleAmount, String currency,
+                            Organization organization, CheckoutSession open) {
+        boolean free() {
+            return cycleAmount <= 0;
+        }
+    }
+
+    private Prepared prepare(Long organizationId, CheckoutSessionCreateDto request) {
         Plan plan = plans.findByCodeWithFeatures(request.getPlanCode())
                 .orElseThrow(() -> new PlanNotFoundException("Plan with code '" + request.getPlanCode() + "' was not found"));
         BillingPeriod period = Optional.ofNullable(request.getBillingPeriod()).orElse(BillingPeriod.MONTHLY);
         long cycleAmount = MandatePolicy.cycleAmountPaise(plan, period);
+        String currency = Optional.ofNullable(plan.getCurrency()).orElse(properties.getCurrency());
         if (cycleAmount <= 0) {
-            SubscriptionDto activated = subscriptionService.createSubscription(organizationId, userId, plan.getCode(), period);
-            log.info("Free plan {} activated directly for organization {} (no gateway)", plan.getCode(), organizationId);
-            return CheckoutSessionDto.builder()
-                    .provider(BillingMapper.providerName(ProviderId.MANUAL))
-                    .planCode(plan.getCode())
-                    .billingPeriod(period)
-                    .amountPaise(0)
-                    .currency(Optional.ofNullable(plan.getCurrency()).orElse(properties.getCurrency()))
-                    .recurring(false)
-                    .subscription(activated)
-                    .build();
+            return new Prepared(plan, period, cycleAmount, currency, null, null);
         }
         if (!checkoutReady()) {
             throw new BillingNotConfiguredException();
@@ -167,31 +231,19 @@ public class CheckoutService {
                         + live.getPlan().getCode() + "'; use change-plan to switch plans instead");
             }
         });
-        Instant now = Instant.now();
-        Optional<CheckoutSession> open = sessions
-                .findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
-                        organizationId, plan.getCode(), period, CheckoutSessionStatus.OPEN, now);
         Organization organization = organizations.findById(organizationId)
                 .orElseThrow(() -> new EntityNotFoundException("Organization " + organizationId + " was not found"));
-        if (open.isPresent()) {
-            log.info("Reusing open checkout session {} for organization {} on plan {}", open.get().getId(), organizationId, plan.getCode());
-            return toDto(open.get(), organization);
-        }
+        CheckoutSession open = sessions
+                .findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                        organizationId, plan.getCode(), period, CheckoutSessionStatus.OPEN, Instant.now())
+                .orElse(null);
+        return new Prepared(plan, period, cycleAmount, currency, organization, open);
+    }
 
-        NotifyInfo notify = new NotifyInfo(organization.getOrganizationEmail(), organization.getOrganizationPhone());
-        int trialDays = Optional.ofNullable(plan.getTrialDays()).orElse(0);
-        CreateSubscriptionCommand command = new CreateSubscriptionCommand(
-                organizationId, plan.getCode(), period, 1, trialDays, null, notify, request.isAcceptPerChargeAfa());
-        // The rules hold here regardless of what the adapter checks, so a violation never reaches the provider.
-        mandatePolicy.validateCreate(command, cycleAmount);
-
-        String currency = Optional.ofNullable(plan.getCurrency()).orElse(properties.getCurrency());
-        gateway.ensureCustomer(new OrgBillingProfile(organizationId, organization.getOrganizationName(), null,
-                organization.getOrganizationEmail(), organization.getOrganizationPhone(), currency));
-        gateway.ensurePlan(plan, period);
-        GatewaySubscription created = gateway.createSubscription(command);
-        ProviderId provider = gateway.providerId();
-
+    private CheckoutSession persistSession(Long organizationId, Long userId, CheckoutSessionCreateDto request, Prepared prepared,
+                                           GatewaySubscription created, ProviderId provider, Instant now, Instant expiresAt) {
+        Plan plan = prepared.plan();
+        BillingPeriod period = prepared.period();
         subscriptions.findByProviderAndExternalSubscriptionId(provider, created.providerSubscriptionId())
                 .orElseGet(() -> subscriptions.save(Subscription.builder()
                         .organizationId(organizationId)
@@ -203,27 +255,39 @@ public class CheckoutService {
                         .currentPeriodStart(now)
                         .currentPeriodEnd(now.plus(periodDays(period), ChronoUnit.DAYS))
                         .build()));
-
-        CheckoutSession session = sessions.save(CheckoutSession.builder()
-                .organization(organization)
+        return sessions.save(CheckoutSession.builder()
+                .organization(prepared.organization())
                 .provider(provider)
                 .planCode(plan.getCode())
                 .billingPeriod(period)
                 .providerSubscriptionId(created.providerSubscriptionId())
-                .amountPaise(cycleAmount)
-                .currency(currency)
+                .amountPaise(prepared.cycleAmount())
+                .currency(prepared.currency())
                 .recurring(true)
-                .perChargeApproval(mandatePolicy.requiresPerChargeAfa(cycleAmount))
+                .perChargeApproval(mandatePolicy.requiresPerChargeAfa(prepared.cycleAmount()))
                 .perChargeApprovalAccepted(request.isAcceptPerChargeAfa())
-                .mandateAmountCapPaise(cycleAmount)
+                .mandateAmountCapPaise(prepared.cycleAmount())
                 .authUrl(created.authUrl())
                 .status(CheckoutSessionStatus.OPEN)
                 .createdByUserId(userId)
-                .expiresAt(now.plus(SESSION_TTL_MINUTES, ChronoUnit.MINUTES))
+                .expiresAt(expiresAt)
                 .build());
-        log.info("Checkout session {} opened: organization {} plan {} ({}) provider subscription {}",
-                session.getId(), organizationId, plan.getCode(), period, created.providerSubscriptionId());
-        return toDto(session, organization);
+    }
+
+    /** The local write failed after the provider subscription existed: cancel it so it is not orphaned. */
+    private void compensate(GatewaySubscription created, Long organizationId, RuntimeException cause) {
+        log.error("Checkout rows for organization {} could not be written after provider subscription {} was created: {}; cancelling it",
+                organizationId, created.providerSubscriptionId(), cause.getMessage());
+        try {
+            gateway.cancelSubscription(created.providerSubscriptionId(), false);
+        } catch (RuntimeException e) {
+            log.error("Provider subscription {} could not be cancelled after the failed checkout write; it is orphaned at the provider: {}",
+                    created.providerSubscriptionId(), e.getMessage(), e);
+        }
+    }
+
+    private long checkoutWindowMinutes() {
+        return Math.max(1, properties.getCheckoutWindowMinutes());
     }
 
     /**
@@ -265,8 +329,15 @@ public class CheckoutService {
             // thread (open-in-view on a request) would otherwise hand back the instance it read
             // above, still INCOMPLETE, so that instance is dropped before the row is read again.
             existing.filter(entityManager::contains).ifPresent(entityManager::detach);
-            String outcome = projection.apply(organizationId, activation(provider, session, plan));
-            log.info("Checkout session {} verified: {}", session.getId(), outcome);
+            try {
+                String outcome = projection.apply(organizationId, activation(provider, session, plan));
+                log.info("Checkout session {} verified: {}", session.getId(), outcome);
+            } catch (DataIntegrityViolationException e) {
+                // The webhook inserted the same provider subscription between the read above and
+                // the projection's insert; the unique key refused a second row. The winner's
+                // row is what is read back below.
+                log.info("Checkout session {}: the webhook projected {} first; reading its row", session.getId(), session.getProviderSubscriptionId());
+            }
         }
 
         session.setStatus(CheckoutSessionStatus.VERIFIED);
@@ -400,6 +471,19 @@ public class CheckoutService {
                 .build();
     }
 
+    /** A fixed word per inbox state; the raw error text stays on the admin inbox view. */
+    private static String describe(BillingEvent row) {
+        if (row.getStatus() == null) {
+            return null;
+        }
+        return switch (row.getStatus()) {
+            case PROCESSED -> "applied";
+            case SKIPPED -> "not applicable";
+            case FAILED -> "not applied; under review";
+            default -> "pending";
+        };
+    }
+
     private BillingEventSummaryDto summarize(BillingEvent row) {
         Long amount = null;
         String currency = null;
@@ -430,7 +514,7 @@ public class CheckoutService {
                 .currency(currency)
                 .reference(reference)
                 .status(row.getStatus() == null ? null : row.getStatus().name())
-                .description(row.getLastError())
+                .description(describe(row))
                 .build();
     }
 }

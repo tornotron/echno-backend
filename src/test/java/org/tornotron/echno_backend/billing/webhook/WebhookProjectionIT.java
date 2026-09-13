@@ -30,6 +30,11 @@ import org.tornotron.echno_backend.billing.entitlement.BillingModuleEntitlementR
 import org.tornotron.echno_backend.billing.entitlement.EntitlementPolicy;
 import org.tornotron.echno_backend.billing.enums.FeatureType;
 import org.tornotron.echno_backend.billing.enums.SubscriptionStatus;
+import org.tornotron.echno_backend.billing.gateway.BillingCustomer;
+import org.tornotron.echno_backend.billing.gateway.NormalizedEventType;
+import org.tornotron.echno_backend.billing.gateway.NormalizedSubscriptionStatus;
+import org.tornotron.echno_backend.billing.gateway.dto.GatewaySubscription;
+import org.tornotron.echno_backend.billing.gateway.dto.NormalizedBillingEvent;
 import org.tornotron.echno_backend.billing.gateway.BillingEvent;
 import org.tornotron.echno_backend.billing.gateway.BillingEventStatus;
 import org.tornotron.echno_backend.billing.gateway.BillingGateway;
@@ -111,6 +116,7 @@ class WebhookProjectionIT extends AbstractIntegrationTest {
 
     @Autowired private BillingWebhookService webhook;
     @Autowired private BillingEventProjector projector;
+    @Autowired private EntitlementProjection projection;
     @Autowired private BillingReconciliationService reconciliation;
     @Autowired private SubscriptionService subscriptionService;
     @Autowired private BillingModuleEntitlementResolver entitlement;
@@ -135,6 +141,8 @@ class WebhookProjectionIT extends AbstractIntegrationTest {
             organization.setOrganizationEmail("webhook-it@example.com");
             organization.setOrganizationPhone("+910000000000");
             orgId = organizations.save(organization).getId();
+            entityManager.persist(BillingCustomer.builder().organization(organization).provider(ProviderId.RAZORPAY)
+                    .providerCustomerId("cust_FixtureCust001").build());
             Feature feature = (Feature) entityManager.createQuery("SELECT f FROM Feature f WHERE f.code = :code")
                     .setParameter("code", FEATURE).getResultStream().findFirst().orElseGet(() -> {
                         Feature created = Feature.builder().code(FEATURE).name("Inspections module")
@@ -161,6 +169,7 @@ class WebhookProjectionIT extends AbstractIntegrationTest {
         inCommittedTx(() -> {
             entityManager.createNativeQuery("DELETE FROM billing_event WHERE provider = 'RAZORPAY'").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM payment_mandate WHERE organization_id = " + orgId).executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM billing_customer WHERE organization_id = " + orgId).executeUpdate();
             entityManager.createNativeQuery("DELETE FROM subscription WHERE organization_id = " + orgId).executeUpdate();
             entityManager.createNativeQuery("DELETE FROM organization WHERE id = " + orgId).executeUpdate();
         });
@@ -308,13 +317,114 @@ class WebhookProjectionIT extends AbstractIntegrationTest {
     @Test
     void anEventForAnUnknownOrganizationIsSkippedNotFailed() {
         byte[] body = new String(RazorpayFixtures.body("subscription.activated"), StandardCharsets.UTF_8)
-                .replace("\"organization_id\":\"4242\"", "\"organization_id\":\"\"").getBytes(StandardCharsets.UTF_8);
+                .replace("\"organization_id\":\"4242\"", "\"organization_id\":\"\"")
+                .replace("cust_FixtureCust001", "cust_Stranger").getBytes(StandardCharsets.UTF_8);
         webhook.ingest(body, sign(body), "evt_noorg");
         projector.process(inbox("evt_noorg").getId());
 
         assertThat(inbox("evt_noorg").getStatus()).isEqualTo(BillingEventStatus.SKIPPED);
         assertThat(inbox("evt_noorg").getLastError()).contains("Organization could not be resolved");
         assertThat(subscriptions.findByOrganizationIdOrderByCreatedAtDesc(orgId)).isEmpty();
+    }
+
+    // -- review findings #806, #807, #808, #813 ---------------------------------------------
+
+    @Test
+    void aRevokedTokenCancelsOnlyTheSubscriptionOnItsMandateRecord() {
+        deliver("subscription.activated", "evt_act");
+        Instant now = Instant.now();
+        inCommittedTx(() -> {
+            Plan plan = (Plan) entityManager.createQuery("SELECT p FROM Plan p WHERE p.code = :code").setParameter("code", PLAN).getSingleResult();
+            entityManager.persist(Subscription.builder().organizationId(orgId).plan(plan).provider(ProviderId.RAZORPAY)
+                    .externalSubscriptionId("sub_OldOne").status(SubscriptionStatus.CANCELED).canceledAt(now.minus(20, ChronoUnit.DAYS))
+                    .cancellationReason("Superseded by RAZORPAY subscription sub_FixtureSub00001")
+                    .currentPeriodStart(now.minus(50, ChronoUnit.DAYS)).currentPeriodEnd(now.minus(20, ChronoUnit.DAYS)).build());
+            Organization organization = new Organization();
+            organization.setId(orgId);
+            entityManager.persist(PaymentMandate.builder().organization(organization).provider(ProviderId.RAZORPAY)
+                    .providerMandateRef("token_FixtureTok0001").providerSubscriptionId("sub_OldOne")
+                    .status(NormalizedMandateStatus.AUTHORIZED).build());
+        });
+
+        deliverTokenEvent("token.cancelled", "evt_tok_cancel");
+
+        assertThat(projected().getStatus()).as("the paying subscription is untouched").isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(inbox("evt_tok_cancel").getStatus()).isEqualTo(BillingEventStatus.PROCESSED);
+        PaymentMandate mandate = inCommittedTx(() -> mandates.findByProviderAndProviderMandateRef(ProviderId.RAZORPAY, "token_FixtureTok0001").orElseThrow());
+        assertThat(mandate.getStatus()).isEqualTo(NormalizedMandateStatus.REVOKED);
+        assertThat(mandate.getRevokedAt()).isNotNull();
+    }
+
+    @Test
+    void aRevokedTokenWithNoMandateOnFileIsRecordedAndSkippedNotFannedOut() {
+        deliver("subscription.activated", "evt_act");
+
+        deliverTokenEvent("token.cancelled", "evt_tok_unknown");
+
+        assertThat(projected().getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(inbox("evt_tok_unknown").getStatus()).isEqualTo(BillingEventStatus.SKIPPED);
+        assertThat(inbox("evt_tok_unknown").getLastError()).contains("resolves to no subscription");
+        assertThat(inCommittedTx(() -> mandates.findByProviderAndProviderMandateRef(ProviderId.RAZORPAY, "token_FixtureTok0001")))
+                .as("the mandate status is still recorded").isPresent();
+    }
+
+    @Test
+    void aPaymentFailedWhoseNotesNameUsButWhoseCustomerIsNotOursIsNotApplied() {
+        deliver("subscription.activated", "evt_act");
+        byte[] body = new String(RazorpayFixtures.body("payment.failed"), StandardCharsets.UTF_8)
+                .replace("\"organization_id\":\"4242\"", "\"organization_id\":\"" + orgId + "\"")
+                .replace("cust_FixtureCust001", "cust_SomeoneElse").getBytes(StandardCharsets.UTF_8);
+        webhook.ingest(body, sign(body), "evt_forged_fail");
+        projector.process(inbox("evt_forged_fail").getId());
+
+        assertThat(inbox("evt_forged_fail").getStatus()).isEqualTo(BillingEventStatus.SKIPPED);
+        assertThat(projected().getStatus()).as("a payment's notes never pick the organization").isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(projected().getPastDueSince()).isNull();
+    }
+
+    @Test
+    void aChargeReportedAfterTheOrganizationCancelledNeverReactivates() {
+        deliver("subscription.activated", "evt_act");
+        inCommittedTx(() -> entityManager.createNativeQuery("UPDATE subscription SET status = 'CANCELED', canceled_at = :at, "
+                        + "cancel_requested_at = :at, cancellation_reason = 'Cancelled by the organization' WHERE external_subscription_id = 'sub_FixtureSub00001'")
+                .setParameter("at", Instant.now().minus(1, ChronoUnit.HOURS)).executeUpdate());
+        cache.evictAll();
+
+        deliver("subscription.charged", "evt_charged_after_cancel");
+
+        assertThat(projected().getStatus()).isEqualTo(SubscriptionStatus.CANCELED);
+        assertThat(projected().getCancellationReason()).isEqualTo("Cancelled by the organization");
+        assertThat(inbox("evt_charged_after_cancel").getStatus()).isEqualTo(BillingEventStatus.PROCESSED);
+        assertThat(inbox("evt_charged_after_cancel").getLastError()).isNull();
+        assertThat(subscriptionService.getActiveSubscription(orgId)).isEmpty();
+    }
+
+    @Test
+    void aTrialProjectedByVerifyStaysTrialingWhenTheProviderSaysAuthenticated() {
+        Instant now = Instant.now();
+        inCommittedTx(() -> {
+            Plan plan = (Plan) entityManager.createQuery("SELECT p FROM Plan p WHERE p.code = :code").setParameter("code", PLAN).getSingleResult();
+            entityManager.persist(Subscription.builder().organizationId(orgId).plan(plan).provider(ProviderId.RAZORPAY)
+                    .externalSubscriptionId("sub_FixtureSub00001").status(SubscriptionStatus.TRIALING)
+                    .trialStart(now).trialEnd(now.plus(14, ChronoUnit.DAYS))
+                    .currentPeriodStart(now).currentPeriodEnd(now.plus(14, ChronoUnit.DAYS)).build());
+        });
+        GatewaySubscription authenticated = new GatewaySubscription("sub_FixtureSub00001", "plan_FixturePlan001", "cust_FixtureCust001",
+                NormalizedSubscriptionStatus.AUTHENTICATED, now, null, now.plus(14, ChronoUnit.DAYS), null, null);
+        projection.apply(orgId, new NormalizedBillingEvent(ProviderId.RAZORPAY, "evt_auth_trial", NormalizedEventType.SUBSCRIPTION_AUTHENTICATED,
+                now, orgId, "sub_FixtureSub00001", "cust_FixtureCust001", "plan_FixturePlan001", PLAN, authenticated, null, null, null, null));
+
+        assertThat(projected().getStatus()).isEqualTo(SubscriptionStatus.TRIALING);
+        assertThat(projected().getTrialEnd()).isNotNull();
+    }
+
+    private void deliverTokenEvent(String eventName, String eventId) {
+        byte[] body = new String(RazorpayFixtures.body("token.confirmed"), StandardCharsets.UTF_8)
+                .replace("\"event\":\"token.confirmed\"", "\"event\":\"" + eventName + "\"")
+                .replace("\"status\":\"confirmed\"", "\"status\":\"cancelled\"")
+                .getBytes(StandardCharsets.UTF_8);
+        assertThat(webhook.ingest(body, sign(body), eventId)).isEqualTo(WebhookIngestResult.ACCEPTED);
+        projector.process(inbox(eventId).getId());
     }
 
     private void deliver(String fixture, String eventId) {

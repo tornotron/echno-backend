@@ -66,7 +66,11 @@ public interface BillingGateway {
 
     void resumeSubscription(String providerSubscriptionId);
 
-    void cancelSubscription(String providerSubscriptionId, boolean atCycleEnd);
+    /**
+     * Cancels a provider subscription, at once or at the end of the current cycle, and returns
+     * the provider's answer: the projection follows that, never the request.
+     */
+    GatewaySubscription cancelSubscription(String providerSubscriptionId, boolean atCycleEnd);
 
     GatewaySubscription changePlan(ChangePlanCommand cmd);
 
