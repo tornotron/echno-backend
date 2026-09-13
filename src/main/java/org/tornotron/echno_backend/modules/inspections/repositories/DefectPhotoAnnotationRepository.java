@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import org.tornotron.echno_backend.modules.inspections.domain.DefectPhotoAnnotation;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -75,4 +76,7 @@ public interface DefectPhotoAnnotationRepository extends JpaRepository<DefectPho
     int deleteOrphansByInspection(@Param("organizationId") Long organizationId,
                                   @Param("inspectionId") UUID inspectionId,
                                   @Param("keptPhotos") Collection<String> keptPhotos);
+
+    /** Every mark in the organization, grouped by photo in draw order; read by the dataset export. */
+    List<DefectPhotoAnnotation> findByOrganization_IdOrderByPhotoAscLineOrderAsc(Long organizationId);
 }

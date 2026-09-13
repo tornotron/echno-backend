@@ -255,6 +255,16 @@ keycloak:
 
 
 echno:
+  # Consented evidence export into the dataset bucket (#791). The sweep is off by default;
+  # the on-demand endpoint works regardless. The bucket is separate from the attachment
+  # bucket: MinIO on the IITM staging, Spaces in production.
+  dataset-export:
+    enabled: ${ECHNO_DATASET_EXPORT_ENABLED:false}
+    bucket: ${ECHNO_DATASET_BUCKET_NAME:echno-datasets}
+    prefix: ${ECHNO_DATASET_PREFIX:construction-images}
+    cron: ${ECHNO_DATASET_EXPORT_CRON:0 0 3 * * SUN}
+    zone: ${ECHNO_DATASET_EXPORT_ZONE:UTC}
+    max-objects-per-run: ${ECHNO_DATASET_EXPORT_MAX_OBJECTS:500}
   cache:
     # Single switch for cross-replica shared state. Default 'caffeine' keeps every cache and the
     # Bucket4j rate limiter in-process (the single-replica compose staging behaviour: no Redis is
