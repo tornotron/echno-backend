@@ -40,7 +40,7 @@ class SubscriptionSnapshotTest {
         return new SubscriptionSnapshot(
                 1L, 12L, 42L, status,
                 PERIOD_START, PERIOD_END, PERIOD_START, TRIAL_END,
-                false, null, PERIOD_START, null,
+                false, null, null, PERIOD_START, null,
                 new PlanSnapshot(
                         7L, "professional-monthly", "Professional", "For growing teams", 1,
                         new BigDecimal("4999.00"), new BigDecimal("49990.00"), "INR",

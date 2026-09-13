@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      When a subscription last went PAST_DUE (#801). The entitlement gate keeps a past-due
+      organization entitled for echno.billing.past-due-grace-days from this instant, then cuts
+      access. Null for every row that is not past due; the projector sets it on the transition
+      in and clears it on the transition out. A row that is PAST_DUE with no value (written
+      before this column) counts its grace from the end of its paid period.
+    -->
+    <changeSet id="113-01-subscription-past-due-since" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="subscription" columnName="past_due_since"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="subscription">
+            <column name="past_due_since" type="TIMESTAMP"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

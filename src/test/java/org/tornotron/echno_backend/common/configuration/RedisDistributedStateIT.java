@@ -141,7 +141,7 @@ class RedisDistributedStateIT {
                 Instant.parse("2026-09-01T00:00:00Z"),
                 Instant.parse("2026-08-01T00:00:00Z"),
                 Instant.parse("2026-08-15T00:00:00Z"),
-                false, null, Instant.parse("2026-01-15T09:30:00Z"), null,
+                false, null, null, Instant.parse("2026-01-15T09:30:00Z"), null,
                 new PlanSnapshot(3L, "professional-monthly", "Professional", "For growing teams", 4,
                         new BigDecimal("4999.00"), new BigDecimal("49990.00"), "INR",
                         true, true, 14, 25, 2,

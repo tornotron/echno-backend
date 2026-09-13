@@ -100,6 +100,7 @@ public class EntitlementProjection {
         SubscriptionStatus before = row.getStatus();
         SubscriptionStatus target = snapshot.status().toSubscriptionStatus();
         row.setStatus(target);
+        trackPastDue(row, before, target, event.occurredAt());
         applyPeriod(row, snapshot, event);
         switchPlanIfChanged(row, event);
         if (target == SubscriptionStatus.CANCELED) {
@@ -150,6 +151,19 @@ public class EntitlementProjection {
         }
         throw new BillingGatewayException("Cannot resolve the internal plan for provider subscription "
                 + event.providerSubscriptionId() + " (plan code " + event.planCode() + ", provider plan " + event.providerPlanId() + ")");
+    }
+
+    /**
+     * Stamps when the row went past due, so the grace window counts from the failed renewal
+     * and not from whenever the gate happens to look. Kept across repeated PAST_DUE events,
+     * cleared by any other status.
+     */
+    private static void trackPastDue(Subscription row, SubscriptionStatus before, SubscriptionStatus target, Instant at) {
+        if (target != SubscriptionStatus.PAST_DUE) {
+            row.setPastDueSince(null);
+        } else if (before != SubscriptionStatus.PAST_DUE || row.getPastDueSince() == null) {
+            row.setPastDueSince(Optional.ofNullable(at).orElse(Instant.now()));
+        }
     }
 
     private void applyPeriod(Subscription row, GatewaySubscription snapshot, NormalizedBillingEvent event) {
@@ -211,9 +225,11 @@ public class EntitlementProjection {
         }
         Subscription row = target.get();
         if (row.getStatus() == SubscriptionStatus.ACTIVE || row.getStatus() == SubscriptionStatus.TRIALING) {
+            SubscriptionStatus before = row.getStatus();
             row.setStatus(SubscriptionStatus.PAST_DUE);
+            trackPastDue(row, before, SubscriptionStatus.PAST_DUE, event.occurredAt());
             subscriptions.save(row);
-            return "ACTIVE -> PAST_DUE (payment failed, access kept for the dunning window)";
+            return "ACTIVE -> PAST_DUE (payment failed, access kept for the grace window)";
         }
         return "payment failed while " + row.getStatus() + "; unchanged";
     }

@@ -37,6 +37,7 @@ import java.util.Optional;
  * @param trialEnd End of the trial period, null if the subscription began without one.
  * @param cancelAtPeriodEnd Whether the subscription is set to end at the current period's end.
  * @param canceledAt When the subscription was canceled, null if it has not been.
+ * @param pastDueSince When the subscription last went past due, null if it is not.
  * @param createdAt When the subscription was first created.
  * @param cancellationReason Reason given for cancellation, null if none was given.
  * @param plan The plan the subscription is on, with the features it grants.
@@ -52,6 +53,7 @@ public record SubscriptionSnapshot(
         Instant trialEnd,
         Boolean cancelAtPeriodEnd,
         Instant canceledAt,
+        Instant pastDueSince,
         Instant createdAt,
         String cancellationReason,
         PlanSnapshot plan) {

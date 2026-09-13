@@ -6,7 +6,7 @@ import lombok.Value;
 
 @Schema(description = "Result of checking whether a user's subscription grants access to a feature.")
 @Value
-@Builder
+@Builder(toBuilder = true)
 public class FeatureAccessResultDto {
     @Schema(description = "Whether the feature may be used.", example = "true")
     boolean allowed;
@@ -44,6 +44,22 @@ public class FeatureAccessResultDto {
         return FeatureAccessResultDto.builder()
                 .allowed(false)
                 .reason("No active subscription")
+                .build();
+    }
+
+    /** The organization's subscription is past due and the grace window has ended. */
+    public static FeatureAccessResultDto pastDueGraceEnded(java.time.Instant endedAt, int graceDays) {
+        return FeatureAccessResultDto.builder()
+                .allowed(false)
+                .reason("Subscription past due; the " + graceDays + "-day grace period ended at " + endedAt)
+                .message("Your subscription payment is overdue. Update your payment method to restore access.")
+                .build();
+    }
+
+    /** Marks a result decided while the subscription is past due but still inside its grace window. */
+    public FeatureAccessResultDto withinPastDueGrace(java.time.Instant until, int graceDays) {
+        return toBuilder()
+                .reason("Subscription past due; within the " + graceDays + "-day grace period until " + until)
                 .build();
     }
 
