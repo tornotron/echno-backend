@@ -22,6 +22,7 @@ import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.tornotron.echno_backend.organization.dto.DatasetConsentDto;
 
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -93,7 +94,7 @@ class OrganizationDatasetConsentAuthzTest {
                         .content("{\"datasetConsent\": true}"))
                 .andExpect(status().isForbidden());
 
-        verify(organizationService, never()).setDatasetConsent(anyLong(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(organizationService, never()).setDatasetConsent(anyLong(), anyBoolean());
     }
 
     @Test
