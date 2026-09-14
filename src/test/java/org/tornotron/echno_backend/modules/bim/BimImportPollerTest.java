@@ -54,11 +54,11 @@ class BimImportPollerTest {
         doAnswer(inv -> {
             assertThat(TenantContext.getCurrentOrgId()).isEqualTo(7L);
             return null;
-        }).when(pipeline).ingest(done);
+        }).when(pipeline).ingest(eq(done), any());
 
         poller.poll();
 
-        verify(pipeline).ingest(done);
+        verify(pipeline).ingest(eq(done), any());
         verify(ingestor).markFailed(failed, "IfcOpenShell could not open the file");
         verify(runner).runForTenant(eq(7L), any());
         verify(runner).runForTenant(eq(9L), any());
@@ -73,7 +73,7 @@ class BimImportPollerTest {
 
         poller.poll();
 
-        verify(pipeline, never()).ingest(any());
+        verify(pipeline, never()).ingest(any(), any());
         verify(runner, never()).runForTenant(eq(7L), any());
     }
 

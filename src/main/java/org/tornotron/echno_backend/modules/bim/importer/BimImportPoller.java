@@ -94,7 +94,7 @@ public class BimImportPoller {
                 continue;
             }
             log.info("Ingesting BIM import job {} for organization {} (claimed by {})", ref.getId(), ref.getOrganizationId(), nodeId);
-            tenantScopedJobRunner.runForTenant(ref.getOrganizationId(), () -> pipeline.ingest(ref.getId()));
+            tenantScopedJobRunner.runForTenant(ref.getOrganizationId(), () -> pipeline.ingest(ref.getId(), nodeId));
         }
     }
 
