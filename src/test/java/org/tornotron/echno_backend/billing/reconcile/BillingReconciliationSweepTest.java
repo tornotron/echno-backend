@@ -47,13 +47,15 @@ class BillingReconciliationSweepTest {
     private SubscriptionRepository subscriptions;
     @Mock
     private BillingReconciliationService reconciliation;
+    @Mock
+    private ProviderCompensationService compensations;
 
     private BillingReconciliationSweep sweep;
 
     @BeforeEach
     void setUp() {
         sweep = new BillingReconciliationSweep(gateway, subscriptions, reconciliation,
-                new TenantScopedJobRunner(), new BillingReconcileProperties());
+                new TenantScopedJobRunner(), new BillingReconcileProperties(), compensations);
     }
 
     private static Subscription stale(Long id, Long orgId, String externalId) {
@@ -86,10 +88,12 @@ class BillingReconciliationSweepTest {
             return "ACTIVE -> ACTIVE";
         });
         when(reconciliation.retryPending(anyInt())).thenReturn(4);
+        when(compensations.retryDue(anyInt())).thenReturn(1);
 
         BillingReconciliationSweep.Summary summary = sweep.runPass();
 
-        assertThat(summary).isEqualTo(new BillingReconciliationSweep.Summary(2, 3, 0, 4));
+        assertThat(summary).isEqualTo(new BillingReconciliationSweep.Summary(2, 3, 0, 4, 1));
+        verify(compensations).retryDue(100);
         verify(reconciliation).reconcile("sub_a");
         verify(reconciliation).reconcile("sub_b");
         verify(reconciliation).reconcile("sub_c");
@@ -118,7 +122,7 @@ class BillingReconciliationSweepTest {
     void capsTheRowsOnePassFetches_inTheQuery() {
         BillingReconcileProperties properties = new BillingReconcileProperties();
         properties.setMaxPerRun(1);
-        sweep = new BillingReconciliationSweep(gateway, subscriptions, reconciliation, new TenantScopedJobRunner(), properties);
+        sweep = new BillingReconciliationSweep(gateway, subscriptions, reconciliation, new TenantScopedJobRunner(), properties, compensations);
         when(gateway.isEnabled()).thenReturn(true);
         when(gateway.providerId()).thenReturn(ProviderId.RAZORPAY);
         when(subscriptions.findStaleProviderSubscriptions(eq(ProviderId.RAZORPAY), anyList(), any(), any(), any(), eq(PageRequest.of(0, 1))))

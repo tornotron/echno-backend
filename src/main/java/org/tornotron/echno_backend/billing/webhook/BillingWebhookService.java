@@ -16,6 +16,9 @@ import org.tornotron.echno_backend.billing.gateway.dto.NormalizedBillingEvent;
 import org.tornotron.echno_backend.billing.repositories.BillingEventRepository;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.time.Instant;
 import java.util.List;
 
@@ -68,8 +71,15 @@ public class BillingWebhookService {
         String eventId = providerEventIdHeader != null && !providerEventIdHeader.isBlank()
                 ? providerEventIdHeader.trim()
                 : first.providerEventId();
+        String digest = digest(rawBody);
         if (events.findByProviderAndProviderEventId(first.provider(), eventId).isPresent()) {
             log.info("Billing webhook duplicate: {} {} already in the inbox", first.provider(), eventId);
+            return WebhookIngestResult.DUPLICATE;
+        }
+        // The event-id header is not under the signature, so a replayed body with a fresh
+        // header would pass the check above; the body digest is the second key.
+        if (events.findByProviderAndPayloadDigest(first.provider(), digest).isPresent()) {
+            log.info("Billing webhook duplicate: {} body {} already in the inbox under another event id", first.provider(), digest);
             return WebhookIngestResult.DUPLICATE;
         }
         BillingEvent row = BillingEvent.builder()
@@ -79,6 +89,7 @@ public class BillingWebhookService {
                 .organizationId(first.organizationId())
                 .providerSubscriptionId(first.providerSubscriptionId())
                 .payload(new String(rawBody, StandardCharsets.UTF_8))
+                .payloadDigest(digest)
                 .signatureVerified(true)
                 .receivedAt(Instant.now())
                 .occurredAt(first.occurredAt())
@@ -98,5 +109,14 @@ public class BillingWebhookService {
         publisher.publishEvent(new BillingEventReceived(row.getId()));
         log.info("Billing webhook accepted: {} {} ({}) as inbox row {}", first.provider(), eventId, first.type(), row.getId());
         return WebhookIngestResult.ACCEPTED;
+    }
+
+    /** Hex SHA-256 of the body as received; the same value RazorpayEventParser uses as the fallback event id. */
+    static String digest(byte[] rawBody) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(rawBody == null ? new byte[0] : rawBody));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is unavailable in this JVM", e);
+        }
     }
 }

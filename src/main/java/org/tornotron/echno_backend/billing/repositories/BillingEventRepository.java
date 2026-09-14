@@ -17,6 +17,8 @@ import java.util.Optional;
 
 public interface BillingEventRepository extends JpaRepository<BillingEvent, Long>, JpaSpecificationExecutor<BillingEvent> {
 
+    Optional<BillingEvent> findByProviderAndPayloadDigest(ProviderId provider, String payloadDigest);
+
     Optional<BillingEvent> findByProviderAndProviderEventId(ProviderId provider, String providerEventId);
 
     /**

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Billing follow-ups (#813). Three transaction-boundary repairs on the checkout and webhook
+      paths, each its own changeset:
+
+      118-01  One checkout in flight per organization. createSession reserves a PENDING
+              session row before it calls the provider; the partial unique index makes the
+              reservation the lock, so two concurrent checkouts for one organization cannot
+              both create a provider subscription. The row becomes OPEN once the provider
+              answers, and is deleted when the provider call or the local write fails.
+
+      118-02  Durable compensation. When the local write after a provider call fails, the
+              provider subscription must be cancelled; a cancel that fails too was only
+              logged. The outbox row is written before the cancel is attempted and the
+              reconciliation sweep retries it with backoff until the provider confirms.
+
+      118-03  Webhook dedupe on the body digest. The provider's event-id header is not
+              covered by the signature, so a replayed body under a fresh header opened a
+              second inbox row. The digest of the raw body is stored and unique per
+              provider; existing rows are backfilled from the payload they hold.
+    -->
+
+    <changeSet id="118-01-checkout-session-pending-unique" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="checkout_session" indexName="uk_checkout_session_pending"/>
+            </not>
+        </preConditions>
+        <sql>
+            CREATE UNIQUE INDEX uk_checkout_session_pending
+                ON checkout_session (organization_id)
+                WHERE status = 'PENDING'
+        </sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS uk_checkout_session_pending</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="118-02-billing-compensation" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="billing_compensation"/>
+            </not>
+        </preConditions>
+        <createTable tableName="billing_compensation">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="provider" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider_subscription_id" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="TEXT"/>
+            <column name="attempt_count" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_error" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="next_attempt_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="resolved_at" type="TIMESTAMP"/>
+        </createTable>
+        <addUniqueConstraint tableName="billing_compensation"
+                             columnNames="provider, provider_subscription_id"
+                             constraintName="uk_billing_compensation_subscription"/>
+        <createIndex tableName="billing_compensation" indexName="idx_billing_compensation_due">
+            <column name="resolved_at"/>
+            <column name="next_attempt_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="118-03-billing-event-payload-digest" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="billing_event" columnName="payload_digest"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="billing_event">
+            <column name="payload_digest" type="VARCHAR(64)"/>
+        </addColumn>
+        <sql>
+            UPDATE billing_event SET payload_digest = sha256(payload) WHERE payload_digest IS NULL
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX uk_billing_event_payload_digest
+                ON billing_event (provider, payload_digest)
+        </sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS uk_billing_event_payload_digest</sql>
+            <dropColumn tableName="billing_event" columnName="payload_digest"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

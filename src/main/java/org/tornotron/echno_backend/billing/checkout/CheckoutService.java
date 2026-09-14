@@ -43,6 +43,7 @@ import org.tornotron.echno_backend.billing.gateway.dto.GatewaySubscription;
 import org.tornotron.echno_backend.billing.gateway.dto.NormalizedBillingEvent;
 import org.tornotron.echno_backend.billing.gateway.dto.NotifyInfo;
 import org.tornotron.echno_backend.billing.gateway.dto.OrgBillingProfile;
+import org.tornotron.echno_backend.billing.reconcile.ProviderCompensationService;
 import org.tornotron.echno_backend.billing.repositories.BillingEventRepository;
 import org.tornotron.echno_backend.billing.repositories.CheckoutSessionRepository;
 import org.tornotron.echno_backend.billing.repositories.PaymentMandateRepository;
@@ -82,6 +83,11 @@ public class CheckoutService {
     /** Margin past the session's expiry before the provider expires the subscription too. */
     static final long PROVIDER_EXPIRY_MARGIN_MINUTES = 5;
     static final int HISTORY_PAGE_SIZE = 200;
+    /**
+     * A PENDING reservation older than this belongs to a request that died between reserving
+     * and writing; it is reclaimed instead of blocking the organization.
+     */
+    static final long PENDING_RESERVATION_MINUTES = 5;
 
     private final BillingGateway gateway;
     private final BillingGatewayProperties properties;
@@ -97,6 +103,7 @@ public class CheckoutService {
     private final SubscriptionCache cache;
     private final EntityManager entityManager;
     private final TransactionalWorkRunner transactions;
+    private final ProviderCompensationService compensations;
 
     private final ObjectMapper json = new ObjectMapper();
 
@@ -139,11 +146,22 @@ public class CheckoutService {
      * pre-check reads in one short transaction, the provider is called, and the rows are
      * written in another (both through {@link TransactionalWorkRunner}, so the tenant filter is
      * on for them); if that write fails the provider subscription just created is cancelled
-     * again so nothing is orphaned.
+     * again so nothing is orphaned, and a cancel that fails is recorded for the reconciliation
+     * sweep to retry.
+     *
+     * <p>The pre-check also reserves the checkout: it writes the session row PENDING, and the
+     * partial unique index on (organization, PENDING) admits one such row per organization.
+     * Two concurrent checkouts for one organization therefore serialise before either reaches
+     * the provider; the loser is told to retry, and finds the winner's OPEN session when it does.
      */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public CheckoutSessionDto createSession(Long organizationId, Long userId, CheckoutSessionCreateDto request) {
-        Prepared prepared = transactions.runInTransaction(() -> prepare(organizationId, request));
+        Prepared prepared;
+        try {
+            prepared = transactions.runInTransaction(() -> prepare(organizationId, userId, request));
+        } catch (DataIntegrityViolationException raced) {
+            throw checkoutInFlight(organizationId);
+        }
         if (prepared.free()) {
             SubscriptionDto activated = subscriptionService.createSubscription(organizationId, userId, prepared.plan().getCode(), prepared.period());
             log.info("Free plan {} activated directly for organization {} (no gateway)", prepared.plan().getCode(), organizationId);
@@ -176,11 +194,18 @@ public class CheckoutService {
         mandatePolicy.validateCreate(command, prepared.cycleAmount());
 
         // Provider calls, outside any transaction. Each adapter call records its own mapping
-        // row as soon as the provider hands back an id.
-        gateway.ensureCustomer(new OrgBillingProfile(organizationId, organization.getOrganizationName(), null,
-                organization.getOrganizationEmail(), organization.getOrganizationPhone(), prepared.currency()));
-        gateway.ensurePlan(plan, period);
-        GatewaySubscription created = gateway.createSubscription(command);
+        // row as soon as the provider hands back an id. A provider failure releases the
+        // reservation so the organization is not locked out for the reclaim window.
+        GatewaySubscription created;
+        try {
+            gateway.ensureCustomer(new OrgBillingProfile(organizationId, organization.getOrganizationName(), null,
+                    organization.getOrganizationEmail(), organization.getOrganizationPhone(), prepared.currency()));
+            gateway.ensurePlan(plan, period);
+            created = gateway.createSubscription(command);
+        } catch (RuntimeException e) {
+            releaseReservation(prepared.reservation());
+            throw e;
+        }
         ProviderId provider = gateway.providerId();
 
         CheckoutSession session;
@@ -188,6 +213,7 @@ public class CheckoutService {
             session = transactions.runInTransaction(() -> persistSession(organizationId, userId, request, prepared, created, provider, now, expiresAt));
         } catch (RuntimeException e) {
             compensate(created, organizationId, e);
+            releaseReservation(prepared.reservation());
             throw e;
         }
         log.info("Checkout session {} opened: organization {} plan {} ({}) provider subscription {}, expires {}",
@@ -197,20 +223,20 @@ public class CheckoutService {
 
     /** What the read pre-check found, for the steps after it. */
     private record Prepared(Plan plan, BillingPeriod period, long cycleAmount, String currency,
-                            Organization organization, CheckoutSession open) {
+                            Organization organization, CheckoutSession open, CheckoutSession reservation) {
         boolean free() {
             return cycleAmount <= 0;
         }
     }
 
-    private Prepared prepare(Long organizationId, CheckoutSessionCreateDto request) {
+    private Prepared prepare(Long organizationId, Long userId, CheckoutSessionCreateDto request) {
         Plan plan = plans.findByCodeWithFeatures(request.getPlanCode())
                 .orElseThrow(() -> new PlanNotFoundException("Plan with code '" + request.getPlanCode() + "' was not found"));
         BillingPeriod period = Optional.ofNullable(request.getBillingPeriod()).orElse(BillingPeriod.MONTHLY);
         long cycleAmount = MandatePolicy.cycleAmountPaise(plan, period);
         String currency = Optional.ofNullable(plan.getCurrency()).orElse(properties.getCurrency());
         if (cycleAmount <= 0) {
-            return new Prepared(plan, period, cycleAmount, currency, null, null);
+            return new Prepared(plan, period, cycleAmount, currency, null, null, null);
         }
         if (!checkoutReady()) {
             throw new BillingNotConfiguredException();
@@ -237,7 +263,67 @@ public class CheckoutService {
                 .findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
                         organizationId, plan.getCode(), period, CheckoutSessionStatus.OPEN, Instant.now())
                 .orElse(null);
-        return new Prepared(plan, period, cycleAmount, currency, organization, open);
+        if (open != null) {
+            return new Prepared(plan, period, cycleAmount, currency, organization, open, null);
+        }
+        CheckoutSession reservation = reserve(organizationId, userId, organization, plan, period, cycleAmount, currency);
+        return new Prepared(plan, period, cycleAmount, currency, organization, null, reservation);
+    }
+
+    /**
+     * Writes the PENDING row that holds the organization's checkout slot. A reservation left
+     * by a request that died is reclaimed once it is older than the reclaim window; a younger
+     * one means another checkout is being opened right now. The unique index decides the
+     * true race, where both requests found no reservation: the second insert fails and the
+     * caller answers 409.
+     */
+    private CheckoutSession reserve(Long organizationId, Long userId, Organization organization, Plan plan,
+                                    BillingPeriod period, long cycleAmount, String currency) {
+        Instant now = Instant.now();
+        sessions.findFirstByOrganization_IdAndStatus(organizationId, CheckoutSessionStatus.PENDING).ifPresent(pending -> {
+            Instant reclaimBefore = now.minus(PENDING_RESERVATION_MINUTES, ChronoUnit.MINUTES);
+            if (pending.getCreatedAt() != null && pending.getCreatedAt().isBefore(reclaimBefore)) {
+                log.warn("Reclaiming stale checkout reservation {} of organization {} (created {})",
+                        pending.getId(), organizationId, pending.getCreatedAt());
+                sessions.delete(pending);
+                sessions.flush();
+            } else {
+                throw checkoutInFlight(organizationId);
+            }
+        });
+        return sessions.saveAndFlush(CheckoutSession.builder()
+                .organization(organization)
+                .provider(gateway.providerId())
+                .planCode(plan.getCode())
+                .billingPeriod(period)
+                .amountPaise(cycleAmount)
+                .currency(currency)
+                .recurring(true)
+                .status(CheckoutSessionStatus.PENDING)
+                .createdByUserId(userId)
+                .expiresAt(now.plus(checkoutWindowMinutes(), ChronoUnit.MINUTES))
+                .build());
+    }
+
+    private static DuplicateResourceException checkoutInFlight(Long organizationId) {
+        return new DuplicateResourceException("A checkout is already being opened for organization " + organizationId
+                + "; retry in a moment to pick up that session");
+    }
+
+    /** Deletes the PENDING row in its own transaction; best effort, a leftover is reclaimed after the window. */
+    private void releaseReservation(CheckoutSession reservation) {
+        if (reservation == null || reservation.getId() == null) {
+            return;
+        }
+        try {
+            transactions.runInTransaction(() -> {
+                sessions.findById(reservation.getId()).ifPresent(sessions::delete);
+                return null;
+            });
+        } catch (RuntimeException e) {
+            log.warn("Checkout reservation {} could not be released; it is reclaimed after {} minutes: {}",
+                    reservation.getId(), PENDING_RESERVATION_MINUTES, e.getMessage());
+        }
     }
 
     private CheckoutSession persistSession(Long organizationId, Long userId, CheckoutSessionCreateDto request, Prepared prepared,
@@ -255,29 +341,49 @@ public class CheckoutService {
                         .currentPeriodStart(now)
                         .currentPeriodEnd(now.plus(periodDays(period), ChronoUnit.DAYS))
                         .build()));
-        return sessions.save(CheckoutSession.builder()
-                .organization(prepared.organization())
-                .provider(provider)
-                .planCode(plan.getCode())
-                .billingPeriod(period)
-                .providerSubscriptionId(created.providerSubscriptionId())
-                .amountPaise(prepared.cycleAmount())
-                .currency(prepared.currency())
-                .recurring(true)
-                .perChargeApproval(mandatePolicy.requiresPerChargeAfa(prepared.cycleAmount()))
-                .perChargeApprovalAccepted(request.isAcceptPerChargeAfa())
-                .mandateAmountCapPaise(prepared.cycleAmount())
-                .authUrl(created.authUrl())
-                .status(CheckoutSessionStatus.OPEN)
-                .createdByUserId(userId)
-                .expiresAt(expiresAt)
-                .build());
+        // The reservation row becomes the OPEN session; a reservation that is gone (swept
+        // or reclaimed while the provider was slow) is written afresh.
+        CheckoutSession session = Optional.ofNullable(prepared.reservation())
+                .map(CheckoutSession::getId)
+                .flatMap(sessions::findById)
+                .orElseGet(() -> CheckoutSession.builder().organization(prepared.organization()).build());
+        session.setProvider(provider);
+        session.setPlanCode(plan.getCode());
+        session.setBillingPeriod(period);
+        session.setProviderSubscriptionId(created.providerSubscriptionId());
+        session.setAmountPaise(prepared.cycleAmount());
+        session.setCurrency(prepared.currency());
+        session.setRecurring(true);
+        session.setPerChargeApproval(mandatePolicy.requiresPerChargeAfa(prepared.cycleAmount()));
+        session.setPerChargeApprovalAccepted(request.isAcceptPerChargeAfa());
+        session.setMandateAmountCapPaise(prepared.cycleAmount());
+        session.setAuthUrl(created.authUrl());
+        session.setStatus(CheckoutSessionStatus.OPEN);
+        session.setCreatedByUserId(userId);
+        session.setExpiresAt(expiresAt);
+        return sessions.save(session);
     }
 
-    /** The local write failed after the provider subscription existed: cancel it so it is not orphaned. */
+    /**
+     * The local write failed after the provider subscription existed: cancel it so it is not
+     * orphaned. The intent is committed first as a compensation row, so a cancel that fails,
+     * or a process that dies here, leaves something the reconciliation sweep retries.
+     */
     private void compensate(GatewaySubscription created, Long organizationId, RuntimeException cause) {
         log.error("Checkout rows for organization {} could not be written after provider subscription {} was created: {}; cancelling it",
                 organizationId, created.providerSubscriptionId(), cause.getMessage());
+        Long compensationId = null;
+        try {
+            compensationId = compensations.record(gateway.providerId(), created.providerSubscriptionId(), organizationId,
+                    "checkout write failed: " + cause.getMessage()).getId();
+        } catch (RuntimeException e) {
+            log.error("Compensation for provider subscription {} could not be recorded; trying the cancel once without it: {}",
+                    created.providerSubscriptionId(), e.getMessage(), e);
+        }
+        if (compensationId != null) {
+            compensations.cancel(compensationId);
+            return;
+        }
         try {
             gateway.cancelSubscription(created.providerSubscriptionId(), false);
         } catch (RuntimeException e) {
