@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Catalogue reseed (#814 item 6). 103-02 and 105-02 load the trade and element-type CSVs
+      only into an empty table, so a row added to a CSV later never reached an existing
+      database. These two changesets are runOnChange: the checksum covers the CSV content, so
+      an edit to the file re-runs them. Each loads the CSV into a staging table and inserts
+      the codes the catalogue does not have yet; rows already present are left as they are,
+      so a rename or reorder in the CSV is not pushed over a live catalogue.
+    -->
+
+    <changeSet id="119-01-reseed-trade-catalogue" author="abhijith" runOnChange="true">
+        <sql>DROP TABLE IF EXISTS trade_catalogue_stage</sql>
+        <sql>
+            CREATE TABLE trade_catalogue_stage (
+                code VARCHAR(50) PRIMARY KEY,
+                name VARCHAR(200) NOT NULL,
+                group_code VARCHAR(50) NOT NULL,
+                description TEXT,
+                sort_order INT NOT NULL DEFAULT 0,
+                active BOOLEAN NOT NULL DEFAULT true
+            )
+        </sql>
+        <loadData tableName="trade_catalogue_stage" file="db/seed/inspections/trade-catalogue.csv" separator=",">
+            <column name="code" type="STRING"/>
+            <column name="name" type="STRING"/>
+            <column name="group_code" type="STRING"/>
+            <column name="description" type="STRING"/>
+            <column name="sort_order" type="NUMERIC"/>
+            <column name="active" type="BOOLEAN"/>
+        </loadData>
+        <sql>
+            INSERT INTO trade_catalogue (code, name, group_code, description, sort_order, active)
+            SELECT s.code, s.name, s.group_code, s.description, s.sort_order, s.active
+            FROM trade_catalogue_stage s
+            ON CONFLICT (code) DO NOTHING
+        </sql>
+        <sql>DROP TABLE IF EXISTS trade_catalogue_stage</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="119-02-reseed-element-type-catalogue" author="abhijith" runOnChange="true">
+        <sql>DROP TABLE IF EXISTS element_type_catalogue_stage</sql>
+        <sql>
+            CREATE TABLE element_type_catalogue_stage (
+                code VARCHAR(50) PRIMARY KEY,
+                name VARCHAR(200) NOT NULL,
+                group_code VARCHAR(50) NOT NULL,
+                description TEXT,
+                sort_order INT NOT NULL DEFAULT 0,
+                active BOOLEAN NOT NULL DEFAULT true
+            )
+        </sql>
+        <loadData tableName="element_type_catalogue_stage" file="db/seed/inspections/element-type-catalogue.csv" separator=",">
+            <column name="code" type="STRING"/>
+            <column name="name" type="STRING"/>
+            <column name="group_code" type="STRING"/>
+            <column name="description" type="STRING"/>
+            <column name="sort_order" type="NUMERIC"/>
+            <column name="active" type="BOOLEAN"/>
+        </loadData>
+        <sql>
+            INSERT INTO element_type_catalogue (code, name, group_code, description, sort_order, active)
+            SELECT s.code, s.name, s.group_code, s.description, s.sort_order, s.active
+            FROM element_type_catalogue_stage s
+            ON CONFLICT (code) DO NOTHING
+        </sql>
+        <sql>DROP TABLE IF EXISTS element_type_catalogue_stage</sql>
+        <rollback/>
+    </changeSet>
+
+</databaseChangeLog>

@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -40,6 +41,7 @@ class BimImportPollerTest {
         JobRef failedRef = ref(failed, 9L, "IfcOpenShell could not open the file");
         when(jobs.findClosedNotIngested("DONE", BimImportPoller.BATCH)).thenReturn(List.of(doneRef));
         when(jobs.findClosedNotIngested("FAILED", BimImportPoller.BATCH)).thenReturn(List.of(failedRef));
+        when(jobs.claimForIngest(eq(done), any(), any(), any())).thenReturn(1);
         doAnswer(inv -> {
             TenantContext.setCurrentOrgId(inv.getArgument(0));
             try {
@@ -60,6 +62,19 @@ class BimImportPollerTest {
         verify(ingestor).markFailed(failed, "IfcOpenShell could not open the file");
         verify(runner).runForTenant(eq(7L), any());
         verify(runner).runForTenant(eq(9L), any());
+    }
+
+    @Test
+    void aDoneJobAnotherReplicaHasClaimedIsNotIngestedAgain() {
+        UUID done = UUID.randomUUID();
+        JobRef doneRef = ref(done, 7L, null);
+        when(jobs.findClosedNotIngested("DONE", BimImportPoller.BATCH)).thenReturn(List.of(doneRef));
+        when(jobs.claimForIngest(eq(done), any(), any(), any())).thenReturn(0);
+
+        poller.poll();
+
+        verify(pipeline, never()).ingest(any());
+        verify(runner, never()).runForTenant(eq(7L), any());
     }
 
     @Test

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Ingest claim on BIM import jobs (#814 item 5). The poller runs on every backend replica
+      and listed DONE jobs with no claim, so two replicas could ingest the same job; under
+      serializable isolation one aborted and its markFailed could stamp FAILED over a version
+      the winner had just set READY. A conditional UPDATE on these two columns is now the
+      claim, as it is for compliance generation jobs; a claim older than the reclaim window
+      belongs to a replica that died mid-ingest and is taken over.
+    -->
+    <changeSet id="bim-003-01-import-job-ingest-claim" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="bim_import_jobs" columnName="ingest_claimed_by"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="bim_import_jobs">
+            <column name="ingest_claimed_by" type="VARCHAR(100)"/>
+            <column name="ingest_claimed_at" type="TIMESTAMP"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

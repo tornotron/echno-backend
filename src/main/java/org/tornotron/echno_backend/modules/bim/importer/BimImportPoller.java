@@ -1,7 +1,10 @@
 package org.tornotron.echno_backend.modules.bim.importer;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -28,11 +31,15 @@ public class BimImportPoller {
 
     public static final String PROPERTY = "echno.modules.bim.ingest.enabled";
     public static final int BATCH = 5;
+    /** An ingest claim older than this belongs to a replica that died; the job is taken over. */
+    public static final int CLAIM_STALE_MINUTES = 30;
 
     private final BimImportJobRepository jobs;
     private final BimImportPipeline pipeline;
     private final BimImportIngestor ingestor;
     private final TenantScopedJobRunner tenantScopedJobRunner;
+    /** Identifies this replica on the claims it takes. */
+    private final String nodeId = nodeId();
 
     @Scheduled(fixedDelayString = "${echno.modules.bim.ingest.poll-interval-millis:5000}")
     @WithoutTenant("The import poller belongs to no organization: it reads job ids and their "
@@ -79,8 +86,26 @@ public class BimImportPoller {
     void ingestDone() {
         List<JobRef> done = jobs.findClosedNotIngested("DONE", BATCH);
         for (JobRef ref : done) {
-            log.info("Ingesting BIM import job {} for organization {}", ref.getId(), ref.getOrganizationId());
+            // Every replica lists the same DONE jobs; the conditional claim decides which one
+            // ingests each, so no version is advanced twice or failed by the loser (#814).
+            LocalDateTime now = LocalDateTime.now();
+            if (jobs.claimForIngest(ref.getId(), nodeId, now, now.minusMinutes(CLAIM_STALE_MINUTES)) != 1) {
+                log.debug("BIM import job {} is claimed by another replica; skipping", ref.getId());
+                continue;
+            }
+            log.info("Ingesting BIM import job {} for organization {} (claimed by {})", ref.getId(), ref.getOrganizationId(), nodeId);
             tenantScopedJobRunner.runForTenant(ref.getOrganizationId(), () -> pipeline.ingest(ref.getId()));
         }
+    }
+
+    private static String nodeId() {
+        String host;
+        try {
+            host = InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            host = "unknown";
+        }
+        String id = host + "/" + UUID.randomUUID().toString().substring(0, 8);
+        return id.length() > 100 ? id.substring(id.length() - 100) : id;
     }
 }

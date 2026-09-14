@@ -9,7 +9,6 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
-import org.tornotron.echno_backend.modules.inspections.domain.ElementTypeCatalogueEntry;
 import org.tornotron.echno_backend.modules.inspections.domain.OrgElementType;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateElementTypeRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.ElementTypeCatalogueDto;
@@ -20,9 +19,7 @@ import org.tornotron.echno_backend.modules.inspections.repositories.ElementTypeC
 import org.tornotron.echno_backend.modules.inspections.repositories.OrgElementTypeRepository;
 import org.tornotron.echno_backend.organization.Organization;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -143,27 +140,10 @@ public class ElementTypeService {
     }
 
     private int ensureOrgElementTypes(Organization organization, Long orgId) {
-        Set<String> present = new HashSet<>(orgRepo.findCatalogueCodes(orgId));
-        int added = 0;
-        for (ElementTypeCatalogueEntry entry : catalogueRepo.findByActiveTrueOrderBySortOrderAscCodeAsc()) {
-            if (present.contains(entry.getCode())
-                    || orgRepo.existsByOrganizationIdAndCode(orgId, entry.getCode())) {
-                continue;
-            }
-            OrgElementType copy = new OrgElementType();
-            copy.setOrganization(organization);
-            copy.setCode(entry.getCode());
-            copy.setName(entry.getName());
-            copy.setGroupCode(entry.getGroupCode());
-            copy.setDescription(entry.getDescription());
-            copy.setSortOrder(entry.getSortOrder());
-            copy.setActive(true);
-            copy.setCatalogueCode(entry.getCode());
-            orgRepo.save(copy);
-            added++;
-        }
+        // One INSERT ... ON CONFLICT DO NOTHING, so two first reads of the same organization
+        // both succeed and the catalogue is copied once (#814).
+        int added = orgRepo.copyCatalogueInto(orgId);
         if (added > 0) {
-            orgRepo.flush();
             log.info("Copied {} catalogue element types into organization {}", added, orgId);
         }
         return added;

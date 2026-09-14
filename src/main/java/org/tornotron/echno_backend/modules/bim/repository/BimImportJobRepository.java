@@ -46,6 +46,19 @@ public interface BimImportJobRepository extends JpaRepository<BimImportJob, UUID
             + "AND v.organization_id = j.organization_id)", nativeQuery = true)
     List<JobRef> findRunningWithQueuedVersion();
 
+    /**
+     * Takes the ingest claim on a DONE job. Conditional on no live claim, so of two replicas
+     * that listed the same job exactly one gets 1 back and ingests it; a claim older than
+     * {@code staleBefore} belongs to a replica that died mid-ingest and is taken over.
+     */
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE bim_import_jobs SET ingest_claimed_by = :node, ingest_claimed_at = :now, updated_at = :now "
+            + "WHERE id = :id AND status = 'DONE' AND ingested_at IS NULL "
+            + "AND (ingest_claimed_by IS NULL OR ingest_claimed_at < :staleBefore)", nativeQuery = true)
+    int claimForIngest(@Param("id") UUID id, @Param("node") String node, @Param("now") LocalDateTime now,
+                       @Param("staleBefore") LocalDateTime staleBefore);
+
     @Modifying
     @Transactional
     @Query(value = "UPDATE bim_import_jobs SET status = 'QUEUED', worker_id = NULL, lease_expires_at = NULL, "
