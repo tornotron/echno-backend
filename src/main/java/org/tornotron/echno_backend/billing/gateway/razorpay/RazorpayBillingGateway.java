@@ -168,17 +168,14 @@ public class RazorpayBillingGateway implements BillingGateway {
         // The internal price moved. Razorpay plans are immutable, so a new one is created and
         // only then is the old mapping retired (subscriptions already on it keep their id): a
         // failed POST /plans leaves the current mapping in place instead of leaving none.
-        GatewayPlanRef created = createPlan(plan, interval);
-        current.ifPresent(stale -> {
-            stale.setIsCurrent(false);
-            planMappings.save(stale);
-            log.info("Razorpay plan {} for {} ({}) retired: amount moved from {} to {} paise",
-                    stale.getProviderPlanId(), plan.getCode(), interval, stale.getAmountPaise(), amountPaise);
-        });
+        GatewayPlanRef created = createPlan(plan, interval, current.orElse(null));
+        current.ifPresent(stale -> log.info("Razorpay plan {} for {} ({}) retired: amount moved from {} to {} paise",
+                stale.getProviderPlanId(), plan.getCode(), interval, stale.getAmountPaise(), amountPaise));
         return created;
     }
 
-    private GatewayPlanRef createPlan(Plan plan, BillingPeriod interval) {
+    /** Creates the Razorpay plan, then swaps the mapping in one transaction, retiring {@code stale} if given. */
+    private GatewayPlanRef createPlan(Plan plan, BillingPeriod interval, GatewayPlanMapping stale) {
         long amountPaise = MandatePolicy.cycleAmountPaise(plan, interval);
         if (amountPaise <= 0) {
             throw new BillingGatewayException(
@@ -196,7 +193,7 @@ public class RazorpayBillingGateway implements BillingGateway {
         body.put("notes", Map.of(RazorpayEventParser.NOTE_PLAN_CODE, plan.getCode()));
         JsonNode created = client.post("/plans", body);
         String planId = requireText(created, "id", "plan");
-        planMappings.save(GatewayPlanMapping.builder()
+        planMappings.swapCurrent(stale, GatewayPlanMapping.builder()
                 .planCode(plan.getCode())
                 .provider(ProviderId.RAZORPAY)
                 .billingInterval(interval)

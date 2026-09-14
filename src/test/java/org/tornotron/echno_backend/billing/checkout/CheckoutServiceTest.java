@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -42,6 +43,8 @@ import org.tornotron.echno_backend.billing.repositories.SubscriptionRepository;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.billing.webhook.EntitlementProjection;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.billing.reconcile.ProviderCompensation;
+import org.tornotron.echno_backend.billing.reconcile.ProviderCompensationService;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
@@ -56,6 +59,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -84,6 +91,7 @@ class CheckoutServiceTest {
     @Mock private EntitlementProjection projection;
     @Mock private SubscriptionCache cache;
     @Mock private jakarta.persistence.EntityManager entityManager;
+    @Mock private ProviderCompensationService compensations;
 
     private CheckoutService service;
     private Organization organization;
@@ -93,7 +101,7 @@ class CheckoutServiceTest {
         BillingGatewayProperties properties = new BillingGatewayProperties();
         service = new CheckoutService(gateway, properties, new MandatePolicy(MandatePolicy.DEFAULT_AFA_CAP_PAISE), plans,
                 subscriptions, sessions, mandates, events, organizations, subscriptionService, projection, cache, entityManager,
-                new org.tornotron.echno_backend.common.retry.TransactionalWorkRunner());
+                new org.tornotron.echno_backend.common.retry.TransactionalWorkRunner(), compensations);
         organization = new Organization();
         organization.setId(ORG);
         organization.setOrganizationName("Acme Builders");
@@ -105,12 +113,25 @@ class CheckoutServiceTest {
             if (s.getId() == null) s.setId(17L);
             return s;
         });
+        when(sessions.saveAndFlush(any())).thenAnswer(inv -> {
+            CheckoutSession s = inv.getArgument(0);
+            if (s == null) return null;
+            if (s.getId() == null) s.setId(16L);
+            s.setCreatedAt(Instant.now());
+            return s;
+        });
+        when(sessions.findById(16L)).thenAnswer(inv -> Optional.ofNullable(reservation));
+        when(compensations.record(any(), any(), any(), any())).thenAnswer(inv -> ProviderCompensation.builder().id(5L)
+                .provider(inv.getArgument(0)).providerSubscriptionId(inv.getArgument(1)).organizationId(inv.getArgument(2)).build());
         when(subscriptions.save(any())).thenAnswer(inv -> {
             Subscription s = inv.getArgument(0);
             if (s.getId() == null) s.setId(101L);
             return s;
         });
     }
+
+    /** The PENDING row the last saveAndFlush wrote, so persistSession and the release can find it. */
+    private CheckoutSession reservation;
 
     private void razorpayWired() {
         when(gateway.isEnabled()).thenReturn(true);
@@ -224,7 +245,7 @@ class CheckoutServiceTest {
     }
 
     @Test
-    void aFailedLocalWriteAfterTheProviderCallsCancelsTheProviderSubscription() {
+    void aFailedLocalWriteAfterTheProviderCallRecordsTheCompensationBeforeCancelling() {
         razorpayWired();
         Plan pro = plan("PRO", "9999.00", "99990.00", 0);
         when(plans.findByCodeWithFeatures("PRO")).thenReturn(Optional.of(pro));
@@ -232,6 +253,12 @@ class CheckoutServiceTest {
         when(subscriptions.findByProviderAndExternalSubscriptionId(ProviderId.RAZORPAY, "sub_1")).thenReturn(Optional.empty());
         when(sessions.findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
                 eq(ORG), eq("PRO"), eq(BillingPeriod.MONTHLY), eq(CheckoutSessionStatus.OPEN), any())).thenReturn(Optional.empty());
+        doAnswer(inv -> {
+            reservation = inv.getArgument(0);
+            reservation.setId(16L);
+            reservation.setCreatedAt(Instant.now());
+            return reservation;
+        }).when(sessions).saveAndFlush(any());
         org.mockito.Mockito.doThrow(new org.springframework.dao.DataIntegrityViolationException("uk_something")).when(sessions).save(any());
 
         assertThatThrownBy(() -> service.createSession(ORG, USER,
@@ -239,7 +266,101 @@ class CheckoutServiceTest {
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
 
         verify(gateway).createSubscription(any());
-        verify(gateway).cancelSubscription("sub_1", false);
+        // the intent is durable before the provider is asked; the cancel then runs through the row
+        InOrder order = inOrder(compensations);
+        order.verify(compensations).record(eq(ProviderId.RAZORPAY), eq("sub_1"), eq(ORG), any());
+        order.verify(compensations).cancel(5L);
+        verify(gateway, never()).cancelSubscription(any(), anyBoolean());
+        // and the reservation does not outlive the failed checkout
+        verify(sessions).delete(reservation);
+    }
+
+    @Test
+    void aReservationYoungerThanTheReclaimWindowRefusesASecondCheckoutBeforeTheProviderIsCalled() {
+        razorpayWired();
+        Plan pro = plan("PRO", "9999.00", "99990.00", 0);
+        when(plans.findByCodeWithFeatures("PRO")).thenReturn(Optional.of(pro));
+        when(subscriptions.findActiveSubscription(ORG)).thenReturn(Optional.empty());
+        when(sessions.findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                eq(ORG), eq("PRO"), eq(BillingPeriod.MONTHLY), eq(CheckoutSessionStatus.OPEN), any())).thenReturn(Optional.empty());
+        CheckoutSession inFlight = CheckoutSession.builder().id(15L).status(CheckoutSessionStatus.PENDING)
+                .createdAt(Instant.now().minus(30, ChronoUnit.SECONDS)).build();
+        when(sessions.findFirstByOrganization_IdAndStatus(ORG, CheckoutSessionStatus.PENDING)).thenReturn(Optional.of(inFlight));
+
+        assertThatThrownBy(() -> service.createSession(ORG, USER,
+                CheckoutSessionCreateDto.builder().planCode("PRO").billingPeriod(BillingPeriod.MONTHLY).build()))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessageContaining("already being opened");
+
+        verify(gateway, never()).ensureCustomer(any());
+        verify(gateway, never()).createSubscription(any());
+        verify(sessions, never()).saveAndFlush(any());
+        verify(sessions, never()).delete(any(CheckoutSession.class));
+    }
+
+    @Test
+    void aReservationOlderThanTheReclaimWindowIsReplaced() {
+        razorpayWired();
+        Plan pro = plan("PRO", "9999.00", "99990.00", 0);
+        when(plans.findByCodeWithFeatures("PRO")).thenReturn(Optional.of(pro));
+        when(subscriptions.findActiveSubscription(ORG)).thenReturn(Optional.empty());
+        when(subscriptions.findByProviderAndExternalSubscriptionId(ProviderId.RAZORPAY, "sub_1")).thenReturn(Optional.empty());
+        when(sessions.findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                eq(ORG), eq("PRO"), eq(BillingPeriod.MONTHLY), eq(CheckoutSessionStatus.OPEN), any())).thenReturn(Optional.empty());
+        CheckoutSession dead = CheckoutSession.builder().id(15L).status(CheckoutSessionStatus.PENDING)
+                .createdAt(Instant.now().minus(CheckoutService.PENDING_RESERVATION_MINUTES + 1, ChronoUnit.MINUTES)).build();
+        when(sessions.findFirstByOrganization_IdAndStatus(ORG, CheckoutSessionStatus.PENDING)).thenReturn(Optional.of(dead));
+
+        CheckoutSessionDto dto = service.createSession(ORG, USER,
+                CheckoutSessionCreateDto.builder().planCode("PRO").billingPeriod(BillingPeriod.MONTHLY).build());
+
+        assertThat(dto.getProviderSubscriptionId()).isEqualTo("sub_1");
+        verify(sessions).delete(dead);
+        ArgumentCaptor<CheckoutSession> reserved = ArgumentCaptor.forClass(CheckoutSession.class);
+        verify(sessions).saveAndFlush(reserved.capture());
+        assertThat(reserved.getValue().getStatus()).isEqualTo(CheckoutSessionStatus.PENDING);
+        verify(gateway).createSubscription(any());
+    }
+
+    @Test
+    void aRacedReservationInsertIsRefusedAsACheckoutInFlight() {
+        razorpayWired();
+        Plan pro = plan("PRO", "9999.00", "99990.00", 0);
+        when(plans.findByCodeWithFeatures("PRO")).thenReturn(Optional.of(pro));
+        when(subscriptions.findActiveSubscription(ORG)).thenReturn(Optional.empty());
+        when(sessions.findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                eq(ORG), eq("PRO"), eq(BillingPeriod.MONTHLY), eq(CheckoutSessionStatus.OPEN), any())).thenReturn(Optional.empty());
+        doThrow(new org.springframework.dao.DataIntegrityViolationException("uk_checkout_session_pending")).when(sessions).saveAndFlush(any());
+
+        assertThatThrownBy(() -> service.createSession(ORG, USER,
+                CheckoutSessionCreateDto.builder().planCode("PRO").billingPeriod(BillingPeriod.MONTHLY).build()))
+                .isInstanceOf(DuplicateResourceException.class);
+
+        verify(gateway, never()).createSubscription(any());
+    }
+
+    @Test
+    void aProviderFailureReleasesTheReservation() {
+        razorpayWired();
+        Plan pro = plan("PRO", "9999.00", "99990.00", 0);
+        when(plans.findByCodeWithFeatures("PRO")).thenReturn(Optional.of(pro));
+        when(subscriptions.findActiveSubscription(ORG)).thenReturn(Optional.empty());
+        when(sessions.findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
+                eq(ORG), eq("PRO"), eq(BillingPeriod.MONTHLY), eq(CheckoutSessionStatus.OPEN), any())).thenReturn(Optional.empty());
+        doAnswer(inv -> {
+            reservation = inv.getArgument(0);
+            reservation.setId(16L);
+            reservation.setCreatedAt(Instant.now());
+            return reservation;
+        }).when(sessions).saveAndFlush(any());
+        when(gateway.createSubscription(any())).thenThrow(new IllegalStateException("razorpay 502"));
+
+        assertThatThrownBy(() -> service.createSession(ORG, USER,
+                CheckoutSessionCreateDto.builder().planCode("PRO").billingPeriod(BillingPeriod.MONTHLY).build()))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(sessions).delete(reservation);
+        verify(compensations, never()).record(any(), any(), any(), any());
     }
 
     @Test

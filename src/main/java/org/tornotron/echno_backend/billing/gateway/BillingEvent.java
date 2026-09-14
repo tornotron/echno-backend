@@ -36,8 +36,11 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "billing_event",
-        uniqueConstraints = @UniqueConstraint(name = "uk_billing_event_provider_event",
-                columnNames = {"provider", "provider_event_id"}),
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_billing_event_provider_event",
+                        columnNames = {"provider", "provider_event_id"}),
+                @UniqueConstraint(name = "uk_billing_event_payload_digest",
+                        columnNames = {"provider", "payload_digest"})},
         indexes = {
                 @Index(name = "idx_billing_event_status", columnList = "status"),
                 @Index(name = "idx_billing_event_subscription", columnList = "provider, providerSubscriptionId")
@@ -66,6 +69,14 @@ public class BillingEvent {
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String payload;
+
+    /**
+     * SHA-256 of the raw body, hex. The second dedupe key next to the provider's event id:
+     * the id header is outside the signature, so a replayed body under a fresh header is
+     * caught here.
+     */
+    @Column(name = "payload_digest", length = 64)
+    private String payloadDigest;
 
     @Column(nullable = false)
     @Builder.Default

@@ -436,6 +436,7 @@
     <include file="db/changelog/v4.0/114-checkout-session.xml"/>
     <include file="db/changelog/v4.0/115-billing-provider-unique-keys.xml"/>
     <include file="db/changelog/v4.0/116-spatial-root-code-unique.xml"/>
+    <include file="db/changelog/v4.0/118-billing-followups.xml"/>
 
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->

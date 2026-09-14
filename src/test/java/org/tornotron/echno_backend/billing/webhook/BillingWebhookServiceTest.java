@@ -42,6 +42,7 @@ class BillingWebhookServiceTest {
                 new RazorpayEventParser(), new MandatePolicy(MandatePolicy.DEFAULT_AFA_CAP_PAISE), "INR", null, null, null);
         service = new BillingWebhookService(gateway, events, publisher, mock(org.springframework.transaction.PlatformTransactionManager.class));
         when(events.findByProviderAndProviderEventId(any(), anyString())).thenReturn(Optional.empty());
+        when(events.findByProviderAndPayloadDigest(any(), anyString())).thenReturn(Optional.empty());
         when(events.saveAndFlush(any(BillingEvent.class))).thenAnswer(inv -> {
             BillingEvent row = inv.getArgument(0);
             row.setId(77L);
@@ -78,6 +79,7 @@ class BillingWebhookServiceTest {
         assertThat(row.getStatus()).isEqualTo(BillingEventStatus.RECEIVED);
         assertThat(row.getSignatureVerified()).isTrue();
         assertThat(row.getPayload().getBytes(StandardCharsets.UTF_8)).isEqualTo(body);
+        assertThat(row.getPayloadDigest()).hasSize(64).isEqualTo(BillingWebhookService.digest(body));
         verify(publisher).publishEvent(new BillingEventReceived(77L));
     }
 
@@ -98,6 +100,17 @@ class BillingWebhookServiceTest {
         when(events.findByProviderAndProviderEventId(ProviderId.RAZORPAY, "evt_dup")).thenReturn(Optional.of(new BillingEvent()));
 
         assertThat(service.ingest(body, RazorpayFixtures.signature(body), "evt_dup")).isEqualTo(WebhookIngestResult.DUPLICATE);
+        verify(events, never()).saveAndFlush(any());
+        verifyNoInteractions(publisher);
+    }
+
+    @Test
+    void aReplayedBodyUnderAFreshHeaderIsADuplicate() {
+        byte[] body = RazorpayFixtures.body("subscription.activated");
+        when(events.findByProviderAndPayloadDigest(ProviderId.RAZORPAY, BillingWebhookService.digest(body)))
+                .thenReturn(Optional.of(new BillingEvent()));
+
+        assertThat(service.ingest(body, RazorpayFixtures.signature(body), "evt_fresh_header")).isEqualTo(WebhookIngestResult.DUPLICATE);
         verify(events, never()).saveAndFlush(any());
         verifyNoInteractions(publisher);
     }

@@ -54,6 +54,7 @@ public class BillingReconciliationSweep {
     private final BillingReconciliationService reconciliation;
     private final TenantScopedJobRunner tenantRunner;
     private final BillingReconcileProperties properties;
+    private final ProviderCompensationService compensations;
 
     @Scheduled(cron = "${echno.billing.reconcile.cron:0 0 * * * *}", zone = "${echno.billing.reconcile.zone:UTC}")
     @WithoutTenant("The sweep belongs to no organization; each subscription is reconciled pinned to its own")
@@ -66,8 +67,8 @@ public class BillingReconciliationSweep {
     }
 
     /** What one pass did; package-private so a test can run it without waiting on the cron. */
-    record Summary(int organizations, int reconciled, int failed, int retried) {
-        static final Summary NONE = new Summary(0, 0, 0, 0);
+    record Summary(int organizations, int reconciled, int failed, int retried, int compensated) {
+        static final Summary NONE = new Summary(0, 0, 0, 0, 0);
     }
 
     Summary runPass() {
@@ -110,11 +111,13 @@ public class BillingReconciliationSweep {
         }
 
         int retried = reconciliation.retryPending(Math.max(1, properties.getRetryBatch()));
+        int compensated = compensations.retryDue(Math.max(1, properties.getRetryBatch()));
 
-        Summary summary = new Summary(byOrganization.size(), reconciled, failed, retried);
+        Summary summary = new Summary(byOrganization.size(), reconciled, failed, retried, compensated);
         log.info("Billing reconciliation looked at {} stale subscription(s) across {} organization(s): "
-                        + "repaired {}, failed {}; re-queued {} inbox row(s)",
-                stale.size(), summary.organizations(), summary.reconciled(), summary.failed(), summary.retried());
+                        + "repaired {}, failed {}; re-queued {} inbox row(s); retried {} provider cancellation(s)",
+                stale.size(), summary.organizations(), summary.reconciled(), summary.failed(), summary.retried(),
+                summary.compensated());
         return summary;
     }
 }

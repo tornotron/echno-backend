@@ -6,6 +6,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.tornotron.echno_backend.billing.reconcile.ProviderCompensationService;
+import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -75,7 +82,7 @@ import static org.mockito.ArgumentMatchers.any;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
-@Import({CheckoutService.class, EntitlementProjection.class, SubscriptionService.class, SubscriptionCache.class,
+@Import({CheckoutService.class, ProviderCompensationService.class, EntitlementProjection.class, SubscriptionService.class, SubscriptionCache.class,
         TenantScopedJobRunner.class, TransactionalWorkRunner.class, EntitlementPolicy.class, PastDueGracePolicy.class,
         BillingModuleEntitlementResolver.class,
         CheckoutFlowIT.GatewayConfig.class})
@@ -164,6 +171,57 @@ class CheckoutFlowIT extends AbstractIntegrationTest {
                 entityManager.createNativeQuery("DELETE FROM organization WHERE id = " + org).executeUpdate();
             }
         });
+    }
+
+    @Test
+    void twoConcurrentCheckoutsForOneOrganizationReachTheProviderOnce() throws Exception {
+        Mockito.clearInvocations(gateway);
+        CountDownLatch insideProvider = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        GatewaySubscription answer = new GatewaySubscription(SUB, "plan_it", "cust_it",
+                NormalizedSubscriptionStatus.CREATED, null, null, null, null, "https://rzp.io/i/it");
+        Mockito.when(gateway.createSubscription(any())).thenAnswer(inv -> {
+            insideProvider.countDown();
+            assertThat(release.await(20, TimeUnit.SECONDS)).as("test released the provider call").isTrue();
+            return answer;
+        });
+        CheckoutSessionCreateDto request = CheckoutSessionCreateDto.builder().planCode(PLAN).billingPeriod(BillingPeriod.MONTHLY).build();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<CheckoutSessionDto> first = executor.submit(() -> {
+                TenantContext.setCurrentOrgId(orgA);
+                try {
+                    return checkout.createSession(orgA, null, request);
+                } finally {
+                    TenantContext.clear();
+                }
+            });
+            assertThat(insideProvider.await(20, TimeUnit.SECONDS)).as("first checkout reached the provider").isTrue();
+
+            // the second checkout arrives while the first is still at the provider
+            assertThatThrownBy(() -> checkout.createSession(orgA, null, request))
+                    .isInstanceOf(DuplicateResourceException.class)
+                    .hasMessageContaining("already being opened");
+
+            release.countDown();
+            CheckoutSessionDto opened = first.get(20, TimeUnit.SECONDS);
+            assertThat(opened.getProviderSubscriptionId()).isEqualTo(SUB);
+        } finally {
+            release.countDown();
+            executor.shutdownNow();
+            Mockito.when(gateway.createSubscription(any())).thenReturn(answer);
+        }
+
+        Mockito.verify(gateway, Mockito.times(1)).createSubscription(any());
+        @SuppressWarnings("unchecked")
+        List<String> statuses = entityManager.createNativeQuery(
+                "SELECT status FROM checkout_session WHERE organization_id = " + orgA).getResultList();
+        assertThat(statuses).containsExactly("OPEN");
+
+        // once the first is OPEN, a retry of the second reuses it instead of opening another
+        CheckoutSessionDto reused = checkout.createSession(orgA, null, request);
+        assertThat(reused.getProviderSubscriptionId()).isEqualTo(SUB);
+        Mockito.verify(gateway, Mockito.times(1)).createSubscription(any());
     }
 
     @Test

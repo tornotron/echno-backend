@@ -40,7 +40,11 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -94,6 +98,7 @@ class RazorpayBillingGatewayTest {
                 customers, planMappings, plans);
         when(customers.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(planMappings.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        doCallRealMethod().when(planMappings).swapCurrent(any(), any());
     }
 
     @Test
@@ -151,6 +156,10 @@ class RazorpayBillingGatewayTest {
         assertThat(repriced.providerPlanId()).isEqualTo("plan_New002");
         assertThat(stale.getIsCurrent()).isFalse();
         assertThat(calls).containsExactly("POST /plans");
+        // retire and record go through the one transactional swap, never as two separate saves
+        verify(planMappings).swapCurrent(same(stale), argThat(fresh ->
+                Boolean.TRUE.equals(fresh.getIsCurrent()) && "plan_New002".equals(fresh.getProviderPlanId())));
+        verify(planMappings, never()).save(same(stale));
     }
 
     @Test

@@ -18,4 +18,7 @@ public interface CheckoutSessionRepository extends JpaRepository<CheckoutSession
     /** The organization's newest still-open checkout for a plan and cycle, so a retry reuses it. */
     Optional<CheckoutSession> findFirstByOrganization_IdAndPlanCodeAndBillingPeriodAndStatusAndExpiresAtAfterOrderByCreatedAtDesc(
             Long organizationId, String planCode, BillingPeriod billingPeriod, CheckoutSessionStatus status, Instant now);
+
+    /** The organization's reservation row while a checkout is being opened, if one exists. */
+    Optional<CheckoutSession> findFirstByOrganization_IdAndStatus(Long organizationId, CheckoutSessionStatus status);
 }
