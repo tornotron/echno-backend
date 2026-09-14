@@ -10,7 +10,6 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.exception.UnprocessableRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
 import org.tornotron.echno_backend.modules.inspections.domain.OrgTrade;
 import org.tornotron.echno_backend.modules.inspections.domain.TradeCatalogueEntry;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateTradeRequest;
@@ -167,7 +166,6 @@ public class TradeService {
             copy.setSortOrder(entry.getSortOrder());
             copy.setActive(true);
             copy.setCatalogueCode(entry.getCode());
-            copy.setLegacyEnum(InspectionTrade.find(entry.getCode()).map(Enum::name).orElse(null));
             orgTradeRepo.save(copy);
             added++;
         }

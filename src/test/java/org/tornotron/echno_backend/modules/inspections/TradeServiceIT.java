@@ -50,6 +50,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         ElementTypeService.class, ElementTypeMapperImpl.class, TenantEntityHelper.class})
 class TradeServiceIT extends AbstractIntegrationTest {
 
+    private static final Set<String> ORIGINAL_TRADES = Set.of(
+            "pre-construction-documentation", "shuttering-formwork", "reinforcement", "rcc", "masonry",
+            "plastering", "waterproofing", "flooring", "fabrication", "aluminium-upvc", "electrical-fixtures",
+            "plumbing-fixtures", "sanitary-fixtures", "finishing", "dimensional-check", "progress-check");
     private static final Set<String> NEW_TRADES =
             Set.of("tiling", "painting", "ceilings", "doors-windows", "fire-systems");
 
@@ -100,13 +104,11 @@ class TradeServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void catalogue_holdsTheSixteenEnumSlugsAndTheFiveNewTradesInSevenGroups() {
+    void catalogue_holdsTheSixteenOriginalSlugsAndTheFiveNewTradesInSevenGroups() {
         List<TradeCatalogueDto> catalogue = service.listCatalogue();
 
         Set<String> codes = catalogue.stream().map(TradeCatalogueDto::code).collect(Collectors.toSet());
-        for (InspectionTrade legacy : InspectionTrade.values()) {
-            assertThat(codes).as("catalogue carries enum slug %s", legacy.getValue()).contains(legacy.getValue());
-        }
+        assertThat(codes).containsAll(ORIGINAL_TRADES);
         assertThat(codes).containsAll(NEW_TRADES);
         assertThat(catalogue).hasSize(21);
         assertThat(catalogue).extracting(TradeCatalogueDto::groupCode)
@@ -134,25 +136,22 @@ class TradeServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void shim_roundTripsEveryEnumConstantThroughTheOrgRow() {
-        for (InspectionTrade legacy : InspectionTrade.values()) {
-            OrgTrade row = service.resolve(legacy.getValue(), null);
-            assertThat(row.getCode()).isEqualTo(legacy.getValue());
-            assertThat(row.getLegacyEnum()).isEqualTo(legacy.name());
-            assertThat(row.legacyTrade()).isSameAs(legacy);
+    void everyOriginalSlug_resolvesToTheOrgRowBySlugAndById() {
+        for (String code : ORIGINAL_TRADES) {
+            OrgTrade row = service.resolve(code, null);
+            assertThat(row.getCode()).isEqualTo(code);
+            assertThat(row.getCatalogueCode()).isEqualTo(code);
             // resolving by id lands on the same row
             assertThat(service.resolve(null, row.getId()).getId()).isEqualTo(row.getId());
         }
     }
 
     @Test
-    void theFiveNewTrades_resolveWithNoEnumConstantBehindThem() {
+    void theFiveNewTrades_resolveLikeAnyOtherCatalogueCode() {
         for (String code : NEW_TRADES) {
             OrgTrade row = service.resolve(code, null);
             assertThat(row.getCode()).isEqualTo(code);
-            assertThat(row.getLegacyEnum()).isNull();
-            assertThat(row.legacyTrade()).isNull();
-            assertThat(InspectionTrade.find(code)).isEmpty();
+            assertThat(row.getCatalogueCode()).isEqualTo(code);
         }
         assertThat(service.resolve("fire-systems", null).getGroupCode()).isEqualTo("fire");
     }

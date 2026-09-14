@@ -8,7 +8,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDateTime;
@@ -22,9 +21,7 @@ import java.util.UUID;
  *
  * <p>{@code catalogueCode} is set on a copied row and null on an org-defined one; the code of
  * a copied row cannot change, its name and group can, and any row can be deactivated but
- * never deleted. {@code legacyEnum} carries the {@link InspectionTrade} constant name for the
- * sixteen trades the enum knew, so the compatibility shim can keep the old enum column in
- * step, and goes with the shim.
+ * never deleted.
  */
 @Entity
 @Table(name = "inspection_trades",
@@ -65,10 +62,6 @@ public class OrgTrade implements TenantScopedEntity {
     @Column(name = "catalogue_code", length = 50)
     private String catalogueCode;
 
-    /** Enum constant name for the sixteen pre-catalogue trades; null otherwise. */
-    @Column(name = "legacy_enum", length = 50)
-    private String legacyEnum;
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -76,9 +69,4 @@ public class OrgTrade implements TenantScopedEntity {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-
-    /** The enum constant this row stands in for, or null for a trade the enum never had. */
-    public InspectionTrade legacyTrade() {
-        return legacyEnum == null ? null : InspectionTrade.valueOf(legacyEnum);
-    }
 }

@@ -101,7 +101,7 @@ public class ChecklistTemplateService {
         requireTradeIsFree(trade);
 
         ChecklistTemplate template = new ChecklistTemplate();
-        setTrade(template, trade);
+        template.setTradeRef(trade);
         template.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
         apply(template, req);
 
@@ -172,7 +172,7 @@ public class ChecklistTemplateService {
         requireTradeIsFree(trade);
 
         ChecklistTemplate template = new ChecklistTemplate();
-        setTrade(template, trade);
+        template.setTradeRef(trade);
         template.setName(starter.getName());
         template.setDescription(starter.getDescription());
         template.setActive(true);
@@ -246,13 +246,6 @@ public class ChecklistTemplateService {
             throw new InvalidRequestException("A checklist template needs a trade: send trade or tradeId.");
         }
         return tradeService.resolve(slug, tradeId);
-    }
-
-    /** Sets the org trade row and keeps the legacy enum column in step for the shim. */
-    @SuppressWarnings("deprecation")
-    private static void setTrade(ChecklistTemplate template, OrgTrade trade) {
-        template.setTradeRef(trade);
-        template.setTrade(trade.legacyTrade());
     }
 
     private void requireTradeIsFree(OrgTrade trade) {

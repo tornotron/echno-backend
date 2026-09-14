@@ -134,7 +134,7 @@ public class InspectionService {
         inspection.setTitle(req.title());
         inspection.setType(req.type());
         inspection.setCategory(categoryFor(req.category(), req.type()));
-        setTrade(inspection, tradeService.resolve(req.trade(), req.tradeId()));
+        inspection.setTradeRef(tradeService.resolve(req.trade(), req.tradeId()));
         inspection.setStatus(InspectionStatus.SCHEDULED);
         inspection.setProjectId(req.projectId());
         inspection.setLocation(req.location());
@@ -191,7 +191,7 @@ public class InspectionService {
         inspection.setTitle(req.title());
         inspection.setType(req.type());
         inspection.setCategory(categoryFor(req.category(), req.type()));
-        setTrade(inspection, tradeService.resolve(req.trade(), req.tradeId()));
+        inspection.setTradeRef(tradeService.resolve(req.trade(), req.tradeId()));
         transitionTo(inspection, req.status());
         inspection.setResult(req.result());
         inspection.setLocation(req.location());
@@ -634,20 +634,9 @@ public class InspectionService {
      * after it has run. Instantiated items are all {@code PENDING}, so only the total
      * moves; passed and failed stay at zero until the inspection is carried out.
      */
-    /** The trade slug as the wire and the event log carry it: the org row's code, else the enum's value. */
-    @SuppressWarnings("deprecation")
+    /** The trade slug as the wire and the event log carry it: the org row's code. */
     private static String tradeCode(Inspection inspection) {
-        if (inspection.getTradeRef() != null) {
-            return inspection.getTradeRef().getCode();
-        }
-        return inspection.getTrade() == null ? null : inspection.getTrade().getValue();
-    }
-
-    /** Sets the org trade row and keeps the legacy enum column in step for the shim. */
-    @SuppressWarnings("deprecation")
-    private static void setTrade(Inspection inspection, OrgTrade trade) {
-        inspection.setTradeRef(trade);
-        inspection.setTrade(trade == null ? null : trade.legacyTrade());
+        return inspection.getTradeRef() == null ? null : inspection.getTradeRef().getCode();
     }
 
     private void instantiateTemplateIfEmpty(Inspection inspection) {

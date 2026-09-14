@@ -224,7 +224,6 @@ public class ReinspectionService {
         recheck.setTitle(title.length() > 200 ? title.substring(0, 200) : title);
         recheck.setType(original.getType());
         recheck.setCategory(original.getCategory());
-        recheck.setTrade(original.getTrade());
         recheck.setTradeRef(original.getTradeRef());
         recheck.setStatus(InspectionStatus.SCHEDULED);
         recheck.setOrigin(InspectionOrigin.MANUAL);

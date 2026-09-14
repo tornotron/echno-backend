@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      The inspection ontology as data, release N+1 (#770): the InspectionTrade enum shim goes.
+      103 and 104 copied the catalogue into every organization and backfilled trade_id from the
+      enum column; the service has written both columns since. With web on the widened core
+      type, the enum columns on checklist_templates and inspections, the legacy_enum mirror on
+      inspection_trades and the index on the enum column are dropped, and trade_id becomes the
+      only reference. HALT while any row still lacks a trade_id its enum column would have
+      resolved, with the query that finds them, so nothing is lost by the drop.
+    -->
+
+    <changeSet id="117-01-assert-trade-id-populated" author="abhijith">
+        <preConditions onFail="HALT"
+                       onFailMessage="checklist_templates or inspections still hold rows whose enum trade never resolved to a trade_id; find them with: SELECT id, organization_id, trade FROM checklist_templates WHERE trade_id IS NULL UNION ALL SELECT id, organization_id, trade FROM inspections WHERE trade IS NOT NULL AND trade_id IS NULL; rerun the 104-02 statements or set trade_id by hand, then rerun the migration">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM checklist_templates WHERE trade_id IS NULL
+            </sqlCheck>
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM inspections WHERE trade IS NOT NULL AND trade_id IS NULL
+            </sqlCheck>
+        </preConditions>
+        <comment>
+            Guard only: the drop below must not run while an enum column still carries a trade
+            that trade_id does not.
+        </comment>
+        <empty/>
+    </changeSet>
+
+    <changeSet id="117-02-drop-inspection-trade-enum-columns" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="inspections" columnName="trade"/>
+        </preConditions>
+        <comment>
+            Every template has a trade row and every traded inspection has one, so the enum
+            columns carry nothing the trade_id does not. The index on the enum column goes
+            with it; idx_checklist_template_trade_id (104-01) stays.
+        </comment>
+        <dropIndex tableName="checklist_templates" indexName="idx_checklist_template_trade"/>
+        <dropColumn tableName="checklist_templates" columnName="trade"/>
+        <dropColumn tableName="inspections" columnName="trade"/>
+        <dropColumn tableName="inspection_trades" columnName="legacy_enum"/>
+        <rollback>
+            <addColumn tableName="inspection_trades">
+                <column name="legacy_enum" type="VARCHAR(50)"/>
+            </addColumn>
+            <addColumn tableName="inspections">
+                <column name="trade" type="VARCHAR(50)"/>
+            </addColumn>
+            <addColumn tableName="checklist_templates">
+                <column name="trade" type="VARCHAR(50)"/>
+            </addColumn>
+            <createIndex tableName="checklist_templates" indexName="idx_checklist_template_trade">
+                <column name="trade"/>
+            </createIndex>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="117-03-checklist-template-trade-id-not-null" author="abhijith">
+        <preConditions onFail="HALT"
+                       onFailMessage="checklist_templates holds rows without a trade_id; find them with: SELECT id, organization_id, name FROM checklist_templates WHERE trade_id IS NULL">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM checklist_templates WHERE trade_id IS NULL
+            </sqlCheck>
+        </preConditions>
+        <comment>
+            A template is defined for exactly one trade; the column was nullable only while the
+            shim lived (104-01).
+        </comment>
+        <addNotNullConstraint tableName="checklist_templates" columnName="trade_id" columnDataType="UUID"/>
+        <rollback>
+            <dropNotNullConstraint tableName="checklist_templates" columnName="trade_id" columnDataType="UUID"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
