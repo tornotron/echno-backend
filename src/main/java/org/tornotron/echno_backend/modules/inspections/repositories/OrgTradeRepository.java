@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.modules.inspections.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -31,4 +32,20 @@ public interface OrgTradeRepository extends JpaRepository<OrgTrade, UUID> {
 
     @Query("SELECT t.catalogueCode FROM OrgTrade t WHERE t.organization.id = :organizationId AND t.catalogueCode IS NOT NULL")
     List<String> findCatalogueCodes(@Param("organizationId") Long organizationId);
+
+    /**
+     * Copies every active catalogue trade the organization does not have yet, in one
+     * statement. {@code ON CONFLICT DO NOTHING} is what makes the first-use copy safe under
+     * concurrency: two first requests both run it, the second finds the rows the first
+     * committed and inserts nothing, and neither fails on {@code uk_inspection_trade_code}.
+     *
+     * @return rows inserted, 0 when the organization already had the whole catalogue.
+     */
+    @Modifying
+    @Query(value = "INSERT INTO inspection_trades (organization_id, code, name, group_code, description, sort_order, active, catalogue_code) "
+            + "SELECT :organizationId, c.code, c.name, c.group_code, c.description, c.sort_order, true, c.code "
+            + "FROM trade_catalogue c WHERE c.active "
+            + "AND NOT EXISTS (SELECT 1 FROM inspection_trades t WHERE t.organization_id = :organizationId AND t.code = c.code) "
+            + "ON CONFLICT DO NOTHING", nativeQuery = true)
+    int copyCatalogueInto(@Param("organizationId") Long organizationId);
 }

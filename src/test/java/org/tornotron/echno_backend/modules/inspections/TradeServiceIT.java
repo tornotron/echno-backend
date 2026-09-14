@@ -32,7 +32,18 @@ import org.tornotron.echno_backend.modules.inspections.service.ElementTypeServic
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -133,6 +144,58 @@ class TradeServiceIT extends AbstractIntegrationTest {
 
         // and the other tenant is untouched until it reads
         assertThat(orgTradeRepo.findByOrganizationIdOrderBySortOrderAscNameAsc(orgBId)).isEmpty();
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void twoConcurrentFirstReads_bothSucceedAndTheCatalogueIsCopiedOnce() throws Exception {
+        TransactionTemplate txTemplate = new TransactionTemplate(txManager);
+        txTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        List<OrgTrade> before = txTemplate.execute(s -> orgTradeRepo.findByOrganizationIdOrderBySortOrderAscNameAsc(orgAId));
+        assertThat(before).isEmpty();
+        CyclicBarrier bothInside = new CyclicBarrier(2);
+        Callable<Integer> firstRead = () -> {
+            TenantContext.setCurrentOrgId(orgAId);
+            try {
+                return txTemplate.execute(status -> {
+                    Organization org = entityManager.find(Organization.class, orgAId);
+                    try {
+                        bothInside.await(20, TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        throw new IllegalStateException(e);
+                    }
+                    return service.ensureOrgTrades(org);
+                });
+            } finally {
+                TenantContext.clear();
+            }
+        };
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        int copied = 0;
+        int serialized = 0;
+        try {
+            List<Future<Integer>> reads = List.of(executor.submit(firstRead), executor.submit(firstRead));
+            for (Future<Integer> read : reads) {
+                try {
+                    copied += read.get(30, TimeUnit.SECONDS);
+                } catch (ExecutionException e) {
+                    // Under CockroachDB's serializable isolation the second copy may still be told to
+                    // restart its transaction; that surfaces as the 409 "retry" the API already maps.
+                    // What must never happen again is the unique-key refusal that was a 500.
+                    assertThat(e.getCause()).isInstanceOf(CannotAcquireLockException.class);
+                    serialized++;
+                }
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+        assertThat(copied).as("copied by the reads that committed").isEqualTo(21);
+        assertThat(serialized).isLessThanOrEqualTo(1);
+        List<OrgTrade> after = txTemplate.execute(s -> orgTradeRepo.findByOrganizationIdOrderBySortOrderAscNameAsc(orgAId));
+        assertThat(after).hasSize(21);
+        // and the read that was told to retry finds the copy done
+        Integer topUp = txTemplate.execute(s -> service.ensureOrgTrades(entityManager.find(Organization.class, orgAId)));
+        assertThat(topUp).isZero();
     }
 
     @Test

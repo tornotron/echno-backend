@@ -11,7 +11,6 @@ import org.tornotron.echno_backend.common.exception.UnprocessableRequestExceptio
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.modules.inspections.domain.OrgTrade;
-import org.tornotron.echno_backend.modules.inspections.domain.TradeCatalogueEntry;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateTradeRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.OrgTradeDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.TradeCatalogueDto;
@@ -21,9 +20,7 @@ import org.tornotron.echno_backend.modules.inspections.repositories.OrgTradeRepo
 import org.tornotron.echno_backend.modules.inspections.repositories.TradeCatalogueRepository;
 import org.tornotron.echno_backend.organization.Organization;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -150,27 +147,10 @@ public class TradeService {
     }
 
     private int ensureOrgTrades(Organization organization, Long orgId) {
-        Set<String> present = new HashSet<>(orgTradeRepo.findCatalogueCodes(orgId));
-        int added = 0;
-        for (TradeCatalogueEntry entry : catalogueRepo.findByActiveTrueOrderBySortOrderAscCodeAsc()) {
-            if (present.contains(entry.getCode())
-                    || orgTradeRepo.existsByOrganizationIdAndCode(orgId, entry.getCode())) {
-                continue;
-            }
-            OrgTrade copy = new OrgTrade();
-            copy.setOrganization(organization);
-            copy.setCode(entry.getCode());
-            copy.setName(entry.getName());
-            copy.setGroupCode(entry.getGroupCode());
-            copy.setDescription(entry.getDescription());
-            copy.setSortOrder(entry.getSortOrder());
-            copy.setActive(true);
-            copy.setCatalogueCode(entry.getCode());
-            orgTradeRepo.save(copy);
-            added++;
-        }
+        // One INSERT ... ON CONFLICT DO NOTHING, so two first reads of the same organization
+        // both succeed and the catalogue is copied once (#814).
+        int added = orgTradeRepo.copyCatalogueInto(orgId);
         if (added > 0) {
-            orgTradeRepo.flush();
             log.info("Copied {} catalogue trades into organization {}", added, orgId);
         }
         return added;

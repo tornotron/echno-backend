@@ -42,6 +42,7 @@ import org.tornotron.echno_backend.modules.bim.dto.MergeBimElementRequest;
 import org.tornotron.echno_backend.modules.bim.importer.BimArtifactReader;
 import org.tornotron.echno_backend.modules.bim.importer.BimImportIngestor;
 import org.tornotron.echno_backend.modules.bim.importer.BimImportPipeline;
+import org.tornotron.echno_backend.modules.bim.importer.BimImportPoller;
 import org.tornotron.echno_backend.modules.bim.mapper.BimMapperImpl;
 import org.tornotron.echno_backend.modules.bim.repository.BimElementRepository;
 import org.tornotron.echno_backend.modules.bim.repository.BimImportJobRepository;
@@ -238,6 +239,30 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
                     assertThat(e.getMergedIntoId()).isEqualTo(replacement.getId());
                 });
         assertThat(spatial.getNode(projectId, node).bimElementGuid()).isEqualTo("COL-NEW");
+    }
+
+    @Test
+    void theIngestClaimGoesToOneReplicaAndAStaleClaimIsTakenOver() {
+        UUID versionId = version(1);
+        UUID jobId = doneJob(versionId);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime staleBefore = now.minusMinutes(BimImportPoller.CLAIM_STALE_MINUTES);
+
+        assertThat(jobs.claimForIngest(jobId, "replica-a", now, staleBefore)).isEqualTo(1);
+        assertThat(jobs.claimForIngest(jobId, "replica-b", now, staleBefore)).isEqualTo(0);
+        assertThat(jobs.claimForIngest(jobId, "replica-a", now, staleBefore)).isEqualTo(0);
+
+        // a claim older than the window belongs to a replica that died mid-ingest
+        LocalDateTime later = now.plusMinutes(BimImportPoller.CLAIM_STALE_MINUTES + 1);
+        assertThat(jobs.claimForIngest(jobId, "replica-b", later, later.minusMinutes(BimImportPoller.CLAIM_STALE_MINUTES)))
+                .isEqualTo(1);
+
+        // once ingested there is nothing left to claim
+        inCommittedTx(() -> entityManager.createNativeQuery("UPDATE bim_import_jobs SET ingested_at = now() WHERE id = :id")
+                .setParameter("id", jobId).executeUpdate());
+        LocalDateTime again = later.plusHours(1);
+        assertThat(jobs.claimForIngest(jobId, "replica-c", again, again.minusMinutes(BimImportPoller.CLAIM_STALE_MINUTES)))
+                .isEqualTo(0);
     }
 
     @Test

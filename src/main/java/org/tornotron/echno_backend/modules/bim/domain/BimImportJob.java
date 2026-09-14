@@ -106,6 +106,13 @@ public class BimImportJob implements TenantScopedEntity {
     @Column(name = "ingested_at")
     private LocalDateTime ingestedAt;
 
+    /** The backend replica that claimed the DONE job for ingestion; the claim is the guard against a second replica ingesting it too. */
+    @Column(name = "ingest_claimed_by", length = 100)
+    private String ingestClaimedBy;
+
+    @Column(name = "ingest_claimed_at")
+    private LocalDateTime ingestClaimedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
