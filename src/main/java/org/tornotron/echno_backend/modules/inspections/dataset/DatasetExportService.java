@@ -472,10 +472,7 @@ public class DatasetExportService {
     }
 
     private static String tradeOf(Inspection inspection) {
-        if (inspection.getTradeRef() != null && inspection.getTradeRef().getCode() != null) {
-            return inspection.getTradeRef().getCode();
-        }
-        return inspection.getTrade() == null ? null : inspection.getTrade().name().toLowerCase(Locale.ROOT);
+        return inspection.getTradeRef() == null ? null : inspection.getTradeRef().getCode();
     }
 
     private static String iso(LocalDateTime at) {

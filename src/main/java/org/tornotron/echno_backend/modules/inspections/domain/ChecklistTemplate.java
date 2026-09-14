@@ -8,7 +8,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDateTime;
@@ -42,7 +41,6 @@ import java.util.UUID;
         uniqueConstraints = @UniqueConstraint(name = "uk_checklist_template_trade_id",
                 columnNames = {"organization_id", "trade_id"}),
         indexes = {
-                @Index(name = "idx_checklist_template_trade", columnList = "trade"),
                 @Index(name = "idx_checklist_template_trade_id", columnList = "trade_id"),
                 @Index(name = "idx_checklist_template_active", columnList = "active")
         })
@@ -55,14 +53,9 @@ public class ChecklistTemplate implements TenantScopedEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    /** Compatibility shim; null for an org-defined trade. Goes with {@link InspectionTrade}. */
-    @Deprecated
-    @Enumerated(EnumType.STRING)
-    @Column(name = "trade", length = 50)
-    private InspectionTrade trade;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trade_id")
+    /** The org's own trade row; a template is defined for exactly one trade. */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "trade_id", nullable = false)
     private OrgTrade tradeRef;
 
     @Column(nullable = false, length = 200)

@@ -14,8 +14,8 @@ public interface StarterChecklistTemplateRepository
 
     /**
      * Every starter on offer. Bounded by what the table is rather than by how much
-     * data a tenant has accumulated: there is at most one starter per
-     * {@link InspectionTrade}, and the enum has sixteen members. It is global
+     * data a tenant has accumulated: there is at most one starter per catalogue
+     * trade code, and the catalogue is a short list. It is global
      * reference data shipped by a Liquibase seed, so no tenant can grow it.
      */
     List<StarterChecklistTemplate> findByActiveTrueOrderByTradeCodeAsc();

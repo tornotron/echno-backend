@@ -23,14 +23,6 @@ class InspectionTaxonomyEnumsTest {
     }
 
     @Test
-    void trade_roundTripsThroughItsWireValue() {
-        for (InspectionTrade trade : InspectionTrade.values()) {
-            assertThat(InspectionTrade.fromValue(trade.getValue())).isEqualTo(trade);
-            assertThat(InspectionTrade.fromValue(upper(trade.getValue()))).isEqualTo(trade);
-        }
-    }
-
-    @Test
     void defectSeverity_roundTripsThroughItsWireValue() {
         for (DefectSeverity severity : DefectSeverity.values()) {
             assertThat(DefectSeverity.fromValue(severity.getValue())).isEqualTo(severity);
@@ -51,9 +43,6 @@ class InspectionTaxonomyEnumsTest {
         assertThatThrownBy(() -> InspectionCategory.fromValue("structural"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown inspection category");
-        assertThatThrownBy(() -> InspectionTrade.fromValue("roofing"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Unknown inspection trade");
         assertThatThrownBy(() -> DefectSeverity.fromValue("catastrophic"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown defect severity");

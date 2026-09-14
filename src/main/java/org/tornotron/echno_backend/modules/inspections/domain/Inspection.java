@@ -14,7 +14,6 @@ import org.tornotron.echno_backend.modules.inspections.InspectionCategory;
 import org.tornotron.echno_backend.modules.inspections.InspectionOrigin;
 import org.tornotron.echno_backend.modules.inspections.InspectionResult;
 import org.tornotron.echno_backend.modules.inspections.InspectionStatus;
-import org.tornotron.echno_backend.modules.inspections.InspectionTrade;
 import org.tornotron.echno_backend.modules.inspections.InspectionType;
 import org.tornotron.echno_backend.organization.Organization;
 
@@ -72,14 +71,8 @@ public class Inspection implements TenantScopedEntity {
     @Column(name = "category", nullable = false, length = 30)
     private InspectionCategory category = InspectionCategory.OTHER;
 
-    // The QA/QC stage or trade. Null on safety and compliance inspections.
-    @Enumerated(EnumType.STRING)
-    // Compatibility shim kept in step with tradeRef; null for an org-defined trade.
-    @Deprecated
-    @Column(name = "trade", length = 50)
-    private InspectionTrade trade;
-
-    // The org's own trade row. Null on safety and compliance inspections.
+    // The QA/QC stage or trade as the org's own trade row. Null on safety and
+    // compliance inspections.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trade_id")
     private OrgTrade tradeRef;

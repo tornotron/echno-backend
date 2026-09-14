@@ -13,7 +13,7 @@ import org.tornotron.echno_backend.common.module.GlobalReferenceData;
  * The product-shipped catalogue of inspection trades. Global reference data seeded by
  * Liquibase: every organization copies from the same list and none owns a row. The code is
  * the stable key and, for the sixteen trades that predate the catalogue, is the same slug the
- * {@code InspectionTrade} enum has always put on the wire.
+ * trade has always carried on the wire.
  *
  * <p>Tenant rows never reference this table by id. An organization works against its own
  * {@link OrgTrade} copy, made by {@code TradeService.ensureOrgTrades}, and the copy remembers
