@@ -58,9 +58,28 @@ public class BimImportIngestor {
     private final ObjectMapper objectMapper;
     private final ObjectProvider<BimIngestionListener> listeners;
 
+    /** Thrown when the job's ingest claim belongs to another replica; nothing was written. */
+    public static class ClaimLostException extends RuntimeException {
+        public ClaimLostException(String message) {
+            super(message);
+        }
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public BimImportSummary ingest(UUID jobId) throws IOException {
+        return ingest(jobId, null);
+    }
+
+    /**
+     * Ingests under the claim {@code claimedBy} took (null: unfenced, for callers that own the
+     * job outright). The claim is read inside this transaction, so under serializable
+     * isolation a takeover committed after this read makes this commit fail rather than
+     * land on top of the other replica's writes; a takeover before it is refused here.
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public BimImportSummary ingest(UUID jobId, String claimedBy) throws IOException {
         BimImportJob job = requireJob(jobId);
+        requireClaim(job, claimedBy);
         BimModelVersion version = versions.findByIdAndModelId(job.getVersionId(), job.getModelId())
                 .orElseThrow(() -> new ResourceNotFoundException("BIM model version not found: " + job.getVersionId()));
         BimModel model = models.findByIdScoped(job.getModelId())
@@ -91,7 +110,17 @@ public class BimImportIngestor {
     /** Closes a job whose ingestion failed, or whose worker failed, on the version. */
     @Transactional
     public void markFailed(UUID jobId, String error) {
+        markFailed(jobId, error, null);
+    }
+
+    /** As {@link #markFailed(UUID, String)}, fenced on the ingest claim; a lost claim writes nothing. */
+    @Transactional
+    public void markFailed(UUID jobId, String error, String claimedBy) {
         BimImportJob job = requireJob(jobId);
+        if (claimedBy != null && !claimedBy.equals(job.getIngestClaimedBy())) {
+            log.warn("BIM import job {} is now claimed by {}; not recording this replica's failure", jobId, job.getIngestClaimedBy());
+            return;
+        }
         versions.findByIdAndModelId(job.getVersionId(), job.getModelId()).ifPresent(version -> {
             if (version.getStatus() != BimVersionStatus.READY) {
                 version.setStatus(BimVersionStatus.FAILED);
@@ -102,6 +131,13 @@ public class BimImportIngestor {
             job.setError(error);
         }
         job.setIngestedAt(LocalDateTime.now());
+    }
+
+    private static void requireClaim(BimImportJob job, String claimedBy) {
+        if (claimedBy != null && !claimedBy.equals(job.getIngestClaimedBy())) {
+            throw new ClaimLostException("ingest claim now belongs to " + job.getIngestClaimedBy()
+                    + ", not " + claimedBy + "; leaving the job to it");
+        }
     }
 
     /** Mirrors a worker's claim on the version: QUEUED becomes PROCESSING. */

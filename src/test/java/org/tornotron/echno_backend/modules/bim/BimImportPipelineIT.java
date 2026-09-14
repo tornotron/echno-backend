@@ -95,6 +95,7 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
     }
 
     @Autowired private BimImportPipeline pipeline;
+    @Autowired private BimImportIngestor ingestor;
     @Autowired private BimModelService modelService;
     @Autowired private BimElementService elementService;
     @Autowired private SpatialNodeService spatial;
@@ -242,7 +243,7 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void theIngestClaimGoesToOneReplicaAndAStaleClaimIsTakenOver() {
+    void theIngestClaimGoesToOneReplicaAndAStaleClaimIsTakenOver() throws Exception {
         UUID versionId = version(1);
         UUID jobId = doneJob(versionId);
         LocalDateTime now = LocalDateTime.now();
@@ -256,6 +257,12 @@ class BimImportPipelineIT extends AbstractIntegrationTest {
         LocalDateTime later = now.plusMinutes(BimImportPoller.CLAIM_STALE_MINUTES + 1);
         assertThat(jobs.claimForIngest(jobId, "replica-b", later, later.minusMinutes(BimImportPoller.CLAIM_STALE_MINUTES)))
                 .isEqualTo(1);
+
+        // a replica whose claim was taken over writes nothing, on success or on failure
+        assertThatThrownBy(() -> ingestor.ingest(jobId, "replica-a")).isInstanceOf(BimImportIngestor.ClaimLostException.class);
+        ingestor.markFailed(jobId, "late failure from replica-a", "replica-a");
+        assertThat(entityManager.createNativeQuery("SELECT ingested_at FROM bim_import_jobs WHERE id = :id")
+                .setParameter("id", jobId).getSingleResult()).isNull();
 
         // once ingested there is nothing left to claim
         inCommittedTx(() -> entityManager.createNativeQuery("UPDATE bim_import_jobs SET ingested_at = now() WHERE id = :id")

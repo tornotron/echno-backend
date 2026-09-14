@@ -174,6 +174,7 @@ class TradeServiceIT extends AbstractIntegrationTest {
         int copied = 0;
         int serialized = 0;
         try {
+          try {
             List<Future<Integer>> reads = List.of(executor.submit(firstRead), executor.submit(firstRead));
             for (Future<Integer> read : reads) {
                 try {
@@ -186,16 +187,20 @@ class TradeServiceIT extends AbstractIntegrationTest {
                     serialized++;
                 }
             }
-        } finally {
+          } finally {
             executor.shutdownNow();
+          }
+          assertThat(copied).as("copied by the reads that committed").isEqualTo(21);
+          assertThat(serialized).isLessThanOrEqualTo(1);
+          List<OrgTrade> after = txTemplate.execute(s -> orgTradeRepo.findByOrganizationIdOrderBySortOrderAscNameAsc(orgAId));
+          assertThat(after).hasSize(21);
+          // and the read that was told to retry finds the copy done
+          Integer topUp = txTemplate.execute(s -> service.ensureOrgTrades(entityManager.find(Organization.class, orgAId)));
+          assertThat(topUp).isZero();
+        } finally {
+            // NOT_SUPPORTED means no test transaction, so the @AfterTransaction cleanup does not run for this test
+            removeCommittedRows();
         }
-        assertThat(copied).as("copied by the reads that committed").isEqualTo(21);
-        assertThat(serialized).isLessThanOrEqualTo(1);
-        List<OrgTrade> after = txTemplate.execute(s -> orgTradeRepo.findByOrganizationIdOrderBySortOrderAscNameAsc(orgAId));
-        assertThat(after).hasSize(21);
-        // and the read that was told to retry finds the copy done
-        Integer topUp = txTemplate.execute(s -> service.ensureOrgTrades(entityManager.find(Organization.class, orgAId)));
-        assertThat(topUp).isZero();
     }
 
     @Test
