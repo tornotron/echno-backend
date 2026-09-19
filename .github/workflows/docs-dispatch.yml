@@ -1,0 +1,45 @@
+name: Docs dispatch
+
+# Tell tornotron/echno-docs that development moved. The portal renders its API
+# reference from docs/openapi.json and its decisions index from docs/specs at
+# build time, so a dispatch after a merge keeps both within minutes of the code
+# without a docs commit. staging.yml is dispatch-only and dormant, so this lives
+# in its own workflow, filtered to the two paths the portal reads.
+
+on:
+  push:
+    branches: [development]
+    paths:
+      - docs/openapi.json
+      - docs/specs/**
+
+permissions: {}
+
+concurrency:
+  group: docs-dispatch
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      # GITHUB_TOKEN is scoped to this repository and cannot create a dispatch
+      # event on another, so this needs a fine-grained personal access token
+      # with Contents: read and write on tornotron/echno-docs, stored here as
+      # the DOCS_DISPATCH_TOKEN secret. Until the secret exists the job warns
+      # and exits cleanly rather than failing every merge.
+      - name: Send backend-merged to echno-docs
+        env:
+          TOKEN: ${{ secrets.DOCS_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::DOCS_DISPATCH_TOKEN is not set; echno-docs was not told about $GITHUB_SHA"
+            exit 0
+          fi
+          curl -sSf -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/tornotron/echno-docs/dispatches \
+            -d "{\"event_type\":\"backend-merged\",\"client_payload\":{\"sha\":\"$GITHUB_SHA\",\"ref\":\"$GITHUB_REF_NAME\"}}"
+          echo "Sent backend-merged for $GITHUB_SHA"
