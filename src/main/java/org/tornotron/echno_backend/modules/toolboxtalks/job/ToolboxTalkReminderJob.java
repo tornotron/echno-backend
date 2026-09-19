@@ -2,9 +2,11 @@ package org.tornotron.echno_backend.modules.toolboxtalks.job;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.IntFunction;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -76,8 +78,9 @@ public class ToolboxTalkReminderJob {
      * @return The number of organizations reminded, for the log line and the test.
      */
     public int runPass(LocalDate day) {
-        List<ToolboxTalkRepository.OrganizationRow> organizations =
-                talks.findOrganizationsForReminder(PageRequest.of(0, ORGANIZATION_SCAN_LIMIT));
+        List<ToolboxTalkRepository.OrganizationRow> organizations = allPages(
+                page -> talks.findOrganizationsForReminder(PageRequest.of(page, ORGANIZATION_SCAN_LIMIT)),
+                ORGANIZATION_SCAN_LIMIT);
         int reminded = 0;
         int dark = 0;
         int notEntitled = 0;
@@ -108,8 +111,10 @@ public class ToolboxTalkReminderJob {
     private int remindOrganization(Long orgId, LocalDate day) {
         Set<Long> covered = new HashSet<>(talks.findProjectIdsWithRecordedTalkOn(day));
         int missing = 0;
-        for (ToolboxTalkRepository.OpenProjectRow project
-                : talks.findOpenProjects(PageRequest.of(0, PROJECTS_PER_ORGANIZATION))) {
+        List<ToolboxTalkRepository.OpenProjectRow> projects = allPages(
+                page -> talks.findOpenProjects(PageRequest.of(page, PROJECTS_PER_ORGANIZATION)),
+                PROJECTS_PER_ORGANIZATION);
+        for (ToolboxTalkRepository.OpenProjectRow project : projects) {
             if (covered.contains(project.getId())) {
                 continue;
             }
@@ -119,5 +124,18 @@ public class ToolboxTalkReminderJob {
             events.publishEvent(new ToolboxTalkMissingEvent(orgId, project.getId(), project.getProjectName(), day));
         }
         return missing;
+    }
+
+    // Walks a scalar scan page by page until a short page, so an organization or a project
+    // past the first page is looked at too; the page size only bounds one round trip.
+    public static <T> List<T> allPages(IntFunction<List<T>> page, int pageSize) {
+        List<T> all = new ArrayList<>();
+        for (int n = 0; ; n++) {
+            List<T> rows = page.apply(n);
+            all.addAll(rows);
+            if (rows.size() < pageSize) {
+                return all;
+            }
+        }
     }
 }
