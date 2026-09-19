@@ -34,11 +34,14 @@ public class ToolboxTalksModule implements EchnoModule {
             "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','safety-officer')";
 
     static final String ROUTE_ROOT = "/users/dashboard/" + ID;
+    // The web sidebar has no safety section of its own; talks sit with the inspections, the
+    // other site-safety records, so the safety officer finds them in one place.
+    static final String NAV_SECTION = "inspections";
 
     static final List<String> PERMISSIONS = List.of(PERMISSION_READ, PERMISSION_MANAGE);
 
     static final List<NavDescriptor> NAV = List.of(
-            new NavDescriptor("Toolbox Talks", ID, ROUTE_ROOT, "package", List.of(PERMISSION_READ)));
+            new NavDescriptor("Toolbox Talks", NAV_SECTION, ROUTE_ROOT, "hard-hat", List.of(PERMISSION_READ)));
 
     private static final ModuleManifest MANIFEST = new ModuleManifest(
             ID,
