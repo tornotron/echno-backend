@@ -9,3 +9,7 @@ build
 prometheus.yml
 loki-config.yml
 grafana-provisioning
+
+# Local development stack (never part of the image)
+docker-compose.dev.yml
+dev/

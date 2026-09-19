@@ -366,3 +366,117 @@ tasks.register('scaffoldModule', Exec) {
         }
     }
 }
+
+// Build information for GET /actuator/info (issue #828). Spring Boot's own contributors read
+// two classpath files: META-INF/build-info.properties (buildInfo() below: artifact, version and
+// build time) and git.properties (branch, sha and commit time), which generateGitProperties
+// writes at build time from the working tree. Inside the image build there is no .git (the
+// Dockerfile copies only the sources), so the task falls back to GIT_SHA and GIT_BRANCH, which
+// the Dockerfile takes as build arguments and the workflows pass from the run's commit. With
+// neither source the values are "unknown" and the build still succeeds. The endpoint exposes
+// nothing else: management.info.env stays off, so no property or secret reaches it.
+springBoot {
+    buildInfo()
+}
+
+def gitValue = { List<String> args, String fallback ->
+    try {
+        def run = providers.exec {
+            commandLine(['git'] + args)
+            workingDir = projectDir
+            ignoreExitValue = true
+        }
+        def text = run.standardOutput.asText.get().trim()
+        return (run.result.get().exitValue == 0 && !text.isEmpty()) ? text : fallback
+    } catch (Exception ignored) {
+        return fallback
+    }
+}
+
+def gitPropertiesDir = layout.buildDirectory.dir('generated/git')
+
+tasks.register('generateGitProperties') {
+    group = 'build'
+    description = 'Writes git.properties (branch, sha, commit time) for /actuator/info'
+    def outputDir = gitPropertiesDir
+    outputs.dir(outputDir)
+    // Never up to date: the sha changes underneath Gradle without any declared input changing.
+    outputs.upToDateWhen { false }
+    doLast {
+        def sha = gitValue(['rev-parse', 'HEAD'], System.getenv('GIT_SHA') ?: 'unknown')
+        def branch = gitValue(['rev-parse', '--abbrev-ref', 'HEAD'], System.getenv('GIT_BRANCH') ?: 'unknown')
+        def time = gitValue(['log', '-1', '--format=%cI'], 'unknown')
+        def dirty = sha == 'unknown' || System.getenv('GIT_SHA') != null
+                ? 'unknown'
+                : (gitValue(['status', '--porcelain'], '').isEmpty() ? 'false' : 'true')
+        def abbrev = sha == 'unknown' ? 'unknown' : sha.take(12)
+        def file = outputDir.get().file('git.properties').asFile
+        file.parentFile.mkdirs()
+        file.text = """git.branch=${branch}
+git.commit.id=${sha}
+git.commit.id.abbrev=${abbrev}
+git.commit.time=${time}
+git.dirty=${dirty}
+"""
+    }
+}
+
+sourceSets.main.resources.srcDir(gitPropertiesDir)
+
+// The local profile is for running from source (bootRun, the IDE, the tests). It carries the
+// dev stack's literals, so it stays out of the jar and therefore out of the image; a deployment
+// supplies every value through the environment.
+tasks.named('bootJar') {
+    exclude 'application-local.yml'
+}
+tasks.named('jar') {
+    exclude 'application-local.yml'
+}
+tasks.named('processResources') {
+    dependsOn 'generateGitProperties'
+}
+
+// The local development stack (docker-compose.dev.yml): CockroachDB, Keycloak with the dev
+// realm, MinIO and Redis on offset localhost ports. See README.md, "Local development".
+def devCompose = ['docker', 'compose', '-f', 'docker-compose.dev.yml']
+
+// Two steps because the stack has two one-shot services (the database and bucket init
+// containers) and compose's --wait reports a container that has exited, even cleanly, as a
+// failure. The first step starts everything; the second waits on the four long-running
+// services only, by name.
+tasks.register('devUp', Exec) {
+    group = 'echno'
+    description = 'Starts the local development dependencies and waits until they are healthy'
+    workingDir = projectDir
+    commandLine(devCompose + ['up', '-d'])
+    finalizedBy 'devWait'
+}
+
+tasks.register('devWait', Exec) {
+    group = 'echno'
+    description = 'Waits until the long-running local development services report healthy'
+    workingDir = projectDir
+    commandLine(devCompose + ['up', '-d', '--wait', 'cockroachdb', 'keycloak', 'minio', 'redis'])
+    finalizedBy 'devInitWait'
+}
+
+tasks.register('devInitWait', Exec) {
+    group = 'echno'
+    description = 'Waits until the database and bucket init containers have completed'
+    workingDir = projectDir
+    commandLine(devCompose + ['wait', 'cockroachdb-init', 'minio-init'])
+}
+
+tasks.register('devDown', Exec) {
+    group = 'echno'
+    description = 'Stops the local development dependencies and deletes their volumes'
+    workingDir = projectDir
+    commandLine(devCompose + ['down', '-v', '--remove-orphans'])
+}
+
+tasks.register('devLogs', Exec) {
+    group = 'echno'
+    description = 'Follows the logs of the local development dependencies'
+    workingDir = projectDir
+    commandLine(devCompose + ['logs', '-f', '--tail=100'])
+}

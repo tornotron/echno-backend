@@ -74,54 +74,109 @@ SWAGGER_PUBLIC_ACCESS=true ./gradlew bootRun
 
 ### Prerequisites
 
-* Java 21
-* Gradle 8+
-* CockroachDB (the application database)
-* Keycloak (or another OpenID Connect provider) for authentication
-* Docker (optional, for running in a container)
+* Java 21 (the Gradle wrapper fetches Gradle itself)
+* Docker with the Compose plugin, for the local dependency stack and the Testcontainers suite
+* `curl` and `jq` for the first-token walk-through below
 
-### Installation
+### Local development
 
-1.  **Clone the repository:**
+The backend needs four services: CockroachDB (the application database), Keycloak (the identity
+provider), an S3-compatible object store and Redis. `docker-compose.dev.yml` starts all four at
+the versions the staging runs, on localhost-only ports offset from the defaults so the stack can
+share a machine with anything holding the standard ones:
+
+| Service | Image | Port on localhost | Dev-only credential |
+|---------|-------|-------------------|---------------------|
+| CockroachDB | `cockroachdb/cockroach:v26.2.4`, single node, insecure | 27257 (SQL), 28080 (admin UI) | user `root`, no password, database `echno` |
+| Keycloak | `quay.io/keycloak/keycloak:26.0.7`, dev mode | 8180 | console `admin` / `admin`; realm `echno-realm` from `dev/keycloak/echno-realm.json` |
+| MinIO | `quay.io/minio/minio:RELEASE.2024-11-07T00-52-20Z` | 9100 (S3 API), 9101 (console) | `echno-dev` / `echno-dev-secret`; buckets `echno-dev`, `echno-datasets` |
+| Redis | `redis:7.4-alpine` | 6380 | none |
+
+`src/main/resources/application-local.yml` is the `local` profile and points at exactly this
+stack. Every credential in the compose file, the realm import and the profile is a public
+dev-only literal that exists on no deployed instance; the compose file and `dev/` are excluded
+from the image by `.dockerignore`.
+
+1.  **Start the stack** and wait for the healthchecks:
     ```bash
-    git clone https://github.com/tornotron/echno-backend.git
-    cd echno-backend
+    ./gradlew devUp
     ```
+    Keycloak imports the realm on its first start (about half a minute). `./gradlew devLogs`
+    follows the service logs. The import carries the realm, the three clients, the role
+    catalogue and the dev accounts; service accounts and authorization services on the backend
+    client are switched on by the backend itself on its first boot, because Keycloak 26.0.x
+    fails a startup import that already carries them.
 
-2.  **Configure the application:**
-
-    Create an `application-local.yml` file in `src/main/resources` and override the properties you need
-    from `application.yml`. At a minimum, configure the database connection and the JWT issuer URI.
-    CockroachDB speaks the PostgreSQL wire protocol, so the standard PostgreSQL JDBC driver and URL are
-    used:
-
-    ```yaml
-    spring:
-      datasource:
-        url: jdbc:postgresql://localhost:26257/echno?sslmode=disable
-        username: your-username
-        password: your-password
-      security:
-        oauth2:
-          resourceserver:
-            jwt:
-              issuer-uri: <your-keycloak-issuer-uri>
-    ```
-
-3.  **Build the application:**
+2.  **Run the backend** with the `local` profile:
     ```bash
-    ./gradlew build
+    ./gradlew bootRun --args='--spring.profiles.active=local'
     ```
+    Liquibase creates the schema on the first run, which takes a few minutes on CockroachDB
+    (about three hundred changesets, each its own DDL transaction); later starts take seconds.
+    Once the context is up the backend
+    reconciles the realm: it adds the `echno-admin` and `echno-service` accounts, the composite
+    job roles, the `echno-web-local` client and the `echno-local-dev` account (password
+    `echno-dev`) with its own organization and employee record, so that account can call any
+    organization-scoped endpoint straight away. The API answers on `http://localhost:8080`,
+    the OpenAPI UI on `http://localhost:8080/swagger-ui.html`, and `/actuator/health` and
+    `/actuator/info` on the same port.
+
+3.  **Get a first token.** The realm carries a public `echno-dev-cli` client with the password
+    grant enabled, for the command line only, whose tokens carry the backend's audience:
+    ```bash
+    TOKEN=$(curl -s -X POST \
+      http://localhost:8180/realms/echno-realm/protocol/openid-connect/token \
+      -d grant_type=password -d client_id=echno-dev-cli \
+      -d username=echno-local-dev -d password=echno-dev | jq -r .access_token)
+    ```
+    The realm also carries one account per organization role, `dev-system-admin`,
+    `dev-org-manager`, `dev-hr-admin`, `dev-project-manager`, `dev-qa-engineer`,
+    `dev-safety-officer`, `dev-site-engineer`, `dev-store-keeper` and
+    `dev-observation-producer`, all with password `echno-dev`. Roles are organization-scoped
+    (see `docs/org-scoped-roles.md`), so these accounts can sign in but hold no role until an
+    organization admin invites them and assigns one; `echno-local-dev` is the account with an
+    organization out of the box.
+
+4.  **Make a first call** with the token:
+    ```bash
+    curl -s http://localhost:8080/api/v1/employee/web/lookup \
+      -H "Authorization: Bearer $TOKEN" | jq .
+    ```
+    The dev Keycloak console is at `http://localhost:8180` and the MinIO console at
+    `http://localhost:9101`, with the credentials from the table.
+
+5.  **Stop the stack** and delete its volumes when done:
+    ```bash
+    ./gradlew devDown
+    ```
+
+To move a port, set the matching `ECHNO_DEV_*_PORT` variable for compose (see the top of
+`docker-compose.dev.yml`) and change the same port in `application-local.yml`. Values you do not
+want to commit go in a further profile file such as `application-local-me.yml`, which
+`.gitignore` already covers; activate it alongside with `--spring.profiles.active=local,local-me`.
+
+### Build and test
+
+```bash
+./gradlew build
+```
+
+The suite runs against a CockroachDB container through Testcontainers, so Docker has to be
+available. `docs/openapi.json` is verified by the build and regenerated with
+`./gradlew openApiSnapshot -PupdateOpenApiSnapshot`; see "The API contract".
 
 ## Build and Run
 
 ### Running the application
 
-```bash
-./gradlew bootRun
-```
+Against the local stack, see "Local development" above. Against any other environment, every
+`${...}` placeholder in `application.yml` has to be supplied as an environment variable, which is
+how the deployments run it (the variable contract lives in the `echno-deployment` repository).
 
-The application will be available at `http://localhost:8080`.
+`GET /actuator/info` reports the running revision: the git branch, sha and commit time the
+build was made from, and the build time and version. The Gradle build writes both files it reads
+(`git.properties`, `META-INF/build-info.properties`); an image build receives the commit through
+the `GIT_SHA` and `GIT_BRANCH` build arguments because the build context carries no `.git`.
 
 ### Running with Docker
 
