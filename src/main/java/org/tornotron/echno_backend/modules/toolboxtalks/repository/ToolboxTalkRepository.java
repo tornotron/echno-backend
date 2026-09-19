@@ -1,12 +1,18 @@
 package org.tornotron.echno_backend.modules.toolboxtalks.repository;
 
+import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -14,25 +20,37 @@ import org.tornotron.echno_backend.modules.toolboxtalks.domain.ToolboxTalk;
 import org.tornotron.echno_backend.modules.toolboxtalks.domain.ToolboxTalkStatus;
 
 @Repository
-public interface ToolboxTalkRepository extends JpaRepository<ToolboxTalk, UUID> {
+public interface ToolboxTalkRepository extends JpaRepository<ToolboxTalk, UUID>, JpaSpecificationExecutor<ToolboxTalk> {
 
     // JPQL rather than findById so the orgFilter applies; a stranger's id reads as absent.
     @Query("SELECT t FROM ToolboxTalk t WHERE t.id = :id")
     Optional<ToolboxTalk> findByIdScoped(@Param("id") UUID id);
 
     // Paged, never findAll(): a site records a talk every working day. Every filter is
-    // optional so one query serves the project page, the date range and the status tab.
-    @Query("SELECT t FROM ToolboxTalk t "
-            + "WHERE (:projectId IS NULL OR t.projectId = :projectId) "
-            + "AND (:from IS NULL OR t.talkDate >= :from) "
-            + "AND (:to IS NULL OR t.talkDate <= :to) "
-            + "AND (:status IS NULL OR t.status = :status) "
-            + "ORDER BY t.talkDate DESC, t.createdAt DESC")
-    Page<ToolboxTalk> findPage(@Param("projectId") Long projectId,
-                               @Param("from") LocalDate from,
-                               @Param("to") LocalDate to,
-                               @Param("status") ToolboxTalkStatus status,
-                               Pageable pageable);
+    // optional so one query serves the project page, the date range and the status tab. A
+    // Specification rather than "(:x IS NULL OR ...)" in JPQL, which CockroachDB cannot type.
+    default Page<ToolboxTalk> findPage(Long projectId, LocalDate from, LocalDate to,
+                                       ToolboxTalkStatus status, Pageable pageable) {
+        Specification<ToolboxTalk> spec = (root, query, cb) -> {
+            List<Predicate> where = new ArrayList<>();
+            if (projectId != null) {
+                where.add(cb.equal(root.get("projectId"), projectId));
+            }
+            if (from != null) {
+                where.add(cb.greaterThanOrEqualTo(root.get("talkDate"), from));
+            }
+            if (to != null) {
+                where.add(cb.lessThanOrEqualTo(root.get("talkDate"), to));
+            }
+            if (status != null) {
+                where.add(cb.equal(root.get("status"), status));
+            }
+            return cb.and(where.toArray(new Predicate[0]));
+        };
+        Pageable sorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+                Sort.by(Sort.Order.desc("talkDate"), Sort.Order.desc("createdAt")));
+        return findAll(spec, sorted);
+    }
 
     // The projects that have a recorded talk on a day, for the reminder to subtract from the
     // organization's open projects. Runs inside a tenant, so the filter bounds it.
