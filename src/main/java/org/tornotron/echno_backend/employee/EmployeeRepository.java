@@ -112,6 +112,18 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
      */
     boolean existsByOrganization_IdAndStatus(Long organizationId, EmployeeStatus status);
 
+    /**
+     * Whether the employee is in the given status and holds one of the given roles in the given
+     * organization. The check an invite's reporting manager has to pass: a terminated or
+     * otherwise inactive employee keeps their roles but cannot take on new reports.
+     */
+    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM Employee e JOIN e.orgRoles r "
+            + "WHERE e.id = :employeeId AND e.organization.id = :orgId AND e.status = :status AND r IN :roles")
+    boolean existsActiveManager(@Param("employeeId") Long employeeId,
+                                @Param("orgId") Long organizationId,
+                                @Param("status") EmployeeStatus status,
+                                @Param("roles") Set<OrgRole> roles);
+
     @Query("SELECT e FROM Employee e JOIN e.orgRoles r WHERE e.organization.id = :orgId AND r = :role")
     List<Employee> findByOrganizationIdAndOrgRole(Long orgId, OrgRole role);
 

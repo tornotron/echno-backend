@@ -212,7 +212,7 @@ public class EmployeeService {
      * @param organization the organization the employee is being created in.
      * @return the resolved manager, or null only for the first employee of the organization.
      * @throws InvalidRequestException   if the manager is missing and the organization already
-     *                                   has an active employee.
+     *                                   has an active employee, or if the manager is not active.
      * @throws ResourceNotFoundException if the manager is not an employee of that organization.
      */
     private Employee resolveManagerForNewEmployee(Long managerId, Organization organization) {
@@ -230,6 +230,10 @@ public class EmployeeService {
                         "Manager with ID " + managerId + " was not found in this organization"));
         if (!manager.getOrganization().getId().equals(organization.getId())) {
             throw new InvalidRequestException("Manager must be from the same organization");
+        }
+        if (manager.getStatus() != EmployeeStatus.active) {
+            throw new InvalidRequestException(
+                    "Manager with ID " + managerId + " is not an active employee of this organization");
         }
         return manager;
     }

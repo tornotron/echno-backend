@@ -137,6 +137,24 @@ class EmployeeJoinManagerRequiredIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void anInactiveEmployee_cannotBeTheManagerOfANewEmployee() {
+        Long founderId = joinAsFirstEmployee("founder");
+        Long leaverId = joinAs("leaver", founderId);
+        Employee leaver = employeeRepository.findById(leaverId).orElseThrow();
+        leaver.setStatus(EmployeeStatus.terminated);
+        employeeRepository.saveAndFlush(leaver);
+        User second = persistUser("second");
+        em.flush();
+
+        EmployeeJoinOrgDto dto = joinDto();
+        dto.setManagerId(leaverId);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> employeeService.joinOrganization(second.getId(), orgAId, dto))
+                .withMessageContaining("not an active employee");
+    }
+
+    @Test
     void anOrganizationWithOnlyInactiveEmployees_countsAsHavingNoneToReportTo() {
         Long founderId = joinAsFirstEmployee("founder");
         Employee founder = employeeRepository.findById(founderId).orElseThrow();
@@ -167,6 +185,14 @@ class EmployeeJoinManagerRequiredIT extends AbstractIntegrationTest {
 
     private Long joinAsFirstEmployee(String name) {
         return joinAsFirstEmployee(name, orgAId);
+    }
+
+    private Long joinAs(String name, Long managerId) {
+        User user = persistUser(name);
+        em.flush();
+        EmployeeJoinOrgDto dto = joinDto();
+        dto.setManagerId(managerId);
+        return employeeService.joinOrganization(user.getId(), orgAId, dto).getId();
     }
 
     private Long joinAsFirstEmployee(String name, Long orgId) {

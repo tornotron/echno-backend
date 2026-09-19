@@ -141,9 +141,9 @@ public class ProjectInviteCodeService {
             }
             log.info("Invite code for organization {} minted without a reporting manager: the organization has no active employee yet",
                     organizationId);
-        } else if (!employeeRepository.existsByIdAndOrganization_IdAndOrgRolesIn(
-                inviteCodeGenerationDto.getManagerId(), organizationId, OrgRole.getManagerRoles())) {
-            throw new ResourceNotFoundException("Manager with ID " + inviteCodeGenerationDto.getManagerId() + " was not found with a manager role in this organization");
+        } else if (!employeeRepository.existsActiveManager(
+                inviteCodeGenerationDto.getManagerId(), organizationId, EmployeeStatus.active, OrgRole.getManagerRoles())) {
+            throw new ResourceNotFoundException("Manager with ID " + inviteCodeGenerationDto.getManagerId() + " was not found as an active employee with a manager role in this organization");
         }
         ShiftTiming shiftTiming = null;
         if (inviteCodeGenerationDto.getShiftTimingId() != null) {
