@@ -62,7 +62,7 @@ class BimModuleTest {
         assertThat(manifest.isPaywalled()).isTrue();
         assertThat(manifest.enabledByDefault()).isFalse();
         assertThat(manifest.dependsOn()).containsExactly(InspectionsModule.ID);
-        assertThat(manifest.permissions()).containsExactly("bim.view", "bim.manage");
+        assertThat(manifest.permissions()).containsExactly("bim:view", "bim:manage");
         assertThat(manifest.navDescriptors()).singleElement()
                 .satisfies(nav -> assertThat(nav.path()).endsWith("/{projectId}/bim"));
         assertThat(manifest).isSameAs(module.manifest());

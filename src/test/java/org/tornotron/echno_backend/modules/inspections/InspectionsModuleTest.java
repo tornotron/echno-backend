@@ -88,7 +88,7 @@ class InspectionsModuleTest {
         assertThat(manifest.isPaywalled()).isTrue();
         assertThat(manifest.enabledByDefault()).isFalse();
         assertThat(manifest.dependsOn()).isEmpty();
-        assertThat(manifest.permissions()).isNotEmpty().allSatisfy(key -> assertThat(key).startsWith("inspections."));
+        assertThat(manifest.permissions()).isNotEmpty().allSatisfy(key -> assertThat(key).startsWith("inspections:").matches(ModuleManifest.PERMISSION_KEY.asMatchPredicate()));
         assertThat(manifest).isSameAs(module.manifest());
     }
 

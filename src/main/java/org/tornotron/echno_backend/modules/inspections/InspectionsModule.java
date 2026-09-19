@@ -20,6 +20,9 @@ import org.tornotron.echno_backend.common.module.NavDescriptor;
  * per-project compliance screen, whose path carries a {@code {projectId}} placeholder since it
  * is opened from a project rather than from the sidebar. Every entry is visible to any member;
  * the web app decides per role what to show, as it did before the module existed.
+ *
+ * <p>Permission keys use the {@code <module>:<action>} vocabulary, the same form as the
+ * {@code @PreAuthorize} authorities elsewhere in the API and the web nav gate.
  */
 @Component
 public class InspectionsModule implements EchnoModule {
@@ -31,15 +34,15 @@ public class InspectionsModule implements EchnoModule {
     static final String ROUTE_ROOT = "/users/dashboard/inspections";
 
     static final List<String> PERMISSIONS = List.of(
-            "inspections.read",
-            "inspections.manage",
-            "inspections.checklists.define",
-            "inspections.ncr.raise",
-            "inspections.ncr.corrective-action",
-            "inspections.ncr.sign-off",
-            "inspections.compliance.generate",
-            "inspections.observations.review",
-            "inspections.observations.intake");
+            "inspections:read",
+            "inspections:manage",
+            "inspections:checklists-define",
+            "inspections:ncr-raise",
+            "inspections:ncr-corrective-action",
+            "inspections:ncr-sign-off",
+            "inspections:compliance-generate",
+            "inspections:observations-review",
+            "inspections:observations-intake");
 
     static final List<NavDescriptor> NAV = List.of(
             new NavDescriptor("Inspections", NAV_SECTION, ROUTE_ROOT, "clipboard-check", List.of()),

@@ -6,17 +6,15 @@ import java.util.List;
 /**
  * Collects the permission keys one module contributes through
  * {@link EchnoModule#registerPermissions(PermissionRegistry)}. One instance per module, owned by
- * the registry.
+ * the registry. Keys follow the same {@code <module>:<action>} vocabulary as
+ * {@link ModuleManifest#permissions()}.
  */
 public final class PermissionRegistry {
 
     private final List<String> keys = new ArrayList<>();
 
     public PermissionRegistry add(String key) {
-        if (key == null || key.isBlank()) {
-            throw new IllegalArgumentException("A permission key must not be blank");
-        }
-        keys.add(key);
+        keys.add(ModuleManifest.requirePermissionKey(key));
         return this;
     }
 
