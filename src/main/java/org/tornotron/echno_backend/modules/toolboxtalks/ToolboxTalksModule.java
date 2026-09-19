@@ -26,6 +26,13 @@ public class ToolboxTalksModule implements EchnoModule {
     public static final String PERMISSION_READ = ID + ":read";
     public static final String PERMISSION_MANAGE = ID + ":manage";
 
+    // The two guards every handler in the module carries. Reading a talk is for any member of
+    // the tenant; writing one is for the roles that run a site's safety: the project manager,
+    // the safety officer and the system admin. One string each, so the twins cannot drift.
+    public static final String READ_GUARD = "@orgSecurity.isMemberOfCurrentTenant()";
+    public static final String MANAGE_GUARD =
+            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','safety-officer')";
+
     static final String ROUTE_ROOT = "/users/dashboard/" + ID;
 
     static final List<String> PERMISSIONS = List.of(PERMISSION_READ, PERMISSION_MANAGE);
