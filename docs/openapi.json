@@ -5911,6 +5911,57 @@
         ],
         "type": "object"
       },
+      "CreateToolboxTalkRequest": {
+        "description": "Drafts a toolbox talk in the current tenant.",
+        "properties": {
+          "attendeeEmployeeIds": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "maxItems": 500,
+            "minItems": 0,
+            "type": "array"
+          },
+          "conductorEmployeeId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "notes": {
+            "maxLength": 4000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "spatialNodeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "talkDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "talkTime": {
+            "example": "14:30:00",
+            "type": "string"
+          },
+          "topic": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "conductorEmployeeId",
+          "projectId",
+          "talkDate",
+          "topic"
+        ],
+        "type": "object"
+      },
       "CreateTradeRequest": {
         "description": "Payload to define an organization's own inspection trade.",
         "properties": {
@@ -15920,6 +15971,52 @@
         },
         "type": "object"
       },
+      "PageToolboxTalkDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/ToolboxTalkDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageVendorDto": {
         "properties": {
           "content": {
@@ -21788,6 +21885,95 @@
         },
         "type": "object"
       },
+      "ToolboxTalkAttendeeDto": {
+        "description": "An employee who attended a toolbox talk.",
+        "properties": {
+          "employeeId": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ToolboxTalkAttendeesRequest": {
+        "description": "The employees to add to a drafted toolbox talk's attendance.",
+        "properties": {
+          "employeeIds": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "employeeIds"
+        ],
+        "type": "object"
+      },
+      "ToolboxTalkDto": {
+        "description": "One toolbox talk of the current tenant, with the employees who attended.",
+        "properties": {
+          "attendees": {
+            "items": {
+              "$ref": "#/components/schemas/ToolboxTalkAttendeeDto"
+            },
+            "type": "array"
+          },
+          "conductorEmployeeId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "recordedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "spatialNodeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "RECORDED"
+            ],
+            "type": "string"
+          },
+          "talkDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "talkTime": {
+            "example": "14:30:00",
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "TradeCatalogueDto": {
         "description": "One trade of the product-shipped catalogue. Read only; organizations work against their own copy.",
         "properties": {
@@ -22677,6 +22863,43 @@
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "UpdateToolboxTalkRequest": {
+        "description": "Changes a drafted toolbox talk. A recorded talk no longer changes.",
+        "properties": {
+          "conductorEmployeeId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "notes": {
+            "maxLength": 4000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "spatialNodeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "talkDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "talkTime": {
+            "example": "14:30:00",
+            "type": "string"
+          },
+          "topic": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "conductorEmployeeId",
+          "talkDate",
+          "topic"
+        ],
         "type": "object"
       },
       "UpdateTradeRequest": {
@@ -26327,7 +26550,7 @@
     "/api/v1/attendance-regularizations/web": {
       "get": {
         "description": "Returns a paged list of regularization requests in the current tenant, in any status. The optional status, approver and requester parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nThe approver and the rejecter are recorded in the same pair of columns, so approvedById on its own means \"requests this person decided\". Pair it with status to separate the two: approvedById with status=APPROVED is what that person approved, and with status=REJECTED what they rejected.\n\nBoth ids are employee ids. A request decided by a caller who has no employee record in this tenant carries no approver id and is not matched by any approvedById.",
-        "operationId": "list_17",
+        "operationId": "list_19",
         "parameters": [
           {
             "in": "query",
@@ -27281,7 +27504,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_18",
+        "operationId": "create_20",
         "requestBody": {
           "content": {
             "application/json": {
@@ -27711,7 +27934,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_19",
+        "operationId": "create_21",
         "requestBody": {
           "content": {
             "application/json": {
@@ -28142,7 +28365,7 @@
       },
       "patch": {
         "description": "Applies a partial update to an attendance settings profile. Only the fields present in the request body are changed.",
-        "operationId": "update_14",
+        "operationId": "update_16",
         "parameters": [
           {
             "in": "path",
@@ -28369,7 +28592,7 @@
       },
       "patch": {
         "description": "Applies a partial update to an attendance settings profile. Only the fields present in the request body are changed.",
-        "operationId": "update_13",
+        "operationId": "update_15",
         "parameters": [
           {
             "in": "path",
@@ -35466,7 +35689,7 @@
     "/api/v1/billing/web/events": {
       "get": {
         "description": "Newest first. Without a status filter, shows FAILED and SKIPPED rows: the dead letters.",
-        "operationId": "list_16",
+        "operationId": "list_18",
         "parameters": [
           {
             "description": "Narrow to one organization",
@@ -36086,7 +36309,7 @@
     },
     "/api/v1/bim/models/{modelId}": {
       "get": {
-        "operationId": "get_16",
+        "operationId": "get_18",
         "parameters": [
           {
             "in": "path",
@@ -37563,7 +37786,7 @@
         ]
       },
       "post": {
-        "operationId": "create_17",
+        "operationId": "create_19",
         "parameters": [
           {
             "in": "path",
@@ -39567,7 +39790,7 @@
     "/api/v1/checklist-templates/web": {
       "get": {
         "description": "Returns a page of the organization's templates. The trade and active parameters are optional filters; omitting both returns every template, subject to paging.",
-        "operationId": "list_12",
+        "operationId": "list_14",
         "parameters": [
           {
             "in": "query",
@@ -39702,7 +39925,7 @@
       },
       "post": {
         "description": "Creates the organization's checklist for a trade, with its check points. There is one template per trade per organization.",
-        "operationId": "create_16",
+        "operationId": "create_18",
         "requestBody": {
           "content": {
             "application/json": {
@@ -40163,7 +40386,7 @@
     "/api/v1/checklist-templates/web/{id}": {
       "get": {
         "description": "Returns a single template including its check points in line order.",
-        "operationId": "get_6",
+        "operationId": "get_8",
         "parameters": [
           {
             "in": "path",
@@ -40274,7 +40497,7 @@
       },
       "put": {
         "description": "Replaces the name, description, active flag and check points of an existing template and bumps its version. The trade is fixed when the template is created and cannot be changed here. Inspections already created from this template are unaffected: they hold their own copy of the criteria.",
-        "operationId": "update_7",
+        "operationId": "update_9",
         "parameters": [
           {
             "in": "path",
@@ -43842,7 +44065,7 @@
     "/api/v1/finance/accounts/web": {
       "get": {
         "description": "Returns the flat list of accounts in the current tenant. By default only active accounts are returned; set activeOnly to false to include deactivated accounts.",
-        "operationId": "list_11",
+        "operationId": "list_13",
         "parameters": [
           {
             "in": "query",
@@ -43956,7 +44179,7 @@
       },
       "post": {
         "description": "Creates a new account in the chart. When a parent is given, the account type is inherited from the parent; a root account must declare its own type. When the code is left blank it is generated from the parent and existing sibling accounts.",
-        "operationId": "create_15",
+        "operationId": "create_17",
         "requestBody": {
           "content": {
             "application/json": {
@@ -44614,7 +44837,7 @@
     "/api/v1/finance/accounts/web/{id}": {
       "get": {
         "description": "Returns a single account by its unique id.",
-        "operationId": "get_5",
+        "operationId": "get_7",
         "parameters": [
           {
             "in": "path",
@@ -44725,7 +44948,7 @@
       },
       "put": {
         "description": "Edits an account's code, name, active flag, description and optionally its parent. The code must stay unique within the tenant; a new parent must share the account's type and must not form a cycle. Omit the parent id to leave the parent unchanged. Postings resolve accounts by id, so changing a code is safe.",
-        "operationId": "update_6",
+        "operationId": "update_8",
         "parameters": [
           {
             "in": "path",
@@ -44961,7 +45184,7 @@
     "/api/v1/finance/company-bank-accounts/web": {
       "get": {
         "description": "Returns the organization's bank accounts. By default only active accounts are returned; set activeOnly to false to include deactivated accounts as well.",
-        "operationId": "list_10",
+        "operationId": "list_12",
         "parameters": [
           {
             "in": "query",
@@ -45075,7 +45298,7 @@
       },
       "post": {
         "description": "Registers a new company bank account, linked to an existing ledger account for reconciliation.",
-        "operationId": "create_14",
+        "operationId": "create_16",
         "requestBody": {
           "content": {
             "application/json": {
@@ -45187,7 +45410,7 @@
     "/api/v1/finance/company-bank-accounts/web/{id}": {
       "get": {
         "description": "Returns a single company bank account, including the linked ledger account.",
-        "operationId": "get_15",
+        "operationId": "get_17",
         "parameters": [
           {
             "in": "path",
@@ -45413,7 +45636,7 @@
     "/api/v1/finance/construction-invoices/web": {
       "get": {
         "description": "Returns a paged list of invoices in the current tenant. The optional project, vendor, status and type parameters narrow the result; omitting a parameter leaves that dimension unfiltered.",
-        "operationId": "list_9",
+        "operationId": "list_11",
         "parameters": [
           {
             "in": "query",
@@ -45574,7 +45797,7 @@
       },
       "post": {
         "description": "Creates a draft invoice from the supplied header and line items. Line-level subtotal, tax, discount and total amounts are computed server side from the quantity, unit price and percentage rates on each line.",
-        "operationId": "create_13",
+        "operationId": "create_15",
         "requestBody": {
           "content": {
             "application/json": {
@@ -45686,7 +45909,7 @@
     "/api/v1/finance/construction-invoices/web/{id}": {
       "get": {
         "description": "Returns a single invoice, including its computed totals and line items.",
-        "operationId": "get_4",
+        "operationId": "get_6",
         "parameters": [
           {
             "in": "path",
@@ -45797,7 +46020,7 @@
       },
       "put": {
         "description": "Replaces the editable header and line items of a draft invoice. Invoices that have already been submitted or approved cannot be edited.",
-        "operationId": "update_5",
+        "operationId": "update_7",
         "parameters": [
           {
             "in": "path",
@@ -46504,7 +46727,7 @@
     "/api/v1/finance/construction-payments/web": {
       "get": {
         "description": "Returns a paged list of payment vouchers in the current tenant. The optional project, vendor, status, type, payee type, employee, verifier and raiser parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nNarrow here rather than in the client. A filter applied to the rows one page came back in narrows that page and not the register, so it answers a different question from the one it appears to, and an empty result then reads as a complete answer.\n\nThe three person parameters carry ids from two different sequences and are not interchangeable. employeeId is the payee on a salary or advance voucher and is an employee id; verifiedBy and raisedBy are platform user ids, the same ids the response returns beside verifiedByName and raisedByName.",
-        "operationId": "list_8",
+        "operationId": "list_10",
         "parameters": [
           {
             "in": "query",
@@ -46732,7 +46955,7 @@
       },
       "post": {
         "description": "Creates a payment voucher in pending status. The payment number is generated server side from the CPMT sequence. The status cannot be set on creation.",
-        "operationId": "create_12",
+        "operationId": "create_14",
         "requestBody": {
           "content": {
             "application/json": {
@@ -46844,7 +47067,7 @@
     "/api/v1/finance/construction-payments/web/{id}": {
       "get": {
         "description": "Returns a single payment voucher with its amount, method and payee details.",
-        "operationId": "get_3",
+        "operationId": "get_5",
         "parameters": [
           {
             "in": "path",
@@ -46955,7 +47178,7 @@
       },
       "put": {
         "description": "Replaces the editable fields of a payment voucher, including its status, which is set directly. No ledger journal entry is created on any status transition. A verified voucher is frozen and cannot be edited, because the verification would then stand against figures nobody checked; cancel it and raise a replacement. The cancelled status cannot be set here either: use the cancel action, which records why.",
-        "operationId": "update_4",
+        "operationId": "update_6",
         "parameters": [
           {
             "in": "path",
@@ -47314,7 +47537,7 @@
     "/api/v1/finance/cost-categories/web": {
       "get": {
         "description": "Returns the budget heads in the current tenant. By default only active heads are returned; set activeOnly to false to include deactivated ones.",
-        "operationId": "list_7",
+        "operationId": "list_9",
         "parameters": [
           {
             "in": "query",
@@ -47428,7 +47651,7 @@
       },
       "post": {
         "description": "Creates a budget head. The name must be unique within the tenant; an optional expense account maps the head to the chart of accounts for reporting.",
-        "operationId": "create_11",
+        "operationId": "create_13",
         "requestBody": {
           "content": {
             "application/json": {
@@ -47646,7 +47869,7 @@
     "/api/v1/finance/cost-categories/web/{id}": {
       "get": {
         "description": "Returns a single budget head by its unique id.",
-        "operationId": "get_2",
+        "operationId": "get_4",
         "parameters": [
           {
             "in": "path",
@@ -47757,7 +47980,7 @@
       },
       "put": {
         "description": "Edits a budget head's name, code, expense-account mapping and active flag. The name must stay unique within the tenant; omit the expense account id to clear the mapping.",
-        "operationId": "update_3",
+        "operationId": "update_5",
         "parameters": [
           {
             "in": "path",
@@ -47993,7 +48216,7 @@
     "/api/v1/finance/customers/web": {
       "get": {
         "description": "Returns a single customer, including the billing address, by its unique id.",
-        "operationId": "get_8",
+        "operationId": "get_10",
         "parameters": [
           {
             "in": "query",
@@ -48104,7 +48327,7 @@
       },
       "post": {
         "description": "Creates a new customer from the supplied details. The customer code must be unique within the tenant.",
-        "operationId": "create_10",
+        "operationId": "create_12",
         "requestBody": {
           "content": {
             "application/json": {
@@ -48216,7 +48439,7 @@
     "/api/v1/finance/customers/web/all": {
       "get": {
         "description": "Returns a page of customers in the current tenant. The optional name parameter filters by customer name; omitting it returns all customers, subject to paging.",
-        "operationId": "list_15",
+        "operationId": "list_17",
         "parameters": [
           {
             "in": "query",
@@ -48339,7 +48562,7 @@
     "/api/v1/finance/customers/web/{id}": {
       "put": {
         "description": "Updates the editable details of an existing customer. The customer code is fixed at creation and is not changed here.",
-        "operationId": "update_2",
+        "operationId": "update_4",
         "parameters": [
           {
             "in": "path",
@@ -48568,7 +48791,7 @@
     "/api/v1/finance/invoices/web": {
       "get": {
         "description": "Returns a page of customer invoices in the current tenant, newest invoice date first. The optional customer, status and openOnly parameters narrow the result and combine with AND; omitting a parameter leaves that dimension unfiltered. Use pageNo and pageSize to page through the results.",
-        "operationId": "list_6",
+        "operationId": "list_8",
         "parameters": [
           {
             "description": "Restrict to invoices billed to this customer.",
@@ -48845,7 +49068,7 @@
     "/api/v1/finance/invoices/web/{id}": {
       "get": {
         "description": "Returns a single customer invoice, including its computed totals and line items.",
-        "operationId": "get_14",
+        "operationId": "get_16",
         "parameters": [
           {
             "in": "path",
@@ -49194,7 +49417,7 @@
     "/api/v1/finance/journal-entries/web": {
       "get": {
         "description": "Returns a single journal entry, including its lines, by its unique id.",
-        "operationId": "get_7",
+        "operationId": "get_9",
         "parameters": [
           {
             "in": "query",
@@ -49797,7 +50020,7 @@
     "/api/v1/finance/payments/web": {
       "post": {
         "description": "Records a payment received from a customer and allocates it across the invoices named in the request. The allocations must sum to the payment amount. An optional Idempotency-Key header lets a retried request return the original result instead of creating a duplicate payment.",
-        "operationId": "record",
+        "operationId": "record_2",
         "parameters": [
           {
             "in": "header",
@@ -49919,7 +50142,7 @@
     "/api/v1/finance/payments/web/{id}": {
       "get": {
         "description": "Returns a single customer payment with its invoice allocations.",
-        "operationId": "get_13",
+        "operationId": "get_15",
         "parameters": [
           {
             "in": "path",
@@ -50032,7 +50255,7 @@
     "/api/v1/finance/posting-accounts/web": {
       "get": {
         "description": "Returns all six posting roles with the account each currently resolves to for the tenant, flagged as coming from an explicit mapping (MAPPED) or the configured default (DEFAULT).",
-        "operationId": "list_14",
+        "operationId": "list_16",
         "responses": {
           "200": {
             "content": {
@@ -50385,7 +50608,7 @@
     "/api/v1/finance/projects/{projectId}/budget/web": {
       "get": {
         "description": "Returns the set of budget-head allocations that make up the project's budget.",
-        "operationId": "list_13",
+        "operationId": "list_15",
         "parameters": [
           {
             "in": "path",
@@ -50746,7 +50969,7 @@
     "/api/v1/finance/projects/{projectId}/cost-control/web": {
       "get": {
         "description": "Returns the per-budget-head roll-up of allocated, committed, spent and remaining amounts for the project, plus a project total row. Heads with an allocation or any tagged spend are included; a head whose committed plus spent exceeds its allocation is flagged as over budget.",
-        "operationId": "get_12",
+        "operationId": "get_14",
         "parameters": [
           {
             "in": "path",
@@ -51207,7 +51430,7 @@
     "/api/v1/finance/settings/web": {
       "get": {
         "description": "Returns the finance settings for the current tenant, creating the default row on first access. A null approval threshold means every construction invoice needs manual approval.",
-        "operationId": "get_1",
+        "operationId": "get_3",
         "responses": {
           "200": {
             "content": {
@@ -51307,7 +51530,7 @@
       },
       "put": {
         "description": "Sets the auto-approval threshold for the current tenant. Send a null threshold to require manual approval on every construction invoice, or a value T to auto-approve invoices whose total is below T.",
-        "operationId": "update_1",
+        "operationId": "update_3",
         "requestBody": {
           "content": {
             "application/json": {
@@ -57836,7 +58059,7 @@
     "/api/v1/inspections/web": {
       "get": {
         "description": "Returns a page of inspections in the current tenant. The projectId, status, type, category, trade and result parameters are optional filters; omitting all of them returns every inspection, subject to paging.",
-        "operationId": "list_1",
+        "operationId": "list_3",
         "parameters": [
           {
             "in": "query",
@@ -58047,7 +58270,7 @@
       },
       "post": {
         "description": "Creates a new inspection for a project, including its checklist items.",
-        "operationId": "create_6",
+        "operationId": "create_8",
         "requestBody": {
           "content": {
             "application/json": {
@@ -58622,7 +58845,7 @@
     },
     "/api/v1/inspections/web/dataset-export/runs": {
       "get": {
-        "operationId": "list_5",
+        "operationId": "list_7",
         "responses": {
           "200": {
             "content": {
@@ -58826,7 +59049,7 @@
     },
     "/api/v1/inspections/web/dataset-export/runs/{id}": {
       "get": {
-        "operationId": "get_11",
+        "operationId": "get_13",
         "parameters": [
           {
             "in": "path",
@@ -59061,7 +59284,7 @@
     "/api/v1/inspections/web/element-types": {
       "get": {
         "description": "Active types by default, in sort order then name. Pass includeInactive=true to see retired ones too.",
-        "operationId": "list_4",
+        "operationId": "list_6",
         "parameters": [
           {
             "in": "query",
@@ -59175,7 +59398,7 @@
       },
       "post": {
         "description": "Adds an organization-defined element type. It appears in pickers at once.",
-        "operationId": "create_9",
+        "operationId": "create_11",
         "requestBody": {
           "content": {
             "application/json": {
@@ -59392,7 +59615,7 @@
     "/api/v1/inspections/web/element-types/{id}": {
       "patch": {
         "description": "The code is immutable, including on catalogue copies.",
-        "operationId": "update_12",
+        "operationId": "update_14",
         "parameters": [
           {
             "in": "path",
@@ -59686,7 +59909,7 @@
     "/api/v1/inspections/web/observations": {
       "get": {
         "description": "Paged, filtered by project, review status, source, inspection, site structure subtree and observed-at window. The pending queue is reviewStatus=pending.",
-        "operationId": "list_3",
+        "operationId": "list_5",
         "parameters": [
           {
             "in": "query",
@@ -59870,7 +60093,7 @@
       },
       "post": {
         "description": "Records a finding by the signed-in inspector. Created accepted, with the caller as reporter and reviewer; a supervisor may still reject it later.",
-        "operationId": "create_8",
+        "operationId": "create_10",
         "requestBody": {
           "content": {
             "application/json": {
@@ -60589,7 +60812,7 @@
     },
     "/api/v1/inspections/web/reinspections/{id}": {
       "get": {
-        "operationId": "get_10",
+        "operationId": "get_12",
         "parameters": [
           {
             "in": "path",
@@ -60825,7 +61048,7 @@
     "/api/v1/inspections/web/trades": {
       "get": {
         "description": "Active trades by default, in sort order then name. Pass includeInactive=true to see retired ones too.",
-        "operationId": "list_2",
+        "operationId": "list_4",
         "parameters": [
           {
             "in": "query",
@@ -60939,7 +61162,7 @@
       },
       "post": {
         "description": "Adds an organization-defined trade. It appears in pickers at once and can back a checklist template.",
-        "operationId": "create_7",
+        "operationId": "create_9",
         "requestBody": {
           "content": {
             "application/json": {
@@ -61156,7 +61379,7 @@
     "/api/v1/inspections/web/trades/{id}": {
       "patch": {
         "description": "The code is immutable, including on catalogue copies. Deactivating hides the trade from pickers and leaves existing references valid.",
-        "operationId": "update_11",
+        "operationId": "update_13",
         "parameters": [
           {
             "in": "path",
@@ -61279,7 +61502,7 @@
     "/api/v1/inspections/web/{id}": {
       "get": {
         "description": "Returns a single inspection including its checklist items and any recorded defects.",
-        "operationId": "get",
+        "operationId": "get_2",
         "parameters": [
           {
             "in": "path",
@@ -61390,7 +61613,7 @@
       },
       "put": {
         "description": "Updates the status, result, checklist items and defects of an existing inspection identified by id. The project the inspection is against is fixed when it is created and cannot be changed here.",
-        "operationId": "update",
+        "operationId": "update_2",
         "parameters": [
           {
             "in": "path",
@@ -86094,7 +86317,7 @@
     "/api/v1/movement-records": {
       "post": {
         "description": "Records an employee's movement away from their checked-in location against an existing attendance record.",
-        "operationId": "create_4",
+        "operationId": "create_6",
         "parameters": [
           {
             "in": "query",
@@ -86333,7 +86556,7 @@
     "/api/v1/movement-records/web": {
       "post": {
         "description": "Records an employee's movement away from their checked-in location against an existing attendance record.",
-        "operationId": "create_5",
+        "operationId": "create_7",
         "parameters": [
           {
             "in": "query",
@@ -87024,7 +87247,7 @@
     "/api/v1/ncrs/web": {
       "get": {
         "description": "Returns a page of NCRs in the current tenant. Every parameter is an optional filter, and they narrow together. Setting open=true returns the punch list: every NCR that has not been closed, whatever stage it has reached. siteEngineerId, raisedById, verifiedById and closedById are employee ids, the same ids the employee directory hands out, and they answer a person's trail through the register: what they were given, what they raised, what they accepted on re-inspection and what they closed.",
-        "operationId": "list",
+        "operationId": "list_2",
         "parameters": [
           {
             "in": "query",
@@ -87216,7 +87439,7 @@
       },
       "post": {
         "description": "Raises an NCR against an inspection, and against one of its defects when one is named. The NCR number, the type (from the inspection's category) and the raiser are all set server-side. Naming a site engineer assigns it in the same step.",
-        "operationId": "create_3",
+        "operationId": "create_5",
         "requestBody": {
           "content": {
             "application/json": {
@@ -87462,7 +87685,7 @@
     },
     "/api/v1/ncrs/web/{id}": {
       "get": {
-        "operationId": "get_9",
+        "operationId": "get_11",
         "parameters": [
           {
             "in": "path",
@@ -95931,7 +96154,7 @@
     "/api/v1/project/{projectId}/spatial/nodes": {
       "post": {
         "description": "A building takes no parent; a floor, zone or element takes a parent of the level above. The code must be unique among siblings.",
-        "operationId": "create_2",
+        "operationId": "create_4",
         "parameters": [
           {
             "in": "path",
@@ -96174,7 +96397,7 @@
       },
       "patch": {
         "description": "Omitted fields are left as they are. Level and parent do not change here; use move.",
-        "operationId": "update_10",
+        "operationId": "update_12",
         "parameters": [
           {
             "in": "path",
@@ -104128,7 +104351,7 @@
       },
       "post": {
         "description": "Creates a named shift with its start and end time, lunch break window, grace period and work-hour thresholds.",
-        "operationId": "create",
+        "operationId": "create_2",
         "requestBody": {
           "content": {
             "application/json": {
@@ -104343,7 +104566,7 @@
       },
       "post": {
         "description": "Creates a named shift with its start and end time, lunch break window, grace period and work-hour thresholds.",
-        "operationId": "create_1",
+        "operationId": "create_3",
         "requestBody": {
           "content": {
             "application/json": {
@@ -104670,7 +104893,7 @@
       },
       "patch": {
         "description": "Applies a partial update to a shift timing. Only the fields present in the request body are changed.",
-        "operationId": "update_9",
+        "operationId": "update_11",
         "parameters": [
           {
             "in": "path",
@@ -105008,7 +105231,7 @@
       },
       "patch": {
         "description": "Applies a partial update to a shift timing. Only the fields present in the request body are changed.",
-        "operationId": "update_8",
+        "operationId": "update_10",
         "parameters": [
           {
             "in": "path",
@@ -112604,6 +112827,2712 @@
         "summary": "Get a task by id",
         "tags": [
           "Tasks"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks": {
+      "get": {
+        "description": "Filter by project, by talk date range and by status; every filter is optional.",
+        "operationId": "list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "DRAFT",
+                "RECORDED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageToolboxTalkDto"
+                }
+              }
+            },
+            "description": "A page of talks"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List toolbox talks, newest first",
+        "tags": [
+          "Toolbox Talks"
+        ]
+      },
+      "post": {
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateToolboxTalkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolboxTalkDto"
+                }
+              }
+            },
+            "description": "Talk drafted"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The date is too far ahead, or a person is not an active employee"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such project in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Draft a toolbox talk",
+        "tags": [
+          "Toolbox Talks"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/web": {
+      "get": {
+        "description": "Filter by project, by talk date range and by status; every filter is optional.",
+        "operationId": "list_1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "DRAFT",
+                "RECORDED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageToolboxTalkDto"
+                }
+              }
+            },
+            "description": "A page of talks"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List toolbox talks, newest first",
+        "tags": [
+          "Toolbox Talks (web)"
+        ]
+      },
+      "post": {
+        "operationId": "create_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateToolboxTalkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolboxTalkDto"
+                }
+              }
+            },
+            "description": "Talk drafted"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The date is too far ahead, or a person is not an active employee"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such project in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Draft a toolbox talk",
+        "tags": [
+          "Toolbox Talks (web)"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/web/{id}": {
+      "get": {
+        "operationId": "get_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolboxTalkDto"
+                }
+              }
+            },
+            "description": "The talk"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get one toolbox talk",
+        "tags": [
+          "Toolbox Talks (web)"
+        ]
+      },
+      "put": {
+        "operationId": "update_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateToolboxTalkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolboxTalkDto"
+                }
+              }
+            },
+            "description": "Talk updated"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The talk is already recorded, or a value fails a rule"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Change a drafted toolbox talk",
+        "tags": [
+          "Toolbox Talks (web)"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/web/{id}/attendees": {
+      "post": {
+        "operationId": "addAttendees_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolboxTalkAttendeesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolboxTalkDto"
+                }
+              }
+            },
+            "description": "Attendance updated"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The talk is already recorded, or a person is not an active employee"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Add attendees to a drafted toolbox talk",
+        "tags": [
+          "Toolbox Talks (web)"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/web/{id}/attendees/{employeeId}": {
+      "delete": {
+        "operationId": "removeAttendee_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "employeeId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolboxTalkDto"
+                }
+              }
+            },
+            "description": "Attendance updated"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The talk is already recorded"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk, or the employee is not on its attendance"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Remove an attendee from a drafted toolbox talk",
+        "tags": [
+          "Toolbox Talks (web)"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/web/{id}/pdf": {
+      "get": {
+        "operationId": "exportPdf_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "format": "byte",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The PDF"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Export a toolbox talk as a one-page PDF record",
+        "tags": [
+          "Toolbox Talks (web)"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/web/{id}/photos": {
+      "get": {
+        "operationId": "listPhotos_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Photos returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a toolbox talk's photo evidence",
+        "tags": [
+          "Toolbox Talks (web)"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/web/{id}/photos/presign": {
+      "post": {
+        "description": "Step one of the direct-to-storage path, as for inspection evidence.",
+        "operationId": "presignPhotos_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/UploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresignedUpload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Presigned upload URLs returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A file was declared twice, or is already attached"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Presign photo uploads for a toolbox talk",
+        "tags": [
+          "Toolbox Talks (web)"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/web/{id}/photos/register": {
+      "post": {
+        "description": "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage.",
+        "operationId": "registerPhotos_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/RegisterUploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Photos registered"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A referenced object is missing from storage, or its key was not presigned for this talk"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Register presigned photo uploads for a toolbox talk",
+        "tags": [
+          "Toolbox Talks (web)"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/web/{id}/record": {
+      "post": {
+        "description": "Signs the draft off as the safety record. It needs at least one attendee and happens once.",
+        "operationId": "record_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolboxTalkDto"
+                }
+              }
+            },
+            "description": "Talk recorded"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The talk is already recorded, or has no attendees"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Record a toolbox talk",
+        "tags": [
+          "Toolbox Talks (web)"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/{id}": {
+      "get": {
+        "operationId": "get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolboxTalkDto"
+                }
+              }
+            },
+            "description": "The talk"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get one toolbox talk",
+        "tags": [
+          "Toolbox Talks"
+        ]
+      },
+      "put": {
+        "operationId": "update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateToolboxTalkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolboxTalkDto"
+                }
+              }
+            },
+            "description": "Talk updated"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The talk is already recorded, or a value fails a rule"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Change a drafted toolbox talk",
+        "tags": [
+          "Toolbox Talks"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/{id}/attendees": {
+      "post": {
+        "operationId": "addAttendees",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolboxTalkAttendeesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolboxTalkDto"
+                }
+              }
+            },
+            "description": "Attendance updated"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The talk is already recorded, or a person is not an active employee"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Add attendees to a drafted toolbox talk",
+        "tags": [
+          "Toolbox Talks"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/{id}/attendees/{employeeId}": {
+      "delete": {
+        "operationId": "removeAttendee",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "employeeId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolboxTalkDto"
+                }
+              }
+            },
+            "description": "Attendance updated"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The talk is already recorded"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk, or the employee is not on its attendance"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Remove an attendee from a drafted toolbox talk",
+        "tags": [
+          "Toolbox Talks"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/{id}/pdf": {
+      "get": {
+        "operationId": "exportPdf",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "format": "byte",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The PDF"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Export a toolbox talk as a one-page PDF record",
+        "tags": [
+          "Toolbox Talks"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/{id}/photos": {
+      "get": {
+        "operationId": "listPhotos",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Photos returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a toolbox talk's photo evidence",
+        "tags": [
+          "Toolbox Talks"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/{id}/photos/presign": {
+      "post": {
+        "description": "Step one of the direct-to-storage path, as for inspection evidence.",
+        "operationId": "presignPhotos",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/UploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresignedUpload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Presigned upload URLs returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A file was declared twice, or is already attached"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Presign photo uploads for a toolbox talk",
+        "tags": [
+          "Toolbox Talks"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/{id}/photos/register": {
+      "post": {
+        "description": "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage.",
+        "operationId": "registerPhotos",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/RegisterUploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Photos registered"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A referenced object is missing from storage, or its key was not presigned for this talk"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Register presigned photo uploads for a toolbox talk",
+        "tags": [
+          "Toolbox Talks"
+        ]
+      }
+    },
+    "/api/v1/toolbox-talks/{id}/record": {
+      "post": {
+        "description": "Signs the draft off as the safety record. It needs at least one attendee and happens once.",
+        "operationId": "record",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolboxTalkDto"
+                }
+              }
+            },
+            "description": "Talk recorded"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The talk is already recorded, or has no attendees"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such talk in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Record a toolbox talk",
+        "tags": [
+          "Toolbox Talks"
         ]
       }
     },
@@ -120529,6 +123458,14 @@
     {
       "description": "Work items tracked against a project. A task carries a title, schedule, assignees, category, tags, progress and status. Endpoints cover creating a task with attachments, browsing and reading tasks, batch updates and deletion. Access is gated by the task authorities, with an admin authority that grants all operations.",
       "name": "Tasks"
+    },
+    {
+      "description": "Mobile surface of the Toolbox Talks module: reads for members, writes for the roles that run site safety.",
+      "name": "Toolbox Talks"
+    },
+    {
+      "description": "Web twin of the Toolbox Talks surface: reads for members, writes for the roles that run site safety.",
+      "name": "Toolbox Talks (web)"
     },
     {
       "description": "Web-client twin of the user endpoints. Adds the current-user shortcut, the employee memberships of the caller, and a multipart profile-update path for the profile picture and CV, alongside the same listing, batch update and delete operations as the base user API.",
