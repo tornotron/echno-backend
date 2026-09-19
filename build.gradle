@@ -339,3 +339,30 @@ tasks.named('jacocoTestCoverageVerification') {
 tasks.named('check') {
     dependsOn jacocoTestCoverageVerification
 }
+
+// Module scaffold: generates modules/<id> (manifest, kill switch, sample entity, repository,
+// service, DTOs, mapper, twin controllers), its changelog directory with the table and the
+// feature seed, and its tests from scripts/scaffold/templates/backend/. See docs/scaffold.md.
+//   ./gradlew scaffoldModule -Pid=toolbox-talks -Pname="Toolbox Talks"
+// The templates mirror the SPI by hand; the scaffold-check CI job generates a throwaway
+// module and runs its tests on every pull request so a template that drifts fails there.
+tasks.register('scaffoldModule', Exec) {
+    group = 'echno'
+    description = 'Generates a module skeleton: -Pid=<module-id> [-Pname="Human Name"]'
+    def moduleId = providers.gradleProperty('id')
+    def moduleName = providers.gradleProperty('name')
+    workingDir = projectDir
+    executable = 'python3'
+    argumentProviders.add({
+        def args = ['scripts/scaffold-module.py', moduleId.getOrElse('')]
+        if (moduleName.isPresent()) {
+            args += ['--name', moduleName.get()]
+        }
+        return args
+    } as CommandLineArgumentProvider)
+    doFirst {
+        if (!moduleId.isPresent()) {
+            throw new GradleException('Pass the module id: ./gradlew scaffoldModule -Pid=toolbox-talks -Pname="Toolbox Talks"')
+        }
+    }
+}
