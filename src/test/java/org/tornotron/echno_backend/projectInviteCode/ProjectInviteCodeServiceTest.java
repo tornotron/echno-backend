@@ -134,7 +134,7 @@ class ProjectInviteCodeServiceTest {
     @Test
     void generateInviteCode_managerWithoutManagerRole_throwsNotFound() {
         when(organizationRepository.findById(ORG)).thenReturn(Optional.of(organization()));
-        when(employeeRepository.existsByIdAndOrganization_IdAndOrgRolesIn(eq(MANAGER_ID), eq(ORG), any())).thenReturn(false);
+        when(employeeRepository.existsActiveManager(eq(MANAGER_ID), eq(ORG), eq(EmployeeStatus.active), any())).thenReturn(false);
 
         InviteCodeGenerationDto dto = generationDto();
         dto.setManagerId(MANAGER_ID);
@@ -391,7 +391,7 @@ class ProjectInviteCodeServiceTest {
     void generateInviteCode_checksManagerRolesSet() {
         when(organizationRepository.findById(ORG)).thenReturn(Optional.of(organization()));
         Set<OrgRole> managerRoles = OrgRole.getManagerRoles();
-        lenient().when(employeeRepository.existsByIdAndOrganization_IdAndOrgRolesIn(MANAGER_ID, ORG, managerRoles)).thenReturn(true);
+        lenient().when(employeeRepository.existsActiveManager(MANAGER_ID, ORG, EmployeeStatus.active, managerRoles)).thenReturn(true);
         when(inviteCodeRepository.save(any(ProjectInviteCode.class))).thenAnswer(inv -> {
             ProjectInviteCode saved = inv.getArgument(0);
             saved.setId(INVITE_ID);
@@ -404,7 +404,7 @@ class ProjectInviteCodeServiceTest {
 
         service.generateInviteCode(dto);
 
-        verify(employeeRepository).existsByIdAndOrganization_IdAndOrgRolesIn(MANAGER_ID, ORG, managerRoles);
+        verify(employeeRepository).existsActiveManager(MANAGER_ID, ORG, EmployeeStatus.active, managerRoles);
     }
 
     // --- The organization an invite code is bound to comes from the session (#687) ---
@@ -445,16 +445,15 @@ class ProjectInviteCodeServiceTest {
         // this it was looked for anywhere, and the claim rested on the Hibernate filter
         // happening to be enabled rather than on the query.
         when(organizationRepository.findById(ORG)).thenReturn(Optional.of(organization()));
-        when(employeeRepository.existsByIdAndOrganization_IdAndOrgRolesIn(
-                eq(MANAGER_ID), eq(ORG), any())).thenReturn(false);
+        when(employeeRepository.existsActiveManager(eq(MANAGER_ID), eq(ORG), eq(EmployeeStatus.active), any())).thenReturn(false);
 
         InviteCodeGenerationDto dto = generationDto();
         dto.setManagerId(MANAGER_ID);
 
         assertThatExceptionOfType(ResourceNotFoundException.class)
                 .isThrownBy(() -> service.generateInviteCode(dto));
-        verify(employeeRepository).existsByIdAndOrganization_IdAndOrgRolesIn(
-                eq(MANAGER_ID), eq(ORG), any());
+        verify(employeeRepository).existsActiveManager(
+                eq(MANAGER_ID), eq(ORG), eq(EmployeeStatus.active), any());
     }
 
     @Test
