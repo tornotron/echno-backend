@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
+import org.tornotron.echno_backend.modules.toolboxtalks.api.ToolboxTalkRecordedEvent;
 import org.tornotron.echno_backend.modules.toolboxtalks.domain.ToolboxTalk;
 import org.tornotron.echno_backend.modules.toolboxtalks.domain.ToolboxTalkPhotos;
 import org.tornotron.echno_backend.modules.toolboxtalks.domain.ToolboxTalkStatus;
@@ -61,6 +63,7 @@ public class ToolboxTalksService {
     private final TenantEntityHelper tenantEntityHelper;
     private final UserContextService userContextService;
     private final ToolboxTalksMapper mapper;
+    private final ApplicationEventPublisher events;
 
     @Transactional
     public ToolboxTalkDto create(CreateToolboxTalkRequest req) {
@@ -141,7 +144,11 @@ public class ToolboxTalksService {
         talk.setStatus(ToolboxTalkStatus.RECORDED);
         talk.setRecordedAt(LocalDateTime.now());
         talk.setUpdatedBy(userContextService.getCurrentUserId());
-        return mapper.toDto(talks.save(talk));
+        ToolboxTalk recorded = talks.save(talk);
+        events.publishEvent(new ToolboxTalkRecordedEvent(recorded.getOrganization().getId(), recorded.getId(),
+                recorded.getProjectId(), recorded.getTalkDate(), recorded.getConductorEmployeeId(),
+                recorded.getAttendees().size()));
+        return mapper.toDto(recorded);
     }
 
     @Transactional(readOnly = true)
