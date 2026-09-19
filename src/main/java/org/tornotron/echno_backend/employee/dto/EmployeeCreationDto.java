@@ -32,7 +32,9 @@ public class EmployeeCreationDto {
     @Schema(description = "Monthly or annual salary, per organization convention.", example = "65000.0")
     private Double salary;
 
-    @Schema(description = "Id of this employee's reporting manager.", example = "5")
+    @Schema(description = "Id of this employee's reporting manager. Required: a new employee must report to an "
+            + "active employee of the same organization. The only exception is the first employee of an "
+            + "organization, who has nobody to report to.", example = "5")
     private Long managerId;
 
     @Schema(description = "Id of the structured shift timing to assign to the employee.", example = "5")

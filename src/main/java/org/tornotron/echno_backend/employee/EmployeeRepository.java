@@ -105,6 +105,13 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
 
     boolean existsByManager_Id(Long managerId);
 
+    /**
+     * Whether the organization already has an employee in the given status. Read before an
+     * employee is created without a reporting manager: only the very first employee of an
+     * organization, who has nobody to report to, may be created that way.
+     */
+    boolean existsByOrganization_IdAndStatus(Long organizationId, EmployeeStatus status);
+
     @Query("SELECT e FROM Employee e JOIN e.orgRoles r WHERE e.organization.id = :orgId AND r = :role")
     List<Employee> findByOrganizationIdAndOrgRole(Long orgId, OrgRole role);
 

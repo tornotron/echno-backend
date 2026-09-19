@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.projectInviteCode.dto;
 
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -55,6 +56,9 @@ public class InviteCodeGenerationDto {
 
     private Double salary;
 
+    @Schema(description = "Id of the reporting manager the invited employee will report to. Required unless the "
+            + "organization has no active employee yet; the invited person joins with this manager set.",
+            example = "5")
     private Long managerId;
 
     private Long shiftTimingId;
