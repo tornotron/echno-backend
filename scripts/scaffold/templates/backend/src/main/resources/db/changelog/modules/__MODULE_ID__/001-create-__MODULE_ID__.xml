@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The __MODULE_NAME__ module's tables. Every table carries organization_id with a foreign
+        key to organization and an index on it, which is what the entity's orgFilter runs on.
+    -->
+
+    <changeSet id="__MODULE_ID__-001-create-__MODULE_SNAKE___entry" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="__MODULE_SNAKE___entry"/></not>
+        </preConditions>
+        <createTable tableName="__MODULE_SNAKE___entry">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk___MODULE_SNAKE___entry" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="title" type="VARCHAR(200)"><constraints nullable="false"/></column>
+            <column name="notes" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_by" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="__MODULE_SNAKE___entry" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk___MODULE_SNAKE___entry_organization"/>
+        <createIndex tableName="__MODULE_SNAKE___entry" indexName="idx___MODULE_SNAKE___entry_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

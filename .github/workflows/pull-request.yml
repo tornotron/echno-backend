@@ -65,6 +65,47 @@ jobs:
           path: build/openapi.json
           if-no-files-found: ignore
 
+  # Keeps the module scaffold honest. The templates under scripts/scaffold/templates/backend/
+  # mirror the module SPI by hand, so a change to EchnoModule, ModuleManifest, the tenant
+  # helpers or the architecture rules that the templates do not follow would otherwise go
+  # unnoticed until the next developer ran the generator. This job generates a throwaway
+  # module, compiles it, runs its own tests and the architecture suite that judges every
+  # module, then removes it. ci-probe is never committed. See docs/scaffold.md.
+  scaffold-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Scaffold a throwaway module
+        run: ./gradlew --no-daemon scaffoldModule -Pid=ci-probe -Pname="CI Probe"
+
+      - name: Compile and test the generated module
+        run: |
+          ./gradlew --no-daemon test \
+            --tests '*.modules.ciprobe.*' \
+            --tests '*ModuleBoundaryTest' \
+            --tests '*ModuleBoundaryRuleTest' \
+            --tests '*EndpointAuthorizationTest' \
+            --tests '*PaginationParameterBoundTest' \
+            --tests '*UnboundedRepositoryReadTest' \
+            --tests '*MapperConventionTest' \
+            --tests '*ModuleRegistryTest'
+
+      - name: Discard the generated module and check nothing else changed
+        run: |
+          python3 scripts/scaffold-module.py ci-probe --delete
+          git status --porcelain
+          test -z "$(git status --porcelain)"
+
   secrets:
     runs-on: ubuntu-latest
     steps:
