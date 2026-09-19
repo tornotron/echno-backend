@@ -20,13 +20,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.transaction.AfterTransaction;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.modules.toolboxtalks.dto.CreateToolboxTalkRequest;
@@ -51,6 +54,13 @@ class ToolboxTalksServiceIT extends AbstractIntegrationTest {
 
     @Autowired
     private ToolboxTalksService service;
+
+    // The photo path is the platform's; this IT proves the module's own rows and rules.
+    @MockitoBean
+    private AttachmentService attachmentService;
+
+    @MockitoBean
+    private AttachmentMapper attachmentMapper;
 
     @PersistenceContext
     private EntityManager entityManager;
