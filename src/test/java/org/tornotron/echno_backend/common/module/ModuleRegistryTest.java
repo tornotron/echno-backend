@@ -147,6 +147,32 @@ class ModuleRegistryTest {
     }
 
     @Test
+    void rejectsAManifestPermissionKeyThatIsNotInColonForm() {
+        assertThatThrownBy(() -> new ModuleManifest("inspections", "Inspections", "1.0.0", null,
+                List.of(), List.of("inspections.read"), List.of(), true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("inspections.read")
+                .hasMessageContaining("<module>:<action>");
+        assertThatThrownBy(() -> new ModuleManifest("inspections", "Inspections", "1.0.0", null,
+                List.of(), List.of("inspections:ncr:raise"), List.of(), true))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ModuleManifest("inspections", "Inspections", "1.0.0", null,
+                List.of(), List.of("Inspections:Read"), List.of(), true))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void rejectsAHookPermissionKeyThatIsNotInColonForm() {
+        assertThatThrownBy(() -> new PermissionRegistry().add("bim.view"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("bim.view");
+        assertThatThrownBy(() -> new PermissionRegistry().add(" "))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(new PermissionRegistry().add("bim:view").add("toolbox-talks:record").keys())
+                .containsExactly("bim:view", "toolbox-talks:record");
+    }
+
+    @Test
     void unknownModulesAreNeverEnabled() {
         ModuleRegistry registry = new ModuleRegistry(List.of(), ENTITLED_TO_EVERYTHING, new MockEnvironment());
 

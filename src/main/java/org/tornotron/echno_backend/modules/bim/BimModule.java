@@ -26,8 +26,8 @@ public class BimModule implements EchnoModule {
     public static final String ID = "bim";
     public static final String FEATURE_KEY = "MODULE_BIM";
 
-    public static final String PERMISSION_VIEW = "bim.view";
-    public static final String PERMISSION_MANAGE = "bim.manage";
+    public static final String PERMISSION_VIEW = "bim:view";
+    public static final String PERMISSION_MANAGE = "bim:manage";
 
     static final List<String> PERMISSIONS = List.of(PERMISSION_VIEW, PERMISSION_MANAGE);
 

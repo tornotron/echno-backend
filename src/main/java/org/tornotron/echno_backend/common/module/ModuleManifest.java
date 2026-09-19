@@ -17,7 +17,11 @@ import java.util.regex.Pattern;
  *                              paywalled
  * @param dependsOn             ids of modules that must be installed and enabled for this one to
  *                              function; validated at boot
- * @param permissions           the permission keys the module defines
+ * @param permissions           the permission keys the module defines, in the
+ *                              {@code <module>:<action>} form every {@code @PreAuthorize}
+ *                              authority and the web nav gate already use, for example
+ *                              {@code inspections:read}; a key that does not match
+ *                              {@link #PERMISSION_KEY} fails construction, and so the boot
  * @param navDescriptors        the navigation intents the module publishes
  * @param enabledByDefault      for a module with no entitlement feature key, whether it is on for
  *                              every organization; ignored when a feature key is present, where
@@ -35,6 +39,12 @@ public record ModuleManifest(
 
     private static final Pattern ID = Pattern.compile("[a-z][a-z0-9-]*");
 
+    /**
+     * The permission vocabulary: {@code <module>:<action>}, lower-case letters, digits and
+     * hyphens on both sides, exactly one colon. Shared with {@link PermissionRegistry}.
+     */
+    public static final Pattern PERMISSION_KEY = Pattern.compile("^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$");
+
     public ModuleManifest {
         Objects.requireNonNull(id, "id");
         if (!ID.matcher(id).matches()) {
@@ -46,7 +56,26 @@ public record ModuleManifest(
                 ? null : entitlementFeatureKey;
         dependsOn = dependsOn == null ? List.of() : List.copyOf(dependsOn);
         permissions = permissions == null ? List.of() : List.copyOf(permissions);
+        for (String key : permissions) {
+            requirePermissionKey(key);
+        }
         navDescriptors = navDescriptors == null ? List.of() : List.copyOf(navDescriptors);
+    }
+
+    /**
+     * Checks one permission key against {@link #PERMISSION_KEY}.
+     *
+     * @throws IllegalArgumentException when the key is blank or not in colon form
+     */
+    public static String requirePermissionKey(String key) {
+        if (key == null || key.isBlank()) {
+            throw new IllegalArgumentException("A permission key must not be blank");
+        }
+        if (!PERMISSION_KEY.matcher(key).matches()) {
+            throw new IllegalArgumentException(
+                    "Permission key '" + key + "' must be <module>:<action>, matching " + PERMISSION_KEY.pattern());
+        }
+        return key;
     }
 
     /** Whether the module is gated by a billing feature. */
