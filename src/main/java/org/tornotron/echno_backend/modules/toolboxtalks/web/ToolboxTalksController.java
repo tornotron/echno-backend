@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.io.IOException;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
@@ -11,7 +12,9 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -35,6 +38,8 @@ import org.tornotron.echno_backend.modules.toolboxtalks.dto.CreateToolboxTalkReq
 import org.tornotron.echno_backend.modules.toolboxtalks.dto.ToolboxTalkAttendeesRequest;
 import org.tornotron.echno_backend.modules.toolboxtalks.dto.ToolboxTalkDto;
 import org.tornotron.echno_backend.modules.toolboxtalks.dto.UpdateToolboxTalkRequest;
+import org.tornotron.echno_backend.modules.toolboxtalks.pdf.ToolboxTalkPdfService;
+import org.tornotron.echno_backend.pdfGeneration.RenderedReport;
 import org.tornotron.echno_backend.modules.toolboxtalks.service.ToolboxTalksService;
 
 /**
@@ -51,6 +56,7 @@ import org.tornotron.echno_backend.modules.toolboxtalks.service.ToolboxTalksServ
 public class ToolboxTalksController {
 
     private final ToolboxTalksService service;
+    private final ToolboxTalkPdfService pdf;
 
     @GetMapping
     @PreAuthorize(ToolboxTalksModule.READ_GUARD)
@@ -180,5 +186,21 @@ public class ToolboxTalksController {
     public ResponseEntity<List<AttachmentDto>> registerPhotos(@PathVariable UUID id,
                                                               @RequestBody List<RegisterUploadRequest> uploads) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.registerPhotos(id, uploads));
+    }
+
+    @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize(ToolboxTalksModule.READ_GUARD)
+    @Operation(summary = "Export a toolbox talk as a one-page PDF record")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The PDF"),
+            @ApiResponse(responseCode = "404", description = "No such talk in the current tenant")
+    })
+    public ResponseEntity<byte[]> exportPdf(@PathVariable UUID id) throws IOException {
+        RenderedReport report = pdf.render(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + report.documentName() + ".pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(report.content());
     }
 }
