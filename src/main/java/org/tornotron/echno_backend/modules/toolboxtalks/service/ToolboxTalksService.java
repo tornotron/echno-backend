@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.modules.toolboxtalks.service;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -8,49 +10,59 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
-import org.tornotron.echno_backend.modules.toolboxtalks.domain.ToolboxTalksEntry;
-import org.tornotron.echno_backend.modules.toolboxtalks.dto.CreateToolboxTalksEntryRequest;
-import org.tornotron.echno_backend.modules.toolboxtalks.dto.ToolboxTalksEntryDto;
-import org.tornotron.echno_backend.modules.toolboxtalks.mapper.ToolboxTalksMapper;
-import org.tornotron.echno_backend.modules.toolboxtalks.repository.ToolboxTalksEntryRepository;
 import org.tornotron.echno_backend.user.UserContextService;
+import org.tornotron.echno_backend.modules.toolboxtalks.domain.ToolboxTalk;
+import org.tornotron.echno_backend.modules.toolboxtalks.domain.ToolboxTalkStatus;
+import org.tornotron.echno_backend.modules.toolboxtalks.dto.CreateToolboxTalkRequest;
+import org.tornotron.echno_backend.modules.toolboxtalks.dto.ToolboxTalkDto;
+import org.tornotron.echno_backend.modules.toolboxtalks.mapper.ToolboxTalksMapper;
+import org.tornotron.echno_backend.modules.toolboxtalks.repository.ToolboxTalkRepository;
 
 /**
- * Toolbox Talks entries as the API sees them. Every read goes through a scoped query so a
- * foreign id reads as absent; every write stamps the current tenant and user.
+ * Toolbox talks as the API sees them. Every read goes through a scoped query so a foreign id
+ * reads as absent; every write stamps the current tenant and user.
  */
 @Service
 @RequiredArgsConstructor
 public class ToolboxTalksService {
 
-    private final ToolboxTalksEntryRepository entries;
+    private final ToolboxTalkRepository talks;
     private final TenantEntityHelper tenantEntityHelper;
     private final UserContextService userContextService;
     private final ToolboxTalksMapper mapper;
 
     @Transactional
-    public ToolboxTalksEntryDto create(CreateToolboxTalksEntryRequest req) {
-        ToolboxTalksEntry entry = new ToolboxTalksEntry();
-        entry.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
-        entry.setTitle(req.title().trim());
-        entry.setNotes(req.notes());
-        entry.setCreatedBy(userContextService.getCurrentUserId());
-        entry.setUpdatedBy(entry.getCreatedBy());
-        return mapper.toDto(entries.save(entry));
+    public ToolboxTalkDto create(CreateToolboxTalkRequest req) {
+        ToolboxTalk talk = new ToolboxTalk();
+        talk.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
+        talk.setProjectId(req.projectId());
+        talk.setSpatialNodeId(req.spatialNodeId());
+        talk.setTopic(req.topic().trim());
+        talk.setTalkDate(req.talkDate());
+        talk.setTalkTime(req.talkTime());
+        talk.setConductorEmployeeId(req.conductorEmployeeId());
+        talk.setNotes(req.notes());
+        for (Long employeeId : req.attendeeEmployeeIds() == null ? List.<Long>of() : req.attendeeEmployeeIds()) {
+            talk.addAttendee(employeeId);
+        }
+        talk.setCreatedBy(userContextService.getCurrentUserId());
+        talk.setUpdatedBy(talk.getCreatedBy());
+        return mapper.toDto(talks.save(talk));
     }
 
     @Transactional(readOnly = true)
-    public Page<ToolboxTalksEntryDto> list(int page, int size) {
-        return entries.findPage(PageRequest.of(page, size)).map(mapper::toDto);
+    public Page<ToolboxTalkDto> list(Long projectId, LocalDate from, LocalDate to, ToolboxTalkStatus status,
+                                     int page, int size) {
+        return talks.findPage(projectId, from, to, status, PageRequest.of(page, size)).map(mapper::toDto);
     }
 
     @Transactional(readOnly = true)
-    public ToolboxTalksEntryDto get(UUID id) {
+    public ToolboxTalkDto get(UUID id) {
         return mapper.toDto(require(id));
     }
 
-    private ToolboxTalksEntry require(UUID id) {
-        return entries.findByIdScoped(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Toolbox Talks entry not found: " + id));
+    private ToolboxTalk require(UUID id) {
+        return talks.findByIdScoped(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Toolbox talk not found: " + id));
     }
 }

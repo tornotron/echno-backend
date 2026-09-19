@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The Toolbox Talks module's two tables. toolbox_talk carries organization_id, which is
+        what the entity's orgFilter runs on; toolbox_talk_attendee is an owned child and
+        inherits the tenant through its non-nullable talk_id. The project, spatial node and
+        employee columns are foreign keys into the core, not JPA associations.
+    -->
+
+    <changeSet id="toolbox-talks-001-create-toolbox_talk" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="toolbox_talk"/></not>
+        </preConditions>
+        <createTable tableName="toolbox_talk">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_toolbox_talk" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="spatial_node_id" type="UUID"/>
+            <column name="topic" type="VARCHAR(200)"><constraints nullable="false"/></column>
+            <column name="talk_date" type="DATE"><constraints nullable="false"/></column>
+            <column name="talk_time" type="TIME"/>
+            <column name="conductor_employee_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="notes" type="TEXT"/>
+            <column name="status" type="VARCHAR(20)" defaultValue="DRAFT"><constraints nullable="false"/></column>
+            <column name="recorded_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_by" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="toolbox_talk" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_toolbox_talk_organization"/>
+        <addForeignKeyConstraint baseTableName="toolbox_talk" baseColumnNames="project_id"
+                                 referencedTableName="project" referencedColumnNames="id"
+                                 constraintName="fk_toolbox_talk_project"/>
+        <addForeignKeyConstraint baseTableName="toolbox_talk" baseColumnNames="spatial_node_id"
+                                 referencedTableName="project_spatial_node" referencedColumnNames="id"
+                                 constraintName="fk_toolbox_talk_spatial_node"/>
+        <addForeignKeyConstraint baseTableName="toolbox_talk" baseColumnNames="conductor_employee_id"
+                                 referencedTableName="employee" referencedColumnNames="id"
+                                 constraintName="fk_toolbox_talk_conductor"/>
+        <createIndex tableName="toolbox_talk" indexName="idx_toolbox_talk_organization">
+            <column name="organization_id"/>
+        </createIndex>
+        <createIndex tableName="toolbox_talk" indexName="idx_toolbox_talk_project_date">
+            <column name="organization_id"/>
+            <column name="project_id"/>
+            <column name="talk_date"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="toolbox-talks-001-create-toolbox_talk_attendee" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="toolbox_talk_attendee"/></not>
+        </preConditions>
+        <createTable tableName="toolbox_talk_attendee">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_toolbox_talk_attendee" nullable="false"/></column>
+            <column name="talk_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="employee_id" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="toolbox_talk_attendee" baseColumnNames="talk_id"
+                                 referencedTableName="toolbox_talk" referencedColumnNames="id"
+                                 constraintName="fk_toolbox_talk_attendee_talk" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="toolbox_talk_attendee" baseColumnNames="employee_id"
+                                 referencedTableName="employee" referencedColumnNames="id"
+                                 constraintName="fk_toolbox_talk_attendee_employee"/>
+        <addUniqueConstraint tableName="toolbox_talk_attendee" columnNames="talk_id, employee_id"
+                             constraintName="uq_toolbox_talk_attendee"/>
+    </changeSet>
+
+</databaseChangeLog>

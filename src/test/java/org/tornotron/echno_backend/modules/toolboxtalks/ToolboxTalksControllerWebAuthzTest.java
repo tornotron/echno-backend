@@ -85,7 +85,7 @@ class ToolboxTalksControllerWebAuthzTest {
 
         mockMvc.perform(post("/api/v1/toolbox-talks/web").with(memberOfOrgSeven())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"First\"}"))
+                        .content("{\"projectId\":1,\"topic\":\"Working at height\",\"talkDate\":\"2026-09-19\",\"conductorEmployeeId\":2}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -95,7 +95,7 @@ class ToolboxTalksControllerWebAuthzTest {
 
         mockMvc.perform(post("/api/v1/toolbox-talks/web").with(memberOfOrgSeven())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"First\"}"))
+                        .content("{\"projectId\":1,\"topic\":\"Working at height\",\"talkDate\":\"2026-09-19\",\"conductorEmployeeId\":2}"))
                 .andExpect(status().isCreated());
     }
 
