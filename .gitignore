@@ -55,7 +55,7 @@ serviceAccountKey.json
 
 /src/main/resources/initializer/init-keycloak.json
 /src/main/resources/initializer/init-keycloak-users.json
-/src/main/resources/application-local.yml
+/src/main/resources/application-local-*.yml
 /logs/
 /src/main/resources/config/
 /bin

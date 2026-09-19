@@ -1,0 +1,95 @@
+# Local development profile. Every value points at the services docker-compose.dev.yml
+# starts, on the offset localhost ports that file publishes. Activate it with
+#   ./gradlew bootRun --args='--spring.profiles.active=local'
+# Nothing here is a real credential: the literals are the dev-only ones the compose
+# file and dev/keycloak/echno-realm.json carry, and they exist on no deployed instance.
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:27257/echno?sslmode=disable
+    username: root
+    password: ""
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8180/realms/echno-realm/protocol/openid-connect/certs
+  data:
+    redis:
+      host: localhost
+      port: 6380
+  liquibase:
+    contexts: v4
+
+API:
+  VERSION: v1
+
+jwt:
+  auth:
+    converter:
+      resource-id: echno-backend
+
+digital-ocean:
+  uri: http://localhost:9100
+  presign-endpoint: http://localhost:9100
+  path-style-access: true
+  access-key-id: echno-dev
+  secret-access-key: echno-dev-secret
+  bucket-name: echno-dev
+  cdn-endpoint: http://localhost:9100/echno-dev
+
+# 32 hex characters; a dev-only key for the column encryption.
+encryption:
+  secret-key: 0123456789abcdef0123456789abcdef
+
+keycloak-initializer:
+  master-realm: master
+  application-realm: echno-realm
+  client-id: admin-cli
+  username: admin
+  password: admin
+  url: http://localhost:8180
+
+keycloak:
+  issuer-uri: http://localhost:8180/realms/echno-realm
+  client-id: echno-backend
+  secret: echno-backend-dev-secret
+  redirect-uri: http://localhost:8080/*,http://localhost:8080/webjars/*
+  web-origin: http://localhost:8080
+  frontend:
+    client-id: echno-web
+    redirect-uri: http://localhost:3000/*
+    web-origin: http://localhost:3000
+  # The echno-web-local client and the echno-local-dev account with its own organization.
+  dev-client-enabled: true
+  initializer:
+    service-client-secret: echno-initializer-dev-secret
+  admin:
+    userName: echno-admin
+    email: admin@echno.local
+    password: echno-dev
+    firstName: Echno
+    lastName: Admin
+  service:
+    userName: echno-service
+    email: service@echno.local
+    password: echno-dev
+    firstName: Echno
+    lastName: Service
+
+echno:
+  cache:
+    provider: redis
+  entitlement:
+    mode: advisory
+  security:
+    jwt:
+      accepted-issuers: http://localhost:8180/realms/echno-realm
+
+springdoc:
+  swagger-ui:
+    public-access: true
+
+logging:
+  file:
+    name: logs/echno-backend-local.log

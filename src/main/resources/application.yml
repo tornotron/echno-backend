@@ -59,6 +59,19 @@ management:
     web:
       exposure:
         include: prometheus,health,info
+  # /actuator/info carries the running revision (git branch, sha, commit time) and the build
+  # time, read from git.properties and META-INF/build-info.properties, both written by the
+  # Gradle build (see generateGitProperties). env and java stay off, so the endpoint shows no
+  # property and no secret; ActuatorInfoIT holds that line. Issue #828.
+  info:
+    git:
+      mode: full
+    env:
+      enabled: false
+    java:
+      enabled: false
+    os:
+      enabled: false
 
   metrics:
     enabled:

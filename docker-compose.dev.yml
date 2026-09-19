@@ -1,0 +1,123 @@
+# Local development dependencies for the backend: the four services the
+# application needs, at the same versions the IIT Madras staging runs
+# (echno-deployment, ansible/roles/infra/defaults/main.yml). Nothing here is a
+# deployment: the credentials are fixed dev-only literals, every port binds on
+# 127.0.0.1, and the compose file is excluded from the image by .dockerignore.
+#
+#   ./gradlew devUp      # compose up -d, --wait on the services, wait on the init jobs
+#   ./gradlew bootRun --args='--spring.profiles.active=local'
+#   ./gradlew devLogs    # follow the service logs
+#   ./gradlew devDown    # stop and delete the volumes
+#
+# The ports are offset from the defaults (27257, 8180, 9100/9101, 6380) so this
+# stack can share a host with a compose staging that holds the standard ones.
+# Override any of them with the ECHNO_DEV_*_PORT variables and update
+# application-local.yml to match. The project name keeps container and volume
+# names under echno-dev-*, apart from any other echno-* stack on the same host.
+name: echno-dev
+
+services:
+  cockroachdb:
+    image: cockroachdb/cockroach:v26.2.4
+    command: ["start-single-node", "--insecure", "--store=/cockroach/cockroach-data"]
+    ports:
+      - "127.0.0.1:${ECHNO_DEV_COCKROACH_PORT:-27257}:26257"
+      - "127.0.0.1:${ECHNO_DEV_COCKROACH_UI_PORT:-28080}:8080"
+    volumes:
+      - cockroach-data:/cockroach/cockroach-data
+    healthcheck:
+      test: ["CMD", "cockroach", "sql", "--insecure", "-e", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # Creates the application database once the node answers. Liquibase owns the
+  # schema from there; the backend runs the changelog on first start.
+  cockroachdb-init:
+    image: cockroachdb/cockroach:v26.2.4
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+    entrypoint: ["cockroach", "sql", "--insecure", "--host=cockroachdb:26257", "-e", "CREATE DATABASE IF NOT EXISTS echno"]
+    restart: "no"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    # Dev mode: embedded H2 store, HTTP, no hostname pinning. --import-realm loads
+    # dev/keycloak/echno-realm.json on the first start of an empty store; the
+    # backend's KeycloakInitializer then reconciles the realm on every boot.
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin   # dev-only; the console is on localhost
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_PORT: "8080"
+    ports:
+      - "127.0.0.1:${ECHNO_DEV_KEYCLOAK_PORT:-8180}:8080"
+    volumes:
+      # The whole data directory, which the image ships owned by the keycloak user, so the
+      # volume inherits that ownership; a volume on the h2 subdirectory alone would be created
+      # root-owned and the store would fail to open.
+      - keycloak-data:/opt/keycloak/data
+      - ./dev/keycloak:/opt/keycloak/data/import:ro
+    healthcheck:
+      # The image has no curl; the management port answers on 9000.
+      test:
+        - CMD-SHELL
+        - "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q 'UP'"
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2024-11-07T00-52-20Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: echno-dev
+      MINIO_ROOT_PASSWORD: echno-dev-secret   # dev-only
+    ports:
+      - "127.0.0.1:${ECHNO_DEV_MINIO_PORT:-9100}:9000"
+      - "127.0.0.1:${ECHNO_DEV_MINIO_CONSOLE_PORT:-9101}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  # The buckets the application expects: the attachment bucket
+  # (digital-ocean.bucket-name) and the consented dataset export bucket
+  # (echno.dataset-export.bucket). The attachment bucket is readable anonymously
+  # so the cdn-endpoint URLs the API hands out resolve in a browser, as they do
+  # against Spaces.
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mc alias set local http://minio:9000 echno-dev echno-dev-secret &&
+        mc mb --ignore-existing local/echno-dev local/echno-datasets &&
+        mc anonymous set download local/echno-dev
+    restart: "no"
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "127.0.0.1:${ECHNO_DEV_REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  cockroach-data:
+  keycloak-data:
+  minio-data:

@@ -78,6 +78,9 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            GIT_BRANCH=${{ github.ref_name }}
           tags: ${{ env.IMAGE }}:${{ steps.f.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

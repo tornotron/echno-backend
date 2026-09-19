@@ -19,3 +19,7 @@ paths = [
   '''src/test/java/org/tornotron/echno_backend/common/configuration/RedisUnreachableBootIT\.java''',
   '''src/test/java/org/tornotron/echno_backend/common/configuration/ManagementPortSeparationIT\.java''',
 ]
+
+[[allowlists]]
+description = "The local development profile (issue #828). Every value in it points at docker-compose.dev.yml and is a public dev-only literal: the 32-hex encryption key, the dev Keycloak client secret and the dev MinIO credentials exist on no deployed instance, which read theirs from the deployment vault."
+paths = ['''src/main/resources/application-local\.yml''']

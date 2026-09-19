@@ -1,0 +1,524 @@
+{
+  "realm": "echno-realm",
+  "attributes": {
+    "echno.dev-note": "LOCAL DEVELOPMENT ONLY. Imported by docker-compose.dev.yml into the dev Keycloak. Every password and secret in this file is a public dev-only literal; none of them exists on any deployed instance. The backend's KeycloakInitializer reconciles this realm on each boot (clients, composite job roles, the echno-admin and echno-service accounts, the echno-local-dev fixture with its organization), so the import only has to carry what a first token needs."
+  },
+  "enabled": true,
+  "sslRequired": "none",
+  "displayName": "Echno (local dev)",
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "registrationAllowed": false,
+  "bruteForceProtected": false,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 2,
+  "accessTokenLifespan": 3600,
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Regular user role"
+      },
+      {
+        "name": "admin",
+        "description": "Administrator with full access"
+      },
+      {
+        "name": "accountant",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "admin-staff",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "architect",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "carpenter",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "civil-engineer",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "client",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "consultant",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "contractor",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "crane-operator",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "director",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "document-controller",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "driver",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "electrician",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "equipment-operator",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "foreman",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "helper",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "hr-manager",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "intern",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "it-support",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "laborer",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "mason",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "material-supplier",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "office-assistant",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "owner-representative",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "painter",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "planning-engineer",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "plumber",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "procurement-officer",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "project-manager",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "quantity-surveyor",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "receptionist",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "safety-officer",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "scaffolder",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "security-guard",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "site-cleaner",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "site-engineer",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "site-manager",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "site-supervisor",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "structural-engineer",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "student",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "sub-contractor",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "supervisor",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "technical-coordinator",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "trainee",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "vendor",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      },
+      {
+        "name": "welder",
+        "description": "Occupation role (granular); the backend groups these into the job-* composites on boot"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "echno-backend",
+      "name": "Echno backend (local dev)",
+      "publicClient": false,
+      "secret": "echno-backend-dev-secret",
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080"
+      ],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ],
+      "description": "Service accounts and authorization services are switched on by the backend's KeycloakInitializer on its first boot, not here: Keycloak 26.0.x fails a startup import that carries a service-account client (Session not bound to a realm)."
+    },
+    {
+      "clientId": "echno-web",
+      "name": "Echno web (local dev)",
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "echno-dev-cli",
+      "name": "Local dev token client (curl only)",
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "description": "Password grant for a first token from the command line. Not reconciled by the backend and never present on a deployed realm.",
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "echno-backend-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "echno-backend",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "dev-system-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "dev-system-admin@echno.local",
+      "firstName": "Dev",
+      "lastName": "System Admin",
+      "attributes": {
+        "echno-dev-role": [
+          "system-admin"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "echno-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    },
+    {
+      "username": "dev-org-manager",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "dev-org-manager@echno.local",
+      "firstName": "Dev",
+      "lastName": "Org Manager",
+      "attributes": {
+        "echno-dev-role": [
+          "org-manager"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "echno-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    },
+    {
+      "username": "dev-hr-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "dev-hr-admin@echno.local",
+      "firstName": "Dev",
+      "lastName": "Hr Admin",
+      "attributes": {
+        "echno-dev-role": [
+          "hr-admin"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "echno-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    },
+    {
+      "username": "dev-project-manager",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "dev-project-manager@echno.local",
+      "firstName": "Dev",
+      "lastName": "Project Manager",
+      "attributes": {
+        "echno-dev-role": [
+          "project-manager"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "echno-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    },
+    {
+      "username": "dev-qa-engineer",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "dev-qa-engineer@echno.local",
+      "firstName": "Dev",
+      "lastName": "Qa Engineer",
+      "attributes": {
+        "echno-dev-role": [
+          "qa-engineer"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "echno-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    },
+    {
+      "username": "dev-safety-officer",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "dev-safety-officer@echno.local",
+      "firstName": "Dev",
+      "lastName": "Safety Officer",
+      "attributes": {
+        "echno-dev-role": [
+          "safety-officer"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "echno-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    },
+    {
+      "username": "dev-site-engineer",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "dev-site-engineer@echno.local",
+      "firstName": "Dev",
+      "lastName": "Site Engineer",
+      "attributes": {
+        "echno-dev-role": [
+          "site-engineer"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "echno-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    },
+    {
+      "username": "dev-store-keeper",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "dev-store-keeper@echno.local",
+      "firstName": "Dev",
+      "lastName": "Store Keeper",
+      "attributes": {
+        "echno-dev-role": [
+          "store-keeper"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "echno-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    },
+    {
+      "username": "dev-observation-producer",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "dev-observation-producer@echno.local",
+      "firstName": "Dev",
+      "lastName": "Observation Producer",
+      "attributes": {
+        "echno-dev-role": [
+          "observation-producer"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "echno-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    }
+  ]
+}

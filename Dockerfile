@@ -23,6 +23,13 @@ RUN chmod +x ./gradlew && ./gradlew --no-daemon dependencies --refresh-dependenc
 
 COPY src ./src
 
+# The revision the image was built from, for /actuator/info. There is no .git in the
+# build context (see .dockerignore), so the Gradle build reads these instead; the
+# workflows pass the run's commit and branch, and a local build leaves them "unknown".
+ARG GIT_SHA=unknown
+ARG GIT_BRANCH=unknown
+ENV GIT_SHA=$GIT_SHA GIT_BRANCH=$GIT_BRANCH
+
 # Tests are the pull request gate, not part of packaging. Building an artefact
 # and verifying it are separate concerns, and coupling them means a flaky test
 # blocks a release that was already reviewed.
