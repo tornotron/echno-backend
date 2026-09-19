@@ -11,7 +11,10 @@ import org.tornotron.echno_backend.common.exception.InvalidInviteCodeException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.exception.TenantIdMissingException;
 import org.tornotron.echno_backend.common.exception.TooManyAttemptsException;
+import lombok.extern.slf4j.Slf4j;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.EmployeeService;
@@ -33,6 +36,7 @@ import java.util.*;
  * Handles the business logic for generating, validating, and using invite codes
  * for employees to join an organization.
  */
+@Slf4j
 @Service
 public class ProjectInviteCodeService {
 
@@ -125,11 +129,21 @@ public class ProjectInviteCodeService {
         }
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + organizationId + " was not found"));
-        if (inviteCodeGenerationDto.getManagerId() != null) {
-            if (!employeeRepository.existsByIdAndOrganization_IdAndOrgRolesIn(
-                    inviteCodeGenerationDto.getManagerId(), organizationId, OrgRole.getManagerRoles())) {
-                throw new ResourceNotFoundException("Manager with ID " + inviteCodeGenerationDto.getManagerId() + " was not found with a manager role in this organization");
+        if (inviteCodeGenerationDto.getManagerId() == null) {
+            // A new employee must have a reporting manager (ClickUp 14zdkkvrf25, #823). The invite
+            // carries the manager the redeemer will join under, so it is demanded here, at the
+            // administrator's desk, rather than at redemption where the redeemer can do nothing
+            // about it. The first employee of an organization is the one exception; the
+            // employee service applies the same rule again when the code is redeemed.
+            if (employeeRepository.existsByOrganization_IdAndStatus(organizationId, EmployeeStatus.active)) {
+                throw new InvalidRequestException(
+                        "managerId is required: a new employee must have a reporting manager");
             }
+            log.info("Invite code for organization {} minted without a reporting manager: the organization has no active employee yet",
+                    organizationId);
+        } else if (!employeeRepository.existsByIdAndOrganization_IdAndOrgRolesIn(
+                inviteCodeGenerationDto.getManagerId(), organizationId, OrgRole.getManagerRoles())) {
+            throw new ResourceNotFoundException("Manager with ID " + inviteCodeGenerationDto.getManagerId() + " was not found with a manager role in this organization");
         }
         ShiftTiming shiftTiming = null;
         if (inviteCodeGenerationDto.getShiftTimingId() != null) {

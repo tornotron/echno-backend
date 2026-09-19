@@ -6354,7 +6354,7 @@
             "type": "string"
           },
           "managerId": {
-            "description": "Id of this employee's reporting manager.",
+            "description": "Id of this employee's reporting manager. Required: a new employee must report to an active employee of the same organization. The only exception is the first employee of an organization, who has nobody to report to.",
             "example": 5,
             "format": "int64",
             "type": "integer"
@@ -6666,7 +6666,7 @@
             "type": "string"
           },
           "managerId": {
-            "description": "Id of this employee's reporting manager.",
+            "description": "Id of this employee's reporting manager. Required: a new employee must report to an active employee of the same organization. The only exception is the first employee of an organization, who has nobody to report to.",
             "example": 5,
             "format": "int64",
             "type": "integer"
@@ -9074,6 +9074,8 @@
             "type": "string"
           },
           "managerId": {
+            "description": "Id of the reporting manager the invited employee will report to. Required unless the organization has no active employee yet; the invited person joins with this manager set.",
+            "example": 5,
             "format": "int64",
             "type": "integer"
           },

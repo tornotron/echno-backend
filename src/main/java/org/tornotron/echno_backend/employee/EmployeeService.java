@@ -119,16 +119,7 @@ public class EmployeeService {
         employee.setEmailAddress(employeeCreationDto.getEmailAddress());
         employee.setDateOfBirth(employeeCreationDto.getDateOfBirth());
         employee.setOrganization(organization);
-        if (employeeCreationDto.getManagerId() != null) {
-            Employee manager = employeeRepository.findByIdAndOrganizationId(employeeCreationDto.getManagerId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Manager with ID " + employeeCreationDto.getManagerId() + " was not found in this organization"));
-            // Validate manager is from the same organization
-            if (!manager.getOrganization().getId().equals(organization.getId())) {
-                throw new IllegalArgumentException("Manager must be from the same organization");
-            }
-            employee.setManager(manager);
-        }
+        employee.setManager(resolveManagerForNewEmployee(employeeCreationDto.getManagerId(), organization));
 
         employee.setShiftTiming(resolveShiftTiming(employeeCreationDto.getShiftTimingId(), organization));
 
@@ -170,16 +161,7 @@ public class EmployeeService {
         employee.setSalary(employeeJoinOrgDto.getSalary());
         employee.setEmployeeId(employeeJoinOrgDto.getEmployeeId());
 
-        if (employeeJoinOrgDto.getManagerId() != null) {
-            Employee manager = employeeRepository.findByIdAndOrganizationId(employeeJoinOrgDto.getManagerId(),TenantContext.getCurrentOrgId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Manager with ID " + employeeJoinOrgDto.getManagerId() + " was not found in this organization"));
-            // Validate manager is from the same organization
-            if (!manager.getOrganization().getId().equals(org.getId())) {
-                throw new IllegalArgumentException("Manager must be from the same organization");
-            }
-            employee.setManager(manager);
-        }
+        employee.setManager(resolveManagerForNewEmployee(employeeJoinOrgDto.getManagerId(), org));
 
         employee.setShiftTiming(resolveShiftTiming(employeeJoinOrgDto.getShiftTimingId(), org));
         employee.setStatus(EmployeeStatus.valueOf(employeeJoinOrgDto.getStatus()));
@@ -207,6 +189,49 @@ public class EmployeeService {
         }
 
         return employeeMapper.toDto(savedEmployee);
+    }
+
+    /**
+     * Resolves the reporting manager of an employee about to be created.
+     *
+     * <p>A newly created employee must have a reporting manager (decided on ClickUp 14zdkkvrf25,
+     * backend #823). The one exception is the very first employee of an organization, who has
+     * nobody to report to: when the organization has no active employee yet, a missing
+     * {@code managerId} is accepted and the fact is logged. Every create path (the direct create,
+     * {@link #joinOrganization} from both controllers, and invite-code redemption, which reaches
+     * {@code joinOrganization} in process) goes through here so they cannot drift apart. Updates
+     * are untouched: the manager stays optional to change or clear afterwards.
+     *
+     * <p>The manager is looked up by the organization the employee is joining rather than by the
+     * ambient tenant, so the same-organization rule holds even where the tenant context is not
+     * set, as it is not for a person redeeming an invite code. The employee being created has no
+     * id yet, so it cannot name itself; self-reference on later reassignment is refused by
+     * {@link EmployeeHierarchyService#validateManager}.
+     *
+     * @param managerId    id of the reporting manager from the create payload, possibly null.
+     * @param organization the organization the employee is being created in.
+     * @return the resolved manager, or null only for the first employee of the organization.
+     * @throws InvalidRequestException   if the manager is missing and the organization already
+     *                                   has an active employee.
+     * @throws ResourceNotFoundException if the manager is not an employee of that organization.
+     */
+    private Employee resolveManagerForNewEmployee(Long managerId, Organization organization) {
+        if (managerId == null) {
+            if (employeeRepository.existsByOrganization_IdAndStatus(organization.getId(), EmployeeStatus.active)) {
+                throw new InvalidRequestException(
+                        "managerId is required: a new employee must have a reporting manager");
+            }
+            log.info("Creating the first employee of organization {} without a reporting manager",
+                    organization.getId());
+            return null;
+        }
+        Employee manager = employeeRepository.findByIdAndOrganizationId(managerId, organization.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Manager with ID " + managerId + " was not found in this organization"));
+        if (!manager.getOrganization().getId().equals(organization.getId())) {
+            throw new InvalidRequestException("Manager must be from the same organization");
+        }
+        return manager;
     }
 
     /**

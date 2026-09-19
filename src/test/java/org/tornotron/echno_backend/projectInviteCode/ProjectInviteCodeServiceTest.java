@@ -37,6 +37,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+
+import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
@@ -138,6 +142,41 @@ class ProjectInviteCodeServiceTest {
         assertThatExceptionOfType(ResourceNotFoundException.class)
                 .isThrownBy(() -> service.generateInviteCode(dto));
         verify(inviteCodeRepository, never()).save(any());
+    }
+
+    /**
+     * A new employee must have a reporting manager (ClickUp 14zdkkvrf25, #823). The invite is
+     * where the manager is chosen, so an invite minted into an organization that already has an
+     * active employee is refused without one; only the first employee of an organization may be
+     * invited without a manager.
+     */
+    @Test
+    void generateInviteCode_withoutManagerIntoAnOrganizationWithActiveEmployees_isRefused() {
+        when(organizationRepository.findById(ORG)).thenReturn(Optional.of(organization()));
+        when(employeeRepository.existsByOrganization_IdAndStatus(ORG, EmployeeStatus.active)).thenReturn(true);
+
+        assertThatExceptionOfType(InvalidRequestException.class)
+                .isThrownBy(() -> service.generateInviteCode(generationDto()))
+                .withMessageContaining("managerId is required");
+        verify(inviteCodeRepository, never()).save(any());
+    }
+
+    @Test
+    void generateInviteCode_withoutManagerForTheFirstEmployee_isAllowed() {
+        when(organizationRepository.findById(ORG)).thenReturn(Optional.of(organization()));
+        when(employeeRepository.existsByOrganization_IdAndStatus(ORG, EmployeeStatus.active)).thenReturn(false);
+        when(inviteCodeRepository.save(any(ProjectInviteCode.class))).thenAnswer(inv -> {
+            ProjectInviteCode saved = inv.getArgument(0);
+            saved.setId(INVITE_ID);
+            return saved;
+        });
+        when(projectInviteCodeMapper.toDto(any())).thenReturn(new ProjectInviteCodeDto());
+
+        service.generateInviteCode(generationDto());
+
+        ArgumentCaptor<ProjectInviteCode> captor = ArgumentCaptor.forClass(ProjectInviteCode.class);
+        verify(inviteCodeRepository).save(captor.capture());
+        assertThat(captor.getValue().getEmployeeDetails().get("managerId")).isNull();
     }
 
     @Test
