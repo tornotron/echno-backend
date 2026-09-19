@@ -61,6 +61,18 @@ class ToolboxTalkReminderJobTest {
     }
 
     @Test
+    void walksEveryPageOfAScanUntilAShortOne() {
+        List<Integer> asked = new java.util.ArrayList<>();
+        List<Integer> rows = ToolboxTalkReminderJob.allPages(page -> {
+            asked.add(page);
+            return page < 2 ? List.of(page, page) : List.of(page);
+        }, 2);
+
+        assertThat(asked).containsExactly(0, 1, 2);
+        assertThat(rows).containsExactly(0, 0, 1, 1, 2);
+    }
+
+    @Test
     void anOrganizationWhoseRunFailsDoesNotStopTheOthers() {
         when(talks.findOrganizationsForReminder(any())).thenReturn(List.of(org(1L, true), org(2L, true)));
         when(registry.isEnabledForOrg(eq(ToolboxTalksModule.ID), anyLong())).thenReturn(true);
