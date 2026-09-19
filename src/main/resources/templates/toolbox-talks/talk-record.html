@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Toolbox talk record</title>
+    <style>
+        /* Inline on purpose: openhtmltopdf cannot open a classpath stylesheet. */
+        @page {
+            size: A4;
+            margin: 22mm 15mm 20mm 15mm;
+        }
+
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 9.5px;
+            color: #1f2933;
+            margin: 0;
+        }
+
+        .doc-header {
+            border-bottom: 2px solid #c2410c;
+            padding-bottom: 8px;
+            margin-bottom: 14px;
+        }
+
+        .doc-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .doc-subtitle {
+            font-size: 10px;
+            color: #52606d;
+            margin: 3px 0 0 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .facts td {
+            padding: 4px 6px;
+            vertical-align: top;
+            border-bottom: 1px solid #e4e7eb;
+        }
+
+        .facts td.label {
+            width: 26%;
+            font-weight: bold;
+            color: #52606d;
+        }
+
+        h2 {
+            font-size: 11px;
+            margin: 16px 0 6px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #52606d;
+        }
+
+        .attendees th {
+            text-align: left;
+            background: #f5f7fa;
+            border-bottom: 1px solid #cbd2d9;
+            padding: 4px 6px;
+        }
+
+        .attendees td {
+            padding: 4px 6px;
+            border-bottom: 1px solid #e4e7eb;
+        }
+
+        .attendees td.n {
+            width: 8%;
+            color: #52606d;
+        }
+
+        .attendees td.sign {
+            width: 32%;
+        }
+
+        .notes {
+            white-space: pre-wrap;
+            border: 1px solid #e4e7eb;
+            padding: 6px 8px;
+            min-height: 40px;
+        }
+
+        .footer {
+            margin-top: 16px;
+            padding-top: 6px;
+            border-top: 1px solid #cbd2d9;
+            font-size: 8px;
+            color: #7b8794;
+        }
+    </style>
+</head>
+<body>
+<div class="doc-header">
+    <p class="doc-title">Toolbox talk record</p>
+    <p class="doc-subtitle">
+        <span th:text="${projectName}">Project</span> &#183;
+        <span th:text="${talkDate}">Date</span> &#183;
+        <span th:text="${statusLabel}">Status</span>
+    </p>
+</div>
+
+<table class="facts">
+    <tr><td class="label">Topic</td><td th:text="${topic}">-</td></tr>
+    <tr><td class="label">Project</td><td th:text="${projectName}">-</td></tr>
+    <tr><td class="label">Place</td><td th:text="${place}">-</td></tr>
+    <tr><td class="label">Date</td><td th:text="${talkDate}">-</td></tr>
+    <tr><td class="label">Time</td><td th:text="${talkTime}">-</td></tr>
+    <tr><td class="label">Conducted by</td><td th:text="${conductor}">-</td></tr>
+    <tr><td class="label">Recorded at</td><td th:text="${recordedAt}">-</td></tr>
+</table>
+
+<h2>Attendees (<span th:text="${attendeeCount}">0</span>)</h2>
+<table class="attendees">
+    <thead>
+    <tr><th>#</th><th>Name</th><th>Signature</th></tr>
+    </thead>
+    <tbody>
+    <tr th:each="row : ${attendees}">
+        <td class="n" th:text="${row.number()}">1</td>
+        <td th:text="${row.name()}">Name</td>
+        <td class="sign"></td>
+    </tr>
+    <tr th:if="${attendeeCount == 0}">
+        <td colspan="3">No attendees on record.</td>
+    </tr>
+    </tbody>
+</table>
+
+<h2>Notes</h2>
+<div class="notes" th:text="${notes}">-</div>
+
+<div class="footer">
+    Generated on <span th:text="${generatedOn}">now</span> by Echno. This record prints the attendance as held on the day; the roster names are resolved at print time.
+</div>
+</body>
+</html>

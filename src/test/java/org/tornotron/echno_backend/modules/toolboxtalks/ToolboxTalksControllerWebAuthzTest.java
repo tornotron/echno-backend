@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.toolboxtalks.pdf.ToolboxTalkPdfService;
 import org.tornotron.echno_backend.modules.toolboxtalks.service.ToolboxTalksService;
 import org.tornotron.echno_backend.modules.toolboxtalks.web.ToolboxTalksController;
 import org.tornotron.echno_backend.modules.toolboxtalks.web.ToolboxTalksControllerWeb;
@@ -48,6 +49,9 @@ class ToolboxTalksControllerWebAuthzTest {
 
     @MockitoBean
     private ToolboxTalksService service;
+
+    @MockitoBean
+    private ToolboxTalkPdfService pdfService;
 
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
