@@ -39,4 +39,28 @@ public interface ToolboxTalkRepository extends JpaRepository<ToolboxTalk, UUID> 
     @Query("SELECT DISTINCT t.projectId FROM ToolboxTalk t "
             + "WHERE t.talkDate = :day AND t.status = org.tornotron.echno_backend.modules.toolboxtalks.domain.ToolboxTalkStatus.RECORDED")
     List<Long> findProjectIdsWithRecordedTalkOn(@Param("day") LocalDate day);
+
+    // The reminder's cross-tenant scan: every organization's id and active flag, scalars only,
+    // because the caller has no tenant yet. Bounded by the page it is given.
+    @Query("SELECT o.id AS id, o.isActive AS isActive FROM Organization o ORDER BY o.id")
+    List<OrganizationRow> findOrganizationsForReminder(Pageable pageable);
+
+    // The organization's projects a talk is expected on. Runs inside a tenant.
+    @Query("SELECT p.id AS id, p.projectName AS projectName FROM Project p "
+            + "WHERE p.status IN (org.tornotron.echno_backend.project.enums.ProjectCreationStatus.open, "
+            + "org.tornotron.echno_backend.project.enums.ProjectCreationStatus.approved) "
+            + "ORDER BY p.id")
+    List<OpenProjectRow> findOpenProjects(Pageable pageable);
+
+    interface OrganizationRow {
+        Long getId();
+
+        Boolean getIsActive();
+    }
+
+    interface OpenProjectRow {
+        Long getId();
+
+        String getProjectName();
+    }
 }
