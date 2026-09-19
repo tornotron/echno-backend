@@ -21,10 +21,13 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.context.transaction.AfterTransaction;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -32,9 +35,12 @@ import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
+import org.tornotron.echno_backend.modules.toolboxtalks.api.ToolboxTalkRecordedEvent;
+import org.tornotron.echno_backend.modules.toolboxtalks.domain.ToolboxTalkStatus;
 import org.tornotron.echno_backend.modules.toolboxtalks.dto.CreateToolboxTalkRequest;
 import org.tornotron.echno_backend.modules.toolboxtalks.dto.ToolboxTalkAttendeeDto;
 import org.tornotron.echno_backend.modules.toolboxtalks.dto.ToolboxTalkDto;
+import org.tornotron.echno_backend.modules.toolboxtalks.dto.UpdateToolboxTalkRequest;
 import org.tornotron.echno_backend.modules.toolboxtalks.mapper.ToolboxTalksMapperImpl;
 import org.tornotron.echno_backend.modules.toolboxtalks.service.ToolboxTalksService;
 import org.tornotron.echno_backend.organization.Organization;
@@ -48,6 +54,7 @@ import org.tornotron.echno_backend.user.UserContextService;
  * organization reads as absent from another, by id and by list.
  */
 @DataJpaTest
+@RecordApplicationEvents
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ToolboxTalksService.class, ToolboxTalksMapperImpl.class, UserContextService.class, TenantEntityHelper.class})
 class ToolboxTalksServiceIT extends AbstractIntegrationTest {
@@ -67,6 +74,9 @@ class ToolboxTalksServiceIT extends AbstractIntegrationTest {
 
     @Autowired
     private PlatformTransactionManager txManager;
+
+    @Autowired
+    private ApplicationEvents applicationEvents;
 
     private final String runTag = UUID.randomUUID().toString();
     private Long orgAId;
@@ -137,6 +147,72 @@ class ToolboxTalksServiceIT extends AbstractIntegrationTest {
 
         assertThatThrownBy(() -> service.get(foreign)).isInstanceOf(ResourceNotFoundException.class);
         assertThat(service.list(null, null, null, null, 0, 10).getContent()).isEmpty();
+    }
+
+    @Test
+    void aTalkIsDatedNoMoreThanADayAhead() {
+        CreateToolboxTalkRequest tomorrow = new CreateToolboxTalkRequest(projectAId, null, "Housekeeping",
+                LocalDate.now().plusDays(1), null, conductorAId, List.of(), null);
+        CreateToolboxTalkRequest tooFar = new CreateToolboxTalkRequest(projectAId, null, "Housekeeping",
+                LocalDate.now().plusDays(2), null, conductorAId, List.of(), null);
+
+        assertThat(service.create(tomorrow).id()).isNotNull();
+        assertThatThrownBy(() -> service.create(tooFar)).isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
+    void thePeopleMustBeActiveEmployeesOfTheCallersOrganization() {
+        Long resigned = inCommittedTxReturning(() ->
+                persistEmployee(entityManager.getReference(Organization.class, orgAId), "Left Already",
+                        EmployeeStatus.resigned).getId());
+
+        assertThatThrownBy(() -> service.create(draft(projectAId, conductorBId, List.of())))
+                .as("a conductor from another organization")
+                .isInstanceOf(InvalidRequestException.class);
+        assertThatThrownBy(() -> service.create(draft(projectAId, conductorAId, List.of(resigned))))
+                .as("an attendee who has resigned")
+                .isInstanceOf(InvalidRequestException.class);
+        assertThatThrownBy(() -> service.create(draft(projectBId, conductorAId, List.of())))
+                .as("another organization's project")
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void recordingNeedsAnAttendeeHappensOnceAndPublishesTheEvent() {
+        UUID id = service.create(draft(projectAId, conductorAId, List.of())).id();
+        assertThatThrownBy(() -> service.record(id)).isInstanceOf(InvalidRequestException.class);
+
+        service.addAttendees(id, List.of(attendeeAId));
+        ToolboxTalkDto recorded = service.record(id);
+
+        assertThat(recorded.status()).isEqualTo(ToolboxTalkStatus.RECORDED);
+        assertThat(recorded.recordedAt()).isNotNull();
+        assertThat(applicationEvents.stream(ToolboxTalkRecordedEvent.class))
+                .singleElement()
+                .isEqualTo(new ToolboxTalkRecordedEvent(orgAId, id, projectAId, LocalDate.now(), conductorAId, 1));
+
+        assertThatThrownBy(() -> service.record(id)).isInstanceOf(InvalidRequestException.class);
+        assertThatThrownBy(() -> service.update(id, new UpdateToolboxTalkRequest(null, "Changed",
+                LocalDate.now(), null, conductorAId, null))).isInstanceOf(InvalidRequestException.class);
+        assertThatThrownBy(() -> service.removeAttendee(id, attendeeAId)).isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
+    void attendanceIsEditedOnTheDraftAndListedByStatus() {
+        UUID id = service.create(draft(projectAId, conductorAId, List.of(attendeeAId))).id();
+        service.addAttendees(id, List.of(attendeeAId, conductorAId));
+        assertThat(service.get(id).attendees()).extracting(ToolboxTalkAttendeeDto::employeeId)
+                .containsExactlyInAnyOrder(conductorAId, attendeeAId);
+
+        service.removeAttendee(id, conductorAId);
+        assertThat(service.get(id).attendees()).extracting(ToolboxTalkAttendeeDto::employeeId)
+                .containsExactly(attendeeAId);
+        assertThatThrownBy(() -> service.removeAttendee(id, 999_999L)).isInstanceOf(ResourceNotFoundException.class);
+
+        assertThat(service.list(projectAId, LocalDate.now(), LocalDate.now(), ToolboxTalkStatus.DRAFT, 0, 10)
+                .getTotalElements()).isEqualTo(1);
+        assertThat(service.list(projectAId, null, null, ToolboxTalkStatus.RECORDED, 0, 10)
+                .getTotalElements()).isZero();
     }
 
     private static CreateToolboxTalkRequest draft(Long projectId, Long conductorId, List<Long> attendees) {
@@ -216,6 +292,12 @@ class ToolboxTalksServiceIT extends AbstractIntegrationTest {
                 .setParameter("a", orgAId)
                 .setParameter("b", orgBId)
                 .executeUpdate();
+    }
+
+    private <T> T inCommittedTxReturning(Supplier<T> work) {
+        TransactionTemplate tt = new TransactionTemplate(txManager);
+        tt.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return tt.execute(status -> work.get());
     }
 
     private void inCommittedTx(Runnable work) {

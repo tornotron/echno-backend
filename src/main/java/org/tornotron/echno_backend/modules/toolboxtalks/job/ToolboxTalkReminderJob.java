@@ -75,7 +75,7 @@ public class ToolboxTalkReminderJob {
      *
      * @return The number of organizations reminded, for the log line and the test.
      */
-    int runPass(LocalDate day) {
+    public int runPass(LocalDate day) {
         List<ToolboxTalkRepository.OrganizationRow> organizations =
                 talks.findOrganizationsForReminder(PageRequest.of(0, ORGANIZATION_SCAN_LIMIT));
         int reminded = 0;
