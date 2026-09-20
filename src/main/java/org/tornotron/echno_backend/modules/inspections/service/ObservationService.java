@@ -11,6 +11,8 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.common.retry.SqlStateDetector;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.modules.inspections.CheckItemStatus;
@@ -88,6 +90,7 @@ public class ObservationService {
     private final ObservationMapper mapper;
     private final ProjectRepository projectRepository;
     private final AttachmentRepository attachmentRepository;
+    private final TransactionRetryTemplate retryTemplate;
 
     // ------------------------------------------------------------------ reads
 
@@ -169,15 +172,29 @@ public class ObservationService {
     /**
      * A finding from a drone, a robot, a fixed camera or a model, posted by the fleet's
      * service account. Lands pending. Idempotent on the producer's {@code externalRef}: a
-     * repeat returns the row already recorded, unchanged. The check here is the fast path;
-     * the partial unique index on {@code (organization_id, external_ref)} is the guarantee, and
-     * a concurrent duplicate that races past the check fails on it rather than duplicating.
+     * repeat returns the row already recorded, unchanged. The check is the fast path; the
+     * partial unique index on {@code (organization_id, external_ref)} is the guarantee.
+     *
+     * <p>Two devices retrying one capture at the same moment both pass the check, and the
+     * loser's insert is refused by the index. That refusal is not the loser's answer: the
+     * transaction is restarted, and the second attempt's check finds the winner's row and
+     * returns it as the repeat it is (200, not 500). The restart has to be a fresh
+     * transaction, since under serializable isolation the aborted one could not read past
+     * its own snapshot, so the work runs through {@link TransactionRetryTemplate} and this
+     * method opens no transaction of its own. The same restart answers the serialization
+     * abort CockroachDB reports for the race instead of the unique violation.
      */
-    @Transactional
     public IntakeResult intake(IntakeObservationRequest req) {
         if (req.source() == ObservationSource.HUMAN) {
             throw new InvalidRequestException("Intake is for machine producers; people record through the web endpoint");
         }
+        return retryTemplate.execute(
+                "ObservationService.intake",
+                failure -> SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION),
+                () -> intakeOnce(req));
+    }
+
+    private IntakeResult intakeOnce(IntakeObservationRequest req) {
         Optional<Observation> existing = observationRepo.findByExternalRefScoped(req.externalRef());
         if (existing.isPresent()) {
             log.debug("Observation intake repeated externalRef {}; returning the existing row", req.externalRef());

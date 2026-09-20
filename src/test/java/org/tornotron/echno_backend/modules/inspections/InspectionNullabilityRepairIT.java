@@ -31,6 +31,9 @@ import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDate;
 import java.util.UUID;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -63,7 +66,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
         UserContextService.class,
-        TenantEntityHelper.class, EntryNumberGenerator.class})
+        TenantEntityHelper.class, EntryNumberGenerator.class,
+        TransactionalWorkRunner.class, TransactionRetryTemplate.class, SimpleMeterRegistry.class})
 class InspectionNullabilityRepairIT extends AbstractIntegrationTest {
 
     @PersistenceContext
