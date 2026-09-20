@@ -220,6 +220,14 @@ final class ReviewedResponseSchemas {
      *       rows to null precisely so that a placeholder {@code false} could not be read as a
      *       measured verdict. {@code distanceFromProject} and {@code geofenceRadiusMeters} are
      *       written from the same evaluation, so the three are null together or set together.
+     *   <li>The recorder fields added by #839 are null on every punch but the one they
+     *       describe: {@code recordedByName} follows {@code recordedById} and is null when the
+     *       caller resolves to no employee; {@code recordedByLatitude},
+     *       {@code recordedByLongitude} and {@code recordedByDistanceMeters} are the
+     *       supervisor's position and distance on a punch marked for somebody else, null on a
+     *       self-marked punch, and the distance is null again where the fence could not be
+     *       measured. {@code recordedAt} is {@code createdAt} under its meaning, and nullable on
+     *       the same terms.
      *   <li>The five session-minute fields stay nullable, but no longer for the reason the
      *       original pass gave. {@code Attendance} is a {@code @Builder} class and the five
      *       carried an inline {@code = 0} with no {@code @Builder.Default}, so Lombok discarded
@@ -478,6 +486,8 @@ final class ReviewedResponseSchemas {
                         Set.of("latitude", "longitude", "gpsAccuracy",
                                 "devicePlatform", "isWithinGeofence", "distanceFromProject",
                                 "geofenceRadiusMeters", "geofenceExceptionReason", "recordedById",
+                                "recordedByName", "recordedByLatitude", "recordedByLongitude",
+                                "recordedByDistanceMeters", "recordedAt",
                                 "remarks", "regularizationReason"),
                         Set.of("id", "eventType", "eventTimestamp", "projectId", "projectName",
                                 "isRegularized", "attachments")),

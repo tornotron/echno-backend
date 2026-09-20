@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.attendance.mapper;
 
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.tornotron.echno_backend.attendance.ClockEvent;
 import org.tornotron.echno_backend.attendance.dto.ClockEventDto;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
@@ -18,5 +19,8 @@ import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 @Mapper(componentModel = "spring", uses = AttachmentMapper.class)
 public interface ClockEventMapper {
 
+    // recordedAt is the row's creation timestamp under a name that says what it means on a
+    // supervisor-marked punch: when the supervisor entered it, as opposed to eventTimestamp.
+    @Mapping(target = "recordedAt", source = "createdAt")
     ClockEventDto toDto(ClockEvent entity);
 }

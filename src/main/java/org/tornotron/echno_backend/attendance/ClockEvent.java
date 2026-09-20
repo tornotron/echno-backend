@@ -123,6 +123,40 @@ public class ClockEvent implements TenantScopedEntity {
     @Column(name = "recorded_by_id")
     private Long recordedById;
 
+    /**
+     * Name of the employee who submitted this punch, denormalized so a record reads without a
+     * join, the way {@code projectName} and the attendance's {@code employeeName} do. Set on every
+     * punch the recorder could be resolved for; the client shows it only where the recorder is not
+     * the employee.
+     */
+    @Column(name = "recorded_by_name")
+    private String recordedByName;
+
+    /**
+     * Where the supervisor stood when they marked this punch for somebody else, or null on a punch
+     * the employee took themselves.
+     *
+     * <p>Kept apart from {@code latitude} and {@code longitude}, which describe the punch, so that
+     * a reader never has to work out whose position a coordinate pair is. On a supervisor-marked
+     * punch the two pairs are the same numbers, and it is this pair that carries the meaning.
+     */
+    @Column(name = "recorded_by_latitude")
+    private Double recordedByLatitude;
+
+    @Column(name = "recorded_by_longitude")
+    private Double recordedByLongitude;
+
+    /**
+     * How far the supervisor was from the project marker when they marked this punch, in metres,
+     * or null when the punch was self-marked or the fence could not be measured.
+     *
+     * <p>A supervisor outside the fence is refused, so a stored value is always within the radius
+     * that applied. It is kept for the same reason {@code distanceFromProject} is: the record
+     * should still explain itself after the project's coordinates or the radius change.
+     */
+    @Column(name = "recorded_by_distance_meters")
+    private Double recordedByDistanceMeters;
+
     @Column(name = "remarks")
     private String remarks;
 

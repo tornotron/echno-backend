@@ -90,6 +90,34 @@ public class ClockEventDto {
             example = "42", nullable = true)
     private Long recordedById;
 
+    @Schema(description = "Name of the employee who submitted the punch, so a client can say "
+            + "who marked it without a lookup. Set together with recordedById; a client shows "
+            + "it where recordedById differs from the employee the record belongs to.",
+            example = "Anand Rajashekar", nullable = true)
+    private String recordedByName;
+
+    @Schema(description = "Latitude of the supervisor who marked this punch for somebody else, "
+            + "captured on their device when they created the entry. Null on a punch the "
+            + "employee took themselves.", example = "13.0828", nullable = true)
+    private Double recordedByLatitude;
+
+    @Schema(description = "Longitude of the supervisor who marked this punch for somebody else. "
+            + "Null under the same conditions as recordedByLatitude, and the two are always "
+            + "absent or present together.", example = "80.2708", nullable = true)
+    private Double recordedByLongitude;
+
+    @Schema(description = "How far the supervisor was from the project site when they marked "
+            + "this punch, in metres. An entry from outside the fence is refused, so a value here "
+            + "is always within the radius that applied. Null on a self-marked punch and when the "
+            + "fence could not be measured.", example = "23.5", nullable = true)
+    private Double recordedByDistanceMeters;
+
+    @Schema(description = "When the punch was written, in UTC. On a supervisor-marked punch this "
+            + "is when the supervisor created the entry, which can differ from eventTimestamp, "
+            + "the site-local time the punch is recorded as.",
+            example = "2026-09-20T03:35:12", nullable = true)
+    private LocalDateTime recordedAt;
+
     @Schema(description = "Optional remarks about the event. Null where none were given, and "
             + "always null on an event written by a regularization.",
             example = "Reported directly to the second floor slab pour", nullable = true)

@@ -51,8 +51,10 @@ import java.util.stream.Collectors;
  * shift. Enforces per-project photo and geolocation requirements from the effective settings, one
  * record per employee/date/project, and clock-event ordering. Each punch is measured against the
  * project's geofence, and a self-marked punch from outside it is recorded with the employee's
- * reason and held for their reporting manager rather than refused. Uploaded photos are cleaned from
- * storage if the transaction rolls back. Also marks absence and leave days and builds monthly summaries.
+ * reason and held for their reporting manager rather than refused. A punch a supervisor enters
+ * for a team member owes no selfie but is refused unless the supervisor is inside the fence, and
+ * records who marked it and from where. Uploaded photos are cleaned from storage if the
+ * transaction rolls back. Also marks absence and leave days and builds monthly summaries.
  */
 @Service
 public class AttendanceService {
@@ -111,25 +113,28 @@ public class AttendanceService {
     }
 
     /**
-     * Records who took the punch, measures it against the project's geofence when that measurement
-     * means anything, and holds the day for a decision when a self-marked punch fell outside the
-     * site.
+     * Records who took the punch, measures it against the project's geofence, and either holds
+     * the day or refuses the punch when the measurement puts it outside the site.
      *
-     * <p>Only a punch an employee took on their own account is measured. The coordinates on a
-     * request are the submitting device's, so on the mark-for-team path they are the supervisor's
-     * position, not the employee's. Deriving "this employee was inside the site" from where their
-     * supervisor was standing would put a claim about the wrong person into the same column as real
-     * measurements, which is the defect this whole evaluation exists to remove. A punch entered for
-     * somebody else is therefore left unevaluated, the state the column now has words for, and
-     * {@code recordedById} says why.
+     * <p>The coordinates on a request are the submitting device's. On a self-marked punch that is
+     * the employee's own position, so it is stored on the punch and evaluated against the site the
+     * employee is marking against. Being outside never refuses that punch: the employee supplies
+     * a reason, the reason is stored on the punch it explains, and the day waits on their
+     * reporting manager. A site engineer at head office marks attendance and says why.
      *
-     * <p>Whether a supervisor marking their team should also have to satisfy the site's location
-     * and photo rules is an open product question and is deliberately not answered here: the
-     * mark-for-team path keeps exactly the requirements it has today.
+     * <p>On a punch a supervisor enters for somebody else the coordinates are the supervisor's.
+     * Judging the employee by where their supervisor was standing would put a claim about the
+     * wrong person into the columns real measurements go in, so the punch's own geofence fields
+     * stay unevaluated. What the position does settle is whether the supervisor is on site: a
+     * supervisor vouching for their team's attendance has to be standing there, so the position
+     * is measured and an entry from outside the fence is refused outright, with the distance in
+     * the message (#839). There is no reason to give and no day to hold. Where the fence cannot
+     * be measured, because the project has no coordinates or the settings no radius, nothing is
+     * refused, the same as for a self-marked punch.
      *
-     * <p>Being outside the fence never refuses the punch. The employee supplies a reason, the
-     * reason is stored on the punch it explains, and the day waits on their reporting manager. A
-     * site engineer at head office marks attendance and says why.
+     * <p>Every punch records who took it. A supervisor-marked one also records the supervisor's
+     * name, position and measured distance, so the record answers who marked it, from where and
+     * how far from the site without a join.
      *
      * @param event The clock event being written, stamped in place.
      * @param attendance The day's record the event belongs to.
@@ -142,6 +147,8 @@ public class AttendanceService {
      * @param selfMarked Whether the caller is the employee the day belongs to.
      * @throws GeofenceExceptionReasonRequiredException if a self-marked punch fell outside the
      *     fence and carried no reason.
+     * @throws TeamMarkingOutsideGeofenceException if a supervisor marked the punch for somebody
+     *     else from outside the fence.
      */
     private void applyGeofence(ClockEvent event,
                                Attendance attendance,
@@ -154,10 +161,15 @@ public class AttendanceService {
                                boolean selfMarked) {
         Employee recorder = resolveCurrentEmployee();
         event.setRecordedById(recorder == null ? null : recorder.getId());
+        event.setRecordedByName(recorder == null ? null : recorder.getEmployeeName());
 
-        AttendanceGeofenceService.Evaluation evaluation = selfMarked
-                ? geofenceService.evaluate(project, settings, latitude, longitude)
-                : AttendanceGeofenceService.Evaluation.notEvaluated();
+        if (!selfMarked) {
+            applySupervisorGeofence(event, project, settings, latitude, longitude);
+            return;
+        }
+
+        AttendanceGeofenceService.Evaluation evaluation =
+                geofenceService.evaluate(project, settings, latitude, longitude);
         geofenceService.applyTo(event, evaluation);
 
         if (!evaluation.isOutsideFence()) {
@@ -181,6 +193,33 @@ public class AttendanceService {
         attendance.setApprovedBy(null);
         attendance.setApprovedById(null);
         attendance.setApprovedAt(null);
+    }
+
+    /**
+     * Measures the supervisor's position against the site and refuses the punch from outside it.
+     *
+     * <p>The punch's own geofence columns are left unevaluated: they describe the employee, and
+     * the supervisor's position says nothing about where the employee is. The supervisor's
+     * position and distance go in the recorder columns instead.
+     *
+     * @throws TeamMarkingOutsideGeofenceException if the supervisor is outside the fence.
+     */
+    private void applySupervisorGeofence(ClockEvent event,
+                                         Project project,
+                                         AttendanceSettings settings,
+                                         Double latitude,
+                                         Double longitude) {
+        geofenceService.applyTo(event, AttendanceGeofenceService.Evaluation.notEvaluated());
+        event.setRecordedByLatitude(latitude);
+        event.setRecordedByLongitude(longitude);
+
+        AttendanceGeofenceService.Evaluation evaluation =
+                geofenceService.evaluate(project, settings, latitude, longitude);
+        if (evaluation.isOutsideFence()) {
+            throw new TeamMarkingOutsideGeofenceException(
+                    evaluation.distanceMeters(), evaluation.radiusMeters());
+        }
+        event.setRecordedByDistanceMeters(evaluation.distanceMeters());
     }
 
     /**
@@ -222,6 +261,8 @@ public class AttendanceService {
      * @throws jakarta.validation.ValidationException if a required photo or location is missing, the photo is not an image, or a record already exists for the day.
      * @throws AccessDeniedException if the caller is neither the employee named nor a holder of an
      *     attendance record-management role.
+     * @throws TeamMarkingOutsideGeofenceException if the caller is marking somebody else's
+     *     attendance from outside the project's geofence.
      */
     @Transactional
     public AttendanceResponseDto checkIn(AttendanceCheckInDto dto, MultipartFile photo) {
@@ -254,10 +295,14 @@ public class AttendanceService {
         }
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, dto.getProjectId());
+        boolean selfMarked = attendanceSecurity.isSelfMarking(dto.getEmployeeId());
 
         boolean photoProvided = photo != null && !photo.isEmpty();
 
-        if (settings.getPhotoRequiredOnCheckIn() && !photoProvided) {
+        // The selfie is the employee's proof that they were there. A supervisor marking the team
+        // cannot take it for them, and is not asked to: their own position, checked below, is
+        // what stands in for it (#839).
+        if (selfMarked && settings.getPhotoRequiredOnCheckIn() && !photoProvided) {
             throw new ValidationException("A photo is required to check in for this project");
         }
 
@@ -314,7 +359,7 @@ public class AttendanceService {
 
         applyGeofence(clockEvent, attendance, employee, project, settings,
                 dto.getLatitude(), dto.getLongitude(), dto.getGeofenceExceptionReason(),
-                attendanceSecurity.isSelfMarking(dto.getEmployeeId()));
+                selfMarked);
 
         attendance.getClockEvents().add(clockEvent);
         calculationService.recalculate(attendance, shift);
@@ -365,6 +410,8 @@ public class AttendanceService {
      * @throws jakarta.validation.ValidationException if a required photo or location is missing, the photo is not an image, or the event breaks the allowed sequence.
      * @throws AccessDeniedException if the caller is neither the employee the record belongs to
      *     nor a holder of an attendance record-management role.
+     * @throws TeamMarkingOutsideGeofenceException if the caller is marking somebody else's
+     *     attendance from outside the project's geofence.
      */
     @Transactional
     public AttendanceResponseDto recordClockEvent(AttendanceClockEventDto dto, MultipartFile photo) {
@@ -380,6 +427,7 @@ public class AttendanceService {
         requireActorMayRecordFor(attendance.getEmployeeId());
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, attendance.getProjectId());
+        boolean selfMarked = attendanceSecurity.isSelfMarking(attendance.getEmployeeId());
 
         if (settings.getGeolocationRequired()
                 && (dto.getLatitude() == null || dto.getLongitude() == null)) {
@@ -388,9 +436,10 @@ public class AttendanceService {
 
         boolean photoProvided = photo != null && !photo.isEmpty();
 
-        boolean photoRequired =
+        // Only a self-marked punch owes the selfie; see checkIn.
+        boolean photoRequired = selfMarked && (
                 (dto.getEventType() == ClockEventType.MORNING_CLOCK_IN && settings.getPhotoRequiredOnCheckIn()) ||
-                (dto.getEventType() == ClockEventType.EVENING_CLOCK_OUT && settings.getPhotoRequiredOnCheckOut());
+                (dto.getEventType() == ClockEventType.EVENING_CLOCK_OUT && settings.getPhotoRequiredOnCheckOut()));
 
         if (photoRequired && !photoProvided) {
             throw new ValidationException("A photo is required for this " + dto.getEventType() + " event");
@@ -432,7 +481,7 @@ public class AttendanceService {
 
         applyGeofence(clockEvent, attendance, employee, project, settings,
                 dto.getLatitude(), dto.getLongitude(), dto.getGeofenceExceptionReason(),
-                attendanceSecurity.isSelfMarking(attendance.getEmployeeId()));
+                selfMarked);
 
         attendance.getClockEvents().add(clockEvent);
 
