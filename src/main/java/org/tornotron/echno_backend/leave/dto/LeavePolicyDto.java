@@ -2,6 +2,9 @@ package org.tornotron.echno_backend.leave.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import org.tornotron.echno_backend.leave.enums.AccrualMethod;
+import org.tornotron.echno_backend.leave.enums.LeaveApproverRole;
+import org.tornotron.echno_backend.leave.enums.WeekendHolidayTreatment;
 
 import java.time.LocalDateTime;
 
@@ -66,6 +69,25 @@ public class LeavePolicyDto {
     @Schema(nullable = true, description = "Number of consecutive days after which an attachment becomes "
             + "required. Null where the policy sets no such threshold.", example = "3")
     private Integer attachmentRequiredAfterDays;
+
+    @Schema(nullable = true, description = "What the supporting document should be, shown to the requester "
+            + "when one is required. Null where the policy says nothing about it.",
+            example = "Hospital discharge summary or birth certificate")
+    private String supportingDocumentNote;
+
+    @Schema(description = "How the annual quota reaches the balance: MONTHLY credits it one twelfth per month "
+            + "of service, IN_FULL_ON_QUALIFYING credits it whole the month the employee meets "
+            + "minServiceMonths.", example = "MONTHLY")
+    private AccrualMethod accrualMethod;
+
+    @Schema(description = "How weekends and declared holidays inside a request are charged. CHARGE_ALL_DAYS "
+            + "counts every calendar day, EXCLUDE_NON_WORKING_DAYS never charges them, SANDWICH charges them "
+            + "only between two charged leave days.", example = "CHARGE_ALL_DAYS")
+    private WeekendHolidayTreatment weekendHolidayTreatment;
+
+    @Schema(description = "Which tier approves requests under this policy: the reporting manager's line, "
+            + "an hr-admin, or a system-admin.", example = "REPORTING_MANAGER")
+    private LeaveApproverRole approverRole;
 
     @Schema(nullable = true, description = "Genders this policy applies to. Defaults to ALL for a create "
             + "payload that omits the field. The column is nullable, so a policy created with an explicit "

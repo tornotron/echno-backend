@@ -322,9 +322,13 @@ final class ReviewedResponseSchemas {
      * {@code v4.0/039}, as {@code NOT NULL DEFAULT true}, so it is non-null on every install path.
      *
      * <ul>
-     *   <li>{@code LeavePolicyDto} is nullable on 14 of its 24 properties, which is the schema's
+     *   <li>{@code LeavePolicyDto} is nullable on 15 of its 28 properties, which is the schema's
      *       shape rather than an omission. A policy carries one column for each rule an
-     *       organization may choose not to set, and most organizations set few of them.
+     *       organization may choose not to set, and most organizations set few of them. The
+     *       three enum rules added by #838 ({@code accrualMethod},
+     *       {@code weekendHolidayTreatment}, {@code approverRole}) are NOT NULL with a declared
+     *       default, so they sit in the non-null half; {@code supportingDocumentNote} is free
+     *       text and nullable.
      *   <li>{@code LeaveBalanceDto.available} and {@code bookable} are the
      *       {@code VendorSummaryDto} shape again: {@code @Transient} getters over
      *       {@code LeaveDays.round} arithmetic on columns that are all {@code NOT NULL}, with no
@@ -637,10 +641,11 @@ final class ReviewedResponseSchemas {
                                 "applicableGenders", "attachmentRequiredAfterDays",
                                 "carryForwardExpiryMonths", "carryForwardLimit", "description",
                                 "displayOrder", "isPaid", "maxDaysPerRequest", "minDaysPerRequest",
-                                "minServiceMonths", "requiresAttachment"),
-                        Set.of("annualQuota", "createdAt", "id", "isActive", "leaveTypeCode",
-                                "leaveTypeName", "multiLevelApprovalEnabled", "organizationId",
-                                "organizationName", "updatedAt")),
+                                "minServiceMonths", "requiresAttachment", "supportingDocumentNote"),
+                        Set.of("accrualMethod", "annualQuota", "approverRole", "createdAt", "id",
+                                "isActive", "leaveTypeCode", "leaveTypeName",
+                                "multiLevelApprovalEnabled", "organizationId", "organizationName",
+                                "updatedAt", "weekendHolidayTreatment")),
                 new ReviewedSchema(
                         LeavePolicySimpleDto.class,
                         Set.of("allowHalfDay", "isPaid"),

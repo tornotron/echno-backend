@@ -12,6 +12,9 @@ import org.mockito.quality.Strictness;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeavePolicyCreationDto;
+import org.tornotron.echno_backend.leave.enums.AccrualMethod;
+import org.tornotron.echno_backend.leave.enums.LeaveApproverRole;
+import org.tornotron.echno_backend.leave.enums.WeekendHolidayTreatment;
 import org.tornotron.echno_backend.leave.mapper.LeavePolicyMapper;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
@@ -96,6 +99,9 @@ class LeavePolicyDeclaredDefaultsTest {
         assertThat(written.getIsPaid()).isTrue();
         assertThat(written.getDisplayOrder()).isZero();
         assertThat(written.getMultiLevelApprovalEnabled()).isTrue();
+        assertThat(written.getAccrualMethod()).isEqualTo(AccrualMethod.MONTHLY);
+        assertThat(written.getWeekendHolidayTreatment()).isEqualTo(WeekendHolidayTreatment.CHARGE_ALL_DAYS);
+        assertThat(written.getApproverRole()).isEqualTo(LeaveApproverRole.REPORTING_MANAGER);
     }
 
     @Test
@@ -176,6 +182,9 @@ class LeavePolicyDeclaredDefaultsTest {
         dto.setIsPaid(null);
         dto.setDisplayOrder(null);
         dto.setMultiLevelApprovalEnabled(null);
+        dto.setAccrualMethod(null);
+        dto.setWeekendHolidayTreatment(null);
+        dto.setApproverRole(null);
         return dto;
     }
 

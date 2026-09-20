@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The per-organization holiday calendar and working week (#838). Both are read when a leave
+        request is charged under the SANDWICH and EXCLUDE_NON_WORKING_DAYS treatments. The
+        calendar is organization-wide in this release; a region or site scope would widen
+        uk_holiday_org_date and nothing else.
+    -->
+
+    <changeSet id="121-create-holiday" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="holiday"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="holiday">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="holiday_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(150)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="holiday" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_holiday_organization"/>
+
+        <addUniqueConstraint tableName="holiday" columnNames="organization_id, holiday_date"
+                             constraintName="uk_holiday_org_date"/>
+
+        <createIndex tableName="holiday" indexName="idx_holiday_org_date">
+            <column name="organization_id"/>
+            <column name="holiday_date"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="121-create-organization-working-week" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="organization_working_week"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            One row per organization, created on first read with Monday to Friday, which is the
+            week the leave accrual counted before the setting existed. A comma-separated list of
+            java.time.DayOfWeek names rather than a join table: the value is at most seven short
+            names and is read whole every time.
+        </comment>
+
+        <createTable tableName="organization_working_week">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="working_days" type="VARCHAR(100)" defaultValue="MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="organization_working_week" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_working_week_organization"/>
+
+        <addUniqueConstraint tableName="organization_working_week" columnNames="organization_id"
+                             constraintName="uk_working_week_org"/>
+    </changeSet>
+
+</databaseChangeLog>

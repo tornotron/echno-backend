@@ -120,7 +120,7 @@ final class PartialUpdateSurfaces {
                         LeavePolicyUpdateFieldsDto.class,
                         "org.tornotron.echno_backend.leave.LeavePolicyService",
                         "public LeavePolicyDto updatePolicy(Long policyId, Map<String, Object> updates)",
-                        Set.of("annualQuota")),
+                        Set.of("annualQuota", "accrualMethod", "weekendHolidayTreatment", "approverRole")),
                 new UpdateSurface(
                         LeaveRequestUpdateFieldsDto.class,
                         "org.tornotron.echno_backend.leave.LeaveRequestService",

@@ -7,6 +7,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
+import org.tornotron.echno_backend.leave.enums.AccrualMethod;
+import org.tornotron.echno_backend.leave.enums.LeaveApproverRole;
+import org.tornotron.echno_backend.leave.enums.WeekendHolidayTreatment;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDateTime;
@@ -78,6 +81,28 @@ public class LeavePolicy implements TenantScopedEntity {
 
     @Column(name = "attachment_required_after_days")
     private Integer attachmentRequiredAfterDays;
+
+    /** What the supporting document should be, shown to the requester when one is required. */
+    @Column(name = "supporting_document_note", length = 500)
+    private String supportingDocumentNote;
+
+    /** How the quota reaches the balance. Every policy created before the column was MONTHLY. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "accrual_method", nullable = false, length = 30)
+    private AccrualMethod accrualMethod = AccrualMethod.MONTHLY;
+
+    /**
+     * How weekends and declared holidays inside a request are charged. CHARGE_ALL_DAYS is the
+     * end-to-end calendar count every request was charged before the treatment existed.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "weekend_holiday_treatment", nullable = false, length = 30)
+    private WeekendHolidayTreatment weekendHolidayTreatment = WeekendHolidayTreatment.CHARGE_ALL_DAYS;
+
+    /** Which tier approves requests raised under this policy. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approver_role", nullable = false, length = 30)
+    private LeaveApproverRole approverRole = LeaveApproverRole.REPORTING_MANAGER;
 
     @Column(name = "applicable_genders", length = 50)
     private String applicableGenders = "ALL";
