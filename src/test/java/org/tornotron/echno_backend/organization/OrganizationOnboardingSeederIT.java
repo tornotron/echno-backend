@@ -18,6 +18,8 @@ import org.tornotron.echno_backend.finance.ledger.repositories.AccountRepository
 import org.tornotron.echno_backend.finance.ledger.service.ChartOfAccountsSeeder;
 import org.tornotron.echno_backend.finance.settings.FinanceSettingsRepository;
 import org.tornotron.echno_backend.finance.settings.FinanceSettingsService;
+import org.tornotron.echno_backend.leave.LeavePolicyDefaultsSeeder;
+import org.tornotron.echno_backend.leave.LeavePolicyRepository;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
@@ -33,7 +35,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({OrganizationOnboardingSeeder.class, ChartOfAccountsSeeder.class, CostCategorySeeder.class,
-        FinanceSettingsService.class, TenantEntityHelper.class, JpaAuditingConfig.class})
+        FinanceSettingsService.class, LeavePolicyDefaultsSeeder.class, TenantEntityHelper.class,
+        JpaAuditingConfig.class})
 class OrganizationOnboardingSeederIT extends AbstractIntegrationTest {
 
     @Autowired
@@ -47,6 +50,9 @@ class OrganizationOnboardingSeederIT extends AbstractIntegrationTest {
 
     @Autowired
     private FinanceSettingsRepository financeSettingsRepo;
+
+    @Autowired
+    private LeavePolicyRepository leavePolicyRepo;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -82,6 +88,9 @@ class OrganizationOnboardingSeederIT extends AbstractIntegrationTest {
         assertThat(categoryRepo.findByActiveTrue()).hasSize(5);
         // Finance-settings row materialized for the org.
         assertThat(financeSettingsRepo.findByOrganization_Id(orgId)).isPresent();
+        // The five default leave types, paternity among them (#838).
+        assertThat(leavePolicyRepo.findByOrganizationId(orgId)).hasSize(5);
+        assertThat(leavePolicyRepo.existsByOrganizationIdAndLeaveTypeCode(orgId, "PL")).isTrue();
 
         long accountsAfterFirst = accountRepo.count();
 
@@ -92,6 +101,7 @@ class OrganizationOnboardingSeederIT extends AbstractIntegrationTest {
 
         assertThat(categoryRepo.findByActiveTrue()).hasSize(5);
         assertThat(accountRepo.count()).isEqualTo(accountsAfterFirst);
+        assertThat(leavePolicyRepo.findByOrganizationId(orgId)).hasSize(5);
     }
 
     // --- Helpers ----------------------------------------------------------

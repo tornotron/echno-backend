@@ -451,6 +451,9 @@
     <!-- v4.0 - Leave: the treatment that produced a request's charged days (#838) -->
     <include file="db/changelog/v4.0/122-leave-request-deduction-rule.xml"/>
 
+    <!-- v4.0 - Leave: one Paternity Leave policy for every organization that has none (#838) -->
+    <include file="db/changelog/v4.0/123-backfill-paternity-leave-policy.xml"/>
+
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->
     <!-- (#749). Files run in path order; a module's pre-move changesets -->
