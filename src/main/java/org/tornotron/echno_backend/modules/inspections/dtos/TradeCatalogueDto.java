@@ -8,7 +8,7 @@ public record TradeCatalogueDto(
         @Schema(description = "Stable slug, the same string the trade has always carried on the wire.", example = "reinforcement")
         String code,
         String name,
-        @Schema(description = "Group the trade sits under: structural, masonry, finishes, openings, mep, fire or general.", example = "structural")
+        @Schema(description = "Group the trade sits under: sitework, structural, masonry, finishes, openings, mep, fire or general.", example = "structural")
         String groupCode,
         @Schema(nullable = true) String description,
         int sortOrder,
