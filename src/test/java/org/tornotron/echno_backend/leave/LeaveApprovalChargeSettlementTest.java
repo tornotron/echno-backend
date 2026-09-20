@@ -94,15 +94,70 @@ class LeaveApprovalChargeSettlementTest {
                 .thenReturn(new LeaveCharge(2.0, 4.0, 2, WeekendHolidayTreatment.EXCLUDE_NON_WORKING_DAYS));
     }
 
+    private void approveAsSoleApprover() {
+        Employee manager = new Employee();
+        manager.setId(30L);
+        manager.setOrganization(request.getOrganization());
+        request.getEmployee().setManager(manager);
+        request.setMaxApprovalLevel(1);
+        request.setCurrentApprovalLevel(1);
+        request.setCurrentApprover(manager);
+        LeaveApproval pending = new LeaveApproval();
+        pending.setApprover(manager);
+        pending.setApprovalLevel(1);
+        when(requestRepository.lockByIdAndOrganizationId(any(), any())).thenReturn(Optional.of(request));
+        when(currentEmployeeService.requireCurrentEmployee(any())).thenReturn(manager);
+        when(approvalRepository.findFirstByLeaveRequestIdAndApprovalLevelAndActionOrderByCreatedAtDesc(
+                any(), any(), any())).thenReturn(Optional.of(pending));
+        when(leaveRequestMapper.toDto(any(LeaveRequest.class))).thenReturn(new org.tornotron.echno_backend.leave.dto.LeaveRequestDto());
+        service.approve(99L, new org.tornotron.echno_backend.leave.dto.LeaveApprovalActionDto());
+    }
+
     @Test
     void approvalOfAPendingRequest_chargesUnderTheCurrentTreatment_andReleasesTheOriginalHold() {
-        // No approver resolvable, so the chain finalizes immediately.
-        service.initializeApprovalChain(request);
+        approveAsSoleApprover();
 
         assertThat(request.getStatus()).isEqualTo(LeaveStatus.APPROVED);
         assertThat(request.getTotalDays()).isEqualTo(2.0);
         assertThat(request.getDeductionRule()).isEqualTo(WeekendHolidayTreatment.EXCLUDE_NON_WORKING_DAYS);
         assertThat(balance.getPending()).isEqualTo(0.0);
         assertThat(balance.getUsed()).isEqualTo(3.0);
+    }
+
+    @Test
+    void finalizingDuringSubmission_releasesNoHold_becauseNoneWasTaken() {
+        // No approver resolvable: the chain finalizes before the submitting service takes the
+        // hold, so the 4.0 pending here belongs to some other request and must survive.
+        service.initializeApprovalChain(request);
+
+        assertThat(request.getStatus()).isEqualTo(LeaveStatus.APPROVED);
+        assertThat(balance.getPending()).isEqualTo(4.0);
+        assertThat(balance.getUsed()).isEqualTo(3.0);
+    }
+
+    @Test
+    void aRequestRechargedToZero_isRefusedRatherThanApprovedAtNothing() {
+        when(leaveRequestValidator.charge(any(), any(), any(), any(), any()))
+                .thenReturn(new LeaveCharge(0.0, 4.0, 4, WeekendHolidayTreatment.EXCLUDE_NON_WORKING_DAYS));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(this::approveAsSoleApprover)
+                .isInstanceOf(org.tornotron.echno_backend.common.exception.InvalidRequestException.class)
+                .hasMessageContaining("withdrawn");
+        assertThat(request.getStatus()).isEqualTo(LeaveStatus.PENDING_APPROVAL);
+    }
+
+    @Test
+    void aRequestRechargedBeyondTheBalance_isRefused() {
+        // Held 4, now charged 12 under SANDWICH across a long weekend, with 11 available after the
+        // hold is released: refused, and the request stays pending for the employee to amend.
+        when(leaveRequestValidator.charge(any(), any(), any(), any(), any()))
+                .thenReturn(new LeaveCharge(12.0, 12.0, 0, WeekendHolidayTreatment.SANDWICH));
+        when(balanceRepository.lockByEmployeeIdAndLeavePolicyIdAndYear(anyLong(), anyLong(), anyInt()))
+                .thenReturn(Optional.of(balance));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(this::approveAsSoleApprover)
+                .isInstanceOf(org.tornotron.echno_backend.common.exception.InvalidRequestException.class)
+                .hasMessageContaining("11.0 days are available");
+        assertThat(request.getTotalDays()).isEqualTo(4.0);
     }
 }

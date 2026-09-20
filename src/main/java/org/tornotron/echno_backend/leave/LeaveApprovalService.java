@@ -104,7 +104,10 @@ public class LeaveApprovalService {
             approvers = resolveApprovalChain(request.getEmployee());
 
             if (approvers.isEmpty()) {
-                finalizeApproval(request);
+                // Finalized before the submitting service has taken the pending hold, so there
+                // is no hold of this request's to release: releasing its figure here would eat
+                // into a hold that belongs to another pending request of the same employee.
+                finalizeApproval(request, false);
                 return;
             }
 
@@ -256,7 +259,7 @@ public class LeaveApprovalService {
         if (request.getCurrentApprovalLevel() < request.getMaxApprovalLevel()) {
             advanceToNextLevel(request);
         } else {
-            finalizeApproval(request);
+            finalizeApproval(request, true);
         }
 
         return leaveRequestMapper.toDto(request);
@@ -529,12 +532,20 @@ public class LeaveApprovalService {
         notificationService.sendApprovalRequiredNotification(request, nextApproval.getApprover());
     }
 
-    private void finalizeApproval(LeaveRequest request) {
+    /**
+     * Approves the request and moves its days from pending to used.
+     *
+     * @param request The request, locked by the caller when a decision is being recorded.
+     * @param holdTaken Whether a pending hold of this request's own figure is on the balance.
+     *     True on every approval of a submitted request; false when the chain is empty and the
+     *     request is finalized during submission, before the submitting service takes the hold.
+     */
+    private void finalizeApproval(LeaveRequest request, boolean holdTaken) {
         // The policy's weekend and holiday treatment is applied to a pending request at the
         // moment it is approved, so a treatment changed while the request waited decides the
         // days actually deducted. The hold taken at submission is released at its own figure.
-        double heldDays = request.getTotalDays() == null ? 0.0 : request.getTotalDays();
-        settleCharge(request);
+        double heldDays = holdTaken && request.getTotalDays() != null ? request.getTotalDays() : 0.0;
+        settleCharge(request, heldDays);
 
         request.setStatus(LeaveStatus.APPROVED);
         request.setCurrentApprover(null);
@@ -549,7 +560,19 @@ public class LeaveApprovalService {
         notificationService.sendLeaveDecisionNotification(request, ApprovalAction.APPROVED);
     }
 
-    private void settleCharge(LeaveRequest request) {
+    /**
+     * Recharges the request under the policy's current treatment and refuses the approval when
+     * the recharged figure can no longer be honoured.
+     *
+     * <p>Two refusals, both answered as a 400 the approver can read. A request whose days have
+     * all become non-working since submission (a holiday declared across it, say) would be
+     * approved at zero days, which is not a leave; it has to be withdrawn. A request the
+     * treatment now charges more for than it held cannot draw the difference from a balance
+     * that does not have it: the balance is locked and the extra is checked against what is
+     * bookable once this request's own hold is released, since the hold and the charge are the
+     * same days.
+     */
+    private void settleCharge(LeaveRequest request, double heldDays) {
         if (request.getLeavePolicy() == null || request.getStartDate() == null || request.getEndDate() == null) {
             return;
         }
@@ -559,6 +582,31 @@ public class LeaveApprovalService {
                 request.getStartHalfDayType(),
                 request.getEndDate(),
                 request.getEndHalfDayType());
+
+        if (charge.chargedDays() <= 0.0) {
+            throw new InvalidRequestException(
+                    "Leave request " + request.getRequestNumber() + " now falls entirely on non-working days "
+                            + "under the policy's current treatment, so no leave would be charged; it has to "
+                            + "be withdrawn rather than approved");
+        }
+
+        double extra = LeaveDays.round(charge.chargedDays() - heldDays);
+        if (extra > 0.0) {
+            balanceRepository.lockByEmployeeIdAndLeavePolicyIdAndYear(
+                            request.getEmployee().getId(),
+                            request.getLeavePolicy().getId(),
+                            request.getStartDate().getYear())
+                    .ifPresent(balance -> {
+                        double bookableAfterRelease = LeaveDays.round(balance.getBookableBalance() + heldDays);
+                        if (charge.chargedDays() > bookableAfterRelease) {
+                            throw new InvalidRequestException(
+                                    "Leave request " + request.getRequestNumber() + " is now charged "
+                                            + charge.chargedDays() + " days under the policy's current treatment, "
+                                            + "but only " + bookableAfterRelease + " days are available");
+                        }
+                    });
+        }
+
         request.setTotalDays(charge.chargedDays());
         request.setDeductionRule(charge.rule());
     }
