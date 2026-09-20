@@ -835,7 +835,7 @@ three facts above. Recorded so a later pass does not re-derive it.
 | `SearchRepository` `findTasks`, `findIssues` | `LEFT JOIN t.project p`, `LEFT JOIN i.task t` | Roots `Task` and `Issue` are filtered; associations only. The projected `p.id` is the project of a row already in the tenant. |
 | `InventoryTransactionRepository` `findMovementHistoryByMaterial` | three `LEFT JOIN FETCH` | Fetch joins off a filtered root. |
 | `EmployeeRepository` (five queries) | `JOIN e.orgRoles r` | `OrgRole` is an enum element collection, not an entity, so there is no tenancy to lose. Root `Employee` is filtered. |
-| `ProjectRepository` `averageTaskProgressByProjectIds` | `LEFT JOIN p.tasks t` | Filtered root, association join. `AVG(t.progress)` averages the tasks of a project already in the tenant. |
+| `ProjectRepository` `summaryTotalsByProjectIds` | correlated subqueries on `Task` and `p2.employees` | Filtered root. Each subquery is correlated on `p.id`, so it averages or counts only the tasks and team of a project already in the tenant. |
 | `LeaveRequestRepository` `findDistinctByApproverParticipation` | `JOIN lr.approvals la` | Filtered root. The predicate on `la.approver.id` can only narrow the in-tenant result. |
 | `LeaveBalanceRepository` `findActiveBalancesByEmployeeAndYear`, `findByOrganizationIdAndYear` | `JOIN lb.leavePolicy lp`, `JOIN lb.employee e` | Filtered root, associations. The caller-supplied `:orgId` on the second can only narrow further. |
 | `LowStockRepository` `findLowStockForProject` | `JOIN cs.material m` | Filtered root `CurrentStock`, association join, and the tenant is named in the `WHERE` besides. |

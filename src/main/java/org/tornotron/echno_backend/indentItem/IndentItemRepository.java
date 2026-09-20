@@ -23,11 +23,13 @@ public interface IndentItemRepository extends JpaRepository<IndentItem, Long> {
     void deleteByIdAndOrganization_Id(Long id, Long organizationId);
 
     /**
-     * Counts the item lines of many indents in one grouped read.
+     * Counts the item lines of many indents in one grouped read, and how many of them have been
+     * converted into a purchase order.
      *
-     * <p>The count is all a list of indents needs; reaching it through the mapped {@code items}
-     * collection loads every line, and every line carries a material, so a page of indents pays
-     * for the material graph and its stock aggregate to render a column of numbers.
+     * <p>The two counts are all a list of indents needs; reaching them through the mapped
+     * {@code items} collection loads every line, and every line carries a material, so a page of
+     * indents pays for the material graph and its stock aggregate to render a column of numbers.
+     * The converted count is a conditional sum over the same rows, so it costs no second read.
      *
      * <p>An indent with no lines produces no group, so the caller supplies the zero. Pass a
      * non-empty collection: {@code IN ()} is not valid SQL.
@@ -38,7 +40,8 @@ public interface IndentItemRepository extends JpaRepository<IndentItem, Long> {
     @Query("""
             SELECT new org.tornotron.echno_backend.indentItem.IndentItemCount(
                        item.indent.id,
-                       COUNT(item))
+                       COUNT(item),
+                       SUM(CASE WHEN item.convertedToPurchaseOrder = TRUE THEN 1L ELSE 0L END))
             FROM IndentItem item
             WHERE item.indent.id IN :indentIds
             GROUP BY item.indent.id

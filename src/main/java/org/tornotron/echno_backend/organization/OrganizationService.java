@@ -35,9 +35,12 @@ import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserContextService;
 import org.tornotron.echno_backend.organization.dto.DatasetConsentDto;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -51,6 +54,9 @@ import java.util.stream.Collectors;
 public class OrganizationService {
 
     private static final String ORGANIZATION_FOLDER = "organizations";
+
+    /** How long a signed logo URL on the summary list stays valid; the attachment mapper's figure. */
+    private static final Duration LOGO_URL_VALIDITY = Duration.ofHours(1);
 
     /** The billing feature that covers creating an organization. */
     private static final String CREATE_ORGANIZATION_FEATURE = "CREATE_ORGANIZATION";
@@ -325,6 +331,9 @@ public class OrganizationService {
      * <p>{@link OrganizationSimpleDto} is exactly the scalar half and already exists, so this
      * reuses it rather than declaring a byte-identical twin under a second name. Its other use is
      * as the reply to a create or an update, which is a different question about the same shape.
+     * The cards page also renders how many employees and projects each organization has and its
+     * logo; those are read for the whole list in one query and resolved through
+     * {@link OrganizationSummaryLookup}, the logo URL the same way the attachment mapper signs one.
      *
      * <p>Offered alongside {@link #getAllOrganization} rather than replacing it: the published
      * contract is hand-maintained, so moving an endpoint over is a decision per endpoint.
@@ -337,9 +346,33 @@ public class OrganizationService {
         if (user == null) {
             return List.of();
         }
-        return repository.findAllByUserEmail(user.getEmail()).stream()
-                .map(org -> organizationMapper.toSimpleDto(org))
+        List<Organization> organizations = repository.findAllByUserEmail(user.getEmail());
+        OrganizationSummaryLookup totals = summaryTotalsFor(organizations);
+        return organizations.stream()
+                .map(org -> organizationMapper.toSummaryDto(org, totals))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Reads the employee count, the project count and the logo for a list of organizations, in
+     * one query, and signs each logo key into a download URL.
+     *
+     * @param organizations The organizations being converted, already checked for membership.
+     * @return Their derived figures.
+     */
+    private OrganizationSummaryLookup summaryTotalsFor(Collection<Organization> organizations) {
+        List<Long> ids = organizations.stream()
+                .map(Organization::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (ids.isEmpty()) {
+            return OrganizationSummaryLookup.none();
+        }
+        List<OrganizationSummaryTotals> rows = repository.summaryTotalsByOrganizationIds(ids).stream()
+                .map(OrganizationSummaryTotals::fromRow)
+                .toList();
+        return OrganizationSummaryLookup.of(rows,
+                key -> fileStorageService.generateDownloadUrl(key, LOGO_URL_VALIDITY));
     }
 
     /**

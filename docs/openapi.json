@@ -7894,6 +7894,12 @@
       "IndentSummaryDto": {
         "description": "An indent as it appears in a list: its own fields, who raised it and how many lines it has, without the lines themselves. The full view carries every requested item, and every item carries a whole material with its stock figures, so a page of indents reads the material catalogue to render a list of indent numbers.",
         "properties": {
+          "convertedItemCount": {
+            "description": "How many of the item lines have already been converted into a purchase order. Read in the same aggregate as itemCount.",
+            "example": 4,
+            "format": "int64",
+            "type": "integer"
+          },
           "createdAt": {
             "description": "Timestamp the indent was created.",
             "example": "2026-01-15T09:00:00",
@@ -14043,6 +14049,7 @@
         "type": "object"
       },
       "OrganizationSimpleDto": {
+        "description": "An organization without its contents: the scalar columns, and on the summary list the employee and project counts and the resolved logo URL. A create or an update replies with the same shape but leaves those three null, because it does not read them.",
         "properties": {
           "createdAt": {
             "format": "date-time",
@@ -14052,12 +14059,29 @@
             "format": "int32",
             "type": "integer"
           },
+          "employeeCount": {
+            "description": "How many employees the organization has. Read for the whole list in one aggregate on the summary endpoint; null on a create or update reply.",
+            "example": 42,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "id": {
             "format": "int64",
             "type": "integer"
           },
           "isActive": {
             "type": "boolean"
+          },
+          "logoUrl": {
+            "description": "Download URL of the organization's current logo, resolved from its latest ORGANIZATION_LOGO attachment the way the full view's attachment list is. Null where there is no logo, and on a create or update reply.",
+            "example": "https://cdn.example/echno/organizations/12/logo.png?X-Amz-Signature=...",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "organizationAddress": {
             "type": "string"
@@ -14076,6 +14100,15 @@
           },
           "organizationWebsite": {
             "type": "string"
+          },
+          "projectCount": {
+            "description": "How many projects the organization has. Read for the whole list in one aggregate on the summary endpoint; null on a create or update reply.",
+            "example": 7,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -17388,7 +17421,7 @@
         "type": "object"
       },
       "ProjectSummaryDto": {
-        "description": "A project as it appears in a list: every scalar field of the full project view, without the team, the tasks or the attachments. Progress still means what it means on the full view, the mean of the project's task progress, but it is read for the whole page in one aggregate rather than by loading each project's tasks.",
+        "description": "A project as it appears in a list: every scalar field of the full project view, without the team, the tasks or the attachments. Progress still means what it means on the full view, the mean of the project's task progress, but it is read for the whole page in one aggregate rather than by loading each project's tasks. The member and task counts are read the same way.",
         "properties": {
           "createdAt": {
             "description": "Creation timestamp.",
@@ -17423,6 +17456,12 @@
           "id": {
             "description": "Unique project id.",
             "example": 42,
+            "format": "int64",
+            "type": "integer"
+          },
+          "memberCount": {
+            "description": "How many employees are on the project team. The size of the team the full project view carries, read for the whole page in one aggregate.",
+            "example": 8,
             "format": "int64",
             "type": "integer"
           },
@@ -17512,6 +17551,12 @@
             ],
             "example": "IN_PROGRESS",
             "type": "string"
+          },
+          "taskCount": {
+            "description": "How many tasks the project has. The size of the task list the full project view carries, read for the whole page in one aggregate.",
+            "example": 24,
+            "format": "int64",
+            "type": "integer"
           },
           "updatedAt": {
             "description": "When the project was last written. Null on projects not written since this was recorded.",

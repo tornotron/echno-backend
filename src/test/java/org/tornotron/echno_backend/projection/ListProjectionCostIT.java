@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.projection;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.tornotron.echno_backend.category.mapper.CategoryMapper;
 import org.tornotron.echno_backend.category.mapper.CategoryMapperImpl;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
 import org.tornotron.echno_backend.common.service.FileStorageService;
@@ -42,11 +44,14 @@ import org.tornotron.echno_backend.material.mapper.MaterialMapper;
 import org.tornotron.echno_backend.material.mapper.MaterialMapperImpl;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
+import org.tornotron.echno_backend.organization.OrganizationRepository;
+import org.tornotron.echno_backend.organization.OrganizationSummaryLookup;
+import org.tornotron.echno_backend.organization.OrganizationSummaryTotals;
 import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
 import org.tornotron.echno_backend.organization.mapper.OrganizationMapper;
 import org.tornotron.echno_backend.organization.mapper.OrganizationMapperImpl;
 import org.tornotron.echno_backend.project.Project;
-import org.tornotron.echno_backend.project.ProjectProgressLookup;
+import org.tornotron.echno_backend.project.ProjectSummaryLookup;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.project.dto.ProjectSummaryDto;
@@ -96,6 +101,11 @@ import static org.mockito.Mockito.when;
  * costs more when the same page of rows has a deeper graph hanging off it, and the projection costs
  * exactly the same, so the projection's cost is a function of the page size alone.
  *
+ * <p>The three projections carry the counts their list screens render (#836): a project's
+ * members and tasks, an indent's converted lines, an organization's employees and projects and
+ * its logo. Each is read in the same query as the figure it sits beside, so the numbers below
+ * did not move when the counts were added.
+ *
  * <p>What it measures, on the fixtures below:
  *
  * <pre>
@@ -109,7 +119,7 @@ import static org.mockito.Mockito.when;
  *
  * one organization holding 4 projects, 4 tasks each, 2 issues per task
  *   OrganizationDto        16 statements    55 entities   145 collections
- *   OrganizationSimpleDto   1 statement       1 entity      0 collections
+ *   OrganizationSimpleDto   2 statements     1 entity      0 collections
  *
  * a page of 5 indents, 10 lines each
  *   IndentDto               6 statements   109 entities     7 collections
@@ -133,6 +143,9 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
 
     @Autowired
     private IndentItemRepository indentItemRepository;
+
+    @Autowired
+    private OrganizationRepository organizationRepository;
 
     @Autowired
     private TestEntityManager em;
@@ -209,11 +222,15 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
 
         Cost summary = measure(() -> {
             List<Project> projects = page(tag);
-            ProjectProgressLookup progress = progressFor(projects);
+            ProjectSummaryLookup progress = totalsFor(projects);
             List<ProjectSummaryDto> dtos = projects.stream()
                     .map(project -> projectMapper.toSummaryDto(project, progress))
                     .toList();
             assertThat(dtos).hasSize(PAGE);
+            assertThat(dtos).allSatisfy(dto -> {
+                assertThat(dto.getTaskCount()).isEqualTo(6);
+                assertThat(dto.getMemberCount()).isEqualTo(1);
+            });
         });
 
         System.out.printf("projects, page of %d with 6 tasks and 3 issues each%n"
@@ -227,7 +244,8 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
                 .as("the full view should load the whole graph: %s", full)
                 .isGreaterThanOrEqualTo(PAGE + PAGE * 6 + PAGE * 6 * 3);
 
-        // The projection loads the page and nothing else. The averages come back as scalars.
+        // The projection loads the page and nothing else. The averages and the counts come back
+        // as scalars from one query.
         // The page itself plus the one organization every project on it points at, which is an
         // eager to-one on the entity and so comes back with the page query.
         assertThat(summary.entitiesLoaded)
@@ -238,6 +256,10 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
         assertThat(summary.statements)
                 .as("the projection should cost fewer round trips: %s against %s", summary, full)
                 .isLessThan(full.statements);
+        // The page, its count, and the one totals read that carries progress and both counts.
+        assertThat(summary.statements)
+                .as("the counts must ride in the same read as the progress: %s", summary)
+                .isEqualTo(3);
 
     }
 
@@ -291,7 +313,7 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
         em.clear();
 
         List<Project> projects = page(tag);
-        ProjectProgressLookup progress = progressFor(projects);
+        ProjectSummaryLookup progress = totalsFor(projects);
 
         for (Project project : projects) {
             ProjectDto full = projectMapper.toDto(project);
@@ -300,12 +322,22 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
             assertThat(summary.getProgress())
                     .as("project %d must report the same progress on both views", project.getId())
                     .isEqualTo(full.getProgress());
+            assertThat(summary.getTaskCount())
+                    .as("project %d must count the tasks the full view lists", project.getId())
+                    .isEqualTo(full.getTasks().size());
+            assertThat(summary.getMemberCount())
+                    .as("project %d must count the team the full view lists", project.getId())
+                    .isEqualTo(full.getEmployees().size());
         }
 
         assertThat(projects).extracting(Project::getId).contains(childless.getId());
         assertThat(progress.progressOf(childless.getId()))
                 .as("a project with no tasks reports zero, as the calculator does")
                 .isEqualTo(0.0);
+        assertThat(progress.taskCountOf(childless.getId())).isZero();
+        assertThat(progress.memberCountOf(childless.getId()))
+                .as("the childless project was persisted with no team")
+                .isZero();
     }
 
     /**
@@ -319,7 +351,7 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
         Project project = page(tag).get(0);
 
         ProjectDto full = projectMapper.toDto(project);
-        ProjectSummaryDto summary = projectMapper.toSummaryDto(project, progressFor(List.of(project)));
+        ProjectSummaryDto summary = projectMapper.toSummaryDto(project, totalsFor(List.of(project)));
 
         assertThat(summary.getId()).isEqualTo(full.getId());
         assertThat(summary.getProjectName()).isEqualTo(full.getProjectName());
@@ -344,8 +376,10 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
     // ------------------------------------------------------------------ organizations
 
     /**
-     * The organization picker. Its response needs a name and a logo, and the full DTO answers it
-     * with every project in the organization and everything hanging off each one.
+     * The organization picker and the organization cards. The cards need a name, a logo and two
+     * counts, and the full DTO answers them with every employee, every project and everything
+     * hanging off each project, so the client can count the arrays and pick the logo out of the
+     * attachments.
      */
     @Test
     void listingAnOrganizationPullsTheWholeTenantAndTheProjectionDoesNot() {
@@ -353,6 +387,8 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
         String tag = fixture(4, 4, 2);
         Organization organization = page(tag).get(0).getOrganization();
         Long organizationId = organization.getId();
+        persistLogo(organization, "logos/old.png", LocalDateTime.of(2026, 1, 1, 9, 0));
+        persistLogo(organization, "logos/current.png", LocalDateTime.of(2026, 3, 1, 9, 0));
         em.flush();
         em.clear();
 
@@ -362,9 +398,13 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
         });
 
         Cost summary = measure(() -> {
-            OrganizationSimpleDto dto =
-                    organizationMapper.toSimpleDto(em.find(Organization.class, organizationId));
+            Organization row = em.find(Organization.class, organizationId);
+            OrganizationSummaryLookup totals = organizationTotalsFor(List.of(row));
+            OrganizationSimpleDto dto = organizationMapper.toSummaryDto(row, totals);
             assertThat(dto.getOrganizationName()).isNotNull();
+            assertThat(dto.getProjectCount()).isEqualTo(4);
+            assertThat(dto.getEmployeeCount()).isEqualTo(1);
+            assertThat(dto.getLogoUrl()).isEqualTo("signed:logos/current.png");
         });
 
         System.out.printf("organization with 4 projects of 4 tasks and 2 issues each%n"
@@ -373,12 +413,52 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
                 full, summary);
 
         assertThat(summary.entitiesLoaded)
-                .as("the picker should read one row: %s", summary)
+                .as("the cards should read one row per organization: %s", summary)
                 .isEqualTo(1);
+        assertThat(summary.statements)
+                .as("the row and one totals read, whatever hangs off the organization: %s", summary)
+                .isEqualTo(2);
         assertThat(full.entitiesLoaded)
                 .as("the full view reads the tenant: %s", full)
                 .isGreaterThan(summary.entitiesLoaded * 10);
 
+    }
+
+    /**
+     * The cards list every organization the caller belongs to, which is usually more than the
+     * one the request is scoped to. The totals read is native for exactly that reason: the
+     * {@code orgFilter} reaches into HQL subqueries, and an HQL version counted zero for every
+     * organization but the current tenant. This pins the native read against the filter it was
+     * written to sidestep.
+     */
+    @Test
+    void theOrganizationTotalsAreNotZeroedByTheTenantFilterOfAnotherOrganization() {
+        wireMappers();
+        String scopedTag = fixture(2, 1, 0);
+        String otherTag = fixture(3, 1, 0);
+        Organization scoped = page(scopedTag).get(0).getOrganization();
+        Organization other = page(otherTag).get(0).getOrganization();
+        persistLogo(other, "logos/other.png", LocalDateTime.of(2026, 2, 1, 9, 0));
+        em.flush();
+        em.clear();
+
+        Session session = entityManager.unwrap(Session.class);
+        session.enableFilter("orgFilter").setParameter("organizationId", scoped.getId());
+        try {
+            OrganizationSummaryLookup totals = organizationTotalsFor(List.of(scoped, other));
+
+            assertThat(totals.projectCountOf(scoped.getId())).isEqualTo(2);
+            assertThat(totals.projectCountOf(other.getId()))
+                    .as("the other organization's projects must still count under the scoped filter")
+                    .isEqualTo(3);
+            assertThat(totals.employeeCountOf(other.getId())).isEqualTo(1);
+            assertThat(totals.logoUrlOf(other.getId())).isEqualTo("signed:logos/other.png");
+            assertThat(totals.logoUrlOf(scoped.getId()))
+                    .as("no logo attachment reads as no URL, not an empty one")
+                    .isNull();
+        } finally {
+            session.disableFilter("orgFilter");
+        }
     }
 
     // ------------------------------------------------------------------ indents
@@ -404,7 +484,10 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
                     .map(indent -> indentMapper.toSummaryDto(indent, counts))
                     .toList();
             assertThat(dtos).hasSize(PAGE);
-            assertThat(dtos).allSatisfy(dto -> assertThat(dto.getItemCount()).isEqualTo(10));
+            assertThat(dtos).allSatisfy(dto -> {
+                assertThat(dto.getItemCount()).isEqualTo(10);
+                assertThat(dto.getConvertedItemCount()).isEqualTo(3);
+            });
         });
 
         System.out.printf("indents, page of %d with 10 lines each%n"
@@ -446,6 +529,11 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
             assertThat(summary.getItemCount())
                     .as("indent %d must count the lines the full view lists", indent.getId())
                     .isEqualTo(full.getItems().size());
+            assertThat(summary.getConvertedItemCount())
+                    .as("indent %d must count the converted lines the full view flags", indent.getId())
+                    .isEqualTo(full.getItems().stream()
+                            .filter(item -> Boolean.TRUE.equals(item.getConvertedToPurchaseOrder()))
+                            .count());
             assertThat(summary.getIndentNumber()).isEqualTo(full.getIndentNumber());
             assertThat(summary.getProjectId()).isEqualTo(full.getProjectId());
             assertThat(summary.getProjectName()).isEqualTo(full.getProjectName());
@@ -457,6 +545,7 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
         assertThat(counts.itemCountOf(empty.getId()))
                 .as("an indent with no lines counts zero rather than going missing")
                 .isZero();
+        assertThat(counts.convertedItemCountOf(empty.getId())).isZero();
     }
 
     // ------------------------------------------------------------------ measuring
@@ -499,7 +588,7 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
 
     private void summarise(String tag) {
         List<Project> projects = page(tag);
-        ProjectProgressLookup progress = progressFor(projects);
+        ProjectSummaryLookup progress = totalsFor(projects);
         projects.forEach(project -> projectMapper.toSummaryDto(project, progress));
     }
 
@@ -508,9 +597,17 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
                 PageRequest.of(0, 50, Sort.by(Sort.Direction.ASC, "id"))).getContent();
     }
 
-    private ProjectProgressLookup progressFor(List<Project> projects) {
-        return ProjectProgressLookup.of(projectRepository.averageTaskProgressByProjectIds(
+    private ProjectSummaryLookup totalsFor(List<Project> projects) {
+        return ProjectSummaryLookup.of(projectRepository.summaryTotalsByProjectIds(
                 projects.stream().map(Project::getId).toList()));
+    }
+
+    private OrganizationSummaryLookup organizationTotalsFor(List<Organization> organizations) {
+        List<OrganizationSummaryTotals> rows = organizationRepository.summaryTotalsByOrganizationIds(
+                        organizations.stream().map(Organization::getId).toList()).stream()
+                .map(OrganizationSummaryTotals::fromRow)
+                .toList();
+        return OrganizationSummaryLookup.of(rows, key -> "signed:" + key);
     }
 
     private List<Indent> indents(String tag) {
@@ -597,12 +694,29 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
             item.setIndent(indent);
             item.setMaterial(material);
             item.setRequestedQuantity(5);
-            item.setConvertedToPurchaseOrder(false);
+            // The first three lines of every indent are already on a purchase order, so the
+            // converted count has something to count without being the whole line count.
+            item.setConvertedToPurchaseOrder(line < 3);
             item.setOrganization(organization);
             em.persist(item);
             items.add(item);
         }
         return indent;
+    }
+
+    private void persistLogo(Organization organization, String storageKey, LocalDateTime createdAt) {
+        Attachment attachment = new Attachment();
+        attachment.setEntityType("ORGANIZATION_LOGO");
+        attachment.setEntityId(organization.getId());
+        attachment.setStorageKey(storageKey);
+        attachment.setOriginalFilename("logo.png");
+        attachment.setOrganization(organization);
+        em.persist(attachment);
+        // @PrePersist stamps the creation time with now; the fixture wants two logos whose order
+        // is not a race, so the stamp is overwritten once the row exists.
+        em.flush();
+        attachment.setCreatedAt(createdAt);
+        em.flush();
     }
 
     private Organization persistOrganization(String tag) {

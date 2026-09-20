@@ -76,31 +76,35 @@ public interface ProjectRepository extends JpaRepository<Project,Long> {
                                        @Param("name") String name);
 
     /**
-     * Averages task progress for many projects in one grouped read.
+     * Reads what a project list derives from each project's collections, for many projects in one
+     * query: the average task progress, the task count and the team size.
      *
-     * <p>What a project list needs from a project's tasks is one number. Reaching it through the
-     * mapped {@code project.getTasks()} collection loads every task of every project on the page
-     * so a field can be averaged and the rest thrown away, and the call site shows none of that.
-     * This returns the average itself.
+     * <p>What a project list needs from a project's tasks and team is three numbers. Reaching them
+     * through the mapped {@code project.getTasks()} and {@code project.getEmployees()} collections
+     * loads every task and every team member of every project on the page so a field can be
+     * averaged, the rows counted and the rest thrown away, and the call site shows none of that.
+     * This returns the figures themselves.
      *
-     * <p>{@code AVG} ignores tasks whose progress is null, which is what
-     * {@link ProjectProgressCalculator} does in memory. The join is outer, so a project with no
-     * tasks still produces a row, with a null average;
-     * {@link ProjectProgressLookup#of} drops it and reads the project back as the {@code 0.0} the
-     * calculator returns for an empty list. Pass a non-empty collection: {@code IN ()} is not
-     * valid SQL.
+     * <p>Each figure is its own correlated subquery rather than a join, so the tasks and the team
+     * are never multiplied against each other. {@code AVG} ignores tasks whose progress is null,
+     * which is what {@link ProjectProgressCalculator} does in memory, and a project with no tasks
+     * reads a null average, which {@link ProjectSummaryLookup#progressOf} turns back into the
+     * {@code 0.0} the calculator returns for an empty list. The counts are plain {@code COUNT}s and
+     * read zero for a project with nothing to count. Every project asked for comes back as one row.
+     * Pass a non-empty collection: {@code IN ()} is not valid SQL.
      *
-     * @param projectIds The projects to average, non-empty.
+     * @param projectIds The projects to read, non-empty.
      * @return One row per project asked for.
      */
     @Query("""
-            SELECT new org.tornotron.echno_backend.project.ProjectProgressTotals(
+            SELECT new org.tornotron.echno_backend.project.ProjectSummaryTotals(
                        p.id,
-                       AVG(t.progress))
-            FROM Project p LEFT JOIN p.tasks t
+                       (SELECT AVG(t.progress) FROM Task t WHERE t.project.id = p.id),
+                       (SELECT COUNT(t2) FROM Task t2 WHERE t2.project.id = p.id),
+                       (SELECT COUNT(e) FROM Project p2 JOIN p2.employees e WHERE p2.id = p.id))
+            FROM Project p
             WHERE p.id IN :projectIds
-            GROUP BY p.id
             """)
-    List<ProjectProgressTotals> averageTaskProgressByProjectIds(
+    List<ProjectSummaryTotals> summaryTotalsByProjectIds(
             @Param("projectIds") Collection<Long> projectIds);
 }

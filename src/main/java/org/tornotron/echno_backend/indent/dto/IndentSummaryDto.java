@@ -47,4 +47,8 @@ public class IndentSummaryDto {
     @Schema(description = "How many item lines the indent has. Read for the whole page in one "
             + "aggregate; the lines themselves are on the detail view.", example = "10")
     private long itemCount;
+
+    @Schema(description = "How many of the item lines have already been converted into a purchase "
+            + "order. Read in the same aggregate as itemCount.", example = "4")
+    private long convertedItemCount;
 }
