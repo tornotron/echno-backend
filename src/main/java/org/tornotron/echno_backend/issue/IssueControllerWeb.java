@@ -37,8 +37,8 @@ import org.tornotron.echno_backend.issue.dto.IssueUpdateFieldsDto;
         description = "Web-client twin of the issue endpoints. Adds unpaginated and paginated listing "
                 + "with search/status/type filters, dashboard stats, and lookups by project or task, "
                 + "alongside the same create, update and delete operations as the base issue API. "
-                + "Access is gated by tenant membership, with update and delete restricted to a "
-                + "system admin or project manager."
+                + "Reads are open to any member of the tenant; creating, updating and deleting an issue "
+                + "belong to a system admin or project manager, the same pair that writes tasks."
 )
 public class IssueControllerWeb {
 
@@ -140,7 +140,7 @@ public class IssueControllerWeb {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Create an issue",
             description = "Creates an issue from a multipart request. The data part carries the issue "

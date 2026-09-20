@@ -35,9 +35,9 @@ import java.util.List;
                 + "current tenant. A draft is either approved, which posts it, or rejected with a "
                 + "stated reason, which posts nothing and keeps the refused correction on the "
                 + "record; both decisions freeze the document. "
-                + "Read endpoints require tenant membership. Raising and editing a draft is open to the "
-                + "system-admin, project-manager and store-keeper roles, because taking the count is the "
-                + "store's own work. Approving, rejecting and deleting stay with system-admin and "
+                + "Reading, raising and editing a draft are open to the system-admin, project-manager and "
+                + "store-keeper roles, the same three that read the catalogue and the balances a document "
+                + "names, because taking the count is the store's own work. Approving, rejecting and deleting stay with system-admin and "
                 + "project-manager: an approval posts the balance and is the second pair of eyes on "
                 + "somebody else's count, which is also why it has to come from someone other than "
                 + "whoever raised the document."
@@ -51,21 +51,21 @@ public class StockAdjustmentControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List all stock adjustments",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustments returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<StockAdjustmentDto>> readAllStockAdjustments() {
         return UnpagedResultCap.respond(stockAdjustmentService.getAll(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List stock adjustments, paginated",
             description = "Returns a single page of stock adjustments ordered by creation time, most recent "
@@ -73,7 +73,7 @@ public class StockAdjustmentControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of stock adjustments returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<StockAdjustmentDto>> readAllStockAdjustmentsPaginated(
             @Valid @ParameterObject PageQuery pageQuery) {
@@ -81,7 +81,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Get a stock adjustment by id",
             description = "Returns a single stock adjustment document, including its header fields and line "
@@ -89,7 +89,7 @@ public class StockAdjustmentControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustment found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No stock adjustment with the given id")
     })
     public ResponseEntity<StockAdjustmentDto> readAStockAdjustment(@PathVariable Long id) {
@@ -97,7 +97,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @GetMapping("/by-source-document")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List the stock adjustments raised to answer one document",
             description = "Returns the adjustments naming the given source document, most recently "
@@ -111,7 +111,7 @@ public class StockAdjustmentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustments naming the document returned, empty where none do"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "sourceDocumentType is not a known kind of document"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<StockAdjustmentDto>> readStockAdjustmentsBySourceDocument(
             @RequestParam StockAdjustmentSourceType sourceDocumentType,

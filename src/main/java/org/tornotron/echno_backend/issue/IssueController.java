@@ -31,8 +31,9 @@ import org.tornotron.echno_backend.issue.dto.IssueUpdateFieldsDto;
         name = "Issues",
         description = "A problem or defect raised against a task, optionally with attachments and "
                 + "comments. Endpoints cover reading a single issue, creating one with attachments, "
-                + "partial updates and deletion. Access is gated by tenant membership, with update "
-                + "and delete restricted to a system admin or project manager."
+                + "partial updates and deletion. Reads are open to any member of the tenant; creating, "
+                + "updating and deleting an issue belong to a system admin or project manager, the "
+                + "same pair that writes tasks."
 )
 public class IssueController {
 
@@ -72,7 +73,7 @@ public class IssueController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Create an issue",
             description = "Creates an issue from a multipart request. The data part carries the issue "
@@ -82,7 +83,7 @@ public class IssueController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Issue created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid issue JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so the record would name nobody")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody")
     })
     public ResponseEntity<IssueSimpleDto> createIssue(
             @Parameter(schema = @Schema(implementation = IssueCreationDto.class))
