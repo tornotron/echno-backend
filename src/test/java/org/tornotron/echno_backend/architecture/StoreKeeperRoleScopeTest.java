@@ -87,8 +87,15 @@ class StoreKeeperRoleScopeTest {
             "SiteTransferControllerWeb.readStatusHistory GET /{id}/status-history",
 
             // Taking the count and writing down what it found. Approving it is somebody else's.
+            // The reads moved onto the stores tier on #853: they had been open to any member,
+            // which was looser than the roles matrix and than every other Resources read, so
+            // naming the role here changes nothing the storekeeper could already do.
             "StockAdjustmentControllerWeb.createStockAdjustment POST",
             "StockAdjustmentControllerWeb.updateStockAdjustment PUT /{id}",
+            "StockAdjustmentControllerWeb.readAllStockAdjustments GET",
+            "StockAdjustmentControllerWeb.readAllStockAdjustmentsPaginated GET /paginated",
+            "StockAdjustmentControllerWeb.readAStockAdjustment GET /{id}",
+            "StockAdjustmentControllerWeb.readStockAdjustmentsBySourceDocument GET /by-source-document",
 
             // The catalogue and the balances held against it, which every stores form names.
             "MaterialControllerWeb.getMaterialById GET /{id}",
@@ -187,8 +194,8 @@ class StoreKeeperRoleScopeTest {
      * unique. {@code IndentControllerWeb} declares {@code getAllIndents} twice, once on
      * {@code @GetMapping("/all")} and once on the bare {@code @GetMapping}, and keying by name
      * collapsed the two into one entry: the set comparison then held with one of the pair
-     * ungranted, which is the failure this test exists to catch. Ninety-five guarded mappings must
-     * produce ninety-five signatures.
+     * ungranted, which is the failure this test exists to catch. Ninety-nine guarded mappings must
+     * produce ninety-nine signatures.
      */
     private record Granted(String controller, String method, String verb, String path) {
         String signature() {

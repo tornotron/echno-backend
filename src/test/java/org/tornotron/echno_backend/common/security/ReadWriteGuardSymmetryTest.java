@@ -30,8 +30,6 @@ import org.tornotron.echno_backend.issue.IssueControllerWeb;
 import org.tornotron.echno_backend.issue.IssueService;
 import org.tornotron.echno_backend.receipt.ReceiptControllerWeb;
 import org.tornotron.echno_backend.receipt.ReceiptService;
-import org.tornotron.echno_backend.stockAdjustment.StockAdjustmentControllerWeb;
-import org.tornotron.echno_backend.stockAdjustment.StockAdjustmentService;
 import org.tornotron.echno_backend.subcontract.SubContractControllerWeb;
 import org.tornotron.echno_backend.subcontract.SubContractService;
 import org.tornotron.echno_backend.task.TaskControllerWeb;
@@ -50,9 +48,13 @@ import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
- * Locks in the read guards across the nine controllers that carried the asymmetry fixed for
+ * Locks in the read guards across the eight controllers that carried the asymmetry fixed for
  * projects in #399: their reads gated on tenant membership while their writes gated on the
  * system-admin or project-manager org role.
+ *
+ * <p>Stock adjustments were the ninth until #853 moved their reads onto the stores tier
+ * (system-admin, project-manager, store-keeper) to match the roles matrix and every other
+ * Resources read; {@code StockAdjustmentControllerWebAuthzTest} pins that shape.
  *
  * <p><b>The role-without-membership case this class used to assert has been removed, because it
  * asserted an outcome for a state the real beans cannot produce.</b> It stubbed
@@ -77,8 +79,8 @@ import org.tornotron.echno_backend.common.payload.PayloadValidator;
  * expression without building JWT authorities; what was wrong was stubbing a combination the
  * bean cannot return, and that is now a test failure at the point of stubbing.
  *
- * <p>Deliberately one @WebMvcTest over all nine controllers rather than nine separate slices.
- * Spring caches a context per distinct slice and the test JVM is capped, so nine new contexts
+ * <p>Deliberately one @WebMvcTest over all eight controllers rather than eight separate slices.
+ * Spring caches a context per distinct slice and the test JVM is capped, so eight new contexts
  * would be a real cost; this adds exactly one.
  */
 @WebMvcTest({
@@ -86,7 +88,6 @@ import org.tornotron.echno_backend.common.payload.PayloadValidator;
         ExpenseControllerWeb.class,
         ReceiptControllerWeb.class,
         SubContractControllerWeb.class,
-        StockAdjustmentControllerWeb.class,
         CategoryControllerWeb.class,
         TaskControllerWeb.class,
         IssueControllerWeb.class,
@@ -102,7 +103,6 @@ class ReadWriteGuardSymmetryTest {
     @MockitoBean private ExpenseService expenseService;
     @MockitoBean private ReceiptService receiptService;
     @MockitoBean private SubContractService subContractService;
-    @MockitoBean private StockAdjustmentService stockAdjustmentService;
     @MockitoBean private CategoryService categoryService;
     @MockitoBean private TaskService taskService;
     @MockitoBean private IssueService issueService;
@@ -126,7 +126,6 @@ class ReadWriteGuardSymmetryTest {
                 "/api/v1/expenses/web",
                 "/api/v1/receipts/web",
                 "/api/v1/sub-contracts/web",
-                "/api/v1/stock-adjustments/web",
                 "/api/v1/category/web",
                 "/api/v1/tasks/web",
                 "/api/v1/issues/web",
@@ -141,7 +140,6 @@ class ReadWriteGuardSymmetryTest {
         when(expenseService.getPaginated(anyInt(), anyInt(), any(), any())).thenReturn(Page.empty());
         when(receiptService.getPaginated(anyInt(), anyInt(), any(), any())).thenReturn(Page.empty());
         when(subContractService.getPaginated(anyInt(), anyInt(), any(), any(), any())).thenReturn(Page.empty());
-        when(stockAdjustmentService.getAll(anyInt(), anyInt())).thenReturn(Page.empty());
         when(issueService.getAllIssuesPaginated(anyInt(), anyInt(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(Page.empty());
         when(categoryService.getAllCategories(anyInt(), anyInt())).thenReturn(Page.empty());

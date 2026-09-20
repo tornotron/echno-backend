@@ -70388,7 +70388,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the record would name nobody"
+            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -111674,7 +111674,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -111911,7 +111911,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -112042,7 +112042,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -112266,7 +112266,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -127005,11 +127005,11 @@
       "name": "Issue Comments"
     },
     {
-      "description": "Web-client twin of the issue endpoints. Adds unpaginated and paginated listing with search/status/type filters, dashboard stats, and lookups by project or task, alongside the same create, update and delete operations as the base issue API. Access is gated by tenant membership, with update and delete restricted to a system admin or project manager.",
+      "description": "Web-client twin of the issue endpoints. Adds unpaginated and paginated listing with search/status/type filters, dashboard stats, and lookups by project or task, alongside the same create, update and delete operations as the base issue API. Reads are open to any member of the tenant; creating, updating and deleting an issue belong to a system admin or project manager, the same pair that writes tasks.",
       "name": "Issues"
     },
     {
-      "description": "A problem or defect raised against a task, optionally with attachments and comments. Endpoints cover reading a single issue, creating one with attachments, partial updates and deletion. Access is gated by tenant membership, with update and delete restricted to a system admin or project manager.",
+      "description": "A problem or defect raised against a task, optionally with attachments and comments. Endpoints cover reading a single issue, creating one with attachments, partial updates and deletion. Reads are open to any member of the tenant; creating, updating and deleting an issue belong to a system admin or project manager, the same pair that writes tasks.",
       "name": "Issues"
     },
     {
@@ -127217,7 +127217,7 @@
       "name": "Site Transfers (Web)"
     },
     {
-      "description": "Documents that correct the recorded on-hand quantity of materials at a storage location against a physical count, capturing the variance, its reason and justification per line item. This is the controlled way to set or correct a stock balance: approving a document posts its lines to the inventory ledger and moves the balance, so the resulting figure stays explainable. Endpoints cover creating, updating, browsing, approving, rejecting and deleting stock adjustment documents for the caller's current tenant. A draft is either approved, which posts it, or rejected with a stated reason, which posts nothing and keeps the refused correction on the record; both decisions freeze the document. Read endpoints require tenant membership. Raising and editing a draft is open to the system-admin, project-manager and store-keeper roles, because taking the count is the store's own work. Approving, rejecting and deleting stay with system-admin and project-manager: an approval posts the balance and is the second pair of eyes on somebody else's count, which is also why it has to come from someone other than whoever raised the document.",
+      "description": "Documents that correct the recorded on-hand quantity of materials at a storage location against a physical count, capturing the variance, its reason and justification per line item. This is the controlled way to set or correct a stock balance: approving a document posts its lines to the inventory ledger and moves the balance, so the resulting figure stays explainable. Endpoints cover creating, updating, browsing, approving, rejecting and deleting stock adjustment documents for the caller's current tenant. A draft is either approved, which posts it, or rejected with a stated reason, which posts nothing and keeps the refused correction on the record; both decisions freeze the document. Reading, raising and editing a draft are open to the system-admin, project-manager and store-keeper roles, the same three that read the catalogue and the balances a document names, because taking the count is the store's own work. Approving, rejecting and deleting stay with system-admin and project-manager: an approval posts the balance and is the second pair of eyes on somebody else's count, which is also why it has to come from someone other than whoever raised the document.",
       "name": "Stock Adjustments (Web)"
     },
     {

@@ -45,10 +45,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>Raising a defect from the site, with a photograph, on the phone that is already in the
  * hand is the workflow this controller exists for, so it is repaired rather than removed. The
- * target is the web twin's answer, endpoint for endpoint: reading and raising an issue is open to
- * any member of the tenant, and editing or deleting one belongs to a system admin or project
- * manager. Nobody's effective reach changes, because the same member already does all four
- * things through {@code /api/v1/issues/web}.
+ * target is the web twin's answer, endpoint for endpoint: reading an issue is open to any member
+ * of the tenant, and raising, editing or deleting one belongs to a system admin or project
+ * manager. The roles matrix files issues with tasks, whose writes the same pair holds, and #853
+ * brought the create guard on both twins to that line.
  *
  * <p>The role list is stubbed exactly rather than through {@code any(String[].class)}. A blanket
  * stub answering true would pass whatever roles the guards named, so a delete that quietly
@@ -128,11 +128,21 @@ class IssueMobileGuardTest {
     }
 
     @Test
-    void create_asAMemberOfTheTenant_isAllowed() throws Exception {
-        callerIsAPlainMember();
+    void create_asAProjectManager_isAllowed() throws Exception {
+        callerIsAProjectManager();
 
         mockMvc.perform(multipart("/api/v1/issues").file(dataPart()).with(jwt()))
                 .andExpect(status().isCreated());
+    }
+
+    /** Raising an issue is a write on the project, and the matrix gives project writes to the pair. */
+    @Test
+    void create_asAPlainMember_isForbidden() throws Exception {
+        callerIsAPlainMember();
+
+        mockMvc.perform(multipart("/api/v1/issues").file(dataPart()).with(jwt()))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(issueService);
     }
 
     @Test
@@ -156,8 +166,8 @@ class IssueMobileGuardTest {
     }
 
     /**
-     * The difference between the two guards on this controller. A member raises and reads an
-     * issue; changing somebody else's, or removing it, is the pair's.
+     * The difference between the two guards on this controller. A member reads an issue;
+     * raising one, changing it, or removing it, is the pair's.
      */
     @Test
     void update_asAPlainMember_isForbidden() throws Exception {

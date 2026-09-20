@@ -32,10 +32,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Web-slice authorization test for StockAdjustmentControllerWeb, whose endpoints split
- * the guard: any member of the current tenant may read, but only a system-admin or
- * project-manager may write. This pins both halves and, crucially, that a plain member
- * who holds neither role is refused a write. If the write guard were ever loosened to
- * membership, the member-without-role delete test fails. Approving is held to the same
+ * the guard: a system-admin, project-manager or store-keeper may read and raise a draft,
+ * but only a system-admin or project-manager may approve, reject or delete. This pins both
+ * halves and, crucially, that a plain member who holds no stores role is refused a read
+ * (#853: the roles matrix reads stock adjustments with the same three roles that read the
+ * catalogue, and a member who cannot name a material has no business listing the counts
+ * against it) and that a member who holds neither elevated role is refused a write. If the
+ * write guard were ever loosened to membership, the member-without-role delete test fails. Approving is held to the same
  * bar: it is the action that moves a stock balance, so a plain member must not reach it.
  * So is rejecting, which closes the document and writes what the refusal is afterwards
  * read from. The reason on a rejection is required, so a blank one is a 400 rather than
@@ -64,18 +67,49 @@ class StockAdjustmentControllerWebAuthzTest {
     @MockitoBean
     private RPTCache rptCache;
 
-    @Test
-    void read_isOk_forAnyMember() throws Exception {
+    /** The three roles the roles matrix reads stock adjustments with: the stores tier. */
+    private static final String[] READ_ROLES = {"system-admin", "project-manager", "store-keeper"};
+
+    /** A store-keeper: a member who satisfies the stores tier and nothing above it. */
+    private void callerIsAStoreKeeper() {
         when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(READ_ROLES)).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+    }
+
+    /** A member of the tenant holding no org role at all. */
+    private void callerIsAPlainMember() {
+        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(READ_ROLES)).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+    }
+
+    @Test
+    void read_isOk_forAStoreKeeper() throws Exception {
+        callerIsAStoreKeeper();
         when(stockAdjustmentService.getAll(anyInt(), anyInt())).thenReturn(Page.empty());
 
         mockMvc.perform(get("/api/v1/stock-adjustments/web").with(jwt()))
                 .andExpect(status().isOk());
     }
 
+    /**
+     * Membership alone no longer opens the list (#853). Every other Resources read, from the
+     * catalogue to the ledger, asks for the stores tier, and an adjustment names a material and
+     * a storage location that a plain member cannot otherwise look up.
+     */
+    @Test
+    void read_isForbidden_forAPlainMemberWithoutAStoresRole() throws Exception {
+        callerIsAPlainMember();
+
+        mockMvc.perform(get("/api/v1/stock-adjustments/web").with(jwt()))
+                .andExpect(status().isForbidden());
+    }
+
     @Test
     void read_isForbidden_forANonMember() throws Exception {
         when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(READ_ROLES)).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/stock-adjustments/web").with(jwt()))
                 .andExpect(status().isForbidden());
@@ -84,13 +118,13 @@ class StockAdjustmentControllerWebAuthzTest {
     /**
      * The reverse of the adjustment's own reference: a transfer left with an open variance asks
      * whether anybody has closed it. Read by the same guard as the other reads, because the
-     * answer is a stock adjustment and any member may already read those. Pinned so a later
+     * answer is a stock adjustment and the stores tier may already read those. Pinned so a later
      * tightening of the write guard cannot be applied here by analogy and leave whoever received
      * the transfer unable to see the adjustment they are being sent to raise.
      */
     @Test
-    void readBySourceDocument_isOk_forAnyMember() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+    void readBySourceDocument_isOk_forAStoreKeeper() throws Exception {
+        callerIsAStoreKeeper();
         when(stockAdjustmentService.getBySourceDocument(StockAdjustmentSourceType.SITE_TRANSFER, 31L))
                 .thenReturn(List.of());
 
@@ -102,8 +136,8 @@ class StockAdjustmentControllerWebAuthzTest {
     }
 
     @Test
-    void readBySourceDocument_isForbidden_forANonMember() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+    void readBySourceDocument_isForbidden_forAPlainMemberWithoutAStoresRole() throws Exception {
+        callerIsAPlainMember();
 
         mockMvc.perform(get("/api/v1/stock-adjustments/web/by-source-document")
                         .param("sourceDocumentType", "SITE_TRANSFER")
@@ -115,7 +149,7 @@ class StockAdjustmentControllerWebAuthzTest {
     /** A kind of document nobody can resolve is a bad request, not an empty result. */
     @Test
     void readBySourceDocument_refusesAnUnknownKindOfDocument() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        callerIsAStoreKeeper();
 
         mockMvc.perform(get("/api/v1/stock-adjustments/web/by-source-document")
                         .param("sourceDocumentType", "PURCHASE_ORDER")
