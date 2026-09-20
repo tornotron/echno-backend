@@ -185,6 +185,8 @@ public class LeaveRequestValidator {
      * @throws InvalidRequestException if any rule is violated.
      */
     public void validate(Employee employee, LeavePolicy policy, LeaveRequestCreationDto dto, Long excludeRequestId) {
+        LeavePolicyEligibility.require(employee, policy);
+
         if (dto.getStartDate().isAfter(dto.getEndDate())) {
             throw new InvalidRequestException(
                     "Start date " + dto.getStartDate() + " cannot be after end date " + dto.getEndDate());

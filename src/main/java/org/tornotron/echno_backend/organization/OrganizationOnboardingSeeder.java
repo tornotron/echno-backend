@@ -7,10 +7,12 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.finance.budget.service.CostCategorySeeder;
 import org.tornotron.echno_backend.finance.ledger.service.ChartOfAccountsSeeder;
 import org.tornotron.echno_backend.finance.settings.FinanceSettingsService;
+import org.tornotron.echno_backend.leave.LeavePolicyDefaultsSeeder;
 
 /**
- * Seeds the per-organization finance defaults a freshly created organization needs to be usable:
- * the chart of accounts, the budget cost categories, and the finance-settings row.
+ * Seeds the per-organization defaults a freshly created organization needs to be usable: the
+ * chart of accounts, the budget cost categories, the finance-settings row, and the default leave
+ * types (Casual, Sick, Earned, Maternity, Paternity).
  *
  * <p>Every step is idempotent (each underlying seeder skips an org that already has the data) and
  * independently guarded: a failure in one seed is logged and the remaining seeds still run, so a
@@ -33,6 +35,7 @@ public class OrganizationOnboardingSeeder {
     private final ChartOfAccountsSeeder chartOfAccountsSeeder;
     private final CostCategorySeeder costCategorySeeder;
     private final FinanceSettingsService financeSettingsService;
+    private final LeavePolicyDefaultsSeeder leavePolicyDefaultsSeeder;
 
     /**
      * Seeds the finance defaults for the given organization. Sets the tenant context to that
@@ -51,6 +54,7 @@ public class OrganizationOnboardingSeeder {
             runQuietly("chart of accounts", organizationId, () -> chartOfAccountsSeeder.seedDefaults());
             runQuietly("cost categories", organizationId, () -> costCategorySeeder.seedDefaults());
             runQuietly("finance settings", organizationId, () -> financeSettingsService.getOrCreate());
+            runQuietly("leave policies", organizationId, () -> leavePolicyDefaultsSeeder.seedDefaults());
         } finally {
             if (previous == null) {
                 TenantContext.clear();

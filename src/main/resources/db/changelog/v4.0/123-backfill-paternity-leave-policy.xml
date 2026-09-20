@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="123-backfill-paternity-leave-policy" author="abhijith" runOnChange="false">
+        <comment>
+            One Paternity Leave policy for every organization that has none (#838): male
+            employees, 7 days credited in full once the employee qualifies, supporting document
+            required, the reporting-manager chain like every other type. Keyed on the
+            organization plus the PL code or the policy name, so an organization that already
+            declared paternity leave under either is left exactly as it configured it, and a
+            rerun inserts nothing. Mirrors LeavePolicyDefaultsSeeder, which does the same for
+            organizations created from now on. No other policy is touched: a Maternity
+            "Applies To" value is the organization's own data entry.
+        </comment>
+
+        <sql>
+            INSERT INTO leave_policy (
+                organization_id, leave_type_code, leave_type_name, description, annual_quota,
+                min_days_per_request, advance_notice_days, requires_attachment, applicable_genders,
+                min_service_months, allow_half_day, is_paid, is_active, multi_level_approval_enabled,
+                display_order, accrual_method, weekend_holiday_treatment, approver_role,
+                supporting_document_note, created_at, updated_at)
+            SELECT o.id, 'PL', 'Paternity Leave', 'Leave for a father around the birth of a child.', 7,
+                   0.5, 0, true, 'MALE',
+                   0, false, true, true, true,
+                   4, 'IN_FULL_ON_QUALIFYING', 'CHARGE_ALL_DAYS', 'REPORTING_MANAGER',
+                   'Birth certificate or hospital discharge summary', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            FROM organization o
+            WHERE NOT EXISTS (
+                SELECT 1 FROM leave_policy lp
+                WHERE lp.organization_id = o.id
+                  AND (lp.leave_type_code = 'PL' OR lp.leave_type_name = 'Paternity Leave'))
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

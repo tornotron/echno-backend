@@ -79,6 +79,12 @@ public class LeaveBalanceService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave policy with ID " + policyId + " was not found in this organization"));
 
+        // The list endpoints filter by the policy's "Applies To" and service rule; asking for one
+        // policy by id used to bypass both and materialize a balance the employee can never draw
+        // on. The same rule now answers here, so a maternity balance is never opened for a male
+        // employee and the apply flow, which reads the balance through this, refuses too.
+        LeavePolicyEligibility.require(employee, policy);
+
         if (isBeforeJoiningYear(employee, year)) {
             return leaveBalanceMapper.toDto(zeroBalance(employee, policy, year));
         }
