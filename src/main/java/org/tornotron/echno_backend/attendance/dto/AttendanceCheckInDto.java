@@ -37,7 +37,7 @@ public class AttendanceCheckInDto {
     @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime eventTimestamp;
 
-    @Schema(description = "Latitude captured at check-in.", example = "13.0827")
+    @Schema(description = "Latitude captured at check-in, from the submitting device. On a request a supervisor makes for somebody else this is the supervisor's own position: it is measured against the project's geofence and the request is refused with a 422 when it falls outside, so a client marking for the team has to send it.", example = "13.0827")
     private Double latitude;
 
     @Schema(description = "Longitude captured at check-in.", example = "80.2707")

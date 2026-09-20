@@ -164,6 +164,11 @@ class AttendanceActorAuthorizationTest {
     private void callerMayRecordOnlyFor(Long employeeId) {
         lenient().when(attendanceSecurity.canRecordFor(any(Long.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0).equals(employeeId));
+        // The geofence is somebody else's concern here; every path measures it now, including a
+        // punch recorded for somebody else, so the mock has to answer with a verdict rather than
+        // the null a bare mock returns.
+        lenient().when(geofenceService.evaluate(any(), any(), any(), any()))
+                .thenReturn(AttendanceGeofenceService.Evaluation.notEvaluated());
     }
 
     @Test

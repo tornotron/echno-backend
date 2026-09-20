@@ -1172,7 +1172,7 @@
             "type": "string"
           },
           "latitude": {
-            "description": "Latitude captured at check-in.",
+            "description": "Latitude captured at check-in, from the submitting device. On a request a supervisor makes for somebody else this is the supervisor's own position: it is measured against the project's geofence and the request is refused with a 422 when it falls outside, so a client marking for the team has to send it.",
             "example": 13.0827,
             "format": "double",
             "type": "number"
@@ -1269,7 +1269,7 @@
             "type": "string"
           },
           "latitude": {
-            "description": "Latitude captured for the event.",
+            "description": "Latitude captured for the event, from the submitting device. On a request a supervisor makes for somebody else this is the supervisor's own position: it is measured against the project's geofence and the request is refused with a 422 when it falls outside, so a client marking for the team has to send it.",
             "example": 13.0827,
             "format": "double",
             "type": "number"
@@ -3845,12 +3845,56 @@
             "example": "Asset Homes Kovilambakkam Phase 2",
             "type": "string"
           },
+          "recordedAt": {
+            "description": "When the punch was written, in UTC. On a supervisor-marked punch this is when the supervisor created the entry, which can differ from eventTimestamp, the site-local time the punch is recorded as.",
+            "example": "2026-09-20T03:35:12",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recordedByDistanceMeters": {
+            "description": "How far the supervisor was from the project site when they marked this punch, in metres. An entry from outside the fence is refused, so a value here is always within the radius that applied. Null on a self-marked punch and when the fence could not be measured.",
+            "example": 23.5,
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
           "recordedById": {
             "description": "Employee id of whoever submitted the punch. Differs from the employee the record belongs to when a supervisor marked attendance for their team, in which case the geofence is not evaluated because the position captured is the supervisor's. Null when the caller resolves to no employee in this organization, and on an event written by a regularization.",
             "example": 42,
             "format": "int64",
             "type": [
               "integer",
+              "null"
+            ]
+          },
+          "recordedByLatitude": {
+            "description": "Latitude of the supervisor who marked this punch for somebody else, captured on their device when they created the entry. Null on a punch the employee took themselves.",
+            "example": 13.0828,
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "recordedByLongitude": {
+            "description": "Longitude of the supervisor who marked this punch for somebody else. Null under the same conditions as recordedByLatitude, and the two are always absent or present together.",
+            "example": 80.2708,
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "recordedByName": {
+            "description": "Name of the employee who submitted the punch, so a client can say who marked it without a lookup. Set together with recordedById; a client shows it where recordedById differs from the employee the record belongs to.",
+            "example": "Anand Rajashekar",
+            "type": [
+              "string",
               "null"
             ]
           },

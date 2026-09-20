@@ -269,12 +269,13 @@ class AttendanceGeofenceEnforcementTest {
         // A supervisor marking their team sends their own device's position for somebody else's
         // day. Judging the employee by where their supervisor was standing would put a claim about
         // the wrong person in the same column as real measurements, which is the defect this whole
-        // evaluation exists to remove. So the punch is recorded, unevaluated, and recordedById
-        // says why. Nothing about the mark-for-team path is gated.
+        // evaluation exists to remove. So the punch's own verdict stays null and recordedById says
+        // why. What the position does gate is the supervisor, which TeamMarkingRuleTest covers;
+        // here they are on site.
         givenACheckInIsPossible();
         when(attendanceSecurity.isSelfMarking(EMPLOYEE_ID)).thenReturn(false);
 
-        service.checkIn(checkInAt(OFF_SITE_LAT, PROJECT_LON, null), null);
+        service.checkIn(checkInAt(ON_SITE_LAT, ON_SITE_LON, null), null);
 
         ClockEvent event = savedEvent();
         assertThat(event.getIsWithinGeofence()).isNull();

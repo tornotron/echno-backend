@@ -437,6 +437,7 @@
     <include file="db/changelog/v4.0/115-billing-provider-unique-keys.xml"/>
     <include file="db/changelog/v4.0/116-spatial-root-code-unique.xml"/>
     <include file="db/changelog/v4.0/118-billing-followups.xml"/>
+    <include file="db/changelog/v4.0/119-clock-event-recorded-by-context.xml"/>
 
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->

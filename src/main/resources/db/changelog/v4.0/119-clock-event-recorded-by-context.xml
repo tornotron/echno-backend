@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="119-01-clock-event-recorded-by-context" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="clock_event" columnName="recorded_by_name"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            A supervisor marking attendance for their team now has to be on site themselves: the
+            position on the request is theirs, it is measured against the project's geofence, and
+            an entry from outside the fence is refused (#839). What gets stored is the answer to
+            "who marked this, from where, and how far from the site", next to recorded_by_id which
+            already said who.
+
+            recorded_by_name is denormalized the way project_name is, so the attendance record
+            reads without a join. recorded_by_latitude and recorded_by_longitude are the
+            supervisor's position, kept apart from latitude and longitude, which describe the
+            punch, so a reader never has to work out whose position a pair is: on a self-marked
+            punch they are null, on a supervisor-marked one they are the recorder's.
+            recorded_by_distance_meters is the measured distance at the time, kept because the
+            project's coordinates and the radius can both change afterwards.
+
+            The existing rows are left null. Nothing was measured for them.
+        </comment>
+
+        <addColumn tableName="clock_event">
+            <column name="recorded_by_name" type="VARCHAR(255)"/>
+            <column name="recorded_by_latitude" type="DOUBLE PRECISION"/>
+            <column name="recorded_by_longitude" type="DOUBLE PRECISION"/>
+            <column name="recorded_by_distance_meters" type="DOUBLE PRECISION"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>
