@@ -231,7 +231,10 @@ class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
         // the five trades the catalogue added each ship with a starter of their own
         assertThat(starters).extracting(StarterChecklistTemplateDto::trade)
                 .contains("tiling", "painting", "ceilings", "doors-windows", "fire-systems");
-        assertThat(starters).hasSize(21);
+        // and the six the Asset Homes checklists added (#837)
+        assertThat(starters).extracting(StarterChecklistTemplateDto::trade)
+                .contains("earthwork", "setting-out", "piling", "backfilling", "anti-termite", "material-inspection");
+        assertThat(starters).hasSize(27);
     }
 
     @Test

@@ -67,6 +67,10 @@ class TradeServiceIT extends AbstractIntegrationTest {
             "plumbing-fixtures", "sanitary-fixtures", "finishing", "dimensional-check", "progress-check");
     private static final Set<String> NEW_TRADES =
             Set.of("tiling", "painting", "ceilings", "doors-windows", "fire-systems");
+    /** The trades the Asset Homes checklists added in 121 (#837), five under sitework and one under general. */
+    private static final Set<String> ASSET_HOMES_TRADES =
+            Set.of("earthwork", "setting-out", "piling", "backfilling", "anti-termite", "material-inspection");
+    private static final int CATALOGUE_SIZE = 27;
 
     @Autowired
     private TradeService service;
@@ -115,15 +119,16 @@ class TradeServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void catalogue_holdsTheSixteenOriginalSlugsAndTheFiveNewTradesInSevenGroups() {
+    void catalogue_holdsTheOriginalSlugsAndTheAddedTradesInEightGroups() {
         List<TradeCatalogueDto> catalogue = service.listCatalogue();
 
         Set<String> codes = catalogue.stream().map(TradeCatalogueDto::code).collect(Collectors.toSet());
         assertThat(codes).containsAll(ORIGINAL_TRADES);
         assertThat(codes).containsAll(NEW_TRADES);
-        assertThat(catalogue).hasSize(21);
+        assertThat(codes).containsAll(ASSET_HOMES_TRADES);
+        assertThat(catalogue).hasSize(CATALOGUE_SIZE);
         assertThat(catalogue).extracting(TradeCatalogueDto::groupCode)
-                .containsOnly("structural", "masonry", "finishes", "openings", "mep", "fire", "general");
+                .containsOnly("sitework", "structural", "masonry", "finishes", "openings", "mep", "fire", "general");
     }
 
     @Test
@@ -131,7 +136,7 @@ class TradeServiceIT extends AbstractIntegrationTest {
         assertThat(orgTradeRepo.findByOrganizationIdOrderBySortOrderAscNameAsc(orgAId)).isEmpty();
 
         List<OrgTradeDto> first = service.listOrgTrades(false);
-        assertThat(first).hasSize(21);
+        assertThat(first).hasSize(CATALOGUE_SIZE);
         assertThat(first).allSatisfy(t -> {
             assertThat(t.catalogueCode()).isEqualTo(t.code());
             assertThat(t.active()).isTrue();
@@ -139,8 +144,8 @@ class TradeServiceIT extends AbstractIntegrationTest {
 
         // a second read, and an explicit top-up, add nothing
         assertThat(service.ensureOrgTrades(entityManager.find(Organization.class, orgAId))).isZero();
-        assertThat(service.listOrgTrades(false)).hasSize(21);
-        assertThat(orgTradeRepo.findByOrganizationIdOrderBySortOrderAscNameAsc(orgAId)).hasSize(21);
+        assertThat(service.listOrgTrades(false)).hasSize(CATALOGUE_SIZE);
+        assertThat(orgTradeRepo.findByOrganizationIdOrderBySortOrderAscNameAsc(orgAId)).hasSize(CATALOGUE_SIZE);
 
         // and the other tenant is untouched until it reads
         assertThat(orgTradeRepo.findByOrganizationIdOrderBySortOrderAscNameAsc(orgBId)).isEmpty();
@@ -190,10 +195,10 @@ class TradeServiceIT extends AbstractIntegrationTest {
           } finally {
             executor.shutdownNow();
           }
-          assertThat(copied).as("copied by the reads that committed").isEqualTo(21);
+          assertThat(copied).as("copied by the reads that committed").isEqualTo(CATALOGUE_SIZE);
           assertThat(serialized).isLessThanOrEqualTo(1);
           List<OrgTrade> after = txTemplate.execute(s -> orgTradeRepo.findByOrganizationIdOrderBySortOrderAscNameAsc(orgAId));
-          assertThat(after).hasSize(21);
+          assertThat(after).hasSize(CATALOGUE_SIZE);
           // and the read that was told to retry finds the copy done
           Integer topUp = txTemplate.execute(s -> service.ensureOrgTrades(entityManager.find(Organization.class, orgAId)));
           assertThat(topUp).isZero();

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Asset Homes QA/QC checklists as the shipped starters. The fifteen activity sheets of the
+      Asset Homes "QC Checklists" workbook (revision 17 Dec 2024, document references
+      AH/F/2201/01_R1 to 18_R1) replace the generic first drafts of 057-03 and 106-01 for the
+      nine trades they cover and add a starter for the six trades the catalogue gains here
+      (earthwork, setting-out, piling, backfilling, anti-termite, material-inspection).
+
+      A starter is unique per trade code (uk_starter_checklist_template_trade), so a covered
+      trade keeps its template row and id: the name, description and items are replaced. An
+      organization that already adopted the old draft is untouched, because adoption is a copy.
+
+      Data-driven like 119: both CSVs load into staging tables and the changeset is runOnChange,
+      so an edit to a CSV re-runs it. Ids are uuid5 under the namespace
+      uuid5(NAMESPACE_URL, "https://echno.xyz/seed/starter-checklists/asset-homes"): a template
+      is uuid5(ns, "<doc ref>") unless the trade already shipped a starter, in which case the
+      CSV carries that starter's id; an item is uuid5(ns, "<doc ref>#<serial>"). A rerun
+      therefore rewrites the same rows rather than accumulating copies. Runs after 119 so the
+      trade codes it references are in the catalogue (fk_starter_checklist_template_trade).
+    -->
+
+    <changeSet id="121-01-seed-asset-homes-starter-checklists" author="abhijith" runOnChange="true">
+        <sql>DROP TABLE IF EXISTS starter_checklist_stage</sql>
+        <sql>DROP TABLE IF EXISTS starter_checklist_item_stage</sql>
+        <sql>
+            CREATE TABLE starter_checklist_stage (
+                id UUID PRIMARY KEY,
+                trade_code VARCHAR(50) NOT NULL UNIQUE,
+                name VARCHAR(200) NOT NULL,
+                description TEXT,
+                source_ref VARCHAR(50) NOT NULL
+            )
+        </sql>
+        <sql>
+            CREATE TABLE starter_checklist_item_stage (
+                id UUID PRIMARY KEY,
+                template_id UUID NOT NULL,
+                category VARCHAR(200) NOT NULL,
+                check_point VARCHAR(500) NOT NULL,
+                specification VARCHAR(1000),
+                expected_value VARCHAR(200),
+                acceptance_criterion VARCHAR(1000),
+                tolerance VARCHAR(100),
+                photos_required BOOLEAN NOT NULL,
+                priority VARCHAR(20) NOT NULL,
+                line_order INT NOT NULL
+            )
+        </sql>
+        <loadData tableName="starter_checklist_stage" file="db/seed/inspections/starter-checklists-asset-homes.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="trade_code" type="STRING"/>
+            <column name="name" type="STRING"/>
+            <column name="description" type="STRING"/>
+            <column name="source_ref" type="STRING"/>
+        </loadData>
+        <loadData tableName="starter_checklist_item_stage" file="db/seed/inspections/starter-checklist-items-asset-homes.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="category" type="STRING"/>
+            <column name="check_point" type="STRING"/>
+            <column name="specification" type="STRING"/>
+            <column name="expected_value" type="STRING"/>
+            <column name="acceptance_criterion" type="STRING"/>
+            <column name="tolerance" type="STRING"/>
+            <column name="photos_required" type="BOOLEAN"/>
+            <column name="priority" type="STRING"/>
+            <column name="line_order" type="NUMERIC"/>
+        </loadData>
+        <!-- a covered trade keeps its row and id; a new trade gets the CSV row -->
+        <sql>
+            UPDATE starter_checklist_templates AS t
+            SET name = s.name, description = s.description, active = true
+            FROM starter_checklist_stage AS s
+            WHERE s.trade_code = t.trade_code
+        </sql>
+        <sql>
+            INSERT INTO starter_checklist_templates (id, trade_code, name, description, active)
+            SELECT s.id, s.trade_code, s.name, s.description, true
+            FROM starter_checklist_stage AS s
+            WHERE NOT EXISTS (SELECT 1 FROM starter_checklist_templates AS t WHERE t.trade_code = s.trade_code)
+        </sql>
+        <!-- items are replaced wholesale for the trades the CSV covers; other starters are left alone -->
+        <sql>
+            DELETE FROM starter_checklist_template_items
+            WHERE template_id IN (
+                SELECT t.id FROM starter_checklist_templates AS t
+                JOIN starter_checklist_stage AS s ON s.trade_code = t.trade_code
+            )
+        </sql>
+        <sql>
+            INSERT INTO starter_checklist_template_items
+                (id, template_id, category, check_point, specification, expected_value,
+                 acceptance_criterion, tolerance, photos_required, priority, line_order)
+            SELECT i.id, t.id, i.category, i.check_point, i.specification, i.expected_value,
+                   i.acceptance_criterion, i.tolerance, i.photos_required, i.priority, i.line_order
+            FROM starter_checklist_item_stage AS i
+            JOIN starter_checklist_stage AS s ON s.id = i.template_id
+            JOIN starter_checklist_templates AS t ON t.trade_code = s.trade_code
+        </sql>
+        <sql>DROP TABLE IF EXISTS starter_checklist_item_stage</sql>
+        <sql>DROP TABLE IF EXISTS starter_checklist_stage</sql>
+        <rollback/>
+    </changeSet>
+
+</databaseChangeLog>
