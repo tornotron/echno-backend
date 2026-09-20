@@ -247,7 +247,7 @@ class TradeServiceIT extends AbstractIntegrationTest {
         assertThat(created.catalogueCode()).isNull();
         assertThat(created.sortOrder()).isEqualTo(1000);
         assertThat(service.resolve("precast-erection", null).getId()).isEqualTo(created.id());
-        assertThat(service.listOrgTrades(false)).hasSize(22);
+        assertThat(service.listOrgTrades(false)).hasSize(CATALOGUE_SIZE + 1);
 
         assertThatThrownBy(() -> service.create(new CreateTradeRequest(
                 "precast-erection", "Again", "structural", null, null)))

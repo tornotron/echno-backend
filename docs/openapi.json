@@ -6021,7 +6021,7 @@
             "type": "string"
           },
           "groupCode": {
-            "description": "Group heading. Any string; the seeded groups are structural, masonry, finishes, openings, mep, fire and general.",
+            "description": "Group heading. Any string; the seeded groups are sitework, structural, masonry, finishes, openings, mep, fire and general.",
             "example": "structural",
             "maxLength": 50,
             "minLength": 1,
@@ -22420,7 +22420,7 @@
             ]
           },
           "groupCode": {
-            "description": "Group the trade sits under: structural, masonry, finishes, openings, mep, fire or general.",
+            "description": "Group the trade sits under: sitework, structural, masonry, finishes, openings, mep, fire or general.",
             "example": "structural",
             "type": "string"
           },
