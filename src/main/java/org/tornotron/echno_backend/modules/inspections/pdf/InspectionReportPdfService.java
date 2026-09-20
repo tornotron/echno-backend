@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
+import org.tornotron.echno_backend.modules.inspections.CheckItemStatus;
 import org.tornotron.echno_backend.modules.inspections.dtos.DefectPhotoAnnotationDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionCheckItemDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDefectDto;
@@ -135,6 +136,12 @@ public class InspectionReportPdfService {
 
         ctx.setVariable("checkRows", toCheckRows(capped(checkItems)));
         ctx.setVariable("defectRows", toDefectRows(capped(defects)));
+        // Printed in a section of their own ahead of the checklist: an approver reads
+        // what was not carried out, and why, before the scores that leave it out.
+        List<NotDoneRow> notDone = toNotDoneRows(checkItems);
+        ctx.setVariable("notDoneRows", capped(notDone));
+        ctx.setVariable("notDoneCheckPoints", notDone.size());
+        ctx.setVariable("pendingCheckPoints", countPending(checkItems));
         ctx.setVariable("checkItemTotal", checkItems.size());
         ctx.setVariable("defectTotal", defects.size());
         ctx.setVariable("rowCap", UnpagedResultCap.MAX_ROWS);
@@ -228,6 +235,34 @@ public class InspectionReportPdfService {
         return rows;
     }
 
+    /**
+     * The check points marked not done, each with the remark that stands in for its
+     * result. Public so the projection is tested on its own: the rendered PDF is
+     * compressed and cannot be read back for the text.
+     */
+    public static List<NotDoneRow> toNotDoneRows(List<InspectionCheckItemDto> items) {
+        List<NotDoneRow> rows = new ArrayList<>();
+        for (InspectionCheckItemDto item : items) {
+            if (item.status() == CheckItemStatus.NOT_DONE) {
+                rows.add(new NotDoneRow(
+                        ReportText.orDash(item.category()),
+                        ReportText.orDash(item.checkPoint()),
+                        ReportText.orDash(item.remarks())));
+            }
+        }
+        return rows;
+    }
+
+    private static int countPending(List<InspectionCheckItemDto> items) {
+        int pending = 0;
+        for (InspectionCheckItemDto item : items) {
+            if (item.status() == null || !item.status().isAnswered()) {
+                pending++;
+            }
+        }
+        return pending;
+    }
+
     private static List<DefectRow> toDefectRows(List<InspectionDefectDto> defects) {
         List<DefectRow> rows = new ArrayList<>(defects.size());
         int index = 0;
@@ -289,6 +324,10 @@ public class InspectionReportPdfService {
                            String deviation,
                            String status,
                            String remarks) {
+    }
+
+    /** Display-ready projection of one check point that was not carried out. */
+    public record NotDoneRow(String category, String checkPoint, String remarks) {
     }
 
     /** Display-ready projection of one defect. */

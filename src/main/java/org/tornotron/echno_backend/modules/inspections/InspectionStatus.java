@@ -100,6 +100,28 @@ public enum InspectionStatus {
         return this == target || NEXT.get(this).contains(target);
     }
 
+    /**
+     * Whether moving from this state to {@code target} submits the checklist for a
+     * verdict. That is the move out of an open state (suggested, scheduled, in
+     * progress) into completed or straight into a conclusion, and it is the move
+     * the checklist gate sits on: an inspection is not put in front of an approver
+     * while a check point is still unanswered. Staying put is not a submission,
+     * and neither is cancelling, nor the verdict given on an already completed
+     * inspection, whose checklist was gated when it was completed.
+     *
+     * @param target The state being moved to.
+     * @return true when the move asks for a verdict on the checklist.
+     */
+    public boolean submitsTo(InspectionStatus target) {
+        return this != target && OPEN.contains(this) && CONCLUDED.contains(target);
+    }
+
+    private static final Set<InspectionStatus> OPEN =
+            Collections.unmodifiableSet(EnumSet.of(SUGGESTED, SCHEDULED, IN_PROGRESS));
+
+    private static final Set<InspectionStatus> CONCLUDED =
+            Collections.unmodifiableSet(EnumSet.of(COMPLETED, PASSED, PASSED_WITH_REMARKS, FAILED));
+
     /** The states this one may move to, for an error message that says what is allowed. */
     public Set<InspectionStatus> allowedNext() {
         return Collections.unmodifiableSet(NEXT.get(this));

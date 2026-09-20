@@ -106,6 +106,22 @@
             letter-spacing: 0.4px;
         }
 
+        .attention {
+            border: 1px solid #c9a227;
+            background: #fdf6e3;
+            padding: 6px 8px;
+            margin: 6px 0 10px 0;
+            page-break-inside: avoid;
+        }
+
+        .attention h2 {
+            margin-top: 0;
+        }
+
+        .attention .grid th {
+            background: #f5e9c4;
+        }
+
         .note {
             font-size: 8.5px;
             color: #8a6d3b;
@@ -278,11 +294,35 @@
             <div class="caption">Failed</div>
         </td>
         <td>
+            <div class="figure" th:text="${notDoneCheckPoints}">0</div>
+            <div class="caption">Not done</div>
+        </td>
+        <td>
             <div class="figure" th:text="${defectsFound}">0</div>
             <div class="caption">Defects</div>
         </td>
     </tr>
 </table>
+
+<p class="note" th:if="${pendingCheckPoints > 0}"
+   th:text="|${pendingCheckPoints} check points have no outcome recorded. This inspection has not been submitted with a complete checklist.|"></p>
+
+<div class="attention" th:if="${!#lists.isEmpty(notDoneRows)}">
+    <h2>Check points not carried out</h2>
+    <p th:text="|${notDoneCheckPoints} check points were marked not done by the inspector and were submitted with the remark below in place of a result. They count as neither passed nor failed.|"></p>
+    <table class="grid">
+        <tr>
+            <th>Category</th>
+            <th>Check point</th>
+            <th>Why it was not done</th>
+        </tr>
+        <tr th:each="row : ${notDoneRows}">
+            <td th:text="${row.category}">-</td>
+            <td th:text="${row.checkPoint}">-</td>
+            <td th:text="${row.remarks}">-</td>
+        </tr>
+    </table>
+</div>
 
 <p class="note" th:if="${truncated}"
    th:text="|This inspection has ${checkItemTotal} check points and ${defectTotal} defects. This report prints at most ${rowCap} of each.|"></p>

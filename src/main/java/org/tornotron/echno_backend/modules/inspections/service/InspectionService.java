@@ -157,6 +157,7 @@ public class InspectionService {
         inspection.setTemperature(req.temperature());
         inspection.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
 
+        ChecklistGate.requireRemarksOnNotDone(req.checkItems());
         applyChildrenAndCounts(inspection, req.checkItems(), req.defects());
         instantiateTemplateIfEmpty(inspection);
 
@@ -168,7 +169,8 @@ public class InspectionService {
     }
 
     /**
-     * Replaces an inspection, except for the project it is against. The project is
+     * Replaces an inspection, except for the project it is against, and gates the
+     * submission on the checklist. The project is
      * chosen when the inspection is created and is fixed from then on: a statutory
      * approval has to keep a permanent, traceable relationship with the project it
      * was obtained for, and a compliance inspection is additionally identified by
@@ -179,8 +181,12 @@ public class InspectionService {
      * @param id  Id of the inspection to replace.
      * @param req The replacement payload. Its project id may repeat the stored one
      *            or be omitted, but it may not name a different project.
-     * @throws ResourceNotFoundException if no such inspection exists in this tenant.
-     * @throws InvalidRequestException   if the payload names a different project.
+     * @throws ResourceNotFoundException    if no such inspection exists in this tenant.
+     * @throws InvalidRequestException      if the payload names a different project, or
+     *                                      marks a check point not done with no remark.
+     * @throws ChecklistIncompleteException if the status move submits the inspection for
+     *                                      a verdict while a check point is still pending.
+     *                                      See {@link ChecklistGate}.
      */
     @Transactional
     public InspectionDto update(UUID id, UpdateInspectionRequest req) {
@@ -190,12 +196,24 @@ public class InspectionService {
 
         requireSameProject(inspection, req.projectId());
         InspectionSnapshot before = InspectionSnapshot.of(inspection);
+        List<UUID> oldItemIds = inspection.getCheckItems().stream().map(InspectionCheckItem::getId).toList();
+
+        // Everything that can refuse the payload runs before the entity is touched,
+        // so a refusal leaves nothing half-applied. The lifecycle check goes first so
+        // an illegal move is named as such rather than as an incomplete checklist;
+        // then the checklist is judged on the payload, which is the record being
+        // submitted, with the stored ids the client already holds reported by position.
+        requireLifecycleMove(inspection, req.status());
+        ChecklistGate.requireRemarksOnNotDone(req.checkItems());
+        if (inspection.getStatus().submitsTo(req.status())) {
+            ChecklistGate.requireAnswered(inspection, req.checkItems(), oldItemIds);
+        }
 
         inspection.setTitle(req.title());
         inspection.setType(req.type());
         inspection.setCategory(categoryFor(req.category(), req.type()));
         inspection.setTradeRef(tradeService.resolve(req.trade(), req.tradeId()));
-        transitionTo(inspection, req.status());
+        inspection.setStatus(req.status());
         inspection.setResult(req.result());
         inspection.setLocation(req.location());
         inspection.setAreaInspected(req.areaInspected());
@@ -214,7 +232,6 @@ public class InspectionService {
         inspection.setWeatherConditions(req.weatherConditions());
         inspection.setTemperature(req.temperature());
 
-        List<UUID> oldItemIds = inspection.getCheckItems().stream().map(InspectionCheckItem::getId).toList();
         List<UUID> oldDefectIds = inspection.getDefects().stream().map(InspectionDefect::getId).toList();
         List<UUID> oldDefectObservationIds = new ArrayList<>();
         inspection.getDefects().forEach(d -> oldDefectObservationIds.add(d.getObservationId()));
@@ -231,24 +248,6 @@ public class InspectionService {
         return withSpatialPaths(mapper.toDto(saved));
     }
 
-    /**
-     * Moves an inspection along its lifecycle, or refuses the move.
-     *
-     * <p>This is the only place the status is written after creation. It used to be
-     * taken from the payload as given, so an inspection could go from cancelled back
-     * to passed, or from passed to scheduled, and the record would then show a
-     * conclusion that was never reached. The graph in
-     * {@link InspectionStatus#canTransitionTo} is deliberately permissive about how
-     * an inspection is concluded, because work is often carried out and recorded
-     * afterwards; what it refuses is coming back out of a conclusion.
-     *
-     * <p>A payload that repeats the stored status passes, which is the normal case:
-     * the web client sends the whole record back on every save.
-     *
-     * @param inspection The inspection being updated.
-     * @param target     The status the request asks for.
-     * @throws InvalidRequestException if the move is not part of the lifecycle.
-     */
     private void recordCreation(Inspection saved) {
         InspectionEventSubject subject = InspectionEventSubject.inspection(saved);
         events.record(subject, InspectionEventType.INSPECTION_CREATED, null,
@@ -441,7 +440,27 @@ public class InspectionService {
         }
     }
 
-    private static void transitionTo(Inspection inspection, InspectionStatus target) {
+    /**
+     * Refuses a status move that is not part of the lifecycle.
+     *
+     * <p>{@link #update} is the only place the status is written after creation. It
+     * used to be taken from the payload as given, so an inspection could go from
+     * cancelled back to passed, or from passed to scheduled, and the record would
+     * then show a conclusion that was never reached. The graph in
+     * {@link InspectionStatus#canTransitionTo} is deliberately permissive about how
+     * an inspection is concluded, because work is often carried out and recorded
+     * afterwards; what it refuses is coming back out of a conclusion. Whether the
+     * move is also a submission, and so subject to the checklist gate, is
+     * {@link InspectionStatus#submitsTo}.
+     *
+     * <p>A payload that repeats the stored status passes, which is the normal case:
+     * the web client sends the whole record back on every save.
+     *
+     * @param inspection The inspection being updated.
+     * @param target     The status the request asks for.
+     * @throws InvalidRequestException if the move is not part of the lifecycle.
+     */
+    private static void requireLifecycleMove(Inspection inspection, InspectionStatus target) {
         InspectionStatus current = inspection.getStatus();
         if (!current.canTransitionTo(target)) {
             throw new InvalidRequestException(
@@ -449,7 +468,6 @@ public class InspectionService {
                             + " and cannot move to " + target.getValue() + ". From "
                             + current.getValue() + " it may move to " + allowedFrom(current) + ".");
         }
-        inspection.setStatus(target);
     }
 
     private static String allowedFrom(InspectionStatus current) {
@@ -485,7 +503,9 @@ public class InspectionService {
      * Rebuilds the check items and defects from the request and derives the four
      * summary counts: total check points is the number of check items, passed and
      * failed are counted from their statuses, and defects found is the number of
-     * defects.
+     * defects. A not-done check point counts as neither passed nor failed; that it
+     * carries the remark which makes it an answer is checked by the caller before
+     * anything is rebuilt.
      */
     private void applyChildrenAndCounts(Inspection inspection,
                                         List<InspectionCheckItemRequest> checkItemReqs,

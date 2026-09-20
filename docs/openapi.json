@@ -8456,7 +8456,8 @@
               "passed",
               "failed",
               "not-applicable",
-              "pending"
+              "pending",
+              "not-done"
             ],
             "type": "string"
           },
@@ -8537,7 +8538,7 @@
             "type": "string"
           },
           "remarks": {
-            "description": "Free-text remarks recorded against the check point.",
+            "description": "Free-text remarks recorded against the check point. Mandatory when the status is not-done.",
             "example": "Minor deviation at grid line C4, within tolerance",
             "maxLength": 1000,
             "minLength": 0,
@@ -8559,14 +8560,15 @@
             "type": "string"
           },
           "status": {
-            "description": "Result of the check.",
+            "description": "Result of the check. pending is the unanswered state and blocks submission; not-done records that the check could not be carried out and needs a remark.",
             "enum": [
               "passed",
               "failed",
               "not-applicable",
-              "pending"
+              "pending",
+              "not-done"
             ],
-            "example": "PASS",
+            "example": "passed",
             "type": "string"
           },
           "tolerance": {
@@ -14716,7 +14718,8 @@
               "passed",
               "failed",
               "not-applicable",
-              "pending"
+              "pending",
+              "not-done"
             ],
             "type": "string"
           }
@@ -65393,7 +65396,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "The status move submits the inspection for a verdict while check points are still pending. The body lists them under unansweredItems (index, id, category, checkPoint); answer each one, or mark it not-done with a remark, and submit again"
           },
           "500": {
             "content": {

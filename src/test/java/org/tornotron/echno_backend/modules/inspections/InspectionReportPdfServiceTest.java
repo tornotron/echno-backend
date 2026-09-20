@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.modules.inspections.service.DefectAnnotationS
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
 import org.tornotron.echno_backend.pdfGeneration.PdfRenderer;
 import org.tornotron.echno_backend.pdfGeneration.RenderedReport;
+import org.tornotron.echno_backend.pdfGeneration.ReportText;
 import org.tornotron.echno_backend.project.ProjectService;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 
@@ -160,6 +161,48 @@ class InspectionReportPdfServiceTest {
         RenderedReport report = service.render(INSPECTION_ID);
 
         assertThat(new String(report.content(), 0, 5)).startsWith("%PDF-");
+    }
+
+    @Test
+    void rendersTheCheckPointsThatWereNotCarriedOut() throws Exception {
+        givenProject();
+        InspectionDto base = inspection(1, 0);
+        List<InspectionCheckItemDto> items = new ArrayList<>(base.checkItems());
+        items.add(new InspectionCheckItemDto(UUID.randomUUID(), "Services",
+                "Conduit pressure test", null, CheckItemStatus.NOT_DONE,
+                "Test pump not on site; deferred to the next visit", false, List.of(),
+                null, null, null, null, null, null, "medium", null, List.of()));
+        items.add(new InspectionCheckItemDto(UUID.randomUUID(), "Services",
+                "Earth continuity", null, CheckItemStatus.PENDING, null, false, List.of(),
+                null, null, null, null, null, null, "medium", null, List.of()));
+        when(inspectionService.findById(INSPECTION_ID)).thenReturn(base.withChildren(items, base.defects()));
+        givenAnnotations();
+        when(photoLoader.maxPhotos()).thenReturn(12);
+
+        RenderedReport report = service.render(INSPECTION_ID);
+
+        assertThat(new String(report.content(), 0, 5)).startsWith("%PDF-");
+    }
+
+    @Test
+    void theNotDoneSectionCarriesOnlyTheNotDoneItemsWithTheirRemarks() {
+        List<InspectionCheckItemDto> items = List.of(
+                new InspectionCheckItemDto(UUID.randomUUID(), "Surface", "Plumb within 3mm", null,
+                        CheckItemStatus.PASSED, "Fine", false, List.of(), null, null, null, null,
+                        null, null, "medium", null, List.of()),
+                new InspectionCheckItemDto(UUID.randomUUID(), "Services", "Conduit pressure test",
+                        null, CheckItemStatus.NOT_DONE, "Test pump not on site", false, List.of(),
+                        null, null, null, null, null, null, "medium", null, List.of()),
+                new InspectionCheckItemDto(UUID.randomUUID(), null, "Earth continuity", null,
+                        CheckItemStatus.NOT_DONE, null, false, List.of(), null, null, null, null,
+                        null, null, "medium", null, List.of()));
+
+        List<InspectionReportPdfService.NotDoneRow> rows = InspectionReportPdfService.toNotDoneRows(items);
+
+        assertThat(rows).containsExactly(
+                new InspectionReportPdfService.NotDoneRow("Services", "Conduit pressure test",
+                        "Test pump not on site"),
+                new InspectionReportPdfService.NotDoneRow(ReportText.DASH, "Earth continuity", ReportText.DASH));
     }
 
     private void givenProject() {
