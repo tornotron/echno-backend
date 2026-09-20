@@ -552,6 +552,9 @@ class PartialUpdateNullBehaviourTest {
                         .thenReturn(Optional.of(request));
                 when(requestRepository.save(any(LeaveRequest.class))).thenAnswer(i -> i.getArgument(0));
                 when(orgSecurity.isSelfInCurrentTenant(any())).thenReturn(true);
+                when(leaveRequestValidator.charge(any(), any(), any(), any(), any()))
+                        .thenReturn(new org.tornotron.echno_backend.leave.LeaveCharge(5.0, 5.0, 0,
+                                org.tornotron.echno_backend.leave.enums.WeekendHolidayTreatment.CHARGE_ALL_DAYS));
                 service.updateRequest(ENTITY_ID, updates);
             } finally {
                 TenantContext.clear();

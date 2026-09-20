@@ -133,7 +133,8 @@ public class LeaveRequestService {
 
         leaveRequestValidator.validate(employee, policy, dto, null);
 
-        double totalDays = calculateTotalDays(
+        LeaveCharge charge = leaveRequestValidator.charge(
+                policy,
                 dto.getStartDate(),
                 dto.getStartHalfDayType(),
                 dto.getEndDate(),
@@ -151,7 +152,8 @@ public class LeaveRequestService {
         request.setStartHalfDayType(dto.getStartHalfDayType());
         request.setEndDate(dto.getEndDate());
         request.setEndHalfDayType(dto.getEndHalfDayType());
-        request.setTotalDays(totalDays);
+        request.setTotalDays(charge.chargedDays());
+        request.setDeductionRule(charge.rule());
         request.setReason(dto.getReason());
         request.setContactDuringLeave(dto.getContactDuringLeave());
         request.setHandoverToId(dto.getHandoverToId());
@@ -358,12 +360,7 @@ public class LeaveRequestService {
             }
         });
 
-        double totalDays = calculateTotalDays(
-                request.getStartDate(),
-                request.getStartHalfDayType(),
-                request.getEndDate(),
-                request.getEndHalfDayType());
-        request.setTotalDays(totalDays);
+        applyCharge(request);
 
         LeaveRequest saved = requestRepository.save(request);
         return leaveRequestMapper.toDto(saved);
@@ -437,6 +434,9 @@ public class LeaveRequestService {
                 createDtoFromRequest(request),
                 request.getId());
 
+        // A draft may be older than the policy's current treatment, so the charge is settled at
+        // the moment the request is submitted and the balance hold is taken.
+        applyCharge(request);
         request.setStatus(LeaveStatus.PENDING_APPROVAL);
         LeaveRequest saved = requestRepository.save(request);
 
@@ -548,6 +548,37 @@ public class LeaveRequestService {
             LocalDate endDate,
             HalfDayType endType) {
         return leaveRequestValidator.calculateTotalDays(startDate, startType, endDate, endType);
+    }
+
+    /**
+     * What a request over the range would cost, under the named policy's weekend and holiday
+     * treatment, or counted end to end when no policy is named.
+     *
+     * @param leavePolicyId The policy, or null.
+     * @return The charge.
+     * @throws ResourceNotFoundException if the policy is not in this organization.
+     */
+    @Transactional(readOnly = true)
+    public LeaveCharge charge(Long leavePolicyId, LocalDate startDate, HalfDayType startType,
+                              LocalDate endDate, HalfDayType endType) {
+        LeavePolicy policy = null;
+        if (leavePolicyId != null) {
+            policy = policyRepository.findByIdAndOrganization_Id(leavePolicyId, TenantContext.getCurrentOrgId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Leave policy with ID " + leavePolicyId + " was not found in this organization"));
+        }
+        return leaveRequestValidator.charge(policy, startDate, startType, endDate, endType);
+    }
+
+    private void applyCharge(LeaveRequest request) {
+        LeaveCharge charge = leaveRequestValidator.charge(
+                request.getLeavePolicy(),
+                request.getStartDate(),
+                request.getStartHalfDayType(),
+                request.getEndDate(),
+                request.getEndHalfDayType());
+        request.setTotalDays(charge.chargedDays());
+        request.setDeductionRule(charge.rule());
     }
 
     private String generateRequestNumber(Organization organization) {

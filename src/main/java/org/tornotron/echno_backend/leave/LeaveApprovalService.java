@@ -52,6 +52,7 @@ public class LeaveApprovalService {
     private final LeaveCalendarService calendarService;
     private final NotificationService notificationService;
     private final LeaveRequestMapper leaveRequestMapper;
+    private final LeaveRequestValidator leaveRequestValidator;
 
     /** The roles that may read any leave request's approval trail, chain membership aside. */
     private static final String[] LEAVE_ADMIN_ROLES = {"system-admin", "hr-admin"};
@@ -66,7 +67,8 @@ public class LeaveApprovalService {
             OrganizationSecurityService orgSecurity,
             @Lazy LeaveCalendarService calendarService,
             @Lazy NotificationService notificationService,
-            LeaveRequestMapper leaveRequestMapper) {
+            LeaveRequestMapper leaveRequestMapper,
+            @Lazy LeaveRequestValidator leaveRequestValidator) {
         this.approvalRepository = approvalRepository;
         this.requestRepository = requestRepository;
         this.balanceRepository = balanceRepository;
@@ -77,6 +79,7 @@ public class LeaveApprovalService {
         this.calendarService = calendarService;
         this.notificationService = notificationService;
         this.leaveRequestMapper = leaveRequestMapper;
+        this.leaveRequestValidator = leaveRequestValidator;
     }
 
     /**
@@ -527,11 +530,17 @@ public class LeaveApprovalService {
     }
 
     private void finalizeApproval(LeaveRequest request) {
+        // The policy's weekend and holiday treatment is applied to a pending request at the
+        // moment it is approved, so a treatment changed while the request waited decides the
+        // days actually deducted. The hold taken at submission is released at its own figure.
+        double heldDays = request.getTotalDays() == null ? 0.0 : request.getTotalDays();
+        settleCharge(request);
+
         request.setStatus(LeaveStatus.APPROVED);
         request.setCurrentApprover(null);
         requestRepository.save(request);
 
-        transferPendingToUsed(request);
+        transferPendingToUsed(request, heldDays);
 
         createDeductionTransaction(request);
 
@@ -540,7 +549,21 @@ public class LeaveApprovalService {
         notificationService.sendLeaveDecisionNotification(request, ApprovalAction.APPROVED);
     }
 
-    private void transferPendingToUsed(LeaveRequest request) {
+    private void settleCharge(LeaveRequest request) {
+        if (request.getLeavePolicy() == null || request.getStartDate() == null || request.getEndDate() == null) {
+            return;
+        }
+        LeaveCharge charge = leaveRequestValidator.charge(
+                request.getLeavePolicy(),
+                request.getStartDate(),
+                request.getStartHalfDayType(),
+                request.getEndDate(),
+                request.getEndHalfDayType());
+        request.setTotalDays(charge.chargedDays());
+        request.setDeductionRule(charge.rule());
+    }
+
+    private void transferPendingToUsed(LeaveRequest request, double heldDays) {
         int year = request.getStartDate().getYear();
 
         balanceRepository.findByEmployeeIdAndLeavePolicyIdAndYear(
@@ -548,8 +571,8 @@ public class LeaveApprovalService {
                         request.getLeavePolicy().getId(),
                         year)
                 .ifPresent(balance -> {
-                    balance.setPending(Math.max(0, balance.getPending() - request.getTotalDays()));
-                    balance.setUsed(balance.getUsed() + request.getTotalDays());
+                    balance.setPending(LeaveDays.round(Math.max(0, balance.getPending() - heldDays)));
+                    balance.setUsed(LeaveDays.round(balance.getUsed() + request.getTotalDays()));
                     balanceRepository.save(balance);
                 });
     }

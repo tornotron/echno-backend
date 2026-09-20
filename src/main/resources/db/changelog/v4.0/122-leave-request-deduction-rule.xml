@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="122-leave-request-deduction-rule" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="leave_request" columnName="deduction_rule"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Which weekend and holiday treatment produced a request's total_days (#838). Nullable
+            with no default on purpose: every request charged before this column was counted end
+            to end, and nothing is recalculated retroactively, so those rows carry no rule rather
+            than a rule they were never charged under. The request detail reads null as
+            "counted end to end".
+        </comment>
+
+        <addColumn tableName="leave_request">
+            <column name="deduction_rule" type="VARCHAR(30)"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

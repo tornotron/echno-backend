@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.leave.enums.HalfDayType;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
+import org.tornotron.echno_backend.leave.enums.WeekendHolidayTreatment;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDate;
@@ -76,6 +77,14 @@ public class LeaveRequest implements TenantScopedEntity {
 
     @Column(name = "total_days", nullable = false)
     private Double totalDays;
+
+    /**
+     * The weekend and holiday treatment that produced {@code totalDays}. Null on rows charged
+     * before the treatment existed, which were all counted end to end.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "deduction_rule", length = 30)
+    private WeekendHolidayTreatment deductionRule;
 
     @Column(name = "reason", nullable = false, length = 1000)
     private String reason;

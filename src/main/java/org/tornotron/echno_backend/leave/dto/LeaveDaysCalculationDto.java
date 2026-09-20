@@ -37,4 +37,8 @@ public class LeaveDaysCalculationDto {
 
     @Schema(description = "Which half of the last day is taken, when the range ends at midday.")
     private HalfDayType endHalfDayType;
+
+    @Schema(description = "The policy the request would be raised under. When given, its weekend and "
+            + "holiday treatment is applied; when absent every calendar day is charged.", example = "3")
+    private Long leavePolicyId;
 }

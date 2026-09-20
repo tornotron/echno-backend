@@ -59,6 +59,7 @@ class LeaveApprovalServiceTest {
     @Mock private LeaveCalendarService calendarService;
     @Mock private NotificationService notificationService;
     @Mock private LeaveRequestMapper leaveRequestMapper;
+    @Mock private LeaveRequestValidator leaveRequestValidator;
 
     private LeaveApprovalService service() {
         return new LeaveApprovalService(
@@ -71,7 +72,8 @@ class LeaveApprovalServiceTest {
                 orgSecurity,
                 calendarService,
                 notificationService,
-                leaveRequestMapper);
+                leaveRequestMapper,
+                leaveRequestValidator);
     }
 
     private Organization organization() {

@@ -75,6 +75,7 @@ class LeaveApproverAttributionTest {
     @Mock private LeaveCalendarService calendarService;
     @Mock private NotificationService notificationService;
     @Mock private LeaveRequestMapper leaveRequestMapper;
+    @Mock private LeaveRequestValidator leaveRequestValidator;
 
     private final ObjectMapper objectMapper = Jackson2ObjectMapperBuilder.json().build();
 
@@ -144,7 +145,8 @@ class LeaveApproverAttributionTest {
                 orgSecurity,
                 calendarService,
                 notificationService,
-                leaveRequestMapper);
+                leaveRequestMapper,
+                leaveRequestValidator);
     }
 
     private LeaveApprovalActionDto deployedClientPayload() throws Exception {
