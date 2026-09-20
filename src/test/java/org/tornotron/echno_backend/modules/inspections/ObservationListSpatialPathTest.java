@@ -27,6 +27,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -49,6 +50,7 @@ class ObservationListSpatialPathTest {
     @Mock private ObservationMapper mapper;
     @Mock private ProjectRepository projectRepository;
     @Mock private AttachmentRepository attachmentRepository;
+    @Mock private TransactionRetryTemplate retryTemplate;
 
     @Test
     void aPageOfObservationsAsksForItsBreadcrumbsOnce() {
@@ -68,7 +70,8 @@ class ObservationListSpatialPathTest {
         when(spatialNodeService.pathsOf(anyCollection())).thenReturn(Map.of(zoneA, pathA));
 
         ObservationService service = new ObservationService(observationRepo, inspectionRepo, spatialNodeService, events,
-                tenantEntityHelper, userContextService, employeeRepository, mapper, projectRepository, attachmentRepository);
+                tenantEntityHelper, userContextService, employeeRepository, mapper, projectRepository, attachmentRepository,
+                retryTemplate);
         Page<ObservationDto> page = service.findAll(42L, null, null, null, null, null, null, PageRequest.of(0, 10));
 
         verify(spatialNodeService).pathsOf(List.of(zoneA, zoneA, zoneB));
