@@ -71,6 +71,42 @@ class InspectionStatusTransitionTest {
     }
 
     @ParameterizedTest
+    @CsvSource({
+            // out of an open state into the one that asks for a verdict
+            "SCHEDULED,           COMPLETED",
+            "IN_PROGRESS,         COMPLETED",
+            "SUGGESTED,           COMPLETED",
+            // or straight into the verdict, which skips completed and must not skip the gate
+            "SCHEDULED,           PASSED",
+            "IN_PROGRESS,         FAILED",
+            "IN_PROGRESS,         PASSED_WITH_REMARKS",
+            "SUGGESTED,           PASSED",
+    })
+    void theMovesThatSubmitTheChecklistForAVerdict(InspectionStatus from, InspectionStatus to) {
+        assertThat(from.submitsTo(to)).isTrue();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            // not a submission: work continues
+            "SCHEDULED,           IN_PROGRESS",
+            "SUGGESTED,           SCHEDULED",
+            // not a submission: the inspection is dropped
+            "IN_PROGRESS,         CANCELLED",
+            // not a submission: the verdict on a checklist gated when it was completed
+            "COMPLETED,           PASSED",
+            "COMPLETED,           FAILED",
+            // not a submission: a failed inspection reopened for re-inspection
+            "FAILED,              IN_PROGRESS",
+            // not a submission: the record sent back unchanged
+            "COMPLETED,           COMPLETED",
+            "IN_PROGRESS,         IN_PROGRESS",
+    })
+    void theMovesThatDoNot(InspectionStatus from, InspectionStatus to) {
+        assertThat(from.submitsTo(to)).isFalse();
+    }
+
+    @ParameterizedTest
     @EnumSource(InspectionStatus.class)
     void everyStatusHasAnEntryInTheGraph(InspectionStatus status) {
         // allowedNext() would throw on a member the graph forgot, which is how a new

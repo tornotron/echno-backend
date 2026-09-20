@@ -23,9 +23,12 @@ public record InspectionCheckItemRequest(
         @NotBlank @Size(max = 500) String checkPoint,
         @Schema(description = "Reference specification or tolerance for the check point.", example = "150mm c/c +/- 10mm")
         @Size(max = 1000) String specification,
-        @Schema(description = "Result of the check.", example = "PASS")
+        @Schema(description = "Result of the check. pending is the unanswered state and blocks submission; "
+                + "not-done records that the check could not be carried out and needs a remark.",
+                example = "passed")
         @NotNull CheckItemStatus status,
-        @Schema(description = "Free-text remarks recorded against the check point.", example = "Minor deviation at grid line C4, within tolerance")
+        @Schema(description = "Free-text remarks recorded against the check point. Mandatory when the "
+                + "status is not-done.", example = "Minor deviation at grid line C4, within tolerance")
         @Size(max = 1000) String remarks,
         @Schema(description = "Whether supporting photos are required for this check point.", example = "true")
         boolean photosRequired,

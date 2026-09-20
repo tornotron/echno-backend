@@ -131,7 +131,11 @@ public class InspectionControllerWeb {
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body, or the "
                     + "payload names a different project"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
-            @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
+            @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant"),
+            @ApiResponse(responseCode = "422", description = "The status move submits the inspection for a "
+                    + "verdict while check points are still pending. The body lists them under "
+                    + "unansweredItems (index, id, category, checkPoint); answer each one, or mark it "
+                    + "not-done with a remark, and submit again")
     })
     public InspectionDto update(@PathVariable UUID id,
                                 @Valid @RequestBody UpdateInspectionRequest req) {

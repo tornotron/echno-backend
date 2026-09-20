@@ -342,6 +342,8 @@ public class ObservationService {
         if (o.getDescription() != null && (item.getRemarks() == null || item.getRemarks().isBlank())) {
             item.setRemarks(truncate(o.getDescription(), 1000));
         }
+        ChecklistGate.requireRemarkWhenNotDone(item.getStatus(), item.getRemarks(),
+                item.getCategory(), item.getCheckPoint());
         recount(inspection);
         o.setInspectionId(inspection.getId());
         o.setOutcomeKind(ObservationOutcomeKind.CHECK_ITEM);

@@ -38,6 +38,7 @@ import org.tornotron.echno_backend.modules.inspections.mapper.InspectionMapperIm
 import org.tornotron.echno_backend.modules.inspections.mapper.DefectPhotoAnnotationMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.mapper.NcrMapperImpl;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
+import org.tornotron.echno_backend.modules.inspections.service.ChecklistIncompleteException;
 import org.tornotron.echno_backend.modules.inspections.service.ChecklistTemplateService;
 import org.tornotron.echno_backend.modules.inspections.service.TradeService;
 import org.tornotron.echno_backend.modules.inspections.service.ElementTypeService;
@@ -448,6 +449,91 @@ class InspectionServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void update_refusesTheSubmissionWhileACheckPointIsStillPending() {
+        InspectionDto created = service.create(scheduleFor("plastering", List.of(
+                checkPoint("Surface", "Plumb within 3mm", CheckItemStatus.PENDING, null),
+                checkPoint("Surface", "No hollow patches", CheckItemStatus.PENDING, null),
+                checkPoint("Edges", "Corner beads fixed", CheckItemStatus.PENDING, null))));
+        UUID id = created.id();
+        UUID hollowPatchesId = created.checkItems().get(1).id();
+
+        // two answered, one left pending: the move into completed is refused and the
+        // refusal names the pending one by category and check point, with the id the
+        // client already holds for that position
+        assertThatThrownBy(() -> service.update(id, submitWith(InspectionStatus.COMPLETED,
+                checkPoint("Surface", "Plumb within 3mm", CheckItemStatus.PASSED, null),
+                checkPoint("Surface", "No hollow patches", CheckItemStatus.PENDING, null),
+                checkPoint("Edges", "Corner beads fixed", CheckItemStatus.FAILED, "Bead missing at door D2"))))
+                .isInstanceOf(ChecklistIncompleteException.class)
+                .hasMessageContaining("1 check point is still unanswered")
+                .hasMessageContaining("Surface / No hollow patches")
+                .satisfies(ex -> assertThat(((ChecklistIncompleteException) ex).getItems())
+                        .containsExactly(new ChecklistIncompleteException.UnansweredCheckItem(
+                                1, hollowPatchesId, "Surface", "No hollow patches")));
+
+        // straight to a verdict skips completed but not the gate
+        assertThatThrownBy(() -> service.update(id, submitWith(InspectionStatus.PASSED,
+                checkPoint("Surface", "Plumb within 3mm", CheckItemStatus.PASSED, null),
+                checkPoint("Surface", "No hollow patches", CheckItemStatus.PENDING, null),
+                checkPoint("Edges", "Corner beads fixed", CheckItemStatus.PASSED, null))))
+                .isInstanceOf(ChecklistIncompleteException.class);
+
+        // and the refusal wrote nothing: status, items and their ids are as they were
+        InspectionDto stored = service.findById(id);
+        assertThat(stored.status()).isEqualTo(InspectionStatus.SCHEDULED);
+        assertThat(stored.checkItems()).extracting(InspectionCheckItemDto::id)
+                .containsExactlyElementsOf(created.checkItems().stream().map(InspectionCheckItemDto::id).toList());
+        assertThat(stored.checkItems()).extracting(InspectionCheckItemDto::status)
+                .containsOnly(CheckItemStatus.PENDING);
+
+        // saving progress with the same pending item is not a submission and goes through
+        assertThat(service.update(id, submitWith(InspectionStatus.IN_PROGRESS,
+                checkPoint("Surface", "Plumb within 3mm", CheckItemStatus.PASSED, null),
+                checkPoint("Surface", "No hollow patches", CheckItemStatus.PENDING, null),
+                checkPoint("Edges", "Corner beads fixed", CheckItemStatus.PASSED, null))).status())
+                .isEqualTo(InspectionStatus.IN_PROGRESS);
+    }
+
+    @Test
+    void update_submitsOnceEveryCheckPointIsAnsweredOrMarkedNotDoneWithARemark() {
+        UUID id = service.create(scheduleFor("plastering", List.of(
+                checkPoint("Surface", "Plumb within 3mm", CheckItemStatus.PENDING, null),
+                checkPoint("Services", "Conduit pressure test", CheckItemStatus.PENDING, null)))).id();
+
+        // not done without the remark is refused before the gate is even reached
+        assertThatThrownBy(() -> service.update(id, submitWith(InspectionStatus.COMPLETED,
+                checkPoint("Surface", "Plumb within 3mm", CheckItemStatus.PASSED, null),
+                checkPoint("Services", "Conduit pressure test", CheckItemStatus.NOT_DONE, " "))))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("\"Conduit pressure test\" under \"Services\"")
+                .hasMessageContaining("needs a remark");
+
+        // with the remark, the submission goes through and the remark is on the record
+        InspectionDto submitted = service.update(id, submitWith(InspectionStatus.COMPLETED,
+                checkPoint("Surface", "Plumb within 3mm", CheckItemStatus.PASSED, null),
+                checkPoint("Services", "Conduit pressure test", CheckItemStatus.NOT_DONE,
+                        "Test pump not on site; deferred to the next visit")));
+
+        assertThat(submitted.status()).isEqualTo(InspectionStatus.COMPLETED);
+        assertThat(submitted.checkItems()).extracting(InspectionCheckItemDto::status)
+                .containsExactly(CheckItemStatus.PASSED, CheckItemStatus.NOT_DONE);
+        assertThat(submitted.checkItems().get(1).remarks())
+                .isEqualTo("Test pump not on site; deferred to the next visit");
+        // not done is neither a pass nor a fail in the counts
+        assertThat(submitted.totalCheckPoints()).isEqualTo(2);
+        assertThat(submitted.passedCheckPoints()).isEqualTo(1);
+        assertThat(submitted.failedCheckPoints()).isZero();
+
+        // the verdict on a completed inspection is not a second submission, so the
+        // not-done item does not stand in its way
+        assertThat(service.update(id, submitWith(InspectionStatus.PASSED_WITH_REMARKS,
+                checkPoint("Surface", "Plumb within 3mm", CheckItemStatus.PASSED, null),
+                checkPoint("Services", "Conduit pressure test", CheckItemStatus.NOT_DONE,
+                        "Test pump not on site; deferred to the next visit"))).status())
+                .isEqualTo(InspectionStatus.PASSED_WITH_REMARKS);
+    }
+
+    @Test
     void update_acceptsAPayloadThatRepeatsTheStoredStatus() {
         // the web client sends the whole record back on every save, so an unchanged
         // status must not be read as an attempted transition
@@ -585,6 +671,21 @@ class InspectionServiceIT extends AbstractIntegrationTest {
                 .setParameter("name", filename)
                 .setParameter("org", orgAId)
                 .executeUpdate());
+    }
+
+    private UpdateInspectionRequest submitWith(InspectionStatus status,
+                                               InspectionCheckItemRequest... checkItems) {
+        return new UpdateInspectionRequest(
+                "Wall check", InspectionType.QUALITY, null, "plastering", null,
+                status, null, projectId, "Block A", null, null,
+                LocalDate.of(2026, 8, 20), null, null, null, null, 100L, null, null,
+                null, null, null, List.of(checkItems), null, null);
+    }
+
+    private static InspectionCheckItemRequest checkPoint(String category, String checkPoint,
+                                                         CheckItemStatus status, String remarks) {
+        return new InspectionCheckItemRequest(category, checkPoint, null, status, remarks,
+                false, null, null, null, null, null, null, "medium", null);
     }
 
     private UpdateInspectionRequest concludeAs(InspectionStatus status) {
