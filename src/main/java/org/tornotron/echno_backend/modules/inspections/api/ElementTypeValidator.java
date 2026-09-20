@@ -26,9 +26,17 @@ public class ElementTypeValidator {
         if (code == null || code.isBlank()) {
             return;
         }
-        if (!elementTypeService.isActiveCode(code)) {
-            throw new InvalidRequestException("Unknown element type: " + code
-                    + ". Define it under the organization's element types first, or reactivate it.");
+        if (!isActive(code)) {
+            throw new InvalidRequestException("Unknown element type: " + code + ". " + HOW_TO_FIX);
         }
     }
+
+    /** Whether the organization has an active element type with this code. Blank reads as active. */
+    public boolean isActive(String code) {
+        return code == null || code.isBlank() || elementTypeService.isActiveCode(code);
+    }
+
+    /** The remedy a caller may append to its own message about an unknown code. */
+    public static final String HOW_TO_FIX =
+            "Define it under the organization's element types first, or reactivate it.";
 }

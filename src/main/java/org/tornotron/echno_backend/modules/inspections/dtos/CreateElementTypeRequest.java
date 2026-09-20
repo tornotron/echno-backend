@@ -11,7 +11,7 @@ public record CreateElementTypeRequest(
         @NotBlank @Size(max = 50) @Pattern(regexp = "[a-z0-9]+(-[a-z0-9]+)*",
                 message = "must be lowercase letters, digits and single hyphens") String code,
         @NotBlank @Size(max = 200) String name,
-        @Schema(description = "Group heading. Any string; the seeded groups are structure, openings, finishes, services and fire.", example = "structure")
+        @Schema(description = "Group heading. Any string; the seeded groups are structure, openings, finishes, services, fire and general.", example = "structure")
         @NotBlank @Size(max = 50) String groupCode,
         String description,
         @Schema(description = "Position in pickers. Defaults to after every seeded type.") Integer sortOrder

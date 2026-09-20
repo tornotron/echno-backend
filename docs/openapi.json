@@ -5454,7 +5454,7 @@
             "type": "string"
           },
           "groupCode": {
-            "description": "Group heading. Any string; the seeded groups are structure, openings, finishes, services and fire.",
+            "description": "Group heading. Any string; the seeded groups are structure, openings, finishes, services, fire and general.",
             "example": "structure",
             "maxLength": 50,
             "minLength": 1,
@@ -6327,7 +6327,7 @@
             ]
           },
           "groupCode": {
-            "description": "Group: structure, openings, finishes, services or fire.",
+            "description": "Group: structure, openings, finishes, services, fire or general.",
             "example": "structure",
             "type": "string"
           },
@@ -19661,6 +19661,24 @@
         },
         "type": "object"
       },
+      "SpatialImportLevelCounts": {
+        "description": "Distinct nodes of one level touched by an import: created new, or matched to a node that already existed on the code path. A node referenced by several rows counts once.",
+        "properties": {
+          "created": {
+            "description": "Nodes of this level created by the import.",
+            "example": 2,
+            "format": "int32",
+            "type": "integer"
+          },
+          "matched": {
+            "description": "Nodes of this level that already existed and were reused.",
+            "example": 1,
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "SpatialImportRequest": {
         "description": "Bulk import of a site structure, one row per leaf.",
         "properties": {
@@ -19679,15 +19697,44 @@
         "type": "object"
       },
       "SpatialImportResult": {
-        "description": "How many nodes the import created and how many already existed.",
+        "description": "How many distinct nodes the import created and how many already existed, in total and per level.",
         "properties": {
+          "buildings": {
+            "$ref": "#/components/schemas/SpatialImportLevelCounts"
+          },
           "created": {
+            "description": "Distinct nodes created, all levels.",
+            "example": 9,
+            "format": "int32",
+            "type": "integer"
+          },
+          "elements": {
+            "$ref": "#/components/schemas/SpatialImportLevelCounts"
+          },
+          "floors": {
+            "$ref": "#/components/schemas/SpatialImportLevelCounts"
+          },
+          "matched": {
+            "description": "Distinct nodes that already existed on the code path and were reused.",
+            "example": 0,
+            "format": "int32",
+            "type": "integer"
+          },
+          "rows": {
+            "description": "Rows the import read.",
+            "example": 4,
             "format": "int32",
             "type": "integer"
           },
           "skipped": {
+            "deprecated": true,
+            "description": "Same value as matched; kept for the first callers of this endpoint.",
+            "example": 0,
             "format": "int32",
             "type": "integer"
+          },
+          "zones": {
+            "$ref": "#/components/schemas/SpatialImportLevelCounts"
           }
         },
         "type": "object"
@@ -96030,7 +96077,7 @@
     },
     "/api/v1/project/{projectId}/spatial/import": {
       "post": {
-        "description": "One row per leaf, codes from the building down. Idempotent on the code path: nodes that already exist are skipped and counted.",
+        "description": "One row per leaf, codes from the building down. Idempotent on the code path: nodes that already exist are matched and counted, not created again. All or nothing: every row is checked before the first write, and a row that fails leaves no node behind. Counts are of distinct nodes per level, not of rows.",
         "operationId": "importRows",
         "parameters": [
           {
@@ -96062,7 +96109,7 @@
                 }
               }
             },
-            "description": "Counts of created and skipped nodes"
+            "description": "Distinct nodes created and matched, in total and per level"
           },
           "400": {
             "content": {
@@ -96072,7 +96119,7 @@
                 }
               }
             },
-            "description": "A row names a zone or element without the levels above it"
+            "description": "A row names a zone or element without a floor, or an element type the organization does not have; the message names each such row. Nothing was written"
           },
           "402": {
             "content": {
@@ -96122,7 +96169,7 @@
                 }
               }
             },
-            "description": "A node on the path is archived"
+            "description": "A node on a row's path is archived. Nothing was written"
           },
           "500": {
             "content": {

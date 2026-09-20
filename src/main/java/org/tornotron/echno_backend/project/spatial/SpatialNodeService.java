@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.project.spatial.dto.CreateSpatialNodeRequest;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialImportLevelCounts;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialImportResult;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialImportRow;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialNodeDto;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -305,70 +307,152 @@ public class SpatialNodeService {
                 .min(Comparator.comparingInt(SpatialNode::getSortOrder).thenComparing(SpatialNode::getCode));
     }
 
-    /** The node of {@code level} with this code under the parent, created with code as name when absent. */
+    /**
+     * The node of {@code level} with this code under the parent, created with code as name when
+     * absent. {@code rowLabel} names the row in the archived-node refusal.
+     */
     private SpatialNode findOrCreate(Long projectId, SpatialNode parent, SpatialLevel level, String code,
-                                     Integer levelIndex, String elementType, int[] counts) {
+                                     Integer levelIndex, String elementType, String rowLabel, ImportTally tally) {
         Optional<SpatialNode> existing = parent == null
                 ? repository.findByProjectIdAndParentIdIsNullAndCode(projectId, code)
                 : repository.findByProjectIdAndParentIdAndCode(projectId, parent.getId(), code);
         if (existing.isPresent()) {
             SpatialNode node = existing.get();
             if (node.isArchived()) {
-                throw new SpatialNodeArchivedException(level + " '" + code + "' is archived; restore it before importing under it");
+                throw new SpatialNodeArchivedException(rowLabel + ": " + level + " '" + code
+                        + "' is archived; restore it before importing under it. Nothing was written.");
             }
-            counts[1]++;
+            tally.matched(node);
             return node;
         }
-        counts[0]++;
-        return createNode(projectId, parent, level, code, code, null, levelIndex, elementType, null, null);
+        SpatialNode node = createNode(projectId, parent, level, code, code, null, levelIndex, elementType, null, null);
+        tally.created(node);
+        return node;
     }
 
     /**
      * Stands up a tree from spreadsheet rows, one row per leaf. Each level of a row is found
      * by its code under the level above and created when absent, so posting the same rows
      * twice creates nothing the second time. An element with no zone goes under the floor's
-     * default zone. A zone or element with no floor is a 400: the chain is strict. Counts are
-     * per node visited, so a building shared by many rows is skipped once per row after the
-     * first.
+     * default zone.
+     *
+     * <p>All or nothing: every row is checked before the first write (a zone or element with
+     * no floor, an element type the organization does not have), the refusal names each bad
+     * row, and the one transaction around the writes means a row that fails later, such as
+     * one under an archived node, leaves nothing behind either. Counts are of distinct nodes,
+     * per level: a building shared by four rows is one created or one matched, never four.
      */
     @Transactional
     public SpatialImportResult importRows(Long projectId, List<SpatialImportRow> rows) {
         requireProject(projectId);
-        int[] counts = new int[2];
-        for (SpatialImportRow row : rows) {
+        validateImportRows(rows);
+        ImportTally tally = new ImportTally();
+        for (int i = 0; i < rows.size(); i++) {
+            SpatialImportRow row = rows.get(i);
+            String rowLabel = rowLabel(i, row);
             String floorCode = blankToNull(row.floor());
             String zoneCode = blankToNull(row.zone());
             String elementCode = blankToNull(row.element());
-            if (floorCode == null && (zoneCode != null || elementCode != null)) {
-                throw new InvalidRequestException("Row with building '" + row.building()
-                        + "' names a zone or element without a floor");
-            }
             SpatialNode building = findOrCreate(projectId, null, SpatialLevel.BUILDING,
-                    row.building().trim(), null, null, counts);
+                    row.building().trim(), null, null, rowLabel, tally);
             if (floorCode == null) {
                 continue;
             }
             SpatialNode floor = findOrCreate(projectId, building, SpatialLevel.FLOOR, floorCode,
-                    row.levelIndex(), null, counts);
+                    row.levelIndex(), null, rowLabel, tally);
             SpatialNode zone = null;
             if (zoneCode != null) {
-                zone = findOrCreate(projectId, floor, SpatialLevel.ZONE, zoneCode, null, null, counts);
+                zone = findOrCreate(projectId, floor, SpatialLevel.ZONE, zoneCode, null, null, rowLabel, tally);
             } else if (elementCode != null) {
                 zone = firstActiveZone(projectId, floor.getId()).orElse(null);
                 if (zone == null) {
                     zone = createNode(projectId, floor, SpatialLevel.ZONE, floor.getCode(), floor.getName(),
                             0, null, null, null, null);
-                    counts[0]++;
+                    tally.created(zone);
                 } else {
-                    counts[1]++;
+                    tally.matched(zone);
                 }
             }
             if (elementCode != null) {
                 findOrCreate(projectId, zone, SpatialLevel.ELEMENT, elementCode, null,
-                        blankToNull(row.elementType()), counts);
+                        blankToNull(row.elementType()), rowLabel, tally);
             }
         }
-        return new SpatialImportResult(counts[0], counts[1]);
+        return tally.result(rows.size());
+    }
+
+    /** Every problem the rows have, before any write, so the caller can fix the sheet in one go. */
+    private void validateImportRows(List<SpatialImportRow> rows) {
+        ElementTypeValidator validator = elementTypeValidator.getIfAvailable();
+        Map<String, Boolean> knownTypes = new HashMap<>();
+        List<String> problems = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            SpatialImportRow row = rows.get(i);
+            String floorCode = blankToNull(row.floor());
+            String zoneCode = blankToNull(row.zone());
+            String elementCode = blankToNull(row.element());
+            String elementType = blankToNull(row.elementType());
+            if (floorCode == null && (zoneCode != null || elementCode != null)) {
+                problems.add(rowLabel(i, row) + " names a zone or element without a floor");
+            }
+            if (elementCode != null && elementType != null && validator != null
+                    && !knownTypes.computeIfAbsent(elementType, validator::isActive)) {
+                problems.add(rowLabel(i, row) + " has an unknown element type '" + elementType + "'");
+            }
+        }
+        if (problems.isEmpty()) {
+            return;
+        }
+        String listed = String.join("; ", problems.subList(0, Math.min(problems.size(), MAX_LISTED_PROBLEMS)));
+        String more = problems.size() > MAX_LISTED_PROBLEMS
+                ? " (and " + (problems.size() - MAX_LISTED_PROBLEMS) + " more)" : "";
+        boolean typeProblem = knownTypes.containsValue(Boolean.FALSE);
+        throw new InvalidRequestException("Import refused, nothing was written: " + listed + more + "."
+                + (typeProblem ? " " + ElementTypeValidator.HOW_TO_FIX : ""));
+    }
+
+    private static final int MAX_LISTED_PROBLEMS = 10;
+
+    /** "Row 3 (B1 / L02 / Z1 / C4)": one-based, with the codes the row names. */
+    private static String rowLabel(int index, SpatialImportRow row) {
+        StringBuilder codes = new StringBuilder(row.building() == null ? "" : row.building().trim());
+        for (String code : new String[]{row.floor(), row.zone(), row.element()}) {
+            if (blankToNull(code) != null) {
+                codes.append(" / ").append(code.trim());
+            }
+        }
+        return "Row " + (index + 1) + " (" + codes + ")";
+    }
+
+    /** Distinct nodes an import created or matched, by level; a node revisited by a later row is not recounted. */
+    private static final class ImportTally {
+        private final Map<SpatialLevel, Set<UUID>> created = new EnumMap<>(SpatialLevel.class);
+        private final Map<SpatialLevel, Set<UUID>> matched = new EnumMap<>(SpatialLevel.class);
+
+        void created(SpatialNode node) {
+            created.computeIfAbsent(node.getLevel(), l -> new HashSet<>()).add(node.getId());
+        }
+
+        void matched(SpatialNode node) {
+            Set<UUID> createdHere = created.get(node.getLevel());
+            if (createdHere != null && createdHere.contains(node.getId())) {
+                return;
+            }
+            matched.computeIfAbsent(node.getLevel(), l -> new HashSet<>()).add(node.getId());
+        }
+
+        SpatialImportResult result(int rows) {
+            int createdTotal = created.values().stream().mapToInt(Set::size).sum();
+            int matchedTotal = matched.values().stream().mapToInt(Set::size).sum();
+            return new SpatialImportResult(createdTotal, matchedTotal, matchedTotal, rows,
+                    of(SpatialLevel.BUILDING), of(SpatialLevel.FLOOR), of(SpatialLevel.ZONE), of(SpatialLevel.ELEMENT));
+        }
+
+        private SpatialImportLevelCounts of(SpatialLevel level) {
+            int c = created.getOrDefault(level, Set.of()).size();
+            int m = matched.getOrDefault(level, Set.of()).size();
+            return c == 0 && m == 0 ? SpatialImportLevelCounts.NONE : new SpatialImportLevelCounts(c, m);
+        }
     }
 
     // ------------------------------------------------------------- internals

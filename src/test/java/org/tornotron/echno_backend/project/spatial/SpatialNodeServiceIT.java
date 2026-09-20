@@ -22,6 +22,7 @@ import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.project.spatial.dto.CreateSpatialNodeRequest;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialImportLevelCounts;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialImportResult;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialImportRow;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialNodeDto;
@@ -305,13 +306,31 @@ class SpatialNodeServiceIT extends AbstractIntegrationTest {
                 new SpatialImportRow("B2", null, null, null, null, null));
 
         SpatialImportResult first = service.importRows(projectId, rows);
-        // B1, L01, Z1, C1 | C2 | L02, default zone, S1 | B2
+        // B1, L01, Z1, C1 | C2 | L02, default zone, S1 | B2: nine distinct nodes, none of them
+        // pre-existing, however many rows share B1 or L01
+        assertThat(first.rows()).isEqualTo(4);
         assertThat(first.created()).isEqualTo(9);
-        assertThat(first.skipped()).isEqualTo(4);
+        assertThat(first.matched()).isZero();
+        assertThat(first.skipped()).isEqualTo(first.matched());
+        assertThat(first.buildings()).isEqualTo(new SpatialImportLevelCounts(2, 0));
+        assertThat(first.floors()).isEqualTo(new SpatialImportLevelCounts(2, 0));
+        assertThat(first.zones()).isEqualTo(new SpatialImportLevelCounts(2, 0));
+        assertThat(first.elements()).isEqualTo(new SpatialImportLevelCounts(3, 0));
 
         SpatialImportResult second = service.importRows(projectId, rows);
         assertThat(second.created()).isZero();
-        assertThat(second.skipped()).isEqualTo(13);
+        assertThat(second.matched()).isEqualTo(9);
+        assertThat(second.skipped()).isEqualTo(9);
+        assertThat(second.buildings()).isEqualTo(new SpatialImportLevelCounts(0, 2));
+        assertThat(second.elements()).isEqualTo(new SpatialImportLevelCounts(0, 3));
+
+        // a third row set that adds one element under the existing zone: one created, the
+        // chain above it matched once each
+        SpatialImportResult third = service.importRows(projectId,
+                List.of(new SpatialImportRow("B1", "L01", null, "Z1", "C3", "column")));
+        assertThat(third.created()).isEqualTo(1);
+        assertThat(third.matched()).isEqualTo(3);
+        assertThat(third.elements()).isEqualTo(new SpatialImportLevelCounts(1, 0));
 
         List<SpatialTreeNodeDto> tree = service.getTree(projectId, false);
         assertThat(tree).extracting(SpatialTreeNodeDto::code).containsExactly("B1", "B2");
@@ -325,6 +344,54 @@ class SpatialNodeServiceIT extends AbstractIntegrationTest {
         assertThatThrownBy(() -> service.importRows(projectId,
                 List.of(new SpatialImportRow("B1", null, null, "Z9", null, null))))
                 .isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
+    void importRefusesTheWholeSheetBeforeWritingAndNamesEveryBadRow() {
+        List<SpatialImportRow> rows = List.of(
+                new SpatialImportRow("B1", "L01", 1, "Z1", "C1", null),
+                new SpatialImportRow("B1", null, null, "Z9", null, null),
+                new SpatialImportRow("B2", null, null, null, "E1", null));
+
+        assertThatThrownBy(() -> service.importRows(projectId, rows))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("nothing was written")
+                .hasMessageContaining("Row 2 (B1 / Z9) names a zone or element without a floor")
+                .hasMessageContaining("Row 3 (B2 / E1) names a zone or element without a floor")
+                .satisfies(e -> assertThat(e.getMessage()).doesNotContain("Row 1"));
+
+        assertThat(service.getTree(projectId, true)).isEmpty();
+    }
+
+    @Test
+    void aRowThatFailsMidWayLeavesNothingBehind() {
+        // pre-state, committed: B1 with an archived floor L02
+        inCommittedTx(() -> {
+            TenantContext.setCurrentOrgId(orgAId);
+            service.importRows(projectId, List.of(new SpatialImportRow("B1", "L02", 2, null, null, null)));
+            SpatialTreeNodeDto b1 = service.getTree(projectId, false).get(0);
+            service.archive(projectId, b1.children().get(0).id());
+        });
+
+        // row 1 creates L01, Z1 and C1 before row 2 runs into the archived L02
+        List<SpatialImportRow> rows = List.of(
+                new SpatialImportRow("B1", "L01", 1, "Z1", "C1", null),
+                new SpatialImportRow("B1", "L02", 2, "Z1", "C2", null));
+        assertThatThrownBy(() -> inCommittedTx(() -> {
+            TenantContext.setCurrentOrgId(orgAId);
+            service.importRows(projectId, rows);
+        }))
+                .isInstanceOf(SpatialNodeArchivedException.class)
+                .hasMessageContaining("Row 2 (B1 / L02 / Z1 / C2)")
+                .hasMessageContaining("Nothing was written");
+
+        inCommittedTx(() -> {
+            TenantContext.setCurrentOrgId(orgAId);
+            List<SpatialTreeNodeDto> tree = service.getTree(projectId, true);
+            assertThat(tree).extracting(SpatialTreeNodeDto::code).containsExactly("B1");
+            assertThat(tree.get(0).children()).extracting(SpatialTreeNodeDto::code).containsExactly("L02");
+            assertThat(tree.get(0).children().get(0).children()).isEmpty();
+        });
     }
 
     private SpatialNodeDto create(UUID parentId, SpatialLevel level, String code, String name) {

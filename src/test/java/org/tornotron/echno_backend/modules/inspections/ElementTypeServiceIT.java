@@ -93,16 +93,18 @@ class ElementTypeServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void catalogue_holdsTheSeventeenSeededTypesInFiveGroups() {
+    void catalogue_holdsTheNineteenSeededTypesInSixGroups() {
         List<ElementTypeCatalogueDto> catalogue = service.listCatalogue();
 
-        assertThat(catalogue).hasSize(17);
+        // seventeen from the CSV seed (105-02) plus ramp and the catch-all other (120-01)
+        assertThat(catalogue).hasSize(19);
         assertThat(catalogue).extracting(ElementTypeCatalogueDto::code)
                 .contains("column", "beam", "slab", "wall", "staircase", "footing", "lintel", "door",
                         "window", "ceiling", "floor-finish", "wall-finish", "pipe-run", "duct",
-                        "cable-tray", "fire-door", "sprinkler-branch");
+                        "cable-tray", "fire-door", "sprinkler-branch", "ramp", "other");
         assertThat(catalogue).extracting(ElementTypeCatalogueDto::groupCode)
-                .containsOnly("structure", "openings", "finishes", "services", "fire");
+                .containsOnly("structure", "openings", "finishes", "services", "fire", "general");
+        assertThat(catalogue.get(catalogue.size() - 1).code()).isEqualTo("other");
     }
 
     @Test
@@ -110,11 +112,11 @@ class ElementTypeServiceIT extends AbstractIntegrationTest {
         assertThat(orgRepo.findByOrganizationIdOrderBySortOrderAscNameAsc(orgAId)).isEmpty();
 
         List<OrgElementTypeDto> first = service.listOrgElementTypes(false);
-        assertThat(first).hasSize(17);
+        assertThat(first).hasSize(19);
         assertThat(first).allSatisfy(t -> assertThat(t.catalogueCode()).isEqualTo(t.code()));
 
         assertThat(service.ensureOrgElementTypes(entityManager.find(Organization.class, orgAId))).isZero();
-        assertThat(service.listOrgElementTypes(false)).hasSize(17);
+        assertThat(service.listOrgElementTypes(false)).hasSize(19);
         assertThat(orgRepo.findByOrganizationIdOrderBySortOrderAscNameAsc(orgBId)).isEmpty();
     }
 
@@ -143,7 +145,7 @@ class ElementTypeServiceIT extends AbstractIntegrationTest {
         assertThat(created.catalogueCode()).isNull();
         assertThat(created.sortOrder()).isEqualTo(1000);
         assertThat(service.isActiveCode("precast-panel")).isTrue();
-        assertThat(service.listOrgElementTypes(false)).hasSize(18);
+        assertThat(service.listOrgElementTypes(false)).hasSize(20);
 
         assertThatThrownBy(() -> service.create(new CreateElementTypeRequest(
                 "precast-panel", "Again", "structure", null, null)))

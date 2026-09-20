@@ -27,10 +27,13 @@ import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.spatial.SpatialLevel;
 import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.project.spatial.dto.CreateSpatialNodeRequest;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialImportResult;
+import org.tornotron.echno_backend.project.spatial.dto.SpatialImportRow;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialNodeDto;
 import org.tornotron.echno_backend.project.spatial.dto.UpdateSpatialNodeRequest;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -125,6 +128,29 @@ class SpatialElementTypeHookIT extends AbstractIntegrationTest {
         elementTypes.create(new CreateElementTypeRequest("precast-panel", "Precast panel", "structure", null, null));
         assertThat(spatial.create(projectId, element(zone, "P1", "precast-panel")).elementType())
                 .isEqualTo("precast-panel");
+    }
+
+    @Test
+    void anImportWithAnUnknownElementTypeIsRefusedBeforeAnyWriteAndNamesTheRow() {
+        List<SpatialImportRow> rows = List.of(
+                new SpatialImportRow("B1", "L01", 1, "Z1", "C1", "column"),
+                new SpatialImportRow("B1", "L01", 1, "Z1", "R1", "hologram"),
+                new SpatialImportRow("B1", "L01", 1, "Z1", "R2", "hologram"));
+
+        assertThatThrownBy(() -> spatial.importRows(projectId, rows))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("nothing was written")
+                .hasMessageContaining("Row 2 (B1 / L01 / Z1 / R1) has an unknown element type 'hologram'")
+                .hasMessageContaining("Row 3 (B1 / L01 / Z1 / R2)")
+                .hasMessageContaining("Define it under the organization's element types first");
+        assertThat(spatial.getTree(projectId, true)).isEmpty();
+
+        // the catalogue's catch-all and the ramp are types an organization has from the start
+        SpatialImportResult result = spatial.importRows(projectId, List.of(
+                new SpatialImportRow("B1", "L01", 1, "Z1", "R1", "ramp"),
+                new SpatialImportRow("B1", "L01", 1, "Z1", "X1", "other")));
+        assertThat(result.created()).isEqualTo(5);
+        assertThat(result.elements().created()).isEqualTo(2);
     }
 
     private UUID zone() {

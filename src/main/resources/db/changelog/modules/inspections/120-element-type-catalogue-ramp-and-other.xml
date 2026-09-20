@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+      Two element types the 14 Sep screen walk missed (#819): a ramp, and a catch-all
+      "other" so a first import does not stall on a type the catalogue has no word for.
+      Added here as an insert rather than as rows in element-type-catalogue.csv: 105-02
+      loads that CSV without runOnChange or validCheckSum, and a loadData checksum covers
+      the file content, so an edit to the CSV would fail validation on every database
+      105-02 has already run on. Same INSERT ... ON CONFLICT DO NOTHING shape as 119-02, so
+      a catalogue that already has either code is left as it is. Organizations pick the
+      new codes up on their next read, which tops the org list up from the catalogue.
+    -->
+
+    <changeSet id="120-01-element-type-catalogue-ramp-and-other" author="abhijith">
+        <sql>
+            INSERT INTO element_type_catalogue (code, name, group_code, description, sort_order, active)
+            VALUES
+                ('ramp', 'Ramp', 'structure', 'Vehicle or pedestrian ramp, sloped slab and its edge protection', 80, true),
+                ('other', 'Other', 'general', 'Catch-all for an element the catalogue has no type for; define an org type when it recurs', 900, true)
+            ON CONFLICT (code) DO NOTHING
+        </sql>
+        <rollback>
+            DELETE FROM element_type_catalogue WHERE code IN ('ramp', 'other')
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
