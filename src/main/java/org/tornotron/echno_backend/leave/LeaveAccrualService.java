@@ -63,16 +63,13 @@ public class LeaveAccrualService {
         int currentMonth = now.getYear() == year ? now.getMonthValue() : 12;
         int startMonth = getStartMonth(employee, year);
 
-        boolean inFull = policy.getAccrualMethod() == AccrualMethod.IN_FULL_ON_QUALIFYING;
-        Integer qualifyingMonth = inFull ? qualifyingMonth(employee, policy, year, startMonth, currentMonth) : null;
-
         double totalAccrued = 0.0;
 
-        for (int month = startMonth; month <= currentMonth; month++) {
+        if (policy.getAccrualMethod() == AccrualMethod.IN_FULL_ON_QUALIFYING) {
+            totalAccrued = reconcileFullEntitlement(balance, employee, policy, year, startMonth, currentMonth);
+        } else for (int month = startMonth; month <= currentMonth; month++) {
             if (!hasAccrualTransaction(balance.getId(), month, year)) {
-                double monthlyAccrual = inFull
-                        ? (qualifyingMonth != null && qualifyingMonth == month ? fullQuota(policy) : 0.0)
-                        : calculateMonthlyAccrual(employee, policy, year, month);
+                double monthlyAccrual = calculateMonthlyAccrual(employee, policy, year, month);
                 totalAccrued += monthlyAccrual;
 
                 if (monthlyAccrual > 0) {
@@ -120,9 +117,38 @@ public class LeaveAccrualService {
     }
 
     /**
+     * Brings the year's accrual ledger to the whole quota under
+     * {@link AccrualMethod#IN_FULL_ON_QUALIFYING}, and answers the accrued total.
+     *
+     * <p>Written as a reconciliation rather than a credit so the method can change on a policy
+     * that has already accrued. A balance that was accruing monthly when the policy switched
+     * holds ACCRUAL rows adding up to some fraction of the quota; a fresh balance holds none.
+     * Either way the ledger should add up to the whole quota once the employee qualifies and to
+     * nothing before, so the difference is posted as a single ACCRUAL row referenced to the
+     * qualifying month. The next recalculation finds the sum already right and posts nothing,
+     * which is what makes the row idempotent. Switching back to MONTHLY is safe for the same
+     * reason: the monthly branch counts whatever rows exist and caps the total at the quota.
+     *
+     * @return The accrued total for the year, before manual adjustments.
+     */
+    private double reconcileFullEntitlement(LeaveBalance balance, Employee employee, LeavePolicy policy,
+                                            Integer year, int startMonth, int currentMonth) {
+        Integer qualifyingMonth = qualifyingMonth(employee, policy, year, startMonth, currentMonth);
+        double expected = qualifyingMonth == null ? 0.0 : fullQuota(policy);
+        double existing = LeaveDays.round(transactionRepository.sumDaysByBalanceAndType(
+                balance.getId(), TransactionType.ACCRUAL));
+        double difference = LeaveDays.round(expected - existing);
+        if (difference != 0.0) {
+            createAccrualTransaction(balance, difference, year,
+                    qualifyingMonth != null ? qualifyingMonth : Math.max(startMonth, 1));
+        }
+        return expected;
+    }
+
+    /**
      * The month of {@code year} in which the whole quota is credited under
      * {@link AccrualMethod#IN_FULL_ON_QUALIFYING}, or null if the employee does not qualify in a
-     * month this recalculation covers.
+     * month this recalculation covers, or if that month has not started yet.
      *
      * <p>Qualification is the policy's {@code minServiceMonths} counted from the joining date. An
      * employee who qualified in an earlier year, or who has no joining date, qualifies from the
@@ -134,6 +160,9 @@ public class LeaveAccrualService {
     private Integer qualifyingMonth(Employee employee, LeavePolicy policy, Integer year, int startMonth, int currentMonth) {
         LocalDateTime joiningDate = employee.getJoiningDate();
         int minServiceMonths = policy.getMinServiceMonths() == null ? 0 : policy.getMinServiceMonths();
+        if (LocalDate.of(year, startMonth, 1).isAfter(LocalDate.now())) {
+            return null;
+        }
         if (joiningDate == null) {
             return startMonth;
         }
@@ -145,7 +174,10 @@ public class LeaveAccrualService {
             return null;
         }
         int month = Math.max(qualifiesOn.getMonthValue(), startMonth);
-        return month <= currentMonth ? month : null;
+        if (month > currentMonth || LocalDate.of(year, month, 1).isAfter(LocalDate.now())) {
+            return null;
+        }
+        return month;
     }
 
     private double fullQuota(LeavePolicy policy) {

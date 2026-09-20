@@ -28,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -109,7 +110,7 @@ class HolidayServiceTest {
     }
 
     @Test
-    void workingWeek_isCreatedMondayToFridayOnFirstRead() {
+    void workingWeek_readsMondayToFridayBeforeItIsSet_andWritesNothing() {
         when(workingWeekRepository.findByOrganization_Id(1L)).thenReturn(Optional.empty());
 
         WorkingWeekDto week = service.getWorkingWeek();
@@ -117,6 +118,19 @@ class HolidayServiceTest {
         assertThat(week.getOrganizationId()).isEqualTo(1L);
         assertThat(week.getWorkingDays()).containsExactly(DayOfWeek.MONDAY, DayOfWeek.TUESDAY,
                 DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY);
+        assertThat(service.workingDays()).isEqualTo(WorkingWeek.DEFAULT_WORKING_DAYS);
+        verify(workingWeekRepository, never()).save(any(WorkingWeek.class));
+    }
+
+    @Test
+    void updateWorkingWeek_createsTheRowOnFirstWrite() {
+        when(workingWeekRepository.findByOrganization_Id(1L)).thenReturn(Optional.empty());
+        WorkingWeekUpdateDto update = new WorkingWeekUpdateDto();
+        update.setWorkingDays(List.of(DayOfWeek.MONDAY, DayOfWeek.SATURDAY));
+
+        WorkingWeekDto week = service.updateWorkingWeek(update);
+
+        assertThat(week.getWorkingDays()).containsExactly(DayOfWeek.MONDAY, DayOfWeek.SATURDAY);
         verify(workingWeekRepository).save(any(WorkingWeek.class));
     }
 

@@ -24,8 +24,8 @@ import java.util.Set;
  * The organization's holiday calendar and working week.
  *
  * <p>Holidays are organization-wide and one per date. The working week is a single row per
- * organization, created on first read with Monday to Friday, which is the week the leave accrual
- * counted before the setting existed. Both are read by {@link WorkingCalendarService} when a
+ * organization, written the first time it is set; until then every read answers Monday to
+ * Friday, which is the week the leave accrual counted before the setting existed. Both are read by {@link WorkingCalendarService} when a
  * leave request is charged.
  */
 @Service
@@ -128,14 +128,25 @@ public class HolidayService {
     }
 
     /**
-     * The organization's working week, materialized with the Monday to Friday default on first
-     * read.
+     * The organization's working week: the stored row, or Monday to Friday when the
+     * organization has never set one.
+     *
+     * <p>A read never writes the row. Two first reads racing to create it would collide on
+     * {@code uk_working_week_org} and one member would see an error for asking a question; the
+     * row is written only by {@link #updateWorkingWeek}, where a collision is a real conflict.
      *
      * @return The working week.
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public WorkingWeekDto getWorkingWeek() {
-        return toDto(getOrCreateWorkingWeek());
+        Long organizationId = TenantContext.getCurrentOrgId();
+        Set<DayOfWeek> days = workingWeekRepository.findByOrganization_Id(organizationId)
+                .map(WorkingWeek::workingDaySet)
+                .orElse(WorkingWeek.DEFAULT_WORKING_DAYS);
+        WorkingWeekDto dto = new WorkingWeekDto();
+        dto.setOrganizationId(organizationId);
+        dto.setWorkingDays(days.stream().sorted().toList());
+        return dto;
     }
 
     /**
@@ -159,27 +170,30 @@ public class HolidayService {
 
     /**
      * The working days of the current organization, for callers that need the set rather than
-     * the DTO.
+     * the DTO. Reads only, like {@link #getWorkingWeek}.
      *
      * @return The days worked, Monday to Friday when the organization has never set them.
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public Set<DayOfWeek> workingDays() {
-        return getOrCreateWorkingWeek().workingDaySet();
+        return workingWeekRepository.findByOrganization_Id(TenantContext.getCurrentOrgId())
+                .map(WorkingWeek::workingDaySet)
+                .orElse(WorkingWeek.DEFAULT_WORKING_DAYS);
     }
 
+    /** The stored row, or a new unsaved one for the caller to fill and save. */
     private WorkingWeek getOrCreateWorkingWeek() {
         Long organizationId = TenantContext.getCurrentOrgId();
         return workingWeekRepository.findByOrganization_Id(organizationId).orElseGet(() -> {
             WorkingWeek week = new WorkingWeek();
             week.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
-            return workingWeekRepository.save(week);
+            return week;
         });
     }
 
     private WorkingWeekDto toDto(WorkingWeek week) {
         WorkingWeekDto dto = new WorkingWeekDto();
-        dto.setOrganizationId(week.getOrganization().getId());
+        dto.setOrganizationId(TenantContext.getCurrentOrgId());
         dto.setWorkingDays(week.workingDaySet().stream().sorted().toList());
         return dto;
     }
