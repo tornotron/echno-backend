@@ -57,4 +57,8 @@ public class SiteTransferDto {
 
     @Schema(description = "Line items listing each material and quantity being transferred.")
     private List<SiteTransferItemDto> items;
+
+    @Schema(description = "Id of the approved reversal request that undid this document. Null while it stands.",
+            example = "12", nullable = true)
+    private Long reversalId;
 }

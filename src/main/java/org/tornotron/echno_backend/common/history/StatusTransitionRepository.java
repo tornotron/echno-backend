@@ -2,6 +2,8 @@ package org.tornotron.echno_backend.common.history;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.util.Optional;
 import org.springframework.data.repository.Repository;
 
 /**
@@ -31,6 +33,13 @@ public interface StatusTransitionRepository extends Repository<StatusTransition,
      * would leave that entry off the page. The page carries the whole trail's size, so a
      * shortened read can say it was shortened.
      */
+    /**
+     * The first transition of one source on one entity: with {@code CREATION}, the row that says
+     * who raised the document, which is the one the reversal path reads to find the creator.
+     */
+    Optional<StatusTransition> findFirstByEntityTypeAndEntityIdAndOrganization_IdAndSourceOrderByOccurredAtAscIdAsc(
+            String entityType, Long entityId, Long organizationId, StatusTransitionSource source);
+
     Page<StatusTransition> findByEntityTypeAndEntityIdAndOrganization_IdOrderByOccurredAtDescIdDesc(
             String entityType, Long entityId, Long organizationId, Pageable pageable);
 

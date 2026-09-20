@@ -33,7 +33,13 @@ public enum InventoryTransactionType {
     STOCK_TAKE_GAIN(StockEffect.INCREASE),
     STOCK_TAKE_LOSS(StockEffect.DECREASE),
     WRITE_OFF(StockEffect.DECREASE),
-    ADJUST(StockEffect.EITHER);
+    ADJUST(StockEffect.EITHER),
+    /**
+     * A correcting entry that undoes a reversed document's movement on one balance row. Signed
+     * like {@code ADJUST}: the opposite of what the document wrote there, so the row returns to
+     * the balance it held before. Referenced {@code REV-<document number>}.
+     */
+    REVERSAL(StockEffect.EITHER);
 
     private final StockEffect stockEffect;
 

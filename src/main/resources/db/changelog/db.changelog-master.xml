@@ -438,6 +438,9 @@
     <include file="db/changelog/v4.0/116-spatial-root-code-unique.xml"/>
     <include file="db/changelog/v4.0/118-billing-followups.xml"/>
 
+    <!-- v4.0 - Reversal with approval for site transfers, purchase orders and goods received notes (#835) -->
+    <include file="db/changelog/v4.0/119-document-reversal.xml"/>
+
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->
     <!-- (#749). Files run in path order; a module's pre-move changesets -->

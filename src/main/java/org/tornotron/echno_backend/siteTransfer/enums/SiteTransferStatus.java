@@ -50,5 +50,12 @@ public enum SiteTransferStatus {
      * cancelled: what arrived is at the far site, and deciding its fate is an adjustment rather
      * than a reversal.
      */
-    CANCELLED
+    CANCELLED,
+    /**
+     * Undone under an approved reversal request. Every leg the transfer wrote has a correcting
+     * ledger entry against it and each store is back at the balance it held before; the
+     * transfer stays on the record and {@code reversalId} names the request that undid it.
+     * Terminal, and reachable only through {@code DocumentReversalService}.
+     */
+    REVERSED
 }
