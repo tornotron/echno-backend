@@ -10,7 +10,10 @@
       Asset Homes "QC Checklists" workbook (revision 17 Dec 2024, document references
       AH/F/2201/01_R1 to 18_R1) replace the generic first drafts of 057-03 and 106-01 for the
       nine trades they cover and add a starter for the six trades the catalogue gains here
-      (earthwork, setting-out, piling, backfilling, anti-termite, material-inspection).
+      (earthwork, setting-out, piling, backfilling, anti-termite, material-inspection). The trades
+      go in by INSERT rather than as rows in trade-catalogue.csv, for the reason 120 gives:
+      103-02 loads that CSV without runOnChange or validCheckSum, so an edit to it fails
+      validation on every database 103-02 has run on.
 
       A starter is unique per trade code (uk_starter_checklist_template_trade), so a covered
       trade keeps its template row and id: the name, description and items are replaced. An
@@ -21,11 +24,28 @@
       uuid5(NAMESPACE_URL, "https://echno.xyz/seed/starter-checklists/asset-homes"): a template
       is uuid5(ns, "<doc ref>") unless the trade already shipped a starter, in which case the
       CSV carries that starter's id; an item is uuid5(ns, "<doc ref>#<serial>"). A rerun
-      therefore rewrites the same rows rather than accumulating copies. Runs after 119 so the
-      trade codes it references are in the catalogue (fk_starter_checklist_template_trade).
+      therefore rewrites the same rows rather than accumulating copies. 121-01 puts the six
+      trade codes in the catalogue first (fk_starter_checklist_template_trade).
     -->
 
-    <changeSet id="121-01-seed-asset-homes-starter-checklists" author="abhijith" runOnChange="true">
+    <changeSet id="121-01-trade-catalogue-asset-homes-trades" author="abhijith">
+        <sql>
+            INSERT INTO trade_catalogue (code, name, group_code, description, sort_order, active)
+            VALUES
+                ('earthwork', 'Earthwork', 'sitework', 'Site clearance and excavation and slopes and dewatering', 1, true),
+                ('setting-out', 'Setting out', 'sitework', 'Baselines and benchmarks and grid lines and setbacks', 2, true),
+                ('piling', 'Piling', 'sitework', 'Pile positioning and boring and reinforcement cage and concreting', 3, true),
+                ('backfilling', 'Backfilling', 'sitework', 'Backfill material and layers and compaction', 4, true),
+                ('anti-termite', 'Anti-termite treatment', 'sitework', 'Soil treatment chemical and application and coverage', 5, true),
+                ('material-inspection', 'Material inspection', 'general', 'Incoming material check against BOQ and delivery challan and test certificates', 620, true)
+            ON CONFLICT (code) DO NOTHING
+        </sql>
+        <rollback>
+            DELETE FROM trade_catalogue WHERE code IN ('earthwork', 'setting-out', 'piling', 'backfilling', 'anti-termite', 'material-inspection')
+        </rollback>
+    </changeSet>
+
+    <changeSet id="121-02-seed-asset-homes-starter-checklists" author="abhijith" runOnChange="true">
         <sql>DROP TABLE IF EXISTS starter_checklist_stage</sql>
         <sql>DROP TABLE IF EXISTS starter_checklist_item_stage</sql>
         <sql>

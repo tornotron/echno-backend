@@ -67,7 +67,7 @@ class TradeServiceIT extends AbstractIntegrationTest {
             "plumbing-fixtures", "sanitary-fixtures", "finishing", "dimensional-check", "progress-check");
     private static final Set<String> NEW_TRADES =
             Set.of("tiling", "painting", "ceilings", "doors-windows", "fire-systems");
-    /** The trades the Asset Homes checklists added in 121 (#837), five under sitework and one under general. */
+    /** The trades the Asset Homes checklists added by 121-01 (#837), five under sitework and one under general. */
     private static final Set<String> ASSET_HOMES_TRADES =
             Set.of("earthwork", "setting-out", "piling", "backfilling", "anti-termite", "material-inspection");
     private static final int CATALOGUE_SIZE = 27;
