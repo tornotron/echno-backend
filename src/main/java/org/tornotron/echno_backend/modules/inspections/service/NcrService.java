@@ -20,6 +20,7 @@ import org.tornotron.echno_backend.modules.inspections.domain.InspectionDefect;
 import org.tornotron.echno_backend.modules.inspections.domain.Ncr;
 import org.tornotron.echno_backend.modules.inspections.dtos.AssignNcrRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateNcrRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.InspectionReference;
 import org.tornotron.echno_backend.modules.inspections.dtos.NcrDto;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventChanges;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
@@ -32,10 +33,18 @@ import org.tornotron.echno_backend.modules.inspections.repositories.NcrSpecifica
 import org.tornotron.echno_backend.modules.inspections.repositories.ReinspectionRepository;
 import org.tornotron.echno_backend.modules.inspections.ReinspectionOutcome;
 import org.tornotron.echno_backend.modules.inspections.domain.Reinspection;
+import org.tornotron.echno_backend.project.ProjectName;
+import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.UserContextService;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * The non-conformance workflow: raise, assign, report complete, verify, close,
@@ -68,10 +77,11 @@ public class NcrService {
     private final InspectionEventRecorder events;
     private final ReinspectionRepository reinspectionRepo;
     private final ObservationService observations;
+    private final ProjectRepository projectRepository;
 
     @Transactional(readOnly = true)
     public NcrDto findById(UUID id) {
-        return mapper.toDto(require(id));
+        return toDto(require(id));
     }
 
     /**
@@ -97,11 +107,32 @@ public class NcrService {
                                 Long closedById,
                                 Boolean open,
                                 Pageable pageable) {
-        return ncrRepo.findAll(
-                        NcrSpecifications.withFilters(inspectionId, type, status, siteEngineerId,
-                                raisedById, verifiedById, closedById, open),
-                        pageable)
-                .map(mapper::toDto);
+        return findAll(null, inspectionId, type, status, siteEngineerId, raisedById, verifiedById,
+                closedById, open, pageable);
+    }
+
+    /**
+     * As above, narrowed to one project: every report whose inspection belongs to it. A
+     * report has no project of its own, so this is answered through the inspection, the same
+     * way each row's {@code projectId} is.
+     */
+    @Transactional(readOnly = true)
+    public Page<NcrDto> findAll(Long projectId,
+                                UUID inspectionId,
+                                NcrType type,
+                                NcrStatus status,
+                                Long siteEngineerId,
+                                Long raisedById,
+                                Long verifiedById,
+                                Long closedById,
+                                Boolean open,
+                                Pageable pageable) {
+        Page<Ncr> page = ncrRepo.findAll(
+                NcrSpecifications.withFilters(projectId, inspectionId, type, status, siteEngineerId,
+                        raisedById, verifiedById, closedById, open),
+                pageable);
+        NcrTrace trace = traceFor(page.getContent());
+        return page.map(ncr -> trace.apply(mapper.toDto(ncr)));
     }
 
     /**
@@ -155,7 +186,7 @@ public class NcrService {
                 null);
         log.info("Raised {} NCR {} against inspection {}",
                 saved.getType().getValue(), saved.getNcrNumber(), inspection.getInspectionNumber());
-        return mapper.toDto(saved);
+        return toDto(saved);
     }
 
     /** Hands the corrective work to a site engineer, or moves it to a different one. */
@@ -429,10 +460,59 @@ public class NcrService {
         events.record(InspectionEventSubject.ncr(saved, projectOf(saved)), eventType,
                 changes.before(), changes.after(), note);
         log.info("NCR {} {}", saved.getNcrNumber(), what);
-        return mapper.toDto(saved);
+        return toDto(saved);
     }
 
     private Long projectOf(Ncr ncr) {
         return inspectionRepo.findProjectIdByIdScoped(ncr.getInspectionId()).orElse(null);
+    }
+
+    /** One report with its inspection and project filled in. */
+    private NcrDto toDto(Ncr ncr) {
+        return traceFor(List.of(ncr)).apply(mapper.toDto(ncr));
+    }
+
+    /**
+     * Reads, for a set of reports, the inspection each was raised against and the name of that
+     * inspection's project: one read over the inspections and one over the projects, however
+     * many reports there are. A report whose inspection is no longer readable keeps its trace
+     * fields null rather than failing the page.
+     */
+    private NcrTrace traceFor(Collection<Ncr> ncrs) {
+        List<UUID> inspectionIds = ncrs.stream()
+                .map(Ncr::getInspectionId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (inspectionIds.isEmpty()) {
+            return NcrTrace.EMPTY;
+        }
+        Map<UUID, InspectionReference> inspections = inspectionRepo.findReferencesByIdsScoped(inspectionIds)
+                .stream()
+                .collect(Collectors.toMap(InspectionReference::id, Function.identity(), (a, b) -> a));
+        List<Long> projectIds = inspections.values().stream()
+                .map(InspectionReference::projectId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, String> projectNames = projectIds.isEmpty() ? Map.of()
+                : projectRepository.findNamesByIds(projectIds).stream()
+                        .collect(Collectors.toMap(ProjectName::id, ProjectName::projectName, (a, b) -> a));
+        return new NcrTrace(inspections, projectNames);
+    }
+
+    /** The inspections and project names a page of reports traces back to. */
+    private record NcrTrace(Map<UUID, InspectionReference> inspections, Map<Long, String> projectNames) {
+
+        private static final NcrTrace EMPTY = new NcrTrace(Map.of(), Map.of());
+
+        NcrDto apply(NcrDto dto) {
+            InspectionReference inspection = inspections.get(dto.inspectionId());
+            if (inspection == null) {
+                return dto;
+            }
+            return dto.withInspection(inspection,
+                    inspection.projectId() == null ? null : projectNames.get(inspection.projectId()));
+        }
     }
 }

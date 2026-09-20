@@ -89,7 +89,9 @@ public class NcrControllerWeb {
     @Operation(
             summary = "List non-conformance reports",
             description = "Returns a page of NCRs in the current tenant. Every parameter is an "
-                    + "optional filter, and they narrow together. Setting open=true returns the "
+                    + "optional filter, and they narrow together. projectId matches every report "
+                    + "whose inspection belongs to that project, which is also the project each "
+                    + "row reports. Setting open=true returns the "
                     + "punch list: every NCR that has not been closed, whatever stage it has "
                     + "reached. siteEngineerId, raisedById, verifiedById and closedById are "
                     + "employee ids, the same ids the employee directory hands out, and they "
@@ -100,7 +102,8 @@ public class NcrControllerWeb {
             @ApiResponse(responseCode = "200", description = "Page of matching NCRs"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public Page<NcrDto> list(@RequestParam(required = false) UUID inspectionId,
+    public Page<NcrDto> list(@RequestParam(required = false) Long projectId,
+                             @RequestParam(required = false) UUID inspectionId,
                              @RequestParam(required = false) NcrType type,
                              @RequestParam(required = false) NcrStatus status,
                              @RequestParam(required = false) Long siteEngineerId,
@@ -109,7 +112,7 @@ public class NcrControllerWeb {
                              @RequestParam(required = false) Long closedById,
                              @RequestParam(required = false) Boolean open,
                              Pageable pageable) {
-        return service.findAll(inspectionId, type, status, siteEngineerId,
+        return service.findAll(projectId, inspectionId, type, status, siteEngineerId,
                 raisedById, verifiedById, closedById, open, pageable);
     }
 
@@ -238,8 +241,8 @@ public class NcrControllerWeb {
             summary = "Download the punch list",
             description = "Renders every non-conformance that is not yet closed, newest first. This "
                     + "is the same query the open=true filter on the listing answers, rendered rather "
-                    + "than recomputed. The inspectionId, type and siteEngineerId parameters narrow "
-                    + "it the same way they narrow the listing. At most 500 rows print; the document "
+                    + "than recomputed. The projectId, inspectionId, type and siteEngineerId "
+                    + "parameters narrow it the same way they narrow the listing. At most 500 rows print; the document "
                     + "states the true total and flags itself when it is showing only part of it."
     )
     @ApiResponses({
@@ -248,10 +251,11 @@ public class NcrControllerWeb {
             @ApiResponse(responseCode = "500", description = "PDF rendering failed")
     })
     public ResponseEntity<byte[]> downloadPunchList(
+            @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) UUID inspectionId,
             @RequestParam(required = false) NcrType type,
             @RequestParam(required = false) Long siteEngineerId) throws IOException {
-        return asAttachment(reportService.renderPunchList(inspectionId, type, siteEngineerId));
+        return asAttachment(reportService.renderPunchList(projectId, inspectionId, type, siteEngineerId));
     }
 
     @GetMapping("/{id}/pdf")

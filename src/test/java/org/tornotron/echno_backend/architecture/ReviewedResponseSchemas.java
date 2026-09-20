@@ -388,6 +388,13 @@ final class ReviewedResponseSchemas {
      *       are the standing line again. The service substitutes {@code medium} and {@code OPEN}
      *       on every call site, the columns permit null, so they stay nullable with the
      *       substitution named.
+     *   <li>The trace fields added by #846 follow what produces them. On a defect,
+     *       {@code inspectionId}, {@code inspectionNumber} and {@code inspectionTitle} come off
+     *       the parent, an {@code optional = false} association over {@code NOT NULL} columns,
+     *       so they are non-null; {@code projectId} copies a nullable column and
+     *       {@code projectName} is filled only inside a full inspection view. On an NCR all four
+     *       are resolved by a separate read of the inspection, which is absent where that
+     *       inspection is no longer readable, so all four are nullable.
      *   <li>Nothing in the module is non-null by aggregate: there is no {@code COALESCE} and no
      *       normalizer. The seven collection properties are Hibernate-managed collections
      *       initialised on the entity and copied across by MapStruct, and the four counts are
@@ -680,15 +687,18 @@ final class ReviewedResponseSchemas {
                                 "spatialPath", "status")),
                 new ReviewedSchema(
                         InspectionDefectDto.class,
-                        Set.of("category", "location", "observationId", "resolvedDate", "responsibleParty",
-                                "severity", "spatialNodeId", "status", "targetDate"),
-                        Set.of("correctiveAction", "description", "id", "photos", "spatialPath")),
+                        Set.of("category", "location", "observationId", "projectId", "projectName",
+                                "resolvedDate", "responsibleParty", "severity", "spatialNodeId",
+                                "status", "targetDate"),
+                        Set.of("correctiveAction", "description", "id", "inspectionId",
+                                "inspectionNumber", "inspectionTitle", "photos", "spatialPath")),
                 new ReviewedSchema(
                         NcrDto.class,
                         Set.of("closedAt", "closedById", "correctiveActionCompletedAt",
-                                "correctiveActionRemarks", "defectId", "observationId", "raisedById",
-                                "severity", "siteEngineerId", "targetDate", "verificationRemarks",
-                                "verifiedAt", "verifiedById"),
+                                "correctiveActionRemarks", "defectId", "inspectionNumber",
+                                "inspectionTitle", "observationId", "projectId", "projectName",
+                                "raisedById", "severity", "siteEngineerId", "targetDate",
+                                "verificationRemarks", "verifiedAt", "verifiedById"),
                         Set.of("createdAt", "description", "id", "inspectionId", "ncrNumber",
                                 "status", "title", "type", "updatedAt")),
                 new ReviewedSchema(

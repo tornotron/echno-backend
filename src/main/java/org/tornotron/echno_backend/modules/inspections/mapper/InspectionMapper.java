@@ -23,5 +23,10 @@ public interface InspectionMapper {
     InspectionCheckItemDto toCheckItemDto(InspectionCheckItem item);
 
     @Mapping(target = "spatialPath", expression = "java(java.util.List.of())")
+    @Mapping(target = "inspectionId", source = "inspection.id")
+    @Mapping(target = "inspectionNumber", source = "inspection.inspectionNumber")
+    @Mapping(target = "inspectionTitle", source = "inspection.title")
+    @Mapping(target = "projectId", source = "inspection.projectId")
+    @Mapping(target = "projectName", ignore = true) // filled by InspectionService from one name read
     InspectionDefectDto toDefectDto(InspectionDefect defect);
 }
