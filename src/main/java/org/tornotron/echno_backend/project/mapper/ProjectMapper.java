@@ -9,7 +9,7 @@ import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectProgressCalculator;
-import org.tornotron.echno_backend.project.ProjectProgressLookup;
+import org.tornotron.echno_backend.project.ProjectSummaryLookup;
 import org.tornotron.echno_backend.project.dto.ProjectDto;
 import org.tornotron.echno_backend.project.dto.ProjectSimpleDto;
 import org.tornotron.echno_backend.project.dto.ProjectSummaryDto;
@@ -21,7 +21,8 @@ import org.tornotron.echno_backend.task.mapper.TaskMapper;
  * every shape: the average of the project's task progress values. The full DTO and the simple
  * DTO each compute it through {@link ProjectProgressCalculator} (in {@link #calcProgress} and
  * {@link #calcSimpleProgress}); the summary reads the same average out of the
- * {@link ProjectProgressLookup} the caller fills for the whole page.
+ * {@link ProjectSummaryLookup} the caller fills for the whole page, along with the task count
+ * and the team size the list screens render.
  *
  * <p>{@link #toSummaryDto} is the list projection of the full DTO: the same scalar fields, none
  * of the collections, and a progress figure that means the same thing. It is deliberately not
@@ -43,16 +44,19 @@ public interface ProjectMapper {
     ProjectSimpleDto toSimpleDto(Project project);
 
     /**
-     * Converts a project for a list, taking its progress from the supplied lookup.
+     * Converts a project for a list, taking its progress and its counts from the supplied lookup.
      *
      * @param project The project to convert.
-     * @param progress The average task progress read for the whole page of projects being mapped.
-     *                 A project absent from it reads as zero, which is what
-     *                 {@link ProjectProgressCalculator} returns for a project with no tasks.
+     * @param totals The average task progress, task count and team size read for the whole page
+     *               of projects being mapped. A project absent from it reads as zero progress,
+     *               which is what {@link ProjectProgressCalculator} returns for a project with no
+     *               tasks, and zero of each count.
      * @return The project summary.
      */
-    @Mapping(target = "progress", expression = "java(progress.progressOf(project.getId()))")
-    ProjectSummaryDto toSummaryDto(Project project, @Context ProjectProgressLookup progress);
+    @Mapping(target = "progress", expression = "java(totals.progressOf(project.getId()))")
+    @Mapping(target = "taskCount", expression = "java(totals.taskCountOf(project.getId()))")
+    @Mapping(target = "memberCount", expression = "java(totals.memberCountOf(project.getId()))")
+    ProjectSummaryDto toSummaryDto(Project project, @Context ProjectSummaryLookup totals);
 
     @AfterMapping
     default void calcProgress(Project project, @MappingTarget ProjectDto dto) {

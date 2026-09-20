@@ -276,26 +276,27 @@ public class ProjectService {
         int size = Math.clamp(pageSize, 1, UnpagedResultCap.MAX_ROWS);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
         Page<Project> projects = repository.search(searchPattern(search), pageable);
-        ProjectProgressLookup progress = progressFor(projects.getContent());
-        return projects.map(project -> projectMapper.toSummaryDto(project, progress));
+        ProjectSummaryLookup totals = totalsFor(projects.getContent());
+        return projects.map(project -> projectMapper.toSummaryDto(project, totals));
     }
 
     /**
-     * Reads the average task progress for a whole page of projects, in one query.
+     * Reads the average task progress, the task count and the team size for a whole page of
+     * projects, in one query.
      *
      * @param projects The projects being converted.
-     * @return Their average task progress, with a project that has nothing to average reading as
-     *         zero.
+     * @return Their derived figures, with a project that has nothing to average reading as zero
+     *         progress.
      */
-    private ProjectProgressLookup progressFor(Collection<Project> projects) {
+    private ProjectSummaryLookup totalsFor(Collection<Project> projects) {
         List<Long> ids = projects.stream()
                 .map(Project::getId)
                 .filter(Objects::nonNull)
                 .toList();
         if (ids.isEmpty()) {
-            return ProjectProgressLookup.none();
+            return ProjectSummaryLookup.none();
         }
-        return ProjectProgressLookup.of(repository.averageTaskProgressByProjectIds(ids));
+        return ProjectSummaryLookup.of(repository.summaryTotalsByProjectIds(ids));
     }
 
     /**

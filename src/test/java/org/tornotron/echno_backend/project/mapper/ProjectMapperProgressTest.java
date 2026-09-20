@@ -7,8 +7,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.tornotron.echno_backend.project.Project;
-import org.tornotron.echno_backend.project.ProjectProgressLookup;
-import org.tornotron.echno_backend.project.ProjectProgressTotals;
+import org.tornotron.echno_backend.project.ProjectSummaryLookup;
+import org.tornotron.echno_backend.project.ProjectSummaryTotals;
 import org.tornotron.echno_backend.project.dto.ProjectSimpleDto;
 import org.tornotron.echno_backend.project.dto.ProjectSummaryDto;
 import org.tornotron.echno_backend.task.Task;
@@ -94,8 +94,8 @@ class ProjectMapperProgressTest {
     @Test
     void theSimpleDtoAndTheListProjection_reportTheSameFigure() {
         Project project = projectWithTaskProgress(20.0, 40.0, 90.0);
-        ProjectProgressLookup lookup =
-                ProjectProgressLookup.of(List.of(new ProjectProgressTotals(project.getId(), 50.0)));
+        ProjectSummaryLookup lookup =
+                ProjectSummaryLookup.of(List.of(new ProjectSummaryTotals(project.getId(), 50.0, 3, 0)));
 
         ProjectSimpleDto simple = mapper.toSimpleDto(project);
         ProjectSummaryDto summary = mapper.toSummaryDto(project, lookup);

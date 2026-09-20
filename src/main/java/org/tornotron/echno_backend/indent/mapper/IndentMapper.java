@@ -26,8 +26,8 @@ import org.tornotron.echno_backend.inventoryTransaction.MaterialStockLookup;
  * <p>{@link #toSummaryDto} is the list projection. It drops the lines entirely, which is what
  * makes it worth having: a line carries a whole material, and a material carries stock figures
  * read from a further aggregate, so a page of indents renders a column of indent numbers by
- * materialising the catalogue. The one thing a list wants from the lines is how many there are,
- * and that is counted for the whole page in one read. It also flattens the raiser to an id and a
+ * materialising the catalogue. What a list wants from the lines is how many there are and how
+ * many are already on a purchase order, and both are counted for the whole page in one read. It also flattens the raiser to an id and a
  * name rather than carrying a full employee, whose own DTO reaches a shift, a manager and a set
  * of attachments.
  */
@@ -59,6 +59,8 @@ public interface IndentMapper {
     @Mapping(source = "indent.project.id", target = "projectId")
     @Mapping(source = "indent.project.projectName", target = "projectName")
     @Mapping(target = "itemCount", expression = "java(itemCounts.itemCountOf(indent.getId()))")
+    @Mapping(target = "convertedItemCount",
+            expression = "java(itemCounts.convertedItemCountOf(indent.getId()))")
     IndentSummaryDto toSummaryDto(Indent indent, @Context IndentItemCountLookup itemCounts);
 
     @AfterMapping

@@ -11,7 +11,8 @@ import java.util.UUID;
 @Schema(description = "A project as it appears in a list: every scalar field of the full project "
         + "view, without the team, the tasks or the attachments. Progress still means what it "
         + "means on the full view, the mean of the project's task progress, but it is read for "
-        + "the whole page in one aggregate rather than by loading each project's tasks.")
+        + "the whole page in one aggregate rather than by loading each project's tasks. The "
+        + "member and task counts are read the same way.")
 @Data
 public class ProjectSummaryDto {
 
@@ -73,4 +74,12 @@ public class ProjectSummaryDto {
     @Schema(description = "Overall completion of the project, as a percentage from 0 to 100. The "
             + "same figure the full project view reports.", example = "35.0")
     private Double progress;
+
+    @Schema(description = "How many employees are on the project team. The size of the team the "
+            + "full project view carries, read for the whole page in one aggregate.", example = "8")
+    private long memberCount;
+
+    @Schema(description = "How many tasks the project has. The size of the task list the full "
+            + "project view carries, read for the whole page in one aggregate.", example = "24")
+    private long taskCount;
 }
