@@ -27,6 +27,9 @@ public interface PayableRepository extends JpaRepository<Payable, Long> {
 
     List<Payable> findByVendorIdAndOrganization_id(Long vendorId, Long organizationId);
 
+    /** Whether any payable stands against the goods receipt, which blocks reversing the receipt. */
+    boolean existsByGoodsReceivedNote_IdAndOrganization_Id(Long goodsReceivedNoteId, Long organizationId);
+
     @Query("SELECT p FROM Payable p WHERE p.amountRecorded > p.amountPaid")
     List<Payable> findOutstandingPayables();
 

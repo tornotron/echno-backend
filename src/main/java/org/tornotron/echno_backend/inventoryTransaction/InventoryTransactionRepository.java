@@ -45,6 +45,14 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
 
     List<InventoryTransaction> findByTransactionType(InventoryTransactionType transactionType);
 
+    /**
+     * Every row a document wrote, in the order it wrote them. A document's rows all carry its
+     * number as the reference, which is what lets a reversal be derived from the ledger rather
+     * than re-derived from the document's lines. Bounded by the document's line count.
+     */
+    List<InventoryTransaction> findByReferenceNumberAndOrganization_IdOrderByIdAsc(
+            String referenceNumber, Long organizationId);
+
     List<InventoryTransaction> findByTransactionDateBetween(LocalDateTime startDate, LocalDateTime endDate);
 
     List<InventoryTransaction> findByProjectId(Long projectId);

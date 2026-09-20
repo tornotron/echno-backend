@@ -5,10 +5,13 @@ import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransacti
 import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransactionType.StockEffect;
 
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Verifies that every {@link InventoryTransactionType} constant carries the stock
@@ -37,6 +40,7 @@ class InventoryTransactionTypeTest {
         expected.put(InventoryTransactionType.STOCK_TAKE_LOSS, StockEffect.DECREASE);
         expected.put(InventoryTransactionType.WRITE_OFF, StockEffect.DECREASE);
         expected.put(InventoryTransactionType.ADJUST, StockEffect.EITHER);
+        expected.put(InventoryTransactionType.REVERSAL, StockEffect.EITHER);
 
         // Every declared constant must have an expectation, so a newly added value
         // without a defined effect fails the test rather than passing silently.
@@ -50,12 +54,16 @@ class InventoryTransactionTypeTest {
     }
 
     @Test
-    void adjustIsTheOnlyEitherEffect() {
+    void adjustAndReversalAreTheOnlyEitherEffects() {
+        // ADJUST corrects a balance to a count, REVERSAL undoes a document's movement on one
+        // row; both go whichever way the signed quantity says, and nothing else does.
+        Set<InventoryTransactionType> signed = EnumSet.of(
+                InventoryTransactionType.ADJUST, InventoryTransactionType.REVERSAL);
         for (InventoryTransactionType type : InventoryTransactionType.values()) {
             assertNotNull(type.getStockEffect(), type + " must declare a stock effect");
             if (type.getStockEffect() == StockEffect.EITHER) {
-                assertEquals(InventoryTransactionType.ADJUST, type,
-                        "ADJUST is the only type whose sign comes from the signed quantity");
+                assertTrue(signed.contains(type),
+                        "ADJUST and REVERSAL are the only types whose sign comes from the signed quantity");
             }
         }
     }

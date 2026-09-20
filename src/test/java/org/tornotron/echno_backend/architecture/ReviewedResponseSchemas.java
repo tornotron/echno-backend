@@ -428,7 +428,7 @@ final class ReviewedResponseSchemas {
                         PurchaseOrderDto.class,
                         Set.of("indentId", "indentNumber", "projectId", "projectName",
                                 "createdBy", "expectedDeliveryDate", "remarks", "items",
-                                "totalAmount"),
+                                "totalAmount", "reversalId"),
                         Set.of("id", "poNumber", "vendorId", "vendorName", "status",
                                 "createdAt")),
                 new ReviewedSchema(
@@ -446,7 +446,7 @@ final class ReviewedResponseSchemas {
                         Set.of("receivedBy", "vendorId", "vendorName", "purchaseOrderId",
                                 "purchaseOrderNumber", "deliveryChallanNumber", "invoiceNumber",
                                 "invoiceAmount", "projectId", "projectName", "storageLocationId",
-                                "storageLocationName", "items"),
+                                "storageLocationName", "items", "reversalId"),
                         Set.of("id", "grnNumber", "receivedOn", "overReceiptAcknowledged")),
                 new ReviewedSchema(
                         PayableDto.class,

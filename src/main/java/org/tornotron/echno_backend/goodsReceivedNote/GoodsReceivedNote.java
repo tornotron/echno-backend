@@ -108,4 +108,12 @@ public class GoodsReceivedNote implements TenantScopedEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")
     private Organization organization;
+
+    /**
+     * The approved reversal request that undid this document, null while it stands. A plain id
+     * rather than an association: the link is read in one direction from here and the reversal
+     * row carries the other, and a lazy association on every list row would buy nothing.
+     */
+    @Column(name = "reversal_id")
+    private Long reversalId;
 }

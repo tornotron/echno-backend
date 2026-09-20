@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Reversal with approval for site transfers, purchase orders and goods received notes (#835).
+      One request row per ask, whichever kind of document it names; the document is referenced
+      by kind and id, the way status_transition references its owner. Approval writes REVERSAL
+      rows to inventory_transaction under REV-<number> and stamps the document with the request
+      id, so the two link both ways. Organization scoped.
+    -->
+    <changeSet id="119-01-document-reversal" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="document_reversal"/>
+            </not>
+        </preConditions>
+        <createTable tableName="document_reversal">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_document_reversal_organization"
+                             references="organization(id)"/>
+            </column>
+            <column name="document_type" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="document_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="document_number" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="requested_by" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="requested_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="decided_by" type="BIGINT"/>
+            <column name="decided_at" type="TIMESTAMP"/>
+            <column name="decision_note" type="VARCHAR(500)"/>
+            <column name="reversal_reference" type="VARCHAR(100)"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="document_reversal" indexName="idx_document_reversal_org_status">
+            <column name="organization_id"/>
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="document_reversal" indexName="idx_document_reversal_document">
+            <column name="organization_id"/>
+            <column name="document_type"/>
+            <column name="document_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- One pending request per document. A partial unique index, so decided rows do not count. -->
+    <changeSet id="119-02-document-reversal-one-pending" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="document_reversal" indexName="uk_document_reversal_pending"/>
+            </not>
+        </preConditions>
+        <sql>
+            CREATE UNIQUE INDEX uk_document_reversal_pending
+                ON document_reversal (organization_id, document_type, document_id)
+                WHERE status = 'PENDING'
+        </sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS uk_document_reversal_pending</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- The link from a reversed document back to the request that undid it. -->
+    <changeSet id="119-03-site-transfer-reversal-id" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="site_transfer" columnName="reversal_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="site_transfer">
+            <column name="reversal_id" type="BIGINT">
+                <constraints foreignKeyName="fk_site_transfer_reversal" references="document_reversal(id)"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="119-04-purchase-order-reversal-id" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="purchase_order" columnName="reversal_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="purchase_order">
+            <column name="reversal_id" type="BIGINT">
+                <constraints foreignKeyName="fk_purchase_order_reversal" references="document_reversal(id)"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="119-05-goods-received-note-reversal-id" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="goods_received_note" columnName="reversal_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="goods_received_note">
+            <column name="reversal_id" type="BIGINT">
+                <constraints foreignKeyName="fk_goods_received_note_reversal" references="document_reversal(id)"/>
+            </column>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

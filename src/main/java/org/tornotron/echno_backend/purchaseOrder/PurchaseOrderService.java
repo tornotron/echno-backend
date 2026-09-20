@@ -353,6 +353,20 @@ public class PurchaseOrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + id + " was not found in this organization"));
 
         PurchaseOrderStatus previousStatus = purchaseOrder.getStatus();
+        // REVERSED is written by an approved reversal, which also posts the link to the request
+        // and the trail note; a payload that set it would claim a reversal that nobody approved.
+        // And a reversed order is terminal, for the same reason a rejected adjustment is.
+        if (status == PurchaseOrderStatus.REVERSED) {
+            throw new InvalidRequestException("Purchase order " + purchaseOrder.getPoNumber()
+                    + " cannot be set to REVERSED from a payload. A reversal is requested by whoever "
+                    + "raised the order with POST /document-reversals and approved by an administrator "
+                    + "or project manager, which is what records who asked and who agreed.");
+        }
+        if (previousStatus == PurchaseOrderStatus.REVERSED) {
+            throw new InvalidRequestException("Purchase order " + purchaseOrder.getPoNumber()
+                    + " has been reversed under reversal request #" + purchaseOrder.getReversalId()
+                    + " and its status cannot change again.");
+        }
         purchaseOrder.setStatus(status);
         purchaseOrderRepository.save(purchaseOrder);
         recordStatusChange(purchaseOrder, previousStatus);

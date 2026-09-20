@@ -78,4 +78,8 @@ public class PurchaseOrderDto {
             + "worth nothing. The column still permits null, so a row written outside the "
             + "application can carry none.", example = "485000.00", nullable = true)
     private BigDecimal totalAmount;
+
+    @Schema(description = "Id of the approved reversal request that undid this document. Null while it stands.",
+            example = "12", nullable = true)
+    private Long reversalId;
 }

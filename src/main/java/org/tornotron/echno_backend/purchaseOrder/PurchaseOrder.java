@@ -104,6 +104,14 @@ public class PurchaseOrder implements TenantScopedEntity {
     @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL)
     private List<GoodsReceivedNote> goodsReceivedNotes = new ArrayList<>();
 
+    /**
+     * The approved reversal request that undid this document, null while it stands. A plain id
+     * rather than an association: the link is read in one direction from here and the reversal
+     * row carries the other, and a lazy association on every list row would buy nothing.
+     */
+    @Column(name = "reversal_id")
+    private Long reversalId;
+
     public void addItem(PurchaseOrderItem item) {
         items.add(item);
         item.setPurchaseOrder(this);

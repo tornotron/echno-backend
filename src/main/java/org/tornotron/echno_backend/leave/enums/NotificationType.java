@@ -18,5 +18,14 @@ public enum NotificationType {
      * rather than for leave, the column is {@code VARCHAR(50)}, and nothing reads the constants
      * as a closed leave-shaped set, so this costs a line rather than a migration.
      */
-    MATERIAL_LOW_STOCK
+    MATERIAL_LOW_STOCK,
+
+    /**
+     * A reversal of a site transfer, purchase order or goods receipt was approved. Sent to the
+     * store keepers of every store that has stock to put back, and to the requester.
+     */
+    DOCUMENT_REVERSAL_APPROVED,
+
+    /** A reversal request was refused. Sent to the requester with the approver's reason. */
+    DOCUMENT_REVERSAL_REJECTED
 }

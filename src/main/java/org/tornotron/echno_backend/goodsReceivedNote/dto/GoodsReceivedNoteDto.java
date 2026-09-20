@@ -83,4 +83,8 @@ public class GoodsReceivedNoteDto {
     @Schema(description = "True when this receipt took a material past the quantity its purchase order "
             + "asked for and the excess was acknowledged on the payload.", example = "false")
     private boolean overReceiptAcknowledged;
+
+    @Schema(description = "Id of the approved reversal request that undid this document. Null while it stands.",
+            example = "12", nullable = true)
+    private Long reversalId;
 }

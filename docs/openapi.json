@@ -6294,6 +6294,219 @@
         ],
         "type": "object"
       },
+      "DocumentReversalDto": {
+        "description": "A request to reverse a site transfer, purchase order or goods received note, with the decision taken on it.",
+        "properties": {
+          "createdAt": {
+            "description": "When the request row was created.",
+            "example": "2026-09-20T10:15:00",
+            "format": "date-time",
+            "type": "string"
+          },
+          "decidedAt": {
+            "description": "When the decision was taken. Null while pending.",
+            "example": "2026-09-20T11:00:00",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decidedBy": {
+            "description": "Id of the user who approved, rejected or cancelled it. Null while pending.",
+            "example": 3,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "decidedByName": {
+            "description": "Display name of the decider. Null while pending.",
+            "example": "Anand R",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decisionNote": {
+            "description": "The approver's reason on a rejection, or a note on the other decisions. Null while pending.",
+            "example": "The transfer was correct; the count was wrong",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "documentId": {
+            "description": "Id of that document, within its own kind.",
+            "example": 31,
+            "format": "int64",
+            "type": "integer"
+          },
+          "documentNumber": {
+            "description": "The document's number as it was when the request was raised.",
+            "example": "ST-2026-0031",
+            "type": "string"
+          },
+          "documentType": {
+            "description": "The kind of document the request names.",
+            "enum": [
+              "SITE_TRANSFER",
+              "PURCHASE_ORDER",
+              "GOODS_RECEIVED_NOTE"
+            ],
+            "example": "SITE_TRANSFER",
+            "type": "string"
+          },
+          "id": {
+            "description": "Id of the reversal request.",
+            "example": 12,
+            "format": "int64",
+            "type": "integer"
+          },
+          "organizationId": {
+            "description": "Id of the owning organization.",
+            "example": 1,
+            "format": "int64",
+            "type": "integer"
+          },
+          "reason": {
+            "description": "Why the reversal was asked for.",
+            "example": "Issued against the wrong store",
+            "type": "string"
+          },
+          "requestedAt": {
+            "description": "When the request was raised.",
+            "example": "2026-09-20T10:15:00",
+            "format": "date-time",
+            "type": "string"
+          },
+          "requestedBy": {
+            "description": "Id of the user who asked for it, always the document's creator.",
+            "example": 7,
+            "format": "int64",
+            "type": "integer"
+          },
+          "requestedByName": {
+            "description": "Display name of the requester.",
+            "example": "Ravi Kumar",
+            "type": "string"
+          },
+          "reversalReference": {
+            "description": "Reference number the correcting ledger entries carry. Null until approved, and null on a purchase order reversal, which moves no stock.",
+            "example": "REV-ST-2026-0031",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "description": "Where the request stands.",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED",
+              "CANCELLED"
+            ],
+            "example": "PENDING",
+            "type": "string"
+          },
+          "updatedAt": {
+            "description": "When the request row was last written.",
+            "example": "2026-09-20T11:00:00",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DocumentReversalEligibilityDto": {
+        "description": "Whether a document can currently be reversed, and whether the caller may ask for it.",
+        "properties": {
+          "blocker": {
+            "description": "What stands in the way when reversible is false: the downstream document or consumed stock, the document's state, or a pending request. Null when reversible.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "callerIsCreator": {
+            "description": "True when the caller is the document's creator and so may request its reversal.",
+            "type": "boolean"
+          },
+          "pendingReversalId": {
+            "description": "Id of the pending request on this document, if there is one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "reversalId": {
+            "description": "Id of the approved reversal that undid this document, if it has been reversed.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "reversible": {
+            "description": "True when nothing stands in the way of a reversal being requested.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "DocumentReversalRejectionRequest": {
+        "description": "Payload to reject a reversal request, carrying the reason it was refused.",
+        "properties": {
+          "reason": {
+            "description": "Why the reversal is being refused. Required.",
+            "example": "The stock has been issued to the slab pour; raise an adjustment instead",
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DocumentReversalRequestDto": {
+        "description": "Payload to request the reversal of a site transfer, purchase order or goods received note.",
+        "properties": {
+          "documentId": {
+            "description": "Id of that document.",
+            "example": 18,
+            "format": "int64",
+            "type": "integer"
+          },
+          "documentType": {
+            "description": "The kind of document to reverse.",
+            "enum": [
+              "SITE_TRANSFER",
+              "PURCHASE_ORDER",
+              "GOODS_RECEIVED_NOTE"
+            ],
+            "example": "GOODS_RECEIVED_NOTE",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why it should be reversed. Required.",
+            "example": "Delivery booked to the wrong project",
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "documentId",
+          "documentType",
+          "reason"
+        ],
+        "type": "object"
+      },
       "EditMessageDto": {
         "description": "Payload to edit the body of an existing message.",
         "properties": {
@@ -7541,6 +7754,15 @@
             "example": "2026-08-01T10:30:00",
             "format": "date-time",
             "type": "string"
+          },
+          "reversalId": {
+            "description": "Id of the approved reversal request that undid this document. Null while it stands.",
+            "example": 12,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "storageLocationId": {
             "description": "Storage location the received quantities were booked into. Null where the receipt was not booked into one.",
@@ -9096,7 +9318,8 @@
               "STOCK_TAKE_GAIN",
               "STOCK_TAKE_LOSS",
               "WRITE_OFF",
-              "ADJUST"
+              "ADJUST",
+              "REVERSAL"
             ],
             "example": "USE",
             "type": "string"
@@ -12789,7 +13012,8 @@
               "STOCK_TAKE_GAIN",
               "STOCK_TAKE_LOSS",
               "WRITE_OFF",
-              "ADJUST"
+              "ADJUST",
+              "REVERSAL"
             ],
             "example": "USE",
             "type": "string"
@@ -13577,7 +13801,9 @@
               "LEAVE_BALANCE_LOW",
               "LEAVE_REMINDER",
               "APPROVAL_DELEGATED",
-              "MATERIAL_LOW_STOCK"
+              "MATERIAL_LOW_STOCK",
+              "DOCUMENT_REVERSAL_APPROVED",
+              "DOCUMENT_REVERSAL_REJECTED"
             ],
             "example": "LEAVE_PENDING_APPROVAL",
             "type": "string"
@@ -14583,6 +14809,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/DefectPhotoAnnotationDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageDocumentReversalDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentReversalDto"
             },
             "type": "array"
           },
@@ -17974,6 +18246,15 @@
               "null"
             ]
           },
+          "reversalId": {
+            "description": "Id of the approved reversal request that undid this document. Null while it stands.",
+            "example": 12,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "status": {
             "description": "Current lifecycle status of the purchase order.",
             "enum": [
@@ -17982,7 +18263,8 @@
               "SENT_TO_VENDOR",
               "PARTIALLY_RECEIVED",
               "FULLY_RECEIVED",
-              "CANCELLED"
+              "CANCELLED",
+              "REVERSED"
             ],
             "example": "SENT_TO_VENDOR",
             "type": "string"
@@ -19533,6 +19815,15 @@
             "example": "Site B Yard",
             "type": "string"
           },
+          "reversalId": {
+            "description": "Id of the approved reversal request that undid this document. Null while it stands.",
+            "example": 12,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "sendingPerson": {
             "$ref": "#/components/schemas/EmployeeDto",
             "description": "Employee who handed over the materials at the sending project."
@@ -19565,7 +19856,8 @@
               "PENDING",
               "PARTIALLY_TRANSFERRED",
               "COMPLETED",
-              "CANCELLED"
+              "CANCELLED",
+              "REVERSED"
             ],
             "example": "PENDING",
             "type": "string"
@@ -40706,6 +40998,1948 @@
         "summary": "Replace a checklist template",
         "tags": [
           "Checklist templates"
+        ]
+      }
+    },
+    "/api/v1/document-reversals": {
+      "get": {
+        "description": "Returns a page of reversal requests, most recently raised first, optionally filtered to one status. PENDING is the approvals queue.",
+        "operationId": "listReversals",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED",
+                "CANCELLED"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDocumentReversalDto"
+                }
+              }
+            },
+            "description": "Page of reversal requests returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List reversal requests, paginated",
+        "tags": [
+          "Document Reversals"
+        ]
+      },
+      "post": {
+        "description": "Raises a pending reversal request on the named site transfer, purchase order or goods received note. The requester is taken from the session and must be the person who raised the document; nobody else, an administrator included, may ask on their behalf. Refused at once, with the blocker named, when the document cannot be reversed: it is cancelled or already reversed, a downstream document stands against it, stock it brought in has since been issued, or a request is already pending.",
+        "operationId": "requestReversal",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentReversalRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReversalDto"
+                }
+              }
+            },
+            "description": "Reversal request raised"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The document cannot be reversed, a request is already pending, or a field failed validation"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant, or did not raise the document"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such document in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Request the reversal of a document",
+        "tags": [
+          "Document Reversals"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/by-document": {
+      "get": {
+        "description": "Every request ever raised on the document, most recent first, so the document's page can show the pending one, the approved one that undid it, or the refusals before it. Empty where none has been raised.",
+        "operationId": "listReversalsByDocument_1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "documentType",
+            "required": true,
+            "schema": {
+              "enum": [
+                "SITE_TRANSFER",
+                "PURCHASE_ORDER",
+                "GOODS_RECEIVED_NOTE"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentReversalDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Reversal requests on the document returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "documentType is not a reversible kind of document"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the reversal requests raised on one document",
+        "tags": [
+          "Document Reversals"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/eligibility": {
+      "get": {
+        "description": "Answers the two questions a document page needs before showing the request control: is anything blocking a reversal right now, and did the caller raise the document. The blocker, when there is one, is the same message the request would be refused with.",
+        "operationId": "eligibility_1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "documentType",
+            "required": true,
+            "schema": {
+              "enum": [
+                "SITE_TRANSFER",
+                "PURCHASE_ORDER",
+                "GOODS_RECEIVED_NOTE"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReversalEligibilityDto"
+                }
+              }
+            },
+            "description": "Eligibility returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such document in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Whether a document can be reversed, and whether the caller may ask",
+        "tags": [
+          "Document Reversals"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/web": {
+      "get": {
+        "description": "Returns a page of reversal requests, most recently raised first, optionally filtered to one status. PENDING is the approvals queue.",
+        "operationId": "listReversals_1",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED",
+                "CANCELLED"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDocumentReversalDto"
+                }
+              }
+            },
+            "description": "Page of reversal requests returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List reversal requests, paginated",
+        "tags": [
+          "Document Reversals (Web)"
+        ]
+      },
+      "post": {
+        "description": "Raises a pending reversal request on the named site transfer, purchase order or goods received note. The requester is taken from the session and must be the person who raised the document; nobody else, an administrator included, may ask on their behalf. Refused at once, with the blocker named, when the document cannot be reversed: it is cancelled or already reversed, a downstream document stands against it, stock it brought in has since been issued, or a request is already pending.",
+        "operationId": "requestReversal_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentReversalRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReversalDto"
+                }
+              }
+            },
+            "description": "Reversal request raised"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The document cannot be reversed, a request is already pending, or a field failed validation"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant, or did not raise the document"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such document in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Request the reversal of a document",
+        "tags": [
+          "Document Reversals (Web)"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/web/by-document": {
+      "get": {
+        "description": "Every request ever raised on the document, most recent first, so the document's page can show the pending one, the approved one that undid it, or the refusals before it. Empty where none has been raised.",
+        "operationId": "listReversalsByDocument",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "documentType",
+            "required": true,
+            "schema": {
+              "enum": [
+                "SITE_TRANSFER",
+                "PURCHASE_ORDER",
+                "GOODS_RECEIVED_NOTE"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentReversalDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Reversal requests on the document returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "documentType is not a reversible kind of document"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the reversal requests raised on one document",
+        "tags": [
+          "Document Reversals (Web)"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/web/eligibility": {
+      "get": {
+        "description": "Answers the two questions a document page needs before showing the request control: is anything blocking a reversal right now, and did the caller raise the document. The blocker, when there is one, is the same message the request would be refused with.",
+        "operationId": "eligibility",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "documentType",
+            "required": true,
+            "schema": {
+              "enum": [
+                "SITE_TRANSFER",
+                "PURCHASE_ORDER",
+                "GOODS_RECEIVED_NOTE"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReversalEligibilityDto"
+                }
+              }
+            },
+            "description": "Eligibility returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such document in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Whether a document can be reversed, and whether the caller may ask",
+        "tags": [
+          "Document Reversals (Web)"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/web/{id}": {
+      "get": {
+        "operationId": "getReversal_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReversalDto"
+                }
+              }
+            },
+            "description": "Reversal request found"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reversal request with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get a reversal request by id",
+        "tags": [
+          "Document Reversals (Web)"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/web/{id}/approve": {
+      "post": {
+        "description": "Writes one correcting ledger entry per balance row the document moved, for the opposite of what it wrote there, and moves each balance back; marks the document reversed and links it to this request; takes a reversed receipt's quantities back off its purchase order; and notifies the store keepers of every store that has stock to put back physically. Whoever raised the request cannot approve it unless they hold the system-admin role. The blockers are checked again here, because stock may have been issued since the request was raised.",
+        "operationId": "approveReversal_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReversalDto"
+                }
+              }
+            },
+            "description": "Reversal approved and posted"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The request is not pending, is being approved by its requester without the system-admin role, or the document is now blocked"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reversal request with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Approve a reversal request and undo the document",
+        "tags": [
+          "Document Reversals (Web)"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/web/{id}/cancel": {
+      "post": {
+        "description": "Only the requester may withdraw their own request, and only while it is pending. The withdrawn row stays on the record.",
+        "operationId": "cancelReversal_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReversalDto"
+                }
+              }
+            },
+            "description": "Reversal request withdrawn"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The request is not pending"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant, or did not raise the request"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reversal request with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Withdraw a pending reversal request",
+        "tags": [
+          "Document Reversals (Web)"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/web/{id}/reject": {
+      "post": {
+        "description": "Refuses the request and keeps the refusal and its reason on the record. Nothing moves. The reason is required. The requester is told.",
+        "operationId": "rejectReversal_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentReversalRejectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReversalDto"
+                }
+              }
+            },
+            "description": "Reversal request rejected"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reason was given, or the request is not pending"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reversal request with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Reject a reversal request, recording why",
+        "tags": [
+          "Document Reversals (Web)"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/{id}": {
+      "get": {
+        "operationId": "getReversal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReversalDto"
+                }
+              }
+            },
+            "description": "Reversal request found"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reversal request with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get a reversal request by id",
+        "tags": [
+          "Document Reversals"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/{id}/approve": {
+      "post": {
+        "description": "Writes one correcting ledger entry per balance row the document moved, for the opposite of what it wrote there, and moves each balance back; marks the document reversed and links it to this request; takes a reversed receipt's quantities back off its purchase order; and notifies the store keepers of every store that has stock to put back physically. Whoever raised the request cannot approve it unless they hold the system-admin role. The blockers are checked again here, because stock may have been issued since the request was raised.",
+        "operationId": "approveReversal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReversalDto"
+                }
+              }
+            },
+            "description": "Reversal approved and posted"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The request is not pending, is being approved by its requester without the system-admin role, or the document is now blocked"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reversal request with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Approve a reversal request and undo the document",
+        "tags": [
+          "Document Reversals"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/{id}/cancel": {
+      "post": {
+        "description": "Only the requester may withdraw their own request, and only while it is pending. The withdrawn row stays on the record.",
+        "operationId": "cancelReversal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReversalDto"
+                }
+              }
+            },
+            "description": "Reversal request withdrawn"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The request is not pending"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant, or did not raise the request"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reversal request with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Withdraw a pending reversal request",
+        "tags": [
+          "Document Reversals"
+        ]
+      }
+    },
+    "/api/v1/document-reversals/{id}/reject": {
+      "post": {
+        "description": "Refuses the request and keeps the refusal and its reason on the record. Nothing moves. The reason is required. The requester is told.",
+        "operationId": "rejectReversal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentReversalRejectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReversalDto"
+                }
+              }
+            },
+            "description": "Reversal request rejected"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reason was given, or the request is not pending"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No reversal request with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Reject a reversal request, recording why",
+        "tags": [
+          "Document Reversals"
         ]
       }
     },
@@ -64263,7 +66497,8 @@
                 "STOCK_TAKE_GAIN",
                 "STOCK_TAKE_LOSS",
                 "WRITE_OFF",
-                "ADJUST"
+                "ADJUST",
+                "REVERSAL"
               ],
               "type": "string"
             }
@@ -65838,7 +68073,8 @@
                 "STOCK_TAKE_GAIN",
                 "STOCK_TAKE_LOSS",
                 "WRITE_OFF",
-                "ADJUST"
+                "ADJUST",
+                "REVERSAL"
               ],
               "type": "string"
             }
@@ -101848,7 +104084,8 @@
                 "SENT_TO_VENDOR",
                 "PARTIALLY_RECEIVED",
                 "FULLY_RECEIVED",
-                "CANCELLED"
+                "CANCELLED",
+                "REVERSED"
               ],
               "type": "string"
             }
@@ -102659,7 +104896,8 @@
                 "SENT_TO_VENDOR",
                 "PARTIALLY_RECEIVED",
                 "FULLY_RECEIVED",
-                "CANCELLED"
+                "CANCELLED",
+                "REVERSED"
               ],
               "type": "string"
             }
@@ -103020,7 +105258,8 @@
                 "SENT_TO_VENDOR",
                 "PARTIALLY_RECEIVED",
                 "FULLY_RECEIVED",
-                "CANCELLED"
+                "CANCELLED",
+                "REVERSED"
               ],
               "type": "string"
             }
@@ -103402,7 +105641,8 @@
                 "SENT_TO_VENDOR",
                 "PARTIALLY_RECEIVED",
                 "FULLY_RECEIVED",
-                "CANCELLED"
+                "CANCELLED",
+                "REVERSED"
               ],
               "type": "string"
             }
@@ -106035,7 +108275,8 @@
                 "PENDING",
                 "PARTIALLY_TRANSFERRED",
                 "COMPLETED",
-                "CANCELLED"
+                "CANCELLED",
+                "REVERSED"
               ],
               "type": "string"
             }
@@ -106734,7 +108975,8 @@
                 "PENDING",
                 "PARTIALLY_TRANSFERRED",
                 "COMPLETED",
-                "CANCELLED"
+                "CANCELLED",
+                "REVERSED"
               ],
               "type": "string"
             }
@@ -107224,7 +109466,8 @@
                 "PENDING",
                 "PARTIALLY_TRANSFERRED",
                 "COMPLETED",
-                "CANCELLED"
+                "CANCELLED",
+                "REVERSED"
               ],
               "type": "string"
             }
@@ -107851,7 +110094,8 @@
                 "PENDING",
                 "PARTIALLY_TRANSFERRED",
                 "COMPLETED",
-                "CANCELLED"
+                "CANCELLED",
+                "REVERSED"
               ],
               "type": "string"
             }
@@ -123238,6 +125482,14 @@
     {
       "description": "Copies the organization's consented inspection images into the dataset bucket with a per-run manifest. Refused unless the organization has recorded dataset consent.",
       "name": "Dataset Export"
+    },
+    {
+      "description": "Requests to reverse a site transfer, purchase order or goods received note, and the decisions taken on them. A document is never deleted: whoever raised it asks for it to be reversed, an administrator or project manager approves or rejects the request with a reason, and on approval the document's stock movements are undone by correcting ledger entries so every affected store returns to the balance it held before. The original stays on the record marked reversed and linked to the request. A document consumed downstream (a receipt against an order, an arrival against a transfer, a payable against a receipt, stock issued since) cannot be reversed while the downstream document stands; the request is refused with a message naming it. Reads and raising a request are open to every member of the tenant, with the service refusing anyone but the document's creator; approving and rejecting stay with system-admin and project-manager, the roles that approve stock adjustments.",
+      "name": "Document Reversals"
+    },
+    {
+      "description": "Requests to reverse a site transfer, purchase order or goods received note, and the decisions taken on them. A document is never deleted: whoever raised it asks for it to be reversed, an administrator or project manager approves or rejects the request with a reason, and on approval the document's stock movements are undone by correcting ledger entries so every affected store returns to the balance it held before. The original stays on the record marked reversed and linked to the request. A document consumed downstream (a receipt against an order, an arrival against a transfer, a payable against a receipt, stock issued since) cannot be reversed while the downstream document stands; the request is refused with a message naming it. Reads and raising a request are open to every member of the tenant, with the service refusing anyone but the document's creator; approving and rejecting stay with system-admin and project-manager, the roles that approve stock adjustments.",
+      "name": "Document Reversals (Web)"
     },
     {
       "description": "The construction element types an organization inspects: the seeded catalogue copied into the tenant on first use, plus any the organization defines. A spatial node of level ELEMENT carries one of these codes, and a checklist template's applicability names the ones it suits. Managing the list is the same authority as defining checklists. Types are deactivated, never deleted.",

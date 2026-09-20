@@ -14,5 +14,8 @@ public interface GoodsReceivedNoteRepository extends JpaRepository<GoodsReceived
 
     List<GoodsReceivedNote> findByVendorId(Long vendorId);
 
+    /** The receipts recorded against one order. Bounded by the deliveries an order takes. */
+    List<GoodsReceivedNote> findByPurchaseOrder_IdAndOrganization_Id(Long purchaseOrderId, Long organizationId);
+
     List<GoodsReceivedNote> findByReceivedOnBetween(LocalDateTime startDate, LocalDateTime endDate);
 }

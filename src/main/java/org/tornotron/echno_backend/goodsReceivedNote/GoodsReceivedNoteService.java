@@ -13,6 +13,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
 import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.retry.SqlStateDetector;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
@@ -31,6 +32,7 @@ import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderReceiptReconciler;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderRepository;
+import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.user.User;
@@ -148,6 +150,11 @@ public class GoodsReceivedNoteService {
 
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(creationDto.getPurchaseOrderId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + creationDto.getPurchaseOrderId() + " was not found in this organization"));
+        if (purchaseOrder.getStatus() == PurchaseOrderStatus.REVERSED) {
+            throw new InvalidRequestException("Purchase order " + purchaseOrder.getPoNumber()
+                    + " has been reversed under reversal request #" + purchaseOrder.getReversalId()
+                    + ", so nothing can be received against it.");
+        }
 
         // Create GRN
         GoodsReceivedNote grn = new GoodsReceivedNote();
