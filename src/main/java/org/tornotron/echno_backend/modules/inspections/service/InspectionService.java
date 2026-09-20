@@ -32,6 +32,8 @@ import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRec
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSubject;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventType;
 import org.tornotron.echno_backend.modules.inspections.mapper.InspectionMapper;
+import org.tornotron.echno_backend.project.ProjectName;
+import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.project.spatial.SpatialLevel;
 import org.tornotron.echno_backend.project.spatial.SpatialNode;
 import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
@@ -82,6 +84,7 @@ public class InspectionService {
     private final InspectionEventRecorder events;
     private final SpatialNodeService spatialNodeService;
     private final ObservationService observations;
+    private final ProjectRepository projectRepository;
 
     @Transactional(readOnly = true)
     public InspectionDto findById(UUID id) {
@@ -580,7 +583,11 @@ public class InspectionService {
         return node.getId();
     }
 
-    /** Fills the breadcrumbs on an inspection and its children from one batch lookup. */
+    /**
+     * Fills the breadcrumbs on an inspection and its children from one batch lookup, and the
+     * project's name on each defect from one more, so a defect says which project it belongs
+     * to without the reader joining it back to the inspection.
+     */
     private InspectionDto withSpatialPaths(InspectionDto dto) {
         if (dto == null) {
             return null;
@@ -595,8 +602,13 @@ public class InspectionService {
         List<InspectionCheckItemDto> items = checkItems.stream()
                 .map(c -> c.withSpatialPath(pathFor(paths, c.spatialNodeId())))
                 .toList();
+        String projectName = defectDtos.isEmpty() || dto.projectId() == null ? null
+                : projectRepository.findNamesByIds(List.of(dto.projectId())).stream()
+                        .map(ProjectName::projectName)
+                        .findFirst()
+                        .orElse(null);
         List<InspectionDefectDto> defects = defectDtos.stream()
-                .map(d -> d.withSpatialPath(pathFor(paths, d.spatialNodeId())))
+                .map(d -> d.withSpatialPath(pathFor(paths, d.spatialNodeId())).withProjectName(projectName))
                 .toList();
         return dto.withChildren(items, defects).withSpatialPath(pathFor(paths, dto.spatialNodeId()));
     }

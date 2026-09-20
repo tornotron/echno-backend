@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Schema(description = "A non-conformance report as returned by the API, with its assignment and "
-        + "closure trail.")
+        + "closure trail, and the inspection and project it traces back to.")
 public record NcrDto(
         UUID id,
         String ncrNumber,
@@ -64,5 +64,41 @@ public record NcrDto(
         @Schema(description = "Observation behind the non-conformance: the defect's when raised from a "
                 + "defect, otherwise its own. Null on reports raised before observations existed.",
                 nullable = true)
-        UUID observationId
-) {}
+        UUID observationId,
+        @Schema(description = "Document number of the inspection the report was raised against. "
+                + "Resolved through the inspection; null only where that inspection is no longer "
+                + "readable.", nullable = true)
+        String inspectionNumber,
+        @Schema(description = "Title of the inspection the report was raised against. Resolved "
+                + "through the inspection; null only where that inspection is no longer readable.",
+                nullable = true)
+        String inspectionTitle,
+        @Schema(description = "Project the report belongs to: the project of its inspection, never "
+                + "a value the client sent. Null where the inspection was recorded without a "
+                + "project.", nullable = true)
+        Long projectId,
+        @Schema(description = "Display name of that project. Null where projectId is null.",
+                nullable = true)
+        String projectName
+) {
+
+    /**
+     * The same report with its inspection and project filled in; the mapper leaves them null.
+     *
+     * @param inspection The inspection the report was raised against, or null where it could not
+     *                   be read, in which case the four fields stay null.
+     * @param projectName The name of that inspection's project, or null.
+     * @return The report with its trace filled in.
+     */
+    public NcrDto withInspection(InspectionReference inspection, String projectName) {
+        if (inspection == null) {
+            return this;
+        }
+        return new NcrDto(id, ncrNumber, type, inspectionId, defectId, title, description, severity,
+                status, siteEngineerId, targetDate, raisedById, verifiedById, closedById,
+                correctiveActionRemarks, verificationRemarks, correctiveActionCompletedAt,
+                verifiedAt, closedAt, createdAt, updatedAt, observationId,
+                inspection.inspectionNumber(), inspection.title(), inspection.projectId(),
+                projectName);
+    }
+}

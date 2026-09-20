@@ -127,8 +127,18 @@ public class NcrReportPdfService {
      */
     public RenderedReport renderPunchList(UUID inspectionId, NcrType type, Long siteEngineerId)
             throws IOException {
+        return renderPunchList(null, inspectionId, type, siteEngineerId);
+    }
+
+    /**
+     * As above, narrowed to one project's outstanding non-conformances.
+     *
+     * @param projectId Optional filter to the reports whose inspection belongs to one project.
+     */
+    public RenderedReport renderPunchList(Long projectId, UUID inspectionId, NcrType type,
+                                          Long siteEngineerId) throws IOException {
         Page<NcrDto> page = ncrService.findAll(
-                inspectionId, type, null, siteEngineerId, null, null, null, Boolean.TRUE,
+                projectId, inspectionId, type, null, siteEngineerId, null, null, null, Boolean.TRUE,
                 PageRequest.of(0, UnpagedResultCap.MAX_ROWS,
                         Sort.by(Sort.Direction.DESC, "createdAt")));
 

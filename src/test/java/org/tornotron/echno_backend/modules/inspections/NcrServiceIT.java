@@ -29,6 +29,7 @@ import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.modules.inspections.dtos.AssignNcrRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateInspectionRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateNcrRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDefectDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDefectRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.NcrDto;
@@ -401,6 +402,63 @@ class NcrServiceIT extends AbstractIntegrationTest {
 
         assertThat(service.findById(id).status()).isEqualTo(NcrStatus.OPEN);
         assertThat(service.findById(id).closedAt()).isNull();
+    }
+
+    /**
+     * A report says which inspection and which project it came from, read through the
+     * inspection rather than stored on the report, and the register narrows by that project.
+     * The project on the row is the inspection's, whatever the client might send.
+     */
+    @Test
+    void tracesEveryReportToItsInspectionAndProjectAndFiltersByProject() {
+        InspectionDto inspection = qualityInspection();
+        Project other = new Project();
+        other.setProjectName("Annex D");
+        other.setOrganization(entityManager.find(Organization.class, orgAId));
+        entityManager.persist(other);
+        entityManager.flush();
+        InspectionDto elsewhere = inspectionService.create(new CreateInspectionRequest(
+                "Annex check", InspectionType.QUALITY, null, null, null, other.getId(),
+                "Annex", null, null, LocalDate.of(2026, 8, 21), null,
+                null, null, null, 100L, null, null, null, null, null,
+                null, null, null));
+
+        NcrDto onTower = service.create(new CreateNcrRequest(inspection.id(), null,
+                "Cover below spec", "Measured 25 mm", DefectSeverity.MAJOR, siteEngineerId, null));
+        NcrDto onAnnex = service.create(new CreateNcrRequest(elsewhere.id(), null,
+                "Cracked lintel", "Hairline crack", DefectSeverity.MINOR, null, null));
+
+        assertThat(onTower.inspectionId()).isEqualTo(inspection.id());
+        assertThat(onTower.inspectionNumber()).isEqualTo(inspection.inspectionNumber());
+        assertThat(onTower.inspectionTitle()).isEqualTo("Slab check");
+        assertThat(onTower.projectId()).isEqualTo(projectId);
+        assertThat(onTower.projectName()).isEqualTo("Tower B");
+        assertThat(onAnnex.projectId()).isEqualTo(other.getId());
+        assertThat(onAnnex.projectName()).isEqualTo("Annex D");
+
+        entityManager.flush();
+        entityManager.clear();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        assertThat(service.findById(onAnnex.id()).projectName()).isEqualTo("Annex D");
+        assertThat(service.findAll(projectId, null, null, null, null, null, null, null, null, pageable)
+                .getContent()).extracting(NcrDto::id).containsExactly(onTower.id());
+        assertThat(service.findAll(other.getId(), null, null, null, null, null, null, null, null, pageable)
+                .getContent()).extracting(NcrDto::projectName).containsExactly("Annex D");
+        assertThat(service.findAll(foreignProjectId, null, null, null, null, null, null, null, null, pageable)
+                .getTotalElements())
+                .as("another tenant's project matches none of this tenant's inspections")
+                .isZero();
+        assertThat(service.findAll(null, null, null, null, null, null, null, null, null, pageable)
+                .getContent()).extracting(NcrDto::projectName)
+                .containsExactlyInAnyOrder("Tower B", "Annex D");
+
+        InspectionDefectDto defect = inspectionService.findById(inspection.id()).defects().get(0);
+        assertThat(defect.inspectionId()).isEqualTo(inspection.id());
+        assertThat(defect.inspectionNumber()).isEqualTo(inspection.inspectionNumber());
+        assertThat(defect.inspectionTitle()).isEqualTo("Slab check");
+        assertThat(defect.projectId()).isEqualTo(projectId);
+        assertThat(defect.projectName()).isEqualTo("Tower B");
     }
 
     @Test

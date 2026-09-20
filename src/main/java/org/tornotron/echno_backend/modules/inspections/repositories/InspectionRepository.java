@@ -11,7 +11,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionDefect;
+import org.tornotron.echno_backend.modules.inspections.dtos.InspectionReference;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -61,6 +63,19 @@ public interface InspectionRepository
     /** The project an inspection belongs to, without loading its check points and defects. */
     @Query("SELECT i.projectId FROM Inspection i WHERE i.id = :id")
     Optional<Long> findProjectIdByIdScoped(@Param("id") UUID id);
+
+    /**
+     * Number, title and project of many inspections in one read, for the records that hang
+     * off an inspection and say where they came from. Loads no check points or defects; an
+     * inspection of another tenant is absent from the result. Pass a non-empty collection.
+     */
+    @Query("""
+            SELECT new org.tornotron.echno_backend.modules.inspections.dtos.InspectionReference(
+                       i.id, i.inspectionNumber, i.title, i.projectId)
+            FROM Inspection i
+            WHERE i.id IN :ids
+            """)
+    List<InspectionReference> findReferencesByIdsScoped(@Param("ids") Collection<UUID> ids);
 
     /** A defect by id, organization-explicit through its inspection; defects have no repository of their own. */
     @Query("SELECT d FROM InspectionDefect d WHERE d.id = :id AND d.inspection.organization.id = :organizationId")

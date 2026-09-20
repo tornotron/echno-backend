@@ -107,4 +107,21 @@ public interface ProjectRepository extends JpaRepository<Project,Long> {
             """)
     List<ProjectSummaryTotals> summaryTotalsByProjectIds(
             @Param("projectIds") Collection<Long> projectIds);
+
+    /**
+     * The display names of many projects in one read, for labelling rows that carry a project id.
+     *
+     * <p>Filtered root, so a project of another tenant is simply absent from the result and the
+     * caller labels that row with nothing. Pass a non-empty collection: {@code IN ()} is not
+     * valid SQL.
+     *
+     * @param projectIds The projects to name, non-empty.
+     * @return One row per project found.
+     */
+    @Query("""
+            SELECT new org.tornotron.echno_backend.project.ProjectName(p.id, p.projectName)
+            FROM Project p
+            WHERE p.id IN :projectIds
+            """)
+    List<ProjectName> findNamesByIds(@Param("projectIds") Collection<Long> projectIds);
 }

@@ -45,13 +45,34 @@ public record InspectionDefectDto(
         List<SpatialPathSegment> spatialPath,
         @Schema(description = "Observation the defect was raised from. Null on defects recorded "
                 + "before observations existed.", nullable = true)
-        UUID observationId
+        UUID observationId,
+        @Schema(description = "Inspection the defect was found on.")
+        UUID inspectionId,
+        @Schema(description = "Document number of that inspection.")
+        String inspectionNumber,
+        @Schema(description = "Title of that inspection.")
+        String inspectionTitle,
+        @Schema(description = "Project the defect belongs to: the project of its inspection. Null "
+                + "where the inspection was recorded without a project.", nullable = true)
+        Long projectId,
+        @Schema(description = "Display name of that project. Null where projectId is null, and on "
+                + "a defect read outside a full inspection view.", nullable = true)
+        String projectName
 ) {
 
     /** The same record with the breadcrumb filled in; the mapper leaves it empty. */
     public InspectionDefectDto withSpatialPath(List<SpatialPathSegment> path) {
         return new InspectionDefectDto(
                 id, category, description, severity, location, photos, correctiveAction,
-                responsibleParty, targetDate, status, resolvedDate, spatialNodeId, path, observationId);
+                responsibleParty, targetDate, status, resolvedDate, spatialNodeId, path, observationId,
+                inspectionId, inspectionNumber, inspectionTitle, projectId, projectName);
+    }
+
+    /** The same record with the project's name filled in; the mapper cannot reach it. */
+    public InspectionDefectDto withProjectName(String name) {
+        return new InspectionDefectDto(
+                id, category, description, severity, location, photos, correctiveAction,
+                responsibleParty, targetDate, status, resolvedDate, spatialNodeId, spatialPath,
+                observationId, inspectionId, inspectionNumber, inspectionTitle, projectId, name);
     }
 }

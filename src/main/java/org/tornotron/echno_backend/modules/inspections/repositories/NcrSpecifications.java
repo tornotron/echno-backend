@@ -1,9 +1,12 @@
 package org.tornotron.echno_backend.modules.inspections.repositories;
 
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 import org.tornotron.echno_backend.modules.inspections.NcrStatus;
 import org.tornotron.echno_backend.modules.inspections.NcrType;
+import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.domain.Ncr;
 
 import java.util.ArrayList;
@@ -28,8 +31,35 @@ public final class NcrSpecifications {
                                                  Long verifiedById,
                                                  Long closedById,
                                                  Boolean open) {
+        return withFilters(null, inspectionId, type, status, siteEngineerId, raisedById,
+                verifiedById, closedById, open);
+    }
+
+    /**
+     * As above, narrowed to one project. An NCR carries no project of its own; it belongs to
+     * the project of the inspection it was raised against, so the filter is a subquery over the
+     * tenant's inspections rather than a column on the report. {@code Inspection} is itself
+     * filtered to the tenant, so a project id from another organization matches no inspection
+     * and therefore no report.
+     */
+    public static Specification<Ncr> withFilters(Long projectId,
+                                                 UUID inspectionId,
+                                                 NcrType type,
+                                                 NcrStatus status,
+                                                 Long siteEngineerId,
+                                                 Long raisedById,
+                                                 Long verifiedById,
+                                                 Long closedById,
+                                                 Boolean open) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            if (projectId != null) {
+                Subquery<UUID> ofProject = query.subquery(UUID.class);
+                Root<Inspection> inspection = ofProject.from(Inspection.class);
+                ofProject.select(inspection.get("id"))
+                        .where(cb.equal(inspection.get("projectId"), projectId));
+                predicates.add(root.get("inspectionId").in(ofProject));
+            }
             if (inspectionId != null) {
                 predicates.add(cb.equal(root.get("inspectionId"), inspectionId));
             }
