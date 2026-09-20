@@ -1,9 +1,4 @@
 code,name,group_code,description,sort_order,active
-earthwork,Earthwork,sitework,Site clearance and excavation and slopes and dewatering,1,true
-setting-out,Setting out,sitework,Baselines and benchmarks and grid lines and setbacks,2,true
-piling,Piling,sitework,Pile positioning and boring and reinforcement cage and concreting,3,true
-backfilling,Backfilling,sitework,Backfill material and layers and compaction,4,true
-anti-termite,Anti-termite treatment,sitework,Soil treatment chemical and application and coverage,5,true
 pre-construction-documentation,Pre-construction documentation,structural,Drawings and approvals and method statements in place before work starts,10,true
 shuttering-formwork,Shuttering and formwork,structural,Pre-pour check on formwork alignment and tightness and props,20,true
 reinforcement,Reinforcement,structural,Bar size and spacing and cover and laps before concreting,30,true
@@ -25,4 +20,3 @@ plumbing-fixtures,Plumbing fixtures,mep,Plumbing fixture installation and pressu
 sanitary-fixtures,Sanitary fixtures,mep,Sanitary fixture fixing and connection and flow test,430,true
 fire-systems,Fire systems,fire,Fire detection and suppression installation and testing,510,true
 progress-check,Progress check,general,Periodic progress and general condition check,610,true
-material-inspection,Material inspection,general,Incoming material check against BOQ and delivery challan and test certificates,620,true
