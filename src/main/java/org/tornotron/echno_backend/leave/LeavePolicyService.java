@@ -13,6 +13,9 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeavePolicyCreationDto;
 import org.tornotron.echno_backend.leave.dto.LeavePolicyDto;
+import org.tornotron.echno_backend.leave.enums.AccrualMethod;
+import org.tornotron.echno_backend.leave.enums.LeaveApproverRole;
+import org.tornotron.echno_backend.leave.enums.WeekendHolidayTreatment;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.user.UserContextService;
@@ -110,6 +113,7 @@ public class LeavePolicyService {
         policy.setCarryForwardExpiryMonths(dto.getCarryForwardExpiryMonths());
         policy.setMaxDaysPerRequest(dto.getMaxDaysPerRequest());
         policy.setAttachmentRequiredAfterDays(dto.getAttachmentRequiredAfterDays());
+        policy.setSupportingDocumentNote(dto.getSupportingDocumentNote());
         policy.setIsActive(true);
 
         // Only the fields the entity leaves to the caller are set unconditionally above. The nine
@@ -133,6 +137,9 @@ public class LeavePolicyService {
         applyIfPresent(dto.getIsPaid(), policy::setIsPaid);
         applyIfPresent(dto.getDisplayOrder(), policy::setDisplayOrder);
         applyIfPresent(dto.getMultiLevelApprovalEnabled(), policy::setMultiLevelApprovalEnabled);
+        applyIfPresent(dto.getAccrualMethod(), policy::setAccrualMethod);
+        applyIfPresent(dto.getWeekendHolidayTreatment(), policy::setWeekendHolidayTreatment);
+        applyIfPresent(dto.getApproverRole(), policy::setApproverRole);
 
         LeavePolicy saved = policyRepository.save(policy);
         return leavePolicyMapper.toDto(saved);
@@ -285,6 +292,13 @@ public class LeavePolicyService {
                 case "requiresAttachment" -> policy.setRequiresAttachment((Boolean) value);
                 case "attachmentRequiredAfterDays" -> policy.setAttachmentRequiredAfterDays(
                         value != null ? ((Number) value).intValue() : null);
+                case "supportingDocumentNote" -> policy.setSupportingDocumentNote((String) value);
+                case "accrualMethod" -> policy.setAccrualMethod(
+                        requireEnum(value, "accrualMethod", AccrualMethod.class));
+                case "weekendHolidayTreatment" -> policy.setWeekendHolidayTreatment(
+                        requireEnum(value, "weekendHolidayTreatment", WeekendHolidayTreatment.class));
+                case "approverRole" -> policy.setApproverRole(
+                        requireEnum(value, "approverRole", LeaveApproverRole.class));
                 case "applicableGenders" -> policy.setApplicableGenders((String) value);
                 case "minServiceMonths" -> policy.setMinServiceMonths(
                         value != null ? ((Number) value).intValue() : null);
@@ -322,6 +336,37 @@ public class LeavePolicyService {
                     "A leave policy must have an annual quota; annualQuota cannot be cleared");
         }
         return ((Number) value).doubleValue();
+    }
+
+    /**
+     * Reads one of the enum-valued keys of a partial leave-policy update.
+     *
+     * <p>All three back a {@code NOT NULL} column with a declared default, so a null is refused the
+     * way {@code annualQuota} refuses one, and a name the enum does not know is refused with the
+     * list of names it does.
+     *
+     * @param value The raw map value.
+     * @param key The key, for the message.
+     * @param type The enum type.
+     * @param <E> The enum type.
+     * @return The parsed constant.
+     * @throws InvalidRequestException if the value is null or not a constant of the enum.
+     */
+    private static <E extends Enum<E>> E requireEnum(Object value, String key, Class<E> type) {
+        if (value == null) {
+            throw new InvalidRequestException(
+                    "A leave policy must have " + key + "; it cannot be cleared");
+        }
+        if (value instanceof Enum<?> constant && type.isInstance(constant)) {
+            return type.cast(constant);
+        }
+        try {
+            return Enum.valueOf(type, value.toString().trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new InvalidRequestException(
+                    key + " must be one of " + java.util.Arrays.toString(type.getEnumConstants())
+                            + ", but got \"" + value + "\"");
+        }
     }
 
 
@@ -410,6 +455,7 @@ public class LeavePolicyService {
         duplicate.setCarryForwardExpiryMonths(source.getCarryForwardExpiryMonths());
         duplicate.setMaxDaysPerRequest(source.getMaxDaysPerRequest());
         duplicate.setAttachmentRequiredAfterDays(source.getAttachmentRequiredAfterDays());
+        duplicate.setSupportingDocumentNote(source.getSupportingDocumentNote());
         duplicate.setIsActive(true);
 
         // The same guard, for a different reason. A policy written before the repair above can
@@ -427,6 +473,9 @@ public class LeavePolicyService {
         applyIfPresent(source.getIsPaid(), duplicate::setIsPaid);
         applyIfPresent(source.getDisplayOrder(), duplicate::setDisplayOrder);
         applyIfPresent(source.getMultiLevelApprovalEnabled(), duplicate::setMultiLevelApprovalEnabled);
+        applyIfPresent(source.getAccrualMethod(), duplicate::setAccrualMethod);
+        applyIfPresent(source.getWeekendHolidayTreatment(), duplicate::setWeekendHolidayTreatment);
+        applyIfPresent(source.getApproverRole(), duplicate::setApproverRole);
 
         LeavePolicy saved = policyRepository.save(duplicate);
         return leavePolicyMapper.toDto(saved);

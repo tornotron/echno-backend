@@ -16,7 +16,9 @@ import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveApprovalActionDto;
 import org.tornotron.echno_backend.leave.dto.LeaveApprovalDto;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestDto;
+import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.leave.enums.ApprovalAction;
+import org.tornotron.echno_backend.leave.enums.LeaveApproverRole;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
 import org.tornotron.echno_backend.leave.enums.NotificationType;
 import org.tornotron.echno_backend.leave.enums.TransactionType;
@@ -93,17 +95,21 @@ public class LeaveApprovalService {
      */
     @Transactional
     public void initializeApprovalChain(LeaveRequest request) {
-        List<Employee> approvers = resolveApprovalChain(request.getEmployee());
+        List<Employee> approvers = resolveRoleApprover(request);
 
         if (approvers.isEmpty()) {
-            finalizeApproval(request);
-            return;
-        }
+            approvers = resolveApprovalChain(request.getEmployee());
 
-        if (!isMultiLevelApprovalEnabled(request)) {
-            // Organization opted out of multi-level approval: only the direct
-            // approver decides, so one approval finalizes the request.
-            approvers = approvers.subList(0, 1);
+            if (approvers.isEmpty()) {
+                finalizeApproval(request);
+                return;
+            }
+
+            if (!isMultiLevelApprovalEnabled(request)) {
+                // Organization opted out of multi-level approval: only the direct
+                // approver decides, so one approval finalizes the request.
+                approvers = approvers.subList(0, 1);
+            }
         }
 
         request.setMaxApprovalLevel(approvers.size());
@@ -122,6 +128,39 @@ public class LeaveApprovalService {
         }
 
         notificationService.sendApprovalRequiredNotification(request, approvers.get(0));
+    }
+
+    /**
+     * The single approver a policy's {@code approverRole} names, when it names a tier rather than
+     * the management line.
+     *
+     * <p>{@link LeaveApproverRole#REPORTING_MANAGER} answers empty so the caller walks the
+     * management line as it always has. {@link LeaveApproverRole#HR_ADMIN} and
+     * {@link LeaveApproverRole#SYSTEM_ADMIN} answer the lowest-id employee of the organization
+     * holding that role who is not the requester, as a chain of one. When nobody holds the role
+     * the answer is empty too, and the management line decides rather than the request sitting
+     * with no approver at all: a policy configured for a tier the organization has not staffed
+     * should still be approvable by somebody.
+     *
+     * @param request The submitted request, with its policy attached.
+     * @return The one approver, or empty when the management line applies.
+     */
+    private List<Employee> resolveRoleApprover(LeaveRequest request) {
+        LeavePolicy policy = request.getLeavePolicy();
+        if (policy == null || policy.getApproverRole() == null) {
+            return List.of();
+        }
+        OrgRole orgRole = policy.getApproverRole().getOrgRole();
+        if (orgRole == null) {
+            return List.of();
+        }
+        Long requesterId = request.getEmployee().getId();
+        return employeeRepository.findByOrganizationIdAndOrgRole(request.getOrganization().getId(), orgRole)
+                .stream()
+                .filter(candidate -> !candidate.getId().equals(requesterId))
+                .min(java.util.Comparator.comparing(Employee::getId))
+                .map(List::of)
+                .orElse(List.of());
     }
 
     /**

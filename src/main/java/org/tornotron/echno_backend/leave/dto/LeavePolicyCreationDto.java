@@ -6,6 +6,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import org.tornotron.echno_backend.leave.enums.AccrualMethod;
+import org.tornotron.echno_backend.leave.enums.LeaveApproverRole;
+import org.tornotron.echno_backend.leave.enums.WeekendHolidayTreatment;
 
 @Schema(description = "Payload to create a leave policy for an organization, with its quota, accrual and "
         + "eligibility rules.")
@@ -61,6 +64,22 @@ public class LeavePolicyCreationDto {
     @Schema(description = "Number of consecutive days after which an attachment becomes required, when "
             + "requiresAttachment is true.", example = "3")
     private Integer attachmentRequiredAfterDays;
+
+    @Schema(description = "What the supporting document should be, shown to the requester when one is "
+            + "required.", example = "Hospital discharge summary or birth certificate")
+    @Size(max = 500, message = "Supporting document note must not exceed 500 characters")
+    private String supportingDocumentNote;
+
+    @Schema(description = "How the annual quota reaches the balance. Defaults to MONTHLY.", example = "MONTHLY")
+    private AccrualMethod accrualMethod = AccrualMethod.MONTHLY;
+
+    @Schema(description = "How weekends and declared holidays inside a request are charged. Defaults to "
+            + "CHARGE_ALL_DAYS, the end-to-end calendar count.", example = "CHARGE_ALL_DAYS")
+    private WeekendHolidayTreatment weekendHolidayTreatment = WeekendHolidayTreatment.CHARGE_ALL_DAYS;
+
+    @Schema(description = "Which tier approves requests under this policy. Defaults to REPORTING_MANAGER, "
+            + "the management line.", example = "REPORTING_MANAGER")
+    private LeaveApproverRole approverRole = LeaveApproverRole.REPORTING_MANAGER;
 
     @Schema(description = "Genders this policy applies to.", example = "ALL")
     private String applicableGenders = "ALL";

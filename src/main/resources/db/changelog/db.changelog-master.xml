@@ -442,6 +442,12 @@
     <!-- v4.0 - Reversal with approval for site transfers, purchase orders and goods received notes (#835) -->
     <include file="db/changelog/v4.0/119-document-reversal.xml"/>
 
+    <!-- v4.0 - Leave: accrual method, weekend and holiday treatment, approver tier, document note (#838) -->
+    <include file="db/changelog/v4.0/120-leave-policy-configuration.xml"/>
+
+    <!-- v4.0 - Leave: the per-organization holiday calendar and working week (#838) -->
+    <include file="db/changelog/v4.0/121-holiday-calendar.xml"/>
+
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->
     <!-- (#749). Files run in path order; a module's pre-move changesets -->

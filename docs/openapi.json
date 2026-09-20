@@ -7941,6 +7941,85 @@
         ],
         "type": "object"
       },
+      "HolidayCreationDto": {
+        "description": "Payload to declare a holiday, or to replace one in full.",
+        "properties": {
+          "description": {
+            "description": "A note about the holiday.",
+            "example": "National holiday",
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          },
+          "holidayDate": {
+            "description": "The date of the holiday. One holiday per date per organization.",
+            "example": "2026-10-02",
+            "format": "date",
+            "type": "string"
+          },
+          "name": {
+            "description": "Name of the holiday.",
+            "example": "Gandhi Jayanti",
+            "maxLength": 150,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "holidayDate",
+          "name"
+        ],
+        "type": "object"
+      },
+      "HolidayDto": {
+        "description": "One declared holiday of the organization.",
+        "properties": {
+          "createdAt": {
+            "description": "Time the holiday was declared.",
+            "example": "2026-01-05T10:00:00",
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "description": "A note about the holiday. Null where none was written.",
+            "example": "National holiday",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "holidayDate": {
+            "description": "The date of the holiday.",
+            "example": "2026-10-02",
+            "format": "date",
+            "type": "string"
+          },
+          "id": {
+            "description": "Id of the holiday.",
+            "example": 12,
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Name of the holiday.",
+            "example": "Gandhi Jayanti",
+            "type": "string"
+          },
+          "organizationId": {
+            "description": "Id of the organization the holiday belongs to.",
+            "example": 2,
+            "format": "int64",
+            "type": "integer"
+          },
+          "updatedAt": {
+            "description": "Time the holiday was last changed.",
+            "example": "2026-01-05T10:00:00",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "IndentCreationDto": {
         "description": "Payload to raise a material indent on a project, with its requested items. The indent number is allocated by the server and returned on the created indent; it is not part of this payload.",
         "properties": {
@@ -11232,6 +11311,15 @@
       "LeavePolicyCreationDto": {
         "description": "Payload to create a leave policy for an organization, with its quota, accrual and eligibility rules.",
         "properties": {
+          "accrualMethod": {
+            "description": "How the annual quota reaches the balance. Defaults to MONTHLY.",
+            "enum": [
+              "MONTHLY",
+              "IN_FULL_ON_QUALIFYING"
+            ],
+            "example": "MONTHLY",
+            "type": "string"
+          },
           "accrualRatePerMonth": {
             "description": "Days accrued per completed month, for policies that accrue monthly instead of granting the full quota upfront.",
             "example": 1.0,
@@ -11259,6 +11347,16 @@
           "applicableGenders": {
             "description": "Genders this policy applies to.",
             "example": "ALL",
+            "type": "string"
+          },
+          "approverRole": {
+            "description": "Which tier approves requests under this policy. Defaults to REPORTING_MANAGER, the management line.",
+            "enum": [
+              "REPORTING_MANAGER",
+              "HR_ADMIN",
+              "SYSTEM_ADMIN"
+            ],
+            "example": "REPORTING_MANAGER",
             "type": "string"
           },
           "attachmentRequiredAfterDays": {
@@ -11344,6 +11442,23 @@
             "description": "Whether a supporting attachment is required for requests under this policy.",
             "example": false,
             "type": "boolean"
+          },
+          "supportingDocumentNote": {
+            "description": "What the supporting document should be, shown to the requester when one is required.",
+            "example": "Hospital discharge summary or birth certificate",
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          },
+          "weekendHolidayTreatment": {
+            "description": "How weekends and declared holidays inside a request are charged. Defaults to CHARGE_ALL_DAYS, the end-to-end calendar count.",
+            "enum": [
+              "SANDWICH",
+              "EXCLUDE_NON_WORKING_DAYS",
+              "CHARGE_ALL_DAYS"
+            ],
+            "example": "CHARGE_ALL_DAYS",
+            "type": "string"
           }
         },
         "required": [
@@ -11357,6 +11472,15 @@
       "LeavePolicyDto": {
         "description": "A leave policy with its quota, accrual and eligibility rules.",
         "properties": {
+          "accrualMethod": {
+            "description": "How the annual quota reaches the balance: MONTHLY credits it one twelfth per month of service, IN_FULL_ON_QUALIFYING credits it whole the month the employee meets minServiceMonths.",
+            "enum": [
+              "MONTHLY",
+              "IN_FULL_ON_QUALIFYING"
+            ],
+            "example": "MONTHLY",
+            "type": "string"
+          },
           "accrualRatePerMonth": {
             "description": "Days accrued per completed month. Null for policies that grant the full quota upfront instead of accruing monthly.",
             "example": 1.0,
@@ -11396,6 +11520,16 @@
               "string",
               "null"
             ]
+          },
+          "approverRole": {
+            "description": "Which tier approves requests under this policy: the reporting manager's line, an hr-admin, or a system-admin.",
+            "enum": [
+              "REPORTING_MANAGER",
+              "HR_ADMIN",
+              "SYSTEM_ADMIN"
+            ],
+            "example": "REPORTING_MANAGER",
+            "type": "string"
           },
           "attachmentRequiredAfterDays": {
             "description": "Number of consecutive days after which an attachment becomes required. Null where the policy sets no such threshold.",
@@ -11527,10 +11661,28 @@
               "null"
             ]
           },
+          "supportingDocumentNote": {
+            "description": "What the supporting document should be, shown to the requester when one is required. Null where the policy says nothing about it.",
+            "example": "Hospital discharge summary or birth certificate",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "updatedAt": {
             "description": "Time the policy was last updated.",
             "example": "2026-07-01T08:30:00",
             "format": "date-time",
+            "type": "string"
+          },
+          "weekendHolidayTreatment": {
+            "description": "How weekends and declared holidays inside a request are charged. CHARGE_ALL_DAYS counts every calendar day, EXCLUDE_NON_WORKING_DAYS never charges them, SANDWICH charges them only between two charged leave days.",
+            "enum": [
+              "SANDWICH",
+              "EXCLUDE_NON_WORKING_DAYS",
+              "CHARGE_ALL_DAYS"
+            ],
+            "example": "CHARGE_ALL_DAYS",
             "type": "string"
           }
         },
@@ -11583,6 +11735,15 @@
       "LeavePolicyUpdateFieldsDto": {
         "description": "Fields a partial leave-policy update may change. Every field is optional and an absent field is left untouched. A field this schema declares nullable is cleared by sending an explicit null; a field it does not declare nullable refuses a null with a 400 rather than clearing. Keys not listed here are ignored.",
         "properties": {
+          "accrualMethod": {
+            "description": "How the annual quota reaches the balance. Cannot be cleared: the column is NOT NULL, so a null is refused with a 400.",
+            "enum": [
+              "MONTHLY",
+              "IN_FULL_ON_QUALIFYING"
+            ],
+            "example": "MONTHLY",
+            "type": "string"
+          },
           "accrualRatePerMonth": {
             "description": "Days accrued per completed month.",
             "example": 1.0,
@@ -11622,6 +11783,16 @@
               "string",
               "null"
             ]
+          },
+          "approverRole": {
+            "description": "Which tier approves requests under this policy. Cannot be cleared: the column is NOT NULL, so a null is refused with a 400.",
+            "enum": [
+              "REPORTING_MANAGER",
+              "HR_ADMIN",
+              "SYSTEM_ADMIN"
+            ],
+            "example": "HR_ADMIN",
+            "type": "string"
           },
           "attachmentRequiredAfterDays": {
             "description": "Consecutive days after which an attachment becomes required.",
@@ -11733,6 +11904,24 @@
               "boolean",
               "null"
             ]
+          },
+          "supportingDocumentNote": {
+            "description": "What the supporting document should be.",
+            "example": "Hospital discharge summary or birth certificate",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "weekendHolidayTreatment": {
+            "description": "How weekends and declared holidays inside a request are charged. Cannot be cleared: the column is NOT NULL, so a null is refused with a 400.",
+            "enum": [
+              "SANDWICH",
+              "EXCLUDE_NON_WORKING_DAYS",
+              "CHARGE_ALL_DAYS"
+            ],
+            "example": "SANDWICH",
+            "type": "string"
           }
         },
         "type": "object"
@@ -24710,6 +24899,75 @@
           }
         },
         "type": "object"
+      },
+      "WorkingWeekDto": {
+        "description": "The days of the week the organization works. Monday to Friday until the organization changes it.",
+        "properties": {
+          "organizationId": {
+            "description": "Id of the organization.",
+            "example": 2,
+            "format": "int64",
+            "type": "integer"
+          },
+          "workingDays": {
+            "description": "The working days, in weekday order.",
+            "example": [
+              "MONDAY",
+              "TUESDAY",
+              "WEDNESDAY",
+              "THURSDAY",
+              "FRIDAY"
+            ],
+            "items": {
+              "enum": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "WorkingWeekUpdateDto": {
+        "description": "Payload to set the organization's working days.",
+        "properties": {
+          "workingDays": {
+            "description": "The days the organization works. At least one day.",
+            "example": [
+              "MONDAY",
+              "TUESDAY",
+              "WEDNESDAY",
+              "THURSDAY",
+              "FRIDAY",
+              "SATURDAY"
+            ],
+            "items": {
+              "enum": [
+                "MONDAY",
+                "TUESDAY",
+                "WEDNESDAY",
+                "THURSDAY",
+                "FRIDAY",
+                "SATURDAY",
+                "SUNDAY"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "workingDays"
+        ],
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -27989,7 +28247,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_20",
+        "operationId": "create_21",
         "requestBody": {
           "content": {
             "application/json": {
@@ -28419,7 +28677,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_21",
+        "operationId": "create_22",
         "requestBody": {
           "content": {
             "application/json": {
@@ -28850,7 +29108,7 @@
       },
       "patch": {
         "description": "Applies a partial update to an attendance settings profile. Only the fields present in the request body are changed.",
-        "operationId": "update_16",
+        "operationId": "update_17",
         "parameters": [
           {
             "in": "path",
@@ -29077,7 +29335,7 @@
       },
       "patch": {
         "description": "Applies a partial update to an attendance settings profile. Only the fields present in the request body are changed.",
-        "operationId": "update_15",
+        "operationId": "update_16",
         "parameters": [
           {
             "in": "path",
@@ -36794,7 +37052,7 @@
     },
     "/api/v1/bim/models/{modelId}": {
       "get": {
-        "operationId": "get_18",
+        "operationId": "get_19",
         "parameters": [
           {
             "in": "path",
@@ -38271,7 +38529,7 @@
         ]
       },
       "post": {
-        "operationId": "create_19",
+        "operationId": "create_20",
         "parameters": [
           {
             "in": "path",
@@ -40410,7 +40668,7 @@
       },
       "post": {
         "description": "Creates the organization's checklist for a trade, with its check points. There is one template per trade per organization.",
-        "operationId": "create_18",
+        "operationId": "create_19",
         "requestBody": {
           "content": {
             "application/json": {
@@ -40982,7 +41240,7 @@
       },
       "put": {
         "description": "Replaces the name, description, active flag and check points of an existing template and bumps its version. The trade is fixed when the template is created and cannot be changed here. Inspections already created from this template are unaffected: they hold their own copy of the criteria.",
-        "operationId": "update_9",
+        "operationId": "update_10",
         "parameters": [
           {
             "in": "path",
@@ -46606,7 +46864,7 @@
       },
       "post": {
         "description": "Creates a new account in the chart. When a parent is given, the account type is inherited from the parent; a root account must declare its own type. When the code is left blank it is generated from the parent and existing sibling accounts.",
-        "operationId": "create_17",
+        "operationId": "create_18",
         "requestBody": {
           "content": {
             "application/json": {
@@ -47375,7 +47633,7 @@
       },
       "put": {
         "description": "Edits an account's code, name, active flag, description and optionally its parent. The code must stay unique within the tenant; a new parent must share the account's type and must not form a cycle. Omit the parent id to leave the parent unchanged. Postings resolve accounts by id, so changing a code is safe.",
-        "operationId": "update_8",
+        "operationId": "update_9",
         "parameters": [
           {
             "in": "path",
@@ -47725,7 +47983,7 @@
       },
       "post": {
         "description": "Registers a new company bank account, linked to an existing ledger account for reconciliation.",
-        "operationId": "create_16",
+        "operationId": "create_17",
         "requestBody": {
           "content": {
             "application/json": {
@@ -47837,7 +48095,7 @@
     "/api/v1/finance/company-bank-accounts/web/{id}": {
       "get": {
         "description": "Returns a single company bank account, including the linked ledger account.",
-        "operationId": "get_17",
+        "operationId": "get_18",
         "parameters": [
           {
             "in": "path",
@@ -48224,7 +48482,7 @@
       },
       "post": {
         "description": "Creates a draft invoice from the supplied header and line items. Line-level subtotal, tax, discount and total amounts are computed server side from the quantity, unit price and percentage rates on each line.",
-        "operationId": "create_15",
+        "operationId": "create_16",
         "requestBody": {
           "content": {
             "application/json": {
@@ -48447,7 +48705,7 @@
       },
       "put": {
         "description": "Replaces the editable header and line items of a draft invoice. Invoices that have already been submitted or approved cannot be edited.",
-        "operationId": "update_7",
+        "operationId": "update_8",
         "parameters": [
           {
             "in": "path",
@@ -49382,7 +49640,7 @@
       },
       "post": {
         "description": "Creates a payment voucher in pending status. The payment number is generated server side from the CPMT sequence. The status cannot be set on creation.",
-        "operationId": "create_14",
+        "operationId": "create_15",
         "requestBody": {
           "content": {
             "application/json": {
@@ -49605,7 +49863,7 @@
       },
       "put": {
         "description": "Replaces the editable fields of a payment voucher, including its status, which is set directly. No ledger journal entry is created on any status transition. A verified voucher is frozen and cannot be edited, because the verification would then stand against figures nobody checked; cancel it and raise a replacement. The cancelled status cannot be set here either: use the cancel action, which records why.",
-        "operationId": "update_6",
+        "operationId": "update_7",
         "parameters": [
           {
             "in": "path",
@@ -50078,7 +50336,7 @@
       },
       "post": {
         "description": "Creates a budget head. The name must be unique within the tenant; an optional expense account maps the head to the chart of accounts for reporting.",
-        "operationId": "create_13",
+        "operationId": "create_14",
         "requestBody": {
           "content": {
             "application/json": {
@@ -50407,7 +50665,7 @@
       },
       "put": {
         "description": "Edits a budget head's name, code, expense-account mapping and active flag. The name must stay unique within the tenant; omit the expense account id to clear the mapping.",
-        "operationId": "update_5",
+        "operationId": "update_6",
         "parameters": [
           {
             "in": "path",
@@ -50754,7 +51012,7 @@
       },
       "post": {
         "description": "Creates a new customer from the supplied details. The customer code must be unique within the tenant.",
-        "operationId": "create_12",
+        "operationId": "create_13",
         "requestBody": {
           "content": {
             "application/json": {
@@ -50989,7 +51247,7 @@
     "/api/v1/finance/customers/web/{id}": {
       "put": {
         "description": "Updates the editable details of an existing customer. The customer code is fixed at creation and is not changed here.",
-        "operationId": "update_4",
+        "operationId": "update_5",
         "parameters": [
           {
             "in": "path",
@@ -51495,7 +51753,7 @@
     "/api/v1/finance/invoices/web/{id}": {
       "get": {
         "description": "Returns a single customer invoice, including its computed totals and line items.",
-        "operationId": "get_16",
+        "operationId": "get_17",
         "parameters": [
           {
             "in": "path",
@@ -52569,7 +52827,7 @@
     "/api/v1/finance/payments/web/{id}": {
       "get": {
         "description": "Returns a single customer payment with its invoice allocations.",
-        "operationId": "get_15",
+        "operationId": "get_16",
         "parameters": [
           {
             "in": "path",
@@ -53396,7 +53654,7 @@
     "/api/v1/finance/projects/{projectId}/cost-control/web": {
       "get": {
         "description": "Returns the per-budget-head roll-up of allocated, committed, spent and remaining amounts for the project, plus a project total row. Heads with an allocation or any tagged spend are included; a head whose committed plus spent exceeds its allocation is flagged as over budget.",
-        "operationId": "get_14",
+        "operationId": "get_15",
         "parameters": [
           {
             "in": "path",
@@ -53957,7 +54215,7 @@
       },
       "put": {
         "description": "Sets the auto-approval threshold for the current tenant. Send a null threshold to require manual approval on every construction invoice, or a value T to auto-approve invoices whose total is below T.",
-        "operationId": "update_3",
+        "operationId": "update_4",
         "requestBody": {
           "content": {
             "application/json": {
@@ -55786,6 +56044,1010 @@
         "summary": "Get a goods received note by id",
         "tags": [
           "Goods Received Notes"
+        ]
+      }
+    },
+    "/api/v1/holidays/web": {
+      "get": {
+        "description": "Every declared holiday of the current organization in the given calendar year, in date order. Defaults to the current year.",
+        "operationId": "listForYear",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "year",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HolidayDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The holidays"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the holidays of a year",
+        "tags": [
+          "Holidays (Web)"
+        ]
+      },
+      "post": {
+        "description": "Declares a holiday on a date for the current organization. One holiday per date.",
+        "operationId": "create_12",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HolidayCreationDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolidayDto"
+                }
+              }
+            },
+            "description": "Holiday declared"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The payload failed validation"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A holiday is already declared on that date"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Declare a holiday",
+        "tags": [
+          "Holidays (Web)"
+        ]
+      }
+    },
+    "/api/v1/holidays/web/delete": {
+      "delete": {
+        "description": "Removes the holiday. Leave requests already charged under it are not recalculated.",
+        "operationId": "delete_6",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "holidayId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            },
+            "description": "Holiday removed"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No holiday with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Remove a holiday",
+        "tags": [
+          "Holidays (Web)"
+        ]
+      }
+    },
+    "/api/v1/holidays/web/holiday": {
+      "get": {
+        "operationId": "get_14",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "holidayId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolidayDto"
+                }
+              }
+            },
+            "description": "The holiday"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No holiday with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get a holiday",
+        "tags": [
+          "Holidays (Web)"
+        ]
+      }
+    },
+    "/api/v1/holidays/web/update": {
+      "put": {
+        "description": "Replaces the holiday's date, name and note.",
+        "operationId": "update_3",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "holidayId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HolidayCreationDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolidayDto"
+                }
+              }
+            },
+            "description": "Holiday changed"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The payload failed validation"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No holiday with the given id"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Another holiday is already declared on that date"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Change a holiday",
+        "tags": [
+          "Holidays (Web)"
+        ]
+      }
+    },
+    "/api/v1/holidays/web/working-week": {
+      "get": {
+        "description": "The days of the week the organization works. Monday to Friday until changed.",
+        "operationId": "getWorkingWeek",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkingWeekDto"
+                }
+              }
+            },
+            "description": "The working week"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get the working week",
+        "tags": [
+          "Holidays (Web)"
+        ]
+      },
+      "put": {
+        "description": "Sets the days of the week the organization works. Days outside it are not charged under the EXCLUDE_NON_WORKING_DAYS and SANDWICH leave treatments.",
+        "operationId": "updateWorkingWeek",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkingWeekUpdateDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkingWeekDto"
+                }
+              }
+            },
+            "description": "Working week set"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No day named"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Set the working week",
+        "tags": [
+          "Holidays (Web)"
+        ]
+      }
+    },
+    "/api/v1/holidays/working-week": {
+      "get": {
+        "description": "The days of the week the organization works. Monday to Friday until changed.",
+        "operationId": "getWorkingWeek_1",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkingWeekDto"
+                }
+              }
+            },
+            "description": "The working week"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get the working week",
+        "tags": [
+          "Holidays"
+        ]
+      }
+    },
+    "/api/v1/holidays/year/{year}": {
+      "get": {
+        "description": "Every declared holiday of the current organization in the given calendar year, in date order.",
+        "operationId": "listForYear_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HolidayDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The holidays"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the holidays of a year",
+        "tags": [
+          "Holidays"
         ]
       }
     },
@@ -62042,7 +63304,7 @@
     "/api/v1/inspections/web/element-types/{id}": {
       "patch": {
         "description": "The code is immutable, including on catalogue copies.",
-        "operationId": "update_14",
+        "operationId": "update_15",
         "parameters": [
           {
             "in": "path",
@@ -63806,7 +65068,7 @@
     "/api/v1/inspections/web/trades/{id}": {
       "patch": {
         "description": "The code is immutable, including on catalogue copies. Deactivating hides the trade from pickers and leaves existing references valid.",
-        "operationId": "update_13",
+        "operationId": "update_14",
         "parameters": [
           {
             "in": "path",
@@ -98844,7 +100106,7 @@
       },
       "patch": {
         "description": "Omitted fields are left as they are. Level and parent do not change here; use move.",
-        "operationId": "update_12",
+        "operationId": "update_13",
         "parameters": [
           {
             "in": "path",
@@ -107344,7 +108606,7 @@
       },
       "patch": {
         "description": "Applies a partial update to a shift timing. Only the fields present in the request body are changed.",
-        "operationId": "update_11",
+        "operationId": "update_12",
         "parameters": [
           {
             "in": "path",
@@ -107682,7 +108944,7 @@
       },
       "patch": {
         "description": "Applies a partial update to a shift timing. Only the fields present in the request body are changed.",
-        "operationId": "update_10",
+        "operationId": "update_11",
         "parameters": [
           {
             "in": "path",
@@ -125641,6 +126903,14 @@
     {
       "description": "Goods received notes (GRNs) record materials received against a vendor, capturing the delivery and its line items. This is the web-console API, gated by organization role for the current tenant rather than by flat authorities. Recording a receipt and reading one are open to the system-admin and store-keeper roles, because booking a delivery in is the store's own work and used to require administering the whole organization. Reading is open to the project-manager role as well, which already sees the same receipt in the stock ledger. Endpoints cover creating, browsing, filtering by vendor or date range, and updating GRNs.",
       "name": "Goods Received Notes (Web)"
+    },
+    {
+      "description": "The organization's holiday calendar and working week, read by every member. Writes are on the web twin.",
+      "name": "Holidays"
+    },
+    {
+      "description": "The organization's holiday calendar and working week. Reads for members, writes for the system-admin and hr-admin roles that administer leave policies.",
+      "name": "Holidays (Web)"
     },
     {
       "description": "Requested material items belonging to an indent: material, quantity requested and ordered, and whether the item has been converted into a purchase order line. Items can be looked up by indent, by material, or by conversion status. Access is gated by the indent-item authorities, with an admin authority that grants all operations.",

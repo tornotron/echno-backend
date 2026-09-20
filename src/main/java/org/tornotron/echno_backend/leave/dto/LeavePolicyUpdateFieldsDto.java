@@ -2,6 +2,9 @@ package org.tornotron.echno_backend.leave.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import org.tornotron.echno_backend.leave.enums.AccrualMethod;
+import org.tornotron.echno_backend.leave.enums.LeaveApproverRole;
+import org.tornotron.echno_backend.leave.enums.WeekendHolidayTreatment;
 
 /**
  * The fields a partial leave-policy update may carry, and the type each one is read as.
@@ -58,6 +61,22 @@ public class LeavePolicyUpdateFieldsDto {
 
     @Schema(nullable = true, description = "Consecutive days after which an attachment becomes required.", example = "3")
     private Integer attachmentRequiredAfterDays;
+
+    @Schema(nullable = true, description = "What the supporting document should be.",
+            example = "Hospital discharge summary or birth certificate")
+    private String supportingDocumentNote;
+
+    @Schema(description = "How the annual quota reaches the balance. Cannot be cleared: the column is "
+            + "NOT NULL, so a null is refused with a 400.", example = "MONTHLY")
+    private AccrualMethod accrualMethod;
+
+    @Schema(description = "How weekends and declared holidays inside a request are charged. Cannot be "
+            + "cleared: the column is NOT NULL, so a null is refused with a 400.", example = "SANDWICH")
+    private WeekendHolidayTreatment weekendHolidayTreatment;
+
+    @Schema(description = "Which tier approves requests under this policy. Cannot be cleared: the column "
+            + "is NOT NULL, so a null is refused with a 400.", example = "HR_ADMIN")
+    private LeaveApproverRole approverRole;
 
     @Schema(nullable = true, description = "Genders this policy applies to.", example = "ALL")
     private String applicableGenders;

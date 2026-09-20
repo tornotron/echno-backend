@@ -5,6 +5,7 @@ import org.tornotron.echno_backend.attendance.Attendance;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
 import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.leave.enums.AccrualMethod;
 import org.tornotron.echno_backend.leave.enums.TransactionType;
 
 import java.time.DayOfWeek;
@@ -62,11 +63,16 @@ public class LeaveAccrualService {
         int currentMonth = now.getYear() == year ? now.getMonthValue() : 12;
         int startMonth = getStartMonth(employee, year);
 
+        boolean inFull = policy.getAccrualMethod() == AccrualMethod.IN_FULL_ON_QUALIFYING;
+        Integer qualifyingMonth = inFull ? qualifyingMonth(employee, policy, year, startMonth, currentMonth) : null;
+
         double totalAccrued = 0.0;
 
         for (int month = startMonth; month <= currentMonth; month++) {
             if (!hasAccrualTransaction(balance.getId(), month, year)) {
-                double monthlyAccrual = calculateMonthlyAccrual(employee, policy, year, month);
+                double monthlyAccrual = inFull
+                        ? (qualifyingMonth != null && qualifyingMonth == month ? fullQuota(policy) : 0.0)
+                        : calculateMonthlyAccrual(employee, policy, year, month);
                 totalAccrued += monthlyAccrual;
 
                 if (monthlyAccrual > 0) {
@@ -111,6 +117,39 @@ public class LeaveAccrualService {
         balance.setLastCalculatedAt(LocalDateTime.now());
 
         balanceRepository.save(balance);
+    }
+
+    /**
+     * The month of {@code year} in which the whole quota is credited under
+     * {@link AccrualMethod#IN_FULL_ON_QUALIFYING}, or null if the employee does not qualify in a
+     * month this recalculation covers.
+     *
+     * <p>Qualification is the policy's {@code minServiceMonths} counted from the joining date. An
+     * employee who qualified in an earlier year, or who has no joining date, qualifies from the
+     * balance's first month; one who qualifies later this year is credited in that month; one who
+     * qualifies after {@code currentMonth} is credited nothing yet. Written as a month rather than
+     * a boolean so the credit is a single ACCRUAL row with a reference month, and the next
+     * recalculation finds it and does not credit twice.
+     */
+    private Integer qualifyingMonth(Employee employee, LeavePolicy policy, Integer year, int startMonth, int currentMonth) {
+        LocalDateTime joiningDate = employee.getJoiningDate();
+        int minServiceMonths = policy.getMinServiceMonths() == null ? 0 : policy.getMinServiceMonths();
+        if (joiningDate == null) {
+            return startMonth;
+        }
+        LocalDate qualifiesOn = joiningDate.toLocalDate().plusMonths(minServiceMonths);
+        if (qualifiesOn.getYear() < year) {
+            return startMonth;
+        }
+        if (qualifiesOn.getYear() > year) {
+            return null;
+        }
+        int month = Math.max(qualifiesOn.getMonthValue(), startMonth);
+        return month <= currentMonth ? month : null;
+    }
+
+    private double fullQuota(LeavePolicy policy) {
+        return policy.getAnnualQuota() == null ? 0.0 : policy.getAnnualQuota();
     }
 
     private int getStartMonth(Employee employee, Integer year) {
@@ -241,7 +280,10 @@ public class LeaveAccrualService {
         transaction.setTransactionDate(LocalDate.of(year, month, 1));
         transaction.setReferenceMonth(month);
         transaction.setReferenceYear(year);
-        transaction.setDescription("Monthly accrual for " + YearMonth.of(year, month));
+        transaction.setDescription(
+                balance.getLeavePolicy().getAccrualMethod() == AccrualMethod.IN_FULL_ON_QUALIFYING
+                        ? "Full entitlement credited for " + YearMonth.of(year, month)
+                        : "Monthly accrual for " + YearMonth.of(year, month));
 
         transactionRepository.save(transaction);
     }

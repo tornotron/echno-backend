@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="120-leave-policy-configuration" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="leave_policy" columnName="accrual_method"/>
+            </not>
+        </preConditions>
+
+        <comment>
+            Four policy rules the leave module did not let an organization state (#838). Each
+            default is the behaviour every existing policy already had, so no row changes meaning:
+            accrual_method MONTHLY is the one-twelfth-a-month credit the accrual has always made;
+            weekend_holiday_treatment CHARGE_ALL_DAYS is the end-to-end calendar count every
+            request was charged; approver_role REPORTING_MANAGER is the management line the
+            approval chain has always walked. supporting_document_note is free text beside the
+            existing requires_attachment flag, so it is nullable with no default.
+        </comment>
+
+        <addColumn tableName="leave_policy">
+            <column name="accrual_method" type="VARCHAR(30)" defaultValue="MONTHLY">
+                <constraints nullable="false"/>
+            </column>
+            <column name="weekend_holiday_treatment" type="VARCHAR(30)" defaultValue="CHARGE_ALL_DAYS">
+                <constraints nullable="false"/>
+            </column>
+            <column name="approver_role" type="VARCHAR(30)" defaultValue="REPORTING_MANAGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="supporting_document_note" type="VARCHAR(500)"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

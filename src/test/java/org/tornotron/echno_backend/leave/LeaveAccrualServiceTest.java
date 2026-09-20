@@ -373,4 +373,56 @@ class LeaveAccrualServiceTest {
     private Attendance attendanceWith(AttendanceStatus status) {
         return Attendance.builder().status(status).build();
     }
+
+    // --- IN_FULL_ON_QUALIFYING -------------------------------------------------
+
+    private LeavePolicy inFullPolicy(double annualQuota, int minServiceMonths) {
+        LeavePolicy policy = policy(null, annualQuota);
+        policy.setAccrualMethod(org.tornotron.echno_backend.leave.enums.AccrualMethod.IN_FULL_ON_QUALIFYING);
+        policy.setMinServiceMonths(minServiceMonths);
+        return policy;
+    }
+
+    @Test
+    void recalculate_inFull_creditsTheWholeQuotaOnceForAnEmployeeAlreadyQualified() {
+        Employee employee = employee(LocalDateTime.of(2018, 1, 1, 0, 0));
+        LeaveBalance balance = balance(employee, inFullPolicy(91.0, 6), PAST_YEAR);
+        stubNoPriorAccrualsNoAttendance();
+
+        service.recalculate(balance);
+
+        assertThat(balance.getAccrued()).isEqualTo(91.0);
+        verify(transactionRepository, times(1)).save(any(LeaveTransaction.class));
+    }
+
+    @Test
+    void recalculate_inFull_creditsInTheMonthTheServiceRequirementIsMet() {
+        // Joined 2020-02-10 with six months' service required: qualifies 2020-08-10, so the
+        // credit is a single August row and nothing before it.
+        Employee employee = employee(LocalDateTime.of(PAST_YEAR, 2, 10, 0, 0));
+        LeaveBalance balance = balance(employee, inFullPolicy(15.0, 6), PAST_YEAR);
+        stubNoPriorAccrualsNoAttendance();
+
+        service.recalculate(balance);
+
+        assertThat(balance.getAccrued()).isEqualTo(15.0);
+        org.mockito.ArgumentCaptor<LeaveTransaction> saved =
+                org.mockito.ArgumentCaptor.forClass(LeaveTransaction.class);
+        verify(transactionRepository, times(1)).save(saved.capture());
+        assertThat(saved.getValue().getReferenceMonth()).isEqualTo(8);
+        assertThat(saved.getValue().getDays()).isEqualTo(15.0);
+    }
+
+    @Test
+    void recalculate_inFull_creditsNothingBeforeTheEmployeeQualifies() {
+        // Joined 2020-10-01 with six months required: qualifies in 2021, so 2020 credits nothing.
+        Employee employee = employee(LocalDateTime.of(PAST_YEAR, 10, 1, 0, 0));
+        LeaveBalance balance = balance(employee, inFullPolicy(15.0, 6), PAST_YEAR);
+        stubNoPriorAccrualsNoAttendance();
+
+        service.recalculate(balance);
+
+        assertThat(balance.getAccrued()).isEqualTo(0.0);
+        verify(transactionRepository, never()).save(any(LeaveTransaction.class));
+    }
 }
