@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record ElementTypeCatalogueDto(
         @Schema(description = "Stable slug.", example = "column") String code,
         String name,
-        @Schema(description = "Group: structure, openings, finishes, services or fire.", example = "structure") String groupCode,
+        @Schema(description = "Group: structure, openings, finishes, services, fire or general.", example = "structure") String groupCode,
         @Schema(nullable = true) String description,
         int sortOrder,
         boolean active

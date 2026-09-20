@@ -187,7 +187,9 @@ POST   /api/v1/projects/{projectId}/spatial/nodes/{nodeId}/archive
 POST   /api/v1/projects/{projectId}/spatial/nodes/{nodeId}/restore
 POST   /api/v1/projects/{projectId}/spatial/import
          rows: [{ building, floor, levelIndex?, zone?, element?, elementType? }]
-         idempotent on the code path; returns { created, skipped }
+         idempotent on the code path; all or nothing; returns distinct-node counts
+         { created, matched, skipped (= matched), rows,
+           buildings | floors | zones | elements: { created, matched } }
 ```
 
 Errors: 409 on sibling code clash or wrong parent level, 404 on cross-project node, 422 on

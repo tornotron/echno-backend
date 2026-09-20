@@ -40,10 +40,11 @@ class ElementTypeMigrationIT extends AbstractIntegrationTest {
                 .getSingleResult()).longValue();
         String sql = copySql();
 
+        // seventeen from the CSV seed (105-02) plus ramp and other (120-01)
         entityManager.createNativeQuery(sql).executeUpdate();
-        assertThat(count(org)).isEqualTo(17);
+        assertThat(count(org)).isEqualTo(19);
         entityManager.createNativeQuery(sql).executeUpdate();
-        assertThat(count(org)).isEqualTo(17);
+        assertThat(count(org)).isEqualTo(19);
     }
 
     private long count(long org) {

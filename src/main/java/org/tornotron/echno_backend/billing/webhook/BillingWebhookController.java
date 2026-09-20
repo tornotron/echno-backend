@@ -5,11 +5,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 
 /**
  * The provider-facing webhook endpoint. Public at the security layer because the provider
@@ -44,5 +46,18 @@ public class BillingWebhookController {
             case REJECTED -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             case UNPARSEABLE -> ResponseEntity.badRequest().build();
         };
+    }
+
+    /**
+     * Any other provider segment. The security layer opens {@code /billing/webhooks/**} as a
+     * whole, so an unknown provider used to fall through to the static-resource handler and
+     * come back as a 500 with a stack trace in the log (#820). It is a plain 404 now: the
+     * literal {@code /razorpay} mapping wins over this template, so it sees only what no
+     * provider claims.
+     */
+    @PreAuthorize("permitAll()")
+    @PostMapping(value = "/{provider}", consumes = "*/*")
+    public ResponseEntity<Void> unknownProvider(@PathVariable String provider) {
+        throw new ResourceNotFoundException("No billing webhook provider '" + provider + "'");
     }
 }

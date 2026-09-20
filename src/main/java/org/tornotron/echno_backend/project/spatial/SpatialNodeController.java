@@ -145,12 +145,15 @@ public class SpatialNodeController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(summary = "Import a site structure from rows",
             description = "One row per leaf, codes from the building down. Idempotent on the code path: "
-                    + "nodes that already exist are skipped and counted.")
+                    + "nodes that already exist are matched and counted, not created again. All or "
+                    + "nothing: every row is checked before the first write, and a row that fails "
+                    + "leaves no node behind. Counts are of distinct nodes per level, not of rows.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Counts of created and skipped nodes"),
-            @ApiResponse(responseCode = "400", description = "A row names a zone or element without the levels above it"),
+            @ApiResponse(responseCode = "200", description = "Distinct nodes created and matched, in total and per level"),
+            @ApiResponse(responseCode = "400", description = "A row names a zone or element without a floor, or an "
+                    + "element type the organization does not have; the message names each such row. Nothing was written"),
             @ApiResponse(responseCode = "404", description = "Project not found in the current tenant"),
-            @ApiResponse(responseCode = "422", description = "A node on the path is archived")
+            @ApiResponse(responseCode = "422", description = "A node on a row's path is archived. Nothing was written")
     })
     public ResponseEntity<SpatialImportResult> importRows(@PathVariable Long projectId,
                                                           @Valid @RequestBody SpatialImportRequest request) {

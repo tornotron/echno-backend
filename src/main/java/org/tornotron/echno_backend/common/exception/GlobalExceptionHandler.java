@@ -23,6 +23,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.tornotron.echno_backend.common.response.SubscriptionErrorResponse;
 
@@ -237,6 +239,18 @@ public class GlobalExceptionHandler {
         logger.error("JSON processing error: ", ex);
         return problem(HttpStatus.BAD_REQUEST, "Malformed JSON",
                 "Invalid JSON format: " + ex.getOriginalMessage(), request);
+    }
+
+    /**
+     * A path no handler and no static resource answers. Spring raises these itself for an
+     * unmapped URL; without this they fell into the catch-all below and left as a 500 with
+     * a stack trace in the log for what is a client typo (#820).
+     */
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ProblemDetail handleNoHandler(Exception ex, WebRequest request) {
+        logger.debug("No handler for request: {}", ex.getMessage());
+        return problem(HttpStatus.NOT_FOUND, "Not Found", "No resource at this path", request);
     }
 
     @ExceptionHandler(Exception.class)

@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.common.exception;
 import org.junit.jupiter.api.Test;
 import org.springframework.expression.Expression;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.tornotron.echno_backend.indent.enums.IndentStatus;
 
 import java.time.Duration;
@@ -66,6 +68,18 @@ class GlobalExceptionHandlerTest {
         assertThat(pd.getDetail()).isEqualTo("Access to this resource is not permitted for your organization");
         assertThat(pd.getProperties())
                 .containsEntry("message", "Access to this resource is not permitted for your organization");
+    }
+
+    @Test
+    void unmappedPath_isA404ProblemWithoutTheInternalMessage() {
+        ProblemDetail pd = handler.handleNoHandler(
+                new NoResourceFoundException(HttpMethod.POST, "api/v1/billing/webhooks/other"),
+                requestWithPath("uri=/api/v1/billing/webhooks/other"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+        assertThat(pd.getTitle()).isEqualTo("Not Found");
+        assertThat(pd.getDetail()).isEqualTo("No resource at this path");
+        assertThat(pd.getProperties()).containsEntry("message", "No resource at this path");
     }
 
     @Test
