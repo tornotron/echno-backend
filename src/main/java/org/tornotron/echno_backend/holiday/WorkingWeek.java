@@ -29,9 +29,9 @@ import java.util.stream.Collectors;
  * The days of the week an organization works, one row per organization.
  *
  * <p>There was no organization-level working-week setting before this row: the leave accrual
- * counted Monday to Friday and nothing else asked. The row is created on first read with that
- * same Monday to Friday default, so an organization that never opens the setting behaves as it
- * always has. Stored as a comma-separated list of {@link DayOfWeek} names, which is the whole
+ * counted Monday to Friday and nothing else asked. The row is written the first time an
+ * organization sets its week; until then every read answers that same Monday to Friday default,
+ * so an organization that never opens the setting behaves as it always has. Stored as a comma-separated list of {@link DayOfWeek} names, which is the whole
  * value and small enough that a join table would be ceremony.
  */
 @Entity

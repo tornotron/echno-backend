@@ -292,7 +292,8 @@ public class LeavePolicyService {
                 case "requiresAttachment" -> policy.setRequiresAttachment((Boolean) value);
                 case "attachmentRequiredAfterDays" -> policy.setAttachmentRequiredAfterDays(
                         value != null ? ((Number) value).intValue() : null);
-                case "supportingDocumentNote" -> policy.setSupportingDocumentNote((String) value);
+                case "supportingDocumentNote" -> policy.setSupportingDocumentNote(
+                        limitLength(value, "supportingDocumentNote", 500));
                 case "accrualMethod" -> policy.setAccrualMethod(
                         requireEnum(value, "accrualMethod", AccrualMethod.class));
                 case "weekendHolidayTreatment" -> policy.setWeekendHolidayTreatment(
@@ -336,6 +337,24 @@ public class LeavePolicyService {
                     "A leave policy must have an annual quota; annualQuota cannot be cleared");
         }
         return ((Number) value).doubleValue();
+    }
+
+    /**
+     * Reads a text key of a partial leave-policy update against its column width.
+     *
+     * <p>The create payload carries {@code @Size}; the update map carries no bean validation, so
+     * without this an over-long note reaches the column and surfaces as a constraint violation
+     * rather than the 400 the schema documents.
+     */
+    private static String limitLength(Object value, String key, int max) {
+        if (value == null) {
+            return null;
+        }
+        String text = value.toString();
+        if (text.length() > max) {
+            throw new InvalidRequestException(key + " must not exceed " + max + " characters");
+        }
+        return text;
     }
 
     /**

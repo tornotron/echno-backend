@@ -383,11 +383,17 @@ class LeaveAccrualServiceTest {
         return policy;
     }
 
+    private void stubAccruedSoFar(double days) {
+        lenient().when(transactionRepository.sumDaysByBalanceAndType(BALANCE_ID, TransactionType.ACCRUAL))
+                .thenReturn(days);
+    }
+
     @Test
     void recalculate_inFull_creditsTheWholeQuotaOnceForAnEmployeeAlreadyQualified() {
         Employee employee = employee(LocalDateTime.of(2018, 1, 1, 0, 0));
         LeaveBalance balance = balance(employee, inFullPolicy(91.0, 6), PAST_YEAR);
         stubNoPriorAccrualsNoAttendance();
+        stubAccruedSoFar(0.0);
 
         service.recalculate(balance);
 
@@ -402,6 +408,7 @@ class LeaveAccrualServiceTest {
         Employee employee = employee(LocalDateTime.of(PAST_YEAR, 2, 10, 0, 0));
         LeaveBalance balance = balance(employee, inFullPolicy(15.0, 6), PAST_YEAR);
         stubNoPriorAccrualsNoAttendance();
+        stubAccruedSoFar(0.0);
 
         service.recalculate(balance);
 
@@ -419,6 +426,44 @@ class LeaveAccrualServiceTest {
         Employee employee = employee(LocalDateTime.of(PAST_YEAR, 10, 1, 0, 0));
         LeaveBalance balance = balance(employee, inFullPolicy(15.0, 6), PAST_YEAR);
         stubNoPriorAccrualsNoAttendance();
+        stubAccruedSoFar(0.0);
+
+        service.recalculate(balance);
+
+        assertThat(balance.getAccrued()).isEqualTo(0.0);
+        verify(transactionRepository, never()).save(any(LeaveTransaction.class));
+    }
+
+    @Test
+    void recalculate_inFull_afterMonthlyAccrualsExist_postsOnlyTheRemainder() {
+        // A policy switched from MONTHLY after five months had accrued at 7.5 each: the ledger
+        // is brought to the whole quota by one row of the difference, and a second run posts
+        // nothing because the sum is already right.
+        Employee employee = employee(LocalDateTime.of(2018, 1, 1, 0, 0));
+        LeaveBalance balance = balance(employee, inFullPolicy(90.0, 0), PAST_YEAR);
+        stubNoPriorAccrualsNoAttendance();
+        stubAccruedSoFar(37.5);
+
+        service.recalculate(balance);
+
+        assertThat(balance.getAccrued()).isEqualTo(90.0);
+        org.mockito.ArgumentCaptor<LeaveTransaction> saved =
+                org.mockito.ArgumentCaptor.forClass(LeaveTransaction.class);
+        verify(transactionRepository, times(1)).save(saved.capture());
+        assertThat(saved.getValue().getDays()).isEqualTo(52.5);
+
+        stubAccruedSoFar(90.0);
+        service.recalculate(balance);
+        verify(transactionRepository, times(1)).save(any(LeaveTransaction.class));
+    }
+
+    @Test
+    void recalculate_inFull_futureYear_creditsNothing() {
+        int futureYear = LocalDate.now().getYear() + 1;
+        Employee employee = employee(LocalDateTime.of(2018, 1, 1, 0, 0));
+        LeaveBalance balance = balance(employee, inFullPolicy(15.0, 0), futureYear);
+        stubNoPriorAccrualsNoAttendance();
+        stubAccruedSoFar(0.0);
 
         service.recalculate(balance);
 
