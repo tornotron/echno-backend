@@ -69,6 +69,7 @@ class LeaveApprovalTrailAccessTest {
     @Mock private LeaveCalendarService calendarService;
     @Mock private NotificationService notificationService;
     @Mock private LeaveRequestMapper leaveRequestMapper;
+    @Mock private LeaveRequestValidator leaveRequestValidator;
 
     @BeforeEach
     void setTenant() {
@@ -92,7 +93,8 @@ class LeaveApprovalTrailAccessTest {
                 orgSecurity,
                 calendarService,
                 notificationService,
-                leaveRequestMapper);
+                leaveRequestMapper,
+                leaveRequestValidator);
     }
 
     private Employee employee(Long id) {

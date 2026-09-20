@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.leave.dto.LeaveCancellationDto;
 import org.tornotron.echno_backend.leave.dto.LeaveDaysCalculationDto;
+import org.tornotron.echno_backend.leave.dto.LeaveDaysCalculationResultDto;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestCreationDto;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestDto;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestUpdateFieldsDto;
@@ -290,22 +291,29 @@ public class LeaveRequestController {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Calculate total leave days",
-            description = "Calculates the number of leave days between startDate and endDate, accounting "
-                    + "for the optional half-day type at either end."
+            description = "Calculates what a leave request between startDate and endDate would cost, "
+                    + "accounting for the optional half-day type at either end and, when leavePolicyId "
+                    + "is given, the policy's weekend and holiday treatment."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Total days calculated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "startDate or endDate is missing or not a valid date"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
     })
-    public ResponseEntity<Map<String, Double>> calculateDays(
+    public ResponseEntity<LeaveDaysCalculationResultDto> calculateDays(
             @Valid @RequestBody LeaveDaysCalculationDto dto) {
-        double totalDays = requestService.calculateTotalDays(
+        LeaveCharge charge = requestService.charge(
+                dto.getLeavePolicyId(),
                 dto.getStartDate(),
                 dto.getStartHalfDayType(),
                 dto.getEndDate(),
                 dto.getEndHalfDayType());
 
-        return ResponseEntity.ok(Map.of("totalDays", totalDays));
+        LeaveDaysCalculationResultDto result = new LeaveDaysCalculationResultDto();
+        result.setTotalDays(charge.chargedDays());
+        result.setCalendarDays(charge.calendarDays());
+        result.setNonWorkingDaysExcluded(charge.nonWorkingDaysExcluded());
+        result.setDeductionRule(charge.rule());
+        return ResponseEntity.ok(result);
     }
 }

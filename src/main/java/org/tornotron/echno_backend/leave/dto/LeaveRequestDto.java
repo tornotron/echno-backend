@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import org.tornotron.echno_backend.leave.enums.HalfDayType;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
+import org.tornotron.echno_backend.leave.enums.WeekendHolidayTreatment;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -50,7 +51,13 @@ public class LeaveRequestDto {
             + "did.", example = "SECOND_HALF")
     private HalfDayType endHalfDayType;
 
-    @Schema(description = "Total leave days, accounting for any half days.", example = "2.5")
+    @Schema(nullable = true, description = "The weekend and holiday treatment that produced totalDays: "
+            + "CHARGE_ALL_DAYS, EXCLUDE_NON_WORKING_DAYS or SANDWICH. Null on requests charged before "
+            + "the treatment existed, which were counted end to end.", example = "SANDWICH")
+    private WeekendHolidayTreatment deductionRule;
+
+    @Schema(description = "Days charged to the balance, after the half-day markers and the policy's "
+            + "weekend and holiday treatment.", example = "2.5")
     private Double totalDays;
 
     @Schema(description = "Reason for the leave.", example = "Attending sister's wedding in Coimbatore")

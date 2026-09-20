@@ -4,12 +4,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.holiday.WorkingCalendarService;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestCreationDto;
 import org.tornotron.echno_backend.leave.enums.HalfDayType;
+import org.tornotron.echno_backend.leave.enums.WeekendHolidayTreatment;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -25,15 +29,103 @@ public class LeaveRequestValidator {
 
     private final LeaveRequestRepository requestRepository;
     private final LeaveBalanceService balanceService;
+    private final WorkingCalendarService workingCalendarService;
 
-    public LeaveRequestValidator(LeaveRequestRepository requestRepository, LeaveBalanceService balanceService) {
+    public LeaveRequestValidator(LeaveRequestRepository requestRepository,
+                                 LeaveBalanceService balanceService,
+                                 WorkingCalendarService workingCalendarService) {
         this.requestRepository = requestRepository;
         this.balanceService = balanceService;
+        this.workingCalendarService = workingCalendarService;
     }
 
     /**
-     * Computes the number of leave days spanned by the range, honouring
-     * first/second-half markers on the start and end days.
+     * What a request under a policy costs, applying the policy's weekend and holiday treatment.
+     *
+     * <p>Every calendar day in the range carries a weight: one, or a half for a start day taken
+     * from midday or an end day taken until midday. {@link WeekendHolidayTreatment#CHARGE_ALL_DAYS}
+     * charges every weight, which is the count every request was charged before the treatment
+     * existed. The other two consult the organization's working week and holiday calendar:
+     * {@link WeekendHolidayTreatment#EXCLUDE_NON_WORKING_DAYS} charges only the working days, and
+     * {@link WeekendHolidayTreatment#SANDWICH} also charges a non-working day that sits between
+     * two charged working days, so a Friday-to-Monday request costs four days and a
+     * Thursday-to-Friday one costs two.
+     *
+     * @param policy The policy the request is raised under; null applies CHARGE_ALL_DAYS.
+     * @return The charge, never null.
+     * @throws InvalidRequestException if the start date is after the end date.
+     */
+    @Transactional(readOnly = true)
+    public LeaveCharge charge(
+            LeavePolicy policy,
+            LocalDate startDate,
+            HalfDayType startType,
+            LocalDate endDate,
+            HalfDayType endType) {
+
+        double calendarDays = calculateTotalDays(startDate, startType, endDate, endType);
+        WeekendHolidayTreatment rule = policy == null || policy.getWeekendHolidayTreatment() == null
+                ? WeekendHolidayTreatment.CHARGE_ALL_DAYS
+                : policy.getWeekendHolidayTreatment();
+
+        if (rule == WeekendHolidayTreatment.CHARGE_ALL_DAYS) {
+            return new LeaveCharge(calendarDays, calendarDays, 0, rule);
+        }
+
+        Set<LocalDate> nonWorking = workingCalendarService.nonWorkingDays(startDate, endDate);
+        List<LocalDate> days = startDate.datesUntil(endDate.plusDays(1)).toList();
+        List<Double> weights = new ArrayList<>(days.size());
+        for (LocalDate day : days) {
+            weights.add(weightOf(day, startDate, startType, endDate, endType));
+        }
+
+        // Working days are charged at their weight under both remaining treatments. Under
+        // SANDWICH a non-working day is charged in full when a charged working day lies on each
+        // side of it within the request; a run that touches the request only at an end is free.
+        int firstWorking = -1;
+        int lastWorking = -1;
+        for (int i = 0; i < days.size(); i++) {
+            if (!nonWorking.contains(days.get(i))) {
+                if (firstWorking < 0) {
+                    firstWorking = i;
+                }
+                lastWorking = i;
+            }
+        }
+
+        double charged = 0.0;
+        int excluded = 0;
+        for (int i = 0; i < days.size(); i++) {
+            boolean isNonWorking = nonWorking.contains(days.get(i));
+            if (!isNonWorking) {
+                charged += weights.get(i);
+            } else if (rule == WeekendHolidayTreatment.SANDWICH && i > firstWorking && i < lastWorking) {
+                charged += 1.0;
+            } else {
+                excluded++;
+            }
+        }
+
+        return new LeaveCharge(LeaveDays.round(charged), calendarDays, excluded, rule);
+    }
+
+    private static double weightOf(LocalDate day, LocalDate startDate, HalfDayType startType,
+                                   LocalDate endDate, HalfDayType endType) {
+        boolean startsAtMidday = day.equals(startDate) && startType == HalfDayType.SECOND_HALF;
+        boolean endsAtMidday = day.equals(endDate) && endType == HalfDayType.FIRST_HALF;
+        if (startDate.equals(endDate)) {
+            boolean half = startType == HalfDayType.FIRST_HALF || startType == HalfDayType.SECOND_HALF
+                    || endType == HalfDayType.FIRST_HALF || endType == HalfDayType.SECOND_HALF;
+            return half ? 0.5 : 1.0;
+        }
+        return startsAtMidday || endsAtMidday ? 0.5 : 1.0;
+    }
+
+    /**
+     * Computes the number of calendar days spanned by the range, honouring
+     * first/second-half markers on the start and end days. This is the
+     * {@link WeekendHolidayTreatment#CHARGE_ALL_DAYS} figure; {@link #charge} applies
+     * the policy's treatment on top of it.
      */
     public double calculateTotalDays(
             LocalDate startDate,
@@ -113,11 +205,17 @@ public class LeaveRequestValidator {
             }
         }
 
-        double totalDays = calculateTotalDays(
+        double totalDays = charge(
+                policy,
                 dto.getStartDate(),
                 dto.getStartHalfDayType(),
                 dto.getEndDate(),
-                dto.getEndHalfDayType());
+                dto.getEndHalfDayType()).chargedDays();
+
+        if (totalDays <= 0.0) {
+            throw new InvalidRequestException(
+                    "The requested dates fall entirely on non-working days, so no leave would be charged");
+        }
 
         if (policy.getMinDaysPerRequest() != null && totalDays < policy.getMinDaysPerRequest()) {
             throw new InvalidRequestException(

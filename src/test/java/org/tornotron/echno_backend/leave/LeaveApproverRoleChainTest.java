@@ -50,6 +50,7 @@ class LeaveApproverRoleChainTest {
     @Mock private LeaveCalendarService calendarService;
     @Mock private NotificationService notificationService;
     @Mock private LeaveRequestMapper leaveRequestMapper;
+    @Mock private LeaveRequestValidator leaveRequestValidator;
 
     private LeaveApprovalService service;
     private Organization org;
@@ -60,7 +61,7 @@ class LeaveApproverRoleChainTest {
     void setUp() {
         service = new LeaveApprovalService(approvalRepository, requestRepository, balanceRepository,
                 transactionRepository, employeeRepository, currentEmployeeService, orgSecurity,
-                calendarService, notificationService, leaveRequestMapper);
+                calendarService, notificationService, leaveRequestMapper, leaveRequestValidator);
         org = new Organization();
         org.setId(1L);
         manager = employee(10L);

@@ -11288,6 +11288,12 @@
             ],
             "type": "string"
           },
+          "leavePolicyId": {
+            "description": "The policy the request would be raised under. When given, its weekend and holiday treatment is applied; when absent every calendar day is charged.",
+            "example": 3,
+            "format": "int64",
+            "type": "integer"
+          },
           "startDate": {
             "description": "First day of the range.",
             "example": "2026-09-14",
@@ -11308,6 +11314,40 @@
           "endDate",
           "startDate"
         ],
+        "type": "object"
+      },
+      "LeaveDaysCalculationResultDto": {
+        "description": "What a leave request over a date range would cost under a policy.",
+        "properties": {
+          "calendarDays": {
+            "description": "Calendar days from the first to the last day inclusive, less the half-day allowances at either end. Equal to totalDays under CHARGE_ALL_DAYS.",
+            "example": 4.0,
+            "format": "double",
+            "type": "number"
+          },
+          "deductionRule": {
+            "description": "The treatment applied: the policy's when leavePolicyId was given, CHARGE_ALL_DAYS otherwise.",
+            "enum": [
+              "SANDWICH",
+              "EXCLUDE_NON_WORKING_DAYS",
+              "CHARGE_ALL_DAYS"
+            ],
+            "example": "SANDWICH",
+            "type": "string"
+          },
+          "nonWorkingDaysExcluded": {
+            "description": "Weekend and holiday days inside the range that the treatment left uncharged.",
+            "example": 0,
+            "format": "int32",
+            "type": "integer"
+          },
+          "totalDays": {
+            "description": "Days that would be charged to the balance.",
+            "example": 4.0,
+            "format": "double",
+            "type": "number"
+          }
+        },
         "type": "object"
       },
       "LeavePolicyCreationDto": {
@@ -12077,6 +12117,19 @@
               "null"
             ]
           },
+          "deductionRule": {
+            "description": "The weekend and holiday treatment that produced totalDays: CHARGE_ALL_DAYS, EXCLUDE_NON_WORKING_DAYS or SANDWICH. Null on requests charged before the treatment existed, which were counted end to end.",
+            "enum": [
+              "SANDWICH",
+              "EXCLUDE_NON_WORKING_DAYS",
+              "CHARGE_ALL_DAYS"
+            ],
+            "example": "SANDWICH",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "department": {
             "description": "Department of the employee who raised the request. Read from the employee record, which the employee table permits to carry no department.",
             "example": "Civil",
@@ -12208,7 +12261,7 @@
             "type": "string"
           },
           "totalDays": {
-            "description": "Total leave days, accounting for any half days.",
+            "description": "Days charged to the balance, after the half-day markers and the policy's weekend and holiday treatment.",
             "example": 2.5,
             "format": "double",
             "type": "number"
@@ -81837,7 +81890,7 @@
     },
     "/api/v1/leave-requests/calculate-days": {
       "post": {
-        "description": "Calculates the number of leave days between startDate and endDate, accounting for the optional half-day type at either end.",
+        "description": "Calculates what a leave request between startDate and endDate would cost, accounting for the optional half-day type at either end and, when leavePolicyId is given, the policy's weekend and holiday treatment.",
         "operationId": "calculateDays_1",
         "requestBody": {
           "content": {
@@ -81854,11 +81907,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "additionalProperties": {
-                    "format": "double",
-                    "type": "number"
-                  },
-                  "type": "object"
+                  "$ref": "#/components/schemas/LeaveDaysCalculationResultDto"
                 }
               }
             },
@@ -83479,7 +83528,7 @@
     },
     "/api/v1/leave-requests/web/calculate-days": {
       "post": {
-        "description": "Calculates the number of leave days between startDate and endDate, accounting for the optional half-day type at either end.",
+        "description": "Calculates what a leave request between startDate and endDate would cost, accounting for the optional half-day type at either end and, when leavePolicyId is given, the policy's weekend and holiday treatment.",
         "operationId": "calculateDays",
         "requestBody": {
           "content": {
@@ -83496,11 +83545,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "additionalProperties": {
-                    "format": "double",
-                    "type": "number"
-                  },
-                  "type": "object"
+                  "$ref": "#/components/schemas/LeaveDaysCalculationResultDto"
                 }
               }
             },

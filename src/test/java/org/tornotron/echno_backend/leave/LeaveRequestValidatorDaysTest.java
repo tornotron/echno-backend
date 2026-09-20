@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+import org.tornotron.echno_backend.holiday.WorkingCalendarService;
 import org.tornotron.echno_backend.leave.enums.HalfDayType;
 
 import java.time.LocalDate;
@@ -32,6 +33,7 @@ class LeaveRequestValidatorDaysTest {
 
     @Mock private LeaveRequestRepository requestRepository;
     @Mock private LeaveBalanceService balanceService;
+    @Mock private WorkingCalendarService workingCalendarService;
 
     private LeaveRequestValidator validator;
 
@@ -43,7 +45,7 @@ class LeaveRequestValidatorDaysTest {
 
     @BeforeEach
     void setUp() {
-        validator = new LeaveRequestValidator(requestRepository, balanceService);
+        validator = new LeaveRequestValidator(requestRepository, balanceService, workingCalendarService);
     }
 
     private double days(LocalDate start, HalfDayType startType, LocalDate end, HalfDayType endType) {
