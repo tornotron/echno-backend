@@ -47,6 +47,17 @@ ext {
     // thirtieth of the full working set, and each new entity grows every context at once.
     testHeapFailRatio = (findProperty('testHeapFailRatio') ?: '0.80') as double
     testHeapWarnRatio = (findProperty('testHeapWarnRatio') ?: '0.65') as double
+
+    // Which half of the suite `test` runs: 'unit', 'integration' or 'all' (the default, and
+    // what a plain `./gradlew test` means). The split is by class name, the convention the
+    // suite already follows: a class named *IT boots a container (CockroachDB, Keycloak,
+    // Redis) and everything else is a slice or plain unit test. CI runs the two halves as
+    // parallel jobs (pull-request.yml); locally there is no reason to pass this.
+    testKind = findProperty('testKind') ?: 'all'
+    // A directory of JaCoCo exec files to report on instead of this build's own test run.
+    // CI sets it in the job that gathers the exec files the two test jobs uploaded, so the
+    // coverage floor is judged over the whole suite and not over either half alone.
+    jacocoExecDir = findProperty('jacocoExecDir')
 }
 
 repositories {
@@ -176,6 +187,20 @@ tasks.named('test') {
     // a thirty-second one would eat the headroom that change bought. It runs in the
     // openApiSnapshot task below, in a JVM of its own. See OpenApiSnapshotTest.
     exclude '**/OpenApiSnapshotTest.class'
+    // See testKind above. Includes are applied before excludes, so the OpenAPI exclusion
+    // holds in every mode. The `*IT$*` pattern keeps a container test's inner classes with it.
+    switch (testKind) {
+        case 'unit':
+            exclude '**/*IT.class', '**/*IT$*.class'
+            break
+        case 'integration':
+            include '**/*IT.class', '**/*IT$*.class'
+            break
+        case 'all':
+            break
+        default:
+            throw new GradleException("testKind must be unit, integration or all, not '${testKind}'")
+    }
     finalizedBy jacocoTestReport, 'testHeapHeadroom'
 }
 
@@ -307,8 +332,17 @@ def jacocoLogicExclusions = [
         '**/*MapperImpl.class',
 ]
 
+// See jacocoExecDir above. Run with `-x test` when this is set, or the report waits for a
+// test run whose exec file it would then ignore.
+def jacocoMergedExecutionData = jacocoExecDir ? fileTree(dir: jacocoExecDir, include: '**/*.exec') : null
+
 tasks.named('jacocoTestReport') {
     dependsOn test
+    if (jacocoMergedExecutionData != null) {
+        executionData.setFrom(jacocoMergedExecutionData)
+        // Normally `test` compiles main first; with it excluded, nothing else would.
+        dependsOn 'classes'
+    }
     reports {
         xml.required = true
         html.required = true
@@ -323,6 +357,9 @@ tasks.named('jacocoTestReport') {
 // coverage climbs, the same ratchet idea as the ArchUnit endpoint rule.
 tasks.named('jacocoTestCoverageVerification') {
     dependsOn jacocoTestReport
+    if (jacocoMergedExecutionData != null) {
+        executionData.setFrom(jacocoMergedExecutionData)
+    }
     classDirectories.setFrom(files(sourceSets.main.output.classesDirs.collect {
         fileTree(dir: it, exclude: jacocoLogicExclusions)
     }))

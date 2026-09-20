@@ -12,11 +12,16 @@ permissions:
   contents: read
 
 jobs:
-  build-and-test:
+  # The suite is run as two jobs, split by class name: *IT classes boot a container
+  # (CockroachDB, Keycloak, Redis) and everything else is a slice or plain unit test.
+  # The OpenAPI snapshot check is a third job. One job running all three in sequence
+  # took 16 to 17 minutes and twice ran into the 20-minute ceiling (#830); side by
+  # side, the wall clock is the slowest of them. Each job compiles for itself, which
+  # is a minute against the artefact upload it would replace. `build-and-test` at the
+  # bottom is the one check to require: it fails if any of these did.
+  compile:
     runs-on: ubuntu-latest
-    # A hard ceiling so a hung test can never burn a multi-hour runner again. The
-    # suite completes in a few minutes; anything approaching this is a hang to fix.
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - name: Check out
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -28,28 +33,91 @@ jobs:
           java-version: "21"
           cache: gradle
 
-      - name: Compile
+      - name: Compile and package
         run: ./gradlew --no-daemon bootJar -x test
 
-      # Run the full test suite and enforce the JaCoCo line-coverage floor
-      # (jacocoLineFloor in build.gradle) so a merge cannot regress coverage.
-      - name: Test
-        run: ./gradlew --no-daemon test jacocoTestCoverageVerification
+  unit-tests:
+    runs-on: ubuntu-latest
+    # A hard ceiling so a hung test can never burn a multi-hour runner again. This half
+    # completes in a few minutes; anything approaching this is a hang to fix.
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      # The committed OpenAPI document (docs/openapi.json) is the contract clients
-      # read; echno-core checks the field names it sends against it. This regenerates
-      # the document from this branch's code and fails if the committed copy has
-      # drifted, so the file cannot quietly stop describing the backend. Its own
-      # step, and its own forked JVM, because it boots a web context that does not
-      # belong in the main suite's 1 GB heap. See OpenApiSnapshotTest.
-      #
-      # Runs whether or not `Test` passed. A run whose document is stale is by
-      # definition a run where something changed, which is often a run where a test
-      # is red too, and gating this step on the suite made the document unobtainable
-      # in exactly those runs. The two checks report independently now: a red suite
-      # no longer hides a contract drift, and a drift no longer hides a red suite.
-      - name: OpenAPI document up to date
+      - name: Set up Java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      # The coverage floor is not checked here: this half alone would sit under it.
+      # The exec file goes to the `build-and-test` job, which judges both halves together.
+      - name: Test
+        run: ./gradlew --no-daemon test -PtestKind=unit
+
+      - name: Upload the coverage data
         if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: jacoco-unit
+          path: build/jacoco/test.exec
+          if-no-files-found: error
+          retention-days: 1
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Test
+        run: ./gradlew --no-daemon test -PtestKind=integration
+
+      - name: Upload the coverage data
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: jacoco-integration
+          path: build/jacoco/test.exec
+          if-no-files-found: error
+          retention-days: 1
+
+  # The committed OpenAPI document (docs/openapi.json) is the contract clients read;
+  # echno-core checks the field names it sends against it. This regenerates the
+  # document from this branch's code and fails if the committed copy has drifted, so
+  # the file cannot quietly stop describing the backend. Its own job, and its own
+  # forked JVM, because it boots a web context that does not belong in the main
+  # suite's heap. See OpenApiSnapshotTest.
+  #
+  # Independent of the test jobs. A run whose document is stale is by definition a
+  # run where something changed, which is often a run where a test is red too, and
+  # gating this on the suite made the document unobtainable in exactly those runs.
+  # A red suite does not hide a contract drift, and a drift does not hide a red suite.
+  openapi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: OpenAPI document up to date
         run: ./gradlew --no-daemon openApiSnapshot
 
       # OpenApiSnapshotTest writes build/openapi.json before it compares, so this is
@@ -63,6 +131,65 @@ jobs:
         with:
           name: openapi-served
           path: build/openapi.json
+          if-no-files-found: ignore
+
+  # The single check to require on `development`. Fails if any job above failed, was
+  # cancelled or was skipped, then enforces the JaCoCo line-coverage floor
+  # (jacocoLineFloor in build.gradle) over the exec files of both test halves, so a
+  # merge cannot regress coverage. The floor was measured over the whole suite and
+  # only makes sense over the whole suite.
+  build-and-test:
+    needs: [compile, unit-tests, integration-tests, openapi]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check every job passed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success")' > /dev/null
+
+      - name: Check out
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Download the coverage data
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: jacoco-*
+          path: build/jacoco/ci
+
+      # -x test: the report would otherwise wait for a test run of its own, whose exec
+      # file it then ignores in favour of jacocoExecDir. Main is compiled again here so
+      # the class files the exec data is matched against exist.
+      - name: Enforce the coverage floor over both halves
+        run: ./gradlew --no-daemon jacocoTestCoverageVerification -x test -PjacocoExecDir=build/jacoco/ci
+
+      - name: Report the measured coverage
+        if: ${{ !cancelled() }}
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('build/reports/jacoco/test/jacocoTestReport.xml').getroot()
+          c = next(c for c in root.findall('counter') if c.get('type') == 'LINE')
+          missed, covered = int(c.get('missed')), int(c.get('covered'))
+          print(f"Line coverage over both halves: {covered}/{missed + covered} = {covered / (missed + covered):.2%}")
+          PY
+
+      - name: Upload the coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: jacoco-report
+          path: build/reports/jacoco/test
           if-no-files-found: ignore
 
   # Keeps the module scaffold honest. The templates under scripts/scaffold/templates/backend/
