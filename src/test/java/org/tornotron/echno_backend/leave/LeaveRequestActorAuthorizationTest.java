@@ -7,6 +7,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
@@ -20,11 +22,14 @@ import org.tornotron.echno_backend.organization.Organization;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -56,7 +61,7 @@ class LeaveRequestActorAuthorizationTest {
     private static final Long REQUEST_ID = 42L;
 
     @Mock private LeaveRequestRepository requestRepository;
-    @Mock private LeaveRequestSequenceRepository sequenceRepository;
+    @Mock private DocumentNumberAllocator documentNumberAllocator;
     @Mock private LeavePolicyRepository policyRepository;
     @Mock private LeaveBalanceRepository balanceRepository;
     @Mock private EmployeeRepository employeeRepository;
@@ -65,10 +70,13 @@ class LeaveRequestActorAuthorizationTest {
     @Mock private LeaveRequestMapper leaveRequestMapper;
     @Mock private OrganizationSecurityService orgSecurity;
     @Mock private CurrentEmployeeService currentEmployeeService;
+    @Mock private TransactionRetryTemplate retryTemplate;
 
     @BeforeEach
     void setTenant() {
         TenantContext.setCurrentOrgId(ORG_ID);
+        lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
+                .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
     }
 
     @AfterEach
@@ -79,7 +87,7 @@ class LeaveRequestActorAuthorizationTest {
     private LeaveRequestService service() {
         return new LeaveRequestService(
                 requestRepository,
-                sequenceRepository,
+                documentNumberAllocator,
                 policyRepository,
                 balanceRepository,
                 employeeRepository,
@@ -87,7 +95,8 @@ class LeaveRequestActorAuthorizationTest {
                 leaveRequestValidator,
                 leaveRequestMapper,
                 orgSecurity,
-                currentEmployeeService);
+                currentEmployeeService,
+                retryTemplate);
     }
 
     private Organization organization() {

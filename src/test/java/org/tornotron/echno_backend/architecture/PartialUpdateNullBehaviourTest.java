@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
 import org.tornotron.echno_backend.architecture.PartialUpdateSurfaces.UpdateSurface;
 import org.tornotron.echno_backend.category.CategoryRepository;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
@@ -42,7 +43,6 @@ import org.tornotron.echno_backend.leave.LeavePolicyRepository;
 import org.tornotron.echno_backend.leave.LeavePolicyService;
 import org.tornotron.echno_backend.leave.LeaveRequest;
 import org.tornotron.echno_backend.leave.LeaveRequestRepository;
-import org.tornotron.echno_backend.leave.LeaveRequestSequenceRepository;
 import org.tornotron.echno_backend.leave.LeaveRequestService;
 import org.tornotron.echno_backend.leave.LeaveRequestValidator;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
@@ -527,7 +527,7 @@ class PartialUpdateNullBehaviourTest {
     class LeaveRequestSurface {
 
         @Mock private LeaveRequestRepository requestRepository;
-        @Mock private LeaveRequestSequenceRepository sequenceRepository;
+        @Mock private DocumentNumberAllocator documentNumberAllocator;
         @Mock private LeavePolicyRepository policyRepository;
         @Mock private LeaveBalanceRepository balanceRepository;
         @Mock private EmployeeRepository employeeRepository;

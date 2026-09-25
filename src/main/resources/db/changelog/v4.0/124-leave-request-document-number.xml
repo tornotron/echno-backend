@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="124-seed-leave-request-document-number" author="abhijith">
+        <comment>
+            Leave request numbers move from leave_request_sequence to the shared
+            document_number_sequence counter (#858). The counter for each organization and year
+            starts at the higher of two values: the highest LR-YYYY-NNNNNN number already in
+            leave_request, and the old counter. Restored data had left rows ahead of the old
+            counter, and every create in such an organization proposed a number that was taken.
+
+            The allocator also reads the highest number in use on every create, so this seed is
+            what keeps the first number after the upgrade in sequence rather than what makes it
+            unique. Re-runnable: ON CONFLICT keeps whichever value is higher.
+
+            LR- is three characters, so the year sits at offset 4 and the sequence at offset 9,
+            the same positions as PO- in changeset 061.
+        </comment>
+
+        <sql>
+            INSERT INTO document_number_sequence
+                (organization_id, document_type, sequence_year, last_allocated, created_at, updated_at)
+            SELECT organization_id,
+                   'LEAVE_REQUEST',
+                   CAST(substring(request_number, 4, 4) AS INT),
+                   MAX(CAST(substring(request_number, 9) AS INT8)),
+                   current_timestamp, current_timestamp
+            FROM leave_request
+            WHERE organization_id IS NOT NULL
+              AND request_number ~ '^LR-[0-9]{4}-[0-9]+$'
+            GROUP BY organization_id, CAST(substring(request_number, 4, 4) AS INT)
+            ON CONFLICT (organization_id, document_type, sequence_year)
+            DO UPDATE SET last_allocated = greatest(document_number_sequence.last_allocated,
+                                                    excluded.last_allocated);
+        </sql>
+
+        <sql>
+            INSERT INTO document_number_sequence
+                (organization_id, document_type, sequence_year, last_allocated, created_at, updated_at)
+            SELECT organization_id, 'LEAVE_REQUEST', "year", last_sequence,
+                   current_timestamp, current_timestamp
+            FROM leave_request_sequence
+            WHERE last_sequence > 0
+            ON CONFLICT (organization_id, document_type, sequence_year)
+            DO UPDATE SET last_allocated = greatest(document_number_sequence.last_allocated,
+                                                    excluded.last_allocated);
+        </sql>
+
+        <rollback>
+            DELETE FROM document_number_sequence WHERE document_type = 'LEAVE_REQUEST';
+        </rollback>
+    </changeSet>
+
+    <changeSet id="124-add-per-org-leave-request-number-uniqueness" author="abhijith">
+        <comment>
+            The request number is unique within an organization, like every other document
+            number since changeset 061. Added before the global constraint is dropped, so the
+            column is never unconstrained in between.
+        </comment>
+
+        <addUniqueConstraint tableName="leave_request"
+                             columnNames="organization_id, request_number"
+                             constraintName="uk_leave_request_org_number"/>
+
+        <rollback>
+            <dropUniqueConstraint tableName="leave_request" constraintName="uk_leave_request_org_number"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="124-drop-global-leave-request-number-uniqueness" author="abhijith">
+        <comment>
+            Removes the cross-tenant constraint. The column was declared unique inline in every
+            baseline, which CockroachDB names leave_request_request_number_key and backs with an
+            index of that name, so the index is what is dropped.
+        </comment>
+
+        <sql>
+            DROP INDEX IF EXISTS leave_request@leave_request_request_number_key CASCADE;
+        </sql>
+
+        <rollback>
+            <comment>
+                A global constraint cannot be restored once two organizations share a number.
+            </comment>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -612,7 +612,7 @@ This shows who needs to approve and at what level.
 | `leave_transaction` | Balance change audit trail |
 | `leave_calendar` | Daily calendar entries |
 | `notification` | In-app notifications |
-| `leave_request_sequence` | Request number generator |
+| `leave_request_sequence` | Legacy request number counter, superseded by `document_number_sequence` (LEAVE_REQUEST) |
 
 ---
 
