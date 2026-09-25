@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
@@ -37,6 +38,31 @@ class UserRepositoryIT extends AbstractIntegrationTest {
         Page<User> result = userRepository.findUsersByOrganizationId(999_999L, PageRequest.of(0, 20));
 
         assertThat(result.getContent()).isEmpty();
+    }
+
+    @Test
+    void findUsersByOrganizationId_sortsByUserId_andReturnsEachMemberOnce() {
+        // The directory asks for its page sorted by id. The query used to select DISTINCT users
+        // from Employee, the sort landed on the employee's id, and the database refused the
+        // statement: GET /user/web/all answered 500 (#859).
+        Organization orgA = persistOrganization("Org D");
+        Organization orgB = persistOrganization("Org E");
+        User first = persistUser("sorted-first");
+        User second = persistUser("sorted-second");
+        User outsider = persistUser("sorted-outsider");
+        persistEmployee(orgA, first);
+        persistEmployee(orgA, second);
+        persistEmployee(orgB, second);
+        persistEmployee(orgB, outsider);
+        em.flush();
+        em.clear();
+
+        Page<User> result = userRepository.findUsersByOrganizationId(
+                orgA.getId(), PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "id")));
+
+        assertThat(result.getContent()).extracting(User::getId)
+                .containsExactly(first.getId(), second.getId());
+        assertThat(result.getTotalElements()).isEqualTo(2);
     }
 
     @Test
