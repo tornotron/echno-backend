@@ -10527,6 +10527,17 @@
             "example": "State Bank of India",
             "type": "string"
           },
+          "currentProjectId": {
+            "description": "Id of the project the worker is currently assigned to, or null when unassigned.",
+            "example": 4,
+            "format": "int64",
+            "type": "integer"
+          },
+          "currentProjectName": {
+            "description": "Name of the project the worker is currently assigned to, or null when unassigned.",
+            "example": "Marina Heights Towers",
+            "type": "string"
+          },
           "dailyRate": {
             "description": "Daily wage rate.",
             "example": 850.0,

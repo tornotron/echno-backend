@@ -38,6 +38,10 @@ public class LabourDto {
     private Status status;
     @Schema(description = "Date the worker joined.", example = "2026-01-15")
     private LocalDate joiningDate;
+    @Schema(description = "Id of the project the worker is currently assigned to, or null when unassigned.", example = "4")
+    private Long currentProjectId;
+    @Schema(description = "Name of the project the worker is currently assigned to, or null when unassigned.", example = "Marina Heights Towers")
+    private String currentProjectName;
     @Schema(description = "Daily wage rate.", example = "850.00")
     private BigDecimal dailyRate;
     @Schema(description = "Overtime rate per hour.", example = "120.00")
