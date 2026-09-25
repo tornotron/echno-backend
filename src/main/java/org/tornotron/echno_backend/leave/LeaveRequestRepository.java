@@ -17,6 +17,20 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
 
     List<LeaveRequest> findByEmployeeId(Long employeeId);
 
+    /**
+     * The highest sequence number among this organization's request numbers that start with
+     * {@code prefix} (for example {@code LR-2026-}) and continue with digits only, or 0 when
+     * there is none. Numbers in any other shape cannot be produced by the allocator, so they
+     * cannot collide with one it issues and are left out.
+     */
+    @Query(value = "SELECT COALESCE(MAX(CAST(substring(request_number, length(:prefix) + 1) AS INT8)), 0) "
+            + "FROM leave_request "
+            + "WHERE organization_id = :orgId "
+            + "AND request_number LIKE :prefix || '%' "
+            + "AND request_number ~ ('^' || :prefix || '[0-9]+$')",
+            nativeQuery = true)
+    long findHighestRequestSequence(@Param("orgId") Long organizationId, @Param("prefix") String prefix);
+
 
     Optional<LeaveRequest> findByIdAndOrganization_Id(Long id, Long organizationId);
 

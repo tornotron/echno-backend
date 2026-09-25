@@ -660,7 +660,7 @@ FROM project p WHERE t.project_id = p.id AND t.organization_id IS NULL;
 ### Entities with org filter (31 total):
 
 **Already had organization_id (8):**
-Employee, Project, LeavePolicy, LeaveRequest, LeaveCalendar, LeaveRequestSequence, ProjectInviteCode, Attachment
+Employee, Project, LeavePolicy, LeaveRequest, LeaveCalendar, ProjectInviteCode, Attachment
 
 **Added organization_id + backfill path (10 — Group A):**
 Task, Issue, IssueComment, TeamMember, LeaveApproval, LeaveBalance, LeaveTransaction, Notification, Attendance, Category

@@ -8,6 +8,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
@@ -54,7 +56,7 @@ class LeaveHandoverNameIsReadInTenantTest {
     private static final Long HANDOVER_TO_ID = 12L;
 
     @Mock private LeaveRequestRepository requestRepository;
-    @Mock private LeaveRequestSequenceRepository sequenceRepository;
+    @Mock private DocumentNumberAllocator documentNumberAllocator;
     @Mock private LeavePolicyRepository policyRepository;
     @Mock private LeaveBalanceRepository balanceRepository;
     @Mock private EmployeeRepository employeeRepository;
@@ -63,6 +65,7 @@ class LeaveHandoverNameIsReadInTenantTest {
     @Mock private LeaveRequestMapper leaveRequestMapper;
     @Mock private OrganizationSecurityService orgSecurity;
     @Mock private CurrentEmployeeService currentEmployeeService;
+    @Mock private TransactionRetryTemplate retryTemplate;
 
     private LeaveRequestService service;
 
@@ -71,7 +74,7 @@ class LeaveHandoverNameIsReadInTenantTest {
         TenantContext.setCurrentOrgId(ORG_ID);
         service = new LeaveRequestService(
                 requestRepository,
-                sequenceRepository,
+                documentNumberAllocator,
                 policyRepository,
                 balanceRepository,
                 employeeRepository,
@@ -79,7 +82,8 @@ class LeaveHandoverNameIsReadInTenantTest {
                 leaveRequestValidator,
                 leaveRequestMapper,
                 orgSecurity,
-                currentEmployeeService);
+                currentEmployeeService,
+                retryTemplate);
 
         LeaveRequest request = new LeaveRequest();
         request.setId(REQUEST_ID);

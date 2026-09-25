@@ -31,7 +31,9 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
-@Table(name = "leave_request", indexes = {
+@Table(name = "leave_request", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_leave_request_org_number", columnNames = {"organization_id", "request_number"})
+}, indexes = {
         @Index(name = "idx_leave_request_employee", columnList = "employee_id"),
         @Index(name = "idx_leave_request_org", columnList = "organization_id"),
         @Index(name = "idx_leave_request_policy", columnList = "leave_policy_id"),
@@ -46,7 +48,7 @@ public class LeaveRequest implements TenantScopedEntity {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "request_number", nullable = false, unique = true, length = 50)
+    @Column(name = "request_number", nullable = false, length = 50)
     private String requestNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)

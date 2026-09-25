@@ -22,7 +22,10 @@ public enum DocumentNumberType {
     INDENT("IND"),
 
     /** Goods received notes, {@code GRN-2026-000001}. */
-    GOODS_RECEIVED_NOTE("GRN");
+    GOODS_RECEIVED_NOTE("GRN"),
+
+    /** Leave requests, {@code LR-2026-000001}. */
+    LEAVE_REQUEST("LR");
 
     private final String prefix;
 

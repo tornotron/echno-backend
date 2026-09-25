@@ -9,6 +9,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.security.access.AccessDeniedException;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
@@ -51,7 +53,7 @@ class LeaveApproverQueueTest {
     private static final Long CALLER_EMPLOYEE_ID = 8L;
 
     @Mock private LeaveRequestRepository requestRepository;
-    @Mock private LeaveRequestSequenceRepository sequenceRepository;
+    @Mock private DocumentNumberAllocator documentNumberAllocator;
     @Mock private LeavePolicyRepository policyRepository;
     @Mock private LeaveBalanceRepository balanceRepository;
     @Mock private EmployeeRepository employeeRepository;
@@ -60,6 +62,7 @@ class LeaveApproverQueueTest {
     @Mock private LeaveRequestMapper leaveRequestMapper;
     @Mock private OrganizationSecurityService orgSecurity;
     @Mock private CurrentEmployeeService currentEmployeeService;
+    @Mock private TransactionRetryTemplate retryTemplate;
 
     @BeforeEach
     void setTenant() {
@@ -74,7 +77,7 @@ class LeaveApproverQueueTest {
     private LeaveRequestService service() {
         return new LeaveRequestService(
                 requestRepository,
-                sequenceRepository,
+                documentNumberAllocator,
                 policyRepository,
                 balanceRepository,
                 employeeRepository,
@@ -82,7 +85,8 @@ class LeaveApproverQueueTest {
                 leaveRequestValidator,
                 leaveRequestMapper,
                 orgSecurity,
-                currentEmployeeService);
+                currentEmployeeService,
+                retryTemplate);
     }
 
     private void signedInAsTheLineManager() {

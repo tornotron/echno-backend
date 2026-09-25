@@ -9,7 +9,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.tornotron.echno_backend.leave.mapper.LeaveRequestMapper;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator;
+import org.tornotron.echno_backend.common.documentnumber.DocumentNumberType;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+import org.tornotron.echno_backend.common.retry.SqlStateDetector;
+import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
@@ -32,7 +36,7 @@ import java.util.stream.Collectors;
  * Manages the leave request lifecycle from draft through submission, cancellation, and withdrawal.
  *
  * <p>On create or submit it validates against policy, computes total days, assigns a per-year
- * sequential request number under a row lock, and holds the days as pending while the approval
+ * sequential request number from the shared document counter, and holds the days as pending while the approval
  * chain runs. Cancellation and withdrawal release the appropriate hold: pending days for an
  * in-flight request, used days for one already approved. Editing is allowed only while a request
  * is still a draft.
@@ -43,7 +47,7 @@ import java.util.stream.Collectors;
 public class LeaveRequestService {
 
     private final LeaveRequestRepository requestRepository;
-    private final LeaveRequestSequenceRepository sequenceRepository;
+    private final DocumentNumberAllocator documentNumberAllocator;
     private final LeavePolicyRepository policyRepository;
     private final LeaveBalanceRepository balanceRepository;
     private final EmployeeRepository employeeRepository;
@@ -52,13 +56,14 @@ public class LeaveRequestService {
     private final LeaveRequestMapper leaveRequestMapper;
     private final OrganizationSecurityService orgSecurity;
     private final CurrentEmployeeService currentEmployeeService;
+    private final TransactionRetryTemplate retryTemplate;
 
     /** The roles that may raise or act on a leave request belonging to somebody else. */
     private static final String[] LEAVE_ADMIN_ROLES = {"system-admin", "hr-admin"};
 
     public LeaveRequestService(
             LeaveRequestRepository requestRepository,
-            LeaveRequestSequenceRepository sequenceRepository,
+            DocumentNumberAllocator documentNumberAllocator,
             LeavePolicyRepository policyRepository,
             LeaveBalanceRepository balanceRepository,
             EmployeeRepository employeeRepository,
@@ -66,9 +71,10 @@ public class LeaveRequestService {
             LeaveRequestValidator leaveRequestValidator,
             LeaveRequestMapper leaveRequestMapper,
             OrganizationSecurityService orgSecurity,
-            CurrentEmployeeService currentEmployeeService) {
+            CurrentEmployeeService currentEmployeeService,
+            TransactionRetryTemplate retryTemplate) {
         this.requestRepository = requestRepository;
-        this.sequenceRepository = sequenceRepository;
+        this.documentNumberAllocator = documentNumberAllocator;
         this.policyRepository = policyRepository;
         this.balanceRepository = balanceRepository;
         this.employeeRepository = employeeRepository;
@@ -77,6 +83,7 @@ public class LeaveRequestService {
         this.leaveRequestMapper = leaveRequestMapper;
         this.orgSecurity = orgSecurity;
         this.currentEmployeeService = currentEmployeeService;
+        this.retryTemplate = retryTemplate;
     }
 
     /**
@@ -116,12 +123,24 @@ public class LeaveRequestService {
      * @param employeeId The ID of the employee the request is for.
      * @return The created request.
      * @throws ResourceNotFoundException if the employee or policy is not found in this organization.
+     * <p>The transaction is restarted on a serialization abort and on a unique violation, the
+     * same as purchase orders: the request number counter is the row two concurrent creates
+     * contend on, and a fresh attempt allocates a fresh number instead of answering the user with
+     * a conflict they did not cause.
+     *
      * @throws AccessDeniedException if the caller is neither the employee the leave belongs to
      *     nor a holder of the system-admin or hr-admin role.
      */
-    @Transactional
     public LeaveRequestDto createRequest(LeaveRequestCreationDto dto,Long employeeId) {
         requireActorMayActFor(employeeId);
+
+        return retryTemplate.execute(
+                "LeaveRequestService.createRequest",
+                failure -> SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION),
+                () -> createRequestInTransaction(dto, employeeId));
+    }
+
+    private LeaveRequestDto createRequestInTransaction(LeaveRequestCreationDto dto, Long employeeId) {
 
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -581,23 +600,20 @@ public class LeaveRequestService {
         request.setDeductionRule(charge.rule());
     }
 
+    /**
+     * Issues the request number from the shared document counter, starting above the highest
+     * number the organization already holds this year. Restored or seeded rows used to sit
+     * ahead of the old per-year counter, and because a collision rolled the counter back with
+     * the rest of the create, every later attempt proposed the same taken number.
+     */
     private String generateRequestNumber(Organization organization) {
-        int year = LocalDate.now().getYear();
-
-        LeaveRequestSequence sequence = sequenceRepository
-                .findByOrganizationIdAndYearWithLock(organization.getId(), year)
-                .orElseGet(() -> {
-                    LeaveRequestSequence newSeq = new LeaveRequestSequence();
-                    newSeq.setOrganization(organization);
-                    newSeq.setYear(year);
-                    newSeq.setLastSequence(0L);
-                    return newSeq;
-                });
-
-        sequence.setLastSequence(sequence.getLastSequence() + 1);
-        sequenceRepository.save(sequence);
-
-        return String.format("LR-%d-%06d", year, sequence.getLastSequence());
+        Long organizationId = organization.getId();
+        return documentNumberAllocator.allocateAbove(
+                DocumentNumberType.LEAVE_REQUEST,
+                organizationId,
+                year -> requestRepository.findHighestRequestSequence(
+                        organizationId,
+                        DocumentNumberAllocator.yearPrefix(DocumentNumberType.LEAVE_REQUEST, year)));
     }
 
     private void updatePendingBalance(LeaveRequest request, boolean add) {

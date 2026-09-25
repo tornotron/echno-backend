@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.function.IntToLongFunction;
 
 /**
  * Hands out the next document number for a tenant, a document family and a year.
@@ -68,6 +69,23 @@ public class DocumentNumberAllocator {
             RETURNING last_allocated
             """;
 
+    /**
+     * The same upsert, with a floor: the counter moves to whichever is higher, one past its own
+     * value or one past the highest number already used in the document table. A counter that
+     * fell behind the rows (rows restored or inserted without going through the allocator)
+     * therefore jumps past them instead of issuing a number that is already taken.
+     */
+    private static final String ALLOCATE_ABOVE_SQL = """
+            INSERT INTO document_number_sequence
+                (organization_id, document_type, sequence_year, last_allocated, created_at, updated_at)
+            VALUES (?, ?, ?, ?, current_timestamp, current_timestamp)
+            ON CONFLICT (organization_id, document_type, sequence_year)
+            DO UPDATE SET last_allocated = greatest(document_number_sequence.last_allocated + 1,
+                                                    excluded.last_allocated),
+                          updated_at = current_timestamp
+            RETURNING last_allocated
+            """;
+
     /** Matches the six-digit padding the browser used, so old and new numbers sort together. */
     private static final String NUMBER_FORMAT = "%s-%d-%06d";
 
@@ -96,5 +114,36 @@ public class DocumentNumberAllocator {
         Long sequence = jdbcTemplate.queryForObject(
                 ALLOCATE_SQL, Long.class, organizationId, type.name(), year);
         return NUMBER_FORMAT.formatted(type.getPrefix(), year, sequence);
+    }
+
+    /**
+     * Issues the next number like {@link #allocate}, but never one at or below the highest
+     * number the document table already holds for this tenant and year.
+     *
+     * <p>Use it for a document family whose rows can arrive without passing through the
+     * allocator, such as restored or seeded data. The floor is read in the caller's transaction,
+     * so under SERIALIZABLE a concurrent insert into the same range aborts one of the two with
+     * SQLSTATE 40001 and the retry reads the new highest number.
+     *
+     * @param type           the document family, which decides the prefix and the counter row
+     * @param organizationId the tenant the counter belongs to
+     * @param highestInUse   given the year, the highest sequence number already present in the
+     *                       document table for this tenant, or 0 when there is none
+     * @return the formatted number, for example {@code LR-2026-000007}
+     */
+    public String allocateAbove(DocumentNumberType type, Long organizationId, IntToLongFunction highestInUse) {
+        int year = LocalDate.now(zone).getYear();
+        long floor = highestInUse.applyAsLong(year) + 1;
+        Long sequence = jdbcTemplate.queryForObject(
+                ALLOCATE_ABOVE_SQL, Long.class, organizationId, type.name(), year, floor);
+        return NUMBER_FORMAT.formatted(type.getPrefix(), year, sequence);
+    }
+
+    /**
+     * The prefix every number of {@code type} issued in {@code year} starts with, for example
+     * {@code LR-2026-}, so a caller can look up the highest one already in use.
+     */
+    public static String yearPrefix(DocumentNumberType type, int year) {
+        return type.getPrefix() + "-" + year + "-";
     }
 }
