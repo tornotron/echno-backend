@@ -19,6 +19,7 @@ import org.tornotron.echno_backend.attendance.dto.AttendanceRegularizationDto;
 import org.tornotron.echno_backend.attendance.dto.ClockEventCreationDto;
 import org.tornotron.echno_backend.attendance.dto.RegularizationActionDto;
 import org.tornotron.echno_backend.attendance.dto.RegularizationRequestDto;
+import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
 import org.tornotron.echno_backend.attendance.enums.ClockEventType;
 import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 import org.tornotron.echno_backend.attendance.mapper.AttendanceRegularizationMapper;
@@ -209,9 +210,7 @@ class AttendanceRegularizationServiceTest {
                 .thenReturn(settings(true, true, 3));
         when(regularizationRepository.countApprovedRegularizationsInMonth(eq(REQUESTER), any(), any()))
                 .thenReturn(0L);
-        AttendanceRegularization pending = AttendanceRegularization.builder()
-                .status(RegularizationStatus.PENDING).build();
-        when(regularizationRepository.findByAttendanceId(ATT_ID)).thenReturn(Optional.of(pending));
+        when(regularizationRepository.existsByAttendanceIdAndStatus(ATT_ID, RegularizationStatus.PENDING)).thenReturn(true);
 
         assertThatExceptionOfType(ValidationException.class)
                 .isThrownBy(() -> service.submitRequest(requestDto()));
@@ -225,7 +224,7 @@ class AttendanceRegularizationServiceTest {
                 .thenReturn(settings(true, true, 3));
         when(regularizationRepository.countApprovedRegularizationsInMonth(eq(REQUESTER), any(), any()))
                 .thenReturn(0L);
-        when(regularizationRepository.findByAttendanceId(ATT_ID)).thenReturn(Optional.empty());
+        when(regularizationRepository.existsByAttendanceIdAndStatus(ATT_ID, RegularizationStatus.PENDING)).thenReturn(false);
         when(regularizationRepository.save(any(AttendanceRegularization.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
         when(regularizationMapper.toDto(any())).thenReturn(AttendanceRegularizationDto.builder().build());
@@ -247,7 +246,7 @@ class AttendanceRegularizationServiceTest {
                 .thenReturn(settings(true, false, 3));
         when(regularizationRepository.countApprovedRegularizationsInMonth(eq(REQUESTER), any(), any()))
                 .thenReturn(0L);
-        when(regularizationRepository.findByAttendanceId(ATT_ID)).thenReturn(Optional.empty());
+        when(regularizationRepository.existsByAttendanceIdAndStatus(ATT_ID, RegularizationStatus.PENDING)).thenReturn(false);
         when(regularizationRepository.save(any(AttendanceRegularization.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
         when(regularizationMapper.toDto(any())).thenReturn(AttendanceRegularizationDto.builder().build());
@@ -329,7 +328,7 @@ class AttendanceRegularizationServiceTest {
                 .thenReturn(settings(true, true, 3));
         when(regularizationRepository.countApprovedRegularizationsInMonth(eq(REQUESTER), any(), any()))
                 .thenReturn(0L);
-        when(regularizationRepository.findByAttendanceId(ATT_ID)).thenReturn(Optional.empty());
+        when(regularizationRepository.existsByAttendanceIdAndStatus(ATT_ID, RegularizationStatus.PENDING)).thenReturn(false);
         when(regularizationRepository.save(any(AttendanceRegularization.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
         when(regularizationMapper.toDto(any())).thenReturn(AttendanceRegularizationDto.builder().build());
@@ -458,6 +457,31 @@ class AttendanceRegularizationServiceTest {
         assertThat(pending.getRejectionReason()).isEqualTo("Insufficient evidence");
     }
 
+    /**
+     * A day created by a request by date has no clock events and says a regularization is
+     * pending. Once the request is rejected it must stop saying so, and read as absent.
+     */
+    @Test
+    void processRegularization_rejectingARequestByDate_marksTheEmptyDayAbsent() {
+        signedInAs(APPROVER_USER_ID, APPROVER_EMP_ID, APPROVER);
+        Attendance attendance = attendance();
+        attendance.setStatus(AttendanceStatus.PENDING_REGULARIZATION);
+        attendance.setClockEvents(new ArrayList<>());
+        AttendanceRegularization pending = AttendanceRegularization.builder()
+                .status(RegularizationStatus.PENDING).attendance(attendance).build();
+        when(regularizationRepository.findByIdAndOrganization_Id(REG_ID, ORG))
+                .thenReturn(Optional.of(pending));
+        when(regularizationRepository.save(any(AttendanceRegularization.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        when(regularizationMapper.toDto(any())).thenReturn(AttendanceRegularizationDto.builder().build());
+
+        service.processRegularization(REG_ID, action(RegularizationStatus.REJECTED));
+
+        assertThat(attendance.getStatus()).isEqualTo(AttendanceStatus.ABSENT);
+        verify(attendanceRepository).save(attendance);
+        verify(calculationService, never()).recalculate(any(), any());
+    }
+
     // ─── Who is recorded, and who may approve ────────────────────────────────────────────────
 
     /**
@@ -471,7 +495,7 @@ class AttendanceRegularizationServiceTest {
                 .thenReturn(settings(true, true, 3));
         when(regularizationRepository.countApprovedRegularizationsInMonth(eq(REQUESTER), any(), any()))
                 .thenReturn(0L);
-        when(regularizationRepository.findByAttendanceId(ATT_ID)).thenReturn(Optional.empty());
+        when(regularizationRepository.existsByAttendanceIdAndStatus(ATT_ID, RegularizationStatus.PENDING)).thenReturn(false);
         when(regularizationRepository.save(any(AttendanceRegularization.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
         when(regularizationMapper.toDto(any())).thenReturn(AttendanceRegularizationDto.builder().build());
@@ -500,7 +524,7 @@ class AttendanceRegularizationServiceTest {
                 .thenReturn(settings(true, true, 3));
         when(regularizationRepository.countApprovedRegularizationsInMonth(
                 eq("admin@echno.com"), any(), any())).thenReturn(0L);
-        when(regularizationRepository.findByAttendanceId(ATT_ID)).thenReturn(Optional.empty());
+        when(regularizationRepository.existsByAttendanceIdAndStatus(ATT_ID, RegularizationStatus.PENDING)).thenReturn(false);
         when(regularizationRepository.save(any(AttendanceRegularization.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
         when(regularizationMapper.toDto(any())).thenReturn(AttendanceRegularizationDto.builder().build());

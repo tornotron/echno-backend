@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.attendance.*;
 import org.tornotron.echno_backend.attendance.dto.*;
+import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
 import org.tornotron.echno_backend.attendance.enums.ClockEventType;
 import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 import org.tornotron.echno_backend.attendance.mapper.AttendanceRegularizationMapper;
@@ -94,7 +95,6 @@ public class AttendanceRegularizationService {
     @Transactional
     public AttendanceRegularizationDto submitRequest(RegularizationRequestDto dto) {
         Actor requester = actorResolver.resolveCurrentActor();
-        String requestedBy = requester.name();
         Long orgId = TenantContext.getCurrentOrgId();
         Organization org = organizationRepository.findById(orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
@@ -114,6 +114,36 @@ public class AttendanceRegularizationService {
                             + "an attendance record-management role");
         }
 
+        return fileRequest(attendance, org, requester, dto.getReason(), dto.getMissingEvents(),
+                dto.getCorrectedEvents());
+    }
+
+    /**
+     * Files a request against a record whose ownership the caller has already settled.
+     *
+     * <p>Shared by the request against a stored attendance record and the request by date, which
+     * creates the record first. Both then pass the same gates in the same order: the project's
+     * self-service setting, the monthly cap, and the one-pending-request-per-record rule. On a
+     * project configured to auto-approve, the corrections are written at once.
+     *
+     * @param attendance      The record the request corrects, already in this tenant.
+     * @param org             The owning organization.
+     * @param requester       The signed-in caller, recorded as the requester.
+     * @param reason          The employee's reason.
+     * @param missingEvents   The clock event types the record is missing.
+     * @param correctedEvents The events to write on approval, possibly empty.
+     * @return The stored request as a DTO.
+     * @throws ValidationException if self-service regularization is off for the project, the
+     *         monthly cap is reached, or a request is already pending for that record.
+     */
+    AttendanceRegularizationDto fileRequest(Attendance attendance,
+                                            Organization org,
+                                            Actor requester,
+                                            String reason,
+                                            List<String> missingEvents,
+                                            List<ClockEventCreationDto> correctedEvents) {
+        Long orgId = org.getId();
+        String requestedBy = requester.name();
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, attendance.getProjectId());
 
         if (!settings.getAllowSelfRegularization()) {
@@ -136,27 +166,25 @@ public class AttendanceRegularizationService {
         }
 
         // Check for existing pending request
-        regularizationRepository.findByAttendanceId(dto.getAttendanceId())
-                .ifPresent(existing -> {
-                    if (existing.getStatus() == RegularizationStatus.PENDING) {
-                        throw new ValidationException(
-                                "A regularization request is already pending for attendance record "
-                                        + dto.getAttendanceId());
-                    }
-                });
+        if (attendance.getId() != null && regularizationRepository
+                .existsByAttendanceIdAndStatus(attendance.getId(), RegularizationStatus.PENDING)) {
+            throw new ValidationException(
+                    "A regularization request is already pending for attendance record "
+                            + attendance.getId());
+        }
 
         AttendanceRegularization regularization = AttendanceRegularization.builder()
                 .attendance(attendance)
-                .reason(dto.getReason())
+                .reason(reason)
                 .requestedBy(requestedBy)
                 .requestedById(requester.employeeId())
                 .requestedByUserId(requester.userId())
                 .status(settings.getRegularizationApprovalRequired()
                         ? RegularizationStatus.PENDING : RegularizationStatus.APPROVED)
-                .missingEvents(regularizationMapper.serializeMissingEvents(dto.getMissingEvents()))
+                .missingEvents(regularizationMapper.serializeMissingEvents(missingEvents))
                 // Kept whichever path the request takes. When approval is required the events sit
                 // here until the manager decides; without them an approval had nothing to apply.
-                .requestedEvents(regularizationMapper.serializeRequestedEvents(dto.getCorrectedEvents()))
+                .requestedEvents(regularizationMapper.serializeRequestedEvents(correctedEvents))
                 .organization(org)
                 .build();
 
@@ -165,7 +193,7 @@ public class AttendanceRegularizationService {
         // require an approval is the tenant's own standing decision that these corrections do not
         // need a second person, which is exactly the case the setting exists for.
         if (!settings.getRegularizationApprovalRequired()) {
-            applyCorrectedEvents(attendance, dto.getCorrectedEvents(), org, false);
+            applyCorrectedEvents(attendance, correctedEvents, org, false);
             if (attendance.getShiftTiming() != null) {
                 calculationService.recalculate(attendance, attendance.getShiftTiming());
             }
@@ -245,9 +273,32 @@ public class AttendanceRegularizationService {
                 calculationService.recalculate(attendance, attendance.getShiftTiming());
             }
             attendanceRepository.save(attendance);
+        } else if (dto.getStatus() == RegularizationStatus.REJECTED) {
+            settleRejectedPlaceholder(regularization.getAttendance());
         }
 
         return regularizationMapper.toDto(regularizationRepository.save(regularization));
+    }
+
+    /**
+     * Marks a day created by a request by date as absent once its request is rejected.
+     *
+     * <p>A request by date creates the day's record with no clock events and the status
+     * {@code PENDING_REGULARIZATION}, because there was nothing on the day to hang the request on.
+     * A rejection writes no clock events, so without this the record would go on claiming a
+     * regularization was pending when none is. {@code ABSENT} is what the calculation service
+     * derives for a day with no clock-in, so the record now reads the same as one recalculated
+     * over no events. A record that has any clock event of its own is left exactly as it was: a
+     * rejection does not change attendance the employee actually recorded.
+     *
+     * @param attendance The record the rejected request was raised on.
+     */
+    private void settleRejectedPlaceholder(Attendance attendance) {
+        boolean noEvents = attendance.getClockEvents() == null || attendance.getClockEvents().isEmpty();
+        if (noEvents && attendance.getStatus() == AttendanceStatus.PENDING_REGULARIZATION) {
+            attendance.setStatus(AttendanceStatus.ABSENT);
+            attendanceRepository.save(attendance);
+        }
     }
 
     /**

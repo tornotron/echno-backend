@@ -263,7 +263,7 @@ class AttendanceRegularizationSelfApprovalTest {
                 .build());
         when(regularizationRepository.countApprovedRegularizationsInMonth(eq(ROLE_HOLDER), any(), any()))
                 .thenReturn(0L);
-        when(regularizationRepository.findByAttendanceId(ATT_ID)).thenReturn(Optional.empty());
+        when(regularizationRepository.existsByAttendanceIdAndStatus(ATT_ID, RegularizationStatus.PENDING)).thenReturn(false);
         when(regularizationRepository.save(any(AttendanceRegularization.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
         when(regularizationMapper.toDto(any())).thenReturn(AttendanceRegularizationDto.builder().build());

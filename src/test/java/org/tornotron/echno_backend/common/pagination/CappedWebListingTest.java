@@ -100,7 +100,7 @@ class CappedWebListingTest {
         when(attendanceRegularizationService.getPendingRegularizations(anyInt(), anyInt()))
                 .thenReturn(Page.empty());
 
-        new AttendanceRegularizationControllerWeb(attendanceRegularizationService).getPending();
+        new AttendanceRegularizationControllerWeb(attendanceRegularizationService, null).getPending();
 
         verify(attendanceRegularizationService)
                 .getPendingRegularizations(0, UnpagedResultCap.MAX_ROWS);
@@ -112,7 +112,7 @@ class CappedWebListingTest {
         when(attendanceRegularizationService.getPendingRegularizations(anyInt(), anyInt()))
                 .thenReturn(Page.empty());
 
-        new AttendanceRegularizationController(attendanceRegularizationService).getPending();
+        new AttendanceRegularizationController(attendanceRegularizationService, null).getPending();
 
         verify(attendanceRegularizationService)
                 .getPendingRegularizations(0, UnpagedResultCap.MAX_ROWS);
