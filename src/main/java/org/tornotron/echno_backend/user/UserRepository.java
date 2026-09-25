@@ -33,11 +33,17 @@ public interface UserRepository extends JpaRepository<User,Long> {
      * Used to scope the user directory to the caller's tenant (User is not itself
      * a tenant-scoped entity, so it must be scoped via Employee).
      *
+     * <p>Selects from User with an EXISTS on Employee, so a sort in the pageable resolves
+     * against the user. Selecting {@code DISTINCT e.user} from Employee made Spring Data append
+     * the sort to the employee alias ({@code ORDER BY e.id}), which CockroachDB and PostgreSQL
+     * reject for a SELECT DISTINCT whose select list does not hold that column (#859).
+     *
      * @param organizationId The organization to scope by.
      * @param pageable       Pagination.
      * @return A page of {@link User}s belonging to that organization.
      */
-    @Query("SELECT DISTINCT e.user FROM Employee e WHERE e.organization.id = :organizationId")
+    @Query("SELECT u FROM User u WHERE EXISTS "
+            + "(SELECT 1 FROM Employee e WHERE e.user = u AND e.organization.id = :organizationId)")
     Page<User> findUsersByOrganizationId(@Param("organizationId") Long organizationId, Pageable pageable);
 
     /**
