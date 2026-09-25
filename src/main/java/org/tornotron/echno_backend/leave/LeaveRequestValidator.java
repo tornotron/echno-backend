@@ -177,6 +177,43 @@ public class LeaveRequestValidator {
                 .collect(Collectors.toList());
     }
 
+    /** How far back a leave may start, for a policy that asks for no advance notice. */
+    static final int MAX_BACKDATED_DAYS = 30;
+
+    /**
+     * Whether a leave may start on the given day.
+     *
+     * <p>A leave used to be refused outright when it started before today. That blocked the case
+     * the regularization calendar sends people here for: a day the employee did not work and did
+     * not clock in on, which is only discovered afterwards and is exactly what a sick or casual
+     * leave after the fact covers. A policy that asks for advance notice still cannot start in the
+     * past, since notice given after the day is not notice. A policy that asks for none may start
+     * up to {@value #MAX_BACKDATED_DAYS} days back, which covers a missed day found at month end
+     * without reopening months that payroll has already closed.
+     *
+     * @param policy The leave policy.
+     * @param start  The first day of the leave.
+     * @param today  Today.
+     * @throws InvalidRequestException if the start is further back than the policy allows.
+     */
+    static void requireStartDateAllowed(LeavePolicy policy, LocalDate start, LocalDate today) {
+        if (!start.isBefore(today)) {
+            return;
+        }
+        boolean needsNotice = policy.getAdvanceNoticeDays() != null && policy.getAdvanceNoticeDays() > 0;
+        if (needsNotice) {
+            throw new InvalidRequestException(
+                    "Cannot apply for leave starting " + start + "; leave policy '"
+                            + policy.getLeaveTypeName() + "' requires advance notice, so it cannot "
+                            + "be requested for a past date");
+        }
+        if (start.isBefore(today.minusDays(MAX_BACKDATED_DAYS))) {
+            throw new InvalidRequestException(
+                    "Cannot apply for leave starting " + start + "; leave can be requested at most "
+                            + MAX_BACKDATED_DAYS + " days after the day it covers");
+        }
+    }
+
     /**
      * Validates a leave request against the policy: date ordering, no past dates,
      * advance notice, min/max days, half-day permission, sufficient bookable
@@ -192,10 +229,7 @@ public class LeaveRequestValidator {
                     "Start date " + dto.getStartDate() + " cannot be after end date " + dto.getEndDate());
         }
 
-        if (dto.getStartDate().isBefore(LocalDate.now())) {
-            throw new InvalidRequestException(
-                    "Cannot apply for leave starting " + dto.getStartDate() + "; leave cannot be requested in the past");
-        }
+        requireStartDateAllowed(policy, dto.getStartDate(), LocalDate.now());
 
         if (policy.getAdvanceNoticeDays() != null && policy.getAdvanceNoticeDays() > 0) {
             long daysUntilStart = ChronoUnit.DAYS.between(LocalDate.now(), dto.getStartDate());
