@@ -19,6 +19,7 @@ import org.tornotron.echno_backend.receipt.mapper.ReceiptMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Locale;
+import java.util.UUID;
 
 /**
  * CRUD + list for receipts. The receipt is a flat header scoped to the current tenant;
@@ -122,7 +123,7 @@ public class ReceiptService {
                              String receivedFromAddress, BigDecimal taxAmount, BigDecimal taxRate,
                              String taxType, String description, String notes,
                              Long issuedBy, Long projectId, Long paymentId,
-                             Long invoiceId, Long customerId) {
+                             Long invoiceId, UUID customerId) {
         receipt.setType(type);
         receipt.setStatus(status);
         receipt.setAmount(amount);

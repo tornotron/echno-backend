@@ -13,6 +13,7 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -45,6 +46,22 @@ class ReceiptRepositoryIT extends AbstractIntegrationTest {
         assertThat(found.get().getReceivedFrom()).isEqualTo("Asset Homes Pvt Ltd");
         assertThat(found.get().getReceiptNumber()).isEqualTo("RCP-2027-000001");
         assertThat(found.get().getOrganization().getId()).isEqualTo(org.getId());
+    }
+
+    @Test
+    void customerId_holdsAFinanceCustomersUuid() {
+        // Finance customers are keyed by UUID; the column was a BIGINT, so a receipt could not
+        // point at one (#864).
+        Organization org = persistOrganization("Receipt Customer Org");
+        Receipt receipt = persistReceipt(org, "RCP-2026-000901", "Kochi Metro Rail", "issued");
+        UUID customerId = UUID.randomUUID();
+        receipt.setCustomerId(customerId);
+        em.flush();
+        em.clear();
+
+        Optional<Receipt> found = receiptRepository.findByIdAndOrganization_Id(receipt.getId(), org.getId());
+
+        assertThat(found).get().extracting(Receipt::getCustomerId).isEqualTo(customerId);
     }
 
     @Test

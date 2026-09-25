@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="126-receipt-customer-id-keep-legacy" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="receipts" columnName="legacy_customer_id"/>
+            </not>
+        </preConditions>
+        <comment>
+            Receipts referenced customers by a BIGINT while finance customers are keyed by UUID
+            (#864), so no stored value can name a customer. The old values are kept, renamed to
+            legacy_customer_id, rather than dropped; nothing reads them.
+        </comment>
+
+        <renameColumn tableName="receipts" oldColumnName="customer_id" newColumnName="legacy_customer_id"
+                      columnDataType="BIGINT"/>
+    </changeSet>
+
+    <changeSet id="126-receipt-customer-id-uuid" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="receipts" columnName="customer_id"/>
+            </not>
+        </preConditions>
+        <comment>
+            The customer reference, now the finance customer's UUID. A separate changeset from the
+            rename, so the two schema changes run in separate transactions on CockroachDB.
+        </comment>
+
+        <addColumn tableName="receipts">
+            <column name="customer_id" type="UUID"/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="receipts" columnName="customer_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

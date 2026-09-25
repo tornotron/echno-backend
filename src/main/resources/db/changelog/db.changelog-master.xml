@@ -460,6 +460,9 @@
     <!-- v4.0 - Sub-contracts: legacy paused statuses onto the status vocabulary (#863) -->
     <include file="db/changelog/v4.0/125-sub-contract-status-vocabulary.xml"/>
 
+    <!-- v4.0 - Receipts: the customer reference becomes the finance customer's UUID (#864) -->
+    <include file="db/changelog/v4.0/126-receipt-customer-uuid.xml"/>
+
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->
     <!-- (#749). Files run in path order; a module's pre-move changesets -->
