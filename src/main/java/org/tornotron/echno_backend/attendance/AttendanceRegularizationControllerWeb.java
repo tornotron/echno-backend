@@ -13,9 +13,12 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.attendance.dto.AttendanceRegularizationDto;
 import org.tornotron.echno_backend.attendance.dto.RegularizationActionDto;
+import org.tornotron.echno_backend.attendance.dto.RegularizationByDateRequestDto;
+import org.tornotron.echno_backend.attendance.dto.RegularizationCalendarDayDto;
 import org.tornotron.echno_backend.attendance.dto.RegularizationRequestDto;
 import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 import org.tornotron.echno_backend.attendance.service.AttendanceRegularizationService;
+import org.tornotron.echno_backend.attendance.service.RegularizationCalendarService;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
@@ -35,9 +38,12 @@ import java.util.List;
 public class AttendanceRegularizationControllerWeb {
 
     private final AttendanceRegularizationService regularizationService;
+    private final RegularizationCalendarService calendarService;
 
-    public AttendanceRegularizationControllerWeb(AttendanceRegularizationService regularizationService) {
+    public AttendanceRegularizationControllerWeb(AttendanceRegularizationService regularizationService,
+            RegularizationCalendarService calendarService) {
         this.regularizationService = regularizationService;
+        this.calendarService = calendarService;
     }
 
     @PostMapping("/request")
@@ -61,6 +67,54 @@ public class AttendanceRegularizationControllerWeb {
             @Valid @RequestBody RegularizationRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(regularizationService.submitRequest(dto));
+    }
+
+    @PostMapping("/request-by-date")
+    // Ownership is settled in RegularizationCalendarService against the employee named in the
+    // payload: the caller must be that employee or hold an attendance record-management role.
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(
+            summary = "Regularize a day by its date",
+            description = "Files a regularization for a day named by employee, project and date, "
+                    + "with the reason and the clock-in and clock-out times the employee asks for. "
+                    + "When the employee has no attendance record for that day and project, one is "
+                    + "created with no clock events and the status PENDING_REGULARIZATION, and the "
+                    + "request is filed against it in the same step. The requested times reach the "
+                    + "record only when the request is approved. Refused for a future date, a day "
+                    + "on approved or pending leave, a day that already has a pending request, and "
+                    + "a record that already has the requested clock events."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Regularization request submitted"),
+            @ApiResponse(responseCode = "400", description = "A field is missing or invalid, or the day cannot be regularized for one of the reasons above"),
+            @ApiResponse(responseCode = "403", description = "Caller is neither the employee named nor a holder of an attendance record-management role"),
+            @ApiResponse(responseCode = "404", description = "No employee or project with the given id in this organization")
+    })
+    public ResponseEntity<AttendanceRegularizationDto> submitByDate(
+            @Valid @RequestBody RegularizationByDateRequestDto dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(calendarService.submitByDate(dto));
+    }
+
+    @GetMapping("/calendar")
+    @PreAuthorize("@attendanceSecurity.canViewEmployeeRecords(#employeeId)")
+    @Operation(
+            summary = "Regularization calendar for one month",
+            description = "Returns every day of the month for one employee with what the day needs: "
+                    + "complete, missing, incomplete, pending a regularization decision, on leave, a "
+                    + "non-working day, or in the future, and whether the employee can act on it. "
+                    + "Readable by the employee and by holders of an attendance record-management role."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "One entry per day of the month, in date order"),
+            @ApiResponse(responseCode = "400", description = "month is not between 1 and 12"),
+            @ApiResponse(responseCode = "403", description = "Caller may not view this employee's attendance"),
+            @ApiResponse(responseCode = "404", description = "No employee with the given id in this organization")
+    })
+    public ResponseEntity<List<RegularizationCalendarDayDto>> calendar(
+            @RequestParam Long employeeId,
+            @RequestParam int year,
+            @RequestParam int month) {
+        return ResponseEntity.ok(calendarService.calendar(employeeId, year, month));
     }
 
     @PostMapping("/{id}/process")

@@ -19486,6 +19486,156 @@
         ],
         "type": "object"
       },
+      "RegularizationByDateRequestDto": {
+        "description": "Payload to regularize a day by its date. The server finds the employee's attendance record for the date and project, creating it when there is none, and files the regularization request against it in the same step.",
+        "properties": {
+          "attendanceDate": {
+            "description": "The day to regularize. Must not be after today.",
+            "example": "2026-08-27",
+            "format": "date",
+            "type": "string"
+          },
+          "clockInTime": {
+            "description": "Site-local clock-in time the employee asks for.",
+            "example": "09:05:00",
+            "format": "time",
+            "type": "string"
+          },
+          "clockOutTime": {
+            "description": "Site-local clock-out time the employee asks for, when known. Must be after the clock-in time.",
+            "example": "18:10:00",
+            "format": "time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "employeeId": {
+            "description": "Employee the request is for: the signed-in employee, or anyone when the caller holds an attendance record-management role.",
+            "example": 18,
+            "format": "int64",
+            "type": "integer"
+          },
+          "projectId": {
+            "description": "Project the day was worked on.",
+            "example": 12,
+            "format": "int64",
+            "type": "integer"
+          },
+          "reason": {
+            "description": "Why the attendance is missing.",
+            "example": "Phone battery died before clocking in",
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "attendanceDate",
+          "clockInTime",
+          "employeeId",
+          "projectId",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "RegularizationCalendarDayDto": {
+        "description": "One day of an employee's regularization calendar: what the day's attendance looks like and whether a regularization or a leave can be raised for it.",
+        "properties": {
+          "actionable": {
+            "description": "Whether the employee can act on the day: raise a regularization or apply for leave. True for missing and incomplete days, and for non-working days, where the employee may have worked a weekly off.",
+            "example": true,
+            "type": "boolean"
+          },
+          "attendanceId": {
+            "description": "The day's attendance record, when there is one. Where the employee has records on more than one project, the one the state was read from.",
+            "example": 781,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "date": {
+            "description": "The day.",
+            "example": "2026-08-27",
+            "format": "date",
+            "type": "string"
+          },
+          "leaveType": {
+            "description": "Leave type on a leave day, when known.",
+            "example": "Casual Leave",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "projectId": {
+            "description": "Project of that record.",
+            "example": 12,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "projectName": {
+            "description": "Name of that project.",
+            "example": "Asset Homes Tower B",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "regularizationId": {
+            "description": "The most recent regularization request for the day, when there is one.",
+            "example": 7,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "regularizationStatus": {
+            "description": "Status of that request.",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ],
+            "example": "REJECTED",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rejectionReason": {
+            "description": "Reason given when that request was rejected.",
+            "example": "Clock-in time does not match the site register",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "description": "What the calendar shows for the day.",
+            "enum": [
+              "FUTURE",
+              "LEAVE",
+              "LEAVE_PENDING",
+              "PENDING",
+              "REGULARIZED",
+              "COMPLETE",
+              "INCOMPLETE",
+              "MISSING",
+              "NON_WORKING"
+            ],
+            "example": "MISSING",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "RegularizationRequestDto": {
         "description": "Payload to submit a request to correct an attendance record missing one or more clock events.",
         "properties": {
@@ -27203,6 +27353,140 @@
         ]
       }
     },
+    "/api/v1/attendance-regularizations/calendar": {
+      "get": {
+        "description": "Returns every day of the month for one employee with what the day needs: complete, missing, incomplete, pending a regularization decision, on leave, a non-working day, or in the future, and whether the employee can act on it. Readable by the employee and by holders of an attendance record-management role.",
+        "operationId": "calendar_1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "employeeId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RegularizationCalendarDayDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "One entry per day of the month, in date order"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "month is not between 1 and 12"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller may not view this employee's attendance"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No employee with the given id in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Regularization calendar for one month",
+        "tags": [
+          "Attendance Regularizations"
+        ]
+      }
+    },
     "/api/v1/attendance-regularizations/pending": {
       "get": {
         "description": "Returns the regularization requests awaiting approval or rejection, up to a fixed ceiling. The response carries X-Total-Count with the true number of pending requests, and X-Result-Capped when there were more than one response can hold.",
@@ -27420,6 +27704,118 @@
         ]
       }
     },
+    "/api/v1/attendance-regularizations/request-by-date": {
+      "post": {
+        "description": "Files a regularization for a day named by employee, project and date, with the reason and the clock-in and clock-out times the employee asks for. When the employee has no attendance record for that day and project, one is created with no clock events and the status PENDING_REGULARIZATION, and the request is filed against it in the same step. The requested times reach the record only when the request is approved. Refused for a future date, a day on approved or pending leave, a day that already has a pending request, and a record that already has the requested clock events.",
+        "operationId": "submitByDate_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegularizationByDateRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceRegularizationDto"
+                }
+              }
+            },
+            "description": "Regularization request submitted"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A field is missing or invalid, or the day cannot be regularized for one of the reasons above"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is neither the employee named nor a holder of an attendance record-management role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No employee or project with the given id in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Regularize a day by its date",
+        "tags": [
+          "Attendance Regularizations"
+        ]
+      }
+    },
     "/api/v1/attendance-regularizations/web": {
       "get": {
         "description": "Returns a paged list of regularization requests in the current tenant, in any status. The optional status, approver and requester parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nThe approver and the rejecter are recorded in the same pair of columns, so approvedById on its own means \"requests this person decided\". Pair it with status to separate the two: approvedById with status=APPROVED is what that person approved, and with status=REJECTED what they rejected.\n\nBoth ids are employee ids. A request decided by a caller who has no employee record in this tenant carries no approver id and is not matched by any approvedById.",
@@ -27577,6 +27973,140 @@
           }
         },
         "summary": "List regularization requests",
+        "tags": [
+          "Attendance Regularizations (Web)"
+        ]
+      }
+    },
+    "/api/v1/attendance-regularizations/web/calendar": {
+      "get": {
+        "description": "Returns every day of the month for one employee with what the day needs: complete, missing, incomplete, pending a regularization decision, on leave, a non-working day, or in the future, and whether the employee can act on it. Readable by the employee and by holders of an attendance record-management role.",
+        "operationId": "calendar",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "employeeId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RegularizationCalendarDayDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "One entry per day of the month, in date order"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "month is not between 1 and 12"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller may not view this employee's attendance"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No employee with the given id in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Regularization calendar for one month",
         "tags": [
           "Attendance Regularizations (Web)"
         ]
@@ -27794,6 +28324,118 @@
           }
         },
         "summary": "Submit a regularization request",
+        "tags": [
+          "Attendance Regularizations (Web)"
+        ]
+      }
+    },
+    "/api/v1/attendance-regularizations/web/request-by-date": {
+      "post": {
+        "description": "Files a regularization for a day named by employee, project and date, with the reason and the clock-in and clock-out times the employee asks for. When the employee has no attendance record for that day and project, one is created with no clock events and the status PENDING_REGULARIZATION, and the request is filed against it in the same step. The requested times reach the record only when the request is approved. Refused for a future date, a day on approved or pending leave, a day that already has a pending request, and a record that already has the requested clock events.",
+        "operationId": "submitByDate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegularizationByDateRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceRegularizationDto"
+                }
+              }
+            },
+            "description": "Regularization request submitted"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A field is missing or invalid, or the day cannot be regularized for one of the reasons above"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is neither the employee named nor a holder of an attendance record-management role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No employee or project with the given id in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Regularize a day by its date",
         "tags": [
           "Attendance Regularizations (Web)"
         ]

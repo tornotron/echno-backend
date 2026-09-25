@@ -15,7 +15,19 @@ public interface AttendanceRegularizationRepository
         extends JpaRepository<AttendanceRegularization, Long>,
         JpaSpecificationExecutor<AttendanceRegularization> {
 
-    Optional<AttendanceRegularization> findByAttendanceId(Long attendanceId);
+    /**
+     * Whether an attendance record has a request in the given status.
+     *
+     * <p>Replaced a single-result {@code findByAttendanceId}. A record can carry more than one
+     * request over its life, for instance one rejected and a second raised afterwards, and the
+     * single-result lookup threw on the second request instead of answering the only question the
+     * caller had, which is whether one is still pending.
+     *
+     * @param attendanceId The attendance record.
+     * @param status       The status to look for.
+     * @return Whether such a request exists.
+     */
+    boolean existsByAttendanceIdAndStatus(Long attendanceId, RegularizationStatus status);
 
     Optional<AttendanceRegularization> findByIdAndOrganization_Id(Long id, Long organizationId);
 

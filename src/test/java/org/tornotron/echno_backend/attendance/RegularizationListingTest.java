@@ -46,7 +46,7 @@ class RegularizationListingTest {
     void anUnfilteredListingAsksForTheFirstDefaultSizedPage() {
         when(service.findAll(any(), any(), any(), anyInt(), anyInt())).thenReturn(Page.empty());
 
-        new AttendanceRegularizationControllerWeb(service).list(null, null, null, new PageQuery());
+        new AttendanceRegularizationControllerWeb(service, null).list(null, null, null, new PageQuery());
 
         verify(service).findAll(isNull(), isNull(), isNull(),
                 eq(0), eq(PageQuery.DEFAULT_PAGE_SIZE));
@@ -63,7 +63,7 @@ class RegularizationListingTest {
     void aDecidedStatusReachesTheQuery() {
         when(service.findAll(any(), any(), any(), anyInt(), anyInt())).thenReturn(Page.empty());
 
-        new AttendanceRegularizationControllerWeb(service)
+        new AttendanceRegularizationControllerWeb(service, null)
                 .list(RegularizationStatus.APPROVED, null, null, new PageQuery());
 
         verify(service).findAll(eq(RegularizationStatus.APPROVED), isNull(), isNull(),
@@ -74,7 +74,7 @@ class RegularizationListingTest {
     void theApproverReachesTheQuery() {
         when(service.findAll(any(), any(), any(), anyInt(), anyInt())).thenReturn(Page.empty());
 
-        new AttendanceRegularizationControllerWeb(service).list(null, 9L, null, new PageQuery());
+        new AttendanceRegularizationControllerWeb(service, null).list(null, 9L, null, new PageQuery());
 
         verify(service).findAll(isNull(), eq(9L), isNull(),
                 eq(0), eq(PageQuery.DEFAULT_PAGE_SIZE));
@@ -94,7 +94,7 @@ class RegularizationListingTest {
     void theApproverAndTheStatusNarrowTogether() {
         when(service.findAll(any(), any(), any(), anyInt(), anyInt())).thenReturn(Page.empty());
 
-        new AttendanceRegularizationControllerWeb(service)
+        new AttendanceRegularizationControllerWeb(service, null)
                 .list(RegularizationStatus.REJECTED, 9L, null, new PageQuery());
 
         verify(service).findAll(eq(RegularizationStatus.REJECTED), eq(9L), isNull(),
@@ -109,7 +109,7 @@ class RegularizationListingTest {
     void theApproverAndTheRequesterDoNotGetCrossed() {
         when(service.findAll(any(), any(), any(), anyInt(), anyInt())).thenReturn(Page.empty());
 
-        new AttendanceRegularizationControllerWeb(service).list(null, 71L, 88L, new PageQuery());
+        new AttendanceRegularizationControllerWeb(service, null).list(null, 71L, 88L, new PageQuery());
 
         verify(service).findAll(isNull(), eq(71L), eq(88L),
                 eq(0), eq(PageQuery.DEFAULT_PAGE_SIZE));
@@ -122,7 +122,7 @@ class RegularizationListingTest {
         pageQuery.setPageSize(75);
         when(service.findAll(any(), any(), any(), anyInt(), anyInt())).thenReturn(Page.empty());
 
-        new AttendanceRegularizationControllerWeb(service).list(null, null, null, pageQuery);
+        new AttendanceRegularizationControllerWeb(service, null).list(null, null, null, pageQuery);
 
         verify(service).findAll(isNull(), isNull(), isNull(), eq(4), eq(75));
     }
@@ -134,7 +134,7 @@ class RegularizationListingTest {
         when(service.findAll(any(), any(), any(), anyInt(), anyInt()))
                 .thenAnswer(invocation -> page);
 
-        assertThat(new AttendanceRegularizationControllerWeb(service)
+        assertThat(new AttendanceRegularizationControllerWeb(service, null)
                 .list(null, null, null, new PageQuery()))
                 .isSameAs(page);
     }

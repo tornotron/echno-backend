@@ -62,7 +62,7 @@ class AttendanceRegularizationApproverParamTest {
 
     @Test
     void theWebTwinIgnoresAnApprovedByTheCallerStillSends() throws Exception {
-        mockMvc(new AttendanceRegularizationControllerWeb(regularizationService))
+        mockMvc(new AttendanceRegularizationControllerWeb(regularizationService, null))
                 .perform(post(WEB + "/7/process")
                         .param("approvedBy", "Somebody Else")
                         .param("approvedById", "99")
@@ -75,7 +75,7 @@ class AttendanceRegularizationApproverParamTest {
 
     @Test
     void theOtherTwinIgnoresAnApprovedByTheCallerStillSends() throws Exception {
-        mockMvc(new AttendanceRegularizationController(regularizationService))
+        mockMvc(new AttendanceRegularizationController(regularizationService, null))
                 .perform(post(PLAIN + "/7/process")
                         .param("approvedBy", "Somebody Else")
                         .param("approvedById", "99")
@@ -88,7 +88,7 @@ class AttendanceRegularizationApproverParamTest {
 
     @Test
     void theWebTwinIgnoresARequestedByTheCallerStillSends() throws Exception {
-        mockMvc(new AttendanceRegularizationControllerWeb(regularizationService))
+        mockMvc(new AttendanceRegularizationControllerWeb(regularizationService, null))
                 .perform(post(WEB + "/request")
                         .param("requestedBy", "Somebody Else")
                         .param("requestedById", "99")
@@ -101,7 +101,7 @@ class AttendanceRegularizationApproverParamTest {
 
     @Test
     void theOtherTwinIgnoresARequestedByTheCallerStillSends() throws Exception {
-        mockMvc(new AttendanceRegularizationController(regularizationService))
+        mockMvc(new AttendanceRegularizationController(regularizationService, null))
                 .perform(post(PLAIN + "/request")
                         .param("requestedBy", "Somebody Else")
                         .param("requestedById", "99")
@@ -115,7 +115,7 @@ class AttendanceRegularizationApproverParamTest {
     /** A caller that has been updated and sends neither is served the same way. */
     @Test
     void aCallerThatSendsNeitherIsServedTheSame() throws Exception {
-        mockMvc(new AttendanceRegularizationControllerWeb(regularizationService))
+        mockMvc(new AttendanceRegularizationControllerWeb(regularizationService, null))
                 .perform(post(WEB + "/7/process")
                         .contentType(APPLICATION_JSON)
                         .content(ACTION_BODY))
