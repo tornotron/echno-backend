@@ -14,6 +14,9 @@ import org.tornotron.echno_backend.subcontract.dto.ContractMilestoneDto;
 import org.tornotron.echno_backend.subcontract.dto.SubContractCreationDto;
 import org.tornotron.echno_backend.subcontract.dto.SubContractDto;
 import org.tornotron.echno_backend.subcontract.mapper.SubContractMapper;
+import org.tornotron.echno_backend.subcontract.enums.SubContractPaymentTerms;
+import org.tornotron.echno_backend.subcontract.enums.SubContractStatus;
+import org.tornotron.echno_backend.subcontract.enums.SubContractType;
 
 import java.util.List;
 import java.util.Locale;
@@ -96,7 +99,11 @@ public class SubContractService {
         subContractRepository.delete(subContract);
     }
 
-    /** Copies the header scalars from the creation DTO. Project/supervisor/account-manager stay plain ids. */
+    /**
+     * Copies the header scalars from the creation DTO. Project/supervisor/account-manager stay
+     * plain ids. Type, status and payment terms are held to their vocabularies (#863): they were
+     * stored as sent, so the form and the list badge drifted onto different sets of values.
+     */
     private void applyHeaderFields(SubContract subContract, SubContractCreationDto dto) {
         subContract.setContractId(dto.getContractId());
         subContract.setContractName(dto.getContractName());
@@ -112,8 +119,8 @@ public class SubContractService {
         subContract.setContractorPan(dto.getContractorPan());
         subContract.setContractorLicense(dto.getContractorLicense());
 
-        subContract.setType(dto.getType());
-        subContract.setStatus(dto.getStatus());
+        subContract.setType(SubContractType.requireValid("type", dto.getType()));
+        subContract.setStatus(SubContractStatus.requireValid("status", dto.getStatus()));
 
         subContract.setContractValue(dto.getContractValue());
         if (dto.getCurrency() != null) {
@@ -123,7 +130,7 @@ public class SubContractService {
         subContract.setRetentionPercentage(dto.getRetentionPercentage());
         subContract.setTotalPaid(dto.getTotalPaid());
         subContract.setTotalDue(dto.getTotalDue());
-        subContract.setPaymentTerms(dto.getPaymentTerms());
+        subContract.setPaymentTerms(SubContractPaymentTerms.requireValid("paymentTerms", dto.getPaymentTerms()));
 
         subContract.setStartDate(dto.getStartDate());
         subContract.setEndDate(dto.getEndDate());

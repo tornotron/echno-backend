@@ -50,10 +50,12 @@ public class SubContractCreationDto {
     @Schema(description = "Contractor's trade or work license number.", example = "KL/STL/2024/0087")
     private String contractorLicense;
 
-    @Schema(description = "Type of subcontract.", example = "LABOR_CONTRACT")
+    @Schema(description = "Commercial basis of the subcontract.", example = "lumpsum",
+            allowableValues = {"lumpsum", "itemRate", "timeAndMaterial", "costPlus", "unitPrice"})
     private String type;
 
-    @Schema(description = "Lifecycle status of the subcontract.", example = "ACTIVE")
+    @Schema(description = "Lifecycle status of the subcontract.", example = "active",
+            allowableValues = {"draft", "active", "onHold", "completed", "terminated", "expired"})
     private String status;
 
     @Schema(description = "Total contract value in INR.", example = "3200000.00")
@@ -74,7 +76,8 @@ public class SubContractCreationDto {
     @Schema(description = "Total amount still due to the contractor, in INR.", example = "2000000.00")
     private BigDecimal totalDue;
 
-    @Schema(description = "Agreed payment terms.", example = "30 percent advance, balance against milestone certification")
+    @Schema(description = "How the subcontract is paid.", example = "milestone",
+            allowableValues = {"milestone", "monthly", "completion", "custom"})
     private String paymentTerms;
 
     @Schema(description = "Contract start date.", example = "2026-01-15")

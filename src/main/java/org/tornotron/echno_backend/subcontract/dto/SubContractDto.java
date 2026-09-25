@@ -50,10 +50,12 @@ public class SubContractDto {
     @Schema(description = "Contractor's trade or work license number.", example = "KL/STL/2024/0087")
     private String contractorLicense;
 
-    @Schema(description = "Type of subcontract.", example = "LABOR_CONTRACT")
+    @Schema(description = "Commercial basis of the subcontract.", example = "lumpsum",
+            allowableValues = {"lumpsum", "itemRate", "timeAndMaterial", "costPlus", "unitPrice"})
     private String type;
 
-    @Schema(description = "Lifecycle status of the subcontract.", example = "ACTIVE")
+    @Schema(description = "Lifecycle status of the subcontract.", example = "active",
+            allowableValues = {"draft", "active", "onHold", "completed", "terminated", "expired"})
     private String status;
 
     @Schema(description = "Total contract value in INR.", example = "3200000.00")
@@ -74,8 +76,16 @@ public class SubContractDto {
     @Schema(description = "Total amount still due to the contractor, in INR.", example = "2000000.00")
     private BigDecimal totalDue;
 
-    @Schema(description = "Agreed payment terms.", example = "30 percent advance, balance against milestone certification")
+    @Schema(description = "How the subcontract is paid.", example = "milestone",
+            allowableValues = {"milestone", "monthly", "completion", "custom"})
     private String paymentTerms;
+
+    @Schema(description = "How far payment has got, derived from the contract value, the amount paid "
+            + "and the end date: fullyPaid once the amount paid reaches a positive contract value, "
+            + "overdue when the end date has passed short of that, otherwise notStarted or inProgress.",
+            example = "inProgress",
+            allowableValues = {"notStarted", "inProgress", "fullyPaid", "overdue"})
+    private String paymentStatus;
 
     @Schema(description = "Contract start date.", example = "2026-01-15")
     private LocalDate startDate;
