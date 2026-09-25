@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="125-sub-contract-status-vocabulary" author="abhijith">
+        <comment>
+            Sub-contract status is now held to draft, active, onHold, completed, terminated and
+            expired (#863). The web form used to offer inactive and suspended, which the list
+            badge had no entry for; both meant the contract was paused, so they become onHold.
+            Any other stored value is left as it is: the web falls back to active for a value it
+            does not know, and the next save from the form writes a valid one. Re-runnable.
+        </comment>
+
+        <sql>
+            UPDATE sub_contract SET status = 'onHold' WHERE status IN ('inactive', 'suspended');
+        </sql>
+
+        <rollback>
+            <comment>The original inactive or suspended value is not recorded, so nothing is restored.</comment>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

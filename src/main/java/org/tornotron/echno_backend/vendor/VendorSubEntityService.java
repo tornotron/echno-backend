@@ -10,6 +10,7 @@ import org.tornotron.echno_backend.vendor.mapper.VendorBankAccountMapper;
 import org.tornotron.echno_backend.vendor.mapper.VendorContactMapper;
 import org.tornotron.echno_backend.vendor.mapper.VendorPaymentTermsMapper;
 import org.tornotron.echno_backend.vendor.mapper.VendorTaxIdentifierMapper;
+import org.tornotron.echno_backend.vendor.enums.VendorPaymentTermsType;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -224,7 +225,7 @@ public class VendorSubEntityService {
             vendor.setPaymentTerms(terms);
             vendorRepository.save(vendor);
         } else {
-            terms.setPaymentTerms(dto.getPaymentTerms());
+            terms.setPaymentTerms(VendorPaymentTermsType.requireValid(dto.getPaymentTerms()));
             terms.setCreditLimit(dto.getCreditLimit());
             terms.setCreditDays(dto.getCreditDays());
             vendorPaymentTermsRepository.save(terms);
@@ -278,7 +279,7 @@ public class VendorSubEntityService {
 
     private VendorPaymentTerms mapToPaymentTermsEntity(VendorPaymentTermsCreationDto dto) {
         VendorPaymentTerms terms = new VendorPaymentTerms();
-        terms.setPaymentTerms(dto.getPaymentTerms());
+        terms.setPaymentTerms(VendorPaymentTermsType.requireValid(dto.getPaymentTerms()));
         terms.setCreditLimit(dto.getCreditLimit());
         terms.setCreditDays(dto.getCreditDays());
         return terms;
