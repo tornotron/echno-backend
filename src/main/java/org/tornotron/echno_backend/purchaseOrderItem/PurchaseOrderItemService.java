@@ -63,8 +63,7 @@ public class PurchaseOrderItemService {
             indentItem = indentItemRepository.findByIdAndOrganization_Id(creationDto.getIndentItemId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Indent item with ID " + creationDto.getIndentItemId() + " was not found in this organization"));
 
-            indentItem.setConvertedToPurchaseOrder(true);
-            indentItem.setLinkedPurchaseOrderNumber(purchaseOrder.getPoNumber());
+            indentItem.recordConversion(purchaseOrder.getPoNumber(), creationDto.getOrderedQuantity());
             indentItemRepository.save(indentItem);
         }
 

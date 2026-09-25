@@ -257,6 +257,9 @@ class PurchaseOrderServiceTest {
         service.createPurchaseOrder(dto);
 
         assertThat(indentItem.getConvertedToPurchaseOrder()).isTrue();
+        // The indent detail shows where the line went and how much of it was ordered (#861).
+        assertThat(indentItem.getLinkedPurchaseOrderNumber()).isEqualTo("PO-2026-000042");
+        assertThat(indentItem.getOrderedQuantity()).isEqualTo(2);
         verify(indentItemRepository).save(indentItem);
     }
 
