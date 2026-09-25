@@ -190,7 +190,7 @@ public class PurchaseOrderService {
         if (creationDto.getItems() != null) {
             BigDecimal totalAmount = BigDecimal.ZERO;
             for (PurchaseOrderItemCreationDto itemDto : creationDto.getItems()) {
-                PurchaseOrderItem item = mapToPurchaseOrderItemEntity(itemDto);
+                PurchaseOrderItem item = mapToPurchaseOrderItemEntity(itemDto, purchaseOrder.getPoNumber());
                 item.setOrganization(purchaseOrder.getOrganization());
                 purchaseOrder.addItem(item);
                 if (item.getTotalPrice() != null) {
@@ -419,7 +419,7 @@ public class PurchaseOrderService {
                 null);
     }
 
-    private PurchaseOrderItem mapToPurchaseOrderItemEntity(PurchaseOrderItemCreationDto dto) {
+    private PurchaseOrderItem mapToPurchaseOrderItemEntity(PurchaseOrderItemCreationDto dto, String purchaseOrderNumber) {
         Material material = materialRepository.findByIdAndOrganization_Id(dto.getMaterialId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + dto.getMaterialId() + " was not found in this organization"));
 
@@ -427,7 +427,7 @@ public class PurchaseOrderService {
         if (dto.getIndentItemId() != null) {
             indentItem = indentItemRepository.findByIdAndOrganization_Id(dto.getIndentItemId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Indent item with ID " + dto.getIndentItemId() + " was not found in this organization"));
-            indentItem.setConvertedToPurchaseOrder(true);
+            indentItem.recordConversion(purchaseOrderNumber, dto.getOrderedQuantity());
             indentItemRepository.save(indentItem);
         }
 
