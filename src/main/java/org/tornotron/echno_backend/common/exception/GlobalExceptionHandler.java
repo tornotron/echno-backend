@@ -17,7 +17,16 @@ import org.springframework.security.authorization.ExpressionAuthorizationDecisio
 import org.springframework.validation.FieldError;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.ErrorResponseException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.ServletRequestBindingException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -251,6 +260,46 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleNoHandler(Exception ex, WebRequest request) {
         logger.debug("No handler for request: {}", ex.getMessage());
         return problem(HttpStatus.NOT_FOUND, "Not Found", "No resource at this path", request);
+    }
+
+    /**
+     * The request errors Spring MVC raises itself before a handler runs: a method the path does
+     * not map, a missing query parameter, header or multipart part, an unsupported or
+     * unacceptable media type, an oversized upload, a {@code ResponseStatusException}. Each of
+     * these already knows its status ({@link ErrorResponse}), so it is answered with that
+     * status and headers, such as {@code Allow} on a 405. They used to fall into the catch-all
+     * below and leave as a 500 that was logged and alerted on as a server fault (#860).
+     *
+     * <p>More specific handlers in this class, such as the 404 for an unmapped path and the
+     * validation 400s, still take precedence over this one.
+     */
+    @ExceptionHandler({
+            HttpRequestMethodNotSupportedException.class,
+            HttpMediaTypeNotSupportedException.class,
+            HttpMediaTypeNotAcceptableException.class,
+            ServletRequestBindingException.class,
+            MissingServletRequestPartException.class,
+            MaxUploadSizeExceededException.class,
+            AsyncRequestTimeoutException.class,
+            ErrorResponseException.class})
+    public ResponseEntity<ProblemDetail> handleFrameworkRequestError(Exception ex, WebRequest request) {
+        ErrorResponse errorResponse = (ErrorResponse) ex;
+        HttpStatus status = HttpStatus.resolve(errorResponse.getStatusCode().value());
+        if (status == null) {
+            status = HttpStatus.BAD_REQUEST;
+        }
+        if (status.is5xxServerError()) {
+            logger.error("Request failed: ", ex);
+        } else {
+            logger.debug("Rejected request: {}", ex.getMessage());
+        }
+        String detail = errorResponse.getBody().getDetail() != null
+                ? errorResponse.getBody().getDetail()
+                : ex.getMessage();
+        ProblemDetail pd = problem(status, status.getReasonPhrase(), detail, request);
+        return ResponseEntity.status(status)
+                .headers(errorResponse.getHeaders())
+                .body(pd);
     }
 
     @ExceptionHandler(Exception.class)
