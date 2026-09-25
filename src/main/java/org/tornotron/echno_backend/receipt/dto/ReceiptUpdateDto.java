@@ -1,12 +1,15 @@
 package org.tornotron.echno_backend.receipt.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import org.tornotron.echno_backend.common.json.LegacyNumericIdAsNullUuidDeserializer;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Schema(description = "Payload to update a receipt. The receipt number is immutable and not accepted here.")
 @Data
@@ -71,6 +74,10 @@ public class ReceiptUpdateDto {
     @Schema(description = "Id of the invoice this receipt settles.", example = "44")
     private Long invoiceId;
 
-    @Schema(description = "Id of the customer the amount was received from.", example = "12")
-    private Long customerId;
+    @Schema(description = "Id of the finance customer the amount was received from "
+            + "(/api/v1/finance/web/customers). A number, the type this field had before customers "
+            + "were keyed by UUID, is accepted and read as no customer, since it cannot name one.",
+            example = "3f2b8c1e-5d4a-4c7e-9b1a-2e6f0d9c8a71")
+    @JsonDeserialize(using = LegacyNumericIdAsNullUuidDeserializer.class)
+    private UUID customerId;
 }

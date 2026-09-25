@@ -6,6 +6,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * A receipt as it is served. A field without {@code nullable = true} is one the schema, the
@@ -113,10 +114,11 @@ public class ReceiptDto {
             + "name an invoice that no longer exists.", example = "44", nullable = true)
     private Long invoiceId;
 
-    @Schema(description = "Id of the customer the amount was received from. Null where the payer "
-            + "was recorded by name only. The column carries no foreign key, so a value may name "
-            + "a customer that no longer exists.", example = "12", nullable = true)
-    private Long customerId;
+    @Schema(description = "Id of the finance customer the amount was received from "
+            + "(/api/v1/finance/web/customers). Null where the payer was recorded by name only. The "
+            + "column carries no foreign key, so a value may name a customer that no longer exists.",
+            example = "3f2b8c1e-5d4a-4c7e-9b1a-2e6f0d9c8a71", nullable = true)
+    private UUID customerId;
 
     @Schema(description = "Id of the owning organization. Set on every receipt the application "
             + "creates, so a null belongs to a row written outside it.", example = "1",

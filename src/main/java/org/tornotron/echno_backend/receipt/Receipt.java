@@ -13,6 +13,7 @@ import org.tornotron.echno_backend.organization.Organization;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * A money-received receipt. Type and status are stored as plain strings because the web
@@ -101,8 +102,9 @@ public class Receipt implements TenantScopedEntity {
     @Column(name = "invoice_id")
     private Long invoiceId;
 
+    /** The finance customer (UUID-keyed, like every customer reference since #864). */
     @Column(name = "customer_id")
-    private Long customerId;
+    private UUID customerId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")

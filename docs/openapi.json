@@ -18960,10 +18960,10 @@
             "type": "string"
           },
           "customerId": {
-            "description": "Id of the customer the amount was received from.",
-            "example": 12,
-            "format": "int64",
-            "type": "integer"
+            "description": "Id of the finance customer the amount was received from (/api/v1/finance/web/customers). A number, the type this field had before customers were keyed by UUID, is accepted and read as no customer, since it cannot name one.",
+            "example": "3f2b8c1e-5d4a-4c7e-9b1a-2e6f0d9c8a71",
+            "format": "uuid",
+            "type": "string"
           },
           "description": {
             "description": "What the amount was received for.",
@@ -19089,11 +19089,11 @@
             ]
           },
           "customerId": {
-            "description": "Id of the customer the amount was received from. Null where the payer was recorded by name only. The column carries no foreign key, so a value may name a customer that no longer exists.",
-            "example": 12,
-            "format": "int64",
+            "description": "Id of the finance customer the amount was received from (/api/v1/finance/web/customers). Null where the payer was recorded by name only. The column carries no foreign key, so a value may name a customer that no longer exists.",
+            "example": "3f2b8c1e-5d4a-4c7e-9b1a-2e6f0d9c8a71",
+            "format": "uuid",
             "type": [
-              "integer",
+              "string",
               "null"
             ]
           },
@@ -19281,10 +19281,10 @@
             "type": "string"
           },
           "customerId": {
-            "description": "Id of the customer the amount was received from.",
-            "example": 12,
-            "format": "int64",
-            "type": "integer"
+            "description": "Id of the finance customer the amount was received from (/api/v1/finance/web/customers). A number, the type this field had before customers were keyed by UUID, is accepted and read as no customer, since it cannot name one.",
+            "example": "3f2b8c1e-5d4a-4c7e-9b1a-2e6f0d9c8a71",
+            "format": "uuid",
+            "type": "string"
           },
           "description": {
             "description": "What the amount was received for.",
@@ -21632,8 +21632,14 @@
             "type": "number"
           },
           "paymentTerms": {
-            "description": "Agreed payment terms.",
-            "example": 30,
+            "description": "How the subcontract is paid.",
+            "enum": [
+              "milestone",
+              "monthly",
+              "completion",
+              "custom"
+            ],
+            "example": "milestone",
             "type": "string"
           },
           "penaltyClause": {
@@ -21680,7 +21686,15 @@
           },
           "status": {
             "description": "Lifecycle status of the subcontract.",
-            "example": "ACTIVE",
+            "enum": [
+              "draft",
+              "active",
+              "onHold",
+              "completed",
+              "terminated",
+              "expired"
+            ],
+            "example": "active",
             "type": "string"
           },
           "supervisorId": {
@@ -21705,8 +21719,15 @@
             "type": "number"
           },
           "type": {
-            "description": "Type of subcontract.",
-            "example": "LABOR_CONTRACT",
+            "description": "Commercial basis of the subcontract.",
+            "enum": [
+              "lumpsum",
+              "itemRate",
+              "timeAndMaterial",
+              "costPlus",
+              "unitPrice"
+            ],
+            "example": "lumpsum",
             "type": "string"
           },
           "warrantyPeriod": {
@@ -21883,9 +21904,26 @@
             "example": 4.2,
             "type": "number"
           },
+          "paymentStatus": {
+            "description": "How far payment has got, derived from the contract value, the amount paid and the end date: fullyPaid once the amount paid reaches a positive contract value, overdue when the end date has passed short of that, otherwise notStarted or inProgress.",
+            "enum": [
+              "notStarted",
+              "inProgress",
+              "fullyPaid",
+              "overdue"
+            ],
+            "example": "inProgress",
+            "type": "string"
+          },
           "paymentTerms": {
-            "description": "Agreed payment terms.",
-            "example": 30,
+            "description": "How the subcontract is paid.",
+            "enum": [
+              "milestone",
+              "monthly",
+              "completion",
+              "custom"
+            ],
+            "example": "milestone",
             "type": "string"
           },
           "penaltyClause": {
@@ -21932,7 +21970,15 @@
           },
           "status": {
             "description": "Lifecycle status of the subcontract.",
-            "example": "ACTIVE",
+            "enum": [
+              "draft",
+              "active",
+              "onHold",
+              "completed",
+              "terminated",
+              "expired"
+            ],
+            "example": "active",
             "type": "string"
           },
           "supervisorId": {
@@ -21957,8 +22003,15 @@
             "type": "number"
           },
           "type": {
-            "description": "Type of subcontract.",
-            "example": "LABOR_CONTRACT",
+            "description": "Commercial basis of the subcontract.",
+            "enum": [
+              "lumpsum",
+              "itemRate",
+              "timeAndMaterial",
+              "costPlus",
+              "unitPrice"
+            ],
+            "example": "lumpsum",
             "type": "string"
           },
           "updatedAt": {
@@ -24396,6 +24449,16 @@
             "type": "number"
           },
           "paymentTerms": {
+            "description": "Credit period agreed with the vendor.",
+            "enum": [
+              "IMMEDIATE",
+              "NET15",
+              "NET20",
+              "NET30",
+              "NET60",
+              "NET90"
+            ],
+            "example": "NET30",
             "type": "string"
           }
         },
