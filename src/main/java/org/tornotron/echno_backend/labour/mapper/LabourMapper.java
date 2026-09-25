@@ -7,14 +7,18 @@ import org.tornotron.echno_backend.labour.dto.LabourDto;
 import org.tornotron.echno_backend.labour.dto.LabourSimpleDto;
 
 /**
- * Maps {@link Labour} to its DTOs. The full DTO keeps the enum-typed fields; the
- * simple DTO flattens the organization and current-project associations and renders
- * the enums and the project id as strings, matching the previous converter (the enums
- * do not override toString, so MapStruct's name() output is identical).
+ * Maps {@link Labour} to its DTOs. Both carry the current project's id and name; the full
+ * DTO used to drop them, so the labour list and detail never showed the assignment (#862).
+ * The full DTO keeps the enum-typed fields; the simple DTO flattens the organization and
+ * current-project associations and renders the enums and the project id as strings, matching
+ * the previous converter (the enums do not override toString, so MapStruct's name() output is
+ * identical).
  */
 @Mapper(componentModel = "spring")
 public interface LabourMapper {
 
+    @Mapping(source = "currentProject.id", target = "currentProjectId")
+    @Mapping(source = "currentProject.projectName", target = "currentProjectName")
     LabourDto toDto(Labour labour);
 
     @Mapping(source = "labourID", target = "labourId")
