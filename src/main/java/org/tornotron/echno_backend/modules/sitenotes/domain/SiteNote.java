@@ -10,6 +10,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.Getter;
@@ -22,18 +23,24 @@ import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
 /**
- * The sample aggregate of the Site Notes module. Rename it to the module's real noun and
- * keep the shape: a UUID id, the owning organization behind {@code orgFilter}, audit columns.
- * Every module entity is tenant scoped or an owned child of one ({@code ModuleBoundaryTest}).
+ * One site note: a short written record an employee leaves for a project on a given day.
+ *
+ * <p>The aggregate of the module. Tenant scoped behind {@code orgFilter}. The project and the
+ * author are plain ids with foreign keys in the changelog, not JPA associations, so the module
+ * stays additive and reads nothing of the core's it does not need. The optional photo is not a
+ * column: it rides on the platform's attachment store, keyed on the note's id.
  */
 @Entity
-@Table(name = "site_notes_entry",
-        indexes = @Index(name = "idx_site_notes_entry_organization", columnList = "organization_id"))
+@Table(name = "site_note",
+        indexes = {
+                @Index(name = "idx_site_note_organization", columnList = "organization_id"),
+                @Index(name = "idx_site_note_project_date", columnList = "organization_id, project_id, note_date")
+        })
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Getter
 @Setter
 @NoArgsConstructor
-public class SiteNotesEntry implements TenantScopedEntity {
+public class SiteNote implements TenantScopedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -43,11 +50,17 @@ public class SiteNotesEntry implements TenantScopedEntity {
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
-    @Column(nullable = false, length = 200)
-    private String title;
+    @Column(name = "project_id", nullable = false)
+    private Long projectId;
 
-    @Column(columnDefinition = "TEXT")
-    private String notes;
+    @Column(name = "note_date", nullable = false)
+    private LocalDate noteDate;
+
+    @Column(name = "author_employee_id", nullable = false)
+    private Long authorEmployeeId;
+
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String note;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

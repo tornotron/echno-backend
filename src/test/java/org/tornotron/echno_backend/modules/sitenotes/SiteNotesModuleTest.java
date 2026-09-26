@@ -50,6 +50,14 @@ class SiteNotesModuleTest {
     }
 
     @Test
+    void theGuardsAreOneStringEachSoTheTwinsCannotDrift() {
+        assertThat(SiteNotesModule.READ_GUARD).isEqualTo("@orgSecurity.isMemberOfCurrentTenant()");
+        assertThat(SiteNotesModule.MANAGE_GUARD)
+                .contains("hasAnyOrgRoleForCurrentTenant")
+                .contains("'system-admin'", "'project-manager'", "'site-engineer'");
+    }
+
+    @Test
     void registersAndFollowsEntitlement() {
         ModuleRegistry entitled = new ModuleRegistry(List.of(module), (org, key) -> true, new MockEnvironment());
         ModuleRegistry dark = new ModuleRegistry(List.of(module), (org, key) -> false, new MockEnvironment());
