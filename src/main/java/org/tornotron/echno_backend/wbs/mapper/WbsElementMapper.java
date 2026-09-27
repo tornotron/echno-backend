@@ -24,6 +24,9 @@ public interface WbsElementMapper {
     @Mapping(source = "project.projectName", target = "projectName")
     @Mapping(source = "parent.id", target = "parentId")
     @Mapping(source = "parent.wbsCode", target = "parentWbsCode")
+    @Mapping(target = "responsibleEmployeeName", ignore = true)
+    @Mapping(target = "responsibleSubContractorName", ignore = true)
+    @Mapping(target = "delayDays", ignore = true)
     @Mapping(target = "children", ignore = true)
     WbsElementDto toDto(WbsElement element);
 
@@ -32,6 +35,9 @@ public interface WbsElementMapper {
     @Mapping(source = "project.projectName", target = "projectName")
     @Mapping(source = "parent.id", target = "parentId")
     @Mapping(source = "parent.wbsCode", target = "parentWbsCode")
+    @Mapping(target = "responsibleEmployeeName", ignore = true)
+    @Mapping(target = "responsibleSubContractorName", ignore = true)
+    @Mapping(target = "delayDays", ignore = true)
     @Mapping(target = "children", source = "children", qualifiedByName = "tree")
     WbsElementDto toTreeDto(WbsElement element);
 

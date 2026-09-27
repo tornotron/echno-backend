@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The schedule side of Work Progress Inspection, step 1
+        (docs/specs/2026-09-28-work-progress-inspection.md). A WBS leaf is a schedule activity:
+        it gains a forecast finish, a milestone flag and a responsible party, and activities are
+        linked by dependencies. Nothing here moves a planned date.
+    -->
+
+    <changeSet id="128-wbs-element-schedule-columns" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="wbs_element" columnName="forecast_end_date"/></not>
+        </preConditions>
+        <addColumn tableName="wbs_element">
+            <column name="forecast_end_date" type="DATE"/>
+            <column name="is_milestone" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="responsible_employee_id" type="BIGINT"/>
+            <column name="responsible_sub_contract_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="wbs_element" baseColumnNames="responsible_employee_id"
+                                 referencedTableName="employee" referencedColumnNames="id"
+                                 constraintName="fk_wbs_element_responsible_employee"/>
+        <addForeignKeyConstraint baseTableName="wbs_element" baseColumnNames="responsible_sub_contract_id"
+                                 referencedTableName="sub_contract" referencedColumnNames="id"
+                                 constraintName="fk_wbs_element_responsible_sub_contract"/>
+        <rollback>
+            <dropForeignKeyConstraint baseTableName="wbs_element" constraintName="fk_wbs_element_responsible_sub_contract"/>
+            <dropForeignKeyConstraint baseTableName="wbs_element" constraintName="fk_wbs_element_responsible_employee"/>
+            <dropColumn tableName="wbs_element" columnName="responsible_sub_contract_id"/>
+            <dropColumn tableName="wbs_element" columnName="responsible_employee_id"/>
+            <dropColumn tableName="wbs_element" columnName="is_milestone"/>
+            <dropColumn tableName="wbs_element" columnName="forecast_end_date"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="128-create-wbs-dependency" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="wbs_dependency"/></not>
+        </preConditions>
+        <createTable tableName="wbs_dependency">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_wbs_dependency" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="predecessor_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="successor_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="type" type="VARCHAR(2)" defaultValue="FS"><constraints nullable="false"/></column>
+            <column name="lag_days" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="wbs_dependency" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_wbs_dependency_organization"/>
+        <addForeignKeyConstraint baseTableName="wbs_dependency" baseColumnNames="project_id"
+                                 referencedTableName="project" referencedColumnNames="id"
+                                 constraintName="fk_wbs_dependency_project"/>
+        <addForeignKeyConstraint baseTableName="wbs_dependency" baseColumnNames="predecessor_id"
+                                 referencedTableName="wbs_element" referencedColumnNames="id"
+                                 constraintName="fk_wbs_dependency_predecessor" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="wbs_dependency" baseColumnNames="successor_id"
+                                 referencedTableName="wbs_element" referencedColumnNames="id"
+                                 constraintName="fk_wbs_dependency_successor" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="wbs_dependency" columnNames="predecessor_id, successor_id"
+                             constraintName="uq_wbs_dependency_pair"/>
+        <createIndex tableName="wbs_dependency" indexName="idx_wbs_dependency_project">
+            <column name="organization_id"/>
+            <column name="project_id"/>
+        </createIndex>
+        <createIndex tableName="wbs_dependency" indexName="idx_wbs_dependency_successor">
+            <column name="successor_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="wbs_dependency"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -466,6 +466,9 @@
     <!-- v4.0 - Work categories: the standard construction list for every organization -->
     <include file="db/changelog/v4.0/127-backfill-standard-work-categories.xml"/>
 
+    <!-- v4.0 - Schedule activities: forecast finish, milestone, responsible party, dependencies (work progress inspection step 1) -->
+    <include file="db/changelog/v4.0/128-wbs-schedule-activities.xml"/>
+
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->
     <!-- (#749). Files run in path order; a module's pre-move changesets -->

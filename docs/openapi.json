@@ -16127,6 +16127,52 @@
         },
         "type": "object"
       },
+      "PageProgressInspectionDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressInspectionDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageProjectDto": {
         "properties": {
           "content": {
@@ -17522,6 +17568,107 @@
             "description": "Sum of all income for the period.",
             "example": 9400000.0,
             "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "ProgressInspectionDto": {
+        "description": "One progress inspection of a schedule activity, as recorded. The planned finish and the delay are the values at the time it was recorded.",
+        "properties": {
+          "activityTitle": {
+            "description": "Title of the activity inspected.",
+            "example": "RCC Column Casting - Block A",
+            "type": "string"
+          },
+          "actualFinishDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "actualStartDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "delayDays": {
+            "description": "Days behind the planned finish when recorded; 0 when on time, null with no planned finish.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "delayNotes": {
+            "type": "string"
+          },
+          "delayReason": {
+            "enum": [
+              "WEATHER",
+              "MATERIAL",
+              "LABOUR",
+              "EQUIPMENT",
+              "DESIGN_CHANGE",
+              "CLIENT",
+              "SUBCONTRACTOR",
+              "OTHER"
+            ],
+            "type": "string"
+          },
+          "forecastFinishDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "inspectionDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "inspectorEmployeeId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "inspectorName": {
+            "description": "Name of the employee who recorded it.",
+            "example": "Ravi Kumar",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "DONE",
+              "PARTIAL",
+              "NOT_DONE"
+            ],
+            "type": "string"
+          },
+          "percentComplete": {
+            "type": "number"
+          },
+          "plannedFinishDate": {
+            "description": "The activity's planned finish when the inspection was recorded.",
+            "format": "date",
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "remarks": {
+            "type": "string"
+          },
+          "spatialNodeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "wbsCode": {
+            "description": "wbsCode of the activity inspected.",
+            "example": "1.2.3",
+            "type": "string"
+          },
+          "wbsElementId": {
+            "format": "int64",
+            "type": "integer"
           }
         },
         "type": "object"
@@ -19441,6 +19588,121 @@
           "companyBankAccountId",
           "customerId",
           "paymentDate"
+        ],
+        "type": "object"
+      },
+      "RecordProgressInspectionRequest": {
+        "description": "Records what a progress inspection found for one schedule activity. The record is final once saved and is applied to the activity at once: progress, actual dates, forecast finish and status. Planned dates and other activities are not changed.",
+        "properties": {
+          "actualFinishDate": {
+            "description": "When the activity finished. Needed for DONE; refused otherwise.",
+            "example": "2026-09-27",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "actualStartDate": {
+            "description": "When work started. Needed for DONE and PARTIAL unless the activity already has one.",
+            "example": "2026-09-10",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "delayNotes": {
+            "description": "Detail on the delay. Required when the reason is OTHER.",
+            "example": "Cement delivery held at the depot for three days",
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "delayReason": {
+            "description": "Why the activity is late. Required when the activity is behind its planned finish.",
+            "enum": [
+              "WEATHER",
+              "MATERIAL",
+              "LABOUR",
+              "EQUIPMENT",
+              "DESIGN_CHANGE",
+              "CLIENT",
+              "SUBCONTRACTOR",
+              "OTHER"
+            ],
+            "example": "MATERIAL",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "forecastFinishDate": {
+            "description": "The revised finish date for an unfinished activity. The planned finish is not changed.",
+            "example": "2026-10-05",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inspectionDate": {
+            "description": "The date of the inspection; not in the future.",
+            "example": "2026-09-28",
+            "format": "date",
+            "type": "string"
+          },
+          "outcome": {
+            "description": "DONE, PARTIAL or NOT_DONE. A milestone takes DONE or NOT_DONE.",
+            "enum": [
+              "DONE",
+              "PARTIAL",
+              "NOT_DONE"
+            ],
+            "example": "PARTIAL",
+            "type": "string"
+          },
+          "percentComplete": {
+            "description": "Cumulative percent complete. Required for PARTIAL (above 0, below 100); DONE is 100 and NOT_DONE is 0.",
+            "example": 60,
+            "maximum": 100,
+            "minimum": 0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "remarks": {
+            "description": "Anything else the inspector wants on the record.",
+            "maxLength": 4000,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spatialNodeId": {
+            "description": "The building, floor or zone where the work was inspected, in the activity's project.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "wbsElementId": {
+            "description": "The leaf WBS activity inspected.",
+            "example": 42,
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "inspectionDate",
+          "outcome",
+          "wbsElementId"
         ],
         "type": "object"
       },
@@ -24780,6 +25042,104 @@
         ],
         "type": "object"
       },
+      "WbsDependencyCreationDto": {
+        "description": "Links two activities of the same project. The link may not close a loop.",
+        "properties": {
+          "lagDays": {
+            "description": "Lag in days, negative for a lead. Defaults to 0.",
+            "example": 0,
+            "format": "int32",
+            "maximum": 365,
+            "minimum": -365,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "predecessorId": {
+            "description": "Id of the activity that comes first.",
+            "example": 41,
+            "format": "int64",
+            "type": "integer"
+          },
+          "successorId": {
+            "description": "Id of the activity that depends on it.",
+            "example": 42,
+            "format": "int64",
+            "type": "integer"
+          },
+          "type": {
+            "description": "Defaults to FS (finish-to-start).",
+            "enum": [
+              "FS",
+              "SS",
+              "FF",
+              "SF"
+            ],
+            "example": "FS",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "predecessorId",
+          "successorId"
+        ],
+        "type": "object"
+      },
+      "WbsDependencyDto": {
+        "description": "A link between two activities of a project's schedule. Recorded information: no date moves because of it.",
+        "properties": {
+          "id": {
+            "description": "Id of the link.",
+            "example": 9,
+            "format": "int64",
+            "type": "integer"
+          },
+          "lagDays": {
+            "description": "Lag in days; negative for a lead.",
+            "example": 2,
+            "format": "int32",
+            "type": "integer"
+          },
+          "predecessorId": {
+            "description": "Id of the activity that comes first.",
+            "example": 41,
+            "format": "int64",
+            "type": "integer"
+          },
+          "predecessorWbsCode": {
+            "description": "wbsCode of the activity that comes first.",
+            "example": "1.2.1",
+            "type": "string"
+          },
+          "successorId": {
+            "description": "Id of the activity that depends on the predecessor.",
+            "example": 42,
+            "format": "int64",
+            "type": "integer"
+          },
+          "successorWbsCode": {
+            "description": "wbsCode of the dependent activity.",
+            "example": "1.2.2",
+            "type": "string"
+          },
+          "type": {
+            "description": "FS finish-to-start, SS start-to-start, FF finish-to-finish, SF start-to-finish.",
+            "enum": [
+              "FS",
+              "SS",
+              "FF",
+              "SF"
+            ],
+            "example": "FS",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "WbsElementCreationDto": {
         "description": "Payload to create a WBS element under a project, optionally nested under a parent element.",
         "properties": {
@@ -24805,11 +25165,34 @@
             "format": "date",
             "type": "string"
           },
+          "isMilestone": {
+            "description": "Whether the element is a milestone: a schedule point whose planned start equals its planned finish. Defaults to false.",
+            "example": false,
+            "type": "boolean"
+          },
           "parentId": {
             "description": "Id of the parent WBS element to nest this element under. Omit to create a root element.",
             "example": 12,
             "format": "int64",
             "type": "integer"
+          },
+          "responsibleEmployeeId": {
+            "description": "Id of the employee who owns this activity, in this organization.",
+            "example": 14,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "responsibleSubContractId": {
+            "description": "Id of the sub-contract whose contractor executes this activity. It must be in this organization and, when the sub-contract names a project, in this project.",
+            "example": 3,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "sortOrder": {
             "description": "Display order among sibling elements. Defaults to 0 when omitted.",
@@ -24900,6 +25283,15 @@
             "$ref": "#/components/schemas/EmployeeDto",
             "description": "Employee who created this element."
           },
+          "delayDays": {
+            "description": "Days the finish is behind the planned endDate: the actual finish for a finished activity, otherwise the later of the forecast finish and today once the planned finish has passed. Zero when on time, null when there is no planned endDate.",
+            "example": 6,
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "description": {
             "description": "Free-text description of the scope of work.",
             "example": "Column casting for grid lines A1 to A6, M25 grade concrete",
@@ -24911,6 +25303,15 @@
             "format": "date",
             "type": "string"
           },
+          "forecastEndDate": {
+            "description": "Revised finish date once the activity is known to be late; the planned endDate is unchanged.",
+            "example": "2026-03-10",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "id": {
             "description": "Unique id of the WBS element.",
             "example": 42,
@@ -24919,6 +25320,11 @@
           },
           "isLeaf": {
             "description": "Whether this element has no children.",
+            "example": false,
+            "type": "boolean"
+          },
+          "isMilestone": {
+            "description": "Whether the element is a milestone: planned start equals planned finish.",
             "example": false,
             "type": "boolean"
           },
@@ -24961,6 +25367,40 @@
             "description": "Name of the project this element belongs to.",
             "example": "Asset Homes - Kochi Riverside Phase 2",
             "type": "string"
+          },
+          "responsibleEmployeeId": {
+            "description": "Id of the employee who owns this activity.",
+            "example": 14,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "responsibleEmployeeName": {
+            "description": "Name of the employee who owns this activity. Filled on schedule reads.",
+            "example": "Ravi Kumar",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "responsibleSubContractId": {
+            "description": "Id of the sub-contract whose contractor executes this activity.",
+            "example": 3,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "responsibleSubContractorName": {
+            "description": "Name of that sub-contract's contractor. Filled on schedule reads.",
+            "example": "Sree Builders",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "sortOrder": {
             "description": "Display order among sibling elements.",
@@ -25118,11 +25558,34 @@
             "format": "date",
             "type": "string"
           },
+          "forecastEndDate": {
+            "description": "Revised finish date for an activity that is running late. The planned endDate is not changed by it.",
+            "example": "2026-03-10",
+            "format": "date",
+            "type": "string"
+          },
+          "isMilestone": {
+            "description": "Whether the element is a milestone.",
+            "example": true,
+            "type": "boolean"
+          },
           "progress": {
             "description": "New completion percentage, from 0 to 100. Only allowed when the element is a leaf.",
             "example": 75.0,
             "format": "double",
             "type": "number"
+          },
+          "responsibleEmployeeId": {
+            "description": "Id of the employee who owns this activity, in this organization.",
+            "example": 14,
+            "format": "int64",
+            "type": "integer"
+          },
+          "responsibleSubContractId": {
+            "description": "Id of the sub-contract whose contractor executes this activity.",
+            "example": 3,
+            "format": "int64",
+            "type": "integer"
           },
           "sortOrder": {
             "description": "New display order among sibling elements.",
@@ -25176,6 +25639,26 @@
             "description": "New wbsCode for the element, if it should change. Must stay unique within the project.",
             "example": "2.1.4",
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "WbsScheduleDto": {
+        "description": "A project's schedule in one read: every WBS element as a flat row ordered by wbsCode, with its dates, milestone flag, responsible party and delay, and every dependency link.",
+        "properties": {
+          "activities": {
+            "description": "The elements, ordered by wbsCode; children is null on each row.",
+            "items": {
+              "$ref": "#/components/schemas/WbsElementDto"
+            },
+            "type": "array"
+          },
+          "dependencies": {
+            "description": "The links between activities.",
+            "items": {
+              "$ref": "#/components/schemas/WbsDependencyDto"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -27819,7 +28302,7 @@
     "/api/v1/attendance-regularizations/web": {
       "get": {
         "description": "Returns a paged list of regularization requests in the current tenant, in any status. The optional status, approver and requester parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nThe approver and the rejecter are recorded in the same pair of columns, so approvedById on its own means \"requests this person decided\". Pair it with status to separate the two: approvedById with status=APPROVED is what that person approved, and with status=REJECTED what they rejected.\n\nBoth ids are employee ids. A request decided by a caller who has no employee record in this tenant carries no approver id and is not matched by any approvedById.",
-        "operationId": "list_19",
+        "operationId": "list_21",
         "parameters": [
           {
             "in": "query",
@@ -37204,7 +37687,7 @@
     "/api/v1/billing/web/events": {
       "get": {
         "description": "Newest first. Without a status filter, shows FAILED and SKIPPED rows: the dead letters.",
-        "operationId": "list_18",
+        "operationId": "list_20",
         "parameters": [
           {
             "description": "Narrow to one organization",
@@ -37824,7 +38307,7 @@
     },
     "/api/v1/bim/models/{modelId}": {
       "get": {
-        "operationId": "get_19",
+        "operationId": "get_21",
         "parameters": [
           {
             "in": "path",
@@ -41305,7 +41788,7 @@
     "/api/v1/checklist-templates/web": {
       "get": {
         "description": "Returns a page of the organization's templates. The trade and active parameters are optional filters; omitting both returns every template, subject to paging.",
-        "operationId": "list_14",
+        "operationId": "list_16",
         "parameters": [
           {
             "in": "query",
@@ -47522,7 +48005,7 @@
     "/api/v1/finance/accounts/web": {
       "get": {
         "description": "Returns the flat list of accounts in the current tenant. By default only active accounts are returned; set activeOnly to false to include deactivated accounts.",
-        "operationId": "list_13",
+        "operationId": "list_15",
         "parameters": [
           {
             "in": "query",
@@ -48641,7 +49124,7 @@
     "/api/v1/finance/company-bank-accounts/web": {
       "get": {
         "description": "Returns the organization's bank accounts. By default only active accounts are returned; set activeOnly to false to include deactivated accounts as well.",
-        "operationId": "list_12",
+        "operationId": "list_14",
         "parameters": [
           {
             "in": "query",
@@ -48867,7 +49350,7 @@
     "/api/v1/finance/company-bank-accounts/web/{id}": {
       "get": {
         "description": "Returns a single company bank account, including the linked ledger account.",
-        "operationId": "get_18",
+        "operationId": "get_20",
         "parameters": [
           {
             "in": "path",
@@ -49093,7 +49576,7 @@
     "/api/v1/finance/construction-invoices/web": {
       "get": {
         "description": "Returns a paged list of invoices in the current tenant. The optional project, vendor, status and type parameters narrow the result; omitting a parameter leaves that dimension unfiltered.",
-        "operationId": "list_11",
+        "operationId": "list_13",
         "parameters": [
           {
             "in": "query",
@@ -50184,7 +50667,7 @@
     "/api/v1/finance/construction-payments/web": {
       "get": {
         "description": "Returns a paged list of payment vouchers in the current tenant. The optional project, vendor, status, type, payee type, employee, verifier and raiser parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nNarrow here rather than in the client. A filter applied to the rows one page came back in narrows that page and not the register, so it answers a different question from the one it appears to, and an empty result then reads as a complete answer.\n\nThe three person parameters carry ids from two different sequences and are not interchangeable. employeeId is the payee on a salary or advance voucher and is an employee id; verifiedBy and raisedBy are platform user ids, the same ids the response returns beside verifiedByName and raisedByName.",
-        "operationId": "list_10",
+        "operationId": "list_12",
         "parameters": [
           {
             "in": "query",
@@ -50994,7 +51477,7 @@
     "/api/v1/finance/cost-categories/web": {
       "get": {
         "description": "Returns the budget heads in the current tenant. By default only active heads are returned; set activeOnly to false to include deactivated ones.",
-        "operationId": "list_9",
+        "operationId": "list_11",
         "parameters": [
           {
             "in": "query",
@@ -51896,7 +52379,7 @@
     "/api/v1/finance/customers/web/all": {
       "get": {
         "description": "Returns a page of customers in the current tenant. The optional name parameter filters by customer name; omitting it returns all customers, subject to paging.",
-        "operationId": "list_17",
+        "operationId": "list_19",
         "parameters": [
           {
             "in": "query",
@@ -52248,7 +52731,7 @@
     "/api/v1/finance/invoices/web": {
       "get": {
         "description": "Returns a page of customer invoices in the current tenant, newest invoice date first. The optional customer, status and openOnly parameters narrow the result and combine with AND; omitting a parameter leaves that dimension unfiltered. Use pageNo and pageSize to page through the results.",
-        "operationId": "list_8",
+        "operationId": "list_10",
         "parameters": [
           {
             "description": "Restrict to invoices billed to this customer.",
@@ -52525,7 +53008,7 @@
     "/api/v1/finance/invoices/web/{id}": {
       "get": {
         "description": "Returns a single customer invoice, including its computed totals and line items.",
-        "operationId": "get_17",
+        "operationId": "get_19",
         "parameters": [
           {
             "in": "path",
@@ -53477,7 +53960,7 @@
     "/api/v1/finance/payments/web": {
       "post": {
         "description": "Records a payment received from a customer and allocates it across the invoices named in the request. The allocations must sum to the payment amount. An optional Idempotency-Key header lets a retried request return the original result instead of creating a duplicate payment.",
-        "operationId": "record_2",
+        "operationId": "record_4",
         "parameters": [
           {
             "in": "header",
@@ -53599,7 +54082,7 @@
     "/api/v1/finance/payments/web/{id}": {
       "get": {
         "description": "Returns a single customer payment with its invoice allocations.",
-        "operationId": "get_16",
+        "operationId": "get_18",
         "parameters": [
           {
             "in": "path",
@@ -53712,7 +54195,7 @@
     "/api/v1/finance/posting-accounts/web": {
       "get": {
         "description": "Returns all six posting roles with the account each currently resolves to for the tenant, flagged as coming from an explicit mapping (MAPPED) or the configured default (DEFAULT).",
-        "operationId": "list_16",
+        "operationId": "list_18",
         "responses": {
           "200": {
             "content": {
@@ -54065,7 +54548,7 @@
     "/api/v1/finance/projects/{projectId}/budget/web": {
       "get": {
         "description": "Returns the set of budget-head allocations that make up the project's budget.",
-        "operationId": "list_15",
+        "operationId": "list_17",
         "parameters": [
           {
             "in": "path",
@@ -54426,7 +54909,7 @@
     "/api/v1/finance/projects/{projectId}/cost-control/web": {
       "get": {
         "description": "Returns the per-budget-head roll-up of allocated, committed, spent and remaining amounts for the project, plus a project total row. Heads with an allocation or any tagged spend are included; a head whose committed plus spent exceeds its allocation is flagged as over budget.",
-        "operationId": "get_15",
+        "operationId": "get_17",
         "parameters": [
           {
             "in": "path",
@@ -57160,7 +57643,7 @@
     },
     "/api/v1/holidays/web/holiday": {
       "get": {
-        "operationId": "get_14",
+        "operationId": "get_16",
         "parameters": [
           {
             "in": "query",
@@ -62520,7 +63003,7 @@
     "/api/v1/inspections/web": {
       "get": {
         "description": "Returns a page of inspections in the current tenant. The projectId, status, type, category, trade and result parameters are optional filters; omitting all of them returns every inspection, subject to paging.",
-        "operationId": "list_3",
+        "operationId": "list_5",
         "parameters": [
           {
             "in": "query",
@@ -63306,7 +63789,7 @@
     },
     "/api/v1/inspections/web/dataset-export/runs": {
       "get": {
-        "operationId": "list_7",
+        "operationId": "list_9",
         "responses": {
           "200": {
             "content": {
@@ -63510,7 +63993,7 @@
     },
     "/api/v1/inspections/web/dataset-export/runs/{id}": {
       "get": {
-        "operationId": "get_13",
+        "operationId": "get_15",
         "parameters": [
           {
             "in": "path",
@@ -63745,7 +64228,7 @@
     "/api/v1/inspections/web/element-types": {
       "get": {
         "description": "Active types by default, in sort order then name. Pass includeInactive=true to see retired ones too.",
-        "operationId": "list_6",
+        "operationId": "list_8",
         "parameters": [
           {
             "in": "query",
@@ -64370,7 +64853,7 @@
     "/api/v1/inspections/web/observations": {
       "get": {
         "description": "Paged, filtered by project, review status, source, inspection, site structure subtree and observed-at window. The pending queue is reviewStatus=pending.",
-        "operationId": "list_5",
+        "operationId": "list_7",
         "parameters": [
           {
             "in": "query",
@@ -64893,7 +65376,7 @@
     "/api/v1/inspections/web/observations/{id}/evidence/presign": {
       "post": {
         "description": "Step one of the direct-to-storage path, as for inspection evidence.",
-        "operationId": "presignEvidence_1",
+        "operationId": "presignEvidence_3",
         "parameters": [
           {
             "in": "path",
@@ -65022,7 +65505,7 @@
     "/api/v1/inspections/web/observations/{id}/evidence/register": {
       "post": {
         "description": "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage.",
-        "operationId": "registerEvidence_1",
+        "operationId": "registerEvidence_3",
         "parameters": [
           {
             "in": "path",
@@ -65273,7 +65756,7 @@
     },
     "/api/v1/inspections/web/reinspections/{id}": {
       "get": {
-        "operationId": "get_12",
+        "operationId": "get_14",
         "parameters": [
           {
             "in": "path",
@@ -65509,7 +65992,7 @@
     "/api/v1/inspections/web/trades": {
       "get": {
         "description": "Active trades by default, in sort order then name. Pass includeInactive=true to see retired ones too.",
-        "operationId": "list_4",
+        "operationId": "list_6",
         "parameters": [
           {
             "in": "query",
@@ -66814,7 +67297,7 @@
     "/api/v1/inspections/web/{id}/evidence/presign": {
       "post": {
         "description": "Step one of the direct-to-storage path: for each declared file, returns a short-lived URL the client PUTs it to, bypassing the API and the CDN in front of it. Site photographs and scanned approvals routinely exceed what the streaming path allows.",
-        "operationId": "presignEvidence",
+        "operationId": "presignEvidence_2",
         "parameters": [
           {
             "in": "path",
@@ -66943,7 +67426,7 @@
     "/api/v1/inspections/web/{id}/evidence/register": {
       "post": {
         "description": "Step two of the direct-to-storage path: confirms the storage keys once each object is verified present in storage, so a caller cannot record evidence for a file that was never uploaded.",
-        "operationId": "registerEvidence",
+        "operationId": "registerEvidence_2",
         "parameters": [
           {
             "in": "path",
@@ -91702,7 +92185,7 @@
     "/api/v1/ncrs/web": {
       "get": {
         "description": "Returns a page of NCRs in the current tenant. Every parameter is an optional filter, and they narrow together. projectId matches every report whose inspection belongs to that project, which is also the project each row reports. Setting open=true returns the punch list: every NCR that has not been closed, whatever stage it has reached. siteEngineerId, raisedById, verifiedById and closedById are employee ids, the same ids the employee directory hands out, and they answer a person's trail through the register: what they were given, what they raised, what they accepted on re-inspection and what they closed.",
-        "operationId": "list_2",
+        "operationId": "list_4",
         "parameters": [
           {
             "in": "query",
@@ -92158,7 +92641,7 @@
     },
     "/api/v1/ncrs/web/{id}": {
       "get": {
-        "operationId": "get_11",
+        "operationId": "get_13",
         "parameters": [
           {
             "in": "path",
@@ -97815,6 +98298,1494 @@
         ]
       }
     },
+    "/api/v1/progress-inspections": {
+      "get": {
+        "description": "Filter by project and by activity; both are optional.",
+        "operationId": "list_2",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "wbsElementId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageProgressInspectionDto"
+                }
+              }
+            },
+            "description": "A page of progress inspections"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List progress inspections, newest first",
+        "tags": [
+          "Progress Inspections"
+        ]
+      },
+      "post": {
+        "description": "Records whether the activity was done, partly done or not done on the inspection date, with the actual dates, a forecast finish and the reason for any delay, and applies it to the activity. The planned dates and the rest of the schedule are not changed.",
+        "operationId": "record_2",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordProgressInspectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressInspectionDto"
+                }
+              }
+            },
+            "description": "Progress inspection recorded and applied to the activity"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A value breaks a rule: the outcome and percent disagree, a date is missing or out of order, a delay has no reason, or the activity is not a leaf or is already completed"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such activity in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Record a progress inspection of an activity",
+        "tags": [
+          "Progress Inspections"
+        ]
+      }
+    },
+    "/api/v1/progress-inspections/web": {
+      "get": {
+        "description": "Filter by project and by activity; both are optional.",
+        "operationId": "list_3",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "wbsElementId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageProgressInspectionDto"
+                }
+              }
+            },
+            "description": "A page of progress inspections"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List progress inspections, newest first",
+        "tags": [
+          "Progress Inspections (web)"
+        ]
+      },
+      "post": {
+        "description": "Records whether the activity was done, partly done or not done on the inspection date, with the actual dates, a forecast finish and the reason for any delay, and applies it to the activity. The planned dates and the rest of the schedule are not changed.",
+        "operationId": "record_3",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordProgressInspectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressInspectionDto"
+                }
+              }
+            },
+            "description": "Progress inspection recorded and applied to the activity"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A value breaks a rule: the outcome and percent disagree, a date is missing or out of order, a delay has no reason, or the activity is not a leaf or is already completed"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such activity in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Record a progress inspection of an activity",
+        "tags": [
+          "Progress Inspections (web)"
+        ]
+      }
+    },
+    "/api/v1/progress-inspections/web/{id}": {
+      "get": {
+        "operationId": "get_12",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressInspectionDto"
+                }
+              }
+            },
+            "description": "The progress inspection"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such progress inspection in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get one progress inspection",
+        "tags": [
+          "Progress Inspections (web)"
+        ]
+      }
+    },
+    "/api/v1/progress-inspections/web/{id}/evidence": {
+      "get": {
+        "operationId": "listEvidence_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Evidence returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such progress inspection in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a progress inspection's evidence",
+        "tags": [
+          "Progress Inspections (web)"
+        ]
+      }
+    },
+    "/api/v1/progress-inspections/web/{id}/evidence/presign": {
+      "post": {
+        "description": "Step one of the direct-to-storage path, as for inspection evidence.",
+        "operationId": "presignEvidence_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/UploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresignedUpload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Presigned upload URLs returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A file was declared twice, or is already attached"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such progress inspection in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Presign evidence uploads for a progress inspection",
+        "tags": [
+          "Progress Inspections (web)"
+        ]
+      }
+    },
+    "/api/v1/progress-inspections/web/{id}/evidence/register": {
+      "post": {
+        "description": "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage.",
+        "operationId": "registerEvidence_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/RegisterUploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Evidence registered"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A referenced object is missing from storage, or its key was not presigned for this inspection"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such progress inspection in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Register presigned evidence uploads for a progress inspection",
+        "tags": [
+          "Progress Inspections (web)"
+        ]
+      }
+    },
+    "/api/v1/progress-inspections/{id}": {
+      "get": {
+        "operationId": "get_11",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressInspectionDto"
+                }
+              }
+            },
+            "description": "The progress inspection"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such progress inspection in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get one progress inspection",
+        "tags": [
+          "Progress Inspections"
+        ]
+      }
+    },
+    "/api/v1/progress-inspections/{id}/evidence": {
+      "get": {
+        "operationId": "listEvidence",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Evidence returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such progress inspection in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a progress inspection's evidence",
+        "tags": [
+          "Progress Inspections"
+        ]
+      }
+    },
+    "/api/v1/progress-inspections/{id}/evidence/presign": {
+      "post": {
+        "description": "Step one of the direct-to-storage path, as for inspection evidence.",
+        "operationId": "presignEvidence",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/UploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresignedUpload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Presigned upload URLs returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A file was declared twice, or is already attached"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such progress inspection in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Presign evidence uploads for a progress inspection",
+        "tags": [
+          "Progress Inspections"
+        ]
+      }
+    },
+    "/api/v1/progress-inspections/{id}/evidence/register": {
+      "post": {
+        "description": "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage.",
+        "operationId": "registerEvidence",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/RegisterUploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Evidence registered"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A referenced object is missing from storage, or its key was not presigned for this inspection"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such progress inspection in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Register presigned evidence uploads for a progress inspection",
+        "tags": [
+          "Progress Inspections"
+        ]
+      }
+    },
     "/api/v1/project": {
       "get": {
         "description": "Returns a single page of projects. The pageNo and pageSize parameters control paging; only the page content is returned, without paging metadata.",
@@ -101738,6 +103709,250 @@
         ]
       }
     },
+    "/api/v1/project/{projectId}/wbs/dependencies": {
+      "post": {
+        "description": "Records that one activity depends on another in the same project, finish-to-start by default, with an optional lag in days. A link that would close a loop is refused. No date moves because of the link.",
+        "operationId": "addDependency_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WbsDependencyCreationDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/WbsDependencyDto"
+                }
+              }
+            },
+            "description": "Link recorded"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The body failed validation, the two ids are the same activity, or the link would close a loop"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No project, or no such activity in this project"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The two activities are already linked"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Link two activities",
+        "tags": [
+          "WBS Elements"
+        ]
+      }
+    },
+    "/api/v1/project/{projectId}/wbs/dependencies/{dependencyId}": {
+      "delete": {
+        "operationId": "removeDependency_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "dependencyId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            },
+            "description": "Link removed"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such link in this project"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Remove a link between two activities",
+        "tags": [
+          "WBS Elements"
+        ]
+      }
+    },
     "/api/v1/project/{projectId}/wbs/leaves": {
       "get": {
         "description": "Returns the leaf elements of the project's WBS, the elements with no children, ordered by wbsCode. These are the elements progress can be set on directly.",
@@ -101849,6 +104064,119 @@
           }
         },
         "summary": "List leaf WBS elements",
+        "tags": [
+          "WBS Elements"
+        ]
+      }
+    },
+    "/api/v1/project/{projectId}/wbs/schedule": {
+      "get": {
+        "description": "Returns every WBS element of the project as a flat row ordered by wbsCode, with planned, actual and forecast dates, the milestone flag, the responsible employee or sub-contractor by name, and the delay in days, together with every dependency link. Nothing is rescheduled by this read; delay is worked out against the planned finish.",
+        "operationId": "getSchedule_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/WbsScheduleDto"
+                }
+              }
+            },
+            "description": "Schedule returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No project with the given id in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get the project schedule",
         "tags": [
           "WBS Elements"
         ]
@@ -102333,6 +104661,250 @@
         ]
       }
     },
+    "/api/v1/project/{projectId}/wbs/web/dependencies": {
+      "post": {
+        "description": "Records that one activity depends on another in the same project, finish-to-start by default, with an optional lag in days. A link that would close a loop is refused. No date moves because of the link.",
+        "operationId": "addDependency",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WbsDependencyCreationDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/WbsDependencyDto"
+                }
+              }
+            },
+            "description": "Link recorded"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The body failed validation, the two ids are the same activity, or the link would close a loop"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No project, or no such activity in this project"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The two activities are already linked"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Link two activities",
+        "tags": [
+          "WBS Elements (Web)"
+        ]
+      }
+    },
+    "/api/v1/project/{projectId}/wbs/web/dependencies/{dependencyId}": {
+      "delete": {
+        "operationId": "removeDependency",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "dependencyId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            },
+            "description": "Link removed"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such link in this project"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Remove a link between two activities",
+        "tags": [
+          "WBS Elements (Web)"
+        ]
+      }
+    },
     "/api/v1/project/{projectId}/wbs/web/leaves": {
       "get": {
         "description": "Returns the leaf elements of the project's WBS, the elements with no children, ordered by wbsCode. These are the elements progress can be set on directly.",
@@ -102444,6 +105016,119 @@
           }
         },
         "summary": "List leaf WBS elements",
+        "tags": [
+          "WBS Elements (Web)"
+        ]
+      }
+    },
+    "/api/v1/project/{projectId}/wbs/web/schedule": {
+      "get": {
+        "description": "Returns every WBS element of the project as a flat row ordered by wbsCode, with planned, actual and forecast dates, the milestone flag, the responsible employee or sub-contractor by name, and the delay in days, together with every dependency link. Nothing is rescheduled by this read; delay is worked out against the planned finish.",
+        "operationId": "getSchedule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/WbsScheduleDto"
+                }
+              }
+            },
+            "description": "Schedule returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No project with the given id in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get the project schedule",
         "tags": [
           "WBS Elements (Web)"
         ]
@@ -127865,6 +130550,14 @@
       "name": "Posting Account Mapping"
     },
     {
+      "description": "Work Progress module: whether scheduled work was done on the agreed date and why not. Reads for members, recording for the project team.",
+      "name": "Progress Inspections"
+    },
+    {
+      "description": "Web twin of the progress inspection surface: reads for members, recording for the project team.",
+      "name": "Progress Inspections (web)"
+    },
+    {
       "description": "A project's budget, expressed as one allocation per budget head (cost category). All endpoints are tenant scoped and limited to system administrators and project managers.",
       "name": "Project Budget"
     },
@@ -127981,11 +130674,11 @@
       "name": "Vendors (Web)"
     },
     {
-      "description": "Work breakdown structure elements for a project, arranged as a tree of phases and activities such as Foundation Works or RCC Column Casting - Block A. Endpoints cover creating a single element or a batch, reading the tree or a flat list, updating and deleting an element, moving an element under a different parent, and recalculating rolled-up cost and progress. Every endpoint is restricted to the system-admin role for the caller's current tenant.",
+      "description": "Work breakdown structure elements for a project, arranged as a tree of phases and activities such as Foundation Works or RCC Column Casting - Block A. Endpoints cover creating a single element or a batch, reading the tree or a flat list, updating and deleting an element, moving an element under a different parent, and recalculating rolled-up cost and progress. Any member of the tenant reads; the system-admin and project-manager roles change the schedule.",
       "name": "WBS Elements"
     },
     {
-      "description": "Web-client counterpart of the WBS Elements endpoints, serving the same work breakdown structure operations under the /web path segment: create single or batch elements, read the tree or a flat list, update, delete, move an element under a different parent, and recalculate rolled-up cost and progress. Restricted to the system-admin role for the caller's current tenant.",
+      "description": "Web-client counterpart of the WBS Elements endpoints, serving the same work breakdown structure operations under the /web path segment: create single or batch elements, read the tree or a flat list, update, delete, move an element under a different parent, and recalculate rolled-up cost and progress. Any member of the tenant reads; the system-admin and project-manager roles change the schedule.",
       "name": "WBS Elements (Web)"
     }
   ]

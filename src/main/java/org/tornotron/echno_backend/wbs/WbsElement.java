@@ -31,6 +31,11 @@ import java.util.List;
  * nodes with no children, and {@code sortOrder} fixes sibling order. Budgeted and actual
  * cost, weight, and progress roll up from leaves to parents. The {@code wbs_code} is unique
  * within a project. Scoped to one organization by the {@code orgFilter} tenant filter.
+ *
+ * <p>A leaf element is also a schedule activity: planned dates ({@code startDate},
+ * {@code endDate}), actuals, a forecast finish, a milestone flag, a responsible party and
+ * {@link WbsDependency} links to other activities. See
+ * {@code docs/specs/2026-09-28-work-progress-inspection.md}.
  */
 @Entity
 @Table(name = "wbs_element", uniqueConstraints = {
@@ -75,6 +80,24 @@ public class WbsElement implements TenantScopedEntity {
 
     @Column(name = "actual_end_date")
     private LocalDate actualEndDate;
+
+    // The revised finish once the activity is known to be late. It never moves endDate, which
+    // stays the agreed date the delay is measured against.
+    @Column(name = "forecast_end_date")
+    private LocalDate forecastEndDate;
+
+    // A zero-duration schedule point: planned start equals planned finish, and it is either
+    // reached or not.
+    @Column(name = "is_milestone", nullable = false)
+    private Boolean isMilestone = false;
+
+    // Who owns the activity: a person on the team, the sub-contract whose contractor executes
+    // it, or both. Plain ids with foreign keys in the changelog.
+    @Column(name = "responsible_employee_id")
+    private Long responsibleEmployeeId;
+
+    @Column(name = "responsible_sub_contract_id")
+    private Long responsibleSubContractId;
 
     @Column(name = "budgeted_cost", precision = 15, scale = 2)
     private BigDecimal budgetedCost = BigDecimal.ZERO;

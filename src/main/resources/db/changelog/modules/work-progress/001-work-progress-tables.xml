@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The Work Progress module's first table: one progress inspection of one schedule activity
+        (docs/specs/2026-09-28-work-progress-inspection.md, step 1). It carries organization_id,
+        which the entity's orgFilter runs on. The project, activity, spatial node and employee
+        columns are foreign keys into the core, not JPA associations. The activity key has no
+        cascade: an inspected activity cannot be deleted, the schedule refuses it first.
+    -->
+
+    <changeSet id="work-progress-001-create-work_progress_inspection" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="work_progress_inspection"/></not>
+        </preConditions>
+        <createTable tableName="work_progress_inspection">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_work_progress_inspection" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="wbs_element_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="inspection_date" type="DATE"><constraints nullable="false"/></column>
+            <column name="outcome" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="percent_complete" type="DECIMAL(5,2)"><constraints nullable="false"/></column>
+            <column name="actual_start_date" type="DATE"/>
+            <column name="actual_finish_date" type="DATE"/>
+            <column name="forecast_finish_date" type="DATE"/>
+            <column name="planned_finish_date" type="DATE"/>
+            <column name="delay_days" type="INT"/>
+            <column name="delay_reason" type="VARCHAR(30)"/>
+            <column name="delay_notes" type="TEXT"/>
+            <column name="spatial_node_id" type="UUID"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="inspector_employee_id" type="BIGINT"/>
+            <column name="recorded_by" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="work_progress_inspection" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_wpi_organization"/>
+        <addForeignKeyConstraint baseTableName="work_progress_inspection" baseColumnNames="project_id"
+                                 referencedTableName="project" referencedColumnNames="id"
+                                 constraintName="fk_wpi_project"/>
+        <addForeignKeyConstraint baseTableName="work_progress_inspection" baseColumnNames="wbs_element_id"
+                                 referencedTableName="wbs_element" referencedColumnNames="id"
+                                 constraintName="fk_wpi_wbs_element"/>
+        <addForeignKeyConstraint baseTableName="work_progress_inspection" baseColumnNames="spatial_node_id"
+                                 referencedTableName="project_spatial_node" referencedColumnNames="id"
+                                 constraintName="fk_wpi_spatial_node"/>
+        <addForeignKeyConstraint baseTableName="work_progress_inspection" baseColumnNames="inspector_employee_id"
+                                 referencedTableName="employee" referencedColumnNames="id"
+                                 constraintName="fk_wpi_inspector"/>
+        <createIndex tableName="work_progress_inspection" indexName="idx_wpi_organization">
+            <column name="organization_id"/>
+        </createIndex>
+        <createIndex tableName="work_progress_inspection" indexName="idx_wpi_project_date">
+            <column name="organization_id"/>
+            <column name="project_id"/>
+            <column name="inspection_date"/>
+        </createIndex>
+        <createIndex tableName="work_progress_inspection" indexName="idx_wpi_wbs_element">
+            <column name="wbs_element_id"/>
+            <column name="inspection_date"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="work_progress_inspection"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
