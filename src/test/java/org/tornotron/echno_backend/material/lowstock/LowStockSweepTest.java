@@ -17,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.NotificationDraft;
@@ -84,7 +85,7 @@ class LowStockSweepTest {
         // The real runner, not a stub. It is what refuses a null organization id, and stubbing it
         // out would remove the only thing standing between a scheduled job and every tenant's
         // rows. The list records what it was asked to scope to.
-        TenantScopedJobRunner runner = new TenantScopedJobRunner() {
+        TenantScopedJobRunner runner = new TenantScopedJobRunner(new TransactionalWorkRunner()) {
             @Override
             public <T> T callForTenant(Long orgId, java.util.function.Supplier<T> work) {
                 scopedTo.add(orgId);
@@ -94,7 +95,7 @@ class LowStockSweepTest {
 
         sweep = new LowStockSweep(lowStockRepository, alertRepository, employeeRepository,
                 organizationRepository, projectRepository, materialRepository, notificationService,
-                runner, properties);
+                runner, properties, new TransactionalWorkRunner());
 
         when(lowStockRepository.findProjectsHoldingStock(any(Pageable.class)))
                 .thenReturn(List.of(new StockedProject(ORG, PROJECT)));

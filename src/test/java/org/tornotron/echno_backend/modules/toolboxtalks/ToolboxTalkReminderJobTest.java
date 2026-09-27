@@ -9,7 +9,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
@@ -21,6 +24,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
 import org.tornotron.echno_backend.modules.toolboxtalks.api.ToolboxTalkMissingEvent;
 import org.tornotron.echno_backend.modules.toolboxtalks.job.ToolboxTalkReminderJob;
 import org.tornotron.echno_backend.modules.toolboxtalks.repository.ToolboxTalkRepository;
+import org.tornotron.echno_backend.modules.toolboxtalks.time.ToolboxTalksClockConfiguration;
 
 /**
  * The reminder pins only the organizations it should: inactive ones and ones without the
@@ -35,7 +39,13 @@ class ToolboxTalkReminderJobTest {
     private final ModuleRegistry registry = mock(ModuleRegistry.class);
     private final TenantScopedJobRunner runner = mock(TenantScopedJobRunner.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
-    private final ToolboxTalkReminderJob job = new ToolboxTalkReminderJob(talks, registry, runner, events, "UTC");
+    // 20:00 UTC on the 18th is 01:30 IST on the 19th: the window where the server's date and the
+    // sites' date disagree (#879).
+    private static final Clock IST_AFTER_MIDNIGHT =
+            Clock.fixed(Instant.parse("2026-09-18T20:00:00Z"), ZoneId.of("Asia/Kolkata"));
+
+    private final ToolboxTalkReminderJob job =
+            new ToolboxTalkReminderJob(talks, registry, runner, events, IST_AFTER_MIDNIGHT);
 
     @Test
     void skipsInactiveAndNonEntitledOrganizationsAndRemindsTheRest() {
@@ -50,14 +60,29 @@ class ToolboxTalkReminderJobTest {
         int reminded = job.runPass(DAY);
 
         assertThat(reminded).isEqualTo(1);
-        verify(runner).callForTenant(eq(1L), any());
-        verify(runner, never()).callForTenant(eq(2L), any());
-        verify(runner, never()).callForTenant(eq(3L), any());
+        verify(runner).callForTenantInTransaction(eq(1L), any());
+        verify(runner, never()).callForTenantInTransaction(eq(2L), any());
+        verify(runner, never()).callForTenantInTransaction(eq(3L), any());
+        verify(runner, never()).callForTenant(any(), any());
         verify(registry, never()).isEnabledForOrg(ToolboxTalksModule.ID, 2L);
 
         ArgumentCaptor<Object> published = ArgumentCaptor.forClass(Object.class);
         verify(events).publishEvent(published.capture());
         assertThat(published.getValue()).isEqualTo(new ToolboxTalkMissingEvent(1L, 11L, "Tower B", DAY));
+    }
+
+    @Test
+    void theScheduledPassRemindsAboutTheSitesYesterdayNotTheServers() {
+        when(talks.findOrganizationsForReminder(any())).thenReturn(List.of(org(1L, true)));
+        when(registry.isEnabledForOrg(ToolboxTalksModule.ID, 1L)).thenReturn(true);
+        runWorkInline();
+        when(talks.findOpenProjects(any())).thenReturn(List.of());
+
+        job.remind();
+
+        // The sites' today is the 19th, so yesterday is the 18th; the server's UTC date would
+        // have made it the 17th.
+        verify(talks).findProjectIdsWithRecordedTalkOn(LocalDate.of(2026, 9, 18));
     }
 
     @Test
@@ -76,11 +101,11 @@ class ToolboxTalkReminderJobTest {
     void anOrganizationWhoseRunFailsDoesNotStopTheOthers() {
         when(talks.findOrganizationsForReminder(any())).thenReturn(List.of(org(1L, true), org(2L, true)));
         when(registry.isEnabledForOrg(eq(ToolboxTalksModule.ID), anyLong())).thenReturn(true);
-        when(runner.callForTenant(eq(1L), any())).thenThrow(new IllegalStateException("db away"));
-        when(runner.callForTenant(eq(2L), any())).thenReturn(0);
+        when(runner.callForTenantInTransaction(eq(1L), any())).thenThrow(new IllegalStateException("db away"));
+        when(runner.callForTenantInTransaction(eq(2L), any())).thenReturn(0);
 
         assertThat(job.runPass(DAY)).isEqualTo(1);
-        verify(runner).callForTenant(eq(2L), any());
+        verify(runner).callForTenantInTransaction(eq(2L), any());
     }
 
     @Test
@@ -89,7 +114,7 @@ class ToolboxTalkReminderJobTest {
                 .withBean(ToolboxTalkRepository.class, () -> talks)
                 .withBean(ModuleRegistry.class, () -> registry)
                 .withBean(TenantScopedJobRunner.class, () -> runner)
-                .withUserConfiguration(ToolboxTalkReminderJob.class);
+                .withUserConfiguration(ToolboxTalksClockConfiguration.class, ToolboxTalkReminderJob.class);
 
         contexts.run(ctx -> assertThat(ctx).hasSingleBean(ToolboxTalkReminderJob.class));
         contexts.withPropertyValues(ToolboxTalksModuleEnabled.PROPERTY + "=false")
@@ -98,7 +123,7 @@ class ToolboxTalkReminderJobTest {
 
     @SuppressWarnings("unchecked")
     private void runWorkInline() {
-        when(runner.callForTenant(anyLong(), any())).thenAnswer(invocation ->
+        when(runner.callForTenantInTransaction(anyLong(), any())).thenAnswer(invocation ->
                 ((Supplier<Object>) invocation.getArgument(1)).get());
     }
 

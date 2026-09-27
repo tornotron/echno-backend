@@ -1,12 +1,12 @@
 package org.tornotron.echno_backend.modules.toolboxtalks.service;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -34,6 +34,7 @@ import org.tornotron.echno_backend.modules.toolboxtalks.dto.ToolboxTalkDto;
 import org.tornotron.echno_backend.modules.toolboxtalks.dto.UpdateToolboxTalkRequest;
 import org.tornotron.echno_backend.modules.toolboxtalks.mapper.ToolboxTalksMapper;
 import org.tornotron.echno_backend.modules.toolboxtalks.repository.ToolboxTalkRepository;
+import org.tornotron.echno_backend.modules.toolboxtalks.time.ToolboxTalksClock;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.project.spatial.SpatialNodeRepository;
@@ -49,7 +50,6 @@ import org.tornotron.echno_backend.user.UserContextService;
  * recording needs at least one attendee and happens once.
  */
 @Service
-@RequiredArgsConstructor
 public class ToolboxTalksService {
 
     static final int MAX_DAYS_AHEAD = 1;
@@ -64,6 +64,31 @@ public class ToolboxTalksService {
     private final UserContextService userContextService;
     private final ToolboxTalksMapper mapper;
     private final ApplicationEventPublisher events;
+    private final Clock clock;
+
+    public ToolboxTalksService(ToolboxTalkRepository talks,
+                               ProjectRepository projects,
+                               SpatialNodeRepository spatialNodes,
+                               EmployeeRepository employees,
+                               AttachmentService attachmentService,
+                               AttachmentMapper attachmentMapper,
+                               TenantEntityHelper tenantEntityHelper,
+                               UserContextService userContextService,
+                               ToolboxTalksMapper mapper,
+                               ApplicationEventPublisher events,
+                               @ToolboxTalksClock Clock clock) {
+        this.talks = talks;
+        this.projects = projects;
+        this.spatialNodes = spatialNodes;
+        this.employees = employees;
+        this.attachmentService = attachmentService;
+        this.attachmentMapper = attachmentMapper;
+        this.tenantEntityHelper = tenantEntityHelper;
+        this.userContextService = userContextService;
+        this.mapper = mapper;
+        this.events = events;
+        this.clock = clock;
+    }
 
     @Transactional
     public ToolboxTalkDto create(CreateToolboxTalkRequest req) {
@@ -225,8 +250,9 @@ public class ToolboxTalksService {
                         "Spatial node " + spatialNodeId + " does not belong to project " + projectId));
     }
 
-    static void requireTalkDate(LocalDate talkDate) {
-        if (talkDate.isAfter(LocalDate.now().plusDays(MAX_DAYS_AHEAD))) {
+    // "Tomorrow" is the site's tomorrow: the clock is in the module's zone, not the server's.
+    private void requireTalkDate(LocalDate talkDate) {
+        if (talkDate.isAfter(LocalDate.now(clock).plusDays(MAX_DAYS_AHEAD))) {
             throw new InvalidRequestException(
                     "A toolbox talk is dated no more than " + MAX_DAYS_AHEAD + " day ahead; " + talkDate + " is too far out");
         }

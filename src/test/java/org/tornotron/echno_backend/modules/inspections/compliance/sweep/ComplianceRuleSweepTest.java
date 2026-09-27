@@ -8,6 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.module.ModuleRegistry;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.modules.inspections.InspectionsModule;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.modules.inspections.compliance.job.ComplianceGenerationJobDto;
@@ -65,7 +66,7 @@ class ComplianceRuleSweepTest {
     void setUp() {
         properties = new ComplianceSweepProperties();
         sweep = new ComplianceRuleSweep(ruleRepository, jobRepository, jobService,
-                new TenantScopedJobRunner(), retryTemplate, properties, moduleRegistry);
+                new TenantScopedJobRunner(new TransactionalWorkRunner()), retryTemplate, properties, moduleRegistry);
 
         lenient().when(moduleRegistry.isEnabledForOrg(eq(InspectionsModule.ID), anyLong())).thenReturn(true);
         lenient().when(retryTemplate.execute(anyString(), any(Supplier.class)))

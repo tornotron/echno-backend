@@ -57,6 +57,7 @@ import org.tornotron.echno_backend.billing.repositories.SubscriptionRepository;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
@@ -82,7 +83,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestPropertySource(properties = "echno.entitlement.mode=enforce")
 @Import({BillingWebhookService.class, BillingEventProjector.class, EntitlementProjection.class,
         BillingReconciliationService.class, SubscriptionService.class, SubscriptionCache.class,
-        TenantScopedJobRunner.class, EntitlementPolicy.class, PastDueGracePolicy.class, BillingModuleEntitlementResolver.class,
+        TenantScopedJobRunner.class, TransactionalWorkRunner.class, EntitlementPolicy.class, PastDueGracePolicy.class,
+        BillingModuleEntitlementResolver.class,
         WebhookProjectionIT.GatewayConfig.class})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class WebhookProjectionIT extends AbstractIntegrationTest {

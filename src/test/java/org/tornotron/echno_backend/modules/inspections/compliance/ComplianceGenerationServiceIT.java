@@ -741,7 +741,7 @@ class ComplianceGenerationServiceIT extends AbstractIntegrationTest {
         lenient().when(jobService.submit(anyLong(), anyLong())).thenReturn(
                 new ComplianceGenerationJobService.Accepted((ComplianceGenerationJobDto) null, true));
         new ComplianceRuleSweep(ruleRepository, jobRepository, jobService,
-                new TenantScopedJobRunner(), retryTemplate, properties, everyOrganizationEntitled()).sweep();
+                new TenantScopedJobRunner(new TransactionalWorkRunner()), retryTemplate, properties, everyOrganizationEntitled()).sweep();
         return jobService;
     }
 
