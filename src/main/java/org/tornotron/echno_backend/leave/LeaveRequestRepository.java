@@ -22,12 +22,19 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
      * {@code prefix} (for example {@code LR-2026-}) and continue with digits only, or 0 when
      * there is none. Numbers in any other shape cannot be produced by the allocator, so they
      * cannot collide with one it issues and are left out.
+     *
+     * <p>The digits go through DECIMAL on their way to a number. CockroachDB parses a string cast
+     * straight to an integer with the base taken from its prefix, so the zero padding made
+     * {@code 000010} read as octal 8 and {@code 000008} fail outright, which turned every create
+     * in an organization holding {@code LR-<year>-000008} into a 409 (#875). A DECIMAL cast is
+     * always base 10. The digit run is capped at 18 so the result always fits in INT8.
      */
-    @Query(value = "SELECT COALESCE(MAX(CAST(substring(request_number, length(:prefix) + 1) AS INT8)), 0) "
+    @Query(value = "SELECT CAST(COALESCE(MAX(CAST(substring(request_number, length(:prefix) + 1) AS DECIMAL)), 0) AS INT8) "
             + "FROM leave_request "
             + "WHERE organization_id = :orgId "
             + "AND request_number LIKE :prefix || '%' "
-            + "AND request_number ~ ('^' || :prefix || '[0-9]+$')",
+            + "AND request_number ~ ('^' || :prefix || '[0-9]+$') "
+            + "AND length(request_number) <= length(:prefix) + 18",
             nativeQuery = true)
     long findHighestRequestSequence(@Param("orgId") Long organizationId, @Param("prefix") String prefix);
 

@@ -107,6 +107,31 @@ class LeaveRequestNumberingIT extends AbstractIntegrationTest {
         assertThat(numbersOf(other.orgId())).containsExactly(first);
     }
 
+    /**
+     * #875: CockroachDB reads a zero-padded string cast to an integer as octal, so once an
+     * organization held {@code 000008} the highest-number lookup failed on every create (a 409
+     * for the user, even for a draft), and {@code 000010} would have read as 8.
+     */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void readsZeroPaddedNumbersAsDecimal() {
+        int year = LocalDate.now(ZoneId.of("Asia/Kolkata")).getYear();
+        String eighth = "LR-%d-000008".formatted(year);
+        String tenth = "LR-%d-000010".formatted(year);
+
+        Tenant tenant = new TransactionTemplate(txManager).execute(status -> persistTenantHolding(eighth, tenth));
+
+        when(orgSecurity.isSelfInCurrentTenant(anyLong())).thenReturn(true);
+        when(leaveRequestValidator.charge(any(), any(), any(), any(), any()))
+                .thenReturn(new LeaveCharge(2.0, 2.0, 0, WeekendHolidayTreatment.CHARGE_ALL_DAYS));
+
+        TenantContext.setCurrentOrgId(tenant.orgId());
+        service.createRequest(creationDto(tenant.policyId()), tenant.employeeId());
+
+        assertThat(numbersOf(tenant.orgId()))
+                .containsExactlyInAnyOrder(eighth, tenth, "LR-%d-000011".formatted(year));
+    }
+
     private List<String> numbersOf(Long orgId) {
         return new TransactionTemplate(txManager).execute(status -> entityManager
                 .createQuery("SELECT r.requestNumber FROM LeaveRequest r WHERE r.organization.id = :org",
@@ -124,8 +149,8 @@ class LeaveRequestNumberingIT extends AbstractIntegrationTest {
         return dto;
     }
 
-    /** One organization with an employee, a policy and a request numbered outside the allocator. */
-    private Tenant persistTenantHolding(String requestNumber) {
+    /** One organization with an employee, a policy and requests numbered outside the allocator. */
+    private Tenant persistTenantHolding(String... requestNumbers) {
         String tag = UUID.randomUUID().toString().substring(0, 8);
 
         Organization org = new Organization();
@@ -159,6 +184,16 @@ class LeaveRequestNumberingIT extends AbstractIntegrationTest {
         policy.setUpdatedAt(LocalDateTime.now());
         entityManager.persist(policy);
 
+        for (String requestNumber : requestNumbers) {
+            persistRestoredRequest(org, employee, policy, requestNumber);
+        }
+
+        entityManager.flush();
+        return new Tenant(org.getId(), employee.getId(), policy.getId());
+    }
+
+    private void persistRestoredRequest(Organization org, Employee employee, LeavePolicy policy,
+                                        String requestNumber) {
         LeaveRequest request = new LeaveRequest();
         request.setRequestNumber(requestNumber);
         request.setEmployee(employee);
@@ -172,8 +207,5 @@ class LeaveRequestNumberingIT extends AbstractIntegrationTest {
         request.setCreatedAt(LocalDateTime.now());
         request.setUpdatedAt(LocalDateTime.now());
         entityManager.persist(request);
-
-        entityManager.flush();
-        return new Tenant(org.getId(), employee.getId(), policy.getId());
     }
 }
