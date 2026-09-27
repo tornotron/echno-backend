@@ -16,6 +16,7 @@ import org.tornotron.echno_backend.billing.repositories.SubscriptionRepository;
 import org.tornotron.echno_backend.billing.webhook.BillingReconciliationService;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -55,7 +56,7 @@ class BillingReconciliationSweepTest {
     @BeforeEach
     void setUp() {
         sweep = new BillingReconciliationSweep(gateway, subscriptions, reconciliation,
-                new TenantScopedJobRunner(), new BillingReconcileProperties(), compensations);
+                new TenantScopedJobRunner(new TransactionalWorkRunner()), new BillingReconcileProperties(), compensations);
     }
 
     private static Subscription stale(Long id, Long orgId, String externalId) {
@@ -122,7 +123,7 @@ class BillingReconciliationSweepTest {
     void capsTheRowsOnePassFetches_inTheQuery() {
         BillingReconcileProperties properties = new BillingReconcileProperties();
         properties.setMaxPerRun(1);
-        sweep = new BillingReconciliationSweep(gateway, subscriptions, reconciliation, new TenantScopedJobRunner(), properties, compensations);
+        sweep = new BillingReconciliationSweep(gateway, subscriptions, reconciliation, new TenantScopedJobRunner(new TransactionalWorkRunner()), properties, compensations);
         when(gateway.isEnabled()).thenReturn(true);
         when(gateway.providerId()).thenReturn(ProviderId.RAZORPAY);
         when(subscriptions.findStaleProviderSubscriptions(eq(ProviderId.RAZORPAY), anyList(), any(), any(), any(), eq(PageRequest.of(0, 1))))

@@ -8,6 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.common.module.ModuleRegistry;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.modules.inspections.InspectionsModule;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
@@ -52,7 +53,7 @@ class DatasetExportSweepTest {
             return null;
         });
 
-        new DatasetExportSweep(organizationRepository, exportService, new TenantScopedJobRunner(), moduleRegistry)
+        new DatasetExportSweep(organizationRepository, exportService, new TenantScopedJobRunner(new TransactionalWorkRunner()), moduleRegistry)
                 .runPass();
 
         verify(exportService).runForOrganization(7L, "schedule");
@@ -74,7 +75,7 @@ class DatasetExportSweepTest {
         when(moduleRegistry.isEnabledForOrg(InspectionsModule.ID, 9L)).thenReturn(true);
         when(exportService.runForOrganization(8L, "schedule")).thenThrow(new IllegalStateException("store down"));
 
-        new DatasetExportSweep(organizationRepository, exportService, new TenantScopedJobRunner(), moduleRegistry)
+        new DatasetExportSweep(organizationRepository, exportService, new TenantScopedJobRunner(new TransactionalWorkRunner()), moduleRegistry)
                 .runPass();
 
         verify(exportService, never()).runForOrganization(eq(7L), anyString());

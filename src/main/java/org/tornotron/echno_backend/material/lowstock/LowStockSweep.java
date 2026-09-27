@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
 import org.tornotron.echno_backend.common.multitenancy.WithoutTenant;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.NotificationDraft;
@@ -126,6 +127,12 @@ import java.util.Optional;
  * not belt and braces: both isolation mechanisms fail <em>open</em> on a missing organization id
  * and {@code UnscopedAccessGuard} defaults to warning rather than denying, so a scheduled job that
  * forgot its scope would read every tenant's rows and look perfectly healthy doing it.
+ *
+ * <p>Pinning the tenant does not enable the {@code orgFilter}; opening a transaction does (#877).
+ * Each read and write of a project's pass therefore goes through {@link TransactionalWorkRunner}
+ * on its own. They are not joined into one transaction for the project on purpose: a lost latch
+ * race is caught and the pass carries on, and inside one shared transaction that caught failure
+ * would mark it rollback-only and undo every other latch the project wrote.
  */
 @Slf4j
 @Component
@@ -142,6 +149,7 @@ public class LowStockSweep {
     private final NotificationService notificationService;
     private final TenantScopedJobRunner tenantScopedJobRunner;
     private final LowStockSweepProperties properties;
+    private final TransactionalWorkRunner transactions;
 
     /**
      * One pass.
@@ -228,12 +236,12 @@ public class LowStockSweep {
         Long orgId = candidate.organizationId();
         Long projectId = candidate.projectId();
 
-        List<LowStockRow> low = lowStockRepository.findLowStockForProject(orgId, projectId,
-                PageRequest.of(0, Math.max(1, properties.getMaterialsPerProject()))).getContent();
+        List<LowStockRow> low = transactions.runInTransaction(() -> lowStockRepository.findLowStockForProject(
+                orgId, projectId, PageRequest.of(0, Math.max(1, properties.getMaterialsPerProject()))).getContent());
 
         Map<Long, MaterialReorderAlert> latched = new LinkedHashMap<>();
-        for (MaterialReorderAlert alert : alertRepository
-                .findByOrganization_IdAndProject_Id(orgId, projectId)) {
+        for (MaterialReorderAlert alert : transactions.runInTransaction(() -> alertRepository
+                .findByOrganization_IdAndProject_Id(orgId, projectId))) {
             latched.put(alert.getMaterial().getId(), alert);
         }
 
@@ -282,7 +290,7 @@ public class LowStockSweep {
      */
     private boolean raise(Long orgId, Long projectId, LowStockRow row,
                           List<Employee> recipients, MaterialReorderAlert existing) {
-        Optional<Project> project = projectRepository.findById(projectId);
+        Optional<Project> project = transactions.runInTransaction(() -> projectRepository.findById(projectId));
         String projectName = project.map(Project::getProjectName).orElse("project " + projectId);
 
         NotificationDraft draft = new NotificationDraft(
@@ -313,19 +321,21 @@ public class LowStockSweep {
     private void latch(Long orgId, Long projectId, LowStockRow row, int recipientCount,
                        MaterialReorderAlert existing) {
         MaterialReorderAlert alert = existing != null ? existing : new MaterialReorderAlert();
-        if (existing == null) {
-            Organization organization = organizationRepository.getReferenceById(orgId);
-            Project project = projectRepository.getReferenceById(projectId);
-            Material material = materialRepository.getReferenceById(row.materialId());
-            alert.setOrganization(organization);
-            alert.setProject(project);
-            alert.setMaterial(material);
-        }
-        alert.setNotifiedLevel(row.reorderLevel());
-        alert.setNotifiedQuantity(row.currentStock() == null ? 0.0 : row.currentStock());
-        alert.setRecipientCount(recipientCount);
-        alert.setNotifiedAt(LocalDateTime.now());
-        alertRepository.saveAndFlush(alert);
+        transactions.runInTransaction(() -> {
+            if (existing == null) {
+                Organization organization = organizationRepository.getReferenceById(orgId);
+                Project project = projectRepository.getReferenceById(projectId);
+                Material material = materialRepository.getReferenceById(row.materialId());
+                alert.setOrganization(organization);
+                alert.setProject(project);
+                alert.setMaterial(material);
+            }
+            alert.setNotifiedLevel(row.reorderLevel());
+            alert.setNotifiedQuantity(row.currentStock() == null ? 0.0 : row.currentStock());
+            alert.setRecipientCount(recipientCount);
+            alert.setNotifiedAt(LocalDateTime.now());
+            return alertRepository.saveAndFlush(alert);
+        });
     }
 
     /**
@@ -346,8 +356,8 @@ public class LowStockSweep {
         }
 
         Map<Long, ProjectMaterialStock> now = new HashMap<>();
-        for (ProjectMaterialStock stock : lowStockRepository
-                .findProjectStockForMaterials(orgId, projectId, latched.keySet())) {
+        for (ProjectMaterialStock stock : transactions.runInTransaction(() -> lowStockRepository
+                .findProjectStockForMaterials(orgId, projectId, latched.keySet()))) {
             now.put(stock.materialId(), stock);
         }
 
@@ -371,7 +381,10 @@ public class LowStockSweep {
         }
 
         if (!clear.isEmpty()) {
-            alertRepository.deleteAll(clear);
+            transactions.runInTransaction(() -> {
+                alertRepository.deleteAll(clear);
+                return null;
+            });
         }
         return clear.size();
     }
@@ -412,13 +425,13 @@ public class LowStockSweep {
      * administrator is deliberately not the third rung: see the class comment.
      */
     private List<Employee> recipientsFor(Long orgId, Long projectId) {
-        List<Employee> keepers = employeeRepository.findByProjectAndOrgRole(
-                orgId, projectId, OrgRole.STORE_KEEPER);
+        List<Employee> keepers = transactions.runInTransaction(() -> employeeRepository.findByProjectAndOrgRole(
+                orgId, projectId, OrgRole.STORE_KEEPER));
         if (!keepers.isEmpty()) {
             return keepers;
         }
-        List<Employee> managers = employeeRepository.findByProjectAndOrgRole(
-                orgId, projectId, OrgRole.PROJECT_MANAGER);
+        List<Employee> managers = transactions.runInTransaction(() -> employeeRepository.findByProjectAndOrgRole(
+                orgId, projectId, OrgRole.PROJECT_MANAGER));
         if (managers.isEmpty()) {
             log.info("Low stock sweep found nobody to tell about project {} in organization {}: "
                     + "no storekeeper and no project manager is assigned to it", projectId, orgId);

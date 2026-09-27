@@ -101,7 +101,7 @@ class LowStockSweepScheduleTest {
         // sweeping after one bad night is worse than the gap it was built to close, because
         // nothing about the system looks any different afterwards.
         LowStockSweep sweep = new LowStockSweep(null, null, null, null, null, null, null, null,
-                new LowStockSweepProperties());
+                new LowStockSweepProperties(), null);
 
         sweep.sweep();
     }

@@ -5,9 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
@@ -19,6 +22,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
@@ -43,6 +48,7 @@ import org.tornotron.echno_backend.modules.toolboxtalks.dto.ToolboxTalkDto;
 import org.tornotron.echno_backend.modules.toolboxtalks.dto.UpdateToolboxTalkRequest;
 import org.tornotron.echno_backend.modules.toolboxtalks.mapper.ToolboxTalksMapperImpl;
 import org.tornotron.echno_backend.modules.toolboxtalks.service.ToolboxTalksService;
+import org.tornotron.echno_backend.modules.toolboxtalks.time.ToolboxTalksClock;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
@@ -52,12 +58,29 @@ import org.tornotron.echno_backend.user.UserContextService;
 /**
  * The module's tenant-isolation proof on the real migration: a talk drafted in one
  * organization reads as absent from another, by id and by list.
+ *
+ * <p>The module clock is pinned to 01:30 IST, when the UTC date is still the day before, so
+ * every date here is fixed and the date rule is tested in the window #879 was about.
  */
 @DataJpaTest
 @RecordApplicationEvents
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({ToolboxTalksService.class, ToolboxTalksMapperImpl.class, UserContextService.class, TenantEntityHelper.class})
+@Import({ToolboxTalksService.class, ToolboxTalksMapperImpl.class, UserContextService.class, TenantEntityHelper.class,
+        ToolboxTalksServiceIT.FixedClock.class})
 class ToolboxTalksServiceIT extends AbstractIntegrationTest {
+
+    /** 20:00 UTC on the 18th, which is already the 19th at the sites. */
+    private static final Instant NOW = Instant.parse("2026-09-18T20:00:00Z");
+    private static final LocalDate TODAY = LocalDate.of(2026, 9, 19);
+
+    @TestConfiguration
+    static class FixedClock {
+        @Bean
+        @ToolboxTalksClock
+        Clock toolboxTalksClock() {
+            return Clock.fixed(NOW, ZoneId.of("Asia/Kolkata"));
+        }
+    }
 
     @Autowired
     private ToolboxTalksService service;
@@ -150,11 +173,13 @@ class ToolboxTalksServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void aTalkIsDatedNoMoreThanADayAhead() {
+    void aTalkIsDatedNoMoreThanADayAheadOfTheSitesToday() {
+        // The 20th is tomorrow at the sites. Judged against the server's UTC date (the 18th) it
+        // would be two days out and refused.
         CreateToolboxTalkRequest tomorrow = new CreateToolboxTalkRequest(projectAId, null, "Housekeeping",
-                LocalDate.now().plusDays(1), null, conductorAId, List.of(), null);
+                TODAY.plusDays(1), null, conductorAId, List.of(), null);
         CreateToolboxTalkRequest tooFar = new CreateToolboxTalkRequest(projectAId, null, "Housekeeping",
-                LocalDate.now().plusDays(2), null, conductorAId, List.of(), null);
+                TODAY.plusDays(2), null, conductorAId, List.of(), null);
 
         assertThat(service.create(tomorrow).id()).isNotNull();
         assertThatThrownBy(() -> service.create(tooFar)).isInstanceOf(InvalidRequestException.class);
@@ -189,11 +214,11 @@ class ToolboxTalksServiceIT extends AbstractIntegrationTest {
         assertThat(recorded.recordedAt()).isNotNull();
         assertThat(applicationEvents.stream(ToolboxTalkRecordedEvent.class))
                 .singleElement()
-                .isEqualTo(new ToolboxTalkRecordedEvent(orgAId, id, projectAId, LocalDate.now(), conductorAId, 1));
+                .isEqualTo(new ToolboxTalkRecordedEvent(orgAId, id, projectAId, TODAY, conductorAId, 1));
 
         assertThatThrownBy(() -> service.record(id)).isInstanceOf(InvalidRequestException.class);
         assertThatThrownBy(() -> service.update(id, new UpdateToolboxTalkRequest(null, "Changed",
-                LocalDate.now(), null, conductorAId, null))).isInstanceOf(InvalidRequestException.class);
+                TODAY, null, conductorAId, null))).isInstanceOf(InvalidRequestException.class);
         assertThatThrownBy(() -> service.removeAttendee(id, attendeeAId)).isInstanceOf(InvalidRequestException.class);
     }
 
@@ -209,14 +234,14 @@ class ToolboxTalksServiceIT extends AbstractIntegrationTest {
                 .containsExactly(attendeeAId);
         assertThatThrownBy(() -> service.removeAttendee(id, 999_999L)).isInstanceOf(ResourceNotFoundException.class);
 
-        assertThat(service.list(projectAId, LocalDate.now(), LocalDate.now(), ToolboxTalkStatus.DRAFT, 0, 10)
+        assertThat(service.list(projectAId, TODAY, TODAY, ToolboxTalkStatus.DRAFT, 0, 10)
                 .getTotalElements()).isEqualTo(1);
         assertThat(service.list(projectAId, null, null, ToolboxTalkStatus.RECORDED, 0, 10)
                 .getTotalElements()).isZero();
     }
 
     private static CreateToolboxTalkRequest draft(Long projectId, Long conductorId, List<Long> attendees) {
-        return new CreateToolboxTalkRequest(projectId, null, "Working at height", LocalDate.now(),
+        return new CreateToolboxTalkRequest(projectId, null, "Working at height", TODAY,
                 LocalTime.of(7, 30), conductorId, attendees, "Harness checks before the scaffold");
     }
 

@@ -21,6 +21,7 @@ import org.tornotron.echno_backend.billing.gateway.dto.NormalizedBillingEvent;
 import org.tornotron.echno_backend.billing.repositories.BillingEventRepository;
 import org.tornotron.echno_backend.billing.repositories.CheckoutSessionRepository;
 import org.tornotron.echno_backend.billing.repositories.SubscriptionRepository;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -53,7 +54,8 @@ class BillingReconciliationServiceTest {
 
     @BeforeEach
     void wire() {
-        service = new BillingReconciliationService(gateway, subscriptions, events, projection, projector, sessions);
+        service = new BillingReconciliationService(gateway, subscriptions, events, projection, projector, sessions,
+                new TransactionalWorkRunner());
         when(gateway.isEnabled()).thenReturn(true);
         when(gateway.providerId()).thenReturn(ProviderId.RAZORPAY);
         when(projection.apply(any(), any())).thenReturn("projected");

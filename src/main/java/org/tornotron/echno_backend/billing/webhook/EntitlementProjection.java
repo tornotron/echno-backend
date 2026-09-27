@@ -74,10 +74,13 @@ public class EntitlementProjection {
      * @return A one-line description of what changed, for the inbox row.
      */
     // Its own transaction, so a failed projection rolls back alone and the projector can still
-    // record the failure on the inbox row in its transaction.
+    // record the failure on the inbox row in its transaction. That transaction opens before the
+    // tenant is pinned, so the orgFilter on its session is whatever the caller had (off, for a
+    // webhook). The runner's transactional entry joins it after pinning, which is what enables
+    // the filter for this organization on mandates and checkout sessions (#877).
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String apply(Long organizationId, NormalizedBillingEvent event) {
-        return tenantRunner.callForTenant(organizationId, () -> applyPinned(organizationId, event));
+        return tenantRunner.callForTenantInTransaction(organizationId, () -> applyPinned(organizationId, event));
     }
 
     private String applyPinned(Long organizationId, NormalizedBillingEvent event) {

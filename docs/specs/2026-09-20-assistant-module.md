@@ -307,8 +307,10 @@ intent needs it (FR-31).
 
 **Retrieve.** Selected providers run in parallel on a bounded executor. Each task captures the
 caller's `SecurityContext` and the tenant id and re-establishes both on the worker thread through
-`TenantScopedJobRunner.callForTenant`, so `orgFilter` and `@PreAuthorize` see the same user on
-every thread. A provider that throws becomes `Unavailable`; a timeout does the same.
+`TenantScopedJobRunner.callForTenantInTransaction`, so `orgFilter` and `@PreAuthorize` see the same
+user on every thread. The plain `callForTenant` pins the tenant but opens no transaction, and
+`orgFilter` is only enabled when one opens, so a provider reading through it would see every
+organisation's rows (#877); `TenantJobTransactionBoundaryTest` fails the build on that shape. A provider that throws becomes `Unavailable`; a timeout does the same.
 
 **Assemble.** Evidence units are de-duplicated by id, capped per provider (default 20) and
 overall by a token budget, and ordered by relevance. Providers that returned `Empty` or

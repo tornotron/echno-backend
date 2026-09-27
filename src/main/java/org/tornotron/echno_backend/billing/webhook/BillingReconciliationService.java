@@ -19,6 +19,7 @@ import org.tornotron.echno_backend.billing.gateway.dto.NormalizedBillingEvent;
 import org.tornotron.echno_backend.billing.repositories.BillingEventRepository;
 import org.tornotron.echno_backend.billing.repositories.SubscriptionRepository;
 import org.tornotron.echno_backend.common.multitenancy.WithoutTenant;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -41,6 +42,10 @@ public class BillingReconciliationService {
     private final EntitlementProjection projection;
     private final BillingEventProjector projector;
     private final CheckoutSessionRepository sessions;
+    // The sweep runs this under the organization's tenant with no transaction open. The reads go
+    // through here so the orgFilter is on for them (#877), and one at a time rather than in one
+    // transaction because the provider calls between them must not hold a transaction open.
+    private final TransactionalWorkRunner transactions;
 
     /**
      * Fetches the provider's state for one subscription and projects it as if the matching
@@ -55,7 +60,8 @@ public class BillingReconciliationService {
         if (!gateway.isEnabled()) {
             throw new BillingGatewayException("No billing provider is configured; nothing to reconcile against");
         }
-        Subscription row = subscriptions.findByProviderAndExternalSubscriptionId(gateway.providerId(), providerSubscriptionId)
+        Subscription row = transactions.runInTransaction(() ->
+                        subscriptions.findByProviderAndExternalSubscriptionId(gateway.providerId(), providerSubscriptionId))
                 .orElseThrow(() -> new BillingGatewayException(
                         "No projected subscription for provider id " + providerSubscriptionId + "; nothing to reconcile"));
         GatewaySubscription current = gateway.fetchSubscription(providerSubscriptionId);
@@ -125,18 +131,22 @@ public class BillingReconciliationService {
     /** Past the checkout session's expiry, or, with no session on file, a day old. */
     private boolean abandoned(Subscription row) {
         Instant now = Instant.now();
-        return sessions.findFirstByProviderAndProviderSubscriptionId(row.getProvider(), row.getExternalSubscriptionId())
+        return transactions.runInTransaction(() ->
+                        sessions.findFirstByProviderAndProviderSubscriptionId(row.getProvider(), row.getExternalSubscriptionId()))
                 .map(session -> session.getExpiresAt() != null && session.getExpiresAt().isBefore(now))
                 .orElseGet(() -> row.getCreatedAt() != null && row.getCreatedAt().plus(1, ChronoUnit.DAYS).isBefore(now));
     }
 
     private void expireOpenSession(Subscription row) {
-        sessions.findFirstByProviderAndProviderSubscriptionId(row.getProvider(), row.getExternalSubscriptionId())
-                .filter(session -> session.getStatus() == CheckoutSessionStatus.OPEN)
-                .ifPresent(session -> {
-                    session.setStatus(CheckoutSessionStatus.EXPIRED);
-                    sessions.save(session);
-                });
+        transactions.runInTransaction(() -> {
+            sessions.findFirstByProviderAndProviderSubscriptionId(row.getProvider(), row.getExternalSubscriptionId())
+                    .filter(session -> session.getStatus() == CheckoutSessionStatus.OPEN)
+                    .ifPresent(session -> {
+                        session.setStatus(CheckoutSessionStatus.EXPIRED);
+                        sessions.save(session);
+                    });
+            return null;
+        });
     }
 
     /** The event type a provider snapshot stands for, so a synthetic event reads like the webhook would. */

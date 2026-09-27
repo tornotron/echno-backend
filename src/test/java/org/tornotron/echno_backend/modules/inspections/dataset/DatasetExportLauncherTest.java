@@ -7,6 +7,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +43,7 @@ class DatasetExportLauncherTest {
         });
         List<Runnable> queued = new ArrayList<>();
 
-        new DatasetExportLauncher(exportService, new TenantScopedJobRunner(), queued::add).launch(runId, 7L);
+        new DatasetExportLauncher(exportService, new TenantScopedJobRunner(new TransactionalWorkRunner()), queued::add).launch(runId, 7L);
 
         // returned before the work ran, with nothing done on the caller's thread
         assertThat(tenantsSeen).isEmpty();
@@ -59,7 +60,7 @@ class DatasetExportLauncherTest {
         when(exportService.execute(eq(runId), any())).thenThrow(new IllegalStateException("context gone"));
         List<Runnable> queued = new ArrayList<>();
 
-        new DatasetExportLauncher(exportService, new TenantScopedJobRunner(), queued::add).launch(runId, 7L);
+        new DatasetExportLauncher(exportService, new TenantScopedJobRunner(new TransactionalWorkRunner()), queued::add).launch(runId, 7L);
 
         assertThatCode(() -> queued.get(0).run()).doesNotThrowAnyException();
         assertThat(TenantContext.getCurrentOrgId()).isNull();

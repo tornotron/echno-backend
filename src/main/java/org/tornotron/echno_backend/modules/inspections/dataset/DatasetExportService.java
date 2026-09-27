@@ -119,7 +119,10 @@ public class DatasetExportService {
      */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public DatasetExportRunDto runForOrganization(Long organizationId, String triggeredBy) {
-        DatasetExportRunDto started = start(organizationId, triggeredBy);
+        // Through the runner, not start() directly: a call on this object never reaches the proxy,
+        // so start()'s own @Transactional did nothing here and its reads ran with no transaction
+        // and so no orgFilter, under the sweep's tenant (#877).
+        DatasetExportRunDto started = transactions.runInTransaction(() -> start(organizationId, triggeredBy));
         return execute(started.id(), organizationId);
     }
 

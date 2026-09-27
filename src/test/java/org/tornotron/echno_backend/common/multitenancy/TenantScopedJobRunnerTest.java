@@ -3,8 +3,11 @@ package org.tornotron.echno_backend.common.multitenancy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.tornotron.echno_backend.common.exception.TenantIdMissingException;
+import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -20,7 +23,7 @@ class TenantScopedJobRunnerTest {
     private static final Long ORG_ID = 7L;
     private static final Long OTHER_ORG_ID = 9L;
 
-    private final TenantScopedJobRunner runner = new TenantScopedJobRunner();
+    private final TenantScopedJobRunner runner = new TenantScopedJobRunner(new TransactionalWorkRunner());
 
     @AfterEach
     void clearContext() {
@@ -110,5 +113,39 @@ class TenantScopedJobRunnerTest {
 
         assertThat(TenantContext.isUnscopedDeclared()).isFalse();
         assertThat(TenantContext.isScopeDeclared()).isFalse();
+    }
+
+    @Test
+    void theTransactionalEntryOpensItsTransactionOnlyAfterTheTenantIsPinned() {
+        // HibernateFilterConfig reads the tenant when the transaction is entered, so the order
+        // is the whole point: a transaction opened before the tenant would run unfiltered.
+        AtomicReference<Long> tenantWhenTheTransactionOpened = new AtomicReference<>();
+        TenantScopedJobRunner withRecordingTransactions = new TenantScopedJobRunner(new TransactionalWorkRunner() {
+            @Override
+            public <T> T runInTransaction(Supplier<T> work) {
+                tenantWhenTheTransactionOpened.set(TenantContext.getCurrentOrgId());
+                return work.get();
+            }
+        });
+
+        assertThat(withRecordingTransactions.callForTenantInTransaction(ORG_ID, () -> "done")).isEqualTo("done");
+        assertThat(tenantWhenTheTransactionOpened.get()).isEqualTo(ORG_ID);
+        assertThat(TenantContext.getCurrentOrgId()).isNull();
+    }
+
+    @Test
+    void theTransactionalEntryRefusesANullOrgIdBeforeOpeningAnything() {
+        AtomicBoolean opened = new AtomicBoolean();
+        TenantScopedJobRunner withRecordingTransactions = new TenantScopedJobRunner(new TransactionalWorkRunner() {
+            @Override
+            public <T> T runInTransaction(Supplier<T> work) {
+                opened.set(true);
+                return work.get();
+            }
+        });
+
+        assertThatThrownBy(() -> withRecordingTransactions.runForTenantInTransaction(null, () -> { }))
+                .isInstanceOf(TenantIdMissingException.class);
+        assertThat(opened).isFalse();
     }
 }
