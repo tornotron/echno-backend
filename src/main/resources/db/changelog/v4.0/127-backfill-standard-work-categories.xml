@@ -9,7 +9,8 @@
         <comment>
             The standard construction work categories for every organization that existed before
             WorkCategorySeeder, which adds them to organizations created from now on. Keyed on the
-            organization plus the normalized name (or the raw name), so a category an organization
+            organization plus the normalized name (or the raw name ignoring case, for rows from before
+            normalized_name existed), so a category an organization
             already holds is left as it is and a rerun inserts nothing. Normalized names follow
             CategoryNormalizer: lower case, ampersand to "and", other punctuation dropped.
         </comment>
@@ -79,7 +80,8 @@
             WHERE NOT EXISTS (
                 SELECT 1 FROM category c
                 WHERE c.organization_id = o.id
-                  AND (c.normalized_name = s.normalized OR c.category_name = s.name))
+                  AND (c.normalized_name = s.normalized
+                       OR LOWER(c.category_name) = LOWER(s.name)))
             ORDER BY o.id, s.ord
         ]]></sql>
     </changeSet>
