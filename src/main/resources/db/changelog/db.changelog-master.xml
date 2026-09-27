@@ -463,6 +463,9 @@
     <!-- v4.0 - Receipts: the customer reference becomes the finance customer's UUID (#864) -->
     <include file="db/changelog/v4.0/126-receipt-customer-uuid.xml"/>
 
+    <!-- v4.0 - Work categories: the standard construction list for every organization -->
+    <include file="db/changelog/v4.0/127-backfill-standard-work-categories.xml"/>
+
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->
     <!-- (#749). Files run in path order; a module's pre-move changesets -->

@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.organization;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.category.WorkCategorySeeder;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.finance.budget.service.CostCategorySeeder;
 import org.tornotron.echno_backend.finance.ledger.service.ChartOfAccountsSeeder;
@@ -36,6 +37,7 @@ public class OrganizationOnboardingSeeder {
     private final CostCategorySeeder costCategorySeeder;
     private final FinanceSettingsService financeSettingsService;
     private final LeavePolicyDefaultsSeeder leavePolicyDefaultsSeeder;
+    private final WorkCategorySeeder workCategorySeeder;
 
     /**
      * Seeds the finance defaults for the given organization. Sets the tenant context to that
@@ -55,6 +57,7 @@ public class OrganizationOnboardingSeeder {
             runQuietly("cost categories", organizationId, () -> costCategorySeeder.seedDefaults());
             runQuietly("finance settings", organizationId, () -> financeSettingsService.getOrCreate());
             runQuietly("leave policies", organizationId, () -> leavePolicyDefaultsSeeder.seedDefaults());
+            runQuietly("work categories", organizationId, () -> workCategorySeeder.seedDefaults());
         } finally {
             if (previous == null) {
                 TenantContext.clear();

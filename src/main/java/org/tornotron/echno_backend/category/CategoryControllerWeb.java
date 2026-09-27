@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.category.dto.CategoryCreationDto;
 import org.tornotron.echno_backend.category.dto.CategoryDto;
 import org.tornotron.echno_backend.category.dto.CategorySimpleDto;
-import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQueryLookup;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 
 import java.util.List;
@@ -71,21 +71,22 @@ public class CategoryControllerWeb {
     /**
      * Retrieves a paginated list of all categories.
      *
-     * @param pageQuery Page index and page size, bounded by {@link PageQuery}.
+     * @param pageQuery Page index and page size, bounded by {@link PageQueryLookup}, which serves the whole list when no size is named.
      * @return A {@link ResponseEntity} containing the list of category DTOs and HTTP status 200 (OK).
      */
     @GetMapping
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List categories",
-            description = "Returns a single page of work categories. The pageNo and pageSize parameters "
-                    + "control paging; only the page content is returned, without paging metadata."
+            description = "Returns the organization's work categories for the task form's dropdown. With no "
+                    + "pageSize the whole list is returned (up to 500); pageNo and pageSize still page it "
+                    + "when given. Only the page content is returned, without paging metadata."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of categories returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
     })
-    public ResponseEntity<List<CategoryDto>> readAllCategories(@Valid @ParameterObject PageQuery pageQuery) {
+    public ResponseEntity<List<CategoryDto>> readAllCategories(@Valid @ParameterObject PageQueryLookup pageQuery) {
         Page<CategoryDto> categories = categoryService.getAllCategories(pageQuery.getPageNo(), pageQuery.getPageSize());
         logger.info("All Categories Retrieved Successfully");
         return new ResponseEntity<>(categories.getContent(), HttpStatus.OK);
