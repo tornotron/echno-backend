@@ -49,4 +49,13 @@ public class WbsElementCreationDto {
 
     @Schema(description = "Id of the employee creating this element.", example = "5")
     private Long createdBy;
+
+    @Schema(description = "Whether the element is a milestone: a schedule point whose planned start equals its planned finish. Defaults to false.", example = "false")
+    private Boolean isMilestone;
+
+    @Schema(description = "Id of the employee who owns this activity, in this organization.", example = "14", nullable = true)
+    private Long responsibleEmployeeId;
+
+    @Schema(description = "Id of the sub-contract whose contractor executes this activity. It must be in this organization and, when the sub-contract names a project, in this project.", example = "3", nullable = true)
+    private Long responsibleSubContractId;
 }

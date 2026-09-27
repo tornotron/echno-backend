@@ -61,4 +61,18 @@ public class WbsElementDto {
     private LocalDateTime updatedAt;
     @Schema(description = "Child elements, present on tree responses; empty or null on other reads.", nullable = true)
     private List<WbsElementDto> children;
+    @Schema(description = "Revised finish date once the activity is known to be late; the planned endDate is unchanged.", example = "2026-03-10", nullable = true)
+    private LocalDate forecastEndDate;
+    @Schema(description = "Whether the element is a milestone: planned start equals planned finish.", example = "false")
+    private Boolean isMilestone;
+    @Schema(description = "Id of the employee who owns this activity.", example = "14", nullable = true)
+    private Long responsibleEmployeeId;
+    @Schema(description = "Name of the employee who owns this activity. Filled on schedule reads.", example = "Ravi Kumar", nullable = true)
+    private String responsibleEmployeeName;
+    @Schema(description = "Id of the sub-contract whose contractor executes this activity.", example = "3", nullable = true)
+    private Long responsibleSubContractId;
+    @Schema(description = "Name of that sub-contract's contractor. Filled on schedule reads.", example = "Sree Builders", nullable = true)
+    private String responsibleSubContractorName;
+    @Schema(description = "Days the finish is behind the planned endDate: the actual finish for a finished activity, otherwise the later of the forecast finish and today once the planned finish has passed. Zero when on time, null when there is no planned endDate.", example = "6", nullable = true)
+    private Integer delayDays;
 }

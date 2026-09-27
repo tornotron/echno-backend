@@ -45,4 +45,16 @@ public class WbsElementUpdateDto {
 
     @Schema(description = "New completion percentage, from 0 to 100. Only allowed when the element is a leaf.", example = "75.0")
     private Double progress;
+
+    @Schema(description = "Revised finish date for an activity that is running late. The planned endDate is not changed by it.", example = "2026-03-10")
+    private LocalDate forecastEndDate;
+
+    @Schema(description = "Whether the element is a milestone.", example = "true")
+    private Boolean isMilestone;
+
+    @Schema(description = "Id of the employee who owns this activity, in this organization.", example = "14")
+    private Long responsibleEmployeeId;
+
+    @Schema(description = "Id of the sub-contract whose contractor executes this activity.", example = "3")
+    private Long responsibleSubContractId;
 }
