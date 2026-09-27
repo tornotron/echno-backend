@@ -112,6 +112,14 @@ public class ProgressInspectionService {
         if (inspected.isAfter(today)) {
             throw new InvalidRequestException("The inspection date " + inspected + " is in the future");
         }
+        // Each record is applied to the activity as its current state, so one dated before the
+        // latest would overwrite a newer finding with an older one.
+        inspections.findLatestInspectionDate(activity.getId(), org.getId()).ifPresent(latest -> {
+            if (inspected.isBefore(latest)) {
+                throw new InvalidRequestException("Activity " + code + " already has an inspection dated " + latest
+                        + "; a new one cannot be dated earlier");
+            }
+        });
         if (req.spatialNodeId() != null) {
             spatialNodes.findByIdAndProjectId(req.spatialNodeId(), projectId)
                     .orElseThrow(() -> new InvalidRequestException(

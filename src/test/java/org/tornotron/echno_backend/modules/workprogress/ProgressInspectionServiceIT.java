@@ -154,6 +154,16 @@ class ProgressInspectionServiceIT extends ScheduleIntegrationSupport {
     }
 
     @Test
+    void aRecordCannotBeDatedBeforeTheActivitysLatestInspection() {
+        Long leaf = activity(projectAId, "1", null, SEP_1, SEP_30).getId();
+        record(leaf, ProgressOutcome.PARTIAL, BigDecimal.valueOf(30), SEP_1, null);
+
+        assertThatThrownBy(() -> service.record(new RecordProgressInspectionRequest(leaf, TODAY.minusDays(1),
+                ProgressOutcome.PARTIAL, BigDecimal.valueOf(20), null, null, null, null, null, null, null)))
+                .isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
     void anotherTenantsActivityAndRecordsReadAsAbsent() {
         UUID foreignRecord = asTenant(orgBId, () -> {
             Long foreignActivity = activity(projectBId, "1", null, SEP_1, SEP_30).getId();
