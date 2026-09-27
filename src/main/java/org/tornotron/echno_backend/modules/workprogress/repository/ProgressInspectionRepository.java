@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.modules.workprogress.repository;
 
 import jakarta.persistence.criteria.Predicate;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -45,6 +46,9 @@ public interface ProgressInspectionRepository
                 Sort.by(Sort.Order.desc("inspectionDate"), Sort.Order.desc("createdAt")));
         return findAll(spec, sorted);
     }
+
+    @Query("SELECT MAX(p.inspectionDate) FROM ProgressInspection p WHERE p.wbsElementId = :elementId AND p.organization.id = :orgId")
+    Optional<LocalDate> findLatestInspectionDate(@Param("elementId") Long elementId, @Param("orgId") Long orgId);
 
     @Query("SELECT COUNT(p) > 0 FROM ProgressInspection p WHERE p.wbsElementId IN :ids AND p.organization.id = :orgId")
     boolean existsForElements(@Param("ids") Collection<Long> ids, @Param("orgId") Long orgId);

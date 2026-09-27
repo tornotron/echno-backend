@@ -297,8 +297,12 @@ public class WbsElementService {
         if (dto.getIsMilestone() != null) {
             element.setIsMilestone(dto.getIsMilestone());
         }
-        applyMilestoneDates(element);
-        requirePlannedOrder(element);
+        // Checked only when the update touches the plan, so an older row with odd dates can
+        // still have its title or owner changed.
+        if (dto.getStartDate() != null || dto.getEndDate() != null || dto.getIsMilestone() != null) {
+            applyMilestoneDates(element);
+            requirePlannedOrder(element);
+        }
         if (dto.getResponsibleEmployeeId() != null) {
             element.setResponsibleEmployeeId(requireResponsibleEmployee(dto.getResponsibleEmployeeId(), orgId));
         }
