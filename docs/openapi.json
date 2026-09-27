@@ -39544,7 +39544,7 @@
     },
     "/api/v1/category/web": {
       "get": {
-        "description": "Returns a single page of work categories. The pageNo and pageSize parameters control paging; only the page content is returned, without paging metadata.",
+        "description": "Returns the organization's work categories for the task form's dropdown. With no pageSize the whole list is returned (up to 500); pageNo and pageSize still page it when given. Only the page content is returned, without paging metadata.",
         "operationId": "readAllCategories_1",
         "parameters": [
           {
@@ -39566,7 +39566,7 @@
             "name": "pageSize",
             "required": false,
             "schema": {
-              "default": 10,
+              "default": 500,
               "description": "Rows per page.",
               "format": "int32",
               "maximum": 500,

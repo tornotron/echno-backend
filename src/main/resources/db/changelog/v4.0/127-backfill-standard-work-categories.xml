@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="127-backfill-standard-work-categories" author="abhijith" runOnChange="false">
+        <comment>
+            The standard construction work categories for every organization that existed before
+            WorkCategorySeeder, which adds them to organizations created from now on. Keyed on the
+            organization plus the normalized name (or the raw name), so a category an organization
+            already holds is left as it is and a rerun inserts nothing. Normalized names follow
+            CategoryNormalizer: lower case, ampersand to "and", other punctuation dropped.
+        </comment>
+
+        <sql><![CDATA[
+            INSERT INTO category (category_name, normalized_name, category_description, organization_id)
+            SELECT s.name, s.normalized, s.description, o.id
+            FROM organization o
+            CROSS JOIN (VALUES
+                (1, 'Preliminaries & Site Setup', 'preliminaries and site setup',
+                 'Initial activities required to mobilize, establish, survey, secure, and prepare the construction site for project execution.'),
+                (2, 'Earthwork', 'earthwork',
+                 'Activities involving site clearing, excavation, earth cutting, soil removal, filling, backfilling, compaction, grading, and leveling.'),
+                (3, 'Foundation Works', 'foundation works',
+                 'Construction of foundations and associated works, including PCC, footings, rafts, piles, pile caps, waterproofing, and backfilling.'),
+                (4, 'Concrete Works', 'concrete works',
+                 'Production, placement, pumping, finishing, and curing of structural and non-structural concrete, including RCC and ready-mix concrete.'),
+                (5, 'Reinforcement Works', 'reinforcement works',
+                 'Fabrication and installation of steel reinforcement, including cutting, bending, fixing, mesh, couplers, and binding.'),
+                (6, 'Formwork / Shuttering', 'formwork shuttering',
+                 'Temporary mould and support systems used to form concrete elements such as footings, columns, beams, slabs, walls, and stairs.'),
+                (7, 'Structural Steel Works', 'structural steel works',
+                 'Fabrication, erection, connection, welding, bolting, coating, and decking activities associated with structural steel construction.'),
+                (8, 'Masonry Works', 'masonry works',
+                 'Construction of brick, block, AAC, stone, partition, internal, and external wall systems.'),
+                (9, 'Plastering & Rendering', 'plastering and rendering',
+                 'Application of plaster, render, and related surface treatments to internal, external, ceiling, and repaired surfaces.'),
+                (10, 'Waterproofing', 'waterproofing',
+                 'Installation of systems that protect roofs, toilets, basements, terraces, tanks, and joints from water ingress.'),
+                (11, 'Roofing', 'roofing',
+                 'Construction and finishing of roof systems including RCC, metal, tile, sheet roofing, insulation, and drainage.'),
+                (12, 'Flooring', 'flooring',
+                 'Installation of floor finishes including PCC, tiles, vitrified tiles, ceramic, granite, marble, stone, industrial, epoxy, and vinyl flooring.'),
+                (13, 'Wall Finishes', 'wall finishes',
+                 'Application and installation of wall surface finishes such as tiles, ceramic finishes, stone cladding, paint, wallpaper, and decorative treatments.'),
+                (14, 'Ceiling Works', 'ceiling works',
+                 'Installation and finishing of false, gypsum, grid, and metal ceilings, including insulation and ceiling painting.'),
+                (15, 'Doors & Windows', 'doors and windows',
+                 'Supply and installation of doors, windows, curtain walls, glazing systems, and associated hardware and fittings.'),
+                (16, 'Painting Works', 'painting works',
+                 'Surface preparation and application of primer, putty, interior and exterior paints, enamel, protective, and waterproof coatings.'),
+                (17, 'Plumbing', 'plumbing',
+                 'Installation of water supply, drainage, sanitary piping, pumps, tanks, sanitary fixtures, and plumbing fixtures.'),
+                (18, 'Electrical Works', 'electrical works',
+                 'Installation of electrical conduits, wiring, cables, distribution boards, switches, sockets, lighting, earthing, lightning protection, and generator connections.'),
+                (19, 'HVAC', 'hvac',
+                 'Installation and commissioning of heating, ventilation, and air-conditioning systems including ducting, piping, AHUs, FCUs, VRF/VRV, ventilation, and controls.'),
+                (20, 'Fire & Life Safety', 'fire and life safety',
+                 'Installation of fire protection and life-safety systems including hydrants, sprinklers, alarms, extinguishers, pumps, fire-rated doors, emergency lighting, and fire stopping.'),
+                (21, 'ELV / Low Voltage Systems', 'elv low voltage systems',
+                 'Installation of low-voltage and building technology systems such as CCTV, access control, networking, structured cabling, public address, intercom, BMS, and security systems.'),
+                (22, 'External Development', 'external development',
+                 'Development of external site infrastructure including roads, paving, footpaths, kerbs, parking, drainage, boundary walls, gates, and landscaping.'),
+                (23, 'Utilities & Infrastructure', 'utilities and infrastructure',
+                 'Installation of site and project utility infrastructure including water, sewerage, stormwater, electrical systems, transformers, DG systems, and utility trenches.'),
+                (24, 'Specialized Works', 'specialized works',
+                 'Specialized building and industrial systems including lifts, escalators, solar systems, building automation, acoustic works, clean rooms, and specialized installations.'),
+                (25, 'Testing, Commissioning & Handover', 'testing commissioning and handover',
+                 'Inspection, testing, commissioning, snagging, rectification, documentation, and final handover of completed construction works and systems.'),
+                (26, 'Demolition & Renovation', 'demolition and renovation',
+                 'Removal, dismantling, repair, renovation, retrofitting, restoration, and debris clearance associated with existing structures.'),
+                (27, 'Site Logistics', 'site logistics',
+                 'Management and movement of materials, equipment, machinery, lifting operations, storage, unloading, internal transportation, and site waste.'),
+                (28, 'Safety & Environmental', 'safety and environmental',
+                 'Activities supporting construction safety and environmental management, including PPE, fall protection, dust and noise control, waste disposal, monitoring, and housekeeping.')
+            ) AS s(ord, name, normalized, description)
+            WHERE NOT EXISTS (
+                SELECT 1 FROM category c
+                WHERE c.organization_id = o.id
+                  AND (c.normalized_name = s.normalized OR c.category_name = s.name))
+            ORDER BY o.id, s.ord
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>
