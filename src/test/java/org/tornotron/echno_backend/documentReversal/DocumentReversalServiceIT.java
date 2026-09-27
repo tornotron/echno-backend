@@ -10,7 +10,17 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
+import org.mapstruct.factory.Mappers;
+import org.tornotron.echno_backend.asset.AssetMovementRepository;
+import org.tornotron.echno_backend.asset.AssetRepository;
+import org.tornotron.echno_backend.asset.AssetService;
+import org.tornotron.echno_backend.asset.mapper.AssetMapper;
+import org.tornotron.echno_backend.asset.mapper.AssetMovementMapper;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
+import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.siteTransfer.SiteTransferAssetLines;
+import org.tornotron.echno_backend.vendor.VendorRepository;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -115,6 +125,10 @@ class DocumentReversalServiceIT extends AbstractIntegrationTest {
     @Autowired private StorageLocationRepository storageLocationRepository;
     @Autowired private StatusTransitionRepository statusTransitionRepository;
     @Autowired private NotificationRepository notificationRepository;
+    @Autowired private AssetRepository assetRepository;
+    @Autowired private AssetMovementRepository assetMovementRepository;
+    @Autowired private ProjectRepository projectRepository;
+    @Autowired private VendorRepository vendorRepository;
 
     private UserContextService userContext;
     private OrganizationSecurityService orgSecurity;
@@ -154,7 +168,7 @@ class DocumentReversalServiceIT extends AbstractIntegrationTest {
                 siteTransferRepository, siteTransferItemRepository, purchaseOrderRepository,
                 purchaseOrderItemRepository, goodsReceivedNoteRepository, grnItemRepository, payableRepository,
                 inventoryTransactionRepository, inventoryService, statusTransitionRepository, recorder,
-                employeeRepository, notifications);
+                employeeRepository, notifications, siteTransferAssetLines());
 
         org = organization("Reversal Org", "reversal@example.test");
         otherOrg = organization("Other Org", "other@example.test");
@@ -192,6 +206,16 @@ class DocumentReversalServiceIT extends AbstractIntegrationTest {
         em.flush();
         TenantContext.setCurrentOrgId(org.getId());
         actingAs(creatorUser);
+    }
+
+    /** The asset side of a transfer, wired from this context's repositories like the service. */
+    private SiteTransferAssetLines siteTransferAssetLines() {
+        AssetService assetService = new AssetService(assetRepository, Mappers.getMapper(AssetMapper.class),
+                new TenantEntityHelper(organizationRepository), vendorRepository, storageLocationRepository,
+                projectRepository, assetMovementRepository, Mappers.getMapper(AssetMovementMapper.class),
+                userContext, mock(AttachmentService.class), siteTransferItemRepository);
+        return new SiteTransferAssetLines(assetRepository, assetService, assetMovementRepository,
+                siteTransferItemRepository);
     }
 
     @AfterEach

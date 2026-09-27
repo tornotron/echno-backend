@@ -16,6 +16,7 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.siteTransferItem.SiteTransferItemRepository;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
@@ -65,6 +66,7 @@ class AssetMovementLedgerTest {
     @Mock private AssetMovementMapper assetMovementMapper;
     @Mock private UserContextService userContextService;
     @Mock private AttachmentService attachmentService;
+    @Mock private SiteTransferItemRepository siteTransferItemRepository;
 
     private AssetService service;
     private Organization organization;
@@ -77,7 +79,7 @@ class AssetMovementLedgerTest {
 
         service = new AssetService(assetRepository, assetMapper, tenantEntityHelper, vendorRepository,
                 storageLocationRepository, projectRepository, assetMovementRepository,
-                assetMovementMapper, userContextService, attachmentService);
+                assetMovementMapper, userContextService, attachmentService, siteTransferItemRepository);
 
         lenient().when(tenantEntityHelper.resolveCurrentOrganization()).thenReturn(organization);
         lenient().when(assetRepository.save(any(Asset.class))).thenAnswer(inv -> {

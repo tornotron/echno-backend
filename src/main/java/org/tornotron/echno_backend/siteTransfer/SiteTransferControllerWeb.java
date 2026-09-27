@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.common.history.dto.StatusTransitionDto;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.pagination.PageQuery20;
 import org.tornotron.echno_backend.common.response.ApiResponse;
+import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferAssetOptionDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferCancellationDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferCreationDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferReceiptDto;
@@ -51,10 +52,13 @@ public class SiteTransferControllerWeb {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Create a site transfer",
-            description = "Creates a site transfer moving materials from a sending project, and optionally a "
-                    + "specific storage location within it, to a receiving project. Validates that the "
-                    + "sending location holds enough stock for every item before the transfer is recorded, "
-                    + "then publishes an event so inventory is updated automatically."
+            description = "Creates a site transfer moving materials, assets or both from a sending project, "
+                    + "and optionally a specific storage location within it, to a receiving project. "
+                    + "Validates that the sending location holds enough stock for every material line and "
+                    + "that every asset on an ASSET line is at the sending side and on no other open "
+                    + "transfer before the transfer is recorded, then publishes an event so inventory is "
+                    + "updated automatically. An asset moves on its own ledger: at once between two stores "
+                    + "on one project, and when it is received for a transfer between projects."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Site transfer created"),
@@ -246,6 +250,31 @@ public class SiteTransferControllerWeb {
             @Valid @RequestBody SiteTransferCancellationDto cancellationDto
     ) {
         return ResponseEntity.ok(siteTransferService.cancelSiteTransfer(id, cancellationDto));
+    }
+
+    @GetMapping("/sendable-assets")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @Operation(
+            summary = "List the assets a transfer can send",
+            description = "Returns the assets the asset register places at the given sending project "
+                    + "and storage location that are not already in transit on another transfer, "
+                    + "which is exactly the set an ASSET line on a transfer from there may name. "
+                    + "Leaving storageLocationId out lists the project's assets that sit at no "
+                    + "storage location, the same reading a material line's stock check gives a "
+                    + "transfer that names no sending location. Ordered by name. Returns at most "
+                    + "500 rows; X-Total-Count carries the true total and X-Result-Capped is set "
+                    + "when rows were left out."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Sendable assets returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The storage location cannot be used from that project"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "The project or storage location was not found in this organization")
+    })
+    public ResponseEntity<List<SiteTransferAssetOptionDto>> getSendableAssets(
+            @RequestParam Long projectId,
+            @RequestParam(required = false) Long storageLocationId) {
+        return UnpagedResultCap.respond(siteTransferService.getSendableAssets(projectId, storageLocationId));
     }
 
     @GetMapping("/{id}/status-history")

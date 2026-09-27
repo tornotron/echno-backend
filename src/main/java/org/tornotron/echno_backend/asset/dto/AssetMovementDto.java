@@ -74,6 +74,10 @@ public class AssetMovementDto {
             + "transfer number.", example = "TRF-2026-000014")
     private String referenceNumber;
 
+    @Schema(description = "Id of the site transfer this entry came from, when the asset moved on "
+            + "one. Null for a movement recorded on the asset itself.", example = "31", nullable = true)
+    private Long siteTransferId;
+
     @Schema(description = "Id of the entry this one restates, set only on a CORRECTION.",
             example = "409")
     private Long correctsMovementId;

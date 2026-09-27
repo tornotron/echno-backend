@@ -22,6 +22,8 @@ import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
+import org.tornotron.echno_backend.siteTransferItem.SiteTransferItemRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.user.UserContextService;
@@ -35,7 +37,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -69,6 +74,7 @@ public class AssetService {
     private final AssetMovementMapper assetMovementMapper;
     private final UserContextService userContextService;
     private final AttachmentService attachmentService;
+    private final SiteTransferItemRepository siteTransferItemRepository;
 
     public AssetService(AssetRepository assetRepository,
                         AssetMapper assetMapper,
@@ -79,7 +85,8 @@ public class AssetService {
                         AssetMovementRepository assetMovementRepository,
                         AssetMovementMapper assetMovementMapper,
                         UserContextService userContextService,
-                        AttachmentService attachmentService) {
+                        AttachmentService attachmentService,
+                        SiteTransferItemRepository siteTransferItemRepository) {
         this.assetRepository = assetRepository;
         this.assetMapper = assetMapper;
         this.tenantEntityHelper = tenantEntityHelper;
@@ -90,6 +97,7 @@ public class AssetService {
         this.assetMovementMapper = assetMovementMapper;
         this.userContextService = userContextService;
         this.attachmentService = attachmentService;
+        this.siteTransferItemRepository = siteTransferItemRepository;
     }
 
     /**
@@ -114,23 +122,24 @@ public class AssetService {
                 creationDto.getAssignedTo(),
                 reasonOrDefault(creationDto.getMovementReason(), REGISTRATION_REASON),
                 creationDto.getMovedAt(),
-                null, null, null,
+                null, null, null, null,
                 true);
 
-        return assetMapper.toDto(assetRepository.save(saved));
+        return toDto(assetRepository.save(saved));
     }
 
     @Transactional(readOnly = true)
     public AssetDto getAssetById(Long id) {
-        return assetMapper.toDto(requireAsset(id));
+        return toDto(requireAsset(id));
     }
 
 
     @Transactional(readOnly = true)
     public Page<AssetDto> getAllAssets(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return assetRepository.findAll(pageable)
-                .map(asset -> assetMapper.toDto(asset));
+        Page<AssetDto> page = assetRepository.findAll(pageable).map(assetMapper::toDto);
+        markInTransit(page.getContent());
+        return page;
     }
 
     /**
@@ -153,10 +162,10 @@ public class AssetService {
                 creationDto.getAssignedTo(),
                 reasonOrDefault(creationDto.getMovementReason(), EDIT_REASON),
                 creationDto.getMovedAt(),
-                null, null, null,
+                null, null, null, null,
                 false);
 
-        return assetMapper.toDto(assetRepository.save(asset));
+        return toDto(assetRepository.save(asset));
     }
 
     /**
@@ -220,6 +229,7 @@ public class AssetService {
                 dto.getNotes(),
                 dto.getReferenceNumber(),
                 corrects,
+                null,
                 false);
 
         if (movement == null) {
@@ -287,6 +297,8 @@ public class AssetService {
             span.setTo(end);
             span.setCurrent(last);
             span.setReason(movement.getReason());
+            span.setReferenceNumber(movement.getReferenceNumber());
+            span.setSiteTransferId(movement.getSiteTransferId());
             span.setDays(Duration.between(movement.getMovedAt(), end != null ? end : now).toDays());
             spans.add(span);
         }
@@ -345,6 +357,7 @@ public class AssetService {
                                          String notes,
                                          String referenceNumber,
                                          Long correctsMovementId,
+                                         Long siteTransferId,
                                          boolean openingEntry) {
         Project fromProject = asset.getAssignedProject();
         StorageLocation fromLocation = asset.getLocation();
@@ -360,6 +373,9 @@ public class AssetService {
         if (!projectChanged && !locationChanged && !custodianChanged && !openingEntry && !correction) {
             return null;
         }
+        if (siteTransferId == null && !openingEntry) {
+            requireNotInTransit(asset);
+        }
 
         if (reason == null || reason.isBlank()) {
             throw new InvalidRequestException("The movement of asset with ID " + asset.getId()
@@ -374,7 +390,15 @@ public class AssetService {
                     + " cannot be dated " + when + ", which is in the future. A ledger records what"
                     + " has happened, not what is planned.");
         }
-        requireNotBeforeTheLatestEntry(asset, when);
+        if (siteTransferId != null) {
+            // A transfer's date is the document's, and the document may have been dated before
+            // the asset's last recorded entry (an asset registered this morning on a transfer
+            // dated today). The entry is placed at the later of the two so the ledger stays in
+            // the order things happened, which is what the asset's placement is read off.
+            when = notBeforeTheLatestEntry(asset, when);
+        } else {
+            requireNotBeforeTheLatestEntry(asset, when);
+        }
 
         AssetMovement movement = new AssetMovement();
         movement.setAsset(asset);
@@ -398,6 +422,7 @@ public class AssetService {
         movement.setNotes(notes);
         movement.setReferenceNumber(referenceNumber);
         movement.setCorrectsMovementId(correctsMovementId);
+        movement.setSiteTransferId(siteTransferId);
 
         AssetMovement appended = assetMovementRepository.save(movement);
 
@@ -437,6 +462,106 @@ public class AssetService {
                             + " the last of them. Record a correction of entry " + latest.getId()
                             + " instead.");
                 });
+    }
+
+    private LocalDateTime notBeforeTheLatestEntry(Asset asset, LocalDateTime when) {
+        return assetMovementRepository
+                .findFirstByAsset_IdAndOrganization_IdOrderByMovedAtDescIdDesc(
+                        asset.getId(), TenantContext.getCurrentOrgId())
+                .map(AssetMovement::getMovedAt)
+                .filter(when::isBefore)
+                .orElse(when);
+    }
+
+    /**
+     * Refuses to move an asset by hand while it is on a site transfer in transit.
+     *
+     * <p>The transfer is what will put the asset at the receiving site when somebody there records
+     * it arriving, or back where it was if the transfer is cancelled. A movement recorded on the
+     * asset in the meantime would be overwritten by whichever of those happens, and the ledger
+     * would carry a placement nobody can explain.
+     *
+     * @throws InvalidRequestException if the asset is on a transfer in transit.
+     */
+    private void requireNotInTransit(Asset asset) {
+        siteTransferItemRepository
+                .findFirstByAsset_IdAndAssetInTransitTrueAndOrganization_Id(
+                        asset.getId(), TenantContext.getCurrentOrgId())
+                .ifPresent(line -> {
+                    throw new InvalidRequestException("Asset " + describe(asset) + " is in transit on site "
+                            + "transfer " + line.getSiteTransfer().getTransferNumber() + " and cannot be "
+                            + "moved any other way until that transfer is received or cancelled.");
+                });
+    }
+
+    /**
+     * Records an asset moving on a site transfer, and moves its placement with it.
+     *
+     * <p>Only the site transfer module calls this, for three events: a store-to-store move within
+     * one project, which is complete the moment the transfer is written; the arrival of an asset
+     * recorded on a receipt; and the correction a reversal of such a transfer writes. The
+     * custodian is left as it was, since a transfer says where an asset went, not who took it on.
+     *
+     * @param asset             The asset, already taken under a write lock by the caller.
+     * @param toProject         The project it moves to.
+     * @param toLocation        The storage location it moves to, or null for none.
+     * @param movedAt           When it moved, by the transfer's own date. Clamped so it does not
+     *                          land before the asset's latest entry or in the future.
+     * @param reason            Why it moved, naming the transfer.
+     * @param referenceNumber   The transfer number.
+     * @param siteTransferId    The transfer's id.
+     * @param correctsMovementId The entry this one restates, set only by a reversal.
+     * @return The entry appended.
+     */
+    public AssetMovement moveOnSiteTransfer(Asset asset, Project toProject, StorageLocation toLocation,
+                                            LocalDateTime movedAt, String reason, String referenceNumber,
+                                            Long siteTransferId, Long correctsMovementId) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime when = movedAt == null || movedAt.isAfter(now) ? now : movedAt;
+        AssetMovement movement = applyPlacement(asset, toProject, toLocation,
+                asset.getAssignedToId(), asset.getAssignedTo(),
+                reason, when, null, referenceNumber, correctsMovementId,
+                Objects.requireNonNull(siteTransferId, "siteTransferId"), false);
+        assetRepository.save(asset);
+        return movement;
+    }
+
+    /** The asset's code and name, for a message a person reads. */
+    public static String describe(Asset asset) {
+        String code = asset.getAssetId() != null && !asset.getAssetId().isBlank()
+                ? asset.getAssetId() : "#" + asset.getId();
+        return code + (asset.getName() != null ? " (" + asset.getName() + ")" : "");
+    }
+
+    private AssetDto toDto(Asset asset) {
+        AssetDto dto = assetMapper.toDto(asset);
+        if (dto != null) {
+            markInTransit(List.of(dto));
+        }
+        return dto;
+    }
+
+    /**
+     * Fills in the transfer each asset is in transit on, in one read for the whole list rather
+     * than one per asset.
+     */
+    private void markInTransit(List<AssetDto> dtos) {
+        List<AssetDto> present = dtos.stream().filter(Objects::nonNull).toList();
+        List<Long> ids = present.stream().map(AssetDto::getId).filter(Objects::nonNull).toList();
+        if (ids.isEmpty()) {
+            return;
+        }
+        Map<Long, SiteTransferItem> lines = siteTransferItemRepository
+                .findByAsset_IdInAndAssetInTransitTrueAndOrganization_Id(ids, TenantContext.getCurrentOrgId())
+                .stream()
+                .collect(Collectors.toMap(line -> line.getAsset().getId(), Function.identity(), (a, b) -> a));
+        for (AssetDto dto : present) {
+            SiteTransferItem line = lines.get(dto.getId());
+            if (line != null) {
+                dto.setInTransitSiteTransferId(line.getSiteTransfer().getId());
+                dto.setInTransitSiteTransferNumber(line.getSiteTransfer().getTransferNumber());
+            }
+        }
     }
 
     /** The kind of entry the change amounts to. A correction is always a correction. */

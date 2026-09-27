@@ -96,6 +96,7 @@ class SiteTransferStockScopeTest {
     @Mock private StatusTransitionRecorder statusTransitionRecorder;
     @Mock private StatusTransitionRepository statusTransitionRepository;
     @Mock private StatusTransitionMapper statusTransitionMapper;
+    @Mock private SiteTransferAssetLines assetLines;
 
     private SiteTransferService service;
 
@@ -110,7 +111,7 @@ class SiteTransferStockScopeTest {
                 employeeRepository, projectRepository, storageLocationRepository,
                 documentNumberAllocator, retryTemplate, new SiteTransferReceiptReconciler(statusTransitionRecorder),
                 currentEmployeeService, userContextService, statusTransitionRecorder,
-                statusTransitionRepository, statusTransitionMapper);
+                statusTransitionRepository, statusTransitionMapper, assetLines);
         lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
                 .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
 

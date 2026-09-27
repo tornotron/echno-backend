@@ -44,6 +44,13 @@ public interface AssetMovementRepository extends Repository<AssetMovement, Long>
     Optional<AssetMovement> findFirstByAsset_IdAndOrganization_IdOrderByMovedAtDescIdDesc(
             Long assetId, Long organizationId);
 
+    /**
+     * The latest entry of one kind a site transfer wrote on one asset's ledger. A reversal of the
+     * transfer reads it to name the entry its correction restates.
+     */
+    Optional<AssetMovement> findFirstByAsset_IdAndSiteTransferIdAndMovementTypeAndOrganization_IdOrderByIdDesc(
+            Long assetId, Long siteTransferId, AssetMovementType movementType, Long organizationId);
+
     /** Whether an asset has any recorded history, which is what makes it undeletable. */
     boolean existsByAsset_IdAndOrganization_Id(Long assetId, Long organizationId);
 

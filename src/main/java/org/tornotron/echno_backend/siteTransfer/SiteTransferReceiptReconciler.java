@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.siteTransfer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.asset.AssetService;
 import org.tornotron.echno_backend.common.events.SiteTransferReceivedEvent.ReceivedLine;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.history.StatusTransitionRecorder;
@@ -124,6 +125,16 @@ public class SiteTransferReceiptReconciler {
             int sent = sentQuantity(line);
             int already = receivedQuantity(line);
             int total = already + entry.getValue();
+            if (line.isAssetLine() && total > sent) {
+                // An asset is one machine. There is no second unit that could have turned up, so
+                // unlike a material there is no over-receipt to acknowledge: the figure is wrong.
+                String asset = line.getAsset() != null
+                        ? AssetService.describe(line.getAsset()) : "on line " + line.getId();
+                throw new InvalidRequestException("Site transfer " + transfer.getTransferNumber()
+                        + " sent one asset, " + asset + ", and "
+                        + (already > 0 ? "it has already been received. " : "a receipt can only record it as 0 or 1. ")
+                        + "An asset line is received once, as 1, when the asset arrives.");
+            }
             if (total > sent) {
                 overReceipts.add(describeOverReceipt(transfer, line, sent, already, entry.getValue(), total));
             }

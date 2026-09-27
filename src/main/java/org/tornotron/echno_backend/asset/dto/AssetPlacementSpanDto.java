@@ -46,6 +46,15 @@ public class AssetPlacementSpanDto {
     @Schema(description = "Whether this is the placement the asset is in now.", example = "false")
     private boolean current;
 
+    @Schema(description = "The document the asset arrived here on, for example a site transfer "
+            + "number. Null when the move was recorded on the asset itself.",
+            example = "TRF-2026-000014", nullable = true)
+    private String referenceNumber;
+
+    @Schema(description = "Id of the site transfer the asset arrived here on. Null when it did not "
+            + "arrive on a transfer.", example = "31", nullable = true)
+    private Long siteTransferId;
+
     @Schema(description = "Why the asset arrived here.",
             example = "Mobilised to the Marina Heights site for the piling phase")
     private String reason;

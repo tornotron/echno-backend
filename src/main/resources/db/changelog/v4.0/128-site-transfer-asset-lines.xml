@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        A site transfer line can now carry an asset as well as a material (ClickUp 86d45vjd0).
+
+        One transfer holds both kinds of line, so an asset moving between sites travels on the
+        same document as the materials going with it, with the same receipt, cancellation,
+        reversal and status trail. line_type says which kind a line is. Every existing row is a
+        material line, which is what the default writes.
+
+        An asset line always sends one unit: an asset is one machine, not a quantity. While a
+        cross-project transfer is in transit, asset_in_transit is set on its asset lines, and a
+        unique index over the set rows is what makes "an asset is on at most one open transfer"
+        a property of the schema rather than of the code that happens to check it.
+
+        asset_movement.site_transfer_id names the transfer a ledger entry came from, so the
+        asset's history links to the document, and so a reversal can find the entry it restates.
+
+        Each schema change is its own changeset so they run in separate transactions on
+        CockroachDB.
+    -->
+
+    <changeSet id="128-01-site-transfer-item-line-type" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="site_transfer_item" columnName="line_type"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="site_transfer_item">
+            <column name="line_type" type="VARCHAR(20)" defaultValue="MATERIAL">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="site_transfer_item" columnName="line_type"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="128-02-site-transfer-item-asset" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="site_transfer_item" columnName="asset_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="site_transfer_item">
+            <column name="asset_id" type="BIGINT"/>
+            <column name="asset_in_transit" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="site_transfer_item" columnName="asset_in_transit"/>
+            <dropColumn tableName="site_transfer_item" columnName="asset_id"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="128-03-site-transfer-item-asset-fk" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <foreignKeyConstraintExists foreignKeyName="fk_site_transfer_item_asset"/>
+            </not>
+        </preConditions>
+        <!-- RESTRICT: an asset that has travelled on a transfer keeps that record. -->
+        <addForeignKeyConstraint baseTableName="site_transfer_item"
+                                 baseColumnNames="asset_id"
+                                 constraintName="fk_site_transfer_item_asset"
+                                 referencedTableName="asset"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+        <rollback>
+            <dropForeignKeyConstraint baseTableName="site_transfer_item" constraintName="fk_site_transfer_item_asset"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="128-04-site-transfer-item-asset-index" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="site_transfer_item" indexName="idx_site_transfer_item_asset"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="site_transfer_item" indexName="idx_site_transfer_item_asset">
+            <column name="asset_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="site_transfer_item" indexName="idx_site_transfer_item_asset"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="128-05-site-transfer-item-line-kind-check" author="abhijith">
+        <comment>
+            A material line names no asset and is never flagged in transit; an asset line names an
+            asset, no material, and exactly one unit. Material lines are not required to name a
+            material here, so a legacy row that lacks one does not stop the migration.
+        </comment>
+        <sql>
+            ALTER TABLE site_transfer_item ADD CONSTRAINT ck_site_transfer_item_line_kind CHECK (
+                (line_type = 'MATERIAL' AND asset_id IS NULL AND asset_in_transit = false)
+                OR (line_type = 'ASSET' AND asset_id IS NOT NULL AND material_id IS NULL AND sent_quantity = 1)
+            )
+        </sql>
+        <rollback>
+            <sql>ALTER TABLE site_transfer_item DROP CONSTRAINT ck_site_transfer_item_line_kind</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="128-06-site-transfer-item-asset-in-transit-unique" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="site_transfer_item" indexName="uk_site_transfer_item_asset_in_transit"/>
+            </not>
+        </preConditions>
+        <sql>
+            CREATE UNIQUE INDEX uk_site_transfer_item_asset_in_transit
+                ON site_transfer_item (asset_id)
+                WHERE asset_in_transit
+        </sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS uk_site_transfer_item_asset_in_transit</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="128-07-asset-movement-site-transfer" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="asset_movement" columnName="site_transfer_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="asset_movement">
+            <column name="site_transfer_id" type="BIGINT"/>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="asset_movement" columnName="site_transfer_id"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="128-08-asset-movement-site-transfer-fk" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <foreignKeyConstraintExists foreignKeyName="fk_asset_movement_site_transfer"/>
+            </not>
+        </preConditions>
+        <addForeignKeyConstraint baseTableName="asset_movement"
+                                 baseColumnNames="site_transfer_id"
+                                 constraintName="fk_asset_movement_site_transfer"
+                                 referencedTableName="site_transfer"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+        <createIndex tableName="asset_movement" indexName="idx_asset_movement_site_transfer">
+            <column name="site_transfer_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="asset_movement" indexName="idx_asset_movement_site_transfer"/>
+            <dropForeignKeyConstraint baseTableName="asset_movement" constraintName="fk_asset_movement_site_transfer"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

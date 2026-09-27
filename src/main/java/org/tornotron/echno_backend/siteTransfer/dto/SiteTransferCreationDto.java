@@ -68,8 +68,11 @@ public class SiteTransferCreationDto {
             example = "PENDING", allowableValues = {"PENDING"})
     private SiteTransferStatus status;
 
-    @Schema(description = "Line items listing each material and quantity being transferred. Must contain "
-            + "at least one item.")
+    @Schema(description = "Line items listing what is being transferred: MATERIAL lines with a "
+            + "material and quantity, ASSET lines each naming one asset, or both on one transfer. "
+            + "Must contain at least one item. The sending stock check covers the material lines; "
+            + "each asset must be at the sending project and storage location and not in transit "
+            + "on another transfer.")
     @NotEmpty(message = "items list cannot be empty")
     @Valid
     private List<SiteTransferItemDto> items;

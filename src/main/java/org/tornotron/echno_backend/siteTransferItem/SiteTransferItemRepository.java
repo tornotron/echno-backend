@@ -6,7 +6,9 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface SiteTransferItemRepository extends JpaRepository<SiteTransferItem, Long> {
 
@@ -35,4 +37,15 @@ public interface SiteTransferItemRepository extends JpaRepository<SiteTransferIt
             + "AND sti.organization.id = :orgId ORDER BY sti.id")
     List<SiteTransferItem> lockBySiteTransferIdAndOrganizationId(
             @Param("siteTransferId") Long siteTransferId, @Param("orgId") Long orgId);
+
+    /**
+     * The asset line an asset is currently in transit on, if any. At most one row can match,
+     * because {@code uk_site_transfer_item_asset_in_transit} allows one in-transit line per asset.
+     */
+    Optional<SiteTransferItem> findFirstByAsset_IdAndAssetInTransitTrueAndOrganization_Id(
+            Long assetId, Long organizationId);
+
+    /** The in-transit asset lines for a set of assets, for marking a page of the register. */
+    List<SiteTransferItem> findByAsset_IdInAndAssetInTransitTrueAndOrganization_Id(
+            Collection<Long> assetIds, Long organizationId);
 }

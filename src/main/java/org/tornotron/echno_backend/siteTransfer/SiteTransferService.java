@@ -31,12 +31,15 @@ import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.asset.Asset;
+import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferAssetOptionDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferCancellationDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferCreationDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferItemDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferReceiptDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferReceiptLineDto;
+import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferLineType;
 import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferStatus;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItemRepository;
@@ -134,6 +137,7 @@ public class SiteTransferService {
     private final StatusTransitionRecorder statusTransitionRecorder;
     private final StatusTransitionRepository statusTransitionRepository;
     private final StatusTransitionMapper statusTransitionMapper;
+    private final SiteTransferAssetLines assetLines;
 
     public SiteTransferService(SiteTransferRepository siteTransferRepository,
                                SiteTransferItemRepository siteTransferItemRepository,
@@ -153,7 +157,8 @@ public class SiteTransferService {
                                UserContextService userContextService,
                                StatusTransitionRecorder statusTransitionRecorder,
                                StatusTransitionRepository statusTransitionRepository,
-                               StatusTransitionMapper statusTransitionMapper) {
+                               StatusTransitionMapper statusTransitionMapper,
+                               SiteTransferAssetLines assetLines) {
         this.siteTransferRepository = siteTransferRepository;
         this.siteTransferItemRepository = siteTransferItemRepository;
         this.userRepository = userRepository;
@@ -173,6 +178,7 @@ public class SiteTransferService {
         this.statusTransitionRecorder = statusTransitionRecorder;
         this.statusTransitionRepository = statusTransitionRepository;
         this.statusTransitionMapper = statusTransitionMapper;
+        this.assetLines = assetLines;
     }
 
     /**
@@ -236,22 +242,40 @@ public class SiteTransferService {
 
         requireTheTransferMovesStock(sendingProject, sendingLocation, receivingProject, receivingLocation);
 
+        List<SiteTransferItemDto> materialLineDtos = new ArrayList<>();
+        List<SiteTransferItemDto> assetLineDtos = new ArrayList<>();
+        for (SiteTransferItemDto itemDto : creationDto.getItems()) {
+            if (itemDto.getLineType() == SiteTransferLineType.ASSET) {
+                assetLineDtos.add(itemDto);
+            } else {
+                requireMaterialLine(itemDto);
+                materialLineDtos.add(itemDto);
+            }
+        }
+
         // Check the sending side for every item, against the balance row the transfer will
         // actually debit. Named location means that location's row; no location means the
         // sending project's unlocated row, which is what the listener goes on to write. The
         // project total would pass a draw against stock sitting in storage locations the
         // debit never reaches, and take the unlocated row negative.
         Map<Long, Double> requiredQuantities = new HashMap<>();
-        for (SiteTransferItemDto itemDto : creationDto.getItems()) {
+        for (SiteTransferItemDto itemDto : materialLineDtos) {
             requiredQuantities.merge(itemDto.getMaterialId(), itemDto.getSentQuantity().doubleValue(), Double::sum);
         }
-        if (creationDto.getSendingStorageLocationId() != null) {
-            inventoryService.validateSufficientStockForMultipleItemsAtLocation(
-                    requiredQuantities, sendingProject.getId(), creationDto.getSendingStorageLocationId());
-        } else {
-            inventoryService.validateSufficientUnlocatedStockForMultipleItems(
-                    requiredQuantities, sendingProject.getId());
+        if (!requiredQuantities.isEmpty()) {
+            if (creationDto.getSendingStorageLocationId() != null) {
+                inventoryService.validateSufficientStockForMultipleItemsAtLocation(
+                        requiredQuantities, sendingProject.getId(), creationDto.getSendingStorageLocationId());
+            } else {
+                inventoryService.validateSufficientUnlocatedStockForMultipleItems(
+                        requiredQuantities, sendingProject.getId());
+            }
         }
+
+        // The asset-side equivalent of the stock check: each asset is taken under a lock and
+        // must be at the sending side and on no other open transfer. Done before the number is
+        // allocated, so a refused asset does not spend one.
+        List<Asset> assets = assetLines.resolveForCreation(assetLineDtos, sendingProject, sendingLocation);
 
         // Create site transfer
         SiteTransfer transfer = new SiteTransfer();
@@ -276,7 +300,7 @@ public class SiteTransferService {
 
         // Create transfer items
         List<SiteTransferItem> items = new ArrayList<>();
-        for (SiteTransferItemDto itemDto : creationDto.getItems()) {
+        for (SiteTransferItemDto itemDto : materialLineDtos) {
             Material material = materialRepository.findByIdAndOrganization_Id(itemDto.getMaterialId(),TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + itemDto.getMaterialId() + " was not found in this organization"));
 
@@ -294,6 +318,24 @@ public class SiteTransferService {
             items.add(item);
         }
 
+        List<SiteTransferItem> assetItems = new ArrayList<>();
+        for (int i = 0; i < assetLineDtos.size(); i++) {
+            SiteTransferItemDto itemDto = assetLineDtos.get(i);
+            SiteTransferItem item = new SiteTransferItem();
+            item.setSiteTransfer(transfer);
+            item.setLineType(SiteTransferLineType.ASSET);
+            item.setAsset(assets.get(i));
+            item.setSentQuantity(1);
+            // The same reading as a material line: within one project the asset is placed at the
+            // receiving store now, so the line is received; across projects nobody has said yet.
+            item.setReceivedQuantity(crossesProjects ? null : 1);
+            item.setRemarks(itemDto.getRemarks());
+            item.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
+            assetItems.add(item);
+        }
+        assetLines.dispatch(transfer, assetItems, crossesProjects);
+        items.addAll(assetItems);
+
         siteTransferItemRepository.saveAll(items);
         transfer.setItems(items);
 
@@ -305,6 +347,43 @@ public class SiteTransferService {
         eventPublisher.publishEvent(new SiteTransferCreatedEvent(this, transfer));
 
         return siteTransferMapper.toDto(transfer);
+    }
+
+    /**
+     * Refuses a material line that does not name a material, or that names an asset.
+     *
+     * <p>{@code materialId} used to be required by the payload's own validation. It is optional
+     * there now that a line can carry an asset instead, so a material line is held to it here.
+     */
+    private void requireMaterialLine(SiteTransferItemDto itemDto) {
+        if (itemDto.getMaterialId() == null) {
+            throw new InvalidRequestException("material ID is required on a MATERIAL line. To send an "
+                    + "asset, set lineType to ASSET and name it in assetId.");
+        }
+        if (itemDto.getAssetId() != null) {
+            throw new InvalidRequestException("A MATERIAL line cannot name an asset. To send asset with ID "
+                    + itemDto.getAssetId() + ", add a line with lineType ASSET.");
+        }
+    }
+
+    /**
+     * Lists the assets a transfer from one project and storage location can send: those the asset
+     * register places there that are not in transit on another transfer.
+     *
+     * @param projectId         The sending project.
+     * @param storageLocationId The sending storage location, or null for the project's assets
+     *                          that sit at no location.
+     * @return The first capped page of those assets, by name, carrying the true total.
+     * @throws ResourceNotFoundException if the project or location is not in this organization.
+     * @throws InvalidRequestException if the location cannot be used from that project.
+     */
+    @Transactional(readOnly = true)
+    public Page<SiteTransferAssetOptionDto> getSendableAssets(Long projectId, Long storageLocationId) {
+        Project project = projectRepository.findByIdAndOrganization_Id(projectId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization"));
+        StorageLocation location = resolveStorageLocation(storageLocationId, project, "Sending");
+        return assetLines.sendableFrom(project.getId(), location != null ? location.getId() : null)
+                .map(siteTransferMapper::toAssetOption);
     }
 
     /**
@@ -563,16 +642,28 @@ public class SiteTransferService {
                 transfer, lines, requested, Boolean.TRUE.equals(receiptDto.getAllowOverReceipt()),
                 userContextService.getCurrentUser(), receiptDto.getRemarks());
 
+        LocalDateTime receivedOn = receiptDto.getReceivedOn() != null ? receiptDto.getReceivedOn() : LocalDateTime.now();
+        List<SiteTransferReceivedEvent.ReceivedLine> materialReceived = new ArrayList<>();
+        List<SiteTransferItem> assetsReceived = new ArrayList<>();
+        for (SiteTransferReceivedEvent.ReceivedLine received : outcome.received()) {
+            if (received.item().isAssetLine()) {
+                assetsReceived.add(received.item());
+            } else {
+                materialReceived.add(received);
+            }
+        }
+        // An asset moves in this transaction rather than after it, so it arrives exactly when the
+        // receipt commits. Stock legs stay on the after-commit event they have always used.
+        assetLines.receive(transfer, assetsReceived, receivedOn, receivedBy.getEmployeeName());
+
         siteTransferItemRepository.saveAll(lines);
         if (outcome.movedTo() != null) {
             siteTransferRepository.save(transfer);
         }
 
-        if (!outcome.received().isEmpty()) {
+        if (!materialReceived.isEmpty()) {
             eventPublisher.publishEvent(new SiteTransferReceivedEvent(
-                    this, transfer, outcome.received(), receivedBy,
-                    receiptDto.getReceivedOn() != null ? receiptDto.getReceivedOn() : LocalDateTime.now(),
-                    receiptDto.getRemarks()));
+                    this, transfer, materialReceived, receivedBy, receivedOn, receiptDto.getRemarks()));
         }
 
         return siteTransferMapper.toDto(transfer);
@@ -627,6 +718,8 @@ public class SiteTransferService {
 
         SiteTransferStatus previous = transfer.getStatus();
         transfer.setStatus(SiteTransferStatus.CANCELLED);
+        assetLines.cancel(lines);
+        siteTransferItemRepository.saveAll(lines);
         siteTransferRepository.save(transfer);
         statusTransitionRecorder.recordChange(
                 HISTORY_ENTITY_TYPE, transfer.getId(), transfer.getOrganization(),
@@ -635,8 +728,11 @@ public class SiteTransferService {
                 "Cancelled in transit and the sent quantity returned to the sending site. "
                         + cancellationDto.getReason().trim());
 
-        eventPublisher.publishEvent(new SiteTransferCancelledEvent(
-                this, transfer, lines, cancelledBy, cancellationDto.getReason().trim()));
+        List<SiteTransferItem> materialLines = lines.stream().filter(line -> !line.isAssetLine()).toList();
+        if (!materialLines.isEmpty()) {
+            eventPublisher.publishEvent(new SiteTransferCancelledEvent(
+                    this, transfer, materialLines, cancelledBy, cancellationDto.getReason().trim()));
+        }
 
         return siteTransferMapper.toDto(transfer);
     }

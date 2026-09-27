@@ -91,6 +91,7 @@ class SiteTransferReceiveTest {
     @Mock private StatusTransitionRecorder statusTransitionRecorder;
     @Mock private StatusTransitionRepository statusTransitionRepository;
     @Mock private StatusTransitionMapper statusTransitionMapper;
+    @Mock private SiteTransferAssetLines assetLines;
 
     private SiteTransferService service;
     private Organization organization;
@@ -106,7 +107,7 @@ class SiteTransferReceiveTest {
                 documentNumberAllocator, retryTemplate,
                 new SiteTransferReceiptReconciler(statusTransitionRecorder),
                 currentEmployeeService, userContextService, statusTransitionRecorder,
-                statusTransitionRepository, statusTransitionMapper);
+                statusTransitionRepository, statusTransitionMapper, assetLines);
         // The template's own behaviour is covered by its own tests; here it just runs the work.
         lenient().when(retryTemplate.execute(anyString(), any(Supplier.class)))
                 .thenAnswer(invocation -> invocation.getArgument(1, Supplier.class).get());

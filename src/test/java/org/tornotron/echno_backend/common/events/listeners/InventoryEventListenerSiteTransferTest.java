@@ -20,7 +20,9 @@ import org.tornotron.echno_backend.inventoryTransaction.enums.InventoryTransacti
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.asset.Asset;
 import org.tornotron.echno_backend.siteTransfer.SiteTransfer;
+import org.tornotron.echno_backend.siteTransfer.enums.SiteTransferLineType;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
 
@@ -143,6 +145,25 @@ class InventoryEventListenerSiteTransferTest {
      * yard held none, and the ledger offered a TRANSFER_IN whose closing figure nobody could
      * reconcile. Creation now posts only what actually happened, which is that the stock left.
      */
+    /** An asset line moves a machine on the asset ledger, so it writes no stock movement at all. */
+    @Test
+    void anAssetLineWritesNoStockMovementAtCreation() {
+        StorageLocation sending = location(SENDING_LOCATION);
+        StorageLocation receiving = location(RECEIVING_LOCATION);
+        SiteTransfer transfer = transfer(sending, receiving, sendingProject);
+        SiteTransferItem assetLine = new SiteTransferItem();
+        assetLine.setId(85L);
+        assetLine.setLineType(SiteTransferLineType.ASSET);
+        assetLine.setAsset(new Asset());
+        assetLine.setSentQuantity(1);
+        transfer.setItems(List.of(assetLine));
+
+        listener.handleSiteTransferCreated(new SiteTransferCreatedEvent(this, transfer));
+
+        verify(inventoryTransactionRepository, never()).save(any());
+        verify(inventoryService, never()).updateCurrentStock(any(), any(), any(), any(), any(), any());
+    }
+
     @Test
     void aTransferBetweenTwoProjectsPostsOnlyTheOutboundLegAtCreation() {
         lenient().when(inventoryService.getAverageCost(MATERIAL, SENDING_PROJECT, null))
