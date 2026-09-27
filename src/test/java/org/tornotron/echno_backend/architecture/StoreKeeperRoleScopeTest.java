@@ -85,6 +85,8 @@ class StoreKeeperRoleScopeTest {
             "SiteTransferControllerWeb.receiveSiteTransfer POST /{id}/receive",
             "SiteTransferControllerWeb.cancelSiteTransfer POST /{id}/cancel",
             "SiteTransferControllerWeb.readStatusHistory GET /{id}/status-history",
+            // The asset picker on the transfer form: which assets are at the sending store.
+            "SiteTransferControllerWeb.getSendableAssets GET /sendable-assets",
 
             // Taking the count and writing down what it found. Approving it is somebody else's.
             // The reads moved onto the stores tier on #853: they had been open to any member,

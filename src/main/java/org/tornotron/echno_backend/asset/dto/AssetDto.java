@@ -84,6 +84,14 @@ public class AssetDto {
     private Long locationId;
     @Schema(description = "Name of the storage location the asset is stored at.", example = "Kochi Yard")
     private String locationName;
+    @Schema(description = "Id of the site transfer the asset is in transit on: sent from one project "
+            + "and not yet recorded as arriving at the other. Null when the asset is not in transit. "
+            + "While it is set the asset cannot be moved any other way; receive or cancel the "
+            + "transfer first.", example = "31", nullable = true)
+    private Long inTransitSiteTransferId;
+    @Schema(description = "Number of the site transfer the asset is in transit on. Null when the "
+            + "asset is not in transit.", example = "TRF-2026-000014", nullable = true)
+    private String inTransitSiteTransferNumber;
     @Schema(description = "Id of the organization that owns the asset.", example = "1")
     private Long organizationId;
     @Schema(description = "Timestamp the asset record was created.", example = "2023-06-10T09:30:00")

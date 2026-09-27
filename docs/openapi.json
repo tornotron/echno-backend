@@ -551,6 +551,23 @@
             "format": "int64",
             "type": "integer"
           },
+          "inTransitSiteTransferId": {
+            "description": "Id of the site transfer the asset is in transit on: sent from one project and not yet recorded as arriving at the other. Null when the asset is not in transit. While it is set the asset cannot be moved any other way; receive or cancel the transfer first.",
+            "example": 31,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "inTransitSiteTransferNumber": {
+            "description": "Number of the site transfer the asset is in transit on. Null when the asset is not in transit.",
+            "example": "TRF-2026-000014",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "insuranceExpiry": {
             "description": "Date the insurance policy expires.",
             "example": "2027-06-10",
@@ -850,6 +867,15 @@
             "example": "TRF-2026-000014",
             "type": "string"
           },
+          "siteTransferId": {
+            "description": "Id of the site transfer this entry came from, when the asset moved on one. Null for a movement recorded on the asset itself.",
+            "example": 31,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "toAssignedTo": {
             "description": "Name of the custodian who took the asset on.",
             "example": "Suresh Nair",
@@ -955,6 +981,23 @@
             "description": "Why the asset arrived here.",
             "example": "Mobilised to the Marina Heights site for the piling phase",
             "type": "string"
+          },
+          "referenceNumber": {
+            "description": "The document the asset arrived here on, for example a site transfer number. Null when the move was recorded on the asset itself.",
+            "example": "TRF-2026-000014",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "siteTransferId": {
+            "description": "Id of the site transfer the asset arrived here on. Null when it did not arrive on a transfer.",
+            "example": 31,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "to": {
             "description": "When it left. Null on the placement it is still in.",
@@ -20197,6 +20240,55 @@
         },
         "type": "object"
       },
+      "SiteTransferAssetOptionDto": {
+        "description": "An asset a site transfer can send: one that is at the sending project and storage location, and not already in transit on another transfer.",
+        "properties": {
+          "assetCode": {
+            "description": "The organization's own code for the asset.",
+            "example": "AST-0021",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assignedTo": {
+            "description": "Name of the person the asset is assigned to.",
+            "example": "Ravi Kumar",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "Database id of the asset, sent as assetId on an ASSET line.",
+            "example": 12,
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Name of the asset.",
+            "example": "JCB 3DX Backhoe Loader",
+            "type": "string"
+          },
+          "status": {
+            "description": "Current lifecycle status, a kebab-case value defined by the frontend.",
+            "example": "in-use",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "description": "Asset type, a kebab-case value defined by the frontend.",
+            "example": "heavy-equipment",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "SiteTransferCancellationDto": {
         "description": "Why a transfer that never arrived is being abandoned. Cancelling returns the stock to the sending project and location it was drawn from, which is a real movement on the ledger, so the reason is required and is kept on the transfer's status trail beside the movement it caused.",
         "properties": {
@@ -20223,7 +20315,7 @@
             "type": "string"
           },
           "items": {
-            "description": "Line items listing each material and quantity being transferred. Must contain at least one item.",
+            "description": "Line items listing what is being transferred: MATERIAL lines with a material and quantity, ASSET lines each naming one asset, or both on one transfer. Must contain at least one item. The sending stock check covers the material lines; each asset must be at the sending project and storage location and not in transit on another transfer.",
             "items": {
               "$ref": "#/components/schemas/SiteTransferItemDto"
             },
@@ -20378,8 +20470,35 @@
         "type": "object"
       },
       "SiteTransferItemDto": {
-        "description": "A single material line on a site transfer, naming the material and the quantity sent.",
+        "description": "A single line on a site transfer. A MATERIAL line names a material and the quantity sent. An ASSET line names one asset from the asset register and always sends one unit; the asset must be at the transfer's sending project and storage location, and not in transit on another transfer.",
         "properties": {
+          "assetCode": {
+            "description": "The organization's own code for the asset. Null on a MATERIAL line.",
+            "example": "AST-0021",
+            "readOnly": true,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assetId": {
+            "description": "Id of the asset being transferred. Required on an ASSET line and must be left out on a MATERIAL line.",
+            "example": 12,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "assetName": {
+            "description": "Name of the asset being transferred. Null on a MATERIAL line.",
+            "example": "JCB 3DX Backhoe Loader",
+            "readOnly": true,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "id": {
             "description": "Id of the transfer item.",
             "example": 84,
@@ -20393,16 +20512,32 @@
             "readOnly": true,
             "type": "integer"
           },
+          "lineType": {
+            "description": "What the line carries. Optional on create, and MATERIAL when left out, so a payload that predates asset lines means what it always meant.",
+            "enum": [
+              "MATERIAL",
+              "ASSET"
+            ],
+            "example": "MATERIAL",
+            "type": "string"
+          },
           "materialId": {
-            "description": "Id of the material being transferred.",
+            "description": "Id of the material being transferred. Required on a MATERIAL line and must be left out on an ASSET line.",
             "example": 21,
             "format": "int64",
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "materialName": {
-            "description": "Name of the material being transferred.",
+            "description": "Name of the material being transferred. Null on an ASSET line.",
             "example": "TMT Bar 12mm",
-            "type": "string"
+            "readOnly": true,
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "receivedQuantity": {
             "description": "Quantity recorded as having arrived at the receiving site, in the material's unit. Null while the transfer is in transit and nobody has confirmed anything about this line yet, which is not the same as saying nothing arrived. A transfer between two stores on one project is received in full at creation, since the material never leaves that site's custody.",
@@ -20420,7 +20555,7 @@
             "type": "string"
           },
           "sentQuantity": {
-            "description": "Quantity sent, in the material's unit.",
+            "description": "Quantity sent, in the material's unit. Always 1 on an ASSET line, since an asset is one machine; any other value is refused.",
             "example": 500,
             "format": "int32",
             "minimum": 1,
@@ -20428,7 +20563,6 @@
           }
         },
         "required": [
-          "materialId",
           "sentQuantity"
         ],
         "type": "object"
@@ -110633,7 +110767,7 @@
         ]
       },
       "post": {
-        "description": "Creates a site transfer moving materials from a sending project, and optionally a specific storage location within it, to a receiving project. Validates that the sending location holds enough stock for every item before the transfer is recorded, then publishes an event so inventory is updated automatically.",
+        "description": "Creates a site transfer moving materials, assets or both from a sending project, and optionally a specific storage location within it, to a receiving project. Validates that the sending location holds enough stock for every material line and that every asset on an ASSET line is at the sending side and on no other open transfer before the transfer is recorded, then publishes an event so inventory is updated automatically. An asset moves on its own ledger: at once between two stores on one project, and when it is received for a transfer between projects.",
         "operationId": "createSiteTransfer_1",
         "requestBody": {
           "content": {
@@ -110985,6 +111119,131 @@
           }
         },
         "summary": "List site transfers received by a project",
+        "tags": [
+          "Site Transfers (Web)"
+        ]
+      }
+    },
+    "/api/v1/site-transfers/web/sendable-assets": {
+      "get": {
+        "description": "Returns the assets the asset register places at the given sending project and storage location that are not already in transit on another transfer, which is exactly the set an ASSET line on a transfer from there may name. Leaving storageLocationId out lists the project's assets that sit at no storage location, the same reading a material line's stock check gives a transfer that names no sending location. Ordered by name. Returns at most 500 rows; X-Total-Count carries the true total and X-Result-Capped is set when rows were left out.",
+        "operationId": "getSendableAssets",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storageLocationId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SiteTransferAssetOptionDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Sendable assets returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The storage location cannot be used from that project"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The project or storage location was not found in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the assets a transfer can send",
         "tags": [
           "Site Transfers (Web)"
         ]

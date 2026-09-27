@@ -164,6 +164,10 @@ public class InventoryEventListener {
                 crossesProjects ? "outbound leg only, awaiting receipt" : "both legs, within one project");
 
         for (SiteTransferItem item : transfer.getItems()) {
+            if (item.isAssetLine()) {
+                // An asset line moves a machine on its own ledger, not a stock balance.
+                continue;
+            }
             BigDecimal avgCost = writeTransferOut(transfer, item, item.getSentQuantity().doubleValue());
 
             if (!crossesProjects) {
@@ -193,6 +197,9 @@ public class InventoryEventListener {
 
         for (SiteTransferReceivedEvent.ReceivedLine line : event.getReceivedLines()) {
             SiteTransferItem item = line.item();
+            if (item.isAssetLine()) {
+                continue;
+            }
             BigDecimal avgCost = costThatLeftTheSendingSite(transfer, item);
             writeTransferIn(transfer, item, (double) line.quantity(), avgCost,
                     event.getReceivedOn(), event.getReceivedBy(),
@@ -218,6 +225,9 @@ public class InventoryEventListener {
         logger.info("Handling site transfer cancelled event for transfer number: {}", transfer.getTransferNumber());
 
         for (SiteTransferItem item : event.getItems()) {
+            if (item.isAssetLine()) {
+                continue;
+            }
             BigDecimal avgCost = costThatLeftTheSendingSite(transfer, item);
             Double quantityChanged = item.getSentQuantity().doubleValue();
             Double openingStock = openingStockAt(item, transfer.getSendingProject(),

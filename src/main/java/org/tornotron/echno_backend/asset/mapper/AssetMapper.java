@@ -24,5 +24,7 @@ public interface AssetMapper {
     @Mapping(source = "location.id", target = "locationId")
     @Mapping(source = "location.locationName", target = "locationName")
     @Mapping(source = "organization.id", target = "organizationId")
+    @Mapping(target = "inTransitSiteTransferId", ignore = true)
+    @Mapping(target = "inTransitSiteTransferNumber", ignore = true)
     AssetDto toDto(Asset asset);
 }

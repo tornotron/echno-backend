@@ -126,7 +126,8 @@ class ProcurementDocumentGuardSplitTest {
         for (Class<?> controller : ROLE_GUARDED) {
             total += requestMappedMethods(controller).size();
         }
-        assertThat(total).isEqualTo(56);
+        // 57 since the site transfer picker for asset lines (GET /sendable-assets).
+        assertThat(total).isEqualTo(57);
     }
 
     private static List<Method> requestMappedMethods(Class<?> controller) {

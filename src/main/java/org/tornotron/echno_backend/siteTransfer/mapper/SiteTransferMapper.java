@@ -4,8 +4,10 @@ import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.tornotron.echno_backend.asset.Asset;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.siteTransfer.SiteTransfer;
+import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferAssetOptionDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferDto;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferItemDto;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
@@ -34,8 +36,14 @@ public interface SiteTransferMapper {
 
     @Mapping(source = "material.id", target = "materialId")
     @Mapping(source = "material.materialName", target = "materialName")
+    @Mapping(source = "asset.id", target = "assetId")
+    @Mapping(source = "asset.assetId", target = "assetCode")
+    @Mapping(source = "asset.name", target = "assetName")
     @Mapping(target = "inTransitQuantity", ignore = true)
     SiteTransferItemDto toItemDto(SiteTransferItem item);
+
+    @Mapping(source = "assetId", target = "assetCode")
+    SiteTransferAssetOptionDto toAssetOption(Asset asset);
 
     /**
      * Fills in how much of a line is neither at the sending site nor recorded as having reached

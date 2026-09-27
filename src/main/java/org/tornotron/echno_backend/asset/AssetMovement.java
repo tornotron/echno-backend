@@ -124,6 +124,14 @@ public class AssetMovement implements TenantScopedEntity {
     @Column(name = "reference_number", length = 100)
     private String referenceNumber;
 
+    /**
+     * The site transfer this entry came from, when the asset moved on one: its arrival, a
+     * store-to-store move inside one project, or the correction a reversal of the transfer wrote.
+     * A plain id rather than an association, read in one direction from here.
+     */
+    @Column(name = "site_transfer_id")
+    private Long siteTransferId;
+
     /** The entry this one restates, set only on a {@link AssetMovementType#CORRECTION}. */
     @Column(name = "corrects_movement_id")
     private Long correctsMovementId;

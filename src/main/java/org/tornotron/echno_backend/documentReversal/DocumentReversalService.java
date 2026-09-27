@@ -51,6 +51,7 @@ import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
 import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItem;
 import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItemRepository;
 import org.tornotron.echno_backend.siteTransfer.SiteTransfer;
+import org.tornotron.echno_backend.siteTransfer.SiteTransferAssetLines;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferReceiptReconciler;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferRepository;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferService;
@@ -137,6 +138,7 @@ public class DocumentReversalService {
     private final StatusTransitionRecorder statusTransitionRecorder;
     private final EmployeeRepository employeeRepository;
     private final NotificationService notificationService;
+    private final SiteTransferAssetLines siteTransferAssetLines;
 
     public DocumentReversalService(DocumentReversalRepository reversalRepository,
                                    DocumentReversalMapper reversalMapper,
@@ -157,7 +159,8 @@ public class DocumentReversalService {
                                    StatusTransitionRepository statusTransitionRepository,
                                    StatusTransitionRecorder statusTransitionRecorder,
                                    EmployeeRepository employeeRepository,
-                                   NotificationService notificationService) {
+                                   NotificationService notificationService,
+                                   SiteTransferAssetLines siteTransferAssetLines) {
         this.reversalRepository = reversalRepository;
         this.reversalMapper = reversalMapper;
         this.tenantEntityHelper = tenantEntityHelper;
@@ -178,6 +181,7 @@ public class DocumentReversalService {
         this.statusTransitionRecorder = statusTransitionRecorder;
         this.employeeRepository = employeeRepository;
         this.notificationService = notificationService;
+        this.siteTransferAssetLines = siteTransferAssetLines;
     }
 
     // ---------------------------------------------------------------------------------------
@@ -505,6 +509,10 @@ public class DocumentReversalService {
                         + "arrived with a stock adjustment naming this transfer.");
             }
         }
+        Optional<String> assetBlocker = siteTransferAssetLines.reversalBlocker(transfer);
+        if (assetBlocker.isPresent()) {
+            return assetBlocker;
+        }
         return consumedStockBlocker(document);
     }
 
@@ -705,6 +713,9 @@ public class DocumentReversalService {
         switch (document.type()) {
             case SITE_TRANSFER -> {
                 SiteTransfer transfer = (SiteTransfer) document.entity();
+                // Each asset goes back where the transfer found it, before the document is marked
+                // reversed, in the approval's transaction like the stock correction.
+                siteTransferAssetLines.reverse(transfer, reversal.getId(), reversal.getReason());
                 SiteTransferStatus previous = transfer.getStatus();
                 transfer.setStatus(SiteTransferStatus.REVERSED);
                 transfer.setReversalId(reversal.getId());
