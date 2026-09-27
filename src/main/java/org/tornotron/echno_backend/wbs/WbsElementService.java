@@ -1,6 +1,21 @@
 package org.tornotron.echno_backend.wbs;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
+import org.tornotron.echno_backend.subcontract.SubContract;
+import org.tornotron.echno_backend.subcontract.SubContractRepository;
+import org.tornotron.echno_backend.wbs.enums.WbsDependencyType;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.wbs.mapper.WbsElementMapper;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
@@ -36,15 +51,27 @@ public class WbsElementService {
     private final ProjectRepository projectRepository;
     private final EmployeeRepository employeeRepository;
     private final WbsElementMapper wbsElementMapper;
+    private final WbsDependencyRepository dependencyRepository;
+    private final SubContractRepository subContractRepository;
+    private final ObjectProvider<WbsActivityRecords> activityRecords;
+    private final Clock clock;
 
     public WbsElementService(WbsElementRepository wbsElementRepository,
                              ProjectRepository projectRepository,
                              EmployeeRepository employeeRepository,
-                             WbsElementMapper wbsElementMapper) {
+                             WbsElementMapper wbsElementMapper,
+                             WbsDependencyRepository dependencyRepository,
+                             SubContractRepository subContractRepository,
+                             ObjectProvider<WbsActivityRecords> activityRecords,
+                             @WbsScheduleClock Clock clock) {
         this.wbsElementRepository = wbsElementRepository;
         this.projectRepository = projectRepository;
         this.employeeRepository = employeeRepository;
         this.wbsElementMapper = wbsElementMapper;
+        this.dependencyRepository = dependencyRepository;
+        this.subContractRepository = subContractRepository;
+        this.activityRecords = activityRecords;
+        this.clock = clock;
     }
 
     /**
@@ -106,6 +133,12 @@ public class WbsElementService {
 
         element.setStartDate(dto.getStartDate());
         element.setEndDate(dto.getEndDate());
+        element.setIsMilestone(Boolean.TRUE.equals(dto.getIsMilestone()));
+        applyMilestoneDates(element);
+        requirePlannedOrder(element);
+        element.setResponsibleEmployeeId(requireResponsibleEmployee(dto.getResponsibleEmployeeId(), orgId));
+        element.setResponsibleSubContractId(
+                requireResponsibleSubContract(dto.getResponsibleSubContractId(), projectId, orgId));
 
         if (dto.getBudgetedCost() != null) {
             element.setBudgetedCost(dto.getBudgetedCost());
@@ -122,7 +155,7 @@ public class WbsElementService {
         }
 
         WbsElement savedElement = wbsElementRepository.save(element);
-        return wbsElementMapper.toDto(savedElement);
+        return withDelay(wbsElementMapper.toDto(savedElement));
     }
 
     /**
@@ -165,7 +198,7 @@ public class WbsElementService {
                 .findByProjectIdAndParentIsNullAndOrganization_IdOrderBySortOrderAsc(projectId, orgId);
 
         return rootElements.stream()
-                .map(element -> wbsElementMapper.toTreeDto(element))
+                .map(element -> withDelay(wbsElementMapper.toTreeDto(element)))
                 .collect(Collectors.toList());
     }
 
@@ -206,7 +239,7 @@ public class WbsElementService {
         WbsElement element = wbsElementRepository.findByIdAndOrganization_Id(elementId, orgId)
                 .orElseThrow(() -> new ResourceNotFoundException("WBS element with ID " + elementId + " was not found in this organization"));
 
-        return wbsElementMapper.toTreeDto(element);
+        return withDelay(wbsElementMapper.toTreeDto(element));
     }
 
     /**
@@ -258,6 +291,21 @@ public class WbsElementService {
         if (dto.getSortOrder() != null) {
             element.setSortOrder(dto.getSortOrder());
         }
+        if (dto.getForecastEndDate() != null) {
+            element.setForecastEndDate(dto.getForecastEndDate());
+        }
+        if (dto.getIsMilestone() != null) {
+            element.setIsMilestone(dto.getIsMilestone());
+        }
+        applyMilestoneDates(element);
+        requirePlannedOrder(element);
+        if (dto.getResponsibleEmployeeId() != null) {
+            element.setResponsibleEmployeeId(requireResponsibleEmployee(dto.getResponsibleEmployeeId(), orgId));
+        }
+        if (dto.getResponsibleSubContractId() != null) {
+            element.setResponsibleSubContractId(requireResponsibleSubContract(
+                    dto.getResponsibleSubContractId(), element.getProject().getId(), orgId));
+        }
         if (dto.getProgress() != null) {
             if (!element.getIsLeaf()) {
                 throw new InvalidRequestException("WBS element " + elementId + " is not a leaf element; progress can only be set directly on leaf WBS elements");
@@ -267,7 +315,7 @@ public class WbsElementService {
         }
 
         WbsElement savedElement = wbsElementRepository.save(element);
-        return wbsElementMapper.toDto(savedElement);
+        return withDelay(wbsElementMapper.toDto(savedElement));
     }
 
     /**
@@ -287,6 +335,16 @@ public class WbsElementService {
                 .orElseThrow(() -> new ResourceNotFoundException("WBS element with ID " + elementId + " was not found in this organization"));
 
         WbsElement parent = element.getParent();
+
+        List<Long> subtree = new ArrayList<>();
+        collectSubtreeIds(element, subtree);
+        for (WbsActivityRecords records : activityRecords.orderedStream().toList()) {
+            String held = records.recordsHeldAgainst(subtree);
+            if (held != null) {
+                throw new InvalidRequestException("WBS element " + element.getWbsCode()
+                        + " has " + held + " recorded against it or its children and cannot be deleted");
+            }
+        }
 
         wbsElementRepository.delete(element);
         wbsElementRepository.flush();
@@ -378,7 +436,7 @@ public class WbsElementService {
             recalculateParentProgress(oldParent);
         }
 
-        return wbsElementMapper.toDto(savedElement);
+        return withDelay(wbsElementMapper.toDto(savedElement));
     }
 
     /**
@@ -423,7 +481,249 @@ public class WbsElementService {
         recalculateProgressFromChildren(element);
         WbsElement saved = wbsElementRepository.save(element);
 
-        return wbsElementMapper.toDto(saved);
+        return withDelay(wbsElementMapper.toDto(saved));
+    }
+
+    // ---------------------------------------------------------------- schedule
+
+    /**
+     * Returns the project's schedule in one read: every element as a flat row with its dates,
+     * milestone flag, responsible party (names resolved) and delay, plus every dependency link.
+     *
+     * @throws ResourceNotFoundException if no project with the given ID exists in the organization.
+     */
+    @Transactional(readOnly = true)
+    public WbsScheduleDto getSchedule(Long projectId) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        requireProject(projectId, orgId);
+
+        List<WbsElement> elements = wbsElementRepository.findByProjectIdAndOrganization_IdOrderByWbsCodeAsc(projectId, orgId);
+        Set<Long> employeeIds = new HashSet<>();
+        Set<Long> subContractIds = new HashSet<>();
+        for (WbsElement element : elements) {
+            if (element.getResponsibleEmployeeId() != null) employeeIds.add(element.getResponsibleEmployeeId());
+            if (element.getResponsibleSubContractId() != null) subContractIds.add(element.getResponsibleSubContractId());
+        }
+        Map<Long, String> employeeNames = new HashMap<>();
+        if (!employeeIds.isEmpty()) {
+            for (Employee employee : employeeRepository.findAllByIdInAndOrganizationId(employeeIds, orgId)) {
+                employeeNames.put(employee.getId(), employee.getEmployeeName());
+            }
+        }
+        Map<Long, String> contractorNames = new HashMap<>();
+        for (Long id : subContractIds) {
+            subContractRepository.findByIdAndOrganization_Id(id, orgId)
+                    .ifPresent(sc -> contractorNames.put(sc.getId(), sc.getContractorName()));
+        }
+
+        LocalDate today = LocalDate.now(clock);
+        List<WbsElementDto> activities = new ArrayList<>(elements.size());
+        for (WbsElement element : elements) {
+            WbsElementDto dto = wbsElementMapper.toDto(element);
+            dto.setDelayDays(WbsDelay.delayDays(element.getEndDate(), element.getActualEndDate(),
+                    element.getForecastEndDate(), today));
+            dto.setResponsibleEmployeeName(employeeNames.get(element.getResponsibleEmployeeId()));
+            dto.setResponsibleSubContractorName(contractorNames.get(element.getResponsibleSubContractId()));
+            activities.add(dto);
+        }
+        List<WbsDependencyDto> dependencies = dependencyRepository.findByProject(projectId, orgId).stream()
+                .map(WbsElementService::toDependencyDto)
+                .toList();
+        return new WbsScheduleDto(activities, dependencies);
+    }
+
+    /**
+     * Links two activities of a project. Both must be in the project and the link must not close
+     * a loop (the predecessor may not already depend, directly or through others, on the
+     * successor). No date moves because of the link.
+     *
+     * @throws ResourceNotFoundException if the project or either activity is not in this organization's project.
+     * @throws InvalidRequestException if the activities are the same, or the link would close a loop.
+     * @throws DuplicateResourceException if the two are already linked.
+     */
+    @Transactional
+    public WbsDependencyDto addDependency(Long projectId, WbsDependencyCreationDto dto) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        requireProject(projectId, orgId);
+        WbsElement predecessor = requireInProject(dto.predecessorId(), projectId, orgId);
+        WbsElement successor = requireInProject(dto.successorId(), projectId, orgId);
+        if (predecessor.getId().equals(successor.getId())) {
+            throw new InvalidRequestException("An activity cannot depend on itself");
+        }
+        if (dependencyRepository.existsByPredecessor_IdAndSuccessor_Id(predecessor.getId(), successor.getId())) {
+            throw new DuplicateResourceException("Activity " + successor.getWbsCode()
+                    + " already depends on " + predecessor.getWbsCode());
+        }
+        if (reaches(successor.getId(), predecessor.getId(), projectId, orgId)) {
+            throw new InvalidRequestException("Linking " + predecessor.getWbsCode() + " before "
+                    + successor.getWbsCode() + " would close a loop in the schedule");
+        }
+
+        WbsDependency dependency = new WbsDependency();
+        dependency.setOrganization(predecessor.getOrganization());
+        dependency.setProjectId(projectId);
+        dependency.setPredecessor(predecessor);
+        dependency.setSuccessor(successor);
+        dependency.setType(dto.type() != null ? dto.type() : WbsDependencyType.FS);
+        dependency.setLagDays(dto.lagDays() != null ? dto.lagDays() : 0);
+        return toDependencyDto(dependencyRepository.save(dependency));
+    }
+
+    /**
+     * Removes a link between two activities.
+     *
+     * @throws ResourceNotFoundException if no such link exists in this organization's project.
+     */
+    @Transactional
+    public void removeDependency(Long projectId, Long dependencyId) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        WbsDependency dependency = dependencyRepository.findScoped(dependencyId, projectId, orgId)
+                .orElseThrow(() -> new ResourceNotFoundException("Dependency " + dependencyId + " was not found in this project"));
+        dependencyRepository.delete(dependency);
+    }
+
+    /**
+     * What a progress inspection establishes about an activity, applied to it. Only the facts
+     * given change; planned dates and every other activity stay as they are.
+     *
+     * @param progress        cumulative percent complete, 0 to 100
+     * @param actualStartDate set when the activity has none yet
+     * @param actualEndDate   set when the inspection found the activity finished
+     * @param forecastEndDate the revised finish, when given
+     * @param status          the status the inspection puts the activity in, or null to keep it
+     * @return the updated element
+     */
+    @Transactional
+    public WbsElementDto applyInspectedProgress(Long elementId, double progress, LocalDate actualStartDate,
+                                                LocalDate actualEndDate, LocalDate forecastEndDate, WbsStatus status) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        WbsElement element = wbsElementRepository.findByIdAndOrganization_Id(elementId, orgId)
+                .orElseThrow(() -> new ResourceNotFoundException("WBS element with ID " + elementId + " was not found in this organization"));
+        if (!element.getIsLeaf()) {
+            throw new InvalidRequestException("WBS element " + element.getWbsCode() + " is not a leaf element; progress can only be set directly on leaf WBS elements");
+        }
+        element.setProgress(progress);
+        if (actualStartDate != null && element.getActualStartDate() == null) {
+            element.setActualStartDate(actualStartDate);
+        }
+        if (actualEndDate != null) {
+            element.setActualEndDate(actualEndDate);
+        }
+        if (forecastEndDate != null) {
+            element.setForecastEndDate(forecastEndDate);
+        }
+        if (status != null) {
+            element.setStatus(status);
+        }
+        WbsElement saved = wbsElementRepository.save(element);
+        recalculateParentProgress(saved.getParent());
+        return withDelay(wbsElementMapper.toDto(saved));
+    }
+
+    private static WbsDependencyDto toDependencyDto(WbsDependency d) {
+        return new WbsDependencyDto(d.getId(), d.getPredecessor().getId(), d.getPredecessor().getWbsCode(),
+                d.getSuccessor().getId(), d.getSuccessor().getWbsCode(), d.getType(), d.getLagDays());
+    }
+
+    // Walks the successor links forward from "from"; true when "target" is reached.
+    private boolean reaches(Long from, Long target, Long projectId, Long orgId) {
+        Map<Long, List<Long>> next = new HashMap<>();
+        for (WbsDependency d : dependencyRepository.findByProject(projectId, orgId)) {
+            next.computeIfAbsent(d.getPredecessor().getId(), k -> new ArrayList<>()).add(d.getSuccessor().getId());
+        }
+        Deque<Long> queue = new ArrayDeque<>(List.of(from));
+        Set<Long> seen = new HashSet<>();
+        while (!queue.isEmpty()) {
+            Long current = queue.poll();
+            if (current.equals(target)) {
+                return true;
+            }
+            if (seen.add(current)) {
+                queue.addAll(next.getOrDefault(current, List.of()));
+            }
+        }
+        return false;
+    }
+
+    private void requireProject(Long projectId, Long orgId) {
+        if (!projectRepository.existsByIdAndOrganization_Id(projectId, orgId)) {
+            throw new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization");
+        }
+    }
+
+    private WbsElement requireInProject(Long elementId, Long projectId, Long orgId) {
+        WbsElement element = wbsElementRepository.findByIdAndOrganization_Id(elementId, orgId)
+                .orElseThrow(() -> new ResourceNotFoundException("WBS element with ID " + elementId + " was not found in this organization"));
+        if (!element.getProject().getId().equals(projectId)) {
+            throw new ResourceNotFoundException("WBS element with ID " + elementId + " was not found in project " + projectId);
+        }
+        return element;
+    }
+
+    // A milestone is a point: with only one of its dates given, the other takes the same value.
+    private static void applyMilestoneDates(WbsElement element) {
+        if (!Boolean.TRUE.equals(element.getIsMilestone())) {
+            return;
+        }
+        if (element.getStartDate() == null && element.getEndDate() != null) {
+            element.setStartDate(element.getEndDate());
+        } else if (element.getEndDate() == null && element.getStartDate() != null) {
+            element.setEndDate(element.getStartDate());
+        }
+        if (element.getStartDate() != null && !element.getStartDate().equals(element.getEndDate())) {
+            throw new InvalidRequestException("A milestone's planned start and finish must be the same date");
+        }
+    }
+
+    private static void requirePlannedOrder(WbsElement element) {
+        if (element.getStartDate() != null && element.getEndDate() != null
+                && element.getEndDate().isBefore(element.getStartDate())) {
+            throw new InvalidRequestException("The planned finish " + element.getEndDate()
+                    + " is before the planned start " + element.getStartDate());
+        }
+    }
+
+    private Long requireResponsibleEmployee(Long employeeId, Long orgId) {
+        if (employeeId == null) {
+            return null;
+        }
+        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId, orgId)
+                .orElseThrow(() -> new InvalidRequestException("Employee " + employeeId + " is not an employee of this organization"));
+        if (employee.getStatus() != EmployeeStatus.active) {
+            throw new InvalidRequestException("Employee " + employeeId + " is not an active employee of this organization");
+        }
+        return employee.getId();
+    }
+
+    private Long requireResponsibleSubContract(Long subContractId, Long projectId, Long orgId) {
+        if (subContractId == null) {
+            return null;
+        }
+        SubContract subContract = subContractRepository.findByIdAndOrganization_Id(subContractId, orgId)
+                .orElseThrow(() -> new InvalidRequestException("Sub-contract " + subContractId + " is not a sub-contract of this organization"));
+        if (subContract.getProjectId() != null && !Objects.equals(subContract.getProjectId(), projectId)) {
+            throw new InvalidRequestException("Sub-contract " + subContractId + " belongs to another project");
+        }
+        return subContract.getId();
+    }
+
+    private void collectSubtreeIds(WbsElement element, List<Long> into) {
+        into.add(element.getId());
+        for (WbsElement child : wbsElementRepository.findByParentIdOrderBySortOrderAsc(element.getId())) {
+            collectSubtreeIds(child, into);
+        }
+    }
+
+    private WbsElementDto withDelay(WbsElementDto dto) {
+        return withDelay(dto, LocalDate.now(clock));
+    }
+
+    private static WbsElementDto withDelay(WbsElementDto dto, LocalDate today) {
+        dto.setDelayDays(WbsDelay.delayDays(dto.getEndDate(), dto.getActualEndDate(), dto.getForecastEndDate(), today));
+        if (dto.getChildren() != null) {
+            dto.getChildren().forEach(child -> withDelay(child, today));
+        }
+        return dto;
     }
 
     private void recalculateParentProgress(WbsElement parent) {

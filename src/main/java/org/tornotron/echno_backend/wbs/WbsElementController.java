@@ -25,8 +25,8 @@ import java.util.List;
                 + "activities such as Foundation Works or RCC Column Casting - Block A. Endpoints cover "
                 + "creating a single element or a batch, reading the tree or a flat list, updating and "
                 + "deleting an element, moving an element under a different parent, and recalculating "
-                + "rolled-up cost and progress. Every endpoint is restricted to the system-admin role for "
-                + "the caller's current tenant."
+                + "rolled-up cost and progress. Any member of the tenant reads; the system-admin and "
+                + "project-manager roles change the schedule."
 )
 public class WbsElementController {
 
@@ -38,7 +38,7 @@ public class WbsElementController {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize(WbsAccess.MANAGE_GUARD)
     @Operation(
             summary = "Create a WBS element",
             description = "Creates a single work breakdown structure element under the given project, "
@@ -62,7 +62,7 @@ public class WbsElementController {
     }
 
     @PostMapping("/bulk")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize(WbsAccess.MANAGE_GUARD)
     @Operation(
             summary = "Bulk create WBS elements",
             description = "Creates a batch of work breakdown structure elements under the given project "
@@ -86,7 +86,7 @@ public class WbsElementController {
     }
 
     @GetMapping("/tree")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize(WbsAccess.READ_GUARD)
     @Operation(
             summary = "Get the WBS tree",
             description = "Returns the project's work breakdown structure as a tree, starting from the "
@@ -103,7 +103,7 @@ public class WbsElementController {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize(WbsAccess.READ_GUARD)
     @Operation(
             summary = "List WBS elements",
             description = "Returns every WBS element in the project as a flat list ordered by wbsCode, "
@@ -120,7 +120,7 @@ public class WbsElementController {
     }
 
     @GetMapping("/{elementId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize(WbsAccess.READ_GUARD)
     @Operation(
             summary = "Get a WBS element by id",
             description = "Returns a single WBS element and its children, for example the \"Foundation "
@@ -138,7 +138,7 @@ public class WbsElementController {
     }
 
     @PutMapping("/{elementId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize(WbsAccess.MANAGE_GUARD)
     @Operation(
             summary = "Update a WBS element",
             description = "Applies a partial update to a WBS element: only the fields present in the "
@@ -160,7 +160,7 @@ public class WbsElementController {
     }
 
     @DeleteMapping("/{elementId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize(WbsAccess.MANAGE_GUARD)
     @Operation(
             summary = "Delete a WBS element",
             description = "Deletes the WBS element with the given id. If it was the last remaining child "
@@ -180,7 +180,7 @@ public class WbsElementController {
     }
 
     @PostMapping("/{elementId}/move")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize(WbsAccess.MANAGE_GUARD)
     @Operation(
             summary = "Move a WBS element",
             description = "Reparents a WBS element under a different parent (or to the project root when "
@@ -203,7 +203,7 @@ public class WbsElementController {
     }
 
     @GetMapping("/leaves")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize(WbsAccess.READ_GUARD)
     @Operation(
             summary = "List leaf WBS elements",
             description = "Returns the leaf elements of the project's WBS, the elements with no children, "
@@ -220,7 +220,7 @@ public class WbsElementController {
     }
 
     @PostMapping("/{elementId}/recalculate")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize(WbsAccess.MANAGE_GUARD)
     @Operation(
             summary = "Recalculate a WBS element",
             description = "Recomputes the actual cost and progress of a non-leaf WBS element from its "
@@ -237,5 +237,56 @@ public class WbsElementController {
         WbsElementDto recalculated = service.recalculateElement(elementId);
         logger.info("WBS element recalculated with id: {}", elementId);
         return ResponseEntity.ok(recalculated);
+    }
+
+    @GetMapping("/schedule")
+    @PreAuthorize(WbsAccess.READ_GUARD)
+    @Operation(
+            summary = "Get the project schedule",
+            description = "Returns every WBS element of the project as a flat row ordered by wbsCode, with "
+                    + "planned, actual and forecast dates, the milestone flag, the responsible employee or "
+                    + "sub-contractor by name, and the delay in days, together with every dependency link. "
+                    + "Nothing is rescheduled by this read; delay is worked out against the planned finish."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Schedule returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id in this organization")
+    })
+    public ResponseEntity<WbsScheduleDto> getSchedule(@PathVariable Long projectId) {
+        return ResponseEntity.ok(service.getSchedule(projectId));
+    }
+
+    @PostMapping("/dependencies")
+    @PreAuthorize(WbsAccess.MANAGE_GUARD)
+    @Operation(
+            summary = "Link two activities",
+            description = "Records that one activity depends on another in the same project, finish-to-start "
+                    + "by default, with an optional lag in days. A link that would close a loop is refused. "
+                    + "No date moves because of the link."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Link recorded"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The body failed validation, the two ids are the same activity, or the link would close a loop"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project, or no such activity in this project"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The two activities are already linked")
+    })
+    public ResponseEntity<WbsDependencyDto> addDependency(@PathVariable Long projectId,
+                                                          @Valid @RequestBody WbsDependencyCreationDto dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.addDependency(projectId, dto));
+    }
+
+    @DeleteMapping("/dependencies/{dependencyId}")
+    @PreAuthorize(WbsAccess.MANAGE_GUARD)
+    @Operation(summary = "Remove a link between two activities")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Link removed"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No such link in this project")
+    })
+    public ResponseEntity<ApiResponse> removeDependency(@PathVariable Long projectId, @PathVariable Long dependencyId) {
+        service.removeDependency(projectId, dependencyId);
+        return ResponseEntity.ok(new ApiResponse("Dependency with id: " + dependencyId + " removed"));
     }
 }
