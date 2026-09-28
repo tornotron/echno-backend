@@ -36,9 +36,8 @@
         <addForeignKeyConstraint baseTableName="site_note" baseColumnNames="author_employee_id"
                                  referencedTableName="employee" referencedColumnNames="id"
                                  constraintName="fk_site_note_author"/>
-        <createIndex tableName="site_note" indexName="idx_site_note_organization">
-            <column name="organization_id"/>
-        </createIndex>
+        <!-- One index: it starts with organization_id, so a separate index on that column alone
+             would only duplicate this one's leftmost prefix. -->
         <createIndex tableName="site_note" indexName="idx_site_note_project_date">
             <column name="organization_id"/>
             <column name="project_id"/>

@@ -49,7 +49,7 @@ class SiteNotesControllerWebAuthzTest {
 
     private static final UUID ID = UUID.fromString("11111111-2222-3333-4444-555555555555");
     private static final String ADD = "{\"projectId\":1,\"noteDate\":\"2026-09-24\","
-            + "\"authorEmployeeId\":2,\"note\":\"Pour started at seven\"}";
+            + "\"note\":\"Pour started at seven\"}";
     private static final String CHANGE = "{\"noteDate\":\"2026-09-24\",\"note\":\"Pour finished\"}";
 
     @Autowired

@@ -551,23 +551,6 @@
             "format": "int64",
             "type": "integer"
           },
-          "inTransitSiteTransferId": {
-            "description": "Id of the site transfer the asset is in transit on: sent from one project and not yet recorded as arriving at the other. Null when the asset is not in transit. While it is set the asset cannot be moved any other way; receive or cancel the transfer first.",
-            "example": 31,
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "inTransitSiteTransferNumber": {
-            "description": "Number of the site transfer the asset is in transit on. Null when the asset is not in transit.",
-            "example": "TRF-2026-000014",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "insuranceExpiry": {
             "description": "Date the insurance policy expires.",
             "example": "2027-06-10",
@@ -867,15 +850,6 @@
             "example": "TRF-2026-000014",
             "type": "string"
           },
-          "siteTransferId": {
-            "description": "Id of the site transfer this entry came from, when the asset moved on one. Null for a movement recorded on the asset itself.",
-            "example": 31,
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
           "toAssignedTo": {
             "description": "Name of the custodian who took the asset on.",
             "example": "Suresh Nair",
@@ -981,23 +955,6 @@
             "description": "Why the asset arrived here.",
             "example": "Mobilised to the Marina Heights site for the piling phase",
             "type": "string"
-          },
-          "referenceNumber": {
-            "description": "The document the asset arrived here on, for example a site transfer number. Null when the move was recorded on the asset itself.",
-            "example": "TRF-2026-000014",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "siteTransferId": {
-            "description": "Id of the site transfer the asset arrived here on. Null when it did not arrive on a transfer.",
-            "example": 31,
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
           },
           "to": {
             "description": "When it left. Null on the placement it is still in.",
@@ -5930,6 +5887,35 @@
         "required": [
           "projectId",
           "title"
+        ],
+        "type": "object"
+      },
+      "CreateSiteNoteRequest": {
+        "description": "Adds a site note for a project of the current tenant.",
+        "properties": {
+          "authorEmployeeId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "note": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "noteDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "authorEmployeeId",
+          "note",
+          "noteDate",
+          "projectId"
         ],
         "type": "object"
       },
@@ -16170,52 +16156,6 @@
         },
         "type": "object"
       },
-      "PageProgressInspectionDto": {
-        "properties": {
-          "content": {
-            "items": {
-              "$ref": "#/components/schemas/ProgressInspectionDto"
-            },
-            "type": "array"
-          },
-          "empty": {
-            "type": "boolean"
-          },
-          "first": {
-            "type": "boolean"
-          },
-          "last": {
-            "type": "boolean"
-          },
-          "number": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "numberOfElements": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "pageable": {
-            "$ref": "#/components/schemas/PageableObject"
-          },
-          "size": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "sort": {
-            "$ref": "#/components/schemas/SortObject"
-          },
-          "totalElements": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "totalPages": {
-            "format": "int32",
-            "type": "integer"
-          }
-        },
-        "type": "object"
-      },
       "PageProjectDto": {
         "properties": {
           "content": {
@@ -16405,6 +16345,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/ReceiptDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageSiteNoteDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/SiteNoteDto"
             },
             "type": "array"
           },
@@ -17611,107 +17597,6 @@
             "description": "Sum of all income for the period.",
             "example": 9400000.0,
             "type": "number"
-          }
-        },
-        "type": "object"
-      },
-      "ProgressInspectionDto": {
-        "description": "One progress inspection of a schedule activity, as recorded. The planned finish and the delay are the values at the time it was recorded.",
-        "properties": {
-          "activityTitle": {
-            "description": "Title of the activity inspected.",
-            "example": "RCC Column Casting - Block A",
-            "type": "string"
-          },
-          "actualFinishDate": {
-            "format": "date",
-            "type": "string"
-          },
-          "actualStartDate": {
-            "format": "date",
-            "type": "string"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "delayDays": {
-            "description": "Days behind the planned finish when recorded; 0 when on time, null with no planned finish.",
-            "format": "int32",
-            "type": "integer"
-          },
-          "delayNotes": {
-            "type": "string"
-          },
-          "delayReason": {
-            "enum": [
-              "WEATHER",
-              "MATERIAL",
-              "LABOUR",
-              "EQUIPMENT",
-              "DESIGN_CHANGE",
-              "CLIENT",
-              "SUBCONTRACTOR",
-              "OTHER"
-            ],
-            "type": "string"
-          },
-          "forecastFinishDate": {
-            "format": "date",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "inspectionDate": {
-            "format": "date",
-            "type": "string"
-          },
-          "inspectorEmployeeId": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "inspectorName": {
-            "description": "Name of the employee who recorded it.",
-            "example": "Ravi Kumar",
-            "type": "string"
-          },
-          "outcome": {
-            "enum": [
-              "DONE",
-              "PARTIAL",
-              "NOT_DONE"
-            ],
-            "type": "string"
-          },
-          "percentComplete": {
-            "type": "number"
-          },
-          "plannedFinishDate": {
-            "description": "The activity's planned finish when the inspection was recorded.",
-            "format": "date",
-            "type": "string"
-          },
-          "projectId": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "remarks": {
-            "type": "string"
-          },
-          "spatialNodeId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "wbsCode": {
-            "description": "wbsCode of the activity inspected.",
-            "example": "1.2.3",
-            "type": "string"
-          },
-          "wbsElementId": {
-            "format": "int64",
-            "type": "integer"
           }
         },
         "type": "object"
@@ -19634,121 +19519,6 @@
         ],
         "type": "object"
       },
-      "RecordProgressInspectionRequest": {
-        "description": "Records what a progress inspection found for one schedule activity. The record is final once saved and is applied to the activity at once: progress, actual dates, forecast finish and status. Planned dates and other activities are not changed.",
-        "properties": {
-          "actualFinishDate": {
-            "description": "When the activity finished. Needed for DONE; refused otherwise.",
-            "example": "2026-09-27",
-            "format": "date",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "actualStartDate": {
-            "description": "When work started. Needed for DONE and PARTIAL unless the activity already has one.",
-            "example": "2026-09-10",
-            "format": "date",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "delayNotes": {
-            "description": "Detail on the delay. Required when the reason is OTHER.",
-            "example": "Cement delivery held at the depot for three days",
-            "maxLength": 2000,
-            "minLength": 0,
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "delayReason": {
-            "description": "Why the activity is late. Required when the activity is behind its planned finish.",
-            "enum": [
-              "WEATHER",
-              "MATERIAL",
-              "LABOUR",
-              "EQUIPMENT",
-              "DESIGN_CHANGE",
-              "CLIENT",
-              "SUBCONTRACTOR",
-              "OTHER"
-            ],
-            "example": "MATERIAL",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "forecastFinishDate": {
-            "description": "The revised finish date for an unfinished activity. The planned finish is not changed.",
-            "example": "2026-10-05",
-            "format": "date",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "inspectionDate": {
-            "description": "The date of the inspection; not in the future.",
-            "example": "2026-09-28",
-            "format": "date",
-            "type": "string"
-          },
-          "outcome": {
-            "description": "DONE, PARTIAL or NOT_DONE. A milestone takes DONE or NOT_DONE.",
-            "enum": [
-              "DONE",
-              "PARTIAL",
-              "NOT_DONE"
-            ],
-            "example": "PARTIAL",
-            "type": "string"
-          },
-          "percentComplete": {
-            "description": "Cumulative percent complete. Required for PARTIAL (above 0, below 100); DONE is 100 and NOT_DONE is 0.",
-            "example": 60,
-            "maximum": 100,
-            "minimum": 0,
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "remarks": {
-            "description": "Anything else the inspector wants on the record.",
-            "maxLength": 4000,
-            "minLength": 0,
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "spatialNodeId": {
-            "description": "The building, floor or zone where the work was inspected, in the activity's project.",
-            "format": "uuid",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "wbsElementId": {
-            "description": "The leaf WBS activity inspected.",
-            "example": 42,
-            "format": "int64",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "inspectionDate",
-          "outcome",
-          "wbsElementId"
-        ],
-        "type": "object"
-      },
       "RegisterUploadRequest": {
         "properties": {
           "contentType": {
@@ -20502,51 +20272,35 @@
         },
         "type": "object"
       },
-      "SiteTransferAssetOptionDto": {
-        "description": "An asset a site transfer can send: one that is at the sending project and storage location, and not already in transit on another transfer.",
+      "SiteNoteDto": {
+        "description": "One site note of the current tenant.",
         "properties": {
-          "assetCode": {
-            "description": "The organization's own code for the asset.",
-            "example": "AST-0021",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "assignedTo": {
-            "description": "Name of the person the asset is assigned to.",
-            "example": "Ravi Kumar",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "id": {
-            "description": "Database id of the asset, sent as assetId on an ASSET line.",
-            "example": 12,
+          "authorEmployeeId": {
             "format": "int64",
             "type": "integer"
           },
-          "name": {
-            "description": "Name of the asset.",
-            "example": "JCB 3DX Backhoe Loader",
+          "createdAt": {
+            "format": "date-time",
             "type": "string"
           },
-          "status": {
-            "description": "Current lifecycle status, a kebab-case value defined by the frontend.",
-            "example": "in-use",
-            "type": [
-              "string",
-              "null"
-            ]
+          "id": {
+            "format": "uuid",
+            "type": "string"
           },
-          "type": {
-            "description": "Asset type, a kebab-case value defined by the frontend.",
-            "example": "heavy-equipment",
-            "type": [
-              "string",
-              "null"
-            ]
+          "note": {
+            "type": "string"
+          },
+          "noteDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
           }
         },
         "type": "object"
@@ -20577,7 +20331,7 @@
             "type": "string"
           },
           "items": {
-            "description": "Line items listing what is being transferred: MATERIAL lines with a material and quantity, ASSET lines each naming one asset, or both on one transfer. Must contain at least one item. The sending stock check covers the material lines; each asset must be at the sending project and storage location and not in transit on another transfer.",
+            "description": "Line items listing each material and quantity being transferred. Must contain at least one item.",
             "items": {
               "$ref": "#/components/schemas/SiteTransferItemDto"
             },
@@ -20732,35 +20486,8 @@
         "type": "object"
       },
       "SiteTransferItemDto": {
-        "description": "A single line on a site transfer. A MATERIAL line names a material and the quantity sent. An ASSET line names one asset from the asset register and always sends one unit; the asset must be at the transfer's sending project and storage location, and not in transit on another transfer.",
+        "description": "A single material line on a site transfer, naming the material and the quantity sent.",
         "properties": {
-          "assetCode": {
-            "description": "The organization's own code for the asset. Null on a MATERIAL line.",
-            "example": "AST-0021",
-            "readOnly": true,
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "assetId": {
-            "description": "Id of the asset being transferred. Required on an ASSET line and must be left out on a MATERIAL line.",
-            "example": 12,
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "assetName": {
-            "description": "Name of the asset being transferred. Null on a MATERIAL line.",
-            "example": "JCB 3DX Backhoe Loader",
-            "readOnly": true,
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "id": {
             "description": "Id of the transfer item.",
             "example": 84,
@@ -20774,32 +20501,16 @@
             "readOnly": true,
             "type": "integer"
           },
-          "lineType": {
-            "description": "What the line carries. Optional on create, and MATERIAL when left out, so a payload that predates asset lines means what it always meant.",
-            "enum": [
-              "MATERIAL",
-              "ASSET"
-            ],
-            "example": "MATERIAL",
-            "type": "string"
-          },
           "materialId": {
-            "description": "Id of the material being transferred. Required on a MATERIAL line and must be left out on an ASSET line.",
+            "description": "Id of the material being transferred.",
             "example": 21,
             "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
+            "type": "integer"
           },
           "materialName": {
-            "description": "Name of the material being transferred. Null on an ASSET line.",
+            "description": "Name of the material being transferred.",
             "example": "TMT Bar 12mm",
-            "readOnly": true,
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "receivedQuantity": {
             "description": "Quantity recorded as having arrived at the receiving site, in the material's unit. Null while the transfer is in transit and nobody has confirmed anything about this line yet, which is not the same as saying nothing arrived. A transfer between two stores on one project is received in full at creation, since the material never leaves that site's custody.",
@@ -20817,7 +20528,7 @@
             "type": "string"
           },
           "sentQuantity": {
-            "description": "Quantity sent, in the material's unit. Always 1 on an ASSET line, since an asset is one machine; any other value is refused.",
+            "description": "Quantity sent, in the material's unit.",
             "example": 500,
             "format": "int32",
             "minimum": 1,
@@ -20825,6 +20536,7 @@
           }
         },
         "required": [
+          "materialId",
           "sentQuantity"
         ],
         "type": "object"
@@ -24166,6 +23878,25 @@
         ],
         "type": "object"
       },
+      "UpdateSiteNoteRequest": {
+        "description": "Changes a site note's date and text. The project and the author never change.",
+        "properties": {
+          "note": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "noteDate": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note",
+          "noteDate"
+        ],
+        "type": "object"
+      },
       "UpdateSpatialNodeRequest": {
         "description": "Partial update; every field is optional and an omitted field is left as it is.",
         "properties": {
@@ -25176,104 +24907,6 @@
         ],
         "type": "object"
       },
-      "WbsDependencyCreationDto": {
-        "description": "Links two activities of the same project. The link may not close a loop.",
-        "properties": {
-          "lagDays": {
-            "description": "Lag in days, negative for a lead. Defaults to 0.",
-            "example": 0,
-            "format": "int32",
-            "maximum": 365,
-            "minimum": -365,
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "predecessorId": {
-            "description": "Id of the activity that comes first.",
-            "example": 41,
-            "format": "int64",
-            "type": "integer"
-          },
-          "successorId": {
-            "description": "Id of the activity that depends on it.",
-            "example": 42,
-            "format": "int64",
-            "type": "integer"
-          },
-          "type": {
-            "description": "Defaults to FS (finish-to-start).",
-            "enum": [
-              "FS",
-              "SS",
-              "FF",
-              "SF"
-            ],
-            "example": "FS",
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "predecessorId",
-          "successorId"
-        ],
-        "type": "object"
-      },
-      "WbsDependencyDto": {
-        "description": "A link between two activities of a project's schedule. Recorded information: no date moves because of it.",
-        "properties": {
-          "id": {
-            "description": "Id of the link.",
-            "example": 9,
-            "format": "int64",
-            "type": "integer"
-          },
-          "lagDays": {
-            "description": "Lag in days; negative for a lead.",
-            "example": 2,
-            "format": "int32",
-            "type": "integer"
-          },
-          "predecessorId": {
-            "description": "Id of the activity that comes first.",
-            "example": 41,
-            "format": "int64",
-            "type": "integer"
-          },
-          "predecessorWbsCode": {
-            "description": "wbsCode of the activity that comes first.",
-            "example": "1.2.1",
-            "type": "string"
-          },
-          "successorId": {
-            "description": "Id of the activity that depends on the predecessor.",
-            "example": 42,
-            "format": "int64",
-            "type": "integer"
-          },
-          "successorWbsCode": {
-            "description": "wbsCode of the dependent activity.",
-            "example": "1.2.2",
-            "type": "string"
-          },
-          "type": {
-            "description": "FS finish-to-start, SS start-to-start, FF finish-to-finish, SF start-to-finish.",
-            "enum": [
-              "FS",
-              "SS",
-              "FF",
-              "SF"
-            ],
-            "example": "FS",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
       "WbsElementCreationDto": {
         "description": "Payload to create a WBS element under a project, optionally nested under a parent element.",
         "properties": {
@@ -25299,34 +24932,11 @@
             "format": "date",
             "type": "string"
           },
-          "isMilestone": {
-            "description": "Whether the element is a milestone: a schedule point whose planned start equals its planned finish. Defaults to false.",
-            "example": false,
-            "type": "boolean"
-          },
           "parentId": {
             "description": "Id of the parent WBS element to nest this element under. Omit to create a root element.",
             "example": 12,
             "format": "int64",
             "type": "integer"
-          },
-          "responsibleEmployeeId": {
-            "description": "Id of the employee who owns this activity, in this organization.",
-            "example": 14,
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "responsibleSubContractId": {
-            "description": "Id of the sub-contract whose contractor executes this activity. It must be in this organization and, when the sub-contract names a project, in this project.",
-            "example": 3,
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
           },
           "sortOrder": {
             "description": "Display order among sibling elements. Defaults to 0 when omitted.",
@@ -25417,15 +25027,6 @@
             "$ref": "#/components/schemas/EmployeeDto",
             "description": "Employee who created this element."
           },
-          "delayDays": {
-            "description": "Days the finish is behind the planned endDate: the actual finish for a finished activity, otherwise the later of the forecast finish and today once the planned finish has passed. Zero when on time, null when there is no planned endDate.",
-            "example": 6,
-            "format": "int32",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
           "description": {
             "description": "Free-text description of the scope of work.",
             "example": "Column casting for grid lines A1 to A6, M25 grade concrete",
@@ -25437,15 +25038,6 @@
             "format": "date",
             "type": "string"
           },
-          "forecastEndDate": {
-            "description": "Revised finish date once the activity is known to be late; the planned endDate is unchanged.",
-            "example": "2026-03-10",
-            "format": "date",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "id": {
             "description": "Unique id of the WBS element.",
             "example": 42,
@@ -25454,11 +25046,6 @@
           },
           "isLeaf": {
             "description": "Whether this element has no children.",
-            "example": false,
-            "type": "boolean"
-          },
-          "isMilestone": {
-            "description": "Whether the element is a milestone: planned start equals planned finish.",
             "example": false,
             "type": "boolean"
           },
@@ -25501,40 +25088,6 @@
             "description": "Name of the project this element belongs to.",
             "example": "Asset Homes - Kochi Riverside Phase 2",
             "type": "string"
-          },
-          "responsibleEmployeeId": {
-            "description": "Id of the employee who owns this activity.",
-            "example": 14,
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "responsibleEmployeeName": {
-            "description": "Name of the employee who owns this activity. Filled on schedule reads.",
-            "example": "Ravi Kumar",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "responsibleSubContractId": {
-            "description": "Id of the sub-contract whose contractor executes this activity.",
-            "example": 3,
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "responsibleSubContractorName": {
-            "description": "Name of that sub-contract's contractor. Filled on schedule reads.",
-            "example": "Sree Builders",
-            "type": [
-              "string",
-              "null"
-            ]
           },
           "sortOrder": {
             "description": "Display order among sibling elements.",
@@ -25692,34 +25245,11 @@
             "format": "date",
             "type": "string"
           },
-          "forecastEndDate": {
-            "description": "Revised finish date for an activity that is running late. The planned endDate is not changed by it.",
-            "example": "2026-03-10",
-            "format": "date",
-            "type": "string"
-          },
-          "isMilestone": {
-            "description": "Whether the element is a milestone.",
-            "example": true,
-            "type": "boolean"
-          },
           "progress": {
             "description": "New completion percentage, from 0 to 100. Only allowed when the element is a leaf.",
             "example": 75.0,
             "format": "double",
             "type": "number"
-          },
-          "responsibleEmployeeId": {
-            "description": "Id of the employee who owns this activity, in this organization.",
-            "example": 14,
-            "format": "int64",
-            "type": "integer"
-          },
-          "responsibleSubContractId": {
-            "description": "Id of the sub-contract whose contractor executes this activity.",
-            "example": 3,
-            "format": "int64",
-            "type": "integer"
           },
           "sortOrder": {
             "description": "New display order among sibling elements.",
@@ -25773,26 +25303,6 @@
             "description": "New wbsCode for the element, if it should change. Must stay unique within the project.",
             "example": "2.1.4",
             "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "WbsScheduleDto": {
-        "description": "A project's schedule in one read: every WBS element as a flat row ordered by wbsCode, with its dates, milestone flag, responsible party and delay, and every dependency link.",
-        "properties": {
-          "activities": {
-            "description": "The elements, ordered by wbsCode; children is null on each row.",
-            "items": {
-              "$ref": "#/components/schemas/WbsElementDto"
-            },
-            "type": "array"
-          },
-          "dependencies": {
-            "description": "The links between activities.",
-            "items": {
-              "$ref": "#/components/schemas/WbsDependencyDto"
-            },
-            "type": "array"
           }
         },
         "type": "object"
@@ -29636,7 +29146,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_21",
+        "operationId": "create_23",
         "requestBody": {
           "content": {
             "application/json": {
@@ -30066,7 +29576,7 @@
       },
       "post": {
         "description": "Creates an attendance settings profile for the organization, or for a single project when projectId is set.",
-        "operationId": "create_22",
+        "operationId": "create_24",
         "requestBody": {
           "content": {
             "application/json": {
@@ -30497,7 +30007,7 @@
       },
       "patch": {
         "description": "Applies a partial update to an attendance settings profile. Only the fields present in the request body are changed.",
-        "operationId": "update_17",
+        "operationId": "update_19",
         "parameters": [
           {
             "in": "path",
@@ -30724,7 +30234,7 @@
       },
       "patch": {
         "description": "Applies a partial update to an attendance settings profile. Only the fields present in the request body are changed.",
-        "operationId": "update_16",
+        "operationId": "update_18",
         "parameters": [
           {
             "in": "path",
@@ -39918,7 +39428,7 @@
         ]
       },
       "post": {
-        "operationId": "create_20",
+        "operationId": "create_22",
         "parameters": [
           {
             "in": "path",
@@ -40161,7 +39671,7 @@
     },
     "/api/v1/category/web": {
       "get": {
-        "description": "Returns the organization's work categories for the task form's dropdown. With no pageSize the whole list is returned (up to 500); pageNo and pageSize still page it when given. Only the page content is returned, without paging metadata.",
+        "description": "Returns a single page of work categories. The pageNo and pageSize parameters control paging; only the page content is returned, without paging metadata.",
         "operationId": "readAllCategories_1",
         "parameters": [
           {
@@ -40183,7 +39693,7 @@
             "name": "pageSize",
             "required": false,
             "schema": {
-              "default": 500,
+              "default": 10,
               "description": "Rows per page.",
               "format": "int32",
               "maximum": 500,
@@ -42057,7 +41567,7 @@
       },
       "post": {
         "description": "Creates the organization's checklist for a trade, with its check points. There is one template per trade per organization.",
-        "operationId": "create_19",
+        "operationId": "create_21",
         "requestBody": {
           "content": {
             "application/json": {
@@ -42518,7 +42028,7 @@
     "/api/v1/checklist-templates/web/{id}": {
       "get": {
         "description": "Returns a single template including its check points in line order.",
-        "operationId": "get_8",
+        "operationId": "get_10",
         "parameters": [
           {
             "in": "path",
@@ -42629,7 +42139,7 @@
       },
       "put": {
         "description": "Replaces the name, description, active flag and check points of an existing template and bumps its version. The trade is fixed when the template is created and cannot be changed here. Inspections already created from this template are unaffected: they hold their own copy of the criteria.",
-        "operationId": "update_10",
+        "operationId": "update_12",
         "parameters": [
           {
             "in": "path",
@@ -48253,7 +47763,7 @@
       },
       "post": {
         "description": "Creates a new account in the chart. When a parent is given, the account type is inherited from the parent; a root account must declare its own type. When the code is left blank it is generated from the parent and existing sibling accounts.",
-        "operationId": "create_18",
+        "operationId": "create_20",
         "requestBody": {
           "content": {
             "application/json": {
@@ -48911,7 +48421,7 @@
     "/api/v1/finance/accounts/web/{id}": {
       "get": {
         "description": "Returns a single account by its unique id.",
-        "operationId": "get_7",
+        "operationId": "get_9",
         "parameters": [
           {
             "in": "path",
@@ -49022,7 +48532,7 @@
       },
       "put": {
         "description": "Edits an account's code, name, active flag, description and optionally its parent. The code must stay unique within the tenant; a new parent must share the account's type and must not form a cycle. Omit the parent id to leave the parent unchanged. Postings resolve accounts by id, so changing a code is safe.",
-        "operationId": "update_9",
+        "operationId": "update_11",
         "parameters": [
           {
             "in": "path",
@@ -49372,7 +48882,7 @@
       },
       "post": {
         "description": "Registers a new company bank account, linked to an existing ledger account for reconciliation.",
-        "operationId": "create_17",
+        "operationId": "create_19",
         "requestBody": {
           "content": {
             "application/json": {
@@ -49871,7 +49381,7 @@
       },
       "post": {
         "description": "Creates a draft invoice from the supplied header and line items. Line-level subtotal, tax, discount and total amounts are computed server side from the quantity, unit price and percentage rates on each line.",
-        "operationId": "create_16",
+        "operationId": "create_18",
         "requestBody": {
           "content": {
             "application/json": {
@@ -49983,7 +49493,7 @@
     "/api/v1/finance/construction-invoices/web/{id}": {
       "get": {
         "description": "Returns a single invoice, including its computed totals and line items.",
-        "operationId": "get_6",
+        "operationId": "get_8",
         "parameters": [
           {
             "in": "path",
@@ -50094,7 +49604,7 @@
       },
       "put": {
         "description": "Replaces the editable header and line items of a draft invoice. Invoices that have already been submitted or approved cannot be edited.",
-        "operationId": "update_8",
+        "operationId": "update_10",
         "parameters": [
           {
             "in": "path",
@@ -51029,7 +50539,7 @@
       },
       "post": {
         "description": "Creates a payment voucher in pending status. The payment number is generated server side from the CPMT sequence. The status cannot be set on creation.",
-        "operationId": "create_15",
+        "operationId": "create_17",
         "requestBody": {
           "content": {
             "application/json": {
@@ -51141,7 +50651,7 @@
     "/api/v1/finance/construction-payments/web/{id}": {
       "get": {
         "description": "Returns a single payment voucher with its amount, method and payee details.",
-        "operationId": "get_5",
+        "operationId": "get_7",
         "parameters": [
           {
             "in": "path",
@@ -51252,7 +50762,7 @@
       },
       "put": {
         "description": "Replaces the editable fields of a payment voucher, including its status, which is set directly. No ledger journal entry is created on any status transition. A verified voucher is frozen and cannot be edited, because the verification would then stand against figures nobody checked; cancel it and raise a replacement. The cancelled status cannot be set here either: use the cancel action, which records why.",
-        "operationId": "update_7",
+        "operationId": "update_9",
         "parameters": [
           {
             "in": "path",
@@ -51725,7 +51235,7 @@
       },
       "post": {
         "description": "Creates a budget head. The name must be unique within the tenant; an optional expense account maps the head to the chart of accounts for reporting.",
-        "operationId": "create_14",
+        "operationId": "create_16",
         "requestBody": {
           "content": {
             "application/json": {
@@ -51943,7 +51453,7 @@
     "/api/v1/finance/cost-categories/web/{id}": {
       "get": {
         "description": "Returns a single budget head by its unique id.",
-        "operationId": "get_4",
+        "operationId": "get_6",
         "parameters": [
           {
             "in": "path",
@@ -52054,7 +51564,7 @@
       },
       "put": {
         "description": "Edits a budget head's name, code, expense-account mapping and active flag. The name must stay unique within the tenant; omit the expense account id to clear the mapping.",
-        "operationId": "update_6",
+        "operationId": "update_8",
         "parameters": [
           {
             "in": "path",
@@ -52290,7 +51800,7 @@
     "/api/v1/finance/customers/web": {
       "get": {
         "description": "Returns a single customer, including the billing address, by its unique id.",
-        "operationId": "get_10",
+        "operationId": "get_12",
         "parameters": [
           {
             "in": "query",
@@ -52401,7 +51911,7 @@
       },
       "post": {
         "description": "Creates a new customer from the supplied details. The customer code must be unique within the tenant.",
-        "operationId": "create_13",
+        "operationId": "create_15",
         "requestBody": {
           "content": {
             "application/json": {
@@ -52636,7 +52146,7 @@
     "/api/v1/finance/customers/web/{id}": {
       "put": {
         "description": "Updates the editable details of an existing customer. The customer code is fixed at creation and is not changed here.",
-        "operationId": "update_5",
+        "operationId": "update_7",
         "parameters": [
           {
             "in": "path",
@@ -53491,7 +53001,7 @@
     "/api/v1/finance/journal-entries/web": {
       "get": {
         "description": "Returns a single journal entry, including its lines, by its unique id.",
-        "operationId": "get_9",
+        "operationId": "get_11",
         "parameters": [
           {
             "in": "query",
@@ -54094,7 +53604,7 @@
     "/api/v1/finance/payments/web": {
       "post": {
         "description": "Records a payment received from a customer and allocates it across the invoices named in the request. The allocations must sum to the payment amount. An optional Idempotency-Key header lets a retried request return the original result instead of creating a duplicate payment.",
-        "operationId": "record_4",
+        "operationId": "record_2",
         "parameters": [
           {
             "in": "header",
@@ -55504,7 +55014,7 @@
     "/api/v1/finance/settings/web": {
       "get": {
         "description": "Returns the finance settings for the current tenant, creating the default row on first access. A null approval threshold means every construction invoice needs manual approval.",
-        "operationId": "get_3",
+        "operationId": "get_5",
         "responses": {
           "200": {
             "content": {
@@ -55604,7 +55114,7 @@
       },
       "put": {
         "description": "Sets the auto-approval threshold for the current tenant. Send a null threshold to require manual approval on every construction invoice, or a value T to auto-approve invoices whose total is below T.",
-        "operationId": "update_4",
+        "operationId": "update_6",
         "requestBody": {
           "content": {
             "application/json": {
@@ -57553,7 +57063,7 @@
       },
       "post": {
         "description": "Declares a holiday on a date for the current organization. One holiday per date.",
-        "operationId": "create_12",
+        "operationId": "create_14",
         "requestBody": {
           "content": {
             "application/json": {
@@ -57890,7 +57400,7 @@
     "/api/v1/holidays/web/update": {
       "put": {
         "description": "Replaces the holiday's date, name and note.",
-        "operationId": "update_3",
+        "operationId": "update_5",
         "parameters": [
           {
             "in": "query",
@@ -63348,7 +62858,7 @@
       },
       "post": {
         "description": "Creates a new inspection for a project, including its checklist items.",
-        "operationId": "create_8",
+        "operationId": "create_10",
         "requestBody": {
           "content": {
             "application/json": {
@@ -64476,7 +63986,7 @@
       },
       "post": {
         "description": "Adds an organization-defined element type. It appears in pickers at once.",
-        "operationId": "create_11",
+        "operationId": "create_13",
         "requestBody": {
           "content": {
             "application/json": {
@@ -64693,7 +64203,7 @@
     "/api/v1/inspections/web/element-types/{id}": {
       "patch": {
         "description": "The code is immutable, including on catalogue copies.",
-        "operationId": "update_15",
+        "operationId": "update_17",
         "parameters": [
           {
             "in": "path",
@@ -65171,7 +64681,7 @@
       },
       "post": {
         "description": "Records a finding by the signed-in inspector. Created accepted, with the caller as reporter and reviewer; a supervisor may still reject it later.",
-        "operationId": "create_10",
+        "operationId": "create_12",
         "requestBody": {
           "content": {
             "application/json": {
@@ -65510,7 +65020,7 @@
     "/api/v1/inspections/web/observations/{id}/evidence/presign": {
       "post": {
         "description": "Step one of the direct-to-storage path, as for inspection evidence.",
-        "operationId": "presignEvidence_3",
+        "operationId": "presignEvidence_1",
         "parameters": [
           {
             "in": "path",
@@ -65639,7 +65149,7 @@
     "/api/v1/inspections/web/observations/{id}/evidence/register": {
       "post": {
         "description": "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage.",
-        "operationId": "registerEvidence_3",
+        "operationId": "registerEvidence_1",
         "parameters": [
           {
             "in": "path",
@@ -66240,7 +65750,7 @@
       },
       "post": {
         "description": "Adds an organization-defined trade. It appears in pickers at once and can back a checklist template.",
-        "operationId": "create_9",
+        "operationId": "create_11",
         "requestBody": {
           "content": {
             "application/json": {
@@ -66457,7 +65967,7 @@
     "/api/v1/inspections/web/trades/{id}": {
       "patch": {
         "description": "The code is immutable, including on catalogue copies. Deactivating hides the trade from pickers and leaves existing references valid.",
-        "operationId": "update_14",
+        "operationId": "update_16",
         "parameters": [
           {
             "in": "path",
@@ -66580,7 +66090,7 @@
     "/api/v1/inspections/web/{id}": {
       "get": {
         "description": "Returns a single inspection including its checklist items and any recorded defects.",
-        "operationId": "get_2",
+        "operationId": "get_4",
         "parameters": [
           {
             "in": "path",
@@ -66691,7 +66201,7 @@
       },
       "put": {
         "description": "Updates the status, result, checklist items and defects of an existing inspection identified by id. The project the inspection is against is fixed when it is created and cannot be changed here.",
-        "operationId": "update_2",
+        "operationId": "update_4",
         "parameters": [
           {
             "in": "path",
@@ -67431,7 +66941,7 @@
     "/api/v1/inspections/web/{id}/evidence/presign": {
       "post": {
         "description": "Step one of the direct-to-storage path: for each declared file, returns a short-lived URL the client PUTs it to, bypassing the API and the CDN in front of it. Site photographs and scanned approvals routinely exceed what the streaming path allows.",
-        "operationId": "presignEvidence_2",
+        "operationId": "presignEvidence",
         "parameters": [
           {
             "in": "path",
@@ -67560,7 +67070,7 @@
     "/api/v1/inspections/web/{id}/evidence/register": {
       "post": {
         "description": "Step two of the direct-to-storage path: confirms the storage keys once each object is verified present in storage, so a caller cannot record evidence for a file that was never uploaded.",
-        "operationId": "registerEvidence_2",
+        "operationId": "registerEvidence",
         "parameters": [
           {
             "in": "path",
@@ -91389,7 +90899,7 @@
     "/api/v1/movement-records": {
       "post": {
         "description": "Records an employee's movement away from their checked-in location against an existing attendance record.",
-        "operationId": "create_6",
+        "operationId": "create_8",
         "parameters": [
           {
             "in": "query",
@@ -91628,7 +91138,7 @@
     "/api/v1/movement-records/web": {
       "post": {
         "description": "Records an employee's movement away from their checked-in location against an existing attendance record.",
-        "operationId": "create_7",
+        "operationId": "create_9",
         "parameters": [
           {
             "in": "query",
@@ -92520,7 +92030,7 @@
       },
       "post": {
         "description": "Raises an NCR against an inspection, and against one of its defects when one is named. The NCR number, the type (from the inspection's category) and the raiser are all set server-side. Naming a site engineer assigns it in the same step.",
-        "operationId": "create_5",
+        "operationId": "create_7",
         "requestBody": {
           "content": {
             "application/json": {
@@ -98432,1494 +97942,6 @@
         ]
       }
     },
-    "/api/v1/progress-inspections": {
-      "get": {
-        "description": "Filter by project and by activity; both are optional.",
-        "operationId": "list_2",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "projectId",
-            "required": false,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "wbsElementId",
-            "required": false,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Zero-based page index.",
-            "in": "query",
-            "name": "pageNo",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "description": "Zero-based page index.",
-              "format": "int32",
-              "minimum": 0,
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Rows per page.",
-            "in": "query",
-            "name": "pageSize",
-            "required": false,
-            "schema": {
-              "default": 10,
-              "description": "Rows per page.",
-              "format": "int32",
-              "maximum": 500,
-              "minimum": 1,
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/PageProgressInspectionDto"
-                }
-              }
-            },
-            "description": "A page of progress inspections"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "List progress inspections, newest first",
-        "tags": [
-          "Progress Inspections"
-        ]
-      },
-      "post": {
-        "description": "Records whether the activity was done, partly done or not done on the inspection date, with the actual dates, a forecast finish and the reason for any delay, and applies it to the activity. The planned dates and the rest of the schedule are not changed.",
-        "operationId": "record_2",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RecordProgressInspectionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProgressInspectionDto"
-                }
-              }
-            },
-            "description": "Progress inspection recorded and applied to the activity"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "A value breaks a rule: the outcome and percent disagree, a date is missing or out of order, a delay has no reason, or the activity is not a leaf or is already completed"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the required role in the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No such activity in the current tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Record a progress inspection of an activity",
-        "tags": [
-          "Progress Inspections"
-        ]
-      }
-    },
-    "/api/v1/progress-inspections/web": {
-      "get": {
-        "description": "Filter by project and by activity; both are optional.",
-        "operationId": "list_3",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "projectId",
-            "required": false,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "wbsElementId",
-            "required": false,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Zero-based page index.",
-            "in": "query",
-            "name": "pageNo",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "description": "Zero-based page index.",
-              "format": "int32",
-              "minimum": 0,
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Rows per page.",
-            "in": "query",
-            "name": "pageSize",
-            "required": false,
-            "schema": {
-              "default": 10,
-              "description": "Rows per page.",
-              "format": "int32",
-              "maximum": 500,
-              "minimum": 1,
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/PageProgressInspectionDto"
-                }
-              }
-            },
-            "description": "A page of progress inspections"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "List progress inspections, newest first",
-        "tags": [
-          "Progress Inspections (web)"
-        ]
-      },
-      "post": {
-        "description": "Records whether the activity was done, partly done or not done on the inspection date, with the actual dates, a forecast finish and the reason for any delay, and applies it to the activity. The planned dates and the rest of the schedule are not changed.",
-        "operationId": "record_3",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RecordProgressInspectionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProgressInspectionDto"
-                }
-              }
-            },
-            "description": "Progress inspection recorded and applied to the activity"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "A value breaks a rule: the outcome and percent disagree, a date is missing or out of order, a delay has no reason, or the activity is not a leaf or is already completed"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the required role in the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No such activity in the current tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Record a progress inspection of an activity",
-        "tags": [
-          "Progress Inspections (web)"
-        ]
-      }
-    },
-    "/api/v1/progress-inspections/web/{id}": {
-      "get": {
-        "operationId": "get_12",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProgressInspectionDto"
-                }
-              }
-            },
-            "description": "The progress inspection"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No such progress inspection in the current tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Get one progress inspection",
-        "tags": [
-          "Progress Inspections (web)"
-        ]
-      }
-    },
-    "/api/v1/progress-inspections/web/{id}/evidence": {
-      "get": {
-        "operationId": "listEvidence_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AttachmentDto"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Evidence returned"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No such progress inspection in the current tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "List a progress inspection's evidence",
-        "tags": [
-          "Progress Inspections (web)"
-        ]
-      }
-    },
-    "/api/v1/progress-inspections/web/{id}/evidence/presign": {
-      "post": {
-        "description": "Step one of the direct-to-storage path, as for inspection evidence.",
-        "operationId": "presignEvidence_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "items": {
-                  "$ref": "#/components/schemas/UploadRequest"
-                },
-                "type": "array"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PresignedUpload"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Presigned upload URLs returned"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "A file was declared twice, or is already attached"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the required role in the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No such progress inspection in the current tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Presign evidence uploads for a progress inspection",
-        "tags": [
-          "Progress Inspections (web)"
-        ]
-      }
-    },
-    "/api/v1/progress-inspections/web/{id}/evidence/register": {
-      "post": {
-        "description": "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage.",
-        "operationId": "registerEvidence_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "items": {
-                  "$ref": "#/components/schemas/RegisterUploadRequest"
-                },
-                "type": "array"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AttachmentDto"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Evidence registered"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "A referenced object is missing from storage, or its key was not presigned for this inspection"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the required role in the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No such progress inspection in the current tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Register presigned evidence uploads for a progress inspection",
-        "tags": [
-          "Progress Inspections (web)"
-        ]
-      }
-    },
-    "/api/v1/progress-inspections/{id}": {
-      "get": {
-        "operationId": "get_11",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProgressInspectionDto"
-                }
-              }
-            },
-            "description": "The progress inspection"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No such progress inspection in the current tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Get one progress inspection",
-        "tags": [
-          "Progress Inspections"
-        ]
-      }
-    },
-    "/api/v1/progress-inspections/{id}/evidence": {
-      "get": {
-        "operationId": "listEvidence",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AttachmentDto"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Evidence returned"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No such progress inspection in the current tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "List a progress inspection's evidence",
-        "tags": [
-          "Progress Inspections"
-        ]
-      }
-    },
-    "/api/v1/progress-inspections/{id}/evidence/presign": {
-      "post": {
-        "description": "Step one of the direct-to-storage path, as for inspection evidence.",
-        "operationId": "presignEvidence",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "items": {
-                  "$ref": "#/components/schemas/UploadRequest"
-                },
-                "type": "array"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PresignedUpload"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Presigned upload URLs returned"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "A file was declared twice, or is already attached"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the required role in the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No such progress inspection in the current tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Presign evidence uploads for a progress inspection",
-        "tags": [
-          "Progress Inspections"
-        ]
-      }
-    },
-    "/api/v1/progress-inspections/{id}/evidence/register": {
-      "post": {
-        "description": "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage.",
-        "operationId": "registerEvidence",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "items": {
-                  "$ref": "#/components/schemas/RegisterUploadRequest"
-                },
-                "type": "array"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AttachmentDto"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Evidence registered"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "A referenced object is missing from storage, or its key was not presigned for this inspection"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the required role in the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No such progress inspection in the current tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Register presigned evidence uploads for a progress inspection",
-        "tags": [
-          "Progress Inspections"
-        ]
-      }
-    },
     "/api/v1/project": {
       "get": {
         "description": "Returns a single page of projects. The pageNo and pageSize parameters control paging; only the page content is returned, without paging metadata.",
@@ -102732,7 +100754,7 @@
     "/api/v1/project/{projectId}/spatial/nodes": {
       "post": {
         "description": "A building takes no parent; a floor, zone or element takes a parent of the level above. The code must be unique among siblings.",
-        "operationId": "create_4",
+        "operationId": "create_6",
         "parameters": [
           {
             "in": "path",
@@ -102975,7 +100997,7 @@
       },
       "patch": {
         "description": "Omitted fields are left as they are. Level and parent do not change here; use move.",
-        "operationId": "update_13",
+        "operationId": "update_15",
         "parameters": [
           {
             "in": "path",
@@ -103843,250 +101865,6 @@
         ]
       }
     },
-    "/api/v1/project/{projectId}/wbs/dependencies": {
-      "post": {
-        "description": "Records that one activity depends on another in the same project, finish-to-start by default, with an optional lag in days. A link that would close a loop is refused. No date moves because of the link.",
-        "operationId": "addDependency_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WbsDependencyCreationDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/WbsDependencyDto"
-                }
-              }
-            },
-            "description": "Link recorded"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "The body failed validation, the two ids are the same activity, or the link would close a loop"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the required role in the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No project, or no such activity in this project"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "The two activities are already linked"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Link two activities",
-        "tags": [
-          "WBS Elements"
-        ]
-      }
-    },
-    "/api/v1/project/{projectId}/wbs/dependencies/{dependencyId}": {
-      "delete": {
-        "operationId": "removeDependency_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "dependencyId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            },
-            "description": "Link removed"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the required role in the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No such link in this project"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Remove a link between two activities",
-        "tags": [
-          "WBS Elements"
-        ]
-      }
-    },
     "/api/v1/project/{projectId}/wbs/leaves": {
       "get": {
         "description": "Returns the leaf elements of the project's WBS, the elements with no children, ordered by wbsCode. These are the elements progress can be set on directly.",
@@ -104198,119 +101976,6 @@
           }
         },
         "summary": "List leaf WBS elements",
-        "tags": [
-          "WBS Elements"
-        ]
-      }
-    },
-    "/api/v1/project/{projectId}/wbs/schedule": {
-      "get": {
-        "description": "Returns every WBS element of the project as a flat row ordered by wbsCode, with planned, actual and forecast dates, the milestone flag, the responsible employee or sub-contractor by name, and the delay in days, together with every dependency link. Nothing is rescheduled by this read; delay is worked out against the planned finish.",
-        "operationId": "getSchedule_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/WbsScheduleDto"
-                }
-              }
-            },
-            "description": "Schedule returned"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller is not a member of the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No project with the given id in this organization"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Get the project schedule",
         "tags": [
           "WBS Elements"
         ]
@@ -104795,250 +102460,6 @@
         ]
       }
     },
-    "/api/v1/project/{projectId}/wbs/web/dependencies": {
-      "post": {
-        "description": "Records that one activity depends on another in the same project, finish-to-start by default, with an optional lag in days. A link that would close a loop is refused. No date moves because of the link.",
-        "operationId": "addDependency",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WbsDependencyCreationDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/WbsDependencyDto"
-                }
-              }
-            },
-            "description": "Link recorded"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "The body failed validation, the two ids are the same activity, or the link would close a loop"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the required role in the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No project, or no such activity in this project"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "The two activities are already linked"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Link two activities",
-        "tags": [
-          "WBS Elements (Web)"
-        ]
-      }
-    },
-    "/api/v1/project/{projectId}/wbs/web/dependencies/{dependencyId}": {
-      "delete": {
-        "operationId": "removeDependency",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "dependencyId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            },
-            "description": "Link removed"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the required role in the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No such link in this project"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Remove a link between two activities",
-        "tags": [
-          "WBS Elements (Web)"
-        ]
-      }
-    },
     "/api/v1/project/{projectId}/wbs/web/leaves": {
       "get": {
         "description": "Returns the leaf elements of the project's WBS, the elements with no children, ordered by wbsCode. These are the elements progress can be set on directly.",
@@ -105150,119 +102571,6 @@
           }
         },
         "summary": "List leaf WBS elements",
-        "tags": [
-          "WBS Elements (Web)"
-        ]
-      }
-    },
-    "/api/v1/project/{projectId}/wbs/web/schedule": {
-      "get": {
-        "description": "Returns every WBS element of the project as a flat row ordered by wbsCode, with planned, actual and forecast dates, the milestone flag, the responsible employee or sub-contractor by name, and the delay in days, together with every dependency link. Nothing is rescheduled by this read; delay is worked out against the planned finish.",
-        "operationId": "getSchedule",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "projectId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/WbsScheduleDto"
-                }
-              }
-            },
-            "description": "Schedule returned"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller is not a member of the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No project with the given id in this organization"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Get the project schedule",
         "tags": [
           "WBS Elements (Web)"
         ]
@@ -111647,7 +108955,7 @@
       },
       "post": {
         "description": "Creates a named shift with its start and end time, lunch break window, grace period and work-hour thresholds.",
-        "operationId": "create_2",
+        "operationId": "create_4",
         "requestBody": {
           "content": {
             "application/json": {
@@ -111862,7 +109170,7 @@
       },
       "post": {
         "description": "Creates a named shift with its start and end time, lunch break window, grace period and work-hour thresholds.",
-        "operationId": "create_3",
+        "operationId": "create_5",
         "requestBody": {
           "content": {
             "application/json": {
@@ -112189,7 +109497,7 @@
       },
       "patch": {
         "description": "Applies a partial update to a shift timing. Only the fields present in the request body are changed.",
-        "operationId": "update_12",
+        "operationId": "update_14",
         "parameters": [
           {
             "in": "path",
@@ -112527,7 +109835,7 @@
       },
       "patch": {
         "description": "Applies a partial update to a shift timing. Only the fields present in the request body are changed.",
-        "operationId": "update_11",
+        "operationId": "update_13",
         "parameters": [
           {
             "in": "path",
@@ -112644,6 +109952,1750 @@
         "summary": "Update a shift timing",
         "tags": [
           "Shift Timings"
+        ]
+      }
+    },
+    "/api/v1/site-notes": {
+      "get": {
+        "description": "Filter by project and by note date range; every filter is optional.",
+        "operationId": "list_2",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageSiteNoteDto"
+                }
+              }
+            },
+            "description": "A page of notes"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List site notes, newest first",
+        "tags": [
+          "Site Notes"
+        ]
+      },
+      "post": {
+        "operationId": "create_2",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSiteNoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteNoteDto"
+                }
+              }
+            },
+            "description": "Note added"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The date is too far ahead, or the author is not an active employee"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such project in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Add a site note",
+        "tags": [
+          "Site Notes"
+        ]
+      }
+    },
+    "/api/v1/site-notes/web": {
+      "get": {
+        "description": "Filter by project and by note date range; every filter is optional.",
+        "operationId": "list_3",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageSiteNoteDto"
+                }
+              }
+            },
+            "description": "A page of notes"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List site notes, newest first",
+        "tags": [
+          "Site Notes (web)"
+        ]
+      },
+      "post": {
+        "operationId": "create_3",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSiteNoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteNoteDto"
+                }
+              }
+            },
+            "description": "Note added"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The date is too far ahead, or the author is not an active employee"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such project in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Add a site note",
+        "tags": [
+          "Site Notes (web)"
+        ]
+      }
+    },
+    "/api/v1/site-notes/web/{id}": {
+      "get": {
+        "operationId": "get_3",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteNoteDto"
+                }
+              }
+            },
+            "description": "The note"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such note in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get one site note",
+        "tags": [
+          "Site Notes (web)"
+        ]
+      },
+      "put": {
+        "operationId": "update_3",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSiteNoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteNoteDto"
+                }
+              }
+            },
+            "description": "Note updated"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The date is too far ahead"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such note in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Change a site note's date and text",
+        "tags": [
+          "Site Notes (web)"
+        ]
+      }
+    },
+    "/api/v1/site-notes/web/{id}/photos": {
+      "get": {
+        "operationId": "listPhotos_3",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Photos returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such note in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a site note's photos",
+        "tags": [
+          "Site Notes (web)"
+        ]
+      }
+    },
+    "/api/v1/site-notes/web/{id}/photos/presign": {
+      "post": {
+        "description": "Step one of the direct-to-storage path.",
+        "operationId": "presignPhotos_3",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/UploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresignedUpload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Presigned upload URLs returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A file was declared twice, or is already attached"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such note in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Presign photo uploads for a site note",
+        "tags": [
+          "Site Notes (web)"
+        ]
+      }
+    },
+    "/api/v1/site-notes/web/{id}/photos/register": {
+      "post": {
+        "description": "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage.",
+        "operationId": "registerPhotos_3",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/RegisterUploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Photos registered"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A referenced object is missing from storage, or its key was not presigned for this note"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such note in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Register presigned photo uploads for a site note",
+        "tags": [
+          "Site Notes (web)"
+        ]
+      }
+    },
+    "/api/v1/site-notes/{id}": {
+      "get": {
+        "operationId": "get_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteNoteDto"
+                }
+              }
+            },
+            "description": "The note"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such note in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get one site note",
+        "tags": [
+          "Site Notes"
+        ]
+      },
+      "put": {
+        "operationId": "update_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSiteNoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteNoteDto"
+                }
+              }
+            },
+            "description": "Note updated"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The date is too far ahead"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such note in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Change a site note's date and text",
+        "tags": [
+          "Site Notes"
+        ]
+      }
+    },
+    "/api/v1/site-notes/{id}/photos": {
+      "get": {
+        "operationId": "listPhotos_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Photos returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such note in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a site note's photos",
+        "tags": [
+          "Site Notes"
+        ]
+      }
+    },
+    "/api/v1/site-notes/{id}/photos/presign": {
+      "post": {
+        "description": "Step one of the direct-to-storage path.",
+        "operationId": "presignPhotos_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/UploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresignedUpload"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Presigned upload URLs returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A file was declared twice, or is already attached"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such note in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Presign photo uploads for a site note",
+        "tags": [
+          "Site Notes"
+        ]
+      }
+    },
+    "/api/v1/site-notes/{id}/photos/register": {
+      "post": {
+        "description": "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage.",
+        "operationId": "registerPhotos_2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/RegisterUploadRequest"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Photos registered"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A referenced object is missing from storage, or its key was not presigned for this note"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such note in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Register presigned photo uploads for a site note",
+        "tags": [
+          "Site Notes"
         ]
       }
     },
@@ -113452,7 +112504,7 @@
         ]
       },
       "post": {
-        "description": "Creates a site transfer moving materials, assets or both from a sending project, and optionally a specific storage location within it, to a receiving project. Validates that the sending location holds enough stock for every material line and that every asset on an ASSET line is at the sending side and on no other open transfer before the transfer is recorded, then publishes an event so inventory is updated automatically. An asset moves on its own ledger: at once between two stores on one project, and when it is received for a transfer between projects.",
+        "description": "Creates a site transfer moving materials from a sending project, and optionally a specific storage location within it, to a receiving project. Validates that the sending location holds enough stock for every item before the transfer is recorded, then publishes an event so inventory is updated automatically.",
         "operationId": "createSiteTransfer_1",
         "requestBody": {
           "content": {
@@ -113804,131 +112856,6 @@
           }
         },
         "summary": "List site transfers received by a project",
-        "tags": [
-          "Site Transfers (Web)"
-        ]
-      }
-    },
-    "/api/v1/site-transfers/web/sendable-assets": {
-      "get": {
-        "description": "Returns the assets the asset register places at the given sending project and storage location that are not already in transit on another transfer, which is exactly the set an ASSET line on a transfer from there may name. Leaving storageLocationId out lists the project's assets that sit at no storage location, the same reading a material line's stock check gives a transfer that names no sending location. Ordered by name. Returns at most 500 rows; X-Total-Count carries the true total and X-Result-Capped is set when rows were left out.",
-        "operationId": "getSendableAssets",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "projectId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "storageLocationId",
-            "required": false,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SiteTransferAssetOptionDto"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Sendable assets returned"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "The storage location cannot be used from that project"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller lacks the required role in the current tenant"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "The project or storage location was not found in this organization"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "List the assets a transfer can send",
         "tags": [
           "Site Transfers (Web)"
         ]
@@ -130809,14 +129736,6 @@
       "name": "Posting Account Mapping"
     },
     {
-      "description": "Work Progress module: whether scheduled work was done on the agreed date and why not. Reads for members, recording for the project team.",
-      "name": "Progress Inspections"
-    },
-    {
-      "description": "Web twin of the progress inspection surface: reads for members, recording for the project team.",
-      "name": "Progress Inspections (web)"
-    },
-    {
       "description": "A project's budget, expressed as one allocation per budget head (cost category). All endpoints are tenant scoped and limited to system administrators and project managers.",
       "name": "Project Budget"
     },
@@ -130877,6 +129796,14 @@
       "name": "Shift Timings (Web)"
     },
     {
+      "description": "Site notes of the current tenant: reads for members, writes for the roles that run a site.",
+      "name": "Site Notes"
+    },
+    {
+      "description": "Site notes of the current tenant: reads for members, writes for the roles that run a site.",
+      "name": "Site Notes (web)"
+    },
+    {
       "description": "Movement of materials between two projects, and optionally between specific storage locations within them. A site transfer records the sending person, the items and quantities being moved, and its own status as it progresses. Creating a transfer checks that the sending location holds enough stock before the items are recorded. Access is gated by the site-transfer authorities, with an admin authority that grants all operations.",
       "name": "Site Transfers"
     },
@@ -130933,11 +129860,11 @@
       "name": "Vendors (Web)"
     },
     {
-      "description": "Work breakdown structure elements for a project, arranged as a tree of phases and activities such as Foundation Works or RCC Column Casting - Block A. Endpoints cover creating a single element or a batch, reading the tree or a flat list, updating and deleting an element, moving an element under a different parent, and recalculating rolled-up cost and progress. Any member of the tenant reads; the system-admin and project-manager roles change the schedule.",
+      "description": "Work breakdown structure elements for a project, arranged as a tree of phases and activities such as Foundation Works or RCC Column Casting - Block A. Endpoints cover creating a single element or a batch, reading the tree or a flat list, updating and deleting an element, moving an element under a different parent, and recalculating rolled-up cost and progress. Every endpoint is restricted to the system-admin role for the caller's current tenant.",
       "name": "WBS Elements"
     },
     {
-      "description": "Web-client counterpart of the WBS Elements endpoints, serving the same work breakdown structure operations under the /web path segment: create single or batch elements, read the tree or a flat list, update, delete, move an element under a different parent, and recalculate rolled-up cost and progress. Any member of the tenant reads; the system-admin and project-manager roles change the schedule.",
+      "description": "Web-client counterpart of the WBS Elements endpoints, serving the same work breakdown structure operations under the /web path segment: create single or batch elements, read the tree or a flat list, update, delete, move an element under a different parent, and recalculate rolled-up cost and progress. Restricted to the system-admin role for the caller's current tenant.",
       "name": "WBS Elements (Web)"
     }
   ]
