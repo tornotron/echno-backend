@@ -43,7 +43,7 @@ class SiteNotesModuleTest {
     @Test
     void publishesOneNavEntryGatedOnRead() {
         assertThat(module.manifest().navDescriptors()).singleElement().satisfies(nav -> {
-            assertThat(nav.section()).isEqualTo("site-notes");
+            assertThat(nav.section()).isEqualTo("projects");
             assertThat(nav.path()).isEqualTo("/users/dashboard/site-notes");
             assertThat(nav.requiredPermissions()).containsExactly("site-notes:read");
         });

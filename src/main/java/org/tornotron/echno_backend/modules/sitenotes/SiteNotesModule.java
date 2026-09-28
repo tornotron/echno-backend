@@ -34,11 +34,15 @@ public class SiteNotesModule implements EchnoModule {
             "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','site-engineer')";
 
     static final String ROUTE_ROOT = "/users/dashboard/" + ID;
+    // A note belongs to a project, and that is where the site engineer or project manager who
+    // writes one is already looking, so the entry sits with the rest of the project's tools
+    // rather than in a section of its own.
+    static final String NAV_SECTION = "projects";
 
     static final List<String> PERMISSIONS = List.of(PERMISSION_READ, PERMISSION_MANAGE);
 
     static final List<NavDescriptor> NAV = List.of(
-            new NavDescriptor("Site Notes", ID, ROUTE_ROOT, "package", List.of(PERMISSION_READ)));
+            new NavDescriptor("Site Notes", NAV_SECTION, ROUTE_ROOT, "notebook-pen", List.of(PERMISSION_READ)));
 
     private static final ModuleManifest MANIFEST = new ModuleManifest(
             ID,

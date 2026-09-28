@@ -32,10 +32,10 @@ import org.tornotron.echno_backend.organization.Organization;
  */
 @Entity
 @Table(name = "site_note",
-        indexes = {
-                @Index(name = "idx_site_note_organization", columnList = "organization_id"),
-                @Index(name = "idx_site_note_project_date", columnList = "organization_id, project_id, note_date")
-        })
+        // One index: it starts with organization_id, so it already serves the plain per-tenant
+        // scan a standalone organization_id index would have, and a separate one would just
+        // duplicate its leftmost prefix.
+        indexes = @Index(name = "idx_site_note_project_date", columnList = "organization_id, project_id, note_date"))
 @Filter(name = "orgFilter", condition = "organization_id = :organizationId")
 @Getter
 @Setter

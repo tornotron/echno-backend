@@ -9,7 +9,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -22,11 +25,13 @@ import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
 import org.tornotron.echno_backend.modules.sitenotes.api.SiteNoteMissingEvent;
 import org.tornotron.echno_backend.modules.sitenotes.job.SiteNoteReminderJob;
 import org.tornotron.echno_backend.modules.sitenotes.repository.SiteNoteRepository;
+import org.tornotron.echno_backend.modules.sitenotes.time.SiteNotesClockConfiguration;
 
 /**
  * The reminder pins only the organizations it should: inactive ones and ones without the module
  * are skipped before any tenant is established, the missing-note event names the project that
- * had no note, and the module's kill switch removes the job.
+ * had no note, the site's day (not the server's UTC day) decides "yesterday", and the module's
+ * kill switch removes the job.
  */
 class SiteNoteReminderJobTest {
 
@@ -36,7 +41,13 @@ class SiteNoteReminderJobTest {
     private final ModuleRegistry registry = mock(ModuleRegistry.class);
     private final TenantScopedJobRunner runner = mock(TenantScopedJobRunner.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
-    private final SiteNoteReminderJob job = new SiteNoteReminderJob(notes, registry, runner, events, "UTC");
+    // 20:00 UTC on the 23rd is 01:30 IST on the 24th: the window where the server's date and the
+    // sites' date disagree.
+    private static final Clock IST_AFTER_MIDNIGHT =
+            Clock.fixed(Instant.parse("2026-09-23T20:00:00Z"), ZoneId.of("Asia/Kolkata"));
+
+    private final SiteNoteReminderJob job =
+            new SiteNoteReminderJob(notes, registry, runner, events, IST_AFTER_MIDNIGHT);
 
     @Test
     void skipsInactiveAndNonEntitledOrganizationsAndRemindsTheRest() {
@@ -51,14 +62,29 @@ class SiteNoteReminderJobTest {
         int reminded = job.runPass(DAY);
 
         assertThat(reminded).isEqualTo(1);
-        verify(runner).callForTenant(eq(1L), any());
-        verify(runner, never()).callForTenant(eq(2L), any());
-        verify(runner, never()).callForTenant(eq(3L), any());
+        verify(runner).callForTenantInTransaction(eq(1L), any());
+        verify(runner, never()).callForTenantInTransaction(eq(2L), any());
+        verify(runner, never()).callForTenantInTransaction(eq(3L), any());
+        verify(runner, never()).callForTenant(any(), any());
         verify(registry, never()).isEnabledForOrg(SiteNotesModule.ID, 2L);
 
         ArgumentCaptor<Object> published = ArgumentCaptor.forClass(Object.class);
         verify(events).publishEvent(published.capture());
         assertThat(published.getValue()).isEqualTo(new SiteNoteMissingEvent(1L, 11L, "Tower B", DAY));
+    }
+
+    @Test
+    void theScheduledPassRemindsAboutTheSitesYesterdayNotTheServers() {
+        when(notes.findOrganizationsForReminder(any())).thenReturn(List.of(org(1L, true)));
+        when(registry.isEnabledForOrg(SiteNotesModule.ID, 1L)).thenReturn(true);
+        runWorkInline();
+        when(notes.findOpenProjects(any())).thenReturn(List.of());
+
+        job.remind();
+
+        // The sites' today is the 24th, so yesterday is the 23rd; the server's UTC date would
+        // have made it the 22nd.
+        verify(notes).findProjectIdsWithNoteOn(LocalDate.of(2026, 9, 23));
     }
 
     @Test
@@ -77,11 +103,24 @@ class SiteNoteReminderJobTest {
     void anOrganizationWhoseRunFailsDoesNotStopTheOthers() {
         when(notes.findOrganizationsForReminder(any())).thenReturn(List.of(org(1L, true), org(2L, true)));
         when(registry.isEnabledForOrg(eq(SiteNotesModule.ID), anyLong())).thenReturn(true);
-        when(runner.callForTenant(eq(1L), any())).thenThrow(new IllegalStateException("db away"));
-        when(runner.callForTenant(eq(2L), any())).thenReturn(0);
+        when(runner.callForTenantInTransaction(eq(1L), any())).thenThrow(new IllegalStateException("db away"));
+        when(runner.callForTenantInTransaction(eq(2L), any())).thenReturn(0);
 
         assertThat(job.runPass(DAY)).isEqualTo(1);
-        verify(runner).callForTenant(eq(2L), any());
+        verify(runner).callForTenantInTransaction(eq(2L), any());
+    }
+
+    @Test
+    void aRegistryErrorForOneOrganizationDoesNotStopTheOthers() {
+        when(notes.findOrganizationsForReminder(any())).thenReturn(List.of(org(1L, true), org(2L, true)));
+        when(registry.isEnabledForOrg(SiteNotesModule.ID, 1L)).thenThrow(new IllegalStateException("registry away"));
+        when(registry.isEnabledForOrg(SiteNotesModule.ID, 2L)).thenReturn(true);
+        runWorkInline();
+        when(notes.findOpenProjects(any())).thenReturn(List.of());
+
+        assertThat(job.runPass(DAY)).isEqualTo(1);
+        verify(runner, never()).callForTenantInTransaction(eq(1L), any());
+        verify(runner).callForTenantInTransaction(eq(2L), any());
     }
 
     @Test
@@ -90,7 +129,7 @@ class SiteNoteReminderJobTest {
                 .withBean(SiteNoteRepository.class, () -> notes)
                 .withBean(ModuleRegistry.class, () -> registry)
                 .withBean(TenantScopedJobRunner.class, () -> runner)
-                .withUserConfiguration(SiteNoteReminderJob.class);
+                .withUserConfiguration(SiteNotesClockConfiguration.class, SiteNoteReminderJob.class);
 
         contexts.run(ctx -> assertThat(ctx).hasSingleBean(SiteNoteReminderJob.class));
         contexts.withPropertyValues(SiteNotesModuleEnabled.PROPERTY + "=false")
@@ -99,7 +138,7 @@ class SiteNoteReminderJobTest {
 
     @SuppressWarnings("unchecked")
     private void runWorkInline() {
-        when(runner.callForTenant(anyLong(), any())).thenAnswer(invocation ->
+        when(runner.callForTenantInTransaction(anyLong(), any())).thenAnswer(invocation ->
                 ((Supplier<Object>) invocation.getArgument(1)).get());
     }
 
