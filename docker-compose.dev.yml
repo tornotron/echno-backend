@@ -104,11 +104,18 @@ services:
     environment:
       HOME: /tmp
     entrypoint: ["/bin/sh", "-c"]
+    # Retries the whole (idempotent) sequence: the bitnami minio image's healthcheck can
+    # report healthy during a throwaway setup instance that it stops and replaces, so the
+    # server can still drop a connection out from under this right after depends_on clears.
     command:
       - |
-        mc alias set local http://minio:9000 echno-dev echno-dev-secret &&
-        mc mb --ignore-existing local/echno-dev local/echno-datasets &&
-        mc anonymous set download local/echno-dev
+        for i in $(seq 1 30); do
+          mc alias set local http://minio:9000 echno-dev echno-dev-secret &&
+          mc mb --ignore-existing local/echno-dev local/echno-datasets &&
+          mc anonymous set download local/echno-dev && exit 0
+          sleep 1
+        done
+        exit 1
     restart: "no"
 
   redis:
