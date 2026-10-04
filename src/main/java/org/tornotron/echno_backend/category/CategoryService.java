@@ -10,11 +10,14 @@ import org.tornotron.echno_backend.category.mapper.CategoryMapper;
 import org.tornotron.echno_backend.category.dto.CategoryCreationDto;
 import org.tornotron.echno_backend.category.dto.CategoryDto;
 import org.tornotron.echno_backend.category.dto.CategorySimpleDto;
+import org.tornotron.echno_backend.category.dto.WorkSubcategoryDto;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.organization.Organization;
+
+import java.util.List;
 
 
 /**
@@ -27,6 +30,7 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final TenantEntityHelper tenantEntityHelper;
     private final CategoryMapper categoryMapper;
+    private final WorkSubcategoryRepository workSubcategoryRepository;
 
     /**
      * Constructs a CategoryService with the given CategoryRepository.
@@ -34,10 +38,12 @@ public class CategoryService {
      * @param categoryRepository The repository for category data access.
      * @param tenantEntityHelper The helper for resolving the current organization.
      */
-    public CategoryService(CategoryRepository categoryRepository, TenantEntityHelper tenantEntityHelper, CategoryMapper categoryMapper) {
+    public CategoryService(CategoryRepository categoryRepository, TenantEntityHelper tenantEntityHelper,
+                           CategoryMapper categoryMapper, WorkSubcategoryRepository workSubcategoryRepository) {
         this.categoryRepository = categoryRepository;
         this.tenantEntityHelper = tenantEntityHelper;
         this.categoryMapper = categoryMapper;
+        this.workSubcategoryRepository = workSubcategoryRepository;
     }
 
     /**
@@ -109,5 +115,25 @@ public class CategoryService {
             throw new ResourceNotFoundException("Category not found with id: " + id);
         }
         categoryRepository.deleteById(id);
+    }
+
+    /**
+     * The sub-categories of one of this organization's work categories, in dropdown order.
+     *
+     * @param categoryId The work category.
+     * @return Its sub-categories, empty when it has none.
+     * @throws ResourceNotFoundException if no such category exists in this organization.
+     */
+    @Transactional(readOnly = true)
+    public List<WorkSubcategoryDto> getSubcategories(Long categoryId) {
+        Long organizationId = TenantContext.getCurrentOrgId();
+        if (!categoryRepository.existsByIdAndOrganization_Id(categoryId, organizationId)) {
+            throw new ResourceNotFoundException("Category not found with id: " + categoryId);
+        }
+        return workSubcategoryRepository
+                .findByCategory_IdAndOrganization_IdOrderBySortOrderAscIdAsc(categoryId, organizationId)
+                .stream()
+                .map(WorkSubcategoryDto::from)
+                .toList();
     }
 }

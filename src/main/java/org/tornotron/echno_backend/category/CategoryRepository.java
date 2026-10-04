@@ -30,4 +30,16 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     boolean existsByNormalizedNameAndOrganization_Id(String normalizedName, Long organizationId);
 
     boolean existsByIdAndOrganization_Id(Long id, Long organizationId);
+
+    /**
+     * The organization's category with this normalized name, the row the standard sub-categories
+     * of that name attach to.
+     */
+    Optional<Category> findFirstByNormalizedNameAndOrganization_IdOrderByIdAsc(String normalizedName, Long organizationId);
+
+    /**
+     * The organization's category with this name ignoring case, for a row from before
+     * {@code normalized_name} was filled in. Same fallback changeset 127 uses.
+     */
+    Optional<Category> findFirstByNameIgnoreCaseAndOrganization_IdOrderByIdAsc(String name, Long organizationId);
 }

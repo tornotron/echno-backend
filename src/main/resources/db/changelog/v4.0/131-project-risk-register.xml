@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The project risk register on the server (ClickUp 86d4609hd). Until now each browser kept
+        its own copy in local storage, so nobody else on the project saw it. The rows go with
+        their project when it is deleted.
+    -->
+
+    <changeSet id="131-create-project-risk" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="project_risk"/></not>
+        </preConditions>
+        <createTable tableName="project_risk">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_project_risk" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="risk_number" type="INT"><constraints nullable="false"/></column>
+            <column name="title" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="description" type="VARCHAR(4000)"/>
+            <column name="category" type="VARCHAR(64)"><constraints nullable="false"/></column>
+            <column name="sub_category" type="VARCHAR(255)"/>
+            <column name="status" type="VARCHAR(32)"><constraints nullable="false"/></column>
+            <column name="owner" type="VARCHAR(255)"/>
+            <column name="probability" type="VARCHAR(16)"><constraints nullable="false"/></column>
+            <column name="impact" type="VARCHAR(16)"><constraints nullable="false"/></column>
+            <column name="risk_score" type="INT"><constraints nullable="false"/></column>
+            <column name="residual_probability" type="VARCHAR(16)"><constraints nullable="false"/></column>
+            <column name="residual_impact" type="VARCHAR(16)"><constraints nullable="false"/></column>
+            <column name="residual_score" type="INT"><constraints nullable="false"/></column>
+            <column name="response_type" type="VARCHAR(16)"><constraints nullable="false"/></column>
+            <column name="contingency_plan" type="VARCHAR(4000)"/>
+            <column name="identified_date" type="DATE"/>
+            <column name="review_date" type="DATE"/>
+            <column name="closed_date" type="DATE"/>
+            <column name="cost_impact" type="DECIMAL(19,2)"/>
+            <column name="schedule_impact_days" type="INT"/>
+            <column name="import_ref" type="VARCHAR(64)"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMPTZ"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMPTZ"><constraints nullable="false"/></column>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="project_risk" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_project_risk_organization"/>
+        <addForeignKeyConstraint baseTableName="project_risk" baseColumnNames="project_id"
+                                 referencedTableName="project" referencedColumnNames="id"
+                                 constraintName="fk_project_risk_project" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="project_risk" columnNames="project_id, risk_number"
+                             constraintName="uq_project_risk_number"/>
+        <addUniqueConstraint tableName="project_risk" columnNames="project_id, import_ref"
+                             constraintName="uq_project_risk_import_ref"/>
+        <createIndex tableName="project_risk" indexName="idx_project_risk_org_project">
+            <column name="organization_id"/>
+            <column name="project_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="project_risk"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

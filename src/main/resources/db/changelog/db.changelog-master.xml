@@ -472,6 +472,12 @@
     <!-- v4.0 - Schedule activities: forecast finish, milestone, responsible party, dependencies (work progress inspection step 1) -->
     <include file="db/changelog/v4.0/129-wbs-schedule-activities.xml"/>
 
+    <!-- v4.0 - Work sub-categories: the standard list under each work category, and a task's sub-category (ClickUp 86d4609f9) -->
+    <include file="db/changelog/v4.0/130-work-subcategories.xml"/>
+
+    <!-- v4.0 - Risk register: project risks on the server instead of the browser (ClickUp 86d4609hd) -->
+    <include file="db/changelog/v4.0/131-project-risk-register.xml"/>
+
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->
     <!-- (#749). Files run in path order; a module's pre-move changesets -->

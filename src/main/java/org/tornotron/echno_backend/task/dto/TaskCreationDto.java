@@ -59,6 +59,16 @@ public class TaskCreationDto {
     @NotNull(message = "categoryId is required(type: Long)")
     private Long categoryId;
 
+    /**
+     * Optional. Free text: the form offers the category's sub-categories and also takes one typed
+     * in by hand, so it is not checked against the list.
+     */
+    @Schema(nullable = true, description = "Sub-category within the work category, such as \"Excavation\" under "
+            + "Earthwork. Either one of the category's sub-categories or free text. Optional; blank is "
+            + "stored as none.", example = "Excavation")
+    @Size(max = 255, message = "subCategory must be at most 255 characters")
+    private String subCategory;
+
     @Schema(description = "Initial completion of the task, as a percentage from 0 to 100.", example = "0")
     @NotNull(message = "progress is required(type: Double)")
     private Double progress;

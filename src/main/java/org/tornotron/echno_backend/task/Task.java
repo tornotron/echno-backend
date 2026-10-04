@@ -76,6 +76,13 @@ public class Task implements TenantScopedEntity {
     @ManyToOne
     private Category category;
 
+    /**
+     * The sub-category within {@link #category}, as text: one of the category's standard
+     * sub-categories picked from the dropdown, or one typed in by hand. Optional.
+     */
+    @Column(name = "sub_category", length = 255)
+    private String subCategory;
+
     /** The progress of the task, typically represented as a percentage (e.g., 0.0 to 100.0). */
     private Double progress;
 
