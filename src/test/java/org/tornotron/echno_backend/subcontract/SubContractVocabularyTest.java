@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.organization.Organization;
@@ -35,13 +36,14 @@ class SubContractVocabularyTest {
 
     @Mock private SubContractRepository subContractRepository;
     @Mock private TenantEntityHelper tenantEntityHelper;
+    @Mock private ObjectProvider<SubContractRecords> contractRecords;
 
     private final SubContractMapper mapper = new SubContractMapperImpl();
     private SubContractService service;
 
     @BeforeEach
     void setUp() {
-        service = new SubContractService(subContractRepository, mapper, tenantEntityHelper);
+        service = new SubContractService(subContractRepository, mapper, tenantEntityHelper, contractRecords);
         lenient().when(tenantEntityHelper.resolveCurrentOrganization()).thenReturn(new Organization());
         lenient().when(subContractRepository.saveAndFlush(any(SubContract.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));

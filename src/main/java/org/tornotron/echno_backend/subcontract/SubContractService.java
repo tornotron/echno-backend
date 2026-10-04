@@ -3,9 +3,11 @@ package org.tornotron.echno_backend.subcontract;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
@@ -18,13 +20,23 @@ import org.tornotron.echno_backend.subcontract.enums.SubContractPaymentTerms;
 import org.tornotron.echno_backend.subcontract.enums.SubContractStatus;
 import org.tornotron.echno_backend.subcontract.enums.SubContractType;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * CRUD + list for subcontracts. The subcontract is a header plus a list of
  * milestones; each milestone carries its own organization so tenant scoping
  * applies to the child rows directly.
+ *
+ * <p>An update keeps a milestone that the request names by id, so its id survives an edit of the
+ * contract: bills and requirements recorded against it stay attached. A milestone left out of the
+ * request is removed, unless a module still holds records against it ({@link SubContractRecords});
+ * the same check guards deleting the whole contract.
  */
 @Service
 public class SubContractService {
@@ -32,13 +44,16 @@ public class SubContractService {
     private final SubContractRepository subContractRepository;
     private final SubContractMapper subContractMapper;
     private final TenantEntityHelper tenantEntityHelper;
+    private final ObjectProvider<SubContractRecords> contractRecords;
 
     public SubContractService(SubContractRepository subContractRepository,
                               SubContractMapper subContractMapper,
-                              TenantEntityHelper tenantEntityHelper) {
+                              TenantEntityHelper tenantEntityHelper,
+                              ObjectProvider<SubContractRecords> contractRecords) {
         this.subContractRepository = subContractRepository;
         this.subContractMapper = subContractMapper;
         this.tenantEntityHelper = tenantEntityHelper;
+        this.contractRecords = contractRecords;
     }
 
     @Transactional
@@ -79,10 +94,10 @@ public class SubContractService {
 
         applyHeaderFields(subContract, creationDto);
 
-        // Replace the milestone collection: clear in place (orphanRemoval deletes the old
-        // rows) and re-add from the request, keeping Hibernate's collection tracking intact.
-        subContract.getMilestones().clear();
-        applyMilestones(subContract, creationDto.getMilestones(), organization);
+        // Merge the milestones by id: a named milestone is updated in place so its id, and what
+        // is recorded against it, survives the edit; an unnamed one is added; a missing one is
+        // removed (orphanRemoval) once no module holds records against it.
+        mergeMilestones(subContract, creationDto.getMilestones(), organization);
 
         // saveAndFlush before mapping so the freshly inserted milestone ids are populated
         // on the returned DTO (without the flush the child ids are null).
@@ -96,6 +111,13 @@ public class SubContractService {
                 .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Subcontract with ID " + id + " was not found in this organization"));
+        for (SubContractRecords records : contractRecords.orderedStream().toList()) {
+            String held = records.recordsHeldAgainstContract(id);
+            if (held != null) {
+                throw new InvalidRequestException("Subcontract " + id + " has " + held
+                        + " recorded against it, so it cannot be deleted");
+            }
+        }
         subContractRepository.delete(subContract);
     }
 
@@ -161,6 +183,60 @@ public class SubContractService {
         subContract.setNotes(dto.getNotes());
     }
 
+    private void mergeMilestones(SubContract subContract,
+                                 List<ContractMilestoneDto> milestoneDtos,
+                                 Organization organization) {
+        List<ContractMilestoneDto> incoming = milestoneDtos == null ? List.of() : milestoneDtos;
+        Map<Long, ContractMilestone> existing = new HashMap<>();
+        for (ContractMilestone milestone : subContract.getMilestones()) {
+            existing.put(milestone.getId(), milestone);
+        }
+        Set<Long> kept = new HashSet<>();
+        for (ContractMilestoneDto dto : incoming) {
+            if (dto.getId() == null) {
+                continue;
+            }
+            if (!existing.containsKey(dto.getId())) {
+                throw new InvalidRequestException("Milestone " + dto.getId() + " is not part of subcontract "
+                        + subContract.getId());
+            }
+            if (!kept.add(dto.getId())) {
+                throw new InvalidRequestException("Milestone " + dto.getId() + " is listed twice");
+            }
+        }
+        List<Long> removed = existing.keySet().stream().filter(id -> !kept.contains(id)).toList();
+        if (!removed.isEmpty()) {
+            for (SubContractRecords records : contractRecords.orderedStream().toList()) {
+                String held = records.recordsHeldAgainstMilestones(removed);
+                if (held != null) {
+                    throw new InvalidRequestException("A milestone removed from this subcontract has " + held
+                            + " recorded against it. Keep the milestone, or cancel those first");
+                }
+            }
+            subContract.getMilestones().removeIf(milestone -> removed.contains(milestone.getId()));
+        }
+        for (ContractMilestoneDto dto : incoming) {
+            if (dto.getId() != null) {
+                copyMilestoneFields(Objects.requireNonNull(existing.get(dto.getId())), dto);
+            } else {
+                ContractMilestone milestone = new ContractMilestone();
+                copyMilestoneFields(milestone, dto);
+                milestone.setOrganization(organization);
+                subContract.addMilestone(milestone);
+            }
+        }
+    }
+
+    private static void copyMilestoneFields(ContractMilestone milestone, ContractMilestoneDto dto) {
+        milestone.setName(dto.getName());
+        milestone.setDescription(dto.getDescription());
+        milestone.setTargetDate(dto.getTargetDate());
+        milestone.setCompletionDate(dto.getCompletionDate());
+        milestone.setPaymentPercentage(dto.getPaymentPercentage());
+        milestone.setAmount(dto.getAmount());
+        milestone.setStatus(dto.getStatus());
+    }
+
     /** Builds and attaches the milestones, wiring each child's back-reference and organization. */
     private void applyMilestones(SubContract subContract,
                                  List<ContractMilestoneDto> milestoneDtos,
@@ -170,13 +246,7 @@ public class SubContractService {
         }
         for (ContractMilestoneDto milestoneDto : milestoneDtos) {
             ContractMilestone milestone = new ContractMilestone();
-            milestone.setName(milestoneDto.getName());
-            milestone.setDescription(milestoneDto.getDescription());
-            milestone.setTargetDate(milestoneDto.getTargetDate());
-            milestone.setCompletionDate(milestoneDto.getCompletionDate());
-            milestone.setPaymentPercentage(milestoneDto.getPaymentPercentage());
-            milestone.setAmount(milestoneDto.getAmount());
-            milestone.setStatus(milestoneDto.getStatus());
+            copyMilestoneFields(milestone, milestoneDto);
             milestone.setOrganization(organization);
             subContract.addMilestone(milestone);
         }
