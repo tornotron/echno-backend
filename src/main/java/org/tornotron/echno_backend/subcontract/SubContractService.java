@@ -210,7 +210,8 @@ public class SubContractService {
                 String held = records.recordsHeldAgainstMilestones(removed);
                 if (held != null) {
                     throw new InvalidRequestException("A milestone removed from this subcontract has " + held
-                            + " recorded against it. Keep the milestone, or cancel those first");
+                            + " recorded against it, so it has to stay. Bills stay attached to their milestone "
+                            + "even when cancelled");
                 }
             }
             subContract.getMilestones().removeIf(milestone -> removed.contains(milestone.getId()));

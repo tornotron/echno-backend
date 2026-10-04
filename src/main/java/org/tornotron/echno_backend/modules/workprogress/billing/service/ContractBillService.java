@@ -256,7 +256,9 @@ public class ContractBillService {
             }
         }
 
-        setup.seedRulesIfNone(contract, org);
+        if (existing.isEmpty()) {
+            setup.seedRulesIfNone(contract, org);
+        }
         int sequence = bills.maxSequence(orgId, contract.getId()) + 1;
         bill.setSequenceNo(sequence);
         bill.setBillNumber((req.billingModel() == BillingModel.RUNNING_ACCOUNT ? "RA-" : "MB-")
@@ -296,6 +298,12 @@ public class ContractBillService {
                             + line.getContractQuantity() + " " + line.getUnit()
                             + "; bill the excess as an extra item");
                 }
+                if (claimed.compareTo(line.getClaimedQuantity()) != 0) {
+                    // A changed claim has not been measured: an earlier measurement of a returned
+                    // bill must not be paid against the new claim.
+                    line.setMeasuredQuantity(null);
+                    line.setAcceptedQuantity(null);
+                }
                 line.setClaimedQuantity(claimed);
                 line.setRemarks(trimToNull(change.remarks()));
             }
@@ -309,10 +317,13 @@ public class ContractBillService {
             if (req.claimedPercent() != null) {
                 requireClaimablePercent(req.claimedPercent(),
                         certifiedPercent(orgId, bill.getSubContractId(), bill.getContractMilestoneId()));
-                bill.setClaimedPercent(req.claimedPercent().setScale(2, RoundingMode.HALF_UP));
-            } else {
-                bill.setClaimedPercent(null);
             }
+            BigDecimal claimed = req.claimedPercent() == null ? null : req.claimedPercent().setScale(2, RoundingMode.HALF_UP);
+            if (claimed == null ? bill.getClaimedPercent() != null : claimed.compareTo(
+                    bill.getClaimedPercent() == null ? BigDecimal.ZERO.setScale(2) : bill.getClaimedPercent()) != 0) {
+                bill.setCertifiedPercent(null);
+            }
+            bill.setClaimedPercent(claimed);
         }
         bill.setContractorReference(trimToNull(req.contractorReference()));
         bill.setLocation(trimToNull(req.location()));
@@ -427,6 +438,9 @@ public class ContractBillService {
                     line.setAcceptedQuantity(BillMath.quantity(BigDecimal.ZERO));
                 } else if (line.getAcceptedQuantity() == null) {
                     open.add(line.getItemCode());
+                } else if (line.getAcceptedQuantity().compareTo(line.getClaimedQuantity()) > 0) {
+                    throw new InvalidRequestException("Item " + line.getItemCode() + ": " + line.getAcceptedQuantity()
+                            + " accepted is more than the " + line.getClaimedQuantity() + " claimed; measure it again");
                 }
             }
             if (!open.isEmpty()) {
@@ -439,6 +453,9 @@ public class ContractBillService {
         } else if (bill.getCertifiedPercent() == null || bill.getCertifiedPercent().signum() <= 0) {
             throw new InvalidRequestException("Record the percent of the milestone accepted before verifying, "
                     + "or return the bill for correction");
+        } else if (bill.getCertifiedPercent().compareTo(bill.getClaimedPercent()) > 0) {
+            throw new InvalidRequestException(bill.getCertifiedPercent() + " percent accepted is more than the "
+                    + bill.getClaimedPercent() + " percent claimed; measure it again");
         }
         bill.setStatus(BillStatus.VERIFIED);
         bill.setVerifiedBy(userContextService.getCurrentUserId());
