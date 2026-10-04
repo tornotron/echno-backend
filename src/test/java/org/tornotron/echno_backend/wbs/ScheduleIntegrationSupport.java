@@ -127,6 +127,13 @@ public abstract class ScheduleIntegrationSupport extends AbstractIntegrationTest
             deleteForOrgs("DELETE FROM work_progress_inspection WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM wbs_dependency WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM wbs_element WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM contract_bill_event WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM contract_bill WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM contract_milestone_requirement WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM contract_deduction_rule WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM contract_boq_item WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM payable WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM contract_milestone WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM sub_contract WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM employee WHERE organization_id IN (:a,:b)");
             entityManager.createNativeQuery("DELETE FROM users_table WHERE keycloak_id LIKE :tag")

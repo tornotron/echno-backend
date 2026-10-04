@@ -30,7 +30,8 @@ class WorkProgressModuleTest {
     @Test
     void permissionsUseTheColonVocabulary() {
         assertThat(module.manifest().permissions())
-                .containsExactly("work-progress:read", "work-progress:record")
+                .containsExactly("work-progress:read", "work-progress:record", "work-progress:billing-setup",
+                        "work-progress:bill", "work-progress:certify", "work-progress:approve")
                 .allMatch(ModuleManifest.PERMISSION_KEY.asMatchPredicate());
     }
 
@@ -40,6 +41,16 @@ class WorkProgressModuleTest {
         assertThat(WorkProgressModule.RECORD_GUARD)
                 .startsWith("@orgSecurity.hasAnyOrgRoleForCurrentTenant(")
                 .contains("'system-admin'", "'project-manager'", "'site-engineer'");
+    }
+
+    @Test
+    void theOfficeSetsUpAndSignsBillsAndTheSiteTeamPreparesAndMeasuresThem() {
+        String office = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
+        assertThat(WorkProgressModule.BILLING_SETUP_GUARD).isEqualTo(office);
+        assertThat(WorkProgressModule.BILL_CERTIFY_GUARD).isEqualTo(office);
+        assertThat(WorkProgressModule.BILL_APPROVE_GUARD).isEqualTo(office);
+        assertThat(WorkProgressModule.BILL_PREPARE_GUARD).isEqualTo(WorkProgressModule.RECORD_GUARD);
+        assertThat(WorkProgressModule.BILL_VERIFY_GUARD).isEqualTo(WorkProgressModule.RECORD_GUARD);
     }
 
     @Test

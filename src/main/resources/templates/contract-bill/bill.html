@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title th:text="${title}">Bill</title>
+    <style type="text/css">
+        @page { size: A4 landscape; margin: 16mm 14mm 16mm 14mm; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; color: #1f2933; font-size: 9.5px; line-height: 1.4; margin: 0; }
+        .head { border-bottom: 2px solid #1d4ed8; padding-bottom: 10px; margin-bottom: 12px; }
+        .head .title { font-size: 17px; font-weight: bold; color: #1d4ed8; }
+        .head .sub { font-size: 10px; color: #52606d; margin-top: 2px; }
+        .draft { color: #b45309; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; }
+        .meta td { vertical-align: top; padding: 0 8px 6px 0; width: 25%; }
+        .label { font-size: 7.5px; text-transform: uppercase; letter-spacing: 0.5px; color: #7b8794; }
+        .value { font-size: 10px; font-weight: bold; }
+        .section { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #52606d; margin: 12px 0 4px 0; font-weight: bold; }
+        .grid th { background: #eef2ff; font-size: 8px; text-align: left; padding: 4px; border-bottom: 1px solid #c7d2fe; }
+        .grid td { padding: 3px 4px; border-bottom: 1px solid #e4e7eb; }
+        .num { text-align: right; }
+        .summary { width: 45%; margin-left: 55%; }
+        .summary td { padding: 3px 4px; }
+        .summary .net td { font-weight: bold; font-size: 11px; border-top: 1px solid #1f2933; }
+        .signs td { width: 20%; padding: 18px 6px 0 0; vertical-align: top; }
+        .foot { margin-top: 14px; font-size: 7.5px; color: #7b8794; }
+    </style>
+</head>
+<body>
+<div class="head">
+    <div class="title" th:text="${title}">Running Account Bill RA-01</div>
+    <div class="sub">
+        <span th:text="${projectName}">Project</span> &#183; <span th:text="${contractName}">Contract</span>
+        &#183; Status: <span th:text="${status}">Approved</span>
+        <span class="draft" th:if="${!final}"> &#183; Figures are provisional until certification</span>
+    </div>
+</div>
+
+<table class="meta">
+    <tr>
+        <td><div class="label">Contractor</div><div class="value" th:text="${contractorName}">ABC</div></td>
+        <td><div class="label">Contract reference</div><div class="value" th:text="${contractRef}">CP-1</div></td>
+        <td><div class="label">Contract value</div><div class="value" th:text="${contractValue}">Rs.</div></td>
+        <td><div class="label">Contractor's bill no.</div><div class="value" th:text="${contractorReference}">-</div></td>
+    </tr>
+    <tr>
+        <td th:if="${ra}"><div class="label">Billing period</div><div class="value" th:text="${period}">period</div></td>
+        <td th:if="${!ra}"><div class="label">Milestone</div><div class="value" th:text="${milestoneName}">M5</div></td>
+        <td><div class="label">Location</div><div class="value" th:text="${location}">Tower B</div></td>
+        <td><div class="label">Joint measurement</div><div class="value" th:text="${measurementDate}">date</div></td>
+        <td><div class="label">Measured by / client representative</div>
+            <div class="value"><span th:text="${measuredBy}">A</span> / <span th:text="${clientRepresentative}">B</span></div></td>
+    </tr>
+</table>
+
+<div th:if="${ra}">
+    <div class="section">Running account</div>
+    <table class="grid">
+        <thead>
+        <tr>
+            <th>Code</th><th>Description</th><th>Unit</th><th class="num">Contract qty</th><th class="num">Rate</th>
+            <th class="num">Previous</th><th class="num">Claimed</th><th class="num">Accepted</th>
+            <th class="num">Cumulative</th><th class="num">This bill</th><th class="num">Cumulative value</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="l : ${lines}">
+            <td th:text="${l.code}">CP-01</td>
+            <td th:text="${l.description}">RCC</td>
+            <td th:text="${l.unit}">m3</td>
+            <td class="num" th:text="${l.contractQuantity}">500</td>
+            <td class="num" th:text="${l.rate}">Rs.</td>
+            <td class="num" th:text="${l.previous}">0</td>
+            <td class="num" th:text="${l.claimed}">0</td>
+            <td class="num" th:text="${l.accepted}">0</td>
+            <td class="num" th:text="${l.cumulative}">0</td>
+            <td class="num" th:text="${l.thisAmount}">Rs.</td>
+            <td class="num" th:text="${l.cumulativeAmount}">Rs.</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<div th:if="${!ra}">
+    <div class="section">Milestone</div>
+    <table class="meta">
+        <tr>
+            <td><div class="label">Milestone value</div><div class="value" th:text="${milestoneValue}">Rs.</div></td>
+            <td><div class="label">Certified on earlier bills</div><div class="value" th:text="${certifiedBeforePercent}">0%</div></td>
+            <td><div class="label">Claimed</div><div class="value" th:text="${claimedPercent}">85%</div></td>
+            <td><div class="label">Accepted</div><div class="value" th:text="${certifiedPercent}">85%</div></td>
+        </tr>
+    </table>
+</div>
+
+<div class="section">Bill summary</div>
+<table class="summary">
+    <tr><td>Gross amount claimed</td><td class="num" th:text="${grossClaimed}">Rs.</td></tr>
+    <tr><td>Gross amount of this bill</td><td class="num" th:text="${grossAmount}">Rs.</td></tr>
+    <tr th:each="a : ${adjustments}">
+        <td><span th:text="${a.effect}">Less</span>: <span th:text="${a.label}">Retention</span></td>
+        <td class="num" th:text="${a.amount}">Rs.</td>
+    </tr>
+    <tr><td>Total additions</td><td class="num" th:text="${additions}">Rs.</td></tr>
+    <tr><td>Total deductions</td><td class="num" th:text="${deductions}">Rs.</td></tr>
+    <tr class="net"><td>Net payable</td><td class="num" th:text="${netPayable}">Rs.</td></tr>
+    <tr><td>Previously certified</td><td class="num" th:text="${previousCertified}">Rs.</td></tr>
+    <tr><td>Cumulative certified</td><td class="num" th:text="${cumulativeCertified}">Rs.</td></tr>
+</table>
+
+<table class="signs">
+    <tr>
+        <td th:each="s : ${signatures}">
+            <div class="label" th:text="${s.step}">Prepared</div>
+            <div class="value" th:text="${s.name}">Name</div>
+            <div th:text="${s.at}">date</div>
+        </td>
+    </tr>
+</table>
+
+<div class="foot">Generated <span th:text="${generatedAt}">now</span>.</div>
+</body>
+</html>
