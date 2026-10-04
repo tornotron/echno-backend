@@ -175,6 +175,8 @@ public class TaskService {
             throw new InvalidRequestException("A categoryId is required to create a task");
         }
 
+        task.setSubCategory(cleanSubCategory(taskCreationDto.getSubCategory()));
+
         if(taskCreationDto.getTags() != null && !taskCreationDto.getTags().isEmpty()) {
             List<String> cleanedTags = taskCreationDto.getTags().stream()
                     .filter(tag -> tag != null && !tag.trim().isEmpty())
@@ -357,6 +359,9 @@ public class TaskService {
                 case "categoryId":
                     task.setCategory(resolveCategory(value));
                     break;
+                case "subCategory":
+                    task.setSubCategory(readSubCategory(value));
+                    break;
                 default:
                     PartialUpdateKeys.reportUnknown(log, "task", task.getId(), key,
                             DELIBERATELY_DROPPED_UPDATE_KEYS);
@@ -452,6 +457,34 @@ public class TaskService {
         return categoryRepository.findByIdAndOrganization_Id(categoryId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Category with ID " + categoryId + " was not found in this organization"));
+    }
+
+    /**
+     * Reads the {@code subCategory} key of a partial task update: text, with null or blank
+     * clearing it.
+     *
+     * @throws InvalidRequestException if the value is not text or is longer than the column.
+     */
+    private String readSubCategory(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (!(value instanceof String text)) {
+            throw new InvalidRequestException("subCategory must be text");
+        }
+        return cleanSubCategory(text);
+    }
+
+    /** Trims a sub-category, maps blank to none, and refuses one longer than the column. */
+    private static String cleanSubCategory(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        String trimmed = text.trim();
+        if (trimmed.length() > 255) {
+            throw new InvalidRequestException("subCategory must be at most 255 characters");
+        }
+        return trimmed;
     }
 
     private void updateTags(Object rawTags, Task task) {

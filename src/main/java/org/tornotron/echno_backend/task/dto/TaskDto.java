@@ -45,6 +45,10 @@ public class TaskDto {
     @Schema(description = "Category the task is filed under.")
     private CategoryDto category;
 
+    @Schema(nullable = true, description = "Sub-category within the work category, or null when none was given.",
+            example = "Excavation")
+    private String subCategory;
+
     @Schema(description = "Completion of the task, as a percentage from 0 to 100.", example = "50.0")
     private Double progress;
 

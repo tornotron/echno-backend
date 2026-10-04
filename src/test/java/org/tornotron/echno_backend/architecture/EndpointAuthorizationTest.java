@@ -153,7 +153,14 @@ class EndpointAuthorizationTest {
 
             // Sub-contracts: any member reads, the pair writes.
             pin("SubContractControllerWeb", MEMBER, "read*"),
-            pin("SubContractControllerWeb", ADMIN_OR_PM, "createSubContract", "updateSubContract", "deleteSubContract"));
+            pin("SubContractControllerWeb", ADMIN_OR_PM, "createSubContract", "updateSubContract", "deleteSubContract"),
+
+            // Risk register: it sits with the project, so any member reads and the pair records,
+            // changes, imports and removes. Both twins.
+            pin("ProjectRiskController", MEMBER, "read*"),
+            pin("ProjectRiskController", ADMIN_OR_PM, "createRisk", "importRisks", "updateRisk", "deleteRisk"),
+            pin("ProjectRiskControllerWeb", MEMBER, "read*"),
+            pin("ProjectRiskControllerWeb", ADMIN_OR_PM, "createRisk", "importRisks", "updateRisk", "deleteRisk"));
 
     private static final Set<String> PINNED_CONTROLLERS = new TreeSet<>(
             MATRIX.stream().map(Pin::controller).toList());

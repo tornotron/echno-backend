@@ -40,6 +40,10 @@ public class TaskSimpleDto {
     @Schema(description = "Id of the category the task is filed under.", example = "3")
     private Long categoryId;
 
+    @Schema(nullable = true, description = "Sub-category within the work category, or null when none was given.",
+            example = "Excavation")
+    private String subCategory;
+
     @Schema(description = "Completion of the task, as a fraction from 0 to 1.", example = "0.0")
     private Double progress;
 

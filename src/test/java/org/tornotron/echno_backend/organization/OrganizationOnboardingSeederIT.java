@@ -99,6 +99,8 @@ class OrganizationOnboardingSeederIT extends AbstractIntegrationTest {
         assertThat(leavePolicyRepo.existsByOrganizationIdAndLeaveTypeCode(orgId, "PL")).isTrue();
         // The standard construction work categories, so the task form's dropdown is not empty.
         assertThat(workCategoryCount()).isEqualTo(28);
+        // And the standard sub-categories under them, for the task form's second dropdown.
+        assertThat(workSubcategoryCount()).isEqualTo(215);
 
         long accountsAfterFirst = accountRepo.count();
 
@@ -111,6 +113,14 @@ class OrganizationOnboardingSeederIT extends AbstractIntegrationTest {
         assertThat(accountRepo.count()).isEqualTo(accountsAfterFirst);
         assertThat(leavePolicyRepo.findByOrganizationId(orgId)).hasSize(5);
         assertThat(workCategoryCount()).isEqualTo(28);
+        assertThat(workSubcategoryCount()).isEqualTo(215);
+    }
+
+    private long workSubcategoryCount() {
+        return entityManager.createQuery(
+                        "select count(w) from WorkSubcategory w where w.organization.id = :org", Long.class)
+                .setParameter("org", orgId)
+                .getSingleResult();
     }
 
     private long workCategoryCount() {

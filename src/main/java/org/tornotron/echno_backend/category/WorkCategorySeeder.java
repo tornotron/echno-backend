@@ -18,6 +18,11 @@ import java.util.List;
  * already holds is skipped, so an organization's own entries are never duplicated or overwritten,
  * and a rerun inserts nothing. Changeset {@code 127-backfill-standard-work-categories} applies the
  * same list to organizations that existed before this seeder did.
+ *
+ * <p>The standard sub-categories ({@link StandardWorkSubcategories}) follow on the same terms: each
+ * attaches to the organization's category of that name, one whose normalized name that category
+ * already holds is skipped, and changeset {@code 130-backfill-standard-work-subcategories} covers
+ * the organizations that existed before.
  */
 @Slf4j
 @Service
@@ -88,10 +93,12 @@ public class WorkCategorySeeder {
     );
 
     private final CategoryRepository categoryRepository;
+    private final WorkSubcategoryRepository workSubcategoryRepository;
     private final TenantEntityHelper tenantEntityHelper;
 
     /**
-     * Adds every standard category the current organization does not already hold.
+     * Adds every standard category the current organization does not already hold, then every
+     * standard sub-category its categories do not already hold.
      *
      * @return How many categories were created.
      */
@@ -112,7 +119,47 @@ public class WorkCategorySeeder {
             categoryRepository.save(category);
             created++;
         }
-        log.info("Seeded {} standard work categories for organization {}", created, organization.getId());
+        int subcategoriesCreated = seedSubcategories(organization);
+        log.info("Seeded {} standard work categories and {} sub-categories for organization {}",
+                created, subcategoriesCreated, organization.getId());
+        return created;
+    }
+
+    /**
+     * Adds the standard sub-categories under each standard category the organization holds. A
+     * category the organization has deleted is skipped with its sub-categories, since there is
+     * nothing for them to sit under.
+     */
+    private int seedSubcategories(Organization organization) {
+        int created = 0;
+        for (StandardWorkSubcategories.CategorySubcategories group : StandardWorkSubcategories.ALL) {
+            Category category = categoryRepository
+                    .findFirstByNormalizedNameAndOrganization_IdOrderByIdAsc(
+                            CategoryNormalizer.normalize(group.category()), organization.getId())
+                    .or(() -> categoryRepository.findFirstByNameIgnoreCaseAndOrganization_IdOrderByIdAsc(
+                            group.category(), organization.getId()))
+                    .orElse(null);
+            if (category == null) {
+                continue;
+            }
+            int order = 0;
+            for (StandardWorkSubcategories.StandardSubcategory standard : group.subcategories()) {
+                order++;
+                String normalized = CategoryNormalizer.normalize(standard.name());
+                if (workSubcategoryRepository.existsByCategory_IdAndNormalizedName(category.getId(), normalized)) {
+                    continue;
+                }
+                WorkSubcategory subcategory = new WorkSubcategory();
+                subcategory.setOrganization(organization);
+                subcategory.setCategory(category);
+                subcategory.setName(standard.name());
+                subcategory.setNormalizedName(normalized);
+                subcategory.setDescription(standard.description());
+                subcategory.setSortOrder(order);
+                workSubcategoryRepository.save(subcategory);
+                created++;
+            }
+        }
         return created;
     }
 }

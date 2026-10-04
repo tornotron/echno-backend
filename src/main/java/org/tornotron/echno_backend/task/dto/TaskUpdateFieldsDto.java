@@ -69,4 +69,9 @@ public class TaskUpdateFieldsDto {
             + "is a product rule rather than a column rule, since the join column itself is "
             + "nullable. A null is refused with a 400.", example = "4")
     private Long categoryId;
+
+    @Schema(nullable = true, description = "Sub-category within the work category, either one of the "
+            + "category's sub-categories or free text, at most 255 characters. A null or blank value clears it.",
+            example = "Excavation")
+    private String subCategory;
 }

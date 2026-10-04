@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.category.dto.CategoryCreationDto;
 import org.tornotron.echno_backend.category.dto.CategoryDto;
 import org.tornotron.echno_backend.category.dto.CategorySimpleDto;
+import org.tornotron.echno_backend.category.dto.WorkSubcategoryDto;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 
@@ -142,5 +143,28 @@ public class CategoryController {
         categoryService.deleteACategory(id);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(new ApiResponse("Category with id: " + id + " deleted"));
+    }
+
+    /**
+     * Lists the sub-categories of one work category, for the second dropdown on the task form.
+     *
+     * @param id The work category.
+     * @return Its sub-categories in dropdown order.
+     */
+    @GetMapping("{id}/subcategories")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @Operation(
+            summary = "List a category's sub-categories",
+            description = "Returns the sub-categories of a work category in dropdown order, such as "
+                    + "Excavation and Backfilling under Earthwork. A task stores its sub-category as text, "
+                    + "so this list is what the form suggests; a sub-category typed in by hand is not added to it."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Sub-categories returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No category with the given id")
+    })
+    public ResponseEntity<List<WorkSubcategoryDto>> readSubcategories(@PathVariable Long id) {
+        return ResponseEntity.ok(categoryService.getSubcategories(id));
     }
 }
