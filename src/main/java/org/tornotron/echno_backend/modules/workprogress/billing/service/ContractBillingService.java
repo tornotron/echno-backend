@@ -294,7 +294,11 @@ public class ContractBillingService {
         rules.delete(rule);
     }
 
-    /** Creates the retention rule from the contract record when billing starts on a contract with no rules. */
+    /**
+     * Creates the retention rule from the contract record when billing starts on a contract with no
+     * rules. The caller runs it for a contract's first bill only, so a rule the project manager has
+     * deleted is not brought back by the next bill.
+     */
     void seedRulesIfNone(SubContract contract, Organization org) {
         if (rules.existsForContract(org.getId(), contract.getId())) {
             return;

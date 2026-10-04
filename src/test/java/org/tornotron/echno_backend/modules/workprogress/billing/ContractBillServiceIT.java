@@ -288,6 +288,36 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
     }
 
     @Test
+    void aChangedClaimOnAReturnedBillMustBeMeasuredAgain() {
+        billing.addBoqItem(subContractAId, boq("CP-01", "100", "10"));
+        BillDto bill = bills.create(ra(AUG_1, AUG_31));
+        UUID line = byCode(bill).get("CP-01").id();
+        bills.update(bill.id(), claim(AUG_1, AUG_31, Map.of(line, "10")));
+        bills.submit(bill.id());
+        bills.saveMeasurement(bill.id(), measure(Map.of(line, "10")));
+        bills.returnForCorrection(bill.id(), new BillCommentRequest("Claim too high"));
+        BillDto lowered = bills.update(bill.id(), claim(AUG_1, AUG_31, Map.of(line, "4")));
+        assertThat(byCode(lowered).get("CP-01").acceptedQuantity()).isNull();
+        bills.submit(bill.id());
+        assertThatThrownBy(() -> bills.verify(bill.id())).isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("CP-01");
+        bills.saveMeasurement(bill.id(), measure(Map.of(line, "4")));
+        bills.verify(bill.id());
+        assertThat(bills.certify(bill.id()).grossAmount()).isEqualByComparingTo("40.00");
+    }
+
+    @Test
+    void aDeletedRetentionRuleIsNotSeededAgainByTheNextBill() {
+        contractA().setRetentionPercentage(new BigDecimal("5"));
+        billing.addBoqItem(subContractAId, boq("CP-01", "100", "10"));
+        BillDto first = bills.create(ra(AUG_1, AUG_31));
+        billing.deleteRule(billing.listRules(subContractAId).get(0).id());
+        bills.cancel(first.id());
+        bills.create(ra(AUG_1, AUG_31));
+        assertThat(billing.listRules(subContractAId)).isEmpty();
+    }
+
+    @Test
     void theCertifierCannotApproveUnlessASystemAdminAndThenItIsRecorded() {
         BillDto bill = certifiedBill();
         as(userAId);
