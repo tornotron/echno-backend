@@ -100,6 +100,10 @@ DRAFT or RETURNED -> CANCELLED
   (`SelfApprovalPolicy`). Approval creates the `Payable` for the contract's project and
   contractor with the net amount.
 
+A certified bill that is returned loses its frozen figures and rule lines, and must be verified
+and certified again. The timeline entry for the return records the certified gross, deductions
+and net it had, so the superseded certification can still be read.
+
 Only one bill per contract can be open (not approved or cancelled) at a time. That keeps the
 running account consistent: the previous certified quantity of a line cannot change under an
 open bill.
@@ -118,8 +122,10 @@ are scale 3.
   of that rule over the contract's certified and approved bills.
 - Net payable = base + additions from rules - all deductions.
 
-A claimed cumulative quantity above the contract quantity is refused; excess work goes on the
-bill as a manual extra-item addition until variations exist. A milestone cannot be billed past
+A claimed cumulative quantity above the contract quantity is refused, and the accepted quantity
+cannot exceed the claimed one, so the certified cumulative quantity never passes the contract
+quantity either. Excess work goes on the bill as a manual extra-item addition until variations
+exist. A milestone cannot be billed past
 100 percent across its bills.
 
 ## 6. Access
