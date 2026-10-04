@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        RA and milestone billing (docs/specs/2026-10-04-ra-milestone-billing.md): the contract BOQ,
+        the deduction rules, the milestone requirements, and one bill model shared by running
+        account and milestone bills, with its lines, adjustments and event log. Every root table
+        carries organization_id for the entities' orgFilter; lines and adjustments are owned by a
+        bill and cascade with it. Core rows (sub-contract, contract milestone, project, schedule
+        activity, payable) are referenced by foreign key, never cascaded.
+    -->
+
+    <changeSet id="work-progress-003-create-contract_boq_item" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="contract_boq_item"/></not>
+        </preConditions>
+        <createTable tableName="contract_boq_item">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_contract_boq_item" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="sub_contract_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="item_code" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="description" type="TEXT"><constraints nullable="false"/></column>
+            <column name="unit" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="contract_quantity" type="DECIMAL(18,3)"><constraints nullable="false"/></column>
+            <column name="rate" type="DECIMAL(18,2)"><constraints nullable="false"/></column>
+            <column name="amount" type="DECIMAL(18,2)"><constraints nullable="false"/></column>
+            <column name="wbs_element_id" type="BIGINT"/>
+            <column name="sort_order" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="contract_boq_item" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_boq_item_organization"/>
+        <addForeignKeyConstraint baseTableName="contract_boq_item" baseColumnNames="sub_contract_id"
+                                 referencedTableName="sub_contract" referencedColumnNames="id"
+                                 constraintName="fk_boq_item_sub_contract"/>
+        <addForeignKeyConstraint baseTableName="contract_boq_item" baseColumnNames="wbs_element_id"
+                                 referencedTableName="wbs_element" referencedColumnNames="id"
+                                 constraintName="fk_boq_item_wbs_element" onDelete="SET NULL"/>
+        <addUniqueConstraint tableName="contract_boq_item" columnNames="sub_contract_id, item_code"
+                             constraintName="uk_boq_item_contract_code"/>
+        <createIndex tableName="contract_boq_item" indexName="idx_boq_item_org_contract">
+            <column name="organization_id"/>
+            <column name="sub_contract_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="contract_boq_item"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="work-progress-003-create-contract_deduction_rule" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="contract_deduction_rule"/></not>
+        </preConditions>
+        <createTable tableName="contract_deduction_rule">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_contract_deduction_rule" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="sub_contract_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="kind" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="label" type="VARCHAR(120)"><constraints nullable="false"/></column>
+            <column name="effect" type="VARCHAR(10)"><constraints nullable="false"/></column>
+            <column name="basis" type="VARCHAR(10)"><constraints nullable="false"/></column>
+            <column name="rate" type="DECIMAL(6,3)"/>
+            <column name="fixed_amount" type="DECIMAL(18,2)"/>
+            <column name="cap_amount" type="DECIMAL(18,2)"/>
+            <column name="enabled" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="sort_order" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="contract_deduction_rule" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_deduction_rule_organization"/>
+        <addForeignKeyConstraint baseTableName="contract_deduction_rule" baseColumnNames="sub_contract_id"
+                                 referencedTableName="sub_contract" referencedColumnNames="id"
+                                 constraintName="fk_deduction_rule_sub_contract"/>
+        <createIndex tableName="contract_deduction_rule" indexName="idx_deduction_rule_org_contract">
+            <column name="organization_id"/>
+            <column name="sub_contract_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="contract_deduction_rule"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="work-progress-003-create-contract_milestone_requirement" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="contract_milestone_requirement"/></not>
+        </preConditions>
+        <createTable tableName="contract_milestone_requirement">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_contract_milestone_requirement" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="sub_contract_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="contract_milestone_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="title" type="VARCHAR(200)"><constraints nullable="false"/></column>
+            <column name="requirement_type" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="description" type="TEXT"/>
+            <column name="mandatory" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="due_date" type="DATE"/>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="remarks" type="TEXT"/>
+            <column name="sort_order" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="contract_milestone_requirement" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_ms_requirement_organization"/>
+        <addForeignKeyConstraint baseTableName="contract_milestone_requirement" baseColumnNames="sub_contract_id"
+                                 referencedTableName="sub_contract" referencedColumnNames="id"
+                                 constraintName="fk_ms_requirement_sub_contract"/>
+        <addForeignKeyConstraint baseTableName="contract_milestone_requirement" baseColumnNames="contract_milestone_id"
+                                 referencedTableName="contract_milestone" referencedColumnNames="id"
+                                 constraintName="fk_ms_requirement_milestone" onDelete="CASCADE"/>
+        <createIndex tableName="contract_milestone_requirement" indexName="idx_ms_requirement_milestone">
+            <column name="organization_id"/>
+            <column name="contract_milestone_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="contract_milestone_requirement"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="work-progress-003-create-contract_bill" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="contract_bill"/></not>
+        </preConditions>
+        <createTable tableName="contract_bill">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_contract_bill" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="sub_contract_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="billing_model" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="bill_number" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="sequence_no" type="INT"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="period_from" type="DATE"/>
+            <column name="period_to" type="DATE"/>
+            <column name="contract_milestone_id" type="BIGINT"/>
+            <column name="milestone_value" type="DECIMAL(18,2)"/>
+            <column name="claimed_percent" type="DECIMAL(5,2)"/>
+            <column name="certified_percent" type="DECIMAL(5,2)"/>
+            <column name="contractor_reference" type="VARCHAR(100)"/>
+            <column name="location" type="VARCHAR(200)"/>
+            <column name="measurement_date" type="DATE"/>
+            <column name="measured_by" type="VARCHAR(150)"/>
+            <column name="client_representative" type="VARCHAR(150)"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="return_reason" type="TEXT"/>
+            <column name="gross_certified" type="DECIMAL(18,2)"/>
+            <column name="previous_certified" type="DECIMAL(18,2)"/>
+            <column name="additions_total" type="DECIMAL(18,2)"/>
+            <column name="deductions_total" type="DECIMAL(18,2)"/>
+            <column name="net_payable" type="DECIMAL(18,2)"/>
+            <column name="prepared_by" type="BIGINT"/>
+            <column name="submitted_by" type="BIGINT"/>
+            <column name="submitted_at" type="TIMESTAMP"/>
+            <column name="verified_by" type="BIGINT"/>
+            <column name="verified_at" type="TIMESTAMP"/>
+            <column name="certified_by" type="BIGINT"/>
+            <column name="certified_at" type="TIMESTAMP"/>
+            <column name="approved_by" type="BIGINT"/>
+            <column name="approved_at" type="TIMESTAMP"/>
+            <column name="self_approved" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="payable_id" type="BIGINT"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="contract_bill" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_contract_bill_organization"/>
+        <addForeignKeyConstraint baseTableName="contract_bill" baseColumnNames="project_id"
+                                 referencedTableName="project" referencedColumnNames="id"
+                                 constraintName="fk_contract_bill_project"/>
+        <addForeignKeyConstraint baseTableName="contract_bill" baseColumnNames="sub_contract_id"
+                                 referencedTableName="sub_contract" referencedColumnNames="id"
+                                 constraintName="fk_contract_bill_sub_contract"/>
+        <addForeignKeyConstraint baseTableName="contract_bill" baseColumnNames="contract_milestone_id"
+                                 referencedTableName="contract_milestone" referencedColumnNames="id"
+                                 constraintName="fk_contract_bill_milestone"/>
+        <addForeignKeyConstraint baseTableName="contract_bill" baseColumnNames="payable_id"
+                                 referencedTableName="payable" referencedColumnNames="id"
+                                 constraintName="fk_contract_bill_payable"/>
+        <addUniqueConstraint tableName="contract_bill" columnNames="sub_contract_id, bill_number"
+                             constraintName="uk_contract_bill_number"/>
+        <createIndex tableName="contract_bill" indexName="idx_contract_bill_org_contract">
+            <column name="organization_id"/>
+            <column name="sub_contract_id"/>
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="contract_bill" indexName="idx_contract_bill_org_project">
+            <column name="organization_id"/>
+            <column name="project_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="contract_bill"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="work-progress-003-create-contract_bill_line" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="contract_bill_line"/></not>
+        </preConditions>
+        <createTable tableName="contract_bill_line">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_contract_bill_line" nullable="false"/></column>
+            <column name="bill_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="boq_item_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="item_code" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="description" type="TEXT"><constraints nullable="false"/></column>
+            <column name="unit" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="contract_quantity" type="DECIMAL(18,3)"><constraints nullable="false"/></column>
+            <column name="rate" type="DECIMAL(18,2)"><constraints nullable="false"/></column>
+            <column name="previous_quantity" type="DECIMAL(18,3)"><constraints nullable="false"/></column>
+            <column name="claimed_quantity" type="DECIMAL(18,3)"><constraints nullable="false"/></column>
+            <column name="measured_quantity" type="DECIMAL(18,3)"/>
+            <column name="accepted_quantity" type="DECIMAL(18,3)"/>
+            <column name="remarks" type="TEXT"/>
+            <column name="sort_order" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="contract_bill_line" baseColumnNames="bill_id"
+                                 referencedTableName="contract_bill" referencedColumnNames="id"
+                                 constraintName="fk_bill_line_bill" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="contract_bill_line" baseColumnNames="boq_item_id"
+                                 referencedTableName="contract_boq_item" referencedColumnNames="id"
+                                 constraintName="fk_bill_line_boq_item"/>
+        <addUniqueConstraint tableName="contract_bill_line" columnNames="bill_id, boq_item_id"
+                             constraintName="uk_bill_line_item"/>
+        <createIndex tableName="contract_bill_line" indexName="idx_bill_line_boq_item">
+            <column name="boq_item_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="contract_bill_line"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="work-progress-003-create-contract_bill_adjustment" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="contract_bill_adjustment"/></not>
+        </preConditions>
+        <createTable tableName="contract_bill_adjustment">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_contract_bill_adjustment" nullable="false"/></column>
+            <column name="bill_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="rule_id" type="UUID"/>
+            <column name="kind" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="label" type="VARCHAR(120)"><constraints nullable="false"/></column>
+            <column name="effect" type="VARCHAR(10)"><constraints nullable="false"/></column>
+            <column name="basis" type="VARCHAR(10)"><constraints nullable="false"/></column>
+            <column name="rate" type="DECIMAL(6,3)"/>
+            <column name="amount" type="DECIMAL(18,2)"><constraints nullable="false"/></column>
+            <column name="source" type="VARCHAR(10)"><constraints nullable="false"/></column>
+            <column name="sort_order" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="contract_bill_adjustment" baseColumnNames="bill_id"
+                                 referencedTableName="contract_bill" referencedColumnNames="id"
+                                 constraintName="fk_bill_adjustment_bill" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="contract_bill_adjustment" baseColumnNames="rule_id"
+                                 referencedTableName="contract_deduction_rule" referencedColumnNames="id"
+                                 constraintName="fk_bill_adjustment_rule"/>
+        <createIndex tableName="contract_bill_adjustment" indexName="idx_bill_adjustment_bill">
+            <column name="bill_id"/>
+        </createIndex>
+        <createIndex tableName="contract_bill_adjustment" indexName="idx_bill_adjustment_rule">
+            <column name="rule_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="contract_bill_adjustment"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="work-progress-003-create-contract_bill_event" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="contract_bill_event"/></not>
+        </preConditions>
+        <createTable tableName="contract_bill_event">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_contract_bill_event" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="bill_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="event_type" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="from_status" type="VARCHAR(20)"/>
+            <column name="to_status" type="VARCHAR(20)"/>
+            <column name="note" type="TEXT"/>
+            <column name="actor_user_id" type="BIGINT"/>
+            <column name="actor_name" type="VARCHAR(150)"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="contract_bill_event" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_bill_event_organization"/>
+        <addForeignKeyConstraint baseTableName="contract_bill_event" baseColumnNames="bill_id"
+                                 referencedTableName="contract_bill" referencedColumnNames="id"
+                                 constraintName="fk_bill_event_bill" onDelete="CASCADE"/>
+        <createIndex tableName="contract_bill_event" indexName="idx_bill_event_bill">
+            <column name="organization_id"/>
+            <column name="bill_id"/>
+            <column name="created_at"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="contract_bill_event"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
