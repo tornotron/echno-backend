@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The Assistant module's document chunks. assistant_document_unit carries organization_id,
+        which is what the entity's orgFilter runs on. Raw SQL, because Liquibase's typed
+        createTable has no VECTOR. The dimension (1024) is the spec's default and is fixed per
+        corpus: changing it is a new migration and a re-index of every row, never a toggle. The
+        column is NOT NULL because a chunk with no vector could never be found.
+
+        Deleting the attachment deletes its chunks (ON DELETE CASCADE), so a removed document
+        cannot go on being cited. A project may be deleted only once it has no chunks left.
+    -->
+
+    <changeSet id="assistant-001-create-assistant_document_unit" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="assistant_document_unit"/></not>
+        </preConditions>
+        <sql>
+            CREATE TABLE assistant_document_unit (
+                id UUID NOT NULL,
+                organization_id BIGINT NOT NULL,
+                project_id BIGINT NULL,
+                attachment_id BIGINT NOT NULL,
+                chunk_index INT NOT NULL,
+                page_no INT NULL,
+                char_start INT NULL,
+                char_end INT NULL,
+                content TEXT NOT NULL,
+                content_hash VARCHAR(128) NOT NULL,
+                embedding VECTOR(1024) NOT NULL,
+                embedding_model VARCHAR(200) NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL,
+                CONSTRAINT pk_assistant_document_unit PRIMARY KEY (id),
+                CONSTRAINT fk_assistant_document_unit_organization
+                    FOREIGN KEY (organization_id) REFERENCES organization (id),
+                CONSTRAINT fk_assistant_document_unit_project
+                    FOREIGN KEY (project_id) REFERENCES project (id),
+                CONSTRAINT fk_assistant_document_unit_attachment
+                    FOREIGN KEY (attachment_id) REFERENCES attachment (id) ON DELETE CASCADE
+            )
+        </sql>
+    </changeSet>
+
+    <!--
+        Its own changeset, so the index backfill runs in a transaction of its own. The prefix
+        columns are the point: a search that filters organization_id and project_id with equality
+        only visits that tenant's and those projects' vectors (the plan shows one prefix span per
+        project), which is how the similarity search cannot touch another organization's rows.
+        Needs feature.vector_index.enabled, which is true by default on CockroachDB v26.2.
+    -->
+    <changeSet id="assistant-001-create-assistant_document_unit-vector-index" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists tableName="assistant_document_unit" indexName="assistant_document_unit_embedding_idx"/></not>
+        </preConditions>
+        <sql>
+            CREATE VECTOR INDEX assistant_document_unit_embedding_idx
+                ON assistant_document_unit (organization_id, project_id, embedding)
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
