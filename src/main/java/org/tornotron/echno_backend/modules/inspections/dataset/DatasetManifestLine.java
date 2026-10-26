@@ -19,9 +19,18 @@ import java.util.UUID;
  * always false here: blurring happens in the tooling before anything lands under {@code raw/}.
  * {@code sha256} is absent on purpose; the copy is server-side, so the bytes never pass
  * through the backend, and the tooling hashes what it anonymises.
+ *
+ * <h2>The contract with echno-datasets (#893)</h2>
+ *
+ * <p>The tooling's README is the contract and its validator is the judge. Two fields it is strict
+ * about: {@code consent} must be {@code true} (with {@code consent_org_id} equal to {@code org_id}
+ * and {@code licence} {@code org-consent}) or the anonymiser skips the line as unconsented, and
+ * {@code evidence_id} must match {@code ^[A-Za-z0-9._-]{1,128}$} because it becomes an object key
+ * segment under {@code raw/}. {@code DatasetManifestContractTest} pins the line to a golden file
+ * that echno-datasets vendors; change one and the other has to follow.
  */
 @JsonPropertyOrder({"evidence_id", "source", "source_ref", "attachment_id", "object_key",
-        "source_object_key", "org_id", "consent_org_id", "project_id", "inspection_id",
+        "source_object_key", "org_id", "consent", "consent_org_id", "project_id", "inspection_id",
         "spatial_node_id", "spatial_breadcrumb", "trade", "inspection_type", "inspection_category",
         "captured_at", "uploaded_at", "device", "content_type", "file_size", "annotation_version",
         "annotations", "licence", "anonymised", "run_id"})
@@ -33,6 +42,7 @@ public record DatasetManifestLine(
         @JsonProperty("object_key") String objectKey,
         @JsonProperty("source_object_key") String sourceObjectKey,
         @JsonProperty("org_id") Long orgId,
+        @JsonProperty("consent") boolean consent,
         @JsonProperty("consent_org_id") Long consentOrgId,
         @JsonProperty("project_id") Long projectId,
         @JsonProperty("inspection_id") UUID inspectionId,
