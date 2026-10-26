@@ -230,7 +230,7 @@ public class UserService {
                 case "dateOfBirth" -> user.setDateOfBirth(parseDateOfBirth(value));
                 case "qualification" -> user.setQualification((String) value);
                 case "address" -> user.setAddress((String) value);
-                case "experience" -> user.setExperience(value != null ? ((Number) value).intValue() : null);
+                case "experience" -> user.setExperience(parseExperience(value));
                 case "cvUrl" -> user.setCvUrl((String) value);
                 case "emergencyContact" -> user.setEmergencyContact((String) value);
                 case "role" -> user.setRole(value != null ? UserRole.valueOf((String) value) : null);
@@ -243,6 +243,24 @@ public class UserService {
                 default -> PartialUpdateKeys.reportUnknown(logger, "user", user.getId(), key);
             }
         });
+    }
+
+    /**
+     * Years of experience as a whole number. Jackson gives 4 as Integer and 4.0 as Double, so
+     * both are read through {@link Number}; a fraction or a value past the int range is refused
+     * rather than truncated.
+     */
+    private Integer parseExperience(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            double asDouble = number.doubleValue();
+            if (asDouble == Math.rint(asDouble) && asDouble >= Integer.MIN_VALUE && asDouble <= Integer.MAX_VALUE) {
+                return number.intValue();
+            }
+        }
+        throw new IllegalArgumentException("experience must be a whole number of years");
     }
 
     private Long parseDefaultOrganizationId(Object value) {

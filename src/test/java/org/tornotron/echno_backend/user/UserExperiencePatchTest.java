@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -40,15 +41,33 @@ class UserExperiencePatchTest {
 
     @InjectMocks private UserService service;
 
-    @Test
-    @DisplayName("experience sent as 4.0 is applied as 4")
-    void experienceAsDouble_isApplied() {
+    private User storedUser() {
         User user = new User();
         when(userRepository.findById(3L)).thenReturn(Optional.of(user));
         when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+        return user;
+    }
+
+    @Test
+    @DisplayName("experience sent as 4.0 is applied as 4")
+    void experienceAsDouble_isApplied() {
+        User user = storedUser();
 
         service.partialUpdateAnUser(Map.of("experience", 4.0), 3L);
 
         assertThat(user.getExperience()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("a fractional or out-of-range experience is refused, not truncated")
+    void nonWholeExperience_isRefused() {
+        User user = storedUser();
+        user.setExperience(2);
+
+        assertThatThrownBy(() -> service.partialUpdateAnUser(Map.of("experience", 4.9), 3L))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.partialUpdateAnUser(Map.of("experience", 3_000_000_000L), 3L))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(user.getExperience()).isEqualTo(2);
     }
 }

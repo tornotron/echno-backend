@@ -73,7 +73,7 @@ public class KeycloakUserProvisioningService {
         try (Response response = usersResource.create(userRepresentation)) {
             if (response.getStatus() == 409) {
                 // A user created between the checks above and this call.
-                throw duplicateFromConflict(response, username);
+                throw duplicateFromConflict(response, username, email);
             }
             if (response.getStatus() != 201) {
                 throw new RuntimeException("Failed to create user '" + username + "' in Keycloak (status " + response.getStatus() + ")");
@@ -128,18 +128,33 @@ public class KeycloakUserProvisioningService {
     }
 
     /**
-     * Keycloak answers a duplicate with 409 and an {@code errorMessage} such as "User exists
-     * with same username" or "... same email". Anything that does not mention the email is
-     * reported as a username clash, the case the pre-check cannot fully close.
+     * Keycloak answers a duplicate with 409 and an {@code errorMessage} of "User exists with
+     * same username", "... same email", or the generic "... same username or email". The first
+     * two name the field. For the generic one (or an unreadable body) the clashing user exists by
+     * now, so look again; a username clash is the fallback when that also finds nothing.
      */
-    private DuplicateResourceException duplicateFromConflict(Response response, String username) {
+    private DuplicateResourceException duplicateFromConflict(Response response, String username, String email) {
         String body = "";
         try {
-            body = String.valueOf(response.readEntity(String.class));
+            body = String.valueOf(response.readEntity(String.class)).toLowerCase(Locale.ROOT);
         } catch (Exception e) {
             logger.debug("Could not read the Keycloak 409 body: {}", e.getMessage());
         }
-        return body.toLowerCase(Locale.ROOT).contains("email") ? emailTaken() : usernameTaken(username);
+        if (body.contains("same username or email") || (!body.contains("same username") && !body.contains("same email"))) {
+            try {
+                UsersResource users = keycloak.realm(realm).users();
+                if (!users.searchByUsername(username, true).isEmpty()) {
+                    return usernameTaken(username);
+                }
+                if (!users.searchByEmail(email, true).isEmpty()) {
+                    return emailTaken();
+                }
+            } catch (Exception e) {
+                logger.warn("Could not tell which field clashed after a Keycloak 409: {}", e.getMessage());
+            }
+            return usernameTaken(username);
+        }
+        return body.contains("same email") ? emailTaken() : usernameTaken(username);
     }
 
     private boolean exists(Supplier<List<UserRepresentation>> search, String what, String value) {
