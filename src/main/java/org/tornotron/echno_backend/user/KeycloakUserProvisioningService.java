@@ -14,6 +14,8 @@ import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.function.Supplier;
 
 /**
  * Provisions the Keycloak identity backing an application user: create (with an
@@ -30,6 +32,10 @@ public class KeycloakUserProvisioningService {
 
     private static final Logger logger = LoggerFactory.getLogger(KeycloakUserProvisioningService.class);
 
+    /** Request field names in {@link UserRegistrationDto}, used to tell the form which field is taken. */
+    static final String USERNAME_FIELD = "userName";
+    static final String EMAIL_FIELD = "email";
+
     private final Keycloak keycloak;
 
     @Value("${keycloak-initializer.application-realm}")
@@ -44,11 +50,15 @@ public class KeycloakUserProvisioningService {
      * password, and best-effort assigns the default {@code user} realm role.
      *
      * @return the new Keycloak user id.
-     * @throws DuplicateResourceException if a user with the email already exists.
+     * @throws DuplicateResourceException if the username or the email is already taken,
+     *     naming the field in either case.
      */
     public String createUser(String username, String email, String password) {
-        if (userExists(email)) {
-            throw new DuplicateResourceException("User with email '" + email + "' already exists in Keycloak");
+        if (exists(() -> keycloak.realm(realm).users().searchByUsername(username, true), "username", username)) {
+            throw usernameTaken(username);
+        }
+        if (exists(() -> keycloak.realm(realm).users().searchByEmail(email, true), "email", email)) {
+            throw emailTaken();
         }
 
         UsersResource usersResource = keycloak.realm(realm).users();
@@ -61,6 +71,10 @@ public class KeycloakUserProvisioningService {
 
         String keycloakId;
         try (Response response = usersResource.create(userRepresentation)) {
+            if (response.getStatus() == 409) {
+                // A user created between the checks above and this call.
+                throw duplicateFromConflict(response, username, email);
+            }
             if (response.getStatus() != 201) {
                 throw new RuntimeException("Failed to create user '" + username + "' in Keycloak (status " + response.getStatus() + ")");
             }
@@ -101,13 +115,54 @@ public class KeycloakUserProvisioningService {
         }
     }
 
-    private boolean userExists(String email) {
+    static DuplicateResourceException usernameTaken(String username) {
+        return new DuplicateResourceException(
+                "The username '" + username + "' is already taken. Please choose a different username.",
+                USERNAME_FIELD);
+    }
+
+    static DuplicateResourceException emailTaken() {
+        return new DuplicateResourceException(
+                "An account with this email already exists. Please sign in, or register with a different email.",
+                EMAIL_FIELD);
+    }
+
+    /**
+     * Keycloak answers a duplicate with 409 and an {@code errorMessage} of "User exists with
+     * same username", "... same email", or the generic "... same username or email". The first
+     * two name the field. For the generic one (or an unreadable body) the clashing user exists by
+     * now, so look again; a username clash is the fallback when that also finds nothing.
+     */
+    private DuplicateResourceException duplicateFromConflict(Response response, String username, String email) {
+        String body = "";
         try {
-            UsersResource usersResource = keycloak.realm(realm).users();
-            List<UserRepresentation> users = usersResource.search(email, true);
-            return !users.isEmpty();
+            body = String.valueOf(response.readEntity(String.class)).toLowerCase(Locale.ROOT);
+        } catch (Exception e) {
+            logger.debug("Could not read the Keycloak 409 body: {}", e.getMessage());
+        }
+        if (body.contains("same username or email") || (!body.contains("same username") && !body.contains("same email"))) {
+            try {
+                UsersResource users = keycloak.realm(realm).users();
+                if (!users.searchByUsername(username, true).isEmpty()) {
+                    return usernameTaken(username);
+                }
+                if (!users.searchByEmail(email, true).isEmpty()) {
+                    return emailTaken();
+                }
+            } catch (Exception e) {
+                logger.warn("Could not tell which field clashed after a Keycloak 409: {}", e.getMessage());
+            }
+            return usernameTaken(username);
+        }
+        return body.contains("same email") ? emailTaken() : usernameTaken(username);
+    }
+
+    private boolean exists(Supplier<List<UserRepresentation>> search, String what, String value) {
+        try {
+            List<UserRepresentation> users = search.get();
+            return users != null && !users.isEmpty();
         } catch (Exception ex) {
-            throw new DatabaseOperationException("Failed to check whether user with email '" + email + "' exists in Keycloak: " + ex.getMessage());
+            throw new DatabaseOperationException("Failed to check whether a user with " + what + " '" + value + "' exists in Keycloak: " + ex.getMessage());
         }
     }
 }
